@@ -1,0 +1,39 @@
+{
+  "schema": "brain-host-source-view-proof-contract-rehearsal-v1",
+  "created_utc": "2026-10-14T03:43:00Z",
+  "supersedes": "portability-dr-source-view-proof-contract-2026-10-14T0341Z.json",
+  "scenario": "synthetic_pytest_only",
+  "source_view_proof_schema": "brain-host-source-view-proof-v1",
+  "claims": {
+    "six_recovery_set_members_reverified": true,
+    "member_artifact_hashes_bound": true,
+    "capture_inventory_commitments_rederived_from_verified_artifacts": true,
+    "source_volume_and_root_bound_to_explicit_expected_values": true,
+    "source_view_proof_rejected_unknown_closure": true,
+    "source_view_proof_rejected_unsupported_real_scenario": true,
+    "source_root_closure_verified": false,
+    "application_recovery_qualified": false,
+    "factory_reset_ready": false,
+    "apfs_snapshot_created_or_mounted": false,
+    "owner_or_protected_payload_accessed": false,
+    "provider_requests_sent": 0,
+    "services_activated": false
+  },
+  "verification": {
+    "command": ".venv/bin/python -m pytest -q tests/test_brain_host_source_view_proof_v1.py tests/test_brain_host_recovery_frontier.py tests/test_brain_host_recovery_set.py",
+    "result": "29 passed in 3.79s",
+    "ruff": "passed",
+    "hypothesis_property": "all permutations of the seven event times accepted only in strict chronological order"
+  },
+  "source_sha256": {
+    "tools/brain_host_source_view_proof_v1.py": "11b354c1d955a00ea8553ed241a22adc2e8acc0c02b6d714b177f48f9a8ea8ce",
+    "tools/brain_host_recovery_set.py": "a0607ec3d3be34e8b7cc2dedf89969d1d6f7048c1220c7a1da94d58ab85b1cbf",
+    "tests/test_brain_host_source_view_proof_v1.py": "42e9adb640b90f25c5243510a4c641810aed87c584a31042562344c00aced57b"
+  },
+  "limitations": [
+    "The fixture uses synthetic roots and does not establish an OS snapshot identity or held APFS descriptor.",
+    "The root locator digest and closure rows are synthetic fixture inputs; this verifier does not prove a real source path is inside a mounted snapshot.",
+    "Tree page references and SQLite backup hashes are bound to the proof, but xattrs, ACLs, flags, uid/gid parity, and application semantics are not qualified.",
+    "No K journal prefix, clean-host restore, complete owner/protected custody, or erase readiness is established."
+  ]
+}

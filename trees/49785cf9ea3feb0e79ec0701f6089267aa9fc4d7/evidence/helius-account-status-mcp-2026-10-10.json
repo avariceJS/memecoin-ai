@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "source": "Helius MCP heliusAccount",
+  "captured_at": "2026-10-10T01:33:00Z",
+  "queries": [
+    {
+      "action": "getAccountStatus",
+      "result": "authenticated; API key configured; credit usage unavailable because no JWT session was found"
+    },
+    {
+      "action": "getAccountPlan",
+      "result": "API key configured; plan unknown"
+    }
+  ],
+  "limitations": [
+    "The MCP account tool did not expose the connected key's active plan, request/credit balance, or remaining quota.",
+    "No signup, key mutation, plan change, purchase, or paid RPC request was made.",
+    "These account-tool results are not captured RPC acquisitions and do not establish collector request accounting."
+  ]
+}

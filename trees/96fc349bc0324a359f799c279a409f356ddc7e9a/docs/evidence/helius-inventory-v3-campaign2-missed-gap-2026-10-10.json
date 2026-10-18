@@ -1,0 +1,122 @@
+{
+  "campaign": {
+    "accounting_error_class": null,
+    "active_reservation_status": "reconciled",
+    "attempt_count": 1,
+    "campaign_id": "helius-inventory-v3-20261010-2",
+    "campaign_stop_reason": "missed_schedule_gap_requires_review",
+    "epoch_summary_sha256": "a500bf557df4520ffa241a73eec4e180fe537ba95ca02b42f5f2dd21dd83727f",
+    "frame_reservation_sha256": "d177813e54b10c2e65e3d42733f53628f6dc92b630539fdd4cd8eec71148a6da",
+    "manifest_sha256": "cfa47d60378f5f541c5b14d293e0b3d5e402d290567020f78bdf8deff4468cbd",
+    "missed_schedule_buckets": [
+      "20261010T030000Z"
+    ],
+    "stop_sha256": "da160ec4cf3ad3ca4e0804175d33d53ad605253d6ce57be5e5d9665306b0005a",
+    "usage": {
+      "raw_bytes": 43,
+      "requests": 1,
+      "stored_bytes": 56
+    }
+  },
+  "controller": {
+    "aggregate_caps": {
+      "raw_bytes": 12000000000,
+      "requests": 2451,
+      "stored_bytes": 3000000000
+    },
+    "campaign_count": 2,
+    "controller_id": "helius-inventory-controller-20261010-72h-recovery-v1",
+    "controller_state_sha256": "5576ebf37a4f80c934fd141cc144fa7b085df2817f56b923d8324f8475b22dba",
+    "controller_stop_reason": "abnormal_predecessor_stop:ValueError",
+    "controller_stop_sha256": "8a298c7426343f4b4dca138d0bc39669ed7382f229f7644d4a82539ba99cbfe0",
+    "lease_expires_ns": 1791857399642968000,
+    "lease_start_ns": 1791598199642968000,
+    "max_campaigns": 3,
+    "note": "Controller admitted no successor after the campaign STOP failed its unchanged normal-campaign verifier; actual campaign-2 usage is recorded independently below.",
+    "policy_sha256": "b614cac13ae0ab770f15364d327cefb81b10e5f1bf5ee46d7ec98002757df392",
+    "stopped_aggregate_usage": {
+      "raw_bytes": 0,
+      "requests": 0,
+      "stored_bytes": 0
+    }
+  },
+  "epoch": {
+    "anchor_availability_ns": 1791605106134330000,
+    "anchor_receipt_ns": 1791605106134330000,
+    "anchor_slot": 455116880,
+    "attempt_context_sha256": "0d2be928bbdadb777105360073ca0ff1dd79e8cf2d0845067906973419de987b",
+    "block_body_requests": 0,
+    "bucket": "20261010T040000Z",
+    "capture_receipt_sha256": "a7490be3bdeaa7f66e5476db4fa5396c3aabbea473cb093e973082911724aff5",
+    "epoch_stop_sha256": "fa946cd5fa2807959f7156ef19e2123bba7020e1ee192df0033ac7611b41778d",
+    "gap_reset_anchor_only": true,
+    "inventory_requests": 0,
+    "methods": [
+      "getSlot"
+    ],
+    "missed_slot_backfill": false,
+    "plan_sha256": "7b7a5c2dfece0bf5a42455d375a3dab717c21d07ae6ac4508c10691891c2a49c",
+    "provider_charge_status": "unknown_unverified",
+    "provider_charge_units": null,
+    "reason": "bootstrap_complete",
+    "release_actuals": {
+      "actual_raw_bytes": 43,
+      "actual_requests": 1,
+      "actual_stored_bytes": 56
+    },
+    "release_sha256": "c5a9fbaab973822ab0200357154d17388bc7ffad4b8e36a70710558f2aa1d49e",
+    "request_file_sha256": "5428f1a142c24acb31d91219adc606d520b5926c98a0cfd1b6ab3a7ca1ec92b1",
+    "request_result_sha256": "6a1cc0dbd5614a3215fd65cdd1e43cc0517ecd41c2cb20331d4dc33bbac4fc5b",
+    "request_rows": 1,
+    "request_sha256": "0d75a0a237169d718d86d84583a20810a62eb2ad303554c7ee3bfb6ea810b1e8",
+    "reservation_reconciled": true,
+    "response_bytes": 43,
+    "response_sha256": "3d3ebbe98b2315a24a47d24965c9f45df4f0df57c93f604e95f48793aa8fc811",
+    "status": "bootstrap_complete",
+    "stored_bytes": 56,
+    "stored_response_sha256": "a849b40a11351fb81b6b39162c7bb01e55c7f65e9a8d139314bf8658ee815229",
+    "summary_sha256": "a500bf557df4520ffa241a73eec4e180fe537ba95ca02b42f5f2dd21dd83727f"
+  },
+  "evidence_id": "helius-inventory-v3-campaign2-missed-gap-20261010",
+  "frontier": {
+    "gap_intervals": [
+      {
+        "bucket": "20261010T000000Z",
+        "interval_end_exclusive": 455061516,
+        "interval_start": 455037817,
+        "reason": "oversized_frame",
+        "receipt": "helius-inventory-v2-oversized-gap-2026-10-10.json"
+      },
+      {
+        "end_exclusive": 455116881,
+        "reason": "missed_schedule_no_backfill",
+        "start": 455082524
+      }
+    ],
+    "inventoried_interval": {
+      "end_exclusive": 455082524,
+      "inventory_sha256": "ba70ab1410ef6aeb1ec170783b176e79b59cef07bb07f49aab120b53acbfaf14",
+      "provider_returned_produced_slots": 16512,
+      "start": 455066012
+    },
+    "observed_anchor_receipt_ns": 1791605106134330000,
+    "observed_anchor_slot": 455116880,
+    "observed_frontier": 455116881,
+    "sha256": "fd01313fc3d675ba14e605f5662c50d85deba41b94edd28ffc584cba4ed2e445"
+  },
+  "provider": "helius-free",
+  "qualification": {
+    "controller_expected_strict_rejection_reason": "predecessor_campaign_stop_abnormal",
+    "controller_expected_strict_rejection_reproduced": true,
+    "exactly_one_request": true,
+    "explicit_no_backfill": true,
+    "one_parsed_finalized_getSlot_anchor": true,
+    "raw_response_included": false,
+    "response_hash_reconciles": true,
+    "successor_created": false,
+    "summary_and_reservation_reconcile": true,
+    "zero_inventory_and_block_requests": true
+  },
+  "schema_version": 1,
+  "sealed_at": "2026-10-10T04:11:34Z"
+}

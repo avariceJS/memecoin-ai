@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-02",
+  "stage": "D34 offline CPMM economic corpus",
+  "provider_stage": "D33 closed by explicit user instruction; previous technical limits retained",
+  "code_commit": "e68c01e509353a18366d4b11e2d9165c13b77a1f",
+  "data_plan": {
+    "code_commit": "e68c01e509353a18366d4b11e2d9165c13b77a1f",
+    "config": {
+      "execution_model": "conditional_transfer_swap_v1; isolated immediate round trip",
+      "execution_qualified": false,
+      "historical_availability": "unknown; receipts are evidence acquisition only",
+      "input_reserve_ppm": [
+        10,
+        100,
+        1000
+      ],
+      "kind": "cpmm_economic_state_tape",
+      "market_dataset_qualified": false,
+      "schema_version": 1,
+      "scope": "fixed cohort; segments between audited finalized checkpoints",
+      "seed": null,
+      "sizing": "floor(effective input reserve * ppm / 1000000), gross wallet input",
+      "temporal_split": null,
+      "training_ready": false
+    },
+    "execution_model": "conditional_transfer_swap_v1; no strategies/fills/training",
+    "kind": "offline_economic_corpus_build",
+    "network_requests": 0,
+    "schema_version": 1,
+    "seed": null,
+    "sources": {
+      "classic": {
+        "path": "work/forward-pilot/frozen-final/journal.sqlite",
+        "sha256": "4186d1f0636c19db18b8b1e32b5466aa9ab525966ae40de77f807742b1d2ded9"
+      },
+      "dependency-index": {
+        "path": "work/history-stage/frozen-index/journal.sqlite",
+        "sha256": "f6269f7e3e92b98d18be3c9a33fafb7923714cd29ec79dabc90687651b5d90ea"
+      },
+      "dependency-range": {
+        "path": "work/history-stage/frozen-range/journal.sqlite",
+        "sha256": "f4348f4200e17e9f2825d4c66248d7d2e6733422aeb25ee67df1e08b20a68809"
+      },
+      "token2022": {
+        "path": "work/token2022-stage/frozen/journal.sqlite",
+        "sha256": "86eb8e6014b52971e993793b2918ae2e0f8c89026f336da7dc206061ba2807dc"
+      }
+    },
+    "temporal_split": null
+  },
+  "corpus_path": "work/economic-corpus-01",
+  "corpus_manifest_sha256": "920c644294f5cd68bb3f3744cf2d59906d999e6e2b4c6a3a0b49e293d1148e1a",
+  "builds": [
+    {
+      "build_seconds": 0.17916512535884976,
+      "consistent": true,
+      "counts": {
+        "accepted_segments": 8,
+        "quarantined_segments": 0,
+        "quoted": 1134,
+        "quotes": 1230,
+        "segments": 8,
+        "states": 205,
+        "transactions": 189,
+        "unavailable_quotes": 96
+      },
+      "manifest_sha256": "c017fd2f46798f1daca0b47ce310f65dda35eb401b9750f0a127402ad0cb94d0",
+      "name": "classic",
+      "offline_reproduced": true,
+      "protocol_counts": {
+        "creator_fee_swaps": 0,
+        "failed": 143,
+        "operations": {
+          "swap_base_input": 42,
+          "swap_base_output": 2
+        },
+        "successful_no_pool_operation": 2,
+        "transactions": 189
+      },
+      "quotes_sha256": "aa9c98e513b29bc5857ec3bde3f2f8da7ef4fc866f7a45d189cdac8f71b87a48",
+      "report_sha256": "59e3b4125d9701f9a523bd4c2dcfc12bdb0452e880909ce70f17c9ad197a10e2",
+      "source_sha256": "4186d1f0636c19db18b8b1e32b5466aa9ab525966ae40de77f807742b1d2ded9",
+      "states_sha256": "b725e8af82c9170f9dcc43fe19db703407825d922d8ba06983b3feb99ae31672",
+      "verify_seconds": 0.16188395861536264
+    },
+    {
+      "build_seconds": 0.3519307910464704,
+      "consistent": true,
+      "counts": {
+        "accepted_segments": 6,
+        "quarantined_segments": 0,
+        "quoted": 2364,
+        "quotes": 2364,
+        "segments": 6,
+        "states": 394,
+        "transactions": 382,
+        "unavailable_quotes": 0
+      },
+      "manifest_sha256": "e9beba10e4b2c6d072326966c6ea9c3f1246a83bacfb1474933814f7326980f9",
+      "name": "token2022",
+      "offline_reproduced": true,
+      "protocol_counts": {
+        "creator_fee_swaps": 132,
+        "failed": 157,
+        "operations": {
+          "harvest_withheld_to_mint": 8,
+          "swap_base_input": 132
+        },
+        "successful_no_pool_operation": 85,
+        "transactions": 382
+      },
+      "quotes_sha256": "a611bb504d11f1bf079e763c47961f0b7b02e61c3adef31203b554893020ab17",
+      "report_sha256": "92778894d431c7f0ce5f43bfba6baa17c349a50512a67545058b27a3a7b68ef4",
+      "source_sha256": "86eb8e6014b52971e993793b2918ae2e0f8c89026f336da7dc206061ba2807dc",
+      "states_sha256": "cfb8bdc1fb263169fa22fdc966cdde122c8d948ac95958e2b4131443cf2153e0",
+      "verify_seconds": 0.35265533393248916
+    },
+    {
+      "build_seconds": 15.920994915999472,
+      "consistent": true,
+      "counts": {
+        "accepted_segments": 1,
+        "quarantined_segments": 0,
+        "quoted": 2742,
+        "quotes": 2742,
+        "segments": 1,
+        "states": 457,
+        "transactions": 455,
+        "unavailable_quotes": 0
+      },
+      "manifest_sha256": "751d2e09be8c690cd5a461104c5ffaa914f8a9629626fa4a49d2a1515809c01a",
+      "name": "dependency-index",
+      "offline_reproduced": true,
+      "protocol_counts": {
+        "creator_fee_swaps": 0,
+        "failed": 200,
+        "operations": {},
+        "successful_no_pool_operation": 255,
+        "transactions": 455
+      },
+      "quotes_sha256": "fe4b337453343fbeb5e04235e4ce82fa2e79656e295eff56c2b20609b9c17a57",
+      "report_sha256": "42eddf716fd1807ee62fc3af61324638c6f48caa1e15ee7376532bdd0df64486",
+      "source_sha256": "f6269f7e3e92b98d18be3c9a33fafb7923714cd29ec79dabc90687651b5d90ea",
+      "states_sha256": "9891b42274cd2a12d8119d86411da831516a14b8baa78405fc972fa17861ffe2",
+      "verify_seconds": 15.872833375353366
+    },
+    {
+      "build_seconds": 29.831378958187997,
+      "consistent": true,
+      "counts": {
+        "accepted_segments": 1,
+        "quarantined_segments": 0,
+        "quoted": 5190,
+        "quotes": 5190,
+        "segments": 1,
+        "states": 865,
+        "transactions": 863,
+        "unavailable_quotes": 0
+      },
+      "manifest_sha256": "9009a4423c69689a36b619f762dc337bddd3c7b509eaf7fc6af617ca30be636a",
+      "name": "dependency-range",
+      "offline_reproduced": true,
+      "protocol_counts": {
+        "creator_fee_swaps": 0,
+        "failed": 353,
+        "operations": {},
+        "successful_no_pool_operation": 510,
+        "transactions": 863
+      },
+      "quotes_sha256": "dbdb7d2d894cfdb7af537c63426a01b51313b7a38ec3ce2429e3750078f5069b",
+      "report_sha256": "1eba692d93f0f2ec5647db044455d82bc8218fceae546ea94dec8c5c9a3938c9",
+      "source_sha256": "f4348f4200e17e9f2825d4c66248d7d2e6733422aeb25ee67df1e08b20a68809",
+      "states_sha256": "b4ac1f44e983dc34a040aff16c7aa0f8b0c2cdeab0c12841c771f68db57b91f0",
+      "verify_seconds": 30.116470417007804
+    }
+  ],
+  "totals": {
+    "accepted_segments": 16,
+    "quarantined_segments": 0,
+    "quoted": 11430,
+    "quotes": 11526,
+    "segments": 16,
+    "states": 1921,
+    "transactions": 1889,
+    "unavailable_quotes": 96
+  },
+  "phase_counts": {
+    "start_checkpoint": 16,
+    "end_checkpoint": 16,
+    "transaction": 1889
+  },
+  "distinct_pools": 5,
+  "distinct_signatures": 1889,
+  "transaction_slots": 127,
+  "slot_envelope": [
+    452384039,
+    452408973
+  ],
+  "slot_envelope_is_continuous_coverage": false,
+  "unavailable_quote_reasons": {
+    "unknown or pre-open chain timestamp": 96
+  },
+  "quotes_are_independent_observations": false,
+  "isolated_roundtrip_positive_count": 0,
+  "historical_available_ns": "null for all state rows",
+  "network_requests": 0,
+  "checks": {
+    "tests": 264,
+    "lint": true,
+    "format": true,
+    "strict_typing": true,
+    "smoke": true,
+    "sdist_wheel": true,
+    "all_four_bundles_offline_reproduced": true,
+    "wheel_token2022_verification": true,
+    "original_journals_unchanged": true,
+    "corpus_manifest_verified": true
+  },
+  "market_dataset_qualified": false,
+  "training_ready": false,
+  "execution_qualified": false,
+  "edge_established": false,
+  "next_step": "Causal observations/features with explicit availability and gap masks, then a bounded forward corpus with observed receipts. No further whole-network provider trace chase."
+}

@@ -1,0 +1,90 @@
+{
+  "artifacts": {
+    "inventory": "bb86d40779a7fbe6f62963b6a3895acc3d1eb35df97f74d6951c3ea0cc4acb8f",
+    "logical_target": "5aabb6663606fc6414216e0c2764f9e1626d46b729b6c37671619214fecfd9d7",
+    "observation_source": "5ac2750cb38fc6add272010c0f897887f193502fd21abdcfbcdacf1057d47dac",
+    "process": "a8db82e34b63545f39e565f19da46130eacce17ae417f1540b315ebc89410a50",
+    "reconciliation": "d29a3ca8d804fd9220913b0d863b028ba8c608face5691aef8216f2073fbdbe2",
+    "reference_audit": "3d421891b76f441bc9d6287e4ad09bc2b5b6a14eb8455025c97e69ef3385e9cd",
+    "v3_schema": "1fe41786e5137498912a6b3b42657aaecb1aecb194ded784ef79f5299f638503",
+    "v3_snapshot": "13738f364f103be9a7a32ec871e6f59f91bb8457001010e1198ba3a80a046814"
+  },
+  "code_sha256": {
+    "src/memecoin_experience/block_inventory.py": "471d30a6e94218d29f363f01e51e850a232c383d36d651f3dd1f24a843eafc67",
+    "src/memecoin_experience/block_reconciliation.py": "6af1f33e163678f52ff3087e8d74029cfbcdbc4294f53f2faa0ff9d45e1e63ca",
+    "src/memecoin_experience/composition.py": "e286b3a59a646009936a3a25b1fb3bc1fb5978c665cb9b25db3cfa29d724ccb4",
+    "src/memecoin_experience/coordinate_samples.py": "d93447b9d9ef8b69b27cd4f9ae1886a7d5dbec1e8eaae3b6c2cb2928fff315e3",
+    "src/memecoin_experience/evaluation.py": "95b696bdfae7cd25cff79cd55fca54d2b63f7e1ed26c43c8776007b0f3cf7aaa",
+    "src/memecoin_experience/learning.py": "a514cc30517d7fe33e98ee47ba2597087126f0725760125bee82117861839ff2",
+    "src/memecoin_experience/observations.py": "56a4264083343516d05747cd01bff653da0d0103c0dcf2b02b87c698b25a46fc",
+    "src/memecoin_experience/schema.py": "e22546f2957a01d0dececb13ba4ebcaf9dcfa089ea953c66fc31fbd9e16244e1",
+    "src/memecoin_experience/storage.py": "4fd4d399797a177b8af8feac8474622d6c12d29b0c7f19d08166ca02328992d4",
+    "src/memecoin_pumpswap/slot_invocations.py": "e311ab27952e9fd45b64e89727f549cccf6543a85f4e7ee8b01d46f449e2f6f2",
+    "src/memecoin_pumpswap/slot_targets.py": "bac28382e161b0bfd47acab3c77aa4f1cb2f1e23a5f53595028fd7150ad07530"
+  },
+  "date": "2026-10-09",
+  "limitations": [
+    "Only two adjacent slots and one target matured; no independent model split or empirical baseline comparison is supportable.",
+    "Provider-reported complete blocks do not prove exhaustive RPC responses or complete market-process coverage.",
+    "No market inactivity, provider-independent death, economic swap semantics, or historical point-in-time availability is established.",
+    "No training fit or learning-gain claim was made."
+  ],
+  "observation": {
+    "coordinate_domain": "pinned Solana finalized slot; UTC availability is separate",
+    "exact_target_count": 87,
+    "fit_allowed": false,
+    "historical_decision_ns": null,
+    "horizon_slots": 1,
+    "independent_train_validation_test_split": false,
+    "matured_exact_examples": 1,
+    "next_origin_status": "pending",
+    "provider_agreement_slots": 2,
+    "references_in_failed_transactions": 49,
+    "references_in_successful_transactions": 98,
+    "replica_revalidated": true,
+    "shared_exact_target_cells": 1,
+    "shared_objective_batch_rows": 1,
+    "slot_interval_half_open": [
+      454538109,
+      454538111
+    ],
+    "snapshot_rows": 2,
+    "structural_instruction_reference_facts": 147,
+    "transaction_projections_compared": 2066
+  },
+  "preserved_states": [
+    "exact",
+    "pending",
+    "failed",
+    "stopped",
+    "skipped-with-lineage-proof",
+    "unknown",
+    "unsupported"
+  ],
+  "purpose": "bounded real-source integration evidence for native-coordinate sensing; not a model result",
+  "reproducible_checks": {
+    "focused_lint_format": "passed",
+    "make_check": {
+      "control_center_passed": 39,
+      "mypy_files": 59,
+      "passed": 1319,
+      "skipped": 25,
+      "snapshot_export": "exact"
+    },
+    "make_smoke": {
+      "scope": "synthetic engineering only",
+      "status": "passed"
+    },
+    "ml_focused": {
+      "passed": 87,
+      "skip_reason": "CUDA-only qualification test",
+      "skipped": 1
+    },
+    "offline_replay_and_replica": "passed",
+    "target_semantics": "fractional counts rejected; pending maturity distinct from incomplete support"
+  },
+  "source_revision": "fd748de4eefd2802da23cd8286a34e64baa311b4",
+  "source_trust": "provider_reported_finalized_facts with cross-provider consistency and verified local lineage; not a cryptographic or global-ledger completeness proof",
+  "target_semantics": "recognized PumpSwap instruction-reference count; references are not asserted to be executed economic swaps, especially for failed transactions",
+  "version": "brain-native-slot-experience-v1"
+}

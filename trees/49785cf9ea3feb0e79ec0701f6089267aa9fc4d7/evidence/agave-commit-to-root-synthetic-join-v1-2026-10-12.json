@@ -1,0 +1,88 @@
+{
+  "contract": "agave_commit_to_root_synthetic_join_v1",
+  "fixture": "tests/fixtures/brain_senses_agave_commit_to_root_join_v1.json",
+  "fixture_sha256": "b4d3c1554ab088131e1d7b23cae7466b00836fe3e149283086b60945e76b6776",
+  "focused_tests": "19 passed",
+  "observed_at_utc": "2026-10-12T07:39:23Z",
+  "schema": "agave-commit-to-root-synthetic-join-reproduction-receipt-v1",
+  "scope": {
+    "cargo": false,
+    "economic_qualification": false,
+    "protected_data": false,
+    "provider_io": false,
+    "runtime_qualification": false,
+    "synthetic_only": true
+  },
+  "source_map_receipt": "docs/evidence/agave-v3-transaction-persistence-finality-source-map-2026-10-12.json",
+  "source_map_receipt_sha256": "2af1c308cae82cb168b1b35e8aca350af51eb94ed821f9b15a37ef486ee9d0f1",
+  "status": "synthetic_join_consistent",
+  "test": "tests/brain/test_senses_agave_commit_to_root_join_v1.py",
+  "test_sha256": "9ae14d87a9e1ad0b4ae2edef13d138846f4d3ae82b1889dcd86c193e8021d188",
+  "verdict": {
+    "claims": {
+      "buyExact25_qualified": false,
+      "candidate_position_admitted": false,
+      "native_settlement_qualified": false,
+      "point_in_time_eligible": false,
+      "runtime_law_qualified": false,
+      "source_qualified": false
+    },
+    "contract": "agave_commit_to_root_synthetic_join_v1",
+    "disposition_counts": {
+      "executed_failed": 1,
+      "executed_success": 1,
+      "fees_only": 1
+    },
+    "joined_attempt_count": 3,
+    "joins": [
+      {
+        "absolute_block_transaction_index": 40,
+        "attempt_id": "attempt-0",
+        "bank_hash": "hash-A",
+        "bank_instance_id": "bank-A",
+        "block_hash": "block-A",
+        "candidate_trace_status": "synthetic_trace_bound",
+        "commit_batch_id": "batch-7",
+        "commit_batch_index": 0,
+        "disposition": "executed_success",
+        "entry_hash": "entry-0",
+        "fee_nonce_disposition": "separate_commit_result",
+        "program_write_disposition": "unqualified"
+      },
+      {
+        "absolute_block_transaction_index": 41,
+        "attempt_id": "attempt-1",
+        "bank_hash": "hash-A",
+        "bank_instance_id": "bank-A",
+        "block_hash": "block-A",
+        "candidate_trace_status": "attempted_only",
+        "commit_batch_id": "batch-7",
+        "commit_batch_index": 1,
+        "disposition": "executed_failed",
+        "entry_hash": "entry-1",
+        "fee_nonce_disposition": "separate_rollback_effect",
+        "program_write_disposition": "rolled_back"
+      },
+      {
+        "absolute_block_transaction_index": 42,
+        "attempt_id": "attempt-2",
+        "bank_hash": "hash-A",
+        "bank_instance_id": "bank-A",
+        "block_hash": "block-A",
+        "candidate_trace_status": "unavailable_fees_only",
+        "commit_batch_id": "batch-7",
+        "commit_batch_index": 2,
+        "disposition": "fees_only",
+        "entry_hash": "entry-2",
+        "fee_nonce_disposition": "rollback_accounts",
+        "program_write_disposition": "no_executed_trace"
+      }
+    ],
+    "schema": "agave_commit_to_root_synthetic_join_verdict_v1",
+    "selected_root_bank_hash": "hash-A",
+    "source_map_sha256": "2af1c308cae82cb168b1b35e8aca350af51eb94ed821f9b15a37ef486ee9d0f1",
+    "status": "synthetic_join_consistent"
+  },
+  "verifier": "tools/brain_senses_agave_commit_to_root_join_v1.py",
+  "verifier_sha256": "fbea007a6de32736249c6776ac1c740be4175e4d14af108604d2f025cca3f40a"
+}

@@ -1,0 +1,81 @@
+{
+  "at_ns": 1791754027677592000,
+  "base_commit": "e148b0793fae7c41b7b17848b76cf32a4dc97581",
+  "baseline_mypy": {
+    "errors": 36,
+    "files": 5,
+    "unchanged_from_base": true
+  },
+  "control_center_python_check": {
+    "projection_reproduction": "passed",
+    "tests_passed": 39
+  },
+  "focused_tests": {
+    "command": ".venv/bin/pytest -q tests/test_brain_senses_external*",
+    "passed": 78
+  },
+  "full_pytest": {
+    "missing_tools_import_errors": 3,
+    "optional_ml_skips": 13,
+    "status": "collection_failed"
+  },
+  "limits": [
+    "Full repository make check is not green.",
+    "No formal baseline-versus-patched security pipeline claim.",
+    "No provider activation or economic/model qualification from this receipt."
+  ],
+  "make_check": {
+    "errors": 107,
+    "status": "failed_preexisting_lint",
+    "unchanged_source_files": [
+      "src/memecoin_collector/wss_campaign.py",
+      "src/memecoin_collector/wss_reference.py",
+      "tests/brain/test_senses_wss_campaign.py",
+      "tests/brain/test_senses_wss_initial_entry_v2.py",
+      "tools/brain_senses_activation_preflight_verifier_v1.py",
+      "tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py",
+      "tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py",
+      "tools/brain_senses_wss_initial_entry_v2.py"
+    ]
+  },
+  "make_smoke": "passed synthetic only",
+  "new_file_format": "15 files passed",
+  "new_file_ruff": "passed",
+  "qualification_receipts": [
+    {
+      "path": "docs/evidence/senses-storage-detach-qualification-2026-10-12-v5.json",
+      "sha256": "68bcf9e39b63a30e3f91e75d6221b0a3d6662dc20b9029f57f1af4bdfa37b8b0"
+    },
+    {
+      "path": "docs/evidence/senses-kingston-writer-qualification-2026-10-12-v4.json",
+      "sha256": "c919bdbc551d47f4dba2c56d892deed3e9580022dbefe49b8651640ce9e2d6c0"
+    },
+    {
+      "path": "docs/evidence/senses-external-recovery-qualification-2026-10-12-v5.json",
+      "sha256": "acbe677bc5a948b7aaaa58c0fac26ac069bc7fdb4869ee5cde7ce99ddaa71985"
+    }
+  ],
+  "schema": "external-v1-engineering-validation",
+  "source_sha256": {
+    "src/memecoin_ai/domain.py": "8123b98462fb822ec6c27d3f7eadbea0a6daf782165e92d369c1a9a77526a1c2",
+    "src/memecoin_ai/sources.py": "7957340a16896bb9cec6ba744590c1bb75c9d02c21dc3fb1877eb1375297f861",
+    "src/memecoin_ai/storage.py": "2ed486d3b802f164d403eefe079407394bab3c10056b9246b04a723dbb8cc077",
+    "src/memecoin_collector/private_config.py": "17a3d905898655eb841c0973523c00e8e726babc1a4f70d589d616a6809e85e7",
+    "src/memecoin_pumpswap/normalize.py": "7253588560626c6f45ed65ebfd802200f20e79e2daec88fadb93d34731e84643",
+    "src/memecoin_pumpswap/schema.py": "dafd0708aad54224565863c3b23deee8440ef3fbcd2c1e7b5ce7629e2a6d5ad1",
+    "src/memecoin_research_storage/__init__.py": "672f6d1af8291579a9a2b0d25343f11b23875b4dd9f4598658d95d034e0dfbd5",
+    "tools/brain_senses_block_epoch_v2.py": "c3d1d0e4d9824ebd6c67c5e292471b5378249e96c26f16c70cd6f4f26ed33555",
+    "tools/brain_senses_block_epoch_v3_schedule.py": "ee4e643ab194d736b5ebfdbf684cbb9caee4e6b78f3673af5bf483be452c2633",
+    "tools/brain_senses_block_provider_pilot.py": "c2a56de9e0f3ef740967345908dca2a120022e11434ce9ec4ca8251e095ebe3f",
+    "tools/brain_senses_external_clock_v1.py": "3e3dccb8c381e1e1ba5c23ab3f0d4f18b5db0776d43d66131a73ef8a2665bc5d",
+    "tools/brain_senses_external_launch_v1.py": "a1015aabf396c79f6b9dcc3d8a2ed30c36c7867a4aebacf33dd33dfc3a5878e6",
+    "tools/brain_senses_external_orchestrator_v1.py": "f26a058919f77bd05040d0a547245a6637cfd6ec2225ee18c51a3015cf5492d3",
+    "tools/brain_senses_external_schema_v1.py": "4bea273a76621d4b0f2969a44f12a1ce31bf3bdcb2a20cf87c1dfab91c293708",
+    "tools/brain_senses_external_verify_v1.py": "b3e8fec73b61725dc2119d589f5d0dfd6de79081d5abc508405a8d50f03805f6",
+    "tools/brain_senses_external_writer_v1.py": "d1407ad17d8819331cc034e75f1425460f836c3644a9527fe4a393d7445ea936",
+    "tools/brain_senses_program_watch.py": "1d8fdd1bd055a1b859ff95b5f5082fd533f4b37467c317cc34102d04b0d82917",
+    "tools/brain_senses_service_v1.py": "e3b06f3e06d5f732fa61f431e21a36692592542095c6dd076d18f7723896f299",
+    "tools/brain_senses_service_v1_runner.py": "0ba5cf496f6020fec62c21fbca86c683a9420557b403b69ae707c6b583b42d71"
+  },
+  "targeted_mypy": "launch, clock, independent verifier passed"
+}

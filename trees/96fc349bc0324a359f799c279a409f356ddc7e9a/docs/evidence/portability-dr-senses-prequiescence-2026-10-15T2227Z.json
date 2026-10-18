@@ -1,0 +1,120 @@
+{
+  "activation": {
+    "activation_id": "6a90d12acd7779d966ca5f4827419f7c",
+    "all_pinned_source_blobs_match_current_checkout": false,
+    "capture_authorized": true,
+    "epoch_sha256": "1bdb11cb728389f099567682d949f2b539609db8ef13b7a5b202d807dafaf940",
+    "plist_sha256": "938337214c0f752e5c6d61fb467e8045034f2844e0ae5c29c00688c2bd5d23d3",
+    "population_sha256": "938ee425361c27e03f18a123bcdf3d35edbbfafe719c12324c517b408c1cbc8d",
+    "release_id": "94da5c80bdd82308ebbad0c8f2e158b3",
+    "schema": "brain-senses-gecko-capture-v6-activation",
+    "schema_version": 6,
+    "selector_sha256": "d0757943a2021a02e706b38c94e13d9dc968cfbf9d74db39f0380a7729b7d8d6",
+    "source_commit": "4168a8cec74b27ec901961302ba8f6924a3dbb54",
+    "source_manifest_self_hash_valid": true,
+    "source_manifest_sha256": "d6ef60c0041c4d7df81bf44bac5ce110a8242a7ef0a99bdd5900313c044a67c5",
+    "source_mismatch_count": 1,
+    "source_mismatch_paths": [
+      "src/memecoin_research_storage/__init__.py"
+    ]
+  },
+  "epoch": {
+    "epoch_sha256": "1bdb11cb728389f099567682d949f2b539609db8ef13b7a5b202d807dafaf940",
+    "first_bucket_close_ns": 1791897300000000000,
+    "release_id": "94da5c80bdd82308ebbad0c8f2e158b3"
+  },
+  "git_dirty": false,
+  "git_head": "d72b1de9458408fca5313791595c4500c2f27d87",
+  "journal": {
+    "bytes": 15315,
+    "dispatch_count": 4,
+    "dispatched_without_outcome": 0,
+    "event_count": 21,
+    "intent_count": 5,
+    "kind_counts": {
+      "confirmation": 5,
+      "dispatch": 4,
+      "intent": 5,
+      "missed": 1,
+      "outcome": 5,
+      "plan": 1
+    },
+    "latest_event": {
+      "at_ns": 1791897645610663000,
+      "kind": "confirmation",
+      "status": null
+    },
+    "outcome_count": 5,
+    "sha256": "e201cc5a92915f69a951e267164eed1dc5e6ea099a945766a7b88b0c41aec380",
+    "unresolved_intents": 0
+  },
+  "kingston": {
+    "available_bytes": 216586809344,
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf"
+  },
+  "legacy_v3_v4_capture_labels_loaded": 0,
+  "observed_at_utc": "2026-10-15T22:27:54.764992+00:00",
+  "schema": "portability-dr-senses-prequiescence-v1",
+  "scope": {
+    "protected_payloads_read": false,
+    "provider_requests": 0,
+    "raw_journal_fields_emitted": false,
+    "scheduled_ticks_invoked": false,
+    "secret_values_read": false,
+    "service_changes": false
+  },
+  "services": [
+    {
+      "bucket_close_ns": 1791864900000000000,
+      "enable_state": "enabled_by_default",
+      "keepalive_successful_exit_false": true,
+      "label": "ai.memecoin.brain.senses.gecko-canary-watchdog-v2-3569c27ff9916382c209ea71ef23e345",
+      "loaded": true,
+      "pid": null,
+      "plist_sha256": "28d70b354f7164abe99ce666da9fd8492daf0052a053669e5b6400be161dd374",
+      "receipt": {
+        "deadline_ns": 1791865200000000000,
+        "observed_ns": 1791865227206288000,
+        "record_sha256": "c4d68f61f5d300c4cba1bd21c8388bcd1d36ca3eb750b728e4d38deffde76131",
+        "schema": "brain-senses-gecko-canary-watchdog-v2",
+        "sha256": "4b6cd393a35d376ccd2744050c1d8d01b6e5acf6c2f7e076ce60db9a4bfa9674",
+        "status": "passed"
+      },
+      "release_id": "3569c27ff9916382c209ea71ef23e345",
+      "run_at_load": true,
+      "start_interval_seconds": 15
+    },
+    {
+      "enable_state": "enabled_by_default",
+      "keepalive": false,
+      "label": "ai.memecoin.brain.senses.gecko-capture-only-v6",
+      "loaded": true,
+      "pid": null,
+      "plist_sha256": "938337214c0f752e5c6d61fb467e8045034f2844e0ae5c29c00688c2bd5d23d3",
+      "repo_template_match": true,
+      "run_at_load": false,
+      "start_interval_seconds": 60
+    },
+    {
+      "bucket_close_ns": 1791863100000000000,
+      "enable_state": "enabled_by_default",
+      "keepalive_successful_exit_false": true,
+      "label": "ai.memecoin.brain.senses.gecko-canary-watchdog-v1-c22205dad614fe5d00b6bbe7869a0c3b",
+      "loaded": true,
+      "pid": null,
+      "plist_sha256": "06cf103fadf30339d68b5232a74ff1685d32c4a77b0d9c100a84ede3b5231f5f",
+      "receipt": {
+        "deadline_ns": 1791863400000000000,
+        "observed_ns": 1791863416197923000,
+        "record_sha256": "2835749cf0fb138f82e8a9dcb447e0ac45bdb3c7121ea6db0a08e9bacf8ac1ba",
+        "schema": "brain-senses-gecko-canary-watchdog-v1",
+        "sha256": "379ae2a4adc8c30e3df2adc0655704c385e695634ad0ea7e900c597fe082f51c",
+        "status": "failed_closed"
+      },
+      "release_id": "c22205dad614fe5d00b6bbe7869a0c3b",
+      "run_at_load": true,
+      "start_interval_seconds": 15
+    }
+  ]
+}

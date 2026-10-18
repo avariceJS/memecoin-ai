@@ -1,0 +1,91 @@
+{
+  "schema": "brain-portability-dr-held-data-t-apfs-cli-v1",
+  "observed_at_utc": "2026-10-16T00:04:14Z",
+  "source_commit": "ead469884a9673c3dffd72902de554c999c948c6",
+  "branch": "research/active",
+  "implementation_sha256": {
+    "tools/brain_host_held_data_t_v1.py": "ca0e1c02268e85dcd9e6b2f6de0b3c626b6819c4d5fab8350733263d623d0e40",
+    "tools/brain_host_held_data_t_cli_v1.py": "a7c457f7d88a540c9e8fa151f4fccd9d4d7a8b544d14b39ad20db72af4457979",
+    "tests/test_brain_host_held_data_t_v1.py": "d887c30106924e669bf7ea1dd511fdf43bb2274d79eb8284e98198715684b080",
+    "tests/test_brain_host_held_data_t_cli_v1.py": "a972a422bb2defa5f4cfddc4bcaff788615b7827440dffdea6858e45bdb9571b"
+  },
+  "execution_kit": {
+    "artifact": "candidate-20261014T0640Z-a3.dmg",
+    "kingston_relative_path": "BrainData/host-recovery/offline-execution-kit-v1/candidate-20261014T0640Z-a3.dmg",
+    "image_sha256": "8f65c9d248749153646385bab32eafd1d38014bc08fb430f094fa5be5ebc6640",
+    "mounted_readonly": true,
+    "mounted_volume_uuid": "1e5ec218-4496-4cce-bd66-bc9b7e65c7b9",
+    "bundled_python": "3.13.6",
+    "bundled_python_binary_sha256_before_after": "4407bdbb4b9983a44a024fd5cd03460fc8e89a5f38b4970002da4a1ec5e86295"
+  },
+  "synthetic_apfs_fixture": {
+    "artifact_kind": "disposable sparse APFS image outside repository and owner Data",
+    "image_sha256_before_after": "f3e442adc2edfd1cd103bea957cdbad6396bd0e0f40f1e77fb1bd5637e3b0794",
+    "data_volume_uuid": "6e652e4f-9c38-4a48-887a-530158ba2767",
+    "data_volume_group_id": "6e652e4f-9c38-4a48-887a-530158ba2767",
+    "data_container_reference": "disk9",
+    "data_device_identifier": "disk9s1",
+    "mountpoint": "/Volumes/BRAIN_HELD_DATA_SYNTH",
+    "read_only": true,
+    "system_peer_volume_present": true,
+    "root_roles_present": 8,
+    "verifier_worktree": "absent_unresolved; no directory recreated"
+  },
+  "approved_plan": {
+    "plan_sha256": "36c912699488d844b0f43ad18777346a6ab4f12b9819a116003f07f78b7b052c",
+    "plan_bytes_sha256": "36c912699488d844b0f43ad18777346a6ab4f12b9819a116003f07f78b7b052c",
+    "approval_authority": "external digest match only; no approval authentication"
+  },
+  "procedure": {
+    "command": "tools/brain_host_held_data_t_cli_v1.py --plan <synthetic-plan.json> --plan-sha256 <external-pin> --mountpoint /Volumes/BRAIN_HELD_DATA_SYNTH --private-json-stdout",
+    "python_environment": "pinned bundled Python 3.13.6; env -i with explicit system PATH/HOME",
+    "sandbox": "macOS sandbox denied file reads below /opt/homebrew",
+    "host_backend": "Darwin diskutil, getmntinfo(MNT_NOWAIT), fstatfs, descriptor-relative no-follow opens",
+    "result": "held_readonly_Data_identity_verified",
+    "held_root_count": 8,
+    "root_role_roster_schema_validated": true,
+    "required_role_closure": false,
+    "readonly_alias_mountpoints": [],
+    "identity_uniqueness_scope": "pinned container and current kernel APFS mount table",
+    "global_apfs_uuid_uniqueness_verified": false,
+    "firmlink_provenance": "unknown where material",
+    "mock_backend": false,
+    "mock_backend_meaning": "false indicates real Darwin API use; the mounted APFS source was still a synthetic test image"
+  },
+  "qualification": {
+    "clean_shutdown_verified": false,
+    "prior_writable_mount_history_verified": false,
+    "source_cutoff_verified": false,
+    "T_qualified": false,
+    "capture_complete": false,
+    "kingston_durable": false,
+    "restore_verified": false,
+    "erase_ready": false,
+    "owner_data_read": false,
+    "protected_payload_read": false,
+    "source_payload_bytes_read": false,
+    "provider_requests": 0,
+    "service_changes": false
+  },
+  "integrity_readback": {
+    "execution_kit_image_sha256_unchanged": true,
+    "bundled_python_sha256_unchanged": true,
+    "synthetic_apfs_image_sha256_unchanged": true
+  },
+  "checks": {
+    "focused_tests": 31,
+    "ruff": "passed",
+    "mypy_library": "passed",
+    "mypy_cli": "passed",
+    "git_diff_check": "passed",
+    "sol_review": "accepted bounded read-only identity/locator library and CLI; did not qualify owner Data T or erase readiness"
+  },
+  "limitations": [
+    "The APFS volume was a synthetic test image, not the encrypted owner Data volume or Recovery.",
+    "This qualifies the current Darwin identity and root-locator path only; it is not a source T, capture, Kingston K frontier, restore, or compatible-host rehearsal.",
+    "The fixed roster schema does not establish independent owner-root inventory or closure; verifier_worktree remains absent and unresolved.",
+    "Firmlink provenance is not generically attestable by this layer and remains unknown if material.",
+    "Alias uniqueness is scoped to the pinned APFS container and current kernel mount table; no global uniqueness claim is made for unmounted volumes in other containers.",
+    "No Recovery mount history, no-prior-writable-mount proof, owner/protected custody closure, clean-host restoration, or SAFE TO ERASE conclusion follows."
+  ]
+}

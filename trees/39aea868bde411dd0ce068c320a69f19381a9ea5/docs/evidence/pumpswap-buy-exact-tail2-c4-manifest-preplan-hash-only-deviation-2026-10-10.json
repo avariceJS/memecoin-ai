@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "evidence_id": "pumpswap-buy-exact-tail2-c4-manifest-preplan-hash-only-deviation-2026-10-10",
+  "contract": "pumpswap_buy_exact_tail2_c4_preplan_hash_only_access_deviation_v1",
+  "frame_id": "20261010T230000Z",
+  "preregistration_sha256": "d7b8fc352ef2039a722febbf54465834dd8a954f850905bc3c9fdda5da903350",
+  "event": {
+    "occurred_before_utc": "2026-10-10T23:25:00Z",
+    "exact_time_recorded": false,
+    "command_recorded_exactly": false,
+    "command_description": "The pre-fix CLI of tools/brain_senses_buy_exact_tail2_c4_manifest.py was invoked against the c4 root while only one post-freeze eligible frame existed.",
+    "executed_source_sha256": null,
+    "executed_source_sha256_unavailable_reason": "The pre-fix script was uncommitted and its exact bytes were not preserved; the current corrected source hash cannot identify that earlier execution."
+  },
+  "observed_access": {
+    "compressed_response_files_read_and_sha256_hashed": 34,
+    "request_result_capture_metadata_rows_read": 34,
+    "decompressed": false,
+    "parsed_as_transactions": false,
+    "displayed": false,
+    "classified_or_used_for_outcome_or_selection": false,
+    "manifest_or_other_output_written": false,
+    "rpc_requests": 0,
+    "campaign_state_mutated": false
+  },
+  "result": {
+    "status": "failed_closed_below_four_metadata_complete_frames",
+    "eligible_frame_retained": true,
+    "replacement_frame_selected": false,
+    "audit_independence_status": "retained_with_disclosed_procedural_deviation",
+    "sol_adjudication": "Hashing compressed files for byte identity without decoding, displaying, classifying, or using their contents did not expose an audit outcome or influence selection. Retain the original preregistration and 23:00Z frame; record the deviation. Freeze the final metadata selection and source bindings before any semantic payload read, then run one audit pass.",
+    "withdraw_independent_audit_if_semantic_content_was_exposed_or_used": true
+  },
+  "corrected_builder_source_sha256_at_receipt_creation": "af2b486658c7de3e28ef953411122228c6f749f0be2f65bf46144de1e27c4ec1",
+  "limitations": [
+    "The exact pre-fix command timestamp and executed source bytes cannot be reconstructed from the preserved local evidence.",
+    "This receipt records the procedural deviation; it is not a source manifest, audit plan, audit result, or economic qualification."
+  ]
+}

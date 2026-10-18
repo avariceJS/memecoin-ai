@@ -1,0 +1,57 @@
+{
+  "blocking_gaps": [
+    "no configured Time Machine destination or other verified independent physical replica",
+    "Kingston is the only attached external physical disk and is unencrypted",
+    "internal ignored research state has no complete reset-surviving inventory",
+    "credential and private host-configuration recovery sources are unverified",
+    "protected-data custody and complete owner-runtime recovery were outside authorized rehearsal"
+  ],
+  "not_rehearsed": [
+    "full Kingston corpus inventory, copy, and dependency replay",
+    "ignored internal work/ state classification and restore",
+    "owner runtime bundle, paper/job state, and service restore",
+    "private credential restoration",
+    "F01/D43/reserved holdout content custody"
+  ],
+  "observed_at": "2026-10-13T19:40:40Z",
+  "restore_rehearsal": {
+    "development_dependencies_installed": true,
+    "development_lock_sha256": "13a38c32b3c3ea4af3dc0da61be93ce1a5f5437aeb95b8039f1c31053bb7c7e5",
+    "head": "3f5004b1be9bd09e529f4edce7a4f8306eadcc2a",
+    "host": "Darwin 25.5.0 arm64",
+    "make_smoke": "passed",
+    "method": "fresh remote clone in a temporary checkout",
+    "python": "3.13.6",
+    "smoke_scope": "synthetic engineering check; no edge claim",
+    "worktree_clean_after_setup": true
+  },
+  "result": "not_safe_to_erase",
+  "schema": "brain-portability-dr-rehearsal-v1",
+  "scope": "software and existing storage binding only",
+  "side_effects": {
+    "launchd_changes": 0,
+    "owner_state_changes": 0,
+    "production_or_champion_changes": 0,
+    "prospective_history_changes": 0,
+    "protected_content_read_or_copied": false,
+    "provider_requests": 0
+  },
+  "source": {
+    "branch": "research/active",
+    "clean": true,
+    "head": "3f5004b1be9bd09e529f4edce7a4f8306eadcc2a",
+    "origin_head": "3f5004b1be9bd09e529f4edce7a4f8306eadcc2a"
+  },
+  "storage_check": {
+    "available_bytes": 217316425728,
+    "method": "fresh mode-0600 host binding under a separate temporary config directory",
+    "minimum_free_bytes": 53687091200,
+    "mount_path": "/Volumes/Kingston",
+    "physical_replica_verified": false,
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "root_path": "/Volumes/Kingston/BrainData",
+    "status": "root_verified",
+    "volume_encrypted": false,
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf"
+  }
+}

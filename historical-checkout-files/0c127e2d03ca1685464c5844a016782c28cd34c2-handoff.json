@@ -1,0 +1,50 @@
+{
+  "schema": "brain-dr-bootstrap-handoff-v4",
+  "version": 4,
+  "handoff_id": "21aa605ea7ad4a7b8a61d550c2e5ad67",
+  "supersedes": {
+    "tag_ref": "refs/tags/brain-dr-handoff-v3",
+    "status": "retired_unusable_for_operator_entry",
+    "reason": "It pins an older bootstrap commit without the reviewed v5 inert extraction implementation."
+  },
+  "bootstrap": {
+    "remote": "https://github.com/avariceJS/memecoin-ai.git",
+    "commit": "bb411e841db9587ecaf0403b4d01698a5221aa98",
+    "entry_card_path": "host-recovery/ENTRY-v2.txt",
+    "entry_card_sha256": "f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37",
+    "bootstrap_receipt": "docs/evidence/portability-dr-v5-final-code-clean-clone-extract-e2e-2026-10-16T0710Z.json"
+  },
+  "kingston": {
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "brain_data_root_id": "9428695af6d4f46c08e1a444cdc66de8"
+  },
+  "recovery_state": {
+    "accepted_set": "unavailable",
+    "data_T_qualified": false,
+    "kingston_K_frontier_qualified": false,
+    "brain_state_restored": false,
+    "activation_authorized": false,
+    "final_readiness": false,
+    "safe_to_erase": false
+  },
+  "trust_boundary": {
+    "authority": "authenticated_origin_account_and_remote_under_accidental_mac_loss_model",
+    "tag_ref": "refs/tags/brain-dr-handoff-v4",
+    "tag_kind_required": "annotated",
+    "tag_move_policy": "create_once_never_retarget",
+    "tag_is_signature": false,
+    "remote_compromise_or_account_loss_protected": false
+  },
+  "retired_earlier": [
+    {
+      "tag_ref": "refs/tags/brain-dr-handoff-v2",
+      "status": "retired_unusable_for_operator_entry",
+      "reason": "Its operator entry omitted peeled commit type validation and used optimizable, partial JSON assertions."
+    },
+    {
+      "tag_ref": "refs/tags/brain-dr-handoff-v1",
+      "status": "retired_unusable_for_operator_entry",
+      "reason": "Its git-show path argument is incompatible with zsh parameter expansion."
+    }
+  ]
+}

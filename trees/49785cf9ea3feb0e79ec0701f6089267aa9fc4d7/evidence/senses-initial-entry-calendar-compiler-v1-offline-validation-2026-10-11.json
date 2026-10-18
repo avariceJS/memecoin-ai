@@ -1,0 +1,51 @@
+{
+  "certificate_binding": {
+    "certificate_file_sha256": "1fa16d3379798ba633ed4cb1c209c98e2f865b443e70dc8748392cb3abad3da5",
+    "frontier_slot": 455430160,
+    "gaps": [
+      "c4-gap-c9f7db83feef95c96eb8f4d4376154ad4cf9402ff213037dca1daaf907546bbf",
+      "c4-gap-505b7e807c6a2caf2e691f436ec15421c696ed38b617728a0cdfcb3b990c4f6e",
+      "c4-gap-8e187ec52123925b3524ec237e4cc290e9acbf261d6cb56f5708b505e00f2243",
+      "c4-stop-discontinuity-92d5653b70570bdec6d86255ad130aba169ee225c14f94d487524dfbaf7b33b2"
+    ],
+    "predecessor_digest_kind": "initial_entry_discontinuity_certificate_v1",
+    "predecessor_digest_sha256": "6f10576acf93609d3beecbf2a6949332d2ae47895406c26e846cfba3f1d90f7d",
+    "unknown_interval_end_exclusive": null
+  },
+  "date_utc": "2026-10-11",
+  "focused_test_count": 36,
+  "limitations": [
+    "No candidate schedule was selected or persisted outside temporary test roots.",
+    "No owner lease was initialized outside temporary test roots; no activation, provider client, credentials, RPC, production, c4 body, or tail2 access occurred.",
+    "The c4 terminal observation source in local Unified Log may expire; fresh provenance requalification and a separately reviewed initial-entry activation-preflight branch remain required.",
+    "The synthetic source/cap/clock values are test fixtures and are not operational evidence."
+  ],
+  "schema": "senses-initial-entry-calendar-compiler-v1-offline-validation",
+  "scope": "offline inert finite-calendar-v3 / operation-envelope-v2 candidate compiler and independent verifier",
+  "source_sha256": {
+    "docs/evidence/senses-initial-entry-discontinuity-v1-c4-2026-10-11.json": "1fa16d3379798ba633ed4cb1c209c98e2f865b443e70dc8748392cb3abad3da5",
+    "tests/brain/test_senses_initial_entry_calendar_compiler_v1.py": "ee0e89345139e4a1ef0f4855083a2aef4b1000cf012b9d8fa011a73ad95a5e1b",
+    "tools/brain_senses_block_epoch_v3.py": "977aaeca55532031b24d84f1ebf86c0a3ab0143567a7567e2960ce2a2773cc8b",
+    "tools/brain_senses_finite_calendar_v3.py": "9d2cf1c8e13ae0d5dbf8ba908d3100d586997e16e9f7c6b82407a2c843fafa14",
+    "tools/brain_senses_finite_calendar_verifier_v3.py": "e1ab919d7b343d6413b68158ae6e745f420e2ef78152278589ebbe621974e014",
+    "tools/brain_senses_initial_entry_calendar_compiler_v1.py": "c8e7bbae6ad25fa965c09125922cb1c15c734ab8208702883400a592ed290975",
+    "tools/brain_senses_initial_entry_calendar_verifier_v1.py": "fd0e1694e486cbf936966749f5575baead7743bb32d69103da24549cda975736",
+    "tools/brain_senses_operation_bundle_v2.py": "faf0d02ff2bd97e435a9a007b92c25c079670e9dff40b142e3fae033ecadf097",
+    "tools/brain_senses_operation_bundle_verifier_v2.py": "752219e5a3499ae48f1cf704290396b61df397b17bb052c34bcbab411dba32dc"
+  },
+  "status": "passed",
+  "synthetic_lifecycle": {
+    "anchor": "captured finalized synthetic anchor",
+    "crash_prefixes": "reservation/start/capture/seal boundaries stop without replay",
+    "frame_request_count": 34,
+    "frame_start": "anchor_slot + 1",
+    "handoff": "independently verified; all inherited gaps and unknown interval preserved"
+  },
+  "validation": {
+    "git_diff_check": "passed",
+    "py_compile": "passed",
+    "pytest": "36 passed",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed"
+  }
+}

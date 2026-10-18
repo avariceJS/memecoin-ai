@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "evidence_id": "helius-key-post-resume-exposure-scan-2026-10-11T0047Z",
+  "checked_at_utc": "2026-10-11T00:47:04Z",
+  "checkout_head": "4a5b4e08f6597e8b9d440cbeeb99ef9d27d15f76",
+  "scope": {
+    "matching": "In-memory exact current endpoint and key comparisons; no credential bytes, hashes, prefixes or paths persisted.",
+    "git_objects": {
+      "all_reachable_and_unreachable_local_objects_scanned": 5905,
+      "exact_match_objects": 0
+    },
+    "recent_accessible_saved_files": {
+      "roots": ["~/.codex", "~/.cursor", "~/Library/Logs", "~/Library/Application Support/Codex", "research checkout"],
+      "mtime_since_utc": "2026-10-10T23:18:00Z",
+      "files_scanned": 83,
+      "bytes_scanned": 322330849,
+      "exact_match_files": 0,
+      "per_file_max_bytes": 500000000
+    },
+    "unified_log": {
+      "window": "last 90 minutes at query time",
+      "bytes_scanned": 284479410,
+      "exact_match": false
+    },
+    "process_arguments": {
+      "all_current_process_command_lines_scanned": true,
+      "exact_match_processes": 0
+    },
+    "private_config": {
+      "path": "research/.env.local",
+      "owner_only_mode": "0600",
+      "owner_matches_current_user": true
+    },
+    "unreadable_or_oversized_files": 0
+  },
+  "credential_transport": {
+    "helius_mcp": "Current process arguments contain neither the key nor credential flags; pinned local configuration supplies credentials through environment configuration.",
+    "senses_launchagents": "Path-only launch configuration; the endpoint is loaded in-process from the private configuration file."
+  },
+  "limitations": [
+    "This is a delta scan of saved files modified since the prior broad saved-history scan; it does not replace that earlier scan.",
+    "Remote conversation/tool-service storage, provider-side logs, inaccessible backups and Time Machine are outside local visibility.",
+    "Absence from scanned local sources does not retract prior process-list or session-transcript exposure."
+  ]
+}

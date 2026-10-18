@@ -1,0 +1,79 @@
+{
+  "schema": "brain-host-root-boundary-census-aggregate-v1",
+  "observed_at_utc": "2026-10-14T14:51:10.796977Z",
+  "scanner": {
+    "path": "tools/brain_host_root_boundary_census_v1.py",
+    "working_tree_base_commit": "8d573594b132cb40da2f44dd85d5aaae2a49c675",
+    "working_tree_sha256": "ac43ef6e0530f6fefd433a1eb3d1d16736ade7528d8c137852d20b75af6b3454",
+    "test_path": "tests/test_brain_host_root_boundary_census_v1.py",
+    "test_sha256": "fbc3f872a8358089d291fc4ad726cd04fd3ccc6ff9205f3f194feea2f89f0b52",
+    "focused_test_count": 21,
+    "focused_checks": ["ruff", "mypy", "pytest", "git diff --check"]
+  },
+  "source": {
+    "volume_uuid": "430740ca-42e7-4e6c-a07a-e4e7370152cc",
+    "volume_mount": "/System/Volumes/Data",
+    "volume_identity_pinned": true,
+    "common_source_point_proven": false
+  },
+  "destination": {
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "volume_mount": "/Volumes/Kingston",
+    "private_artifact_relative_path": "host-recovery/private-root-boundary-census-v1/census-20261014T145110Z-7deb2fcfa96d7660.jsonl",
+    "private_artifact_bytes": 299700736,
+    "private_artifact_sha256": "bc24fda6dd5f9e574e5c707578da29618c2f2102bb0fc0b80fbd6aea0e2b1e20",
+    "completion_marker_relative_path": "host-recovery/private-root-boundary-census-v1/census-20261014T145110Z-7deb2fcfa96d7660.complete.json",
+    "completion_marker_sha256": "8882da65a9d069dcbc5479b425fc33442643f289380a8a5cbbc49e07f27ef7de",
+    "publication_pair_verified": true,
+    "free_bytes_after_publication": 216588333056
+  },
+  "scope": {
+    "declared_roots": 9,
+    "git_bindings": 4,
+    "external_git_metadata_roots": 0,
+    "entries_observed": 777064,
+    "regular_files": 657302,
+    "directories": 119610,
+    "symlinks": 152,
+    "cross_device_children": 0,
+    "unreadable_entries": 0,
+    "credential_named_files_excluded_for_reissue": 2,
+    "opaque_wallet_subtrees_skipped_backup_required": 3,
+    "opaque_codex_local_subtrees_skipped_backup_required": 1,
+    "owner_checkout_directory_metadata_drift": 1,
+    "root_endpoint_identities_stable": true,
+    "scan_complete": false,
+    "source_consistency_proven": false,
+    "root_closure_proven": false,
+    "safe_to_erase": false
+  },
+  "root_counts": {
+    "owner_checkout": {"entries": 331267, "complete_traversal": false, "directory_metadata_drift": 1, "unresolved": 1},
+    "research_checkout": {"entries": 431730, "complete_traversal": true, "opaque_subtrees_skipped": 3},
+    "research_verifier_worktree": {"entries": 1685, "complete_traversal": true},
+    "owner_codex_worktree": {"entries": 12231, "complete_traversal": true, "opaque_subtrees_skipped": 1},
+    "private_brain_config": {"entries": 88, "complete_traversal": true},
+    "launch_agents": {"entries": 60, "complete_traversal": true},
+    "helius_mcp_wrapper": {"entries": 1, "complete_traversal": true},
+    "codex_mcp_config": {"entries": 1, "complete_traversal": true},
+    "cursor_mcp_config": {"entries": 1, "complete_traversal": true}
+  },
+  "non_actions": {
+    "application_payload_bytes_read": false,
+    "credential_values_read": false,
+    "symlink_target_text_read": false,
+    "xattr_values_read": false,
+    "protected_payloads_read": false,
+    "provider_requests": 0,
+    "services_changed": false,
+    "prospective_collectors_started": 0
+  },
+  "limitations": [
+    "Live sequential metadata traversal, not a common source point or recovery boundary.",
+    "Owner checkout had one directory metadata drift; its exact path is only in the private Kingston manifest.",
+    "Wallets and Codex .local are explicitly skipped and remain unresolved backup-required custody.",
+    "Symlink targets, same-device firmlink aliases, hard-link aliases outside the roster, and unlisted host roots are not closed.",
+    "Publication proves private manifest/marker integrity, not semantic custody or restore readiness."
+  ]
+}

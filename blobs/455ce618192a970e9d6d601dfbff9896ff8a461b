@@ -1,0 +1,100 @@
+BRAIN BOOTSTRAP HANDOFF v2 — BEFORE USING KINGSTON
+
+Current locator
+===============
+Use exactly `refs/tags/brain-dr-handoff-v2` from the authenticated approved Git remote. Do not
+select the latest tag or a moving branch head. The published `brain-dr-handoff-v1` tag is retired
+and unusable for operator entry because its extraction command is incompatible with zsh.
+
+This v2 handoff authorizes only retrieval of one exact research-code commit and comparison of one
+versioned Kingston entry card. It does not accept a recovery set, Data source cutoff T, Kingston
+frontier K, restored Brain state, service activation, or erase readiness.
+
+Trust source
+============
+The authenticated repository remote is the accepted trust domain for the accidental-Mac-loss
+model. It assumes the Git account and remote remain available and uncompromised; the tag is not a
+cryptographic signature. H is the commit reached by the annotated v2 tag. C is the separately pinned
+bootstrap commit in BOOTSTRAP-HANDOFF-v2.json. Never move the v2 tag; later handoffs use new
+versioned tags.
+
+   REMOTE=https://github.com/avariceJS/memecoin-ai.git
+   TAG_REF=refs/tags/brain-dr-handoff-v2
+
+On the replacement Mac, sign in to Git through its normal user-controlled authentication flow. Use
+host-installed Git to retrieve and inspect the exact tag before reading or running any Kingston
+card command. In a new private temporary directory:
+
+   umask 077
+   HANDOFF_DIR=$(mktemp -d "$HOME/brain-handoff-v2.XXXXXX") || exit 2
+   chmod 700 "$HANDOFF_DIR"
+   git -C "$HANDOFF_DIR" init || exit 2
+   git -C "$HANDOFF_DIR" remote add origin "$REMOTE" || exit 2
+   git -c http.version=HTTP/1.1 -C "$HANDOFF_DIR" fetch --no-tags origin \
+     "$TAG_REF:$TAG_REF" || exit 2
+   test "$(git -C "$HANDOFF_DIR" cat-file -t "$TAG_REF")" = tag || exit 2
+   TAG_OBJECT=$(git -C "$HANDOFF_DIR" rev-parse "$TAG_REF") || exit 2
+   HANDOFF_COMMIT=$(git -C "$HANDOFF_DIR" rev-parse "$TAG_REF^{}") || exit 2
+   git -C "$HANDOFF_DIR" cat-file tag "$TAG_REF"
+   git -C "$HANDOFF_DIR" show "${HANDOFF_COMMIT}:recovery/BOOTSTRAP-HANDOFF-v2.json" \
+     > "$HANDOFF_DIR/handoff.json" || exit 2
+   chmod 600 "$HANDOFF_DIR/handoff.json"
+   HANDOFF_SHA256=$(shasum -a 256 "$HANDOFF_DIR/handoff.json" | cut -d ' ' -f 1)
+
+Record TAG_OBJECT, HANDOFF_COMMIT, and HANDOFF_SHA256 in the local recovery notes. Run this
+standard-library validation before inspecting Kingston:
+
+   python3 - "$HANDOFF_DIR/handoff.json" "$TAG_OBJECT" "$HANDOFF_COMMIT" <<'PY'
+import json, sys
+p, tag_object, commit = sys.argv[1:]
+with open(p, encoding="utf-8") as f:
+    h = json.load(f)
+assert h["schema"] == "brain-dr-bootstrap-handoff-v2" and h["version"] == 2
+assert h["supersedes"]["tag_ref"] == "refs/tags/brain-dr-handoff-v1"
+assert h["supersedes"]["status"] == "retired_unusable_for_operator_entry"
+assert h["bootstrap"] == {
+    "remote": "https://github.com/avariceJS/memecoin-ai.git",
+    "commit": "75f3e0405c1fca473eb95fae81fc21c20e289651",
+    "entry_card_path": "host-recovery/ENTRY-v2.txt",
+    "entry_card_sha256": "f40e8e160b38fffa6e0ba8e4aa81dc87523850e5dd4cca04b0a8add5e8677c37",
+    "bootstrap_receipt": "docs/evidence/portability-dr-entry-v2-exact-bootstrap-and-kingston-publication-2026-10-16T0120Z.json",
+}
+assert h["kingston"] == {
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "brain_data_root_id": "9428695af6d4f46c08e1a444cdc66de8",
+}
+assert h["recovery_state"] == {
+    "accepted_set": "unavailable", "data_T_qualified": False,
+    "kingston_K_frontier_qualified": False, "brain_state_restored": False,
+    "activation_authorized": False, "final_readiness": False, "safe_to_erase": False,
+}
+t = h["trust_boundary"]
+assert t["tag_ref"] == "refs/tags/brain-dr-handoff-v2"
+assert t["authority"] == "authenticated_origin_account_and_remote_under_accidental_mac_loss_model"
+assert t["tag_kind_required"] == "annotated" and t["tag_is_signature"] is False
+assert t["tag_move_policy"] == "create_once_never_retarget"
+assert t["remote_compromise_or_account_loss_protected"] is False
+assert tag_object and len(commit) == 40 and all(c in "0123456789abcdef" for c in commit)
+print("bootstrap-only handoff fields verified; no restore or activation authority")
+PY
+
+The checks bind the exact tag object and peeled H to the validated JSON; `git cat-file -t` above
+requires an annotated tag. A missing, lightweight, malformed, or unexpected tag/handoff blocks
+recovery. These checks identify and pin fetched Git objects; they cannot detect a tag retarget by an
+administrator of the same remote. The no-move publication policy and authenticated origin are the
+trust boundary.
+
+Only after the handoff checks pass, inspect Kingston read-only and calculate the card digest using
+the exact path named by the handoff:
+
+   shasum -a 256 /Volumes/Kingston/BrainData/host-recovery/ENTRY-v2.txt
+
+Proceed only if it equals the authenticated handoff's entry_card_sha256. Then follow that exact
+card. Do not substitute legacy ENTRY.txt, `brain-dr-handoff-v1`, any other tag, a moving branch tip,
+or values copied only from Kingston. The v2 card independently compares its source checkout bytes
+against Kingston and runs the exact-commit inert code bootstrap.
+
+The local HANDOFF_SHA256 comes from the file extracted from the fetched Git commit. It is supplied
+separately from the local handoff path if a later restore-flow operation needs a handoff digest;
+it is not stored as the only pin beside that file. This bootstrap-only handoff is not a restore
+handoff and cannot be passed to the post-bootstrap restore flow.

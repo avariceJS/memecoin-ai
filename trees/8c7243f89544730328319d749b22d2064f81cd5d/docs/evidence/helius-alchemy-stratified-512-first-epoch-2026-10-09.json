@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-10-09",
+  "experiment": "helius_alchemy_stratified_512_first_prospective_epoch",
+  "status": "helius_selected_blocks_qualified_alchemy_inventory_incomplete",
+  "source_root": "ignored work/brain-senses-live-helius-alchemy-512-20261009/20261009T130000Z/",
+  "scope": {
+    "commitment": "finalized",
+    "availability": "prospective receipt timestamps preserved per request",
+    "sample_frame_slot_range_exclusive": [454871602, 454885005],
+    "helius_anchor_slot": 454885004,
+    "alchemy_anchor_slot": 454885004,
+    "strata": 16,
+    "contiguous_selected_windows": 16,
+    "helius_selected_slots": 512,
+    "alchemy_paired_slots": 32,
+    "pair_design": "two seeded slots from each selected 32-slot Helius window; primary and conditional inclusion probabilities are in the immutable window plan"
+  },
+  "coverage": {
+    "helius_getBlocks_inventory": "captured",
+    "helius_inventory_produced_slots_in_frame": 13399,
+    "helius_selected_slots_in_inventory": 512,
+    "helius_full_bodies": 512,
+    "helius_signatures_only_self_checks": 512,
+    "helius_full_signature_lists_match_self_checks": 512,
+    "helius_exact_qualified_structural_reference_counts": 512,
+    "helius_structural_reference_total": 69311,
+    "helius_exact_zero_structural_reference_slots": 1,
+    "alchemy_getBlocks_inventory": "failed_transport_connection",
+    "alchemy_full_bodies": 32,
+    "alchemy_signatures_only_self_checks": 32,
+    "alchemy_full_signature_lists_match_self_checks": 32,
+    "same_slot_block_identity_matches": 32,
+    "same_slot_ordered_signature_lists_match": 32,
+    "alchemy_exact_population_counts_qualified": 0,
+    "alchemy_failure_retry": "none"
+  },
+  "transaction_comparison": {
+    "paired_slots": 32,
+    "paired_transactions": 36852,
+    "exact_transaction_trees": 36773,
+    "different_transaction_trees": 79,
+    "difference_paths": {
+      "meta.logMessages": 79
+    },
+    "differences_with_explicit_helius_log_truncated_marker": 79,
+    "raw_capture_offline_replay": true
+  },
+  "structural_semantics": {
+    "helius_full_transactions": 606033,
+    "compiled_transaction_normalization_failures": 0,
+    "unresolved_instruction_shapes": 0,
+    "economic_trade_count": "unknown_not_decoded_by_this_observation",
+    "structural_zero_is_economic_zero": false,
+    "provider_disappearance_is_lifecycle": false
+  },
+  "request_accounting": {
+    "helius_attempts_including_anchor": 1026,
+    "helius_reservation_rows_in_block_capture": 1025,
+    "helius_anchor_expected_reservation": 1,
+    "helius_failures": 0,
+    "helius_account_meter": "not exposed",
+    "alchemy_free_attempts": 66,
+    "alchemy_free_captured": 65,
+    "alchemy_free_failed_inventory_attempts": 1,
+    "retries": 0,
+    "paid_requests": 0
+  },
+  "storage_and_throughput": {
+    "storage_codec": "zstd",
+    "raw_response_bytes": 2355735101,
+    "stored_response_bytes": 576376420,
+    "raw_to_stored_ratio": 4.087,
+    "elapsed_seconds_anchor_to_qualification_summary": 1410.8,
+    "total_attempts_both_providers": 1092,
+    "mean_total_attempts_per_second_over_epoch": 0.774,
+    "helius_full_transactions_per_epoch": 606033,
+    "paired_transactions_per_epoch": 36852,
+    "one_epoch_repeated_24_times_storage_projection_bytes": 13833034080,
+    "projection_is_a_single_epoch_repeat_estimate": true
+  },
+  "interpretation": {
+    "exact_counts_are_bounded_to_512_selected_helius_slots": true,
+    "helius_provider_inventory_is_global_chain_truth": false,
+    "alchemy_inventory_completeness_is_unknown": true,
+    "pair_agreement_is_ground_truth": false,
+    "historical_availability_claim": false,
+    "market_coverage_or_population_admission_claim": false
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-01",
+  "source": "solana-public",
+  "runs": [
+    {
+      "run": "cpmm-qualification-01",
+      "report_sha256": "4ad71bff667cd466c3c3f9c6f10469decd0e9b95b89ab4451168bdf0b4c02862",
+      "transactions_received": 9,
+      "transaction_versions": {
+        "0": 9
+      },
+      "transaction_slot_range": [
+        452378490,
+        452378490
+      ],
+      "pools_discovered": 1,
+      "inventories": 0,
+      "strict_checkpoints": 0,
+      "vault_flow_checks": 0,
+      "vault_flow_checks_matched": 0,
+      "failures": [
+        {
+          "reason": "SourceError",
+          "stage": "transaction-000"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-010"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-011"
+        },
+        {
+          "pool_id": "GUiuqUy3kekuEwkKtvAQqCWjZP3HNHd64vdRiSrVMF3B",
+          "reason": "Token-2022 is outside the current decoder domain",
+          "stage": "pool-000"
+        }
+      ],
+      "market_dataset_qualified": false
+    },
+    {
+      "run": "cpmm-cohort-02",
+      "report_sha256": "10ab46997b6a91b0e5fb773a721ea15197c13b3e6bbf806fd095c13d43ea8e2d",
+      "transactions_received": 19,
+      "transaction_versions": {
+        "0": 19
+      },
+      "transaction_slot_range": [
+        452379088,
+        452379088
+      ],
+      "pools_discovered": 2,
+      "inventories": 0,
+      "strict_checkpoints": 0,
+      "vault_flow_checks": 0,
+      "vault_flow_checks_matched": 0,
+      "failures": [
+        {
+          "reason": "SourceError",
+          "stage": "transaction-012"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-013"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-014"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-017"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-021"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-023"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-024"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-026"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-027"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-028"
+        },
+        {
+          "reason": "SourceError",
+          "stage": "transaction-029"
+        },
+        {
+          "pool_id": "3qjGrdXxiKwxbnzTYphaGyn5HPX2UNGFQx99AWghhy9Q",
+          "reason": "Token-2022 is outside the current decoder domain",
+          "stage": "pool-000"
+        },
+        {
+          "pool_id": "Cmcfrs6r6dsCyXvhooFbwvbvNDqe3vDHeXcKmfWGAzrr",
+          "reason": "Token-2022 is outside the current decoder domain",
+          "stage": "pool-001"
+        }
+      ],
+      "market_dataset_qualified": false
+    },
+    {
+      "run": "cpmm-control-v1",
+      "report_sha256": "bcf9b5b90dcb52dbf7545304d242d1c412b1f69ec64e1fba78b7a830a66086d1",
+      "transactions_received": 5,
+      "transaction_versions": {
+        "0": 4,
+        "1": 1
+      },
+      "transaction_slot_range": [
+        452373628,
+        452376346
+      ],
+      "pools_discovered": 2,
+      "inventories": 0,
+      "strict_checkpoints": 1,
+      "vault_flow_checks": 2,
+      "vault_flow_checks_matched": 2,
+      "failures": [
+        {
+          "pool_id": "2yxtoiFAeY3mcN27ExaLn7sLRAQPB19YWmxiafyJcgD4",
+          "reason": "Token-2022 is outside the current decoder domain",
+          "stage": "pool-000"
+        }
+      ],
+      "market_dataset_qualified": false
+    },
+    {
+      "run": "cpmm-cohort-v1",
+      "report_sha256": "5ce0929ccee222e294fe97ddb699353800ce69ca8e26a5c6467916fb84893e68",
+      "transactions_received": 20,
+      "transaction_versions": {
+        "0": 10,
+        "1": 10
+      },
+      "transaction_slot_range": [
+        452379756,
+        452379756
+      ],
+      "pools_discovered": 3,
+      "inventories": 0,
+      "strict_checkpoints": 0,
+      "vault_flow_checks": 0,
+      "vault_flow_checks_matched": 0,
+      "failures": [
+        {
+          "pool_id": "3qjGrdXxiKwxbnzTYphaGyn5HPX2UNGFQx99AWghhy9Q",
+          "reason": "Token-2022 is outside the current decoder domain",
+          "stage": "pool-000"
+        },
+        {
+          "pool_id": "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+          "reason": "Token-2022 is outside the current decoder domain",
+          "stage": "pool-001"
+        },
+        {
+          "pool_id": "Cmcfrs6r6dsCyXvhooFbwvbvNDqe3vDHeXcKmfWGAzrr",
+          "reason": "Token-2022 is outside the current decoder domain",
+          "stage": "pool-002"
+        }
+      ],
+      "market_dataset_qualified": false
+    },
+    {
+      "run": "cpmm-final-cohort",
+      "report_sha256": "06401b7ae8b9a613390a3b05a179c4ecb643d47690528963d1222e43f928f259",
+      "transactions_received": 20,
+      "transaction_versions": {
+        "1": 13,
+        "0": 7
+      },
+      "transaction_slot_range": [
+        452380378,
+        452380378
+      ],
+      "pools_discovered": 4,
+      "inventories": 4,
+      "strict_checkpoints": 2,
+      "vault_flow_checks": 2,
+      "vault_flow_checks_matched": 2,
+      "failures": [
+        {
+          "pool_id": "49s9f3JWnd1V7rqQhGAoaZ6AZRab4BC8NhCqHJV2kkw5",
+          "reason": "Token-2022 is outside the current decoder domain",
+          "stage": "pool-000"
+        },
+        {
+          "pool_id": "B2virwzm2gKTviojcUcCppcVUorHQMpHYxwj8xVcvGvJ",
+          "reason": "Token-2022 is outside the current decoder domain",
+          "stage": "pool-001"
+        }
+      ],
+      "market_dataset_qualified": false
+    }
+  ],
+  "notes": [
+    "Counts are bounded convenience samples, not market shares.",
+    "Final cohort has two flow checks from the SAME transaction and two different pools.",
+    "Raw work directories are ignored; permanent control captures are in tests/fixtures/cpmm_control.",
+    "No independent provider verification or historical interval reconstruction."
+  ]
+}

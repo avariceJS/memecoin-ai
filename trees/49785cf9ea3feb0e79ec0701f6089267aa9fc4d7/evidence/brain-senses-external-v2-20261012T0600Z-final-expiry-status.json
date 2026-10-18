@@ -1,0 +1,60 @@
+{
+  "schema": "brain-senses-external-v2-final-expiry-status",
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-12T07:13:00Z",
+  "service_id": "external-v2-20261012T0600Z",
+  "plan_sha256": "2bb19afee5475173e7e5a73a59d1cd33a27c6af1ef8e309fc39bfc025fa5a688",
+  "status_projection": {
+    "status": "verified_prefix",
+    "event_tail_sha256": "0ed5e952c199bb3f420eba1be72da813d7e876910ec10545a273b782e0058787",
+    "frontier": 455944206,
+    "requests": 103,
+    "raw_bytes": 144392483,
+    "stored_bytes": 144392483,
+    "sealed_buckets": [
+      "20261012T060000Z",
+      "20261012T060500Z",
+      "20261012T061000Z",
+      "20261012T061500Z"
+    ],
+    "scheduled_windows": 13,
+    "sealed_windows": 4,
+    "expired_unobserved": [
+      "20261012T062000Z",
+      "20261012T062500Z",
+      "20261012T063000Z",
+      "20261012T063500Z",
+      "20261012T064000Z",
+      "20261012T064500Z",
+      "20261012T065000Z",
+      "20261012T065500Z",
+      "20261012T070000Z"
+    ],
+    "missed_windows": 0,
+    "unresolved_buckets": [],
+    "stop": false,
+    "predecessor_lineage_verified": true,
+    "replay_authorized": false,
+    "successor_eligible": false
+  },
+  "status_projection_sha256": "92a36e2a607b1244c59af2f80af5aed3315beaebab843488e3632100a0fa2674",
+  "launch": {
+    "label": "ai.memecoin.brain.senses.external-v2-20261012T0600Z",
+    "plist_sha256": "080d8a1be8f6e133c620d09e16e8c2fc19dd8c2dfa687581859dd81b36a45d65",
+    "disabled": true,
+    "loaded": false,
+    "active_runner_pids": []
+  },
+  "storage": {
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "health": "ready",
+    "available_bytes": 219496341504
+  },
+  "launch_failure_disable_receipt": "brain-senses-external-v2-20261012T0600Z-callback-failure-unload.json",
+  "limitations": [
+    "No provider error, zero observation, lease completion, tail coverage, or successor eligibility is inferred.",
+    "The fixed service is terminal; no replay or backfill is permitted.",
+    "Provider charge remains unknown and unverified."
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "activation": {
+    "first_trigger_utc": "2026-10-10T05:05:00Z",
+    "launchagent_label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-3",
+    "launchctl_loaded": true,
+    "network_requests_during_prepare_or_activate": 0,
+    "plist_path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-inventory-v3-20261010-3.plist",
+    "plist_sha256": "a022cc3d452d7be5b1c9746a37adc1153e5e6e607eb4a52329e4c520620077f7",
+    "predecessor_and_controller_agents_loaded": false,
+    "running_at_seal": false
+  },
+  "c1_reconciled_usage": {
+    "raw_bytes": 0,
+    "requests": 0,
+    "stored_bytes": 0
+  },
+  "c2_final_receipt": {
+    "path": "helius-inventory-v3-campaign2-missed-gap-2026-10-10.json",
+    "sha256": "76d2733335c1a22e870c8dd40a30c3dfa1bf5965558a54624bb9e0efdc07f7b6"
+  },
+  "c2_reconciled_usage": {
+    "raw_bytes": 43,
+    "requests": 1,
+    "stored_bytes": 56,
+    "unresolved_reservations": 0
+  },
+  "c2_stop_sha256": "da160ec4cf3ad3ca4e0804175d33d53ad605253d6ce57be5e5d9665306b0005a",
+  "c3_frontier_sha256": "ac786e6517a25df2f4bdfbbb38d026699a1c4d63882038ca8b22ee453e300aa3",
+  "c3_handoff": {
+    "handoff_id": "helius-inventory-v3-c3-anchor-adoption-20261010-v1",
+    "path": "work/brain-senses-live-helius-inventory-v3-20261010-3/handoff-v1.json",
+    "reviewed_source_sha256": "2e28db74d076def360b9f6db59cc14da322fd18eb242af196b2106654cfb7520",
+    "sha256": "65bd8559763bbed47757ddc6c13dffe51056538b6c9fd76b0318d9760c1eb9a0"
+  },
+  "c3_manifest_sha256": "7155b945762c31a269e2cb2c46909ab4164a9065da69d56ab96b461835343cfc",
+  "controller_stop_sha256": "8a298c7426343f4b4dca138d0bc39669ed7382f229f7644d4a82539ba99cbfe0",
+  "credential_handling": {
+    "collector_reads_private_env_file_in_process": true,
+    "credential_in_launchagent_arguments": false,
+    "exact_key_in_current_process_argv": false,
+    "mcp_package_pinned": "helius-mcp@2.2.0"
+  },
+  "decision": "Sol approved one-use c3 anchor adoption from the verified c2 finalized anchor.",
+  "evidence_id": "helius-inventory-v3-c3-handoff-activation-20261010",
+  "finite_limits": {
+    "aggregate_raw_bytes_cap": 12000000000,
+    "aggregate_requests_cap": 2451,
+    "aggregate_stored_bytes_cap": 3000000000,
+    "attempts_max": 24,
+    "campaign_ids_max": 3,
+    "campaign_ids_used": 3,
+    "effective_requests_max": 816,
+    "frame_directories_max": 24,
+    "manifest_request_ceiling": 817,
+    "original_lease_expires_ns": 1791857399642968000,
+    "per_frame_requests_max": 34
+  },
+  "first_frame": {
+    "backfill": false,
+    "bootstrap_rpc": false,
+    "bucket": "20261010T050000Z",
+    "new_finalized_upper_anchor_required": true,
+    "offline_plan_sha256": "7fbafa55fc5b18b9ab103714e96c59afdd203ce8f331bfb2af8fd3e1f9d17675",
+    "start_inclusive": 455116881
+  },
+  "inherited_gaps": [
+    {
+      "bucket": "20261010T000000Z",
+      "interval_end_exclusive": 455061516,
+      "interval_start": 455037817,
+      "reason": "oversized_frame",
+      "receipt": "helius-inventory-v2-oversized-gap-2026-10-10.json"
+    },
+    {
+      "end_exclusive": 455116881,
+      "reason": "missed_schedule_no_backfill",
+      "start": 455082524
+    }
+  ],
+  "limitations": [
+    "No c3 RPC has occurred at receipt seal.",
+    "The 817 manifest ceiling is unreachable because 24 attempts \u00d7 34 requests = 816; attempt cap blocks another frame.",
+    "No provider/global completeness is implied.",
+    "Exact transient utility source bytes at activation time were not captured; the recorded utility hash is the reviewed source version."
+  ],
+  "provider_meter": "Helius MCP authenticated; credit usage and plan limit unavailable without JWT session.",
+  "resource_preflight": {
+    "free_bytes_at_activation": 73639153664,
+    "minimum_free_floor_bytes": 53687091200,
+    "required_floor_plus_frame_envelope_bytes": 54361091200
+  },
+  "schema_version": 1,
+  "sealed_at": "2026-10-10T04:20:46Z",
+  "seeded_observed_anchor": {
+    "availability_ns": 1791605106134330000,
+    "inventoried": false,
+    "observed_frontier": 455116881,
+    "slot": 455116880
+  },
+  "source": "helius-free"
+}

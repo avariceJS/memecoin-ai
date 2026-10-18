@@ -1,0 +1,45 @@
+{
+  "schema": "brain-portability-dr-launchagent-paths-v1",
+  "captured_at_utc": "2026-10-14T01:24:24Z",
+  "research_commit": "c219fe02be76449aff7bdc1a9575eeae16fe2d67",
+  "absolute_path_reference_counts": {
+    "program_arguments": {
+      "owner_checkout": 115,
+      "research_checkout": 37,
+      "private_config": 4
+    },
+    "working_directory": {"owner_checkout": 30, "research_checkout": 14},
+    "standard_output": {"owner_checkout": 38, "dev_device": 18},
+    "standard_error": {"owner_checkout": 38, "dev_device": 18}
+  },
+  "program_argument_path_types": {
+    "owner_checkout": {"directories": 76, "regular_files": 1, "symlink_references": 38},
+    "research_checkout": {"regular_files": 19, "symlink_references": 18},
+    "private_config": {"directories": 1, "regular_files": 3}
+  },
+  "symlink_declarations": {
+    "unique_path_target_pairs": 3,
+    "references_to_owner_checkout_targets": 38,
+    "references_to_research_checkout_targets": 18,
+    "targets_followed": false,
+    "paths_or_targets_emitted": false
+  },
+  "owner_log_destination_paths": {
+    "standard_output_existing_regular_files": 32,
+    "standard_output_missing": 6,
+    "standard_error_existing_regular_files": 32,
+    "standard_error_missing": 6
+  },
+  "scope": {
+    "plist_values_or_arguments_emitted": false,
+    "process_arguments_or_environments_read": false,
+    "services_changed_or_started": false,
+    "provider_requests": 0
+  },
+  "limitations": [
+    "Counts are path-field references, so the same path may appear multiple times; they are not unique files or services.",
+    "Path metadata does not prove which definitions are loaded, which code is executing, or whether a log contains unique evidence.",
+    "Existing symlink targets and absolute paths are host-specific and must not be copied as a startup set onto a new host.",
+    "No source snapshot, state archive, or restore witness was created."
+  ]
+}

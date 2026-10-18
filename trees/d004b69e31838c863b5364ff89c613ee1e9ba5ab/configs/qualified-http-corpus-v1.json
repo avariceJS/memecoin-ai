@@ -1,0 +1,21 @@
+{
+  "stage": "D41",
+  "source_alias": "alchemy-qualified-http",
+  "endpoint_origin": "https://solana-mainnet.g.alchemy.com",
+  "endpoint_env": "MEMECOIN_ALCHEMY_HTTP_URL",
+  "segments": 2,
+  "rounds": 30,
+  "interval_seconds": 5,
+  "max_requests": 180,
+  "stop_at_first_failure": true,
+  "automatic_retries": 0,
+  "seed": null,
+  "references": [
+    "work/alchemy-pilot-v2b-01/segment-00/captures/http5-0001",
+    "work/alchemy-pilot-v2b-01/segment-00/captures/http5-0002",
+    "work/alchemy-pilot-v2b-01/segment-00/captures/http5-0003"
+  ],
+  "qualification_evidence": "docs/evidence/alchemy-pilot-v2-2026-10-03.json",
+  "wss_enabled": false,
+  "scope": "same fixed cohort; two new prospective segments with independent source-pinned targets/quality/support; no ML or trading"
+}

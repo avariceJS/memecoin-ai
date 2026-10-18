@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "evidence_id": "helius-inventory-v3-c4-bootstrap-2026-10-10",
+  "created_at_utc": "2026-10-10T12:09:16Z",
+  "status": "bootstrap_complete",
+  "campaign_id": "helius-inventory-v3-20261010-4",
+  "lease_sha256": "e6cf53b114d9aa306a74d79103c8e6d79df36a1742731ba6d713b2db578afcf2",
+  "schedule_sha256": "2253421b56b52b4636f6a15b682495cb289114887dbf40f517338d252ffc1474",
+  "bootstrap_bucket": "20261010T120000Z",
+  "request_identity": {
+    "campaign_id": "helius-inventory-v3-20261010-4",
+    "phase": "bootstrap_anchor",
+    "sequence": 1,
+    "utc_bucket": "20261010T120000Z"
+  },
+  "method": "getSlot(finalized)",
+  "observed_anchor_slot": 455249112,
+  "observed_frontier": 455249113,
+  "uncovered_interval": {
+    "start_inclusive": 455216025,
+    "end_exclusive": 455249113,
+    "reason": "uncovered_since_c3_trusted_frontier_no_backfill"
+  },
+  "accounting": {
+    "campaign_requests": 1,
+    "campaign_request_cap": 817,
+    "raw_response_bytes": 43,
+    "raw_byte_cap": 4000000000,
+    "stored_bytes": 56,
+    "stored_byte_cap": 1000000000,
+    "outstanding_reservations": 0,
+    "provider_credit_charge": "unknown"
+  },
+  "coverage_scope": "one finalized anchor only; no getBlocks inventory, getBlock bodies, slot completeness, or economic inactivity claim",
+  "recovery": {
+    "missed_slot_backfill": false,
+    "retry_or_replay": false,
+    "failed_or_ambiguous_request": false,
+    "next_full_frame_bucket": "20261010T130000Z",
+    "next_scheduled_trigger_utc": "2026-10-10T13:05:00Z",
+    "successor_or_renewal": false
+  },
+  "runtime": {
+    "launch_agent_label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-4",
+    "runs": 1,
+    "last_exit_code": 0,
+    "frame_attempt_directories": 0,
+    "launch_agent_arguments_contain_credential": false,
+    "launch_agent_environment_contains_credential": false,
+    "free_disk_bytes_after_bootstrap": 73097539584
+  },
+  "predecessor": {
+    "c3_stop_sha256_expected": "e8666a111d5e9aadd9c12044490e2d0ad4d42b0a204d57fbae0295ba036a9f00",
+    "c3_stop_sha256_observed": "e8666a111d5e9aadd9c12044490e2d0ad4d42b0a204d57fbae0295ba036a9f00",
+    "c3_stop_unchanged": true
+  },
+  "artifact_sha256": {
+    "bootstrap_receipt": "074c1c5837309e5cf3ab4ec024539c56083575b8c0f8d7a4475ef43960030c53",
+    "frontier": "38eb5287941107c2d6fa9a50ac857f43e3d15ea3f80e0566b2d4df3906addee9",
+    "reservation": "1c46de36148775075638ca73964066e2c1606c446f01a629b624d7dbe5475b9f",
+    "epoch_plan": "5a154f6d2b0619cce988115893379bf778d549d1610c821ba20fdf91d422e277",
+    "epoch_summary": "9147fad9b1476660996e6cb745e0b48f883de59e0e3ac7667d7f5d1104b4deb7",
+    "epoch_stop": "e833f3f826c342051300a8d56c4a07935170ea3b3ccea2fd3206ef9765f890bd",
+    "request": "bfcca5e91ea006478076e5a5b164a55bfe53fafd9ad3b7c2874cdbe23866fade",
+    "request_result": "8a051eb90168bfb7e97aa854de17ebcc50aa2ebfaffb299b4efc786ba8c9bb9e"
+  }
+}

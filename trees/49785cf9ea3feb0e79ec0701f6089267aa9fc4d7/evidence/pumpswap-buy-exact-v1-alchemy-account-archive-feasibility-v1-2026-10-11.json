@@ -1,0 +1,155 @@
+{
+  "api_capabilities_and_limits": {
+    "getTokenAccountsByOwnerAtSlot": {
+      "method_cu_reference": 40,
+      "scope": "historical paginated wallet token-account discovery; not instruction-position state"
+    },
+    "historical_getAccountInfo": {
+      "account_archive_entitlement_verified": false,
+      "documented_exclusions": "vote accounts and per-slot sysvars",
+      "documented_state": "paid-plan finalized historical account bytes; slot S is inclusive latest write at or before S",
+      "history_cursors": "lastUpdateBeforeSlot S is strictly before S. firstUpdateAfterSlot S is ambiguous: the table says strictly after S, prose says at or after S; this feasibility screen does not rely on that cursor boundary",
+      "method_cu_reference": 10
+    },
+    "pricing_and_usage": {
+      "account_usage_limit_or_overage_cap_verified": false,
+      "method_cu_is_dollar_cost": false,
+      "no_per_call_dollar_cost_claim": true,
+      "paid_plan_and_archive_eligibility_verified": false
+    },
+    "simulateTransactionsAtSlot": {
+      "documented_behavior": "hypothetical execution against archived account state with ordered shared overlay",
+      "max_combined_rendered_result_bytes": 26214400,
+      "max_state_override_entries_per_simulation": 100,
+      "max_transaction_referenced_accounts_per_entry": 128,
+      "max_transactions_per_request": 5,
+      "method_cu_reference": 1500,
+      "original_candidate_position_replay_established": false,
+      "runtime": "one pinned Agave/SVM release; usable historical window is recent and grows with backfill",
+      "same_slot_transaction_index_or_instruction_index_selector": false
+    }
+  },
+  "archive_account_state_scope": {
+    "account_query_count": "not equated to unique account-slot pairs; batching and archive API behavior require separate validation",
+    "distinct_candidate_state_pubkeys_after_excluding_program_roles": 7617,
+    "minimum_data_needed": "pre-slot state for touched accounts, mints, fee/hook programs and related state; candidate roles are a lower-bound scope",
+    "nominal_cu_scenario_assumption": "one standard getAccountInfo call per unique candidate state-account\u00d7slot pair; not a measured request count, bill, or account entitlement",
+    "nominal_cu_scenario_at_published_10_cu_method_reference": 175840,
+    "one_getAccountInfo_call_per_distinct_state_account_slot_scenario": 17584,
+    "unique_slot_pubkey_pairs_after_excluding_program_roles": 17584,
+    "unique_slot_pubkey_pairs_for_all_candidate_roles": 18544
+  },
+  "candidate_population": {
+    "candidate_plus_prefix_simulation_count_buckets": {
+      "exceeds_limit": 2330,
+      "within_limit_capacity_only": 3
+    },
+    "candidate_role_address_count_lower_bound": {
+      "maximum": 26,
+      "minimum": 25
+    },
+    "same_slot_predecessor_count_buckets": {
+      "0": 1,
+      "1-4": 2,
+      "5+": 2330
+    },
+    "simulation_capacity_cross_tab": {
+      "failed_attempt_only:failed_structural_mismatch:exceeds_limit": 13,
+      "failed_attempt_only:failed_structural_pass:exceeds_limit": 764,
+      "failed_attempt_only:failed_structural_pass:within_limit_capacity_only": 3,
+      "successful_transaction:successful_structural_mismatch:exceeds_limit": 3,
+      "successful_transaction:successful_structural_pass:exceeds_limit": 1550
+    },
+    "slots": 160,
+    "status_and_category_counts": {
+      "failed_attempt_only:failed_structural_mismatch": 13,
+      "failed_attempt_only:failed_structural_pass": 767,
+      "successful_transaction:successful_structural_mismatch": 3,
+      "successful_transaction:successful_structural_pass": 1550
+    },
+    "token_2022_program_role_rows": 2328,
+    "wsol_quote_role_rows": 2246
+  },
+  "captured_class_context": {
+    "full_block_compressed_capture_bytes": 145509274,
+    "full_block_count": 160,
+    "full_block_response_bytes": 688802197,
+    "note": "inherited from taxonomy receipt; not a claim of global discovery or population completeness"
+  },
+  "contract": "pumpswap_buy_exact_v1_alchemy_archive_feasibility_v1",
+  "created_at_utc": "2026-10-11T09:16:22.451796+00:00",
+  "derived_rows": {
+    "compressed_bytes": 184624,
+    "compressed_sha256": "be3d3cae7cdca1c9b790faee98ea526f160f5c3bf713decb7afaa9640a54dc61",
+    "contains_pubkeys": false,
+    "contains_raw_capture_payloads": false,
+    "path": "work/pumpswap-buy-exact-v1-alchemy-account-archive-feasibility-v1-2026-10-11/rows.json.zst",
+    "row_count": 2333,
+    "uncompressed_bytes": 2839531,
+    "uncompressed_sha256": "31a9725d3199b654882f28c261e4422ef55cac12efbd2b95a19e4f58734f6397"
+  },
+  "implementation": {
+    "test_path": "tests/brain/test_senses_buy_exact_v1_alchemy_archive_feasibility.py",
+    "test_sha256": "ab5fbabca4cba30c0bc88629cf09f4613fa8b136aa553ffd477538a039854c18",
+    "tool_path": "tools/brain_senses_buy_exact_v1_alchemy_archive_feasibility_v1.py",
+    "tool_sha256": "0755926dd86e163a45099c2850776edce84b0fa1a04adcf56ecbc957602d2c1c"
+  },
+  "input_bindings": {
+    "identifiability_receipt_sha256": "29e9d00c326f10973dde8f953b16bac136e7774d3fe94e67190a43c6832228c2",
+    "identifiability_rows_compressed_sha256": "21e384721f35d67ba88e3b673b03dda06776168180f4157ba76b255072230812",
+    "identifiability_rows_path": "work/pumpswap-buy-exact-v1-c4-economic-identifiability-v1-final/rows.json.zst",
+    "identifiability_rows_uncompressed_sha256": "25eca394b85ad11df4325b23d3f6a8c03d5eea5a04e81418fabf754602d47d4f",
+    "row_count": 2333,
+    "taxonomy_receipt_path": "docs/evidence/pumpswap-buy-exact-v1-c4-evidence-feasibility-2026-10-11.json",
+    "taxonomy_receipt_sha256": "9213239dacf2ff7f7e412efd19f9ef20534ddd483ff57ec5debb9316b49fbeb6",
+    "taxonomy_rows_compressed_sha256": "eb235db6df81c483769294ef3c999d836ae4d50887e721eaa9ddd930a0ce4c0d",
+    "taxonomy_rows_path": "work/pumpswap-buy-exact-v1-c4-evidence-feasibility-taxonomy.json.zst",
+    "taxonomy_rows_uncompressed_sha256": "81dc5e8433a9b6a695afcedbc4df81fde0bc5406da553831606edb8fa550cd5d",
+    "unique_candidate_identity_count": 2333
+  },
+  "interpretation_limits": [
+    "a slot-finalized account snapshot is not the account state before a candidate transaction within that same slot",
+    "lastUpdateBeforeSlot is slot-scoped and supplies no transaction or instruction index",
+    "the one-request whole-prefix-plus-candidate capacity screen does not prove causal necessity of every predecessor or historical replay; simulation is hypothetical and slot-state initialized",
+    "full transaction referenced-account counts, override plans, rendered response sizes, archive coverage, and batch economics remain unknown from accepted ledgers",
+    "no Alchemy chain RPC, account archive read, backfill, c4 response body, or tail2 access occurred",
+    "all rows retain economic_admission=false; no settlement, economic zero, audit, decoder, or training claim is produced"
+  ],
+  "official_source_snapshots": {
+    "file_mtime_window_utc": {
+      "first_snapshot_mtime_utc": "2026-10-11T09:03:34.248406+00:00",
+      "last_snapshot_mtime_utc": "2026-10-11T09:06:36.080211+00:00"
+    },
+    "local_root": "work/alchemy-account-archive-source-review-2026-10-11",
+    "sha256_by_url": {
+      "https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-account-info": "38e0bd98a0fef54b310d0c948699c6d6f3004e7665dbf364634553aa415f302a",
+      "https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-token-accounts-by-owner-at-slot": "149f4b385d93a10d10a8b6a9965ae275128ad0762f0905f1ecde141847e6d766",
+      "https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/simulate-transactions-at-slot": "e7481f01f5214b78316eab035c09f4dd782214a622a50ab5c9f7fa947a270aed",
+      "https://www.alchemy.com/docs/reference/compute-unit-costs": "85ae44ea427dd276f489d4455241ca9215168ecd1d54a7c1b42c25b00a43d88d",
+      "https://www.alchemy.com/docs/reference/compute-units": "d867a5c03e4ed330ae042001735eef0d094b96950ac14ed4ae21e52f8332fc7e",
+      "https://www.alchemy.com/docs/reference/pricing-plans": "c24e6c5172e77bea7b9c6612125a37081c442cb78c88571ac73330d353f8c848",
+      "https://www.alchemy.com/docs/solana/account-archive": "28630d26157df2b9a07fc66d5b92e598709f2690f9ad727f1d19f3eca22c0566"
+    }
+  },
+  "position_state_feasibility": {
+    "all_economic_admission_false": true,
+    "audit_or_decoder_admission": false,
+    "candidate_instruction_position": "not supplied by documented APIs; historical simulation starts from archived slot state and lacks a target transaction/instruction selector",
+    "pre_slot_bytes": "potentially addressable with lastUpdateBeforeSlot(S); not same-slot transaction-position state",
+    "same_slot_predecessors": "counted from transaction index; prior transaction effects and complete bank state are not reconstructed by this screen",
+    "slot_boundary_bytes": "potentially available only after verifying paid Archive entitlement, slot coverage, account type, and read completeness",
+    "token2022": "historical mint/account extension, epoch fee config, withheld amounts, transfer-hook state and invocation effects remain position-dependent",
+    "transaction_boundary": "captured full-block identities and transaction-wide metadata exist for the included development frames; no validator replay was run",
+    "wsol": "wrapped SOL token/lamport/rent/sync/close state remains position-dependent"
+  },
+  "read_only_alchemy_usage_observation": {
+    "interpretation": "aggregate account usage does not verify Account Archive entitlement, spend caps, or per-method Archive charges",
+    "month_to_date_cu": 18680,
+    "month_to_date_usd_reported": "0.01",
+    "path": "work/alchemy-account-archive-source-review-2026-10-11/read-only-usage-mcp-observation.json",
+    "sha256": "9b211ef63ae924fdb35cdd5e0b2dc501d906bb3d9a88f6b107444e104527effd",
+    "source_type": "Alchemy MCP account-usage admin methods; not chain RPC",
+    "usage_limit_field_present": false
+  },
+  "scope": "offline Alchemy Account Archive capability screen over accepted buyExact c4 ledgers and pinned public docs; no c4 body opened and no provider chain request"
+}

@@ -1,0 +1,3906 @@
+{
+  "auto": {
+    "bottlenecks": [
+      {
+        "ns": 1791150396878271000,
+        "reason": "paused",
+        "source": "revision"
+      },
+      {
+        "ns": 1791150397140926000,
+        "reason": "stopped",
+        "source": "revision"
+      }
+    ],
+    "transitions": [
+      {
+        "from_mode": null,
+        "mode": "idle",
+        "ns": 1791148155438545000,
+        "phase": "idle",
+        "reason": "initialized",
+        "revision": 1
+      },
+      {
+        "from_mode": "idle",
+        "mode": "collect",
+        "ns": 1791148230726712000,
+        "phase": "collect",
+        "reason": "accepted",
+        "revision": 2
+      },
+      {
+        "from_mode": "collect",
+        "mode": "collect",
+        "ns": 1791148253102929000,
+        "phase": "snapshot",
+        "reason": "accepted",
+        "revision": 3
+      },
+      {
+        "from_mode": "collect",
+        "mode": "collect",
+        "ns": 1791148331009841000,
+        "phase": "train",
+        "reason": "accepted",
+        "revision": 4
+      },
+      {
+        "from_mode": "collect",
+        "mode": "paper",
+        "ns": 1791148416315560000,
+        "phase": "paper",
+        "reason": "accepted",
+        "revision": 6
+      },
+      {
+        "from_mode": "paper",
+        "mode": "auto",
+        "ns": 1791150396763364000,
+        "phase": "waiting",
+        "reason": "auto",
+        "revision": 8
+      },
+      {
+        "from_mode": "auto",
+        "mode": "paused",
+        "ns": 1791150396878271000,
+        "phase": "paused",
+        "reason": "paused",
+        "revision": 9
+      },
+      {
+        "from_mode": "paused",
+        "mode": "auto",
+        "ns": 1791150396998439000,
+        "phase": "waiting",
+        "reason": "resumed",
+        "revision": 10
+      },
+      {
+        "from_mode": "auto",
+        "mode": "stopped",
+        "ns": 1791150397140926000,
+        "phase": "stopped",
+        "reason": "stopped",
+        "revision": 11
+      },
+      {
+        "from_mode": "stopped",
+        "mode": "auto",
+        "ns": 1791150599175713000,
+        "phase": "waiting",
+        "reason": "resumed",
+        "revision": 12
+      }
+    ]
+  },
+  "bounds": {
+    "champion_model_sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+    "created_ns": 1791148155437168000,
+    "expires_ns": 1791750673058527000,
+    "max_training_runs": 6,
+    "min_refit_interval_s": 86400,
+    "minimum_new_matured": 100,
+    "paid_budget_usd": 0,
+    "port": 8792,
+    "real_execution_enabled": false
+  },
+  "coverage": {
+    "growth": {
+      "bars_delta": 136,
+      "bars_first": 95261,
+      "bars_last": 95397,
+      "event_days_delta": 0,
+      "pools_delta": 0,
+      "pools_first": 24,
+      "pools_last": 24,
+      "status": "measured"
+    },
+    "points": [
+      {
+        "bars": 95261,
+        "event_days": null,
+        "ns": 1791148156935256000,
+        "pools": null,
+        "samples": 87493
+      },
+      {
+        "bars": 95261,
+        "event_days": null,
+        "ns": 1791148172745072000,
+        "pools": null,
+        "samples": 87493
+      },
+      {
+        "bars": 95261,
+        "event_days": null,
+        "ns": 1791148188463061000,
+        "pools": null,
+        "samples": 87493
+      },
+      {
+        "bars": 95261,
+        "event_days": null,
+        "ns": 1791148204244748000,
+        "pools": null,
+        "samples": 87493
+      },
+      {
+        "bars": 95273,
+        "event_days": null,
+        "ns": 1791148220030524000,
+        "pools": null,
+        "samples": 87505
+      },
+      {
+        "bars": 95273,
+        "event_days": null,
+        "ns": 1791148235824167000,
+        "pools": null,
+        "samples": 87505
+      },
+      {
+        "bars": 95273,
+        "event_days": null,
+        "ns": 1791148251646049000,
+        "pools": null,
+        "samples": 87505
+      },
+      {
+        "bars": 95273,
+        "event_days": null,
+        "ns": 1791148267109759000,
+        "pools": null,
+        "samples": 87505
+      },
+      {
+        "bars": 95273,
+        "event_days": null,
+        "ns": 1791148282582652000,
+        "pools": null,
+        "samples": 87505
+      },
+      {
+        "bars": 95274,
+        "event_days": null,
+        "ns": 1791148297943539000,
+        "pools": null,
+        "samples": 87506
+      },
+      {
+        "bars": 95276,
+        "event_days": null,
+        "ns": 1791148313362246000,
+        "pools": null,
+        "samples": 87508
+      },
+      {
+        "bars": 95277,
+        "event_days": null,
+        "ns": 1791148328787872000,
+        "pools": null,
+        "samples": 87509
+      },
+      {
+        "bars": 95289,
+        "event_days": null,
+        "ns": 1791148344260624000,
+        "pools": null,
+        "samples": 87521
+      },
+      {
+        "bars": 95289,
+        "event_days": null,
+        "ns": 1791148359814273000,
+        "pools": null,
+        "samples": 87521
+      },
+      {
+        "bars": 95289,
+        "event_days": null,
+        "ns": 1791148375406617000,
+        "pools": null,
+        "samples": 87521
+      },
+      {
+        "bars": 95289,
+        "event_days": null,
+        "ns": 1791148390918589000,
+        "pools": null,
+        "samples": 87521
+      },
+      {
+        "bars": 95289,
+        "event_days": null,
+        "ns": 1791148406466971000,
+        "pools": null,
+        "samples": 87521
+      },
+      {
+        "bars": 95289,
+        "event_days": null,
+        "ns": 1791148422000972000,
+        "pools": null,
+        "samples": 87521
+      },
+      {
+        "bars": 95289,
+        "event_days": null,
+        "ns": 1791148437517012000,
+        "pools": null,
+        "samples": 87521
+      },
+      {
+        "bars": 95289,
+        "event_days": null,
+        "ns": 1791148453095347000,
+        "pools": null,
+        "samples": 87521
+      },
+      {
+        "bars": 95300,
+        "event_days": null,
+        "ns": 1791148468654726000,
+        "pools": null,
+        "samples": 87532
+      },
+      {
+        "bars": 95300,
+        "event_days": null,
+        "ns": 1791148484205429000,
+        "pools": null,
+        "samples": 87532
+      },
+      {
+        "bars": 95300,
+        "event_days": null,
+        "ns": 1791148499780835000,
+        "pools": null,
+        "samples": 87532
+      },
+      {
+        "bars": 95300,
+        "event_days": null,
+        "ns": 1791148515324662000,
+        "pools": null,
+        "samples": 87532
+      },
+      {
+        "bars": 95300,
+        "event_days": null,
+        "ns": 1791148530942071000,
+        "pools": null,
+        "samples": 87532
+      },
+      {
+        "bars": 95301,
+        "event_days": null,
+        "ns": 1791148546520822000,
+        "pools": null,
+        "samples": 87533
+      },
+      {
+        "bars": 95302,
+        "event_days": null,
+        "ns": 1791148562049313000,
+        "pools": null,
+        "samples": 87534
+      },
+      {
+        "bars": 95303,
+        "event_days": null,
+        "ns": 1791148577606715000,
+        "pools": null,
+        "samples": 87535
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148593155271000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148608705605000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148624249315000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148639797549000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148655371223000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148670951658000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148686483619000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148702066280000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148717637344000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148733217909000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148748847932000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148764415301000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148779989118000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95304,
+        "event_days": null,
+        "ns": 1791148795570603000,
+        "pools": null,
+        "samples": 87536
+      },
+      {
+        "bars": 95305,
+        "event_days": null,
+        "ns": 1791148811149915000,
+        "pools": null,
+        "samples": 87537
+      },
+      {
+        "bars": 95306,
+        "event_days": null,
+        "ns": 1791148826774727000,
+        "pools": null,
+        "samples": 87538
+      },
+      {
+        "bars": 95307,
+        "event_days": null,
+        "ns": 1791148842341063000,
+        "pools": null,
+        "samples": 87539
+      },
+      {
+        "bars": 95319,
+        "event_days": null,
+        "ns": 1791148857967730000,
+        "pools": null,
+        "samples": 87551
+      },
+      {
+        "bars": 95319,
+        "event_days": null,
+        "ns": 1791148873556910000,
+        "pools": null,
+        "samples": 87551
+      },
+      {
+        "bars": 95319,
+        "event_days": null,
+        "ns": 1791148889121459000,
+        "pools": null,
+        "samples": 87551
+      },
+      {
+        "bars": 95319,
+        "event_days": null,
+        "ns": 1791148904679267000,
+        "pools": null,
+        "samples": 87551
+      },
+      {
+        "bars": 95319,
+        "event_days": null,
+        "ns": 1791148920229433000,
+        "pools": null,
+        "samples": 87551
+      },
+      {
+        "bars": 95320,
+        "event_days": null,
+        "ns": 1791148935806067000,
+        "pools": null,
+        "samples": 87552
+      },
+      {
+        "bars": 95320,
+        "event_days": null,
+        "ns": 1791148951388013000,
+        "pools": null,
+        "samples": 87552
+      },
+      {
+        "bars": 95320,
+        "event_days": null,
+        "ns": 1791148966967629000,
+        "pools": null,
+        "samples": 87552
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791148982548931000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791148998131429000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149013727634000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149029328281000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149044862882000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149060421921000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149075955571000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149091485978000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149106985408000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149122578673000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149138229579000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149153796020000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95332,
+        "event_days": null,
+        "ns": 1791149169376076000,
+        "pools": null,
+        "samples": 87564
+      },
+      {
+        "bars": 95333,
+        "event_days": null,
+        "ns": 1791149184979151000,
+        "pools": null,
+        "samples": 87565
+      },
+      {
+        "bars": 95334,
+        "event_days": null,
+        "ns": 1791149200537272000,
+        "pools": null,
+        "samples": 87566
+      },
+      {
+        "bars": 95336,
+        "event_days": null,
+        "ns": 1791149216109408000,
+        "pools": null,
+        "samples": 87568
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149231713081000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149247309542000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149262924513000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149278516474000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149294064082000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149309677664000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149325262385000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149340857544000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149356454672000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149372005284000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149387562577000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149403145365000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95348,
+        "event_days": null,
+        "ns": 1791149418733361000,
+        "pools": null,
+        "samples": 87580
+      },
+      {
+        "bars": 95349,
+        "event_days": null,
+        "ns": 1791149434320780000,
+        "pools": null,
+        "samples": 87581
+      },
+      {
+        "bars": 95350,
+        "event_days": null,
+        "ns": 1791149449860095000,
+        "pools": null,
+        "samples": 87582
+      },
+      {
+        "bars": 95351,
+        "event_days": null,
+        "ns": 1791149465338652000,
+        "pools": null,
+        "samples": 87583
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149480939409000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149496517854000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149512121075000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149527735029000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149543384486000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149558995306000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149574624244000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149590207015000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149605767727000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95352,
+        "event_days": null,
+        "ns": 1791149621346087000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95356,
+        "event_days": null,
+        "ns": 1791149636920712000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95356,
+        "event_days": null,
+        "ns": 1791149652428272000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95356,
+        "event_days": null,
+        "ns": 1791149667988251000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95356,
+        "event_days": null,
+        "ns": 1791149683556711000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95356,
+        "event_days": null,
+        "ns": 1791149699476622000,
+        "pools": null,
+        "samples": 87584
+      },
+      {
+        "bars": 95357,
+        "event_days": null,
+        "ns": 1791149715023472000,
+        "pools": null,
+        "samples": 87585
+      },
+      {
+        "bars": 95358,
+        "event_days": null,
+        "ns": 1791149730616808000,
+        "pools": null,
+        "samples": 87586
+      },
+      {
+        "bars": 95358,
+        "event_days": null,
+        "ns": 1791149746227150000,
+        "pools": null,
+        "samples": 87586
+      },
+      {
+        "bars": 95364,
+        "event_days": null,
+        "ns": 1791149761864490000,
+        "pools": null,
+        "samples": 87592
+      },
+      {
+        "bars": 95364,
+        "event_days": null,
+        "ns": 1791149777444184000,
+        "pools": null,
+        "samples": 87592
+      },
+      {
+        "bars": 95364,
+        "event_days": null,
+        "ns": 1791149793099844000,
+        "pools": null,
+        "samples": 87592
+      },
+      {
+        "bars": 95364,
+        "event_days": null,
+        "ns": 1791149808678633000,
+        "pools": null,
+        "samples": 87592
+      },
+      {
+        "bars": 95366,
+        "event_days": null,
+        "ns": 1791149824260052000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95366,
+        "event_days": null,
+        "ns": 1791149839866062000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95366,
+        "event_days": null,
+        "ns": 1791149855442878000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95366,
+        "event_days": null,
+        "ns": 1791149871020626000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95370,
+        "event_days": null,
+        "ns": 1791149886649207000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95370,
+        "event_days": null,
+        "ns": 1791149902253893000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95370,
+        "event_days": null,
+        "ns": 1791149917856512000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95370,
+        "event_days": null,
+        "ns": 1791149933430495000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95370,
+        "event_days": null,
+        "ns": 1791149949013686000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95370,
+        "event_days": null,
+        "ns": 1791149964597477000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95370,
+        "event_days": null,
+        "ns": 1791149980228191000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95370,
+        "event_days": null,
+        "ns": 1791149995858021000,
+        "pools": null,
+        "samples": 87594
+      },
+      {
+        "bars": 95376,
+        "event_days": null,
+        "ns": 1791150011483942000,
+        "pools": null,
+        "samples": 87600
+      },
+      {
+        "bars": 95376,
+        "event_days": null,
+        "ns": 1791150027084202000,
+        "pools": null,
+        "samples": 87600
+      },
+      {
+        "bars": 95376,
+        "event_days": null,
+        "ns": 1791150042723652000,
+        "pools": null,
+        "samples": 87600
+      },
+      {
+        "bars": 95376,
+        "event_days": null,
+        "ns": 1791150058330872000,
+        "pools": null,
+        "samples": 87600
+      },
+      {
+        "bars": 95378,
+        "event_days": null,
+        "ns": 1791150073877617000,
+        "pools": null,
+        "samples": 87602
+      },
+      {
+        "bars": 95379,
+        "event_days": null,
+        "ns": 1791150089513852000,
+        "pools": null,
+        "samples": 87603
+      },
+      {
+        "bars": 95380,
+        "event_days": null,
+        "ns": 1791150105077944000,
+        "pools": null,
+        "samples": 87604
+      },
+      {
+        "bars": 95380,
+        "event_days": null,
+        "ns": 1791150120692217000,
+        "pools": null,
+        "samples": 87604
+      },
+      {
+        "bars": 95380,
+        "event_days": null,
+        "ns": 1791150136289313000,
+        "pools": null,
+        "samples": 87604
+      },
+      {
+        "bars": 95386,
+        "event_days": null,
+        "ns": 1791150151884120000,
+        "pools": null,
+        "samples": 87610
+      },
+      {
+        "bars": 95386,
+        "event_days": null,
+        "ns": 1791150167461547000,
+        "pools": null,
+        "samples": 87610
+      },
+      {
+        "bars": 95386,
+        "event_days": null,
+        "ns": 1791150183045561000,
+        "pools": null,
+        "samples": 87610
+      },
+      {
+        "bars": 95386,
+        "event_days": null,
+        "ns": 1791150198605348000,
+        "pools": null,
+        "samples": 87610
+      },
+      {
+        "bars": 95386,
+        "event_days": null,
+        "ns": 1791150214209170000,
+        "pools": null,
+        "samples": 87610
+      },
+      {
+        "bars": 95386,
+        "event_days": null,
+        "ns": 1791150229824705000,
+        "pools": null,
+        "samples": 87610
+      },
+      {
+        "bars": 95386,
+        "event_days": null,
+        "ns": 1791150245410716000,
+        "pools": null,
+        "samples": 87610
+      },
+      {
+        "bars": 95386,
+        "event_days": null,
+        "ns": 1791150260997438000,
+        "pools": null,
+        "samples": 87610
+      },
+      {
+        "bars": 95392,
+        "event_days": null,
+        "ns": 1791150276578669000,
+        "pools": null,
+        "samples": 87616
+      },
+      {
+        "bars": 95392,
+        "event_days": null,
+        "ns": 1791150292191739000,
+        "pools": null,
+        "samples": 87616
+      },
+      {
+        "bars": 95392,
+        "event_days": null,
+        "ns": 1791150307773519000,
+        "pools": null,
+        "samples": 87616
+      },
+      {
+        "bars": 95393,
+        "event_days": null,
+        "ns": 1791150323373447000,
+        "pools": null,
+        "samples": 87617
+      },
+      {
+        "bars": 95395,
+        "event_days": null,
+        "ns": 1791150338966664000,
+        "pools": null,
+        "samples": 87619
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150354611984000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150370203789000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150385846338000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150401456703000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150416989164000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150432650810000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150448270007000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150463967367000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150479624700000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150495271874000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150510950650000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150526514532000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150542182752000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150557782841000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150573466335000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95396,
+        "event_days": null,
+        "ns": 1791150592250674000,
+        "pools": null,
+        "samples": 87620
+      },
+      {
+        "bars": 95397,
+        "event_days": null,
+        "ns": 1791150607665341000,
+        "pools": null,
+        "samples": 87621
+      },
+      {
+        "bars": 95397,
+        "event_days": null,
+        "ns": 1791150623571549000,
+        "pools": null,
+        "samples": 87621
+      }
+    ],
+    "telemetry": [
+      {
+        "bars": 95261,
+        "event_days": 92,
+        "matured_samples": 87493,
+        "ns": 1791148156928352000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95273,
+        "event_days": 92,
+        "matured_samples": 87505,
+        "ns": 1791148220025532000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95273,
+        "event_days": 92,
+        "matured_samples": 87505,
+        "ns": 1791148282575793000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95289,
+        "event_days": 92,
+        "matured_samples": 87521,
+        "ns": 1791148344249324000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95289,
+        "event_days": 92,
+        "matured_samples": 87521,
+        "ns": 1791148406457468000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95300,
+        "event_days": 92,
+        "matured_samples": 87532,
+        "ns": 1791148468638666000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95300,
+        "event_days": 92,
+        "matured_samples": 87532,
+        "ns": 1791148530927689000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95304,
+        "event_days": 92,
+        "matured_samples": 87536,
+        "ns": 1791148593143325000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95304,
+        "event_days": 92,
+        "matured_samples": 87536,
+        "ns": 1791148655356363000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95304,
+        "event_days": 92,
+        "matured_samples": 87536,
+        "ns": 1791148717625321000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95304,
+        "event_days": 92,
+        "matured_samples": 87536,
+        "ns": 1791148779975296000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95307,
+        "event_days": 92,
+        "matured_samples": 87539,
+        "ns": 1791148842326768000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95319,
+        "event_days": 92,
+        "matured_samples": 87551,
+        "ns": 1791148904664952000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95320,
+        "event_days": 92,
+        "matured_samples": 87552,
+        "ns": 1791148966952833000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95332,
+        "event_days": 92,
+        "matured_samples": 87564,
+        "ns": 1791149029313055000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95332,
+        "event_days": 92,
+        "matured_samples": 87564,
+        "ns": 1791149091474631000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95332,
+        "event_days": 92,
+        "matured_samples": 87564,
+        "ns": 1791149153780356000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95336,
+        "event_days": 92,
+        "matured_samples": 87568,
+        "ns": 1791149216093039000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95348,
+        "event_days": 92,
+        "matured_samples": 87580,
+        "ns": 1791149278501387000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95348,
+        "event_days": 92,
+        "matured_samples": 87580,
+        "ns": 1791149340843485000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95348,
+        "event_days": 92,
+        "matured_samples": 87580,
+        "ns": 1791149403132112000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95351,
+        "event_days": 92,
+        "matured_samples": 87583,
+        "ns": 1791149465328218000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95352,
+        "event_days": 92,
+        "matured_samples": 87584,
+        "ns": 1791149527724318000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95352,
+        "event_days": 92,
+        "matured_samples": 87584,
+        "ns": 1791149590196001000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95356,
+        "event_days": 92,
+        "matured_samples": 87584,
+        "ns": 1791149652417222000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95357,
+        "event_days": 92,
+        "matured_samples": 87585,
+        "ns": 1791149715008484000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95364,
+        "event_days": 92,
+        "matured_samples": 87592,
+        "ns": 1791149777429579000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95366,
+        "event_days": 92,
+        "matured_samples": 87594,
+        "ns": 1791149839848161000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95370,
+        "event_days": 92,
+        "matured_samples": 87594,
+        "ns": 1791149902237711000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95370,
+        "event_days": 92,
+        "matured_samples": 87594,
+        "ns": 1791149964577788000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95376,
+        "event_days": 92,
+        "matured_samples": 87600,
+        "ns": 1791150027068430000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95379,
+        "event_days": 92,
+        "matured_samples": 87603,
+        "ns": 1791150089498548000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95386,
+        "event_days": 92,
+        "matured_samples": 87610,
+        "ns": 1791150151869056000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95386,
+        "event_days": 92,
+        "matured_samples": 87610,
+        "ns": 1791150214195154000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95392,
+        "event_days": 92,
+        "matured_samples": 87616,
+        "ns": 1791150276563324000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95395,
+        "event_days": 92,
+        "matured_samples": 87619,
+        "ns": 1791150338948540000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95396,
+        "event_days": 92,
+        "matured_samples": 87620,
+        "ns": 1791150401446957000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95396,
+        "event_days": 92,
+        "matured_samples": 87620,
+        "ns": 1791150463956578000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95396,
+        "event_days": 92,
+        "matured_samples": 87620,
+        "ns": 1791150526506314000,
+        "pools": 24,
+        "receipt_days": 1
+      },
+      {
+        "bars": 95396,
+        "event_days": 92,
+        "matured_samples": 87620,
+        "ns": 1791150592159417000,
+        "pools": 24,
+        "receipt_days": 1
+      }
+    ]
+  },
+  "cutoff_ns": 1791150624863084000,
+  "documents": [
+    "docs/brain-autonomous-operator.md",
+    "docs/brain-operator-evidence.md",
+    "docs/brain-paper-loop.md",
+    "docs/brain-development.md",
+    "memory/evaluation.md"
+  ],
+  "fills_recomputed": false,
+  "forecasts": {
+    "by_horizon": {
+      "1": {
+        "censored": 0,
+        "horizon": 1,
+        "invalid": 0,
+        "loss_by_model": [
+          {
+            "exam_id": "job_b7edd93ea86173f9",
+            "loss": {
+              "empirical": {
+                "n": 25,
+                "pinball_sum": "0.0351830050448188548"
+              },
+              "gru": {
+                "n": 25,
+                "pinball_sum": "0.1197172023253545215"
+              },
+              "linear": {
+                "n": 25,
+                "pinball_sum": "0.445398548781903976"
+              }
+            },
+            "model_sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920"
+          },
+          {
+            "exam_id": "job_b7edd93ea86173f9",
+            "loss": {
+              "empirical": {
+                "n": 25,
+                "pinball_sum": "0.0818459897188547856"
+              },
+              "gru": {
+                "n": 25,
+                "pinball_sum": "0.0677187915782014197"
+              },
+              "linear": {
+                "n": 25,
+                "pinball_sum": "0.2519092765166860569"
+              }
+            },
+            "model_sha": "c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76"
+          }
+        ],
+        "minutes": 5,
+        "outcome_count": 50,
+        "pending": 8,
+        "prediction_count": 58,
+        "scored": 50
+      },
+      "3": {
+        "censored": 0,
+        "horizon": 3,
+        "invalid": 0,
+        "loss_by_model": [
+          {
+            "exam_id": "job_b7edd93ea86173f9",
+            "loss": {
+              "empirical": {
+                "n": 17,
+                "pinball_sum": "0.0492726882817971658"
+              },
+              "gru": {
+                "n": 17,
+                "pinball_sum": "0.0327147135515400684"
+              },
+              "linear": {
+                "n": 17,
+                "pinball_sum": "0.0776649159654086959"
+              }
+            },
+            "model_sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920"
+          },
+          {
+            "exam_id": "job_b7edd93ea86173f9",
+            "loss": {
+              "empirical": {
+                "n": 17,
+                "pinball_sum": "0.1048573644837692295"
+              },
+              "gru": {
+                "n": 17,
+                "pinball_sum": "0.0393271341087701256"
+              },
+              "linear": {
+                "n": 17,
+                "pinball_sum": "0.0322294723621055304"
+              }
+            },
+            "model_sha": "c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76"
+          }
+        ],
+        "minutes": 15,
+        "outcome_count": 34,
+        "pending": 24,
+        "prediction_count": 58,
+        "scored": 34
+      }
+    },
+    "by_model": [
+      {
+        "by_horizon": {
+          "1": {
+            "censored": 0,
+            "horizon": 1,
+            "invalid": 0,
+            "loss": {
+              "empirical": {
+                "n": 25,
+                "pinball_sum": "0.0351830050448188548"
+              },
+              "gru": {
+                "n": 25,
+                "pinball_sum": "0.1197172023253545215"
+              },
+              "linear": {
+                "n": 25,
+                "pinball_sum": "0.445398548781903976"
+              }
+            },
+            "minutes": 5,
+            "outcome_count": 25,
+            "pending": 4,
+            "prediction_count": 29,
+            "scored": 25
+          },
+          "3": {
+            "censored": 0,
+            "horizon": 3,
+            "invalid": 0,
+            "loss": {
+              "empirical": {
+                "n": 17,
+                "pinball_sum": "0.0492726882817971658"
+              },
+              "gru": {
+                "n": 17,
+                "pinball_sum": "0.0327147135515400684"
+              },
+              "linear": {
+                "n": 17,
+                "pinball_sum": "0.0776649159654086959"
+              }
+            },
+            "minutes": 15,
+            "outcome_count": 17,
+            "pending": 12,
+            "prediction_count": 29,
+            "scored": 17
+          }
+        },
+        "censored": 0,
+        "exam_id": "job_b7edd93ea86173f9",
+        "invalid": 0,
+        "model_sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+        "outcome_count": 42,
+        "pending": 16,
+        "prediction_count": 58,
+        "scored": 42
+      },
+      {
+        "by_horizon": {
+          "1": {
+            "censored": 0,
+            "horizon": 1,
+            "invalid": 0,
+            "loss": {
+              "empirical": {
+                "n": 25,
+                "pinball_sum": "0.0818459897188547856"
+              },
+              "gru": {
+                "n": 25,
+                "pinball_sum": "0.0677187915782014197"
+              },
+              "linear": {
+                "n": 25,
+                "pinball_sum": "0.2519092765166860569"
+              }
+            },
+            "minutes": 5,
+            "outcome_count": 25,
+            "pending": 4,
+            "prediction_count": 29,
+            "scored": 25
+          },
+          "3": {
+            "censored": 0,
+            "horizon": 3,
+            "invalid": 0,
+            "loss": {
+              "empirical": {
+                "n": 17,
+                "pinball_sum": "0.1048573644837692295"
+              },
+              "gru": {
+                "n": 17,
+                "pinball_sum": "0.0393271341087701256"
+              },
+              "linear": {
+                "n": 17,
+                "pinball_sum": "0.0322294723621055304"
+              }
+            },
+            "minutes": 15,
+            "outcome_count": 17,
+            "pending": 12,
+            "prediction_count": 29,
+            "scored": 17
+          }
+        },
+        "censored": 0,
+        "exam_id": "job_b7edd93ea86173f9",
+        "invalid": 0,
+        "model_sha": "c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76",
+        "outcome_count": 42,
+        "pending": 16,
+        "prediction_count": 58,
+        "scored": 42
+      }
+    ],
+    "calibration": {
+      "available": false,
+      "reason": "not_published"
+    },
+    "censored": 0,
+    "clock": {
+      "bar_s": 300,
+      "bar_source": "pinned_runtime"
+    },
+    "descriptive_only": true,
+    "duplicates_folded": 0,
+    "excluded": {
+      "after_cutoff": 0,
+      "before_activation": 0,
+      "model_mismatch": 0,
+      "model_unassociated": 0,
+      "unverified_outcome": 0
+    },
+    "group_key": "exam_id,model_sha,pool,event_close_s",
+    "groups": {
+      "any_censored": 0,
+      "any_pending": 24,
+      "fully_scored": 34,
+      "independent": 58
+    },
+    "historical_metrics_included": false,
+    "independent_groups": 58,
+    "invalid": 0,
+    "loss": null,
+    "loss_combined": false,
+    "namespace": "candidate-shadows/<model>/shadow and legacy exam/shadow",
+    "outcome_count": 84,
+    "pending": 32,
+    "prediction_count": 116,
+    "prediction_count_is_not_independent_group_count": true,
+    "reason": null,
+    "scored": 84,
+    "status": "measured"
+  },
+  "future_includes_historical_test": false,
+  "gates": [
+    {
+      "expires_ns": 1791750673058527000,
+      "id": "expiry",
+      "pass": true
+    },
+    {
+      "id": "operator_mode",
+      "mode": "auto",
+      "pass": true
+    },
+    {
+      "id": "quota",
+      "pass": true,
+      "runs_max": 6,
+      "runs_used": 1
+    },
+    {
+      "id": "interval",
+      "last_reservation_ns": 1791148331009841000,
+      "pass": false
+    },
+    {
+      "id": "domain_stop",
+      "pass": true
+    },
+    {
+      "id": "promotion",
+      "pass": true,
+      "value": null
+    }
+  ],
+  "hashes": {
+    "bound_health": [
+      {
+        "label": "legacy-paper:B10-active",
+        "sha256": "66750d63b5a1199d43e9221d39b2bfc851fb43679000e88e9bcf54ba32199d00"
+      },
+      {
+        "label": "legacy-paper:B12-active",
+        "sha256": "387302fee3070a3f885511831804dfa67e297e3883ad2b629c20ca5bd8e5ae3e"
+      },
+      {
+        "label": "legacy-paper:B12-original-STOP",
+        "sha256": "35c5f65ea0d4d40aa626d3155049a6f80cecf57af7bf2f73d17df67e61d51a5e"
+      },
+      {
+        "label": "legacy:B10-active",
+        "sha256": "fbd61dc25f2e8f981d2f62fa747039b792643d84a9fe6e2e074494e0df23e67a"
+      },
+      {
+        "label": "legacy:B12-active",
+        "sha256": "7eb1b49680db7daa01b282f557d7af5d363091122c32bdbc00ab6e8aa8a8fd98"
+      },
+      {
+        "label": "legacy:B12-original-STOP",
+        "sha256": "7f6db4da66e5640da1056e8a9ab20abc5f22b732b436ab27e4079d4212590361"
+      },
+      {
+        "label": "source_health",
+        "sha256": "6d807dc9f08ff813296ad27a919f1f525db15a5d26f768fb000fc14fcc145067"
+      }
+    ],
+    "config_sha256": "65a101f7a69c4364ecba223acc697f895f84e6162b20d67013fad575b783880f",
+    "inputs": [
+      {
+        "path": "candidates/job_fe34d70ab6cea0bc.json",
+        "sha256": "f3405b3dd3cfdfc3356c918e866ef08d73f903aa81c71953fa932812e5d7c96e"
+      },
+      {
+        "path": "config.json",
+        "sha256": "65a101f7a69c4364ecba223acc697f895f84e6162b20d67013fad575b783880f"
+      },
+      {
+        "path": "datasets/job_4ed49dcc84dfb59d.json",
+        "sha256": "f6bb4709620b3461e1264bc5b48d794fe1d276cb0b5a6ea383455801391923fd"
+      },
+      {
+        "path": "deployment.json",
+        "sha256": "1c6a5b66487fae2af9e3b3ad3ac5cca9d63343a7a1e8ef051d4bb0ae61e22995"
+      },
+      {
+        "path": "exams/job_b7edd93ea86173f9.json",
+        "sha256": "b5de10696e797bab17a93328b48a0d98afc6d218ee611571302e9f9619ed1f0b"
+      },
+      {
+        "path": "operator/jobs/job_4ed49dcc84dfb59d/artifact/coverage.json",
+        "sha256": "1f1668895296628198c3555b86070d0fe3b6d4243dec37e9c2b38755c7a4759e"
+      },
+      {
+        "path": "operator/jobs/job_4ed49dcc84dfb59d/artifact/manifest.json",
+        "sha256": "cb6646156ed7f82fe8ffb911f6b0163f875afad960f08c9e43b1f33a5449a0b6"
+      },
+      {
+        "path": "operator/jobs/job_fe34d70ab6cea0bc/artifact/manifest.json",
+        "sha256": "04f8ec23dac55f2b288fdeb9403bf252c4bbd45dc7b9c023d79752a0c595d9ea"
+      },
+      {
+        "path": "operator/jobs/job_fe34d70ab6cea0bc/artifact/model/model-card.json",
+        "sha256": "685a280adb40ba645c742a4cc655e318023d40b95abca8683039bf02ed77916f"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/activation.json",
+        "sha256": "50d4bcd52b7d0a79e106bd35f4c64110beaab31981039418ba5f82c3fda11af8"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/0328af04839b1cbfc30cf3d105aaa1060e7b7e3b1dbc7dc7135a195fdd050030.json",
+        "sha256": "cd582969a07dacbaede9fcd875b04bb92089297f713835758da1e12454d901a7"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/04622004d05d74511808ad4d974ba4246318c011a865c6d2412475bc00cf1cc3.json",
+        "sha256": "f43548c9ffd9ff88de7fb4daca1dda4b52504188fc1f486adcdea826ed53d52a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/105e1f8c1c8d4a03a0b08b3eb489451856000caed261cfbeea7ddb032cf2e879.json",
+        "sha256": "eaa198e3fbd5f9a53c7afa05589c82ac68a5a1dd9a48b3dede198644c2366d12"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/12e98d0099fe511b9199e4fdbd6b322db704236cfa4995e6893cd6e7cc11ed73.json",
+        "sha256": "35ec29b822a55ba2e6e9718fce9ceaedd533bcd81cda847776bbb2de4e0688e2"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/13529b16439104d9e788a824e7f0956fef2972b3f5543f44d9aafbf2a79271fa.json",
+        "sha256": "566ab405236000b3939dc9efe6637ef486e5db86bcff7d7958b235f543a69d18"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/1aee69e452b6607f3fcbd1fe19f8beca733c99e99047e3bc51625c4a83e9b230.json",
+        "sha256": "f9a5900500ae81488d4ee9773502dc44cb64973baffd492676abdbc456d6bdd4"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/24f3a9221a136552f8822f9d0d4c3d83ce73d68d5fb2d279930bc8019c74ef28.json",
+        "sha256": "02be483aafa938c6d54a78681a7cf567e94ea72be4258090a5098d9a856bf8ac"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/263e8d80a4fdd635d70ea1521035a15beaa8d1d107aa1902b92245a211bd2bb7.json",
+        "sha256": "19aa61de04bd1389ebb59a651cce2d9ba60091043eb39ce2777085198896855f"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/299dec7e1cbf8141414468f1635e34c2522dc6e46db1da06afe17562898d9ab8.json",
+        "sha256": "dba788ba928e35b34d239624bf6e44c08988c6fecc3a7690cd958da0834f0fdb"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/2b6077d59f134e9b41d7d05158c2340a49f5b98cf6ac9b31850a04fed76227c2.json",
+        "sha256": "31de0d8c8712a6ba398b85635bada7f989b54e841a12b365b9d134f18d59997c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/2c26cac43b2f6e54276bcdd74cf0a6abebb0e362c2f71682bf575decea6be3a8.json",
+        "sha256": "7e1e4dc2deb61c7d390de2d4cd5bdfd21bbce0579179881439531db650433a5c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/31b3198dcff6e1e17004432fd07b369eeff11aa63d32249b64b32103ca389a4e.json",
+        "sha256": "ac47e7471e31e1a1409d5fe7449dc0d67491616ec30d58704a1b4c106105ed28"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/38d63c530d7a73b55686091cee5606e97c35ce225efd4b492f217b8e258c6aaa.json",
+        "sha256": "3baa882160745adbf4508524b780124ac2cb155f1a764cba42cda16d6fd8369a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/3eefe5e27952173f993e95a8418a9cad7ff1419284925a5c05c3cf6a3783bc4c.json",
+        "sha256": "c5455aff9a53b2c8a15a4cafce77ddbdd426da61105f26f7351b28bf1ca1f899"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/453b37d6d2ea2a7fcfc2c345646e4be1c03a23714340dde937c4388c7bb98b12.json",
+        "sha256": "90ff223514ae216c532ba64c5edf9efbfbea732da98a4b9ea4bae5c27eb4d619"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/472d286d8fab62dc5589c0054bc706b7e018d0a299ff83c44559a73685446348.json",
+        "sha256": "ce0d9d71d00f6e85d8c50dc8484b7611d1ce5a769041aaba4fad72f19c60f784"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/4b7423e9121ad993407f6c59f715b7637964e0f40d7362fa0329399e95c7b62e.json",
+        "sha256": "672522e814ce8f812dc6e00a37177381a240258e37533627c59cb7719a1838b0"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/4cbd9524fc781714f3fbb5d19ce80da42b7cddac522be221d0074503755f96c1.json",
+        "sha256": "b30da35ac5fa87bdc5696a35e00f903948be19be7da59ad919ec9c5715cb883e"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/4cf9f6cf0b0ebe9a9378abcebe6691846738ba427d6bfe14353b50444392cc94.json",
+        "sha256": "cba82c865c079bd51a6d913ea01f27c63d61f06ef3165e5e21df685e484a0c35"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/4f795a9e91389f62867103403e22616e73529042b9ea120d4f9e0b86c1de3b9e.json",
+        "sha256": "6238269f5a348a338ecfa590bd1169a59e3a5d4eb83bea9804fc7fa340d41a97"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/4fda2fec18ba00620c77e3cc982ef6be6dc995a134ab11df15a139ccb1b989df.json",
+        "sha256": "b71bd0b816bcfae31a81ef55d9e8df9fab5cac5638cc8e2513c9620f2850bfe0"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/5299e6f9bd464af160fbe0bb2e2c77f9ea8cd2677e10a625567c462ae8d60ee1.json",
+        "sha256": "1055155f7afef59ef6cb801c2fc62603d47418b1450512f09270db22c4087ec8"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/576c38f4e9fcb5b808f94b9c14388175584814517d08200ebda3798cadb4d0f2.json",
+        "sha256": "993cd19486298db4b70c67f9f60bd0b9ddd1b9d604f61f1d04e62e03901a89a1"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/5ae4f9d0f3271b8f8e947c012791d75ac7c8459dfa351fba43ed5c7f5df5bb6f.json",
+        "sha256": "ce8df36a4c786796ae5d697056ef66b3bb9f1b097a916a186aee1267341f36a9"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/5af72b8ba98871e0dc63858585462c65e9dd79ac6530688d04b20b97fd0fa594.json",
+        "sha256": "e8755267724097701414dba3960df28a6ce0ce58422495e0595d6ebe95b43657"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/5de6deffba7e0304031dc0b51c84604158377e5d2c87117ec9fd69893f71fc45.json",
+        "sha256": "3fd34b8eb9dd3c5aec302d5f94285960f585da0366e7848e272a153353f5cfbc"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/699b466e10cbbfc22e338a51c80e9a76bd4573729430ede968f9661bddc6dcc6.json",
+        "sha256": "43e015356c31970e08f3b12eb6fe797ae1968ba2dd39a105442a8fd57b27fcf2"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/717d8c3991f5848cf783134b7d380b23fa17e5d5df89833f3f92f52c18619a7e.json",
+        "sha256": "d74df9032ee7ffe0f0e77932b8bc86718038d849d98110c9187ce62483c3ff9c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/74a2a6c815cbbc511c73421765810567940d2754d8abc14a47cefa6d00d822e5.json",
+        "sha256": "7acb716542c37f81bae09338d807e01eb6dbf12069eea0b4c6a9e11126355491"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/88179624d38b9c24e64bf2de424ae0b6118fe8fa420f14fd8cce16b1d804959d.json",
+        "sha256": "492c2d1f14d49562a9db814da6162789dbecc4e54f990310ec384398560a78c8"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/8dd7f25fe8780c15820c4a6e1627b56c28ae09d11e2deabf15d6665a43e4ea35.json",
+        "sha256": "f4c87404f98f06d37ba60725125e43428dcff2a35836e3949c18e4517de4da07"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/8e3152da02c922e1374deffd0f18a5149cf0a996dac7daaf305e1fba44ba4836.json",
+        "sha256": "250133a50a4b1695503c8b93a38d1b637d55143d6dc69dcd7c84d0fa4f6033ef"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/93b5f63a9b10c78e27e525d642a64ef91382536c8843a1ba24f1339ab395e1cd.json",
+        "sha256": "0c49c25ea4a2db0c4ee022754894a3a095e3c033949effcdb72eae821e008ded"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/9598b07174601bbc82059f4965921710d6546ab5e404392b6e13f1a59e1387fc.json",
+        "sha256": "46a875f24848cadfc8f85394d9a747c6b259302bd86b068b92a637176cbbda4d"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/a993bd25538fca52367ea82bac6f01b3eec853bc238672f14d7f78b0a75b1a43.json",
+        "sha256": "5dc816132484b33ff5c3b093b988c2e71f809a5775a53e61ee2002d92cfc9cf6"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/ad8b507a17a73ca68a5480c5fb21e26cadaf3e8f572fd3c5b0e71554094c65ad.json",
+        "sha256": "bf139aea85603c4eea0ac9d26ee2bae235f5cee5cdc01bb056a2dc1010dfad46"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/beddfa71481eab9b65cffc64af505126e14e19acf71be484bffe28a2ba9f2c5c.json",
+        "sha256": "bd847d9454188661696b9da34024520176c50ba546c272a3378d1daf8a51a828"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/cf1117775e6958bc8584fc643c4b1c649aa203746a75ec788a09f03e2bf7bd47.json",
+        "sha256": "216e90873ba5a895bdd08d9ea51e721d74d5d0b68b240f057544fc3c329e0590"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/ecfbec2d4d5f5130933b76607ac71f46894e8a43e3c98d069e8fb3478a842f7c.json",
+        "sha256": "34186ecf61b027180bd912a0874cea4109dab204df61732d19ce32cc9ee8ad14"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/edeba5c11a65e3fe86c415cb08bc592bb52c1bf6b89cf93a7f73cd581322d677.json",
+        "sha256": "4abf050e0e0927ab9a026ac9041e7c331c6b7a757b42ddb40f32d0ba94305af7"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/f0bc3ee2add3dad7f0a1e930bd2d3d1c5d51f69582f2afe1d0d0e530d4261842.json",
+        "sha256": "c5a754b490414137ae94d126eb8d16d72a95693932d50ceb48b2dff887db3cb3"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/outcomes/ff7baa0a83eed760dd90fc4ad3df3f718a8204dfac307807c3a29fbc71ec0ead.json",
+        "sha256": "1aef45425da6482b30bf7216366f731cddb5d134ce001900adbedf3a8e81885e"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/0328af04839b1cbfc30cf3d105aaa1060e7b7e3b1dbc7dc7135a195fdd050030.json",
+        "sha256": "427f3e50fd55b20e0ec451eeb5d83dcf59a36dd71b763fb98b1c66003f7b8ae4"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/04622004d05d74511808ad4d974ba4246318c011a865c6d2412475bc00cf1cc3.json",
+        "sha256": "02e23ffd32b3d7f0b04a7d29b72ee550e2762d6f76412c17d1b7119485ee7c23"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/0a36898335a429a5e6ddbb0808eb2407e078c0f0f3aee04666f589ef03cf9c15.json",
+        "sha256": "120fd5380e56cd00ec6f5848b75715b9f349b46e1631864d3f94c2b453766eb9"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/0ea9790416b4db18a1a95a522c79ef2e188b06984f0af95466ecc954ccc08b82.json",
+        "sha256": "9bfdda4c279bcc4ebce39a7286d654417b43049e8d6471c7e1e8c28dbd9f361b"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/105e1f8c1c8d4a03a0b08b3eb489451856000caed261cfbeea7ddb032cf2e879.json",
+        "sha256": "19c95befaac1d58f1a1bdc82843a945f1d0f73cb52c2420bfafdc1e370429097"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/12e98d0099fe511b9199e4fdbd6b322db704236cfa4995e6893cd6e7cc11ed73.json",
+        "sha256": "f5e4eea01e67a065eab66941b3af086d105d373bd1c21857bc93ebc4a1dbfede"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/13529b16439104d9e788a824e7f0956fef2972b3f5543f44d9aafbf2a79271fa.json",
+        "sha256": "1bf73d01399af45afd6dc3c85396254ca40c67c6dba821f432da649c50d7efb1"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/1aee69e452b6607f3fcbd1fe19f8beca733c99e99047e3bc51625c4a83e9b230.json",
+        "sha256": "2a10b491e483544e621f9c3bfae398adfb89bdc08dff952aaf5695bb45d3e6c6"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/24f3a9221a136552f8822f9d0d4c3d83ce73d68d5fb2d279930bc8019c74ef28.json",
+        "sha256": "e9edce4eda1af89804d15eeee66b37688ce57eba6771fb234d4c79acd2097d0c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/263e8d80a4fdd635d70ea1521035a15beaa8d1d107aa1902b92245a211bd2bb7.json",
+        "sha256": "1bc6f88a2386fc0243cbc25e88a3fd2aef423d5b1b6bce0ad68e3c73e5d4b50a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/299dec7e1cbf8141414468f1635e34c2522dc6e46db1da06afe17562898d9ab8.json",
+        "sha256": "7ce64eb9b5d5bf7f11358831fb15a6bee759b2bb8de9034a0fff42f5e8c3225d"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/2b6077d59f134e9b41d7d05158c2340a49f5b98cf6ac9b31850a04fed76227c2.json",
+        "sha256": "fc3eb9d265af54d60e9e3de2e88c8ec4c90c77c7d2aef1fc07a34392fa153aef"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/2c26cac43b2f6e54276bcdd74cf0a6abebb0e362c2f71682bf575decea6be3a8.json",
+        "sha256": "90a8de46e22991f55f98cfda17e7c0d3d9f9917e925b2a7e1591ce8d155e8631"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/31b3198dcff6e1e17004432fd07b369eeff11aa63d32249b64b32103ca389a4e.json",
+        "sha256": "1d17708c331578181ccbfb595b75e71d3934e1e34a5735473b9ed03e4724779d"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/3762a716fd1c5d36633bc4f00a5d0765494dbf6295a6fad220c08e6154be0b02.json",
+        "sha256": "1c3f12ba5f523abe9408216d0b518e41f193790b5b09caa072d435d3af97b3c2"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/38d63c530d7a73b55686091cee5606e97c35ce225efd4b492f217b8e258c6aaa.json",
+        "sha256": "990a5b1ebf88af22fed30fbdbbc9d6d762b37a427d76cd6add17bbde3ccabc6c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/3eefe5e27952173f993e95a8418a9cad7ff1419284925a5c05c3cf6a3783bc4c.json",
+        "sha256": "ab67e4940bd7b9749d655d5ca3a8334aaa1d556b046c84e97e9880ebde88ac73"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/3f239cf683bebfffb4ce421aff4131784522e3b9a0b36e49cad166c49e31df16.json",
+        "sha256": "683aa4dbd046abd34901edbca2f78d4bc4fec1e804a1512c166075370bf9f322"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/453b37d6d2ea2a7fcfc2c345646e4be1c03a23714340dde937c4388c7bb98b12.json",
+        "sha256": "113575bc40ab4b788e45e6853e5da3ee52c98939a7305cfc51671cfac0a92d65"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/472d286d8fab62dc5589c0054bc706b7e018d0a299ff83c44559a73685446348.json",
+        "sha256": "ac7e55f13f59e91470ed158156fc5f6990efe29c3c6ed6d8368b31d72180267e"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/4b7423e9121ad993407f6c59f715b7637964e0f40d7362fa0329399e95c7b62e.json",
+        "sha256": "2cf7a09520a915f62efb2f8dbb985e46108868fc27d8cd554a060ebf40df4f04"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/4cbd9524fc781714f3fbb5d19ce80da42b7cddac522be221d0074503755f96c1.json",
+        "sha256": "a3dfda434ffc2a01e3507e00b31b357433205867514bf76f3a6406a5bd2e9626"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/4cf9f6cf0b0ebe9a9378abcebe6691846738ba427d6bfe14353b50444392cc94.json",
+        "sha256": "1e4d15f58d34e31d7aef25f75e5932cf7d4d1c2a1dc2a7365e14219832470d91"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/4f4eccb7a2b4744084c23ed4be53204899bec134e321742aba1c504b89a97e32.json",
+        "sha256": "ab67b88cda6783621cd38811d9f46827746c8e98a1996e42e0dbd4b4d8e0c83a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/4f795a9e91389f62867103403e22616e73529042b9ea120d4f9e0b86c1de3b9e.json",
+        "sha256": "b8c9d3b1b385e18d0b94477dd7ecefd8e4a0805003faa4961c13dfc66bc1fa98"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/4fda2fec18ba00620c77e3cc982ef6be6dc995a134ab11df15a139ccb1b989df.json",
+        "sha256": "994521594c670843440046cbea20c668dfa4e4ae38bc55f29036cca459b07b80"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/5299e6f9bd464af160fbe0bb2e2c77f9ea8cd2677e10a625567c462ae8d60ee1.json",
+        "sha256": "49d9a1fb60778e5e83f39d3296ea1b23e3e0c467be2c3abf2ff3142c1d26bf89"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/576c38f4e9fcb5b808f94b9c14388175584814517d08200ebda3798cadb4d0f2.json",
+        "sha256": "7f37002e56974d0499405b3a29ba5d7bf15f8b42679e4f1b30e95fe718beaefc"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/5ae4f9d0f3271b8f8e947c012791d75ac7c8459dfa351fba43ed5c7f5df5bb6f.json",
+        "sha256": "ee231838ddffeda13c156f2abe9127f35e20486ce6eeceaced07f1364b6ac75b"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/5af72b8ba98871e0dc63858585462c65e9dd79ac6530688d04b20b97fd0fa594.json",
+        "sha256": "5af760deba9e90c600ff9a3a3d60abe45a471bc807e16739f8e6d97137bb193d"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/5de6deffba7e0304031dc0b51c84604158377e5d2c87117ec9fd69893f71fc45.json",
+        "sha256": "b774625472d29e5ee3dbe6a43fd32857e483cc4b5b4f85c017d239b64ab7319a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/651bb8b9f7b996d774aa3737726b5e7b32dd20b4e7ccf424ace052698140cec1.json",
+        "sha256": "4130b8d7d70e898dd699d3b2643df6c740676b9d6f12b3c4d2eb7cb88a63af1b"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/699b466e10cbbfc22e338a51c80e9a76bd4573729430ede968f9661bddc6dcc6.json",
+        "sha256": "49fdde0b49c003c6ac7fc3340c618b9822da31526f44632eb4b2473b530864a6"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/717d8c3991f5848cf783134b7d380b23fa17e5d5df89833f3f92f52c18619a7e.json",
+        "sha256": "d2eb72106e271404f6aa0218b3507ad1a6ed33b4591f7deb80cb5268d878fb20"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/74a2a6c815cbbc511c73421765810567940d2754d8abc14a47cefa6d00d822e5.json",
+        "sha256": "1f2a5c4fffb46c3fab2c485401499f446f608fe1f4b10a73e80de8ef83e75a47"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/88179624d38b9c24e64bf2de424ae0b6118fe8fa420f14fd8cce16b1d804959d.json",
+        "sha256": "3a5873dc2d97ca16bea05bb077a624599f404d11de7e2660a5d51ed60beb945f"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/8dd7f25fe8780c15820c4a6e1627b56c28ae09d11e2deabf15d6665a43e4ea35.json",
+        "sha256": "3af4b96c72d57ea53fc90c560c4353d5d3f38f2628949c49be649fb4c24dadb3"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/8e3152da02c922e1374deffd0f18a5149cf0a996dac7daaf305e1fba44ba4836.json",
+        "sha256": "1ae79fafdf4e82602465234b527afbde20bb53f53cfb5d5518ffbda848a6a7fa"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/93b5f63a9b10c78e27e525d642a64ef91382536c8843a1ba24f1339ab395e1cd.json",
+        "sha256": "cfdc0f4951a3fa515905c3b8c0945f24043f39437b22ae621a2c20265e9033d6"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/9598b07174601bbc82059f4965921710d6546ab5e404392b6e13f1a59e1387fc.json",
+        "sha256": "5151ff9282d20270afcffa2a71411d7585b5c18d08477d60a8d44721d88560e2"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/96477df6980a8859ae56d939477b8329b525afe102c0532ad7f96d6a15eeb344.json",
+        "sha256": "84c54b27ddfcbe4c4c4a001c84f5c232a4d2de387eb9882ac8adc6c7f3b8d015"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/a1eca96df5d050a38707ae4c6f4ce98ddafec852c6ffaf039c67dabca8c761d9.json",
+        "sha256": "7ba5510a12da609ec7ccee8538fa5ef8fb7b19bad80632d9ddc9e2b1d8ae21fa"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/a993bd25538fca52367ea82bac6f01b3eec853bc238672f14d7f78b0a75b1a43.json",
+        "sha256": "daf7db50fd945c436df996c18aba6e1ccd1e530d62e67dbb08e2251243673156"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/ad8b507a17a73ca68a5480c5fb21e26cadaf3e8f572fd3c5b0e71554094c65ad.json",
+        "sha256": "ac462b191542a204566a683e828fc3fb2c3e1cb0601e4175f3ecce11e0a5aa65"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/b20f540c169ec371951f79104304affcda890413560cc6300898f4570e5e08df.json",
+        "sha256": "ff4dfd13467a970c57dc36c3faafb8e707d01bb72fb4b8e9d3b61943b02035ac"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/b7a4a83481a276f10b693415511da5a7f1f1a4dcd76ecfcb07a167709d93345c.json",
+        "sha256": "98641d6f93cdc933a6389dc6dde1559673070ec785eb010f8d66ca167b8da22d"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/beddfa71481eab9b65cffc64af505126e14e19acf71be484bffe28a2ba9f2c5c.json",
+        "sha256": "5baa6c1a922cd369917304aa655cc0031e6008eb05848ebe9eba864c1adcec4a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/cf1117775e6958bc8584fc643c4b1c649aa203746a75ec788a09f03e2bf7bd47.json",
+        "sha256": "ede3ef27ac64871ad01308d9f9a471bca8f02b36f116367a64eb3cdaad260f07"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/d0140bf08b2c4f91f581697c87ab4c199954828863c4e2ae70416b612e92c8e4.json",
+        "sha256": "4f5119fc443ab2a797606f293c51a200e14f9648a781962164a7c32495de4e93"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/d35828c50851b911911a9c72b053502550e5b055693c926cfd1d33e7d23bc17e.json",
+        "sha256": "e409c104b32e82ebe428fd867a8aa38c185af215ba75a4593acf0b4e9ff96a38"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/e2047d30f72aeb2de02c3d8527306c5d1b51c2831c44861519a869d778f485e6.json",
+        "sha256": "d255e0edd2f48dbb8fcc81a29b34563b96e022c6be18876c9500956922752b45"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/e8784a1ab3609ccdb3703a4b4887d74f518511a1cc667d4800543b83e3173a40.json",
+        "sha256": "6b62f79cd746c845587b8a6c4773670042fec49fea5add99d7972bdf9a588b32"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/ecfbec2d4d5f5130933b76607ac71f46894e8a43e3c98d069e8fb3478a842f7c.json",
+        "sha256": "c2279acdc365919fcf1cb606b23bcdff796e9bf57339492c38f70670472a43e2"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/edeba5c11a65e3fe86c415cb08bc592bb52c1bf6b89cf93a7f73cd581322d677.json",
+        "sha256": "f1ca48eb8a08a292dfd5d6ad172811e2c015efc964df2095755db65d65991b77"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/f02d6402649dfed34002b90000b57160a73b859516e199066123a59a30fa0b9c.json",
+        "sha256": "99399cddbdccb6c01ebbdfc23de268518631bf29ba4803d669f895debb159b6e"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/f0bc3ee2add3dad7f0a1e930bd2d3d1c5d51f69582f2afe1d0d0e530d4261842.json",
+        "sha256": "6fcba3c61c895473365f80a64e10cd4636f8ce59c8b4946c88c57c6a810790cb"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/f0cc77d1464d66b6ee2d1b9f40859b18a78b2c1b47dfa3d129cde20c6fe8ccd5.json",
+        "sha256": "3686d794786cd23686f1ff2315e4382b864486682a13184a25a709e1c8bfa0ef"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920/shadow/predictions/ff7baa0a83eed760dd90fc4ad3df3f718a8204dfac307807c3a29fbc71ec0ead.json",
+        "sha256": "31623f8c28f5ec52cb048d3b58fddb97f545406bc634cb69cb7e90cbcc4e4297"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/0328af04839b1cbfc30cf3d105aaa1060e7b7e3b1dbc7dc7135a195fdd050030.json",
+        "sha256": "664f2ea4122d0ed94adfcde45f61c1c943ac7a8e9e5d90536ba76023fbf2a243"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/04622004d05d74511808ad4d974ba4246318c011a865c6d2412475bc00cf1cc3.json",
+        "sha256": "fdd12ccb801689c0f5c3c5c96516e5488871264d67c250c1ea03a33a583fb4e1"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/105e1f8c1c8d4a03a0b08b3eb489451856000caed261cfbeea7ddb032cf2e879.json",
+        "sha256": "8d90848a3c1df620cc70ea8dc49a7b8afdd090c510635ea06257db3dc7517b7f"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/12e98d0099fe511b9199e4fdbd6b322db704236cfa4995e6893cd6e7cc11ed73.json",
+        "sha256": "780a27ac32bc41de3f10c31b06323cc843435d2b6b95a4882a04d548215d8a97"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/13529b16439104d9e788a824e7f0956fef2972b3f5543f44d9aafbf2a79271fa.json",
+        "sha256": "1d2d5276025e0a1f575b1d8fc6b06aba5f0f1c0d22c06ac0909aa394b67b1e26"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/1aee69e452b6607f3fcbd1fe19f8beca733c99e99047e3bc51625c4a83e9b230.json",
+        "sha256": "aea282af3a9cf9f8cc53e5f98a123ff44e617cf7f1a089051998826b7c857031"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/24f3a9221a136552f8822f9d0d4c3d83ce73d68d5fb2d279930bc8019c74ef28.json",
+        "sha256": "8e0182394146c68da36e309a44c64877cbe26001a9c581332318410708f84e96"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/263e8d80a4fdd635d70ea1521035a15beaa8d1d107aa1902b92245a211bd2bb7.json",
+        "sha256": "c72582dcef5a40b3feac43b47d8e7b15879ac63495029227ef1401319797641e"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/299dec7e1cbf8141414468f1635e34c2522dc6e46db1da06afe17562898d9ab8.json",
+        "sha256": "90a21508471753c1f402361a0627d12395a4c1e78b8b1aff8ff6ca4369b6b410"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/2b6077d59f134e9b41d7d05158c2340a49f5b98cf6ac9b31850a04fed76227c2.json",
+        "sha256": "1ab061991f650092b587289437301fa11c3d6fa159346238babe2fb14c971056"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/2c26cac43b2f6e54276bcdd74cf0a6abebb0e362c2f71682bf575decea6be3a8.json",
+        "sha256": "8475c0f380bccfefab1eb1195e64cac9256b3cbda7b3bc4def33b7288c1b6570"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/31b3198dcff6e1e17004432fd07b369eeff11aa63d32249b64b32103ca389a4e.json",
+        "sha256": "a7e773327f82c87a5f0d7d4cadee542de7ba50f853ccf4b473e580250c75d04c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/38d63c530d7a73b55686091cee5606e97c35ce225efd4b492f217b8e258c6aaa.json",
+        "sha256": "c1b850d453bc4aee24f182d7c9d8a1ab396136558296546a398306be81b1bfb8"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/3eefe5e27952173f993e95a8418a9cad7ff1419284925a5c05c3cf6a3783bc4c.json",
+        "sha256": "192d1e870580c801c262a75fa6811ec12bea0bba25d0c0df8d90060170b8056b"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/453b37d6d2ea2a7fcfc2c345646e4be1c03a23714340dde937c4388c7bb98b12.json",
+        "sha256": "1c80d0882a541147f7d38ffd94aaaef7997cf4bfe398f8ae4e2b28261025b06f"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/472d286d8fab62dc5589c0054bc706b7e018d0a299ff83c44559a73685446348.json",
+        "sha256": "24c22ab889126e56c3750ba3faca1776b09c9cf6ffa30e33c667c2f7d400a70f"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/4b7423e9121ad993407f6c59f715b7637964e0f40d7362fa0329399e95c7b62e.json",
+        "sha256": "aebe7b7dff25111d9bfcb0e724f6282229f6d55396cd55c6e1b932b0ff702ff7"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/4cbd9524fc781714f3fbb5d19ce80da42b7cddac522be221d0074503755f96c1.json",
+        "sha256": "36b65ce3165ac456a4a9c5d9ff7341b247895e69d30a3adc239b7c66be553699"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/4cf9f6cf0b0ebe9a9378abcebe6691846738ba427d6bfe14353b50444392cc94.json",
+        "sha256": "6ac5a51ec8f50c0226939ecccf5ece18892c6165d7dd6af5a09d6c2e05f95a5d"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/4f795a9e91389f62867103403e22616e73529042b9ea120d4f9e0b86c1de3b9e.json",
+        "sha256": "f0d1046d47d056017250bbabfaaf98398a3b7516db8bd55548b52757cf5fa556"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/4fda2fec18ba00620c77e3cc982ef6be6dc995a134ab11df15a139ccb1b989df.json",
+        "sha256": "4a85d7676cabb8f844e2d6a44ae7ce674773c72c16963a3a41365ae1b1ce5c3a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/5299e6f9bd464af160fbe0bb2e2c77f9ea8cd2677e10a625567c462ae8d60ee1.json",
+        "sha256": "92cdd9aac2e886be18d41768d7187089c34286bef23cae3a17759d65b146fc24"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/576c38f4e9fcb5b808f94b9c14388175584814517d08200ebda3798cadb4d0f2.json",
+        "sha256": "65ad474028958e95f80c6a44a5cceba7827ddfdbfca0dc7fcc4ff67c03093512"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/5ae4f9d0f3271b8f8e947c012791d75ac7c8459dfa351fba43ed5c7f5df5bb6f.json",
+        "sha256": "ba8d4d537e8eef2c6330127afd7c468980ed4acbf03a6d7cad4aa274b3067281"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/5af72b8ba98871e0dc63858585462c65e9dd79ac6530688d04b20b97fd0fa594.json",
+        "sha256": "ff52b1d9f96de9b8a4758925a4f8ec89d7830fb3bc759556bbb3ba0231679c5a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/5de6deffba7e0304031dc0b51c84604158377e5d2c87117ec9fd69893f71fc45.json",
+        "sha256": "36013740bb1e27126512a212261faf771a4a013b36aa232a7b5779eb0fb0c5a7"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/699b466e10cbbfc22e338a51c80e9a76bd4573729430ede968f9661bddc6dcc6.json",
+        "sha256": "3184446e5d010438725870fb7947eca484a11731bd450db7c5c4180071147cf0"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/717d8c3991f5848cf783134b7d380b23fa17e5d5df89833f3f92f52c18619a7e.json",
+        "sha256": "539c373ab848fdb819ad74e4bf7f730d9be0aba6d025aa6164f9e9de1956e92a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/74a2a6c815cbbc511c73421765810567940d2754d8abc14a47cefa6d00d822e5.json",
+        "sha256": "b2bd47e962a6f7a1490705fea8c2ac214b5774c74a341924a21ffab39c497199"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/88179624d38b9c24e64bf2de424ae0b6118fe8fa420f14fd8cce16b1d804959d.json",
+        "sha256": "d348b5d569d6b4b75ab9c43b9b296fa3d3723b55c80d7418b2c60ef86a97ca54"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/8dd7f25fe8780c15820c4a6e1627b56c28ae09d11e2deabf15d6665a43e4ea35.json",
+        "sha256": "1c5c710cb032c824dc988a9b8750edeae4bc1871e170485cead1f831a04db480"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/8e3152da02c922e1374deffd0f18a5149cf0a996dac7daaf305e1fba44ba4836.json",
+        "sha256": "7c0cb1e21e4b9e803713329315c8f705d977d54ec6c67f5ab6a8e099e411d856"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/93b5f63a9b10c78e27e525d642a64ef91382536c8843a1ba24f1339ab395e1cd.json",
+        "sha256": "384792c10b5a6aac5f1418f92f0a5018cc5d41a2c97cb6fc2f0cdde0629a696c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/9598b07174601bbc82059f4965921710d6546ab5e404392b6e13f1a59e1387fc.json",
+        "sha256": "70513d287ee0e15af5aa63669a6603b76cf37306f75811bef1cb31b7fca090d1"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/a993bd25538fca52367ea82bac6f01b3eec853bc238672f14d7f78b0a75b1a43.json",
+        "sha256": "5317cfddc684aa2f0762e391846363648efadaf9e1a386a048474ddfd37aee98"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/ad8b507a17a73ca68a5480c5fb21e26cadaf3e8f572fd3c5b0e71554094c65ad.json",
+        "sha256": "a15bdc969b9aaa425dc51bad7529c7aa0c49a2d317771693b71b7e5110628c46"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/beddfa71481eab9b65cffc64af505126e14e19acf71be484bffe28a2ba9f2c5c.json",
+        "sha256": "6744047a6b5a82c03d473eab9aad15946b0de9baa79c34d78a6540af50b81efd"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/cf1117775e6958bc8584fc643c4b1c649aa203746a75ec788a09f03e2bf7bd47.json",
+        "sha256": "d388e34ed97c28247690fa47404f0c5a10ff0f45ead66791c996afa170980d68"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/ecfbec2d4d5f5130933b76607ac71f46894e8a43e3c98d069e8fb3478a842f7c.json",
+        "sha256": "79ae5065f6c9afe1435c13f1c185ab966a4519dd5e9008124b30f2cca334c9fd"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/edeba5c11a65e3fe86c415cb08bc592bb52c1bf6b89cf93a7f73cd581322d677.json",
+        "sha256": "cf092cf857e3d10aaf92713c5bcf865f8a9bc5c7c3f2ff5367baadc4ab46e005"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/f0bc3ee2add3dad7f0a1e930bd2d3d1c5d51f69582f2afe1d0d0e530d4261842.json",
+        "sha256": "177464b878aa87e3da62196ac0083ca7c0662a7f51116896360f9a0758284a7a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/outcomes/ff7baa0a83eed760dd90fc4ad3df3f718a8204dfac307807c3a29fbc71ec0ead.json",
+        "sha256": "dc0830fcbc000e06d4586aa86e3d6fe0588389dccdd3a4651143f02cb7719e48"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/0328af04839b1cbfc30cf3d105aaa1060e7b7e3b1dbc7dc7135a195fdd050030.json",
+        "sha256": "477c036801154fc05a7b0a30777610da8c2d254f0a4f9c6ae5bad6d9d30c81b3"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/04622004d05d74511808ad4d974ba4246318c011a865c6d2412475bc00cf1cc3.json",
+        "sha256": "a268cbcbd5c2dc3f0b7df6411474c603b9e8f0ecf792281b3b03276d5a8cec63"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/0a36898335a429a5e6ddbb0808eb2407e078c0f0f3aee04666f589ef03cf9c15.json",
+        "sha256": "965098b7623b5a0f9cf998d9ad6c3f3ee7b65940c2aa9181ba36a9f130862b6e"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/0ea9790416b4db18a1a95a522c79ef2e188b06984f0af95466ecc954ccc08b82.json",
+        "sha256": "c10c865b57d737a8b870ce76d3e3879c52accbad5a348c4733ac7ccb7a226314"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/105e1f8c1c8d4a03a0b08b3eb489451856000caed261cfbeea7ddb032cf2e879.json",
+        "sha256": "cc95588fbf29a41f41572d659c97ab9e5df0750f24f89e41e617abcfb1fad72e"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/12e98d0099fe511b9199e4fdbd6b322db704236cfa4995e6893cd6e7cc11ed73.json",
+        "sha256": "2c33eecf6dc832d916fcf493c5adb4e064de8ec0467a6c7b6800efa1041fc951"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/13529b16439104d9e788a824e7f0956fef2972b3f5543f44d9aafbf2a79271fa.json",
+        "sha256": "94705544a3a794da789ad7186ab49785753ae4e4a675b92f51f708cccf46e1d6"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/1aee69e452b6607f3fcbd1fe19f8beca733c99e99047e3bc51625c4a83e9b230.json",
+        "sha256": "da6f8b62ec876cdbac2fe5b05cdfa1d0702faf6d54d7b2a25129972a93cec556"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/24f3a9221a136552f8822f9d0d4c3d83ce73d68d5fb2d279930bc8019c74ef28.json",
+        "sha256": "aff836ba2cd3f7368ef2fa54768a41ab4b1e8fc015aee694a23ece17acb15c35"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/263e8d80a4fdd635d70ea1521035a15beaa8d1d107aa1902b92245a211bd2bb7.json",
+        "sha256": "a2e6bda1c0f0050b75c8d3fe952ede9fc74615bb38037fab72678ab8c177e99e"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/299dec7e1cbf8141414468f1635e34c2522dc6e46db1da06afe17562898d9ab8.json",
+        "sha256": "e10510caceb38886426b4f6429dd58ff65fda098898e46b23f7f25822b86f7c4"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/2b6077d59f134e9b41d7d05158c2340a49f5b98cf6ac9b31850a04fed76227c2.json",
+        "sha256": "e01722bfcf76d92fc676510eb3c1f343e061eca26866c592e1f431aa2f6f140c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/2c26cac43b2f6e54276bcdd74cf0a6abebb0e362c2f71682bf575decea6be3a8.json",
+        "sha256": "3c9d88aa2ae2429eed5c21469076aaf7aa12e55d1b1fc380affab2725867983a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/31b3198dcff6e1e17004432fd07b369eeff11aa63d32249b64b32103ca389a4e.json",
+        "sha256": "a74996df19a50df01010529dd22bd2eaaa646ff654bc70da09eb6e7a703755a8"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/3762a716fd1c5d36633bc4f00a5d0765494dbf6295a6fad220c08e6154be0b02.json",
+        "sha256": "99b3d0f4f80eed2911d4fd5ae63b0ddc336e18447baec9de950e3b9d804fd091"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/38d63c530d7a73b55686091cee5606e97c35ce225efd4b492f217b8e258c6aaa.json",
+        "sha256": "d9e7486fd0e0394575566c38044b2463a2407d2e1bab895d1ae631a8931b67d7"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/3eefe5e27952173f993e95a8418a9cad7ff1419284925a5c05c3cf6a3783bc4c.json",
+        "sha256": "f4415be281991607e6da78c20e84dd375ce300144f294054aef080eadb26e452"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/3f239cf683bebfffb4ce421aff4131784522e3b9a0b36e49cad166c49e31df16.json",
+        "sha256": "0177cd4f3724347dd58d37fa6c958ee9c94603b3458691f685dc088f962689f3"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/453b37d6d2ea2a7fcfc2c345646e4be1c03a23714340dde937c4388c7bb98b12.json",
+        "sha256": "31771b49f48180fb8313e49296826e4ab7c3c949c0a6fb3f97167c392183d721"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/472d286d8fab62dc5589c0054bc706b7e018d0a299ff83c44559a73685446348.json",
+        "sha256": "0011a6d66a5748298fd1139894b5ba257aca076259cb1b03548592342d12b5ab"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/4b7423e9121ad993407f6c59f715b7637964e0f40d7362fa0329399e95c7b62e.json",
+        "sha256": "816e27d19b51e729a2da52bc0be6c8e274d827d6dea45df59ef08c35b2f70012"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/4cbd9524fc781714f3fbb5d19ce80da42b7cddac522be221d0074503755f96c1.json",
+        "sha256": "edd42a1ab9caf01a3b7a9b80ee2bf23d6e84c2bf5c07dc80402c6e40b189e889"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/4cf9f6cf0b0ebe9a9378abcebe6691846738ba427d6bfe14353b50444392cc94.json",
+        "sha256": "fc570769ca77a2bdffdb2267dc229f9208ac57167f7f3e03bff0e5b72bc496c3"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/4f4eccb7a2b4744084c23ed4be53204899bec134e321742aba1c504b89a97e32.json",
+        "sha256": "d4c772889ec20d5681bcfacd78174ebfe368a04be957ce945ddcff1e0188bb49"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/4f795a9e91389f62867103403e22616e73529042b9ea120d4f9e0b86c1de3b9e.json",
+        "sha256": "5648a1dc218b8da1ead51a5bcf9bcb941d5a0dbdffb604d174eabca83a04bdc6"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/4fda2fec18ba00620c77e3cc982ef6be6dc995a134ab11df15a139ccb1b989df.json",
+        "sha256": "135036ff4d2a77cf26e8c4a082bb97ba5e70da8bb46c6cc8d9a88b8bf3400065"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/5299e6f9bd464af160fbe0bb2e2c77f9ea8cd2677e10a625567c462ae8d60ee1.json",
+        "sha256": "85d0fa707130e6003a1c27e26ea8fb839c1e044b1ee31746138b540473ea84c5"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/576c38f4e9fcb5b808f94b9c14388175584814517d08200ebda3798cadb4d0f2.json",
+        "sha256": "5adcf065f7c28716363dd960a36aa7a8d6eb91ed94aed3235de88ed8d3fc44d2"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/5ae4f9d0f3271b8f8e947c012791d75ac7c8459dfa351fba43ed5c7f5df5bb6f.json",
+        "sha256": "3a5c960a5f1b3a4bc5424f743f2439d641969a230c776b015ac0d5bde248e5a6"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/5af72b8ba98871e0dc63858585462c65e9dd79ac6530688d04b20b97fd0fa594.json",
+        "sha256": "0d6731c035771840701fb344494a4a0067d308b6742c70dee12173363dac5fff"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/5de6deffba7e0304031dc0b51c84604158377e5d2c87117ec9fd69893f71fc45.json",
+        "sha256": "62f90498b37cf432ac85e3f097493af715645b452686a67a3083f2cf244f7401"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/651bb8b9f7b996d774aa3737726b5e7b32dd20b4e7ccf424ace052698140cec1.json",
+        "sha256": "e59377a7589579408ca0781882f1a277d348d13b7494cba1008c271413726ab9"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/699b466e10cbbfc22e338a51c80e9a76bd4573729430ede968f9661bddc6dcc6.json",
+        "sha256": "844644d8d99cefa83d59e4c5291023e64b9e350ac1db05215b1a37c85abd7a76"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/717d8c3991f5848cf783134b7d380b23fa17e5d5df89833f3f92f52c18619a7e.json",
+        "sha256": "2e847110583fe1d6eb9b7b48d965cc3c9472d27eb7659cdde0687d71e269672e"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/74a2a6c815cbbc511c73421765810567940d2754d8abc14a47cefa6d00d822e5.json",
+        "sha256": "20072e6e6249d0fac2f13874a6c6e7ae9c0f336934f736fd90474e30f6e2a05b"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/88179624d38b9c24e64bf2de424ae0b6118fe8fa420f14fd8cce16b1d804959d.json",
+        "sha256": "b7e913c202f5082b3af0454637cc2071f0d775834cc16f24f0ec67c8efa81aab"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/8dd7f25fe8780c15820c4a6e1627b56c28ae09d11e2deabf15d6665a43e4ea35.json",
+        "sha256": "234b3093a7e37b42ef321f24a289915877847ef0ea7c296d4f18aea88d7aadb8"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/8e3152da02c922e1374deffd0f18a5149cf0a996dac7daaf305e1fba44ba4836.json",
+        "sha256": "09ab8150ae6aa441a320f11562f9240f166d7f1b4f602ee4203452e7c8adbb7b"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/93b5f63a9b10c78e27e525d642a64ef91382536c8843a1ba24f1339ab395e1cd.json",
+        "sha256": "9a32066301002612313088028926b954fdf810d6bc52f59f23da3b33c8be3921"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/9598b07174601bbc82059f4965921710d6546ab5e404392b6e13f1a59e1387fc.json",
+        "sha256": "773f71483ea0e1f2d3c8270a28b21e0bdc57d2ec7018091d248996958c299df2"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/96477df6980a8859ae56d939477b8329b525afe102c0532ad7f96d6a15eeb344.json",
+        "sha256": "ec66acc67adfab6ddede254abcea4f8ca963adc492dd8b03672d1e3e1f33139c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/a1eca96df5d050a38707ae4c6f4ce98ddafec852c6ffaf039c67dabca8c761d9.json",
+        "sha256": "998b73b4828bf6434317fb66638f40c54af602f5c2d4dbbc1898904a585a6027"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/a993bd25538fca52367ea82bac6f01b3eec853bc238672f14d7f78b0a75b1a43.json",
+        "sha256": "9c5e4d41bf9f9bee2998c810b53edf1e4f3d4013f88026eed90418f40431c976"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/ad8b507a17a73ca68a5480c5fb21e26cadaf3e8f572fd3c5b0e71554094c65ad.json",
+        "sha256": "a845e396237d89465d00584f7fbba42929c07c6a8a60f589f6d1393b52fa599c"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/b20f540c169ec371951f79104304affcda890413560cc6300898f4570e5e08df.json",
+        "sha256": "58564e4d02716e849e118c74a77268ce6bd2caa36d32d837adaa802a08ba415d"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/b7a4a83481a276f10b693415511da5a7f1f1a4dcd76ecfcb07a167709d93345c.json",
+        "sha256": "ba306389d31d3bcfa6d967be200afbf59bad4a3fc1dd5d2b87af14b00e3b5cb3"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/beddfa71481eab9b65cffc64af505126e14e19acf71be484bffe28a2ba9f2c5c.json",
+        "sha256": "35fcf9dbc4a4788457390707c491f40e1dcb9f2c4789c3981f97ae7edd6cb392"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/cf1117775e6958bc8584fc643c4b1c649aa203746a75ec788a09f03e2bf7bd47.json",
+        "sha256": "71c9108719752d9859b03c5a2b8e106ff0e5ecc9092d788f2c24a43b99ec31a9"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/d0140bf08b2c4f91f581697c87ab4c199954828863c4e2ae70416b612e92c8e4.json",
+        "sha256": "acea1a9fa4fe9d7dc6d20eb34ccd740e71ecb61055e7c5c7b97c7ebd4d9330df"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/d35828c50851b911911a9c72b053502550e5b055693c926cfd1d33e7d23bc17e.json",
+        "sha256": "dcd2049595b27fe743b127ee3e4f27592798008cf165a0a77538597ae48e03cc"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/e2047d30f72aeb2de02c3d8527306c5d1b51c2831c44861519a869d778f485e6.json",
+        "sha256": "9c2410d99737bfd20a658cd27a7a086357c7ceb65c568dff722de0c34a226d53"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/e8784a1ab3609ccdb3703a4b4887d74f518511a1cc667d4800543b83e3173a40.json",
+        "sha256": "f59a875f081d0119ab1bfd720ba0c68b72f00ba51d71bb027ef9353424cf0559"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/ecfbec2d4d5f5130933b76607ac71f46894e8a43e3c98d069e8fb3478a842f7c.json",
+        "sha256": "4aa09bd4c4bdb357e550815d58ba6f18bdac16401efabf18892acab260c229bd"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/edeba5c11a65e3fe86c415cb08bc592bb52c1bf6b89cf93a7f73cd581322d677.json",
+        "sha256": "a5d0a35c94f020209268f96dc16098b29ec928f2fee4f61d35abac99cdc84afa"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/f02d6402649dfed34002b90000b57160a73b859516e199066123a59a30fa0b9c.json",
+        "sha256": "eadb0691f910e78e28a6247f594a34a535e2b1560d943bd024b324013e8d3a69"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/f0bc3ee2add3dad7f0a1e930bd2d3d1c5d51f69582f2afe1d0d0e530d4261842.json",
+        "sha256": "949cd94ff029e94418bf76c13f4514bb5804822811e36b581fd02b52a05c477a"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/f0cc77d1464d66b6ee2d1b9f40859b18a78b2c1b47dfa3d129cde20c6fe8ccd5.json",
+        "sha256": "d763e6bc7da565896c547c8921e929b580b4821433f9f32298004998e8edf9fe"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/candidate-shadows/c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76/shadow/predictions/ff7baa0a83eed760dd90fc4ad3df3f718a8204dfac307807c3a29fbc71ec0ead.json",
+        "sha256": "4ede8b9a035b5556313aa38996c7db5fad955914f67657c198361a63650c4529"
+      },
+      {
+        "path": "paper/job_b7edd93ea86173f9/dashboard.json",
+        "sha256": "40596a08197ca506428d51388a6a166fcf9dcd30d264d35c9402cead58034cf1"
+      },
+      {
+        "path": "progress/job_fe34d70ab6cea0bc.json",
+        "sha256": "bb7387e505c51c33875c53530f333ea769e9dedf26299e79bded6a00536e0c6c"
+      },
+      {
+        "path": "runtimes/job_b7edd93ea86173f9/runtime/memecoin_brain/source.py",
+        "sha256": "1e56052be31027045b9aa32b4f33cd49b3261dae17a7d1ff0e9eb5825bc4ac22"
+      }
+    ],
+    "inputs_sha256": "55b8c77221e9640431d9250093c96762a0ba77e61cd6df4f90977287f98af812",
+    "operator_journal_sha256": "8382ba6fc00928d8d601dba8e390d664db8468f2926d49525660c2b95b1cbd0a",
+    "operator_runtime_manifest_sha256": null
+  },
+  "historical_test_label": "reused_descriptive",
+  "incidents": [
+    {
+      "event_id": 170,
+      "ns": 1791150397148274000,
+      "reason": "stop_applied",
+      "summary": {}
+    },
+    {
+      "event_id": 169,
+      "ns": 1791150397145587000,
+      "reason": "stop_attempt",
+      "summary": {
+        "ns": 1791150397145587000
+      }
+    },
+    {
+      "event_id": 168,
+      "ns": 1791150397140926000,
+      "reason": "stop_pending",
+      "summary": {}
+    }
+  ],
+  "integrity_ok": false,
+  "jobs": [
+    {
+      "action": "snapshot",
+      "candidate_id": null,
+      "created_ns": 1791148253102929000,
+      "finished_ns": 1791148268129610000,
+      "job_id": "job_4ed49dcc84dfb59d",
+      "published": true,
+      "reason": "published",
+      "status": "completed"
+    },
+    {
+      "action": "paper",
+      "candidate_id": "job_fe34d70ab6cea0bc",
+      "created_ns": 1791148416315560000,
+      "finished_ns": 1791148417746688000,
+      "job_id": "job_b7edd93ea86173f9",
+      "published": true,
+      "reason": "published",
+      "status": "completed"
+    },
+    {
+      "action": "collect",
+      "candidate_id": null,
+      "created_ns": 1791148230726712000,
+      "finished_ns": 1791148232366293000,
+      "job_id": "job_fd4fa808065ceeb2",
+      "published": true,
+      "reason": "published",
+      "status": "completed"
+    },
+    {
+      "action": "train",
+      "candidate_id": "job_fe34d70ab6cea0bc",
+      "created_ns": 1791148331009841000,
+      "finished_ns": 1791148339999872000,
+      "job_id": "job_fe34d70ab6cea0bc",
+      "published": true,
+      "reason": "published",
+      "status": "completed"
+    }
+  ],
+  "legacy": [
+    {
+      "healthy": true,
+      "heartbeat_age_s": 9,
+      "label": "B10-active",
+      "port": null,
+      "status": "ok",
+      "stopped": false,
+      "supervisor_status": "completed"
+    },
+    {
+      "healthy": true,
+      "heartbeat_age_s": 6,
+      "label": "B12-active",
+      "port": null,
+      "status": "ok",
+      "stopped": false,
+      "supervisor_status": "completed"
+    },
+    {
+      "healthy": false,
+      "heartbeat_age_s": 7742,
+      "label": "B12-original-STOP",
+      "port": null,
+      "status": "ok",
+      "stopped": true,
+      "supervisor_status": "failed"
+    }
+  ],
+  "models": [
+    {
+      "candidate_id": "job_fe34d70ab6cea0bc",
+      "dataset_id": "job_4ed49dcc84dfb59d",
+      "historical_test": {
+        "claimed_independent": false,
+        "independent": false,
+        "label": "reused_descriptive",
+        "pool_macro_pinball": {
+          "empirical": "0.06945625829193938",
+          "gru": "0.0698125353649828",
+          "linear": "0.07521797695027428"
+        }
+      },
+      "model_sha": "c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76",
+      "promoted": null,
+      "published": true,
+      "recipe": {
+        "steps": 1000,
+        "version": "B13-pool-day-v1"
+      },
+      "selected_family": "gru",
+      "selection_basis": "recorded_validation_only",
+      "validation": {
+        "empirical": {
+          "pool_macro_pinball": "0.0195115306713587"
+        },
+        "gru": {
+          "pool_macro_pinball": "0.018499755708238176"
+        },
+        "linear": {
+          "pool_macro_pinball": "0.02314365725305648"
+        }
+      },
+      "verified": true
+    }
+  ],
+  "observed": {
+    "elapsed_hours": "0.685537426",
+    "elapsed_ns": 2467934732000,
+    "gaps": [],
+    "healthy_service_hours": "0.676453074",
+    "healthy_service_ns": 2435231065000,
+    "heartbeat_rows": 115,
+    "max_counted_interval_s": 90,
+    "observed_hours": "0.676453074",
+    "observed_ns": 2435231065000,
+    "observer_hours": "0.676453074",
+    "observer_ns": 2435231065000,
+    "per_service": [
+      {
+        "exam_id": null,
+        "first_ns": 1791148156928352000,
+        "healthy_service_ns": 0,
+        "heartbeats": 40,
+        "last_ns": 1791150592159417000,
+        "observed_hours": "0.676453074",
+        "observed_ns": 2435231065000,
+        "service": "operator"
+      },
+      {
+        "exam_id": "job_b7edd93ea86173f9",
+        "first_ns": 1791148468638666000,
+        "healthy_service_ns": 1995317912000,
+        "heartbeats": 35,
+        "last_ns": 1791150592159417000,
+        "observed_hours": "0.589866875",
+        "observed_ns": 2123520751000,
+        "service": "paper"
+      },
+      {
+        "exam_id": null,
+        "first_ns": 1791148156928352000,
+        "healthy_service_ns": 2435231065000,
+        "heartbeats": 40,
+        "last_ns": 1791150592159417000,
+        "observed_hours": "0.676453074",
+        "observed_ns": 2435231065000,
+        "service": "source"
+      }
+    ],
+    "presence_label": "recorded_intervals_including_unhealthy_not_uptime",
+    "reason": null,
+    "status": "measured",
+    "telemetry_rows": 40,
+    "unhealthy_heartbeats": 2,
+    "uptime_claim": false
+  },
+  "ok": true,
+  "operator": {
+    "active_exam_id": "job_b7edd93ea86173f9",
+    "auto_reason": null,
+    "expect": "snapshot",
+    "mode": "auto",
+    "phase": "waiting",
+    "reason": "resumed",
+    "revision": 12,
+    "selected_candidate_id": "job_fe34d70ab6cea0bc"
+  },
+  "paper": {
+    "actions": {
+      "ENTER": 0,
+      "EXIT": 0,
+      "HOLD": 0,
+      "WAIT": 174,
+      "unclassified": 0
+    },
+    "actions_source": "model_behavior",
+    "books": [
+      {
+        "candidate": "empirical",
+        "cash": "1000",
+        "closed_trades": 0,
+        "equity": "1000",
+        "exam_id": "job_b7edd93ea86173f9",
+        "fees": "0",
+        "mark_stale": false,
+        "model_sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+        "open_positions": 0,
+        "pending": 0,
+        "realized": "0"
+      },
+      {
+        "candidate": "gru",
+        "cash": "1000",
+        "closed_trades": 0,
+        "equity": "1000",
+        "exam_id": "job_b7edd93ea86173f9",
+        "fees": "0",
+        "mark_stale": false,
+        "model_sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+        "open_positions": 0,
+        "pending": 0,
+        "realized": "0"
+      },
+      {
+        "candidate": "linear",
+        "cash": "1000",
+        "closed_trades": 0,
+        "equity": "1000",
+        "exam_id": "job_b7edd93ea86173f9",
+        "fees": "0",
+        "mark_stale": false,
+        "model_sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+        "open_positions": 0,
+        "pending": 0,
+        "realized": "0"
+      },
+      {
+        "candidate": "empirical",
+        "cash": "1000",
+        "closed_trades": 0,
+        "equity": "1000",
+        "exam_id": "job_b7edd93ea86173f9",
+        "fees": "0",
+        "mark_stale": false,
+        "model_sha": "c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76",
+        "open_positions": 0,
+        "pending": 0,
+        "realized": "0"
+      },
+      {
+        "candidate": "gru",
+        "cash": "1000",
+        "closed_trades": 0,
+        "equity": "1000",
+        "exam_id": "job_b7edd93ea86173f9",
+        "fees": "0",
+        "mark_stale": false,
+        "model_sha": "c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76",
+        "open_positions": 0,
+        "pending": 0,
+        "realized": "0"
+      },
+      {
+        "candidate": "linear",
+        "cash": "1000",
+        "closed_trades": 0,
+        "equity": "1000",
+        "exam_id": "job_b7edd93ea86173f9",
+        "fees": "0",
+        "mark_stale": false,
+        "model_sha": "c895590ac4726af6fcc8e46b870b6f08c8fdd7caf1fe50dbca018b16a8e77a76",
+        "open_positions": 0,
+        "pending": 0,
+        "realized": "0"
+      }
+    ],
+    "fills": {
+      "entries": 0,
+      "exits": 0
+    },
+    "generated_ns": 1791150613847368000,
+    "intent_counted_as_fill": false,
+    "mtm_equity_total": "6000",
+    "realized_total": "0",
+    "recomputed_fills": false,
+    "stages": {
+      "decision": 174,
+      "existing_or_pending_exposure": 0,
+      "intent": 0
+    },
+    "stale": false,
+    "stale_after_s": 120,
+    "stale_reasons": []
+  },
+  "promotion": null,
+  "promotions": [],
+  "providers": {
+    "attempts": 1529,
+    "consecutive_failures": 0,
+    "cooldown_until_ns": 1791135810758562000,
+    "events": [],
+    "health_at_ns": 1791150617511659000,
+    "history": [
+      {
+        "attempts": 1432,
+        "budget_max": 25000,
+        "budget_used": 1432,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148147052468000,
+        "ns": 1791148156928352000,
+        "stopped": false
+      },
+      {
+        "attempts": 1437,
+        "budget_max": 25000,
+        "budget_used": 1437,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148212617706000,
+        "ns": 1791148220025532000,
+        "stopped": false
+      },
+      {
+        "attempts": 1437,
+        "budget_max": 25000,
+        "budget_used": 1437,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148275631237000,
+        "ns": 1791148282575793000,
+        "stopped": false
+      },
+      {
+        "attempts": 1442,
+        "budget_max": 25000,
+        "budget_used": 1442,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148341459618000,
+        "ns": 1791148344249324000,
+        "stopped": false
+      },
+      {
+        "attempts": 1442,
+        "budget_max": 25000,
+        "budget_used": 1442,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148402270346000,
+        "ns": 1791148406457468000,
+        "stopped": false
+      },
+      {
+        "attempts": 1447,
+        "budget_max": 25000,
+        "budget_used": 1447,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148467418064000,
+        "ns": 1791148468638666000,
+        "stopped": false
+      },
+      {
+        "attempts": 1447,
+        "budget_max": 25000,
+        "budget_used": 1447,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148528868885000,
+        "ns": 1791148530927689000,
+        "stopped": false
+      },
+      {
+        "attempts": 1452,
+        "budget_max": 25000,
+        "budget_used": 1452,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148588643613000,
+        "ns": 1791148593143325000,
+        "stopped": false
+      },
+      {
+        "attempts": 1452,
+        "budget_max": 25000,
+        "budget_used": 1452,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148646629569000,
+        "ns": 1791148655356363000,
+        "stopped": false
+      },
+      {
+        "attempts": 1457,
+        "budget_max": 25000,
+        "budget_used": 1457,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148716297229000,
+        "ns": 1791148717625321000,
+        "stopped": false
+      },
+      {
+        "attempts": 1457,
+        "budget_max": 25000,
+        "budget_used": 1457,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148773507430000,
+        "ns": 1791148779975296000,
+        "stopped": false
+      },
+      {
+        "attempts": 1457,
+        "budget_max": 25000,
+        "budget_used": 1457,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148783735183000,
+        "ns": 1791148842326768000,
+        "stopped": false
+      },
+      {
+        "attempts": 1462,
+        "budget_max": 25000,
+        "budget_used": 1462,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148900709568000,
+        "ns": 1791148904664952000,
+        "stopped": false
+      },
+      {
+        "attempts": 1462,
+        "budget_max": 25000,
+        "budget_used": 1462,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791148910905129000,
+        "ns": 1791148966952833000,
+        "stopped": false
+      },
+      {
+        "attempts": 1467,
+        "budget_max": 25000,
+        "budget_used": 1467,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149028505477000,
+        "ns": 1791149029313055000,
+        "stopped": false
+      },
+      {
+        "attempts": 1467,
+        "budget_max": 25000,
+        "budget_used": 1467,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149038858349000,
+        "ns": 1791149091474631000,
+        "stopped": false
+      },
+      {
+        "attempts": 1472,
+        "budget_max": 25000,
+        "budget_used": 1472,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149145632522000,
+        "ns": 1791149153780356000,
+        "stopped": false
+      },
+      {
+        "attempts": 1472,
+        "budget_max": 25000,
+        "budget_used": 1472,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149165762696000,
+        "ns": 1791149216093039000,
+        "stopped": false
+      },
+      {
+        "attempts": 1477,
+        "budget_max": 25000,
+        "budget_used": 1477,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149272909397000,
+        "ns": 1791149278501387000,
+        "stopped": false
+      },
+      {
+        "attempts": 1481,
+        "budget_max": 25000,
+        "budget_used": 1481,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149340372056000,
+        "ns": 1791149340843485000,
+        "stopped": false
+      },
+      {
+        "attempts": 1481,
+        "budget_max": 25000,
+        "budget_used": 1481,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149398333135000,
+        "ns": 1791149403132112000,
+        "stopped": false
+      },
+      {
+        "attempts": 1481,
+        "budget_max": 25000,
+        "budget_used": 1481,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149418965114000,
+        "ns": 1791149465328218000,
+        "stopped": false
+      },
+      {
+        "attempts": 1485,
+        "budget_max": 25000,
+        "budget_used": 1485,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149523495869000,
+        "ns": 1791149527724318000,
+        "stopped": false
+      },
+      {
+        "attempts": 1485,
+        "budget_max": 25000,
+        "budget_used": 1485,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149544091952000,
+        "ns": 1791149590196001000,
+        "stopped": false
+      },
+      {
+        "attempts": 1490,
+        "budget_max": 25000,
+        "budget_used": 1490,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149649349315000,
+        "ns": 1791149652417222000,
+        "stopped": false
+      },
+      {
+        "attempts": 1490,
+        "budget_max": 25000,
+        "budget_used": 1490,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149670370976000,
+        "ns": 1791149715008484000,
+        "stopped": false
+      },
+      {
+        "attempts": 1495,
+        "budget_max": 25000,
+        "budget_used": 1495,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149776581781000,
+        "ns": 1791149777429579000,
+        "stopped": false
+      },
+      {
+        "attempts": 1495,
+        "budget_max": 25000,
+        "budget_used": 1495,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149797148086000,
+        "ns": 1791149839848161000,
+        "stopped": false
+      },
+      {
+        "attempts": 1500,
+        "budget_max": 25000,
+        "budget_used": 1500,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149892635920000,
+        "ns": 1791149902237711000,
+        "stopped": false
+      },
+      {
+        "attempts": 1500,
+        "budget_max": 25000,
+        "budget_used": 1500,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791149923390120000,
+        "ns": 1791149964577788000,
+        "stopped": false
+      },
+      {
+        "attempts": 1505,
+        "budget_max": 25000,
+        "budget_used": 1505,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150018963228000,
+        "ns": 1791150027068430000,
+        "stopped": false
+      },
+      {
+        "attempts": 1505,
+        "budget_max": 25000,
+        "budget_used": 1505,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150049466091000,
+        "ns": 1791150089498548000,
+        "stopped": false
+      },
+      {
+        "attempts": 1510,
+        "budget_max": 25000,
+        "budget_used": 1510,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150144307267000,
+        "ns": 1791150151869056000,
+        "stopped": false
+      },
+      {
+        "attempts": 1510,
+        "budget_max": 25000,
+        "budget_used": 1510,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150175174080000,
+        "ns": 1791150214195154000,
+        "stopped": false
+      },
+      {
+        "attempts": 1515,
+        "budget_max": 25000,
+        "budget_used": 1515,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150270050712000,
+        "ns": 1791150276563324000,
+        "stopped": false
+      },
+      {
+        "attempts": 1515,
+        "budget_max": 25000,
+        "budget_used": 1515,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150301202732000,
+        "ns": 1791150338948540000,
+        "stopped": false
+      },
+      {
+        "attempts": 1520,
+        "budget_max": 25000,
+        "budget_used": 1520,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150396037156000,
+        "ns": 1791150401446957000,
+        "stopped": false
+      },
+      {
+        "attempts": 1520,
+        "budget_max": 25000,
+        "budget_used": 1520,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150426748437000,
+        "ns": 1791150463956578000,
+        "stopped": false
+      },
+      {
+        "attempts": 1525,
+        "budget_max": 25000,
+        "budget_used": 1525,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150521792220000,
+        "ns": 1791150526506314000,
+        "stopped": false
+      },
+      {
+        "attempts": 1525,
+        "budget_max": 25000,
+        "budget_used": 1525,
+        "cooldown_ns": 1791135810758562000,
+        "expires_ns": 1791375831922091000,
+        "failures": 0,
+        "healthy": true,
+        "heartbeat_ns": 1791150552782445000,
+        "ns": 1791150592159417000,
+        "stopped": false
+      }
+    ],
+    "lineage": {
+      "budget": {
+        "carried_attempts": 1417,
+        "current_consecutive_failures": 0,
+        "current_journal_attempts": 1529,
+        "current_seed_attempts": 1417,
+        "current_transport_outcomes": 0,
+        "max_requests": 25000,
+        "original_journal_attempts": null,
+        "prior_provider_attempts": null,
+        "repair_journal_attempts": 1417,
+        "summed": false
+      },
+      "configured_original": {
+        "same_as_current": true
+      },
+      "current": {
+        "binding_ok": true,
+        "binding_reason": null,
+        "carry_attempts": 1417,
+        "carry_authenticated": true,
+        "gaps": {
+          "clock_regression": false,
+          "continuous_uptime": false,
+          "evidence": "journal_event_times",
+          "first_event_ns": 1791147747117924000,
+          "last_event_ns": 1791150600169121000,
+          "silent": [],
+          "silent_truncated": false,
+          "uptime_known": false
+        },
+        "health_consecutive_failures": 0,
+        "incidents": {
+          "items": [],
+          "truncated": false,
+          "unknown": false
+        },
+        "journal": {
+          "attempts": 1529,
+          "chain_ok": true,
+          "consecutive_failures": 0,
+          "events_at_cutoff": 225,
+          "events_verified": 225,
+          "outcome_counts": {
+            "valid": 112
+          },
+          "partial": false,
+          "present": true,
+          "reason": null,
+          "transport_outcomes": 0,
+          "unknown": false
+        },
+        "provenance": "current_source",
+        "role": "current",
+        "seed_attempts": 1417,
+        "stop": {
+          "applies_at_cutoff": null,
+          "at_ns": null,
+          "present": false,
+          "reason": null,
+          "sha256": null,
+          "symlink": false
+        }
+      },
+      "cutoff_ns": 1791150624863084000,
+      "limits": {
+        "bytes_seen": 18045430,
+        "files_seen": 6135,
+        "max_bytes": 33554432,
+        "max_files": 100000,
+        "truncated": false,
+        "unknown": false
+      },
+      "network": false,
+      "notices": [],
+      "ok": true,
+      "original_stop": {
+        "distinct": false,
+        "same_as_current": true,
+        "stop_reason": null,
+        "stop_sha256": null,
+        "stopped": false
+      },
+      "predecessor_hops": 1,
+      "provenance_limit": "current_configured_original_repair_predecessor",
+      "reason": null,
+      "repair_predecessor": {
+        "binding_ok": true,
+        "binding_reason": null,
+        "carry_attempts": null,
+        "carry_authenticated": false,
+        "gaps": {
+          "clock_regression": false,
+          "continuous_uptime": false,
+          "evidence": "journal_event_times",
+          "first_event_ns": 1791116636676773000,
+          "last_event_ns": 1791145891244571000,
+          "silent": [],
+          "silent_truncated": false,
+          "uptime_known": false
+        },
+        "health_consecutive_failures": 0,
+        "incidents": {
+          "items": [
+            {
+              "at_ns": 1791145945693553000,
+              "category": "source_stop_or_deadline",
+              "exit_code": -9,
+              "id": "1791145945693553000",
+              "sha256": "91817eb70c5a26b444d7670c5395d1f6abdec342a042db32c353da9869cb230f"
+            }
+          ],
+          "truncated": false,
+          "unknown": false
+        },
+        "journal": {
+          "attempts": 1417,
+          "chain_ok": true,
+          "consecutive_failures": 0,
+          "events_at_cutoff": 2834,
+          "events_verified": 2834,
+          "outcome_counts": {
+            "duplicate_bar_in_response": 5,
+            "transport": 7,
+            "valid": 1405
+          },
+          "partial": false,
+          "present": true,
+          "reason": null,
+          "transport_outcomes": 7,
+          "unknown": false
+        },
+        "provenance": "authenticated_migration",
+        "role": "repair_predecessor",
+        "seed_attempts": null,
+        "stop": {
+          "applies_at_cutoff": null,
+          "at_ns": null,
+          "present": true,
+          "reason": "source_worker_failure",
+          "sha256": "b6b5968fce4377324a89b6671b694b2a1ee806d51be6039593e70f500194674b",
+          "symlink": false
+        }
+      },
+      "schema": "source-lineage-v1",
+      "successor": {
+        "active": false,
+        "phase": "borrowed",
+        "stop_reason": null,
+        "stop_sha256": null,
+        "stopped": false
+      },
+      "writes": false
+    },
+    "recovery": [],
+    "stop_reason": null,
+    "stopped": null
+  },
+  "read_first": [
+    {
+      "code": "incident",
+      "ns": 1791150397148274000,
+      "severity": "high",
+      "text": "Инцидент stop_applied."
+    },
+    {
+      "code": "incident",
+      "ns": 1791150397145587000,
+      "severity": "high",
+      "text": "Инцидент stop_attempt."
+    },
+    {
+      "code": "incident",
+      "ns": 1791150397140926000,
+      "severity": "high",
+      "text": "Инцидент stop_pending."
+    },
+    {
+      "code": "outside_root",
+      "ns": null,
+      "severity": "high",
+      "text": "Артефакт runtime — отклонён: outside_root."
+    },
+    {
+      "code": "gate_interval",
+      "ns": null,
+      "severity": "medium",
+      "text": "Интервал до следующего refit на cutoff ещё не прошёл."
+    },
+    {
+      "code": "legacy_health",
+      "ns": null,
+      "severity": "medium",
+      "text": "Legacy B12-original-STOP healthy=False stopped=True."
+    },
+    {
+      "code": "unhealthy_heartbeat",
+      "ns": null,
+      "severity": "medium",
+      "text": "Heartbeat healthy=0: 2."
+    },
+    {
+      "code": "historical_test_descriptive",
+      "ns": 1791148267712830000,
+      "severity": "low",
+      "text": "Test snapshot job_4ed49dcc84dfb59d помечен reused/descriptive."
+    }
+  ],
+  "reason": null,
+  "refused": [
+    {
+      "code": "outside_root",
+      "id": null,
+      "kind": "runtime"
+    }
+  ],
+  "schema": "operator-evidence-v1",
+  "services": {
+    "bottlenecks": [
+      {
+        "ns": 1791150396878271000,
+        "reason": "paused",
+        "source": "revision"
+      },
+      {
+        "ns": 1791150397140926000,
+        "reason": "stopped",
+        "source": "revision"
+      }
+    ],
+    "crashes": [],
+    "transitions": [
+      {
+        "from_mode": null,
+        "mode": "idle",
+        "ns": 1791148155438545000,
+        "phase": "idle",
+        "reason": "initialized",
+        "revision": 1
+      },
+      {
+        "from_mode": "idle",
+        "mode": "collect",
+        "ns": 1791148230726712000,
+        "phase": "collect",
+        "reason": "accepted",
+        "revision": 2
+      },
+      {
+        "from_mode": "collect",
+        "mode": "collect",
+        "ns": 1791148253102929000,
+        "phase": "snapshot",
+        "reason": "accepted",
+        "revision": 3
+      },
+      {
+        "from_mode": "collect",
+        "mode": "collect",
+        "ns": 1791148331009841000,
+        "phase": "train",
+        "reason": "accepted",
+        "revision": 4
+      },
+      {
+        "from_mode": "collect",
+        "mode": "paper",
+        "ns": 1791148416315560000,
+        "phase": "paper",
+        "reason": "accepted",
+        "revision": 6
+      },
+      {
+        "from_mode": "paper",
+        "mode": "auto",
+        "ns": 1791150396763364000,
+        "phase": "waiting",
+        "reason": "auto",
+        "revision": 8
+      },
+      {
+        "from_mode": "auto",
+        "mode": "paused",
+        "ns": 1791150396878271000,
+        "phase": "paused",
+        "reason": "paused",
+        "revision": 9
+      },
+      {
+        "from_mode": "paused",
+        "mode": "auto",
+        "ns": 1791150396998439000,
+        "phase": "waiting",
+        "reason": "resumed",
+        "revision": 10
+      },
+      {
+        "from_mode": "auto",
+        "mode": "stopped",
+        "ns": 1791150397140926000,
+        "phase": "stopped",
+        "reason": "stopped",
+        "revision": 11
+      },
+      {
+        "from_mode": "stopped",
+        "mode": "auto",
+        "ns": 1791150599175713000,
+        "phase": "waiting",
+        "reason": "resumed",
+        "revision": 12
+      }
+    ]
+  },
+  "snapshots": [
+    {
+      "as_of_ns": 1791148253760880000,
+      "created_ns": 1791148267712830000,
+      "dataset_id": "job_4ed49dcc84dfb59d",
+      "dataset_sha": "356a202be87a81c3753fe9141948be3a3f5d982c6190c821e7d7efbe86fd2191",
+      "historical_test_independent": false,
+      "manifest_sha": "cb6646156ed7f82fe8ffb911f6b0163f875afad960f08c9e43b1f33a5449a0b6",
+      "matured_samples": 87422,
+      "recipe": {
+        "sha256": "60d3206389785cef30211ba610064dd71742f4e17d82e694af272dc1b8bc3f66",
+        "version": "B13-pool-day-v1"
+      },
+      "retained": {
+        "test": {
+          "days": 1,
+          "decisions": 352,
+          "pools": 14
+        },
+        "train": {
+          "days": 92,
+          "decisions": 48000,
+          "pools": 24
+        },
+        "validation": {
+          "days": 1,
+          "decisions": 451,
+          "pools": 14
+        }
+      },
+      "unseen_test_pools": [],
+      "verified": true
+    }
+  ],
+  "training": {
+    "interrupted_without_candidate": 0,
+    "progress": [
+      {
+        "at_ns": 1791148339224771000,
+        "completed_fits": 4,
+        "fit": null,
+        "id": "job_fe34d70ab6cea0bc",
+        "selected": "gru",
+        "status": "completed",
+        "total_fits": 4
+      }
+    ],
+    "published_candidates": 1
+  },
+  "warnings": [],
+  "weights_read": false
+}

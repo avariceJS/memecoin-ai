@@ -1,0 +1,266 @@
+{
+  "D43_changed": false,
+  "F01_rules_changed": false,
+  "account": {
+    "browser": {
+      "available_browsers": [],
+      "category": "browser_runtime_unavailable",
+      "selection": "No browser is available"
+    },
+    "exact_runtime_to_account_mapping_confirmed": false,
+    "provider_plan_confirmed": false,
+    "usage": {
+      "data": {
+        "billingPeriod": {
+          "endTime": "2026-11-01T00:00:00.000Z",
+          "startTime": "2026-10-01T00:00:00.000Z"
+        },
+        "freshness": {
+          "containsPartialToday": true,
+          "dataThrough": "2026-10-03T19:10:00.000Z",
+          "updateCadence": "minute"
+        },
+        "totals": {
+          "last30Days": {
+            "amount": "27660",
+            "unit": "ALCHEMY_COMPUTE_UNIT",
+            "usd": "0.00"
+          },
+          "last7Days": {
+            "amount": "27660",
+            "unit": "ALCHEMY_COMPUTE_UNIT",
+            "usd": "0.00"
+          },
+          "monthToDate": {
+            "amount": "27660",
+            "unit": "ALCHEMY_COMPUTE_UNIT",
+            "usd": "0.00"
+          }
+        }
+      }
+    },
+    "zero_dollar_hard_cap_confirmed": false
+  },
+  "activation_authorized": false,
+  "actual_F01_windows": 0,
+  "alchemy_admin_usage_reads": 1,
+  "blockers": [
+    "account-specific Free/no-charge and exact credential mapping proof",
+    "one bounded 180RPC live qualification after no-charge review",
+    "host availability/awake-login operating conditions and separate activation decision"
+  ],
+  "budget_review_issued": false,
+  "checks": {
+    "base_passed": 496,
+    "base_skipped": 2,
+    "build": true,
+    "combined_passed": 517,
+    "installed_wheel": {
+      "D43_opened": false,
+      "bundle_verified": true,
+      "created_ns": 1791056068034422000,
+      "dossier": {
+        "dataset_sha256": "da64adc198288bebdd9a7ae2a55ab16465a397d8fdde5d1de44900c40118b96c",
+        "dossier_sha256": "2c802202067546d9ad5d67504179589662bb975a6ec76a954183cc6dae882557",
+        "exact": true,
+        "registry_revision": 0,
+        "research_launch_authorized": false
+      },
+      "holdout_opened": false,
+      "installed_wheel": true,
+      "market_rpc": 0,
+      "previous_D48_dossier": {
+        "dataset_sha256": "f97401ac44d58b55bb8ffcb0c2802f6954d43d10b6e9eafe0f295bf449168988",
+        "dossier_sha256": "d8aafff926653c8898b5805078342b3683794a06f3801851dae8eea03765dd4c",
+        "exact": true,
+        "registry_revision": -1,
+        "research_launch_authorized": false
+      },
+      "raw": {
+        "holdout_opened": false,
+        "research_launch_authorized": false,
+        "windows": [
+          {
+            "exact_except_conversion_path": true,
+            "index": 0,
+            "semantic_dataset_sha256": "db757a6a103e9abc0a0fb04fe0cbb4a5258144a7bd5393bdb5d0560474bb86d6"
+          }
+        ]
+      }
+    },
+    "new_tests": 15,
+    "ruff": true,
+    "smoke": true,
+    "strict_mypy": true
+  },
+  "created_ns": 1791056379216704000,
+  "data": {
+    "all_D50_smoke_fake_RPC": 540,
+    "calendar": "separate synthetic binding, no shift of actual D48 calendar",
+    "final": {
+      "D43_opened": false,
+      "bundle_sha": "0ca0f5a9990b90c76c94eaa7f59d18cfa400c7087233dd557549293fccf42b94",
+      "dossier_reproduction": {
+        "dataset_sha256": "da64adc198288bebdd9a7ae2a55ab16465a397d8fdde5d1de44900c40118b96c",
+        "dossier_sha256": "2c802202067546d9ad5d67504179589662bb975a6ec76a954183cc6dae882557",
+        "exact": true,
+        "registry_revision": 0,
+        "research_launch_authorized": false
+      },
+      "fake_rpc": 180,
+      "holdout_opened": false,
+      "mode": "synthetic_fixture",
+      "raw_reproduction": {
+        "holdout_opened": false,
+        "research_launch_authorized": false,
+        "windows": [
+          {
+            "exact_except_conversion_path": true,
+            "index": 0,
+            "semantic_dataset_sha256": "db757a6a103e9abc0a0fb04fe0cbb4a5258144a7bd5393bdb5d0560474bb86d6"
+          }
+        ]
+      },
+      "real_rpc": 0,
+      "supervision": {
+        "phases": [
+          {
+            "category": "completed",
+            "elapsed_seconds": 0.1472838749177754,
+            "exit_code": 0,
+            "phase": "init"
+          },
+          {
+            "category": "completed",
+            "elapsed_seconds": 1.8874054159969091,
+            "exit_code": 0,
+            "phase": "segment0"
+          },
+          {
+            "category": "completed",
+            "elapsed_seconds": 2.6620551673695445,
+            "exit_code": 0,
+            "phase": "segment1"
+          },
+          {
+            "category": "completed",
+            "elapsed_seconds": 0.869049874600023,
+            "exit_code": 0,
+            "phase": "qa"
+          }
+        ],
+        "wall_seconds": 5.828183500096202
+      },
+      "total_wall_seconds": 8.43518945761025,
+      "training": 0
+    },
+    "final_fake_RPC": 180,
+    "inputs": "three retained D40 public reference captures",
+    "qualification": "synthetic_fixture_only",
+    "supervisor_real_child_processes": 4,
+    "timestamps": "explicit synthetic Clock/slot/receipt; no prospective import"
+  },
+  "date": "2026-10-03",
+  "evidence_files": {
+    "work/collector-d50/account-usage.json": "36b4dd8e9a019df73e97a9b9d31251e9db839d340ef1a3fcfce9bf7604fff41a",
+    "work/collector-d50/ai.memecoin.f01.prospective01-final.plist": "3fedbef6824605ef7ab7a5c8476b9cb26cfa0b05fcca3943b4139c9fd42acd66",
+    "work/collector-d50/build-final.log": "6185dd4d1dc3260a260e56f000b4eb4b5c4567931a84423a6a20924c4ef720ec",
+    "work/collector-d50/check-01.log": "95ebb9d7927102f528270e27388272afbb7696a2b880b2a53c5b88e4a889cd7d",
+    "work/collector-d50/check-final-02.log": "01f9d2dfdb203b96605d89aab2cdab5e4c470c50eb39d388ddfbfb0c2be51442",
+    "work/collector-d50/closed-service-check.json": "f74200a690ed7989ecc0dcad50d8506b7d48aa66a5ba2787fe54c806007acf2b",
+    "work/collector-d50/combined-final.log": "ca6d8b26931ee0e89a311889f1cfe0550b0e4f2bd1fc88c7391cce9ed1ec2ad8",
+    "work/collector-d50/environment.json": "53fd67e2dd403cc631c9c788117420ebe40a5af84ba570b2ba792868f78d9124",
+    "work/collector-d50/memecoin_ai-0.1.0-py3-none-any.whl": "defa13258280021b7479b67ddc65148d1d7d915610d7314f71f1565a693a3d3e",
+    "work/collector-d50/raw-fixture-final-02/evidence.json": "5bfdbc3faea49a055032163d9f1a75406eba6b636345c332aa2a6471e6c74c65",
+    "work/collector-d50/runtime-candidate-final/config.json": "4b1a5e8b46b53837b6d9d7d9bc8f8ec45bd2cd0f6b2c1d4fc5d5ec6a6e57ad44",
+    "work/collector-d50/runtime-candidate-final/manifest.json": "a06f1d69ff8fb1c0f8647fc5622c3e2d8c1811e697d40eb8be15deb1663da880",
+    "work/collector-d50/smoke-final.log": "e74f77ed30218c7b0e0aa7c4faeb5f7c14c732e05c56cd0d997cd9a3a05874e2",
+    "work/collector-d50/staging-final.json": "79a1ed571a215dfdf177ae488192700be31a42f567569fae7fa9854b05169ae0",
+    "work/collector-d50/tests-first.log": "48ffdeccb595567cc5aefea6b5f4bc4bba4b2ef3c8e2fdd81c6fc5034130aac9",
+    "work/collector-d50/wheel-evidence.json": "f9705b75530b649f68f6a8531bce23dd67c7376e095eeeb47f602fe3fa9b46f3"
+  },
+  "failed_history": [
+    {
+      "category": "window_deadline_after_child_completion",
+      "evidence": "tests-first.log",
+      "resolution": "post-child whole-window guard"
+    },
+    {
+      "category": "reservation_deadline_origin",
+      "resolution": "8d072ac pins whole deadline to durable start"
+    },
+    {
+      "category": "lint_style",
+      "evidence": "check-01.log",
+      "resolution": "format/string split"
+    },
+    {
+      "category": "browser_runtime_unavailable",
+      "resolution": "no retry; no RPC; budget stays unknown"
+    }
+  ],
+  "full_live_window": "not_conducted_account_budget_blocked",
+  "holdout_opened": false,
+  "holdout_release_authorized": false,
+  "implementation_commit": "bee897e",
+  "integrity_commit": "8d072ac",
+  "market_rpc": 0,
+  "operational": {
+    "OS_sleep_or_reboot_tested": false,
+    "clock_and_low_disk_faults_tested": true,
+    "fail_closed_invocation": {
+      "exit_code": 1,
+      "service_installed": false,
+      "source_root_exists": false,
+      "stderr": "",
+      "stdout": "{\"status\": \"closed\", \"category\": \"runtime_or_receipt_invalid\", \"error_type\": \"FileNotFoundError\"}\n"
+    },
+    "launchd_installation_or_reconfiguration": false,
+    "parent_death_lease_EOF_tested": true,
+    "per_RPC_guard": true,
+    "process_group_kill_tested": true,
+    "receipt_expiry_rotation_scope_attempt_root_tested": true,
+    "service_template_validated_by_plutil": true,
+    "source_code_and_artifact_recheck": true,
+    "staging": {
+      "activation_receipt_issued": false,
+      "budget_review_issued": false,
+      "previous_D49_candidate_valid": true,
+      "runtime_bundle_sha256": "a06f1d69ff8fb1c0f8647fc5622c3e2d8c1811e697d40eb8be15deb1663da880",
+      "service_installed": false,
+      "source_root_exists": false
+    }
+  },
+  "other_worktree": {
+    "branch": "control-center/observatory-handoff",
+    "final_observed_head": "5bf1700",
+    "initial_head": "c6e81aa",
+    "modified_by_D50": false,
+    "parallel_untracked_path": "apps/control-center/web/",
+    "path": "/Users/root1/.codex/worktrees/ec89/memecoin-ai"
+  },
+  "paid_actions": 0,
+  "plan_commit": "0be583f",
+  "receipt_issued": false,
+  "research_training": 0,
+  "source_proposal_unchanged": true,
+  "source_root_created": false,
+  "specification": {
+    "RPC_per_window": 180,
+    "automatic_retries": 0,
+    "catch_up": false,
+    "deadline_origin": "durable reservation.started_ns",
+    "execution_model": "existing conditional snapshot reset, no changes",
+    "failed_window_stop": 8,
+    "free_floor_bytes": 2147483648,
+    "host_clock_drift_seconds": 2,
+    "seed": null,
+    "segment_deadline_seconds": 210,
+    "source_transport": "existing stdlib_persistent_v1 finalized/profile2",
+    "total_RPC_ceiling": 60480,
+    "window_deadline_seconds": 600,
+    "window_disk_envelope_bytes": 536870912
+  },
+  "stage": "D50",
+  "verdict": "ENGINEERING_ENVELOPE_QUALIFIED_ACTIVATION_BLOCKED"
+}

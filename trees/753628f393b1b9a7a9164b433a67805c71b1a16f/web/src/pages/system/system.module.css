@@ -1,0 +1,411 @@
+.page,
+.page *,
+.page *::before,
+.page *::after {
+  box-sizing: border-box;
+}
+
+.page {
+  container-type: inline-size;
+  container-name: system;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-gap);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--cc-text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.pageHeader {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pageTitle,
+.panelTitle,
+.pinTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--cc-text);
+}
+
+.policyNote,
+.caption,
+.cardSummary,
+.tally {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--cc-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.policyNote {
+  margin-top: 4px;
+}
+
+.caption,
+.tally,
+.cardId,
+.cardSummary {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.statusBand {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.panel,
+.matrixPanel,
+.pinBar {
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius);
+  background:
+    linear-gradient(180deg, rgb(21 35 51 / 55%), rgb(16 28 41 / 0%) 120px),
+    var(--cc-panel);
+}
+
+.panelHead,
+.cardHead,
+.designHead,
+.pinMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.panelHead .panelTitle,
+.cardTitle,
+.designTitle {
+  min-width: 0;
+}
+
+.captionStrong,
+.metric,
+.pinId,
+.pinHash,
+.cardId,
+.codeScroll {
+  font-variant-numeric: tabular-nums;
+}
+
+.captionStrong {
+  color: var(--cc-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.adapterOk,
+.adapterFail {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.adapterOk {
+  color: var(--cc-teal);
+}
+
+.adapterFail {
+  color: var(--cc-warning);
+}
+
+.metric {
+  margin: 8px 0 0;
+  color: var(--cc-text);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.panel .caption,
+.panel .codeScroll,
+.cardSummary {
+  margin-top: 6px;
+}
+
+.matrixPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--cc-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+.mark {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+}
+
+.cardTitle .mark,
+.legend .mark {
+  margin-right: 0;
+}
+
+.mark[data-tone="recorded"] {
+  background: var(--cc-cyan);
+  transform: rotate(45deg);
+}
+
+.mark[data-tone="unavailable"] {
+  border: 1.5px solid #9aa8b8;
+  border-radius: 50%;
+}
+
+.mark[data-tone="locked"] {
+  border: 1.5px solid var(--cc-warning);
+  border-radius: 1px;
+}
+
+.groupTitle {
+  margin: 2px 0 0;
+  color: var(--cc-cyan);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.designGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.card,
+.designCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--cc-border);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--cc-panel-raised);
+}
+
+.card[data-tone="recorded"] {
+  border-left-color: var(--cc-cyan);
+}
+
+.card[data-tone="unavailable"] {
+  border-left-color: #5d7186;
+}
+
+.card[data-tone="locked"] {
+  border-left-color: var(--cc-warning);
+}
+
+.cardTitle,
+.designTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--cc-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.cardSummary {
+  margin-top: 0;
+  max-width: none;
+}
+
+.cardId {
+  margin: 0;
+  color: var(--cc-text-quiet);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-wrap: anywhere;
+}
+
+.recordChip,
+.designTag {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid var(--cc-border);
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.recordChip {
+  border-color: var(--cc-cyan);
+  color: var(--cc-cyan);
+}
+
+.designTag {
+  color: var(--cc-cyan);
+  letter-spacing: 0.04em;
+}
+
+.codeScroll,
+.pinScroll {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.codeScroll {
+  display: block;
+  max-height: 4.8em;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--cc-border);
+  border-radius: 4px;
+  background: #0c1622;
+  color: var(--cc-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.codeScroll:focus-visible,
+.pinScroll:focus-visible {
+  outline: 2px solid var(--cc-cyan);
+  outline-offset: 2px;
+}
+
+.pinBar {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.pinTitle {
+  font-size: 14px;
+}
+
+.pinScroll {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 2px;
+  list-style: none;
+}
+
+.pinItem {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--cc-border);
+  border-radius: 6px;
+  background: #0c1622;
+}
+
+.pinId {
+  color: var(--cc-cyan);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pinHash {
+  color: var(--cc-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.codeToggle {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--cc-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cc-cyan);
+  font: inherit;
+  font-size: 13px;
+}
+
+.designCard {
+  border-left-color: var(--cc-border);
+}
+
+@container system (max-width: 860px) {
+  .designGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container system (max-width: 640px) {
+  .statusBand,
+  .pinBar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container system (max-width: 520px) {
+  .matrix,
+  .designGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

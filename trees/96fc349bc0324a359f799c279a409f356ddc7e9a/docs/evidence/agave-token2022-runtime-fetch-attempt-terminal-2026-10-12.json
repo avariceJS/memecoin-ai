@@ -1,0 +1,49 @@
+{
+  "schema": "agave-token2022-runtime-fetch-attempt-terminal",
+  "schema_version": 1,
+  "recorded_at_utc": "2026-10-12T07:27:03Z",
+  "authorization": {
+    "reviewer": "Sol High",
+    "scope": "one guarded locked Cargo fetch after the fixed 06:00Z Senses lease expired and was unloaded",
+    "retry_count": 0
+  },
+  "source": {
+    "path": "/Volumes/Kingston/BrainData/qualifications/agave-v3.0.0-token2022-runtime-20261012/source",
+    "source_diff_sha256": "b35b3dba78a4dc90aee3f91827cf1d6467f728d7218d8e3d7c14a861dcc6aa78",
+    "cargo_lock_sha256": "fc3fdf681e0c0a89399c07376747e13cdd5a31d61f6b209df5437a9594fc76a5",
+    "source_and_lock_match_preflight": true
+  },
+  "operation": {
+    "started_after_utc": "2026-10-12T07:03:00Z",
+    "exact_start_time": "not retained",
+    "wrapper_exit": 2,
+    "wrapper_reason": "cargo_fetch_created_build_output",
+    "cargo_stdout_stderr": "not captured by the bounded wrapper; underlying Cargo diagnostic unknown",
+    "retry_count": 0,
+    "offline_metadata_run": false,
+    "build_or_program_test_run": false
+  },
+  "post_attempt": {
+    "observed_at_utc": "2026-10-12T07:27:03Z",
+    "cargo_home_allocated": "approximately 546 MiB",
+    "target_allocated": "4 KiB",
+    "target_files": ["target/.rustc_info.json"],
+    "tmp_allocated": "0 bytes",
+    "active_cargo_or_rustc_process": false,
+    "storage_root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "storage_health": "ready",
+    "available_bytes": 219478421504
+  },
+  "disposition": {
+    "status": "terminal_failure_no_retry",
+    "preserve_cargo_home_and_target": true,
+    "source_and_lock_remain_pinned": true,
+    "no_offline_metadata_or_build": true,
+    "actual_provider_charge": "not applicable"
+  },
+  "limitations": [
+    "The wrapper stopped after detecting Cargo-created target metadata. This receipt does not assert the underlying Cargo process exit code or its diagnostic.",
+    "A new fetch attempt requires a new Sol review; this receipt grants no retry, metadata, build, or runtime-test authority."
+  ]
+}

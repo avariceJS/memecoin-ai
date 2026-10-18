@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "task_id": "CC02.5",
+  "acceptance_scope": "page",
+  "web_sha256": "5fd1d205aac62b24758c0f0a66f656680569edd04b6152222c62954589b7b84d",
+  "snapshot_sha256": "82a6efd6066b271a6a30de36a7b2d73523d771118eab4882f267c50200cddb1c",
+  "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+  "builder_id": "d6b233fa-d321-49e6-b010-f661f5878471",
+  "reviewer_id": "b5c9cab4-6ac5-4dfd-88eb-69b7aeb1ddcf",
+  "model_binding": "UNVERIFIED",
+  "first_review": "Первый кадр NEEDS_FIX, среднее 3.4: хвост таблицы прогонов пересекал «Все замеры», шапка selectedEpoch была сырым camelCase. before.web_sha256 — SHA первого PNG: digest дерева до правки не сохранялся.",
+  "fix_summary": "Таблицы стоят на всю ширину под сводкой и графиками. Заголовки по-русски, включая выбранную эпоху. Пересечений текста нет. Полный список замеров ниже фолда.",
+  "remaining_findings": [
+    {
+      "severity": "minor",
+      "reason": "Фолд 1600 режет таблицу прогонов по полустроке.",
+      "owner": "CC02.5"
+    },
+    {
+      "severity": "minor",
+      "reason": "В подписях графиков остаются латинские batch и status.",
+      "owner": "CC02.5"
+    }
+  ],
+  "screens": [
+    {
+      "route": "/models",
+      "rubric_scope": "page",
+      "before": {
+        "path": "docs/control-center/references/cc02-final/CC02.5/first/models-1600.png",
+        "sha256": "8776d42bb328656a2a903591ac4afa5c25c4ad16da46292f4f43b38013eea0b4",
+        "route": "/models",
+        "capture_id": "cc025-first-models-1600x1000-viewport",
+        "viewport": [
+          1600,
+          1000
+        ],
+        "capture": "viewport",
+        "dpr": 1,
+        "zoom": 1,
+        "web_sha256": "8776d42bb328656a2a903591ac4afa5c25c4ad16da46292f4f43b38013eea0b4",
+        "captured_at": "2026-10-04T02:23:30Z",
+        "browser": "Chromium 153.0.8010.12"
+      },
+      "after": [
+        {
+          "route": "/models",
+          "capture_id": "cc025-models-1440x900-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1440x900-viewport.png",
+          "sha256": "ead7f50498c79b3a7a81c42eb68b8e7eb41a417a9ce992f2f31ce8c5d8f24c26",
+          "viewport": [
+            1440,
+            900
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "5fd1d205aac62b24758c0f0a66f656680569edd04b6152222c62954589b7b84d",
+          "captured_at": "2026-10-04T02:37:33.283Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1440x900-viewport.layout.json",
+            "sha256": "f935706f343bbe2280a6bb134ec7f689064d4308567983a35cd6b215f36c2646"
+          }
+        },
+        {
+          "route": "/models",
+          "capture_id": "cc025-models-1600x1000-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1600x1000-viewport.png",
+          "sha256": "3efaed940b0372e1eb98ecbe52c1e2d34f6e6cf130f3d3abebd15ef7415ff520",
+          "viewport": [
+            1600,
+            1000
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "5fd1d205aac62b24758c0f0a66f656680569edd04b6152222c62954589b7b84d",
+          "captured_at": "2026-10-04T02:37:33.501Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1600x1000-viewport.layout.json",
+            "sha256": "ab3472aae510255950b2ee7ff702b0e3a2a80c447bccab02fe8c5dfd59f3fc72"
+          }
+        },
+        {
+          "route": "/models",
+          "capture_id": "cc025-models-1600x1000-fullpage",
+          "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1600x1000-fullpage.png",
+          "sha256": "3efaed940b0372e1eb98ecbe52c1e2d34f6e6cf130f3d3abebd15ef7415ff520",
+          "viewport": [
+            1600,
+            1000
+          ],
+          "capture": "fullpage",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "5fd1d205aac62b24758c0f0a66f656680569edd04b6152222c62954589b7b84d",
+          "captured_at": "2026-10-04T02:37:33.502Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1600x1000-fullpage.layout.json",
+            "sha256": "22d590cc817d1c790ba96c71cdcfce909001d938e2c32ac884f789c609a260c4"
+          }
+        },
+        {
+          "route": "/models",
+          "capture_id": "cc025-models-1920x1080-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1920x1080-viewport.png",
+          "sha256": "7fc11a034df017de8ceeccf823aa7149962374308984129a9ed5b137a1d07a3c",
+          "viewport": [
+            1920,
+            1080
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "5fd1d205aac62b24758c0f0a66f656680569edd04b6152222c62954589b7b84d",
+          "captured_at": "2026-10-04T02:37:33.662Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1920x1080-viewport.layout.json",
+            "sha256": "fac87d1315dda5bf96aaef5913d4a15a181acb1d1d61f7730746ca6cab9e5424"
+          }
+        },
+        {
+          "route": "/models",
+          "capture_id": "cc025-models-1024x768-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1024x768-viewport.png",
+          "sha256": "8064247daed59f6ae7fa4cc3e4f17b768add3ca526cc554db30adefa2f4d14b9",
+          "viewport": [
+            1024,
+            768
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "5fd1d205aac62b24758c0f0a66f656680569edd04b6152222c62954589b7b84d",
+          "captured_at": "2026-10-04T02:37:33.806Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.5/after/cc025-models-1024x768-viewport.layout.json",
+            "sha256": "d2f1772d42c97af2e2f3ed10bdbe17f751e09f9a4c900ded9bc3e291c8be5d04"
+          }
+        }
+      ],
+      "rubric": {
+        "composition": {
+          "score": 4,
+          "reason": "Сводка и две шкалы держат верх, таблицы на всю ширину ниже."
+        },
+        "hierarchy": {
+          "score": 4,
+          "reason": "Сопоставимые замеры выше сырого списка."
+        },
+        "density": {
+          "score": 4,
+          "reason": "Полосы params и две шкалы помещаются над таблицей прогонов."
+        },
+        "typography": {
+          "score": 4,
+          "reason": "Шапки таблиц по-русски, числа замеров читаются."
+        },
+        "geometry": {
+          "score": 5,
+          "reason": "Колонки внутри панелей, пересечений текста нет."
+        },
+        "navigation": {
+          "score": 4,
+          "reason": "Фильтры модели, устройства, формы и пакета на месте."
+        },
+        "identity": {
+          "score": 4,
+          "reason": "Navy и отдельные шкалы без трофея."
+        },
+        "reference_family": {
+          "score": 4,
+          "reason": "Крупное сравнение сверху, список вторичен."
+        },
+        "state_clarity": {
+          "score": 5,
+          "reason": "Модель не выбрана, несовпадение не получает шкалу."
+        },
+        "interaction": {
+          "score": 4,
+          "reason": "Копия и фильтры доступны с клавиатуры, список не ранжирует."
+        }
+      },
+      "remaining_weaknesses": "Фолд режет прогоны по полустроке. В подписях графиков остаются batch и status."
+    }
+  ]
+}

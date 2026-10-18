@@ -1,0 +1,44 @@
+{
+  "schema": "brain-portability-dr-private-config-metadata-v1",
+  "captured_at_utc": "2026-10-14T01:27:17Z",
+  "research_commit": "4ba3f9f",
+  "root": "~/.config/brain-research",
+  "top_level": {
+    "directories": 10,
+    "regular_files": 4,
+    "symlinks": 0,
+    "directory_modes": {"0700": 9, "0755": 1},
+    "regular_file_modes": {"0600": 4}
+  },
+  "recursive": {
+    "directories": 13,
+    "regular_files": 75,
+    "symlinks": 0,
+    "other_entries": 0,
+    "regular_file_bytes": 187755,
+    "suffix_counts": {".json": 45, ".plist": 23, ".log": 3, ".jsonl": 3, "no_extension": 1},
+    "file_modes": {"0600": 75},
+    "directory_modes": {"0700": 12, "0755": 1}
+  },
+  "top_level_role_counts": {
+    "external_configuration_sets": 5,
+    "retired_launchagent_sets": 1,
+    "storage_health_set": 1,
+    "timing_rehearsal_sets": 3,
+    "interpreter_handoffs": 2,
+    "git_handoff_files": 1,
+    "storage_binding_files": 1
+  },
+  "scope": {
+    "file_contents_opened": false,
+    "secret_values_read": false,
+    "provider_requests": 0,
+    "services_changed": false,
+    "archive_created": false
+  },
+  "limitations": [
+    "Role labels are based on top-level names only; no contained configuration was interpreted.",
+    "Mode 0600 does not establish that a file contains no credentials or mutable activation state.",
+    "Contents must be privately classified and either preserved as inert recovery state or explicitly regenerated/reissued; no source snapshot or restore witness exists."
+  ]
+}

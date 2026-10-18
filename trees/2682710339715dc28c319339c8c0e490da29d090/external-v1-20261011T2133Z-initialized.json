@@ -1,0 +1,63 @@
+{
+  "activation_sha256": "53d6c8a54515e2239518d73ce278f7da7eb13dd691db4bf7080ec3db8c2f5068",
+  "at_ns": 1791754220012694000,
+  "code_commit": "27d729497a1d14df5c9938faed331a031a11df17",
+  "credentials_scan": {
+    "exact_matches": 0,
+    "new_commit_files": 32,
+    "process_argv_matches": 0,
+    "prospective_plist_matches": 0
+  },
+  "independent_state": {
+    "activation_authorized": false,
+    "buckets": {
+      "20261011T213300Z": {
+        "status": "unstarted"
+      },
+      "20261011T213800Z": {
+        "status": "unstarted"
+      }
+    },
+    "dispatch_authorized": false,
+    "frontier": 455430160,
+    "gap_intervals": [
+      {
+        "bucket": "20261010T000000Z",
+        "interval_end_exclusive": 455061516,
+        "interval_start": 455037817,
+        "reason": "oversized_frame",
+        "receipt": "helius-inventory-v2-oversized-gap-2026-10-10.json"
+      },
+      {
+        "end_exclusive": 455116881,
+        "reason": "missed_schedule_no_backfill",
+        "start": 455082524
+      },
+      {
+        "bootstrap_bucket": "20261010T120000Z",
+        "end_exclusive": 455249113,
+        "from_c3_stop_sha256": "e8666a111d5e9aadd9c12044490e2d0ad4d42b0a204d57fbae0295ba036a9f00",
+        "reason": "uncovered_since_c3_trusted_frontier_no_backfill",
+        "start": 455216025
+      }
+    ],
+    "plan_sha256": "dcbddd60c4b017e230ee073f1050865363a9c8cdeae91a5ba5e097ef9f1a376b",
+    "provider_charge_status": "unknown_unverified",
+    "provider_charge_units": null,
+    "raw_bytes": 0,
+    "replay_authorized": false,
+    "requests": 0,
+    "schema_version": 1,
+    "status": "verified_prefix",
+    "stop": null,
+    "stored_bytes": 0
+  },
+  "launchagent_loaded": true,
+  "manually_kickstarted": false,
+  "plan_sha256": "dcbddd60c4b017e230ee073f1050865363a9c8cdeae91a5ba5e097ef9f1a376b",
+  "plist_sha256": "4fd72ecbd3ed21110742447bbc0d016d97f05ce47de7d3141a0e1b83dd44d30c",
+  "production_unchanged": true,
+  "review_sha256": "a2a20f298269eb48d65c9e72a0dbc57a0498dc1ec19372895902a91150717b1b",
+  "schema": "external-v1-initialized-launch",
+  "service_id": "external-v1-20261011T2133Z"
+}

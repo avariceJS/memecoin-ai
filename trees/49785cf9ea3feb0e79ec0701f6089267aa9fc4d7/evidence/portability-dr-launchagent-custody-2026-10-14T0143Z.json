@@ -1,0 +1,43 @@
+{
+  "schema": "brain-portability-dr-launchagent-custody-v1",
+  "captured_at_utc": "2026-10-14T01:43:00Z",
+  "status": "provisional_opaque_quarantine_verified",
+  "storage": {
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "relative_artifact_path": "host-recovery/provisional-opaque/launchagent-definitions-20261014-a1/",
+    "publication": "create_only_descriptor_bound",
+    "private_manifest_sha256": "557a003b11a9707de310ce80688044e1d7a117fa5498d3726d88e2f4e869d5fe",
+    "complete_marker_sha256": "320bb64bb5814008b7cfbe0c1c7375663c5e95945986127a08160ef4d39ba60e"
+  },
+  "source_inventory": {
+    "plist_files": 60,
+    "regular_files": 60,
+    "symlink_plists": 0,
+    "source_bytes": 73129,
+    "metadata_stable_before_after_capture": true,
+    "prior_brain_and_d43_metadata_count": 56,
+    "unclassified_additional_plist_count": 4
+  },
+  "archive": {
+    "format": "tar",
+    "bytes": 194560,
+    "sha256": "5d5c26d73d60535f31795801af3a3ceacabe33124cfdc592f07cdfa23ea0540c",
+    "all_60_member_hashes_verified_after_kingston_reread": true,
+    "all_60_members_restored_to_temporary_inert_quarantine_and_rehashed": true,
+    "xattrs_and_acls_preserved": false
+  },
+  "handling": {
+    "payloads_parsed_or_semantically_classified": false,
+    "service_definitions_installed_or_loaded": false,
+    "restore_or_activation_authority": false,
+    "private_environment_values_recorded": false
+  },
+  "limitations": [
+    "live copy and not an atomic owner-wide recovery point",
+    "the four additional plist files have no Brain/D43 role classification",
+    "the prior 56-definition metadata does not prove deployed runtime identity",
+    "private values require classification; quarantined definitions remain inert and none was loaded by this DR work",
+    "ACLs and extended attributes are not preserved"
+  ]
+}

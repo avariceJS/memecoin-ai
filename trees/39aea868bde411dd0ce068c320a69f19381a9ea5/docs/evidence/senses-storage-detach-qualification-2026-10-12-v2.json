@@ -1,0 +1,186 @@
+{
+  "configured_kingston_touched": false,
+  "contract": "research_storage_detach_qualify_v1",
+  "image_directory": "temporary /private/tmp sparse APFS image; removed on exit",
+  "image_filesystem": "case-sensitive APFS",
+  "image_owners_enabled_by_os": false,
+  "image_uuid": "8e8d9b62-589f-402a-9d07-082b343f0a7f",
+  "limitations": [
+    "Exercises this host's APFS image detach behavior and descriptor writer operations; it does not establish physical cable removal or device-specific behavior.",
+    "Does not test a provider call or authorize lease activation.",
+    "Does not qualify live Kingston identity or owner-enforcement policy."
+  ],
+  "provenance": {
+    "command": "PYTHONPATH=src python3 tools/research_storage_detach_qualify_v1.py",
+    "completed_utc": "2026-10-11T21:19:11.273424+00:00",
+    "elapsed_monotonic_ns": 17303444500,
+    "macos_version": "26.5.2",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.6",
+    "source_sha256": {
+      "qualification_harness": "aa00d987ea38d30b101578e77164ef93afa0b3d3eda92d611b58678548781b4d",
+      "source_binding:src/memecoin_ai/domain.py": "8123b98462fb822ec6c27d3f7eadbea0a6daf782165e92d369c1a9a77526a1c2",
+      "source_binding:src/memecoin_ai/sources.py": "7957340a16896bb9cec6ba744590c1bb75c9d02c21dc3fb1877eb1375297f861",
+      "source_binding:src/memecoin_ai/storage.py": "2ed486d3b802f164d403eefe079407394bab3c10056b9246b04a723dbb8cc077",
+      "source_binding:src/memecoin_collector/private_config.py": "17a3d905898655eb841c0973523c00e8e726babc1a4f70d589d616a6809e85e7",
+      "source_binding:src/memecoin_pumpswap/normalize.py": "7253588560626c6f45ed65ebfd802200f20e79e2daec88fadb93d34731e84643",
+      "source_binding:src/memecoin_pumpswap/schema.py": "dafd0708aad54224565863c3b23deee8440ef3fbcd2c1e7b5ce7629e2a6d5ad1",
+      "source_binding:src/memecoin_research_storage/__init__.py": "672f6d1af8291579a9a2b0d25343f11b23875b4dd9f4598658d95d034e0dfbd5",
+      "source_binding:tools/brain_senses_block_epoch_v2.py": "c3d1d0e4d9824ebd6c67c5e292471b5378249e96c26f16c70cd6f4f26ed33555",
+      "source_binding:tools/brain_senses_block_epoch_v3_schedule.py": "ee4e643ab194d736b5ebfdbf684cbb9caee4e6b78f3673af5bf483be452c2633",
+      "source_binding:tools/brain_senses_block_provider_pilot.py": "c2a56de9e0f3ef740967345908dca2a120022e11434ce9ec4ca8251e095ebe3f",
+      "source_binding:tools/brain_senses_external_clock_v1.py": "b9e9928a05924e38752865ab89aef41b30f0547b51e3ef52b602bb9582525a32",
+      "source_binding:tools/brain_senses_external_launch_v1.py": "e9b5d1b894cb163fe0689cb91166fc1a3c03e003cd6e9b041db47278693cfc78",
+      "source_binding:tools/brain_senses_external_orchestrator_v1.py": "f26a058919f77bd05040d0a547245a6637cfd6ec2225ee18c51a3015cf5492d3",
+      "source_binding:tools/brain_senses_external_schema_v1.py": "4bea273a76621d4b0f2969a44f12a1ce31bf3bdcb2a20cf87c1dfab91c293708",
+      "source_binding:tools/brain_senses_external_verify_v1.py": "f2a3b9e2ad6c88aba6091b2ad9902ebde45e8800b5759c09ebd033fd4bed6bc9",
+      "source_binding:tools/brain_senses_external_writer_v1.py": "d1407ad17d8819331cc034e75f1425460f836c3644a9527fe4a393d7445ea936",
+      "source_binding:tools/brain_senses_program_watch.py": "1d8fdd1bd055a1b859ff95b5f5082fd533f4b37467c317cc34102d04b0d82917",
+      "source_binding:tools/brain_senses_service_v1.py": "e3b06f3e06d5f732fa61f431e21a36692592542095c6dd076d18f7723896f299",
+      "source_binding:tools/brain_senses_service_v1_runner.py": "0ba5cf496f6020fec62c21fbca86c683a9420557b403b69ae707c6b583b42d71",
+      "storage_library": "672f6d1af8291579a9a2b0d25343f11b23875b4dd9f4598658d95d034e0dfbd5"
+    },
+    "started_utc": "2026-10-11T21:18:53.969956+00:00"
+  },
+  "provider_requests": 0,
+  "reservation_replay_gate": "passed",
+  "results": [
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "mkdir",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "mkdir",
+      "underlay_unchanged": true
+    },
+    {
+      "name": "reservation_remount_no_replay",
+      "outcome": {
+        "provider_io": false,
+        "status": "stopped",
+        "stop": {
+          "bundle_sha256": null,
+          "last_bucket": "20261011T212000Z",
+          "post_stop_requests": 0,
+          "reason": "interrupted_no_replay",
+          "schema": "brain-senses-external-v1-stop",
+          "schema_version": 1,
+          "stopped_ns": 1791753539441587000
+        }
+      },
+      "provider_io": false,
+      "provider_loader_calls": 0,
+      "remounted_before_reconciliation": true,
+      "reservation_sha256": "91e8381b31024e0495b32ff47ecb2abcb5a50d08b2ac7c05dfc3250c0ca20f97",
+      "status": "passed",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "create",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "create",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "append_open",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "append_open",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "append_write",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 2,
+      "trigger": "append_write",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "NotADirectoryError:[Errno 20] Not a directory: '.atomic-create.json.27753.71e84ee3931dc947.tmp'",
+      "held_volume_result": true,
+      "name": "atomic_create",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "atomic_create",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "NotADirectoryError:[Errno 20] Not a directory: '.atomic-rename.json.27753.3902544e70282d4a.tmp'",
+      "held_volume_result": true,
+      "name": "atomic_rename",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 2,
+      "trigger": "atomic_rename",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "unlink",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "unlink",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "OSError:[Errno 9] Bad file descriptor",
+      "held_volume_result": true,
+      "name": "lock_open",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 1,
+      "trigger": "lock_open",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "NotADirectoryError:[Errno 20] Not a directory: '.response.json.27753.8a1039e19d3dcb2f.tmp'",
+      "held_volume_result": true,
+      "name": "capture_response_atomic_rename",
+      "occurrence": 1,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 6,
+      "trigger": "atomic_rename",
+      "underlay_unchanged": true
+    },
+    {
+      "detached_after_precheck": true,
+      "error": "NotADirectoryError:[Errno 20] Not a directory: '.receipt.json.27753.7fb03b6ce0284178.tmp'",
+      "held_volume_result": true,
+      "name": "capture_receipt_atomic_rename",
+      "occurrence": 2,
+      "outcome": "safe_error",
+      "prechecks_before_detach": 10,
+      "trigger": "atomic_rename",
+      "underlay_unchanged": true
+    }
+  ],
+  "schema_version": 1,
+  "status": "passed",
+  "storage_guard_precheck": "StorageGuard.revalidate before each injected mutation, with test-only ownership normalization for the disposable noowners APFS image",
+  "test_only_noowners_probe_normalization": true,
+  "underlay_directory": "writable internal temporary mountpoint mirror with sentinel bait files"
+}

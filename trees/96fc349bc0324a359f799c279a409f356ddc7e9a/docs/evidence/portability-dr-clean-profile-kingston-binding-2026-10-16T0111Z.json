@@ -1,0 +1,38 @@
+{
+  "schema": "portability-dr-clean-profile-kingston-binding-v1",
+  "observed_at_utc": "2026-10-16T01:11:23Z",
+  "source_commit": "8d6dd13bc0c8f0f94610c9dd65ebd4b1dd06c26d",
+  "procedure": {
+    "bind_command": "tools/research_storage.py bind-existing",
+    "check_command": "tools/research_storage.py check --require-root",
+    "config_destination": "isolated temporary new-host profile on internal Data",
+    "config_mode": "0600",
+    "config_size_bytes": 198,
+    "expected_volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "expected_root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "required_free_bytes": 53687091200,
+    "result": "root_verified",
+    "observed_available_bytes": 214208897024
+  },
+  "negative_case": {
+    "wrong_volume_uuid": "00000000-0000-0000-0000-000000000000",
+    "result": "volume_uuid_mismatch",
+    "config_created": false
+  },
+  "scope": {
+    "environment": "same owner Mac, fresh checkout, isolated temporary profile only",
+    "kingston_written": false,
+    "root_created_or_modified": false,
+    "services_changed": false,
+    "provider_requests": 0,
+    "protected_payloads_read": false,
+    "secret_values_read": false,
+    "brain_state_restored": false,
+    "kingston_K_qualified": false,
+    "safe_to_erase": false
+  },
+  "limitations": [
+    "This rehearses recreation of the host-only storage binding and verification of the already attached Kingston root.",
+    "It is not a different host, volume attach or remount, durable-frontier check, accepted-set restore, or clean-host recovery."
+  ]
+}

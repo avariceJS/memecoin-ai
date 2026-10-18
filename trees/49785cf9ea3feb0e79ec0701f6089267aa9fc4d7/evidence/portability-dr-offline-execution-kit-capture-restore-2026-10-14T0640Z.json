@@ -1,0 +1,66 @@
+{
+  "schema": "brain-portability-offline-execution-kit-capture-restore-v1",
+  "observed_at_utc": "2026-10-14T06:40:22Z",
+  "source_commit": "d602cf6a985fc0329be7da3afff12cac2fff72a2",
+  "artifact": {
+    "candidate_id": "candidate-20261014T0640Z-a3",
+    "storage_path": "BrainData/host-recovery/offline-execution-kit-v1/candidate-20261014T0640Z-a3.dmg",
+    "image_bytes": 91948243,
+    "image_sha256": "8f65c9d248749153646385bab32eafd1d38014bc08fb430f094fa5be5ebc6640",
+    "manifest_sha256": "d7c3758478109ad7aa17912dcc78a81a12ced337ddb2f25bbc64800fdc86d1d1",
+    "complete_marker_sha256": "08b76fd486f6cd822323a40058b5f49e460e13d28128fe7e1d0768edf95ff76e",
+    "publication": "create-only via descriptor-bound storage writer; exact write readback and independent fresh descriptor readback",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "candidate_persisted_on_kingston_only": true
+  },
+  "layout_adjustment": {
+    "removed_dangling_symlink": "runtime/Python.framework/Versions/3.13/lib/python3.13/site-packages",
+    "previous_target": "../../../../../../lib/python3.13/site-packages",
+    "reason": "the Homebrew site-packages target was outside the image and absent; the pinned source.zip and Python standard library are the declared import roots"
+  },
+  "static_dependency_audit": {
+    "runtime_members_verified_against_manifest": 3688,
+    "runtime_symlinks_resolved_within_image": 11,
+    "macho_files_inspected": 85,
+    "relative_loader_dependencies_resolved_within_image": 15,
+    "system_dependencies_checked_against_manifest_allowlist": 10,
+    "unresolved_symlinks_or_dependencies": 0,
+    "source_archive_sha256_matches_manifest": true
+  },
+  "rehearsal": {
+    "exact_kingston_published_image_mounted_readonly": true,
+    "diskutil_media_and_volume_readonly": true,
+    "image_sha256_verified_before_and_after": true,
+    "sandbox_denied_file_reads_beneath_opt_homebrew": true,
+    "dyld_override_variables_unset": true,
+    "synthetic_descriptor_capture": true,
+    "synthetic_capture_real_T": false,
+    "synthetic_inert_restore_topology_verified": true,
+    "full_restore_verified": false,
+    "erase_ready": false,
+    "synthetic_interruption_cleanup_passed": true,
+    "provider_requests": 0,
+    "service_activation": false,
+    "source_data_read_or_written": false,
+    "protected_payloads_read": false,
+    "user_credentials_used": false
+  },
+  "qualification": {
+    "current_host_dependency_closure_for_static_and_exercised_paths": true,
+    "clean_compatible_host_restore": false,
+    "macos_recovery_compatibility": "unverified",
+    "system_library_compatibility_across_macos_versions": "unverified",
+    "boot_mount_history_proof": false,
+    "Data_T_qualified": false,
+    "Kingston_K_frontier_proven": false,
+    "owner_or_protected_custody_closed": false,
+    "safe_to_erase": false
+  },
+  "limitations": [
+    "This is a current-host, disposable synthetic fixture rehearsal with Homebrew-prefix reads denied; it is not a clean host or Recovery execution.",
+    "No provider API, launchd service, owner Data, protected payload, real source cutoff, or durable Kingston K state was accessed.",
+    "System dylibs and frameworks remain explicit dependencies whose Recovery availability and version compatibility are unverified.",
+    "The synthetic restore checks bytes/topology and inert evidence only; it does not apply metadata or qualify a full Brain restore."
+  ]
+}

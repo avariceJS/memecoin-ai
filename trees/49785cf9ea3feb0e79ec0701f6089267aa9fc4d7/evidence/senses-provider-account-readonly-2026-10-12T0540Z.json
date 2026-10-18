@@ -1,0 +1,60 @@
+{
+  "account_mutations": 0,
+  "alchemy": {
+    "account_usage_limit": "not_returned",
+    "billing_period": {
+      "end": "2026-11-01T00:00:00Z",
+      "start": "2026-10-01T00:00:00Z"
+    },
+    "data_through": "2026-10-12T05:40:00Z",
+    "hourly_series_window": {
+      "end": "2026-10-12T05:41:00Z",
+      "granularity": "hour",
+      "rows": 0,
+      "start": "2026-10-12T00:00:00Z"
+    },
+    "read_only_actions": [
+      "get_usage_summary",
+      "get_usage_time_series"
+    ],
+    "team_aggregate_last_30_days": {
+      "amount": 18680,
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": 0.01
+    },
+    "team_aggregate_last_7_days": {
+      "amount": 18680,
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": 0.01
+    },
+    "team_aggregate_month_to_date": {
+      "amount": 18680,
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": 0.01
+    },
+    "update_cadence": "minute",
+    "workload_attribution": "not_available"
+  },
+  "helius": {
+    "auth": "authenticated_api_key_configured",
+    "credits_or_charges": "unavailable_no_jwt_session",
+    "plan": "unknown",
+    "read_only_actions": [
+      "getAccountStatus",
+      "getAccountPlan"
+    ],
+    "signup_or_account_mutation_invoked": false,
+    "usage": "unavailable_no_jwt_session"
+  },
+  "interpretation": "Authentic read-only account snapshot only. Team aggregate is not attributable to this checkout; empty hourly series does not establish a zero balance or future charge.",
+  "limitations": [
+    "Helius plan/usage/charge meter requires a JWT session unavailable to this read-only integration.",
+    "No signup, key, plan, or billing mutation was attempted.",
+    "Alchemy provides team aggregate usage but no limit field or attribution to this research lease."
+  ],
+  "observed_at_utc": "2026-10-12T05:40:51Z",
+  "provider_chain_requests_made": 0,
+  "research_lease_charge_attribution": "unknown_unverified",
+  "schema": "brain-senses-provider-account-readonly",
+  "schema_version": 1
+}

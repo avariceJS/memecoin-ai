@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-10-09",
+  "audit": "helius_historical_root_post_empty_base58_correction",
+  "source_root": "ignored work/brain-senses-live-helius-public-stratified-20261006-09/",
+  "plan_sha256": "b648ed3c7446fd74745f66b88b3757cdeca54ee08fbc842d3c900b3d6b81876a",
+  "normalizer_sha256": "7253588560626c6f45ed65ebfd802200f20e79e2daec88fadb93d34731e84643",
+  "decoder_sha256": "21610a62f1e8bb6c54cbe831134e6f170938668d85492434704aa66472471a8b",
+  "replay_scope": {
+    "helius_full_responses": 2880,
+    "helius_inventory_present": 2880,
+    "full_response_parser_and_instruction_normalization_complete": 2880,
+    "structural_instruction_references_in_these_responses": 500433,
+    "helius_signatures_only_self_checks_available_and_equal": 144,
+    "fully_qualified_exact_selected_blocks_under_current_contract": 144,
+    "remaining_normalization_or_structural_failures": 0
+  },
+  "interpretation": {
+    "structural_references_are_not_economic_swaps": true,
+    "historical_capture_does_not_prove_point_in_time_availability": true,
+    "exact_count_claim_scope": "only 144 blocks with stored full/signatures-only agreement; the other 2736 full responses lack a paired signature self-check",
+    "provider_global_or_market_global_completeness_claim": false
+  }
+}

@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import pytest
+from hypothesis import example, given, settings
+from hypothesis import strategies as st
+
+from tools import brain_senses_external_rolling_policy_v1 as policy
+
+
+@given(now_ns=st.integers(min_value=1, max_value=10**20))
+@settings(max_examples=300, deadline=None)
+def test_anchor_is_utc_hour_aligned_and_always_prospective(now_ns: int) -> None:
+    anchor = policy.next_fresh_anchor_ns(now_ns)
+    assert anchor % policy.HOUR_NS == 0
+    assert anchor >= now_ns + 2 * policy.MINUTE_NS
+    assert anchor - now_ns <= policy.HOUR_NS + 2 * policy.MINUTE_NS
+
+
+@given(anchor_hours=st.integers(min_value=1, max_value=60_000_000))
+@settings(max_examples=200, deadline=None)
+def test_epoch_schedule_has_unique_forward_only_windows(anchor_hours: int) -> None:
+    anchor = anchor_hours * policy.HOUR_NS
+    windows = policy.build_epoch(anchor)
+    assert len(windows) == 25
+    assert windows[0].kind == "anchor"
+    assert windows[0].start_ns == anchor
+    assert windows[0].request_cap == 1
+    assert all(row.kind == "frame" for row in windows[1:])
+    assert all(row.request_cap == 34 for row in windows[1:])
+    assert len({row.bucket for row in windows}) == len(windows)
+    assert all(row.start_ns >= anchor for row in windows)
+    assert all(
+        right.start_ns - left.start_ns == policy.HOUR_NS
+        for left, right in zip(windows[:-1], windows[1:], strict=True)
+    )
+    assert sum(row.request_cap for row in windows) == policy.MAX_EPOCH_REQUESTS == 817
+
+
+@given(offset_ns=st.integers(min_value=0, max_value=policy.WINDOW_WIDTH_NS * 2))
+@example(offset_ns=policy.WINDOW_WIDTH_NS - 1)
+@example(offset_ns=policy.WINDOW_WIDTH_NS)
+@settings(max_examples=200, deadline=None)
+def test_expired_window_never_becomes_dispatchable_again(offset_ns: int) -> None:
+    window = policy.build_epoch(policy.HOUR_NS)[0]
+    current = window.start_ns + offset_ns
+    state = policy.disposition(window, current)
+    assert state == ("due" if offset_ns < policy.WINDOW_WIDTH_NS else "expired_unobserved")
+    assert policy.disposition(window, current + policy.HOUR_NS) == "expired_unobserved"
+
+
+@given(
+    requests=st.integers(min_value=0, max_value=policy.MAX_ROLLING_REQUESTS + 1),
+    credits=st.integers(min_value=0, max_value=policy.MAX_ROLLING_CREDITS + 10),
+    response=st.integers(min_value=0, max_value=policy.MAX_ROLLING_RESPONSE_BYTES),
+    allocated=st.integers(min_value=0, max_value=policy.MAX_ROLLING_PHYSICAL_BYTES),
+    epoch_requests=st.integers(min_value=0, max_value=policy.MAX_EPOCH_REQUESTS),
+    epoch_response=st.integers(min_value=0, max_value=policy.MAX_EPOCH_RESPONSE_BYTES),
+    epoch_allocated=st.integers(min_value=0, max_value=policy.MAX_EPOCH_PHYSICAL_BYTES),
+)
+@settings(max_examples=250, deadline=None)
+def test_request_admission_never_crosses_any_provider_or_storage_cap(
+    requests: int,
+    credits: int,
+    response: int,
+    allocated: int,
+    epoch_requests: int,
+    epoch_response: int,
+    epoch_allocated: int,
+) -> None:
+    usage = policy.RollingUsage(requests, credits, response, allocated)
+    allowed = policy.request_admissible(
+        usage,
+        epoch_requests=epoch_requests,
+        epoch_response_bytes=epoch_response,
+        epoch_allocated_bytes=epoch_allocated,
+        now_ns=10**18,
+    )
+    if allowed:
+        assert requests + 1 <= policy.MAX_ROLLING_REQUESTS
+        assert credits + policy.CONSERVATIVE_CREDITS_PER_REQUEST <= policy.MAX_ROLLING_CREDITS
+        assert response + policy.MAX_RESPONSE_BYTES <= policy.MAX_ROLLING_RESPONSE_BYTES
+        assert (
+            allocated + policy.MAX_RESPONSE_BYTES + policy.PER_REQUEST_METADATA_RESERVE_BYTES
+            <= policy.MAX_ROLLING_PHYSICAL_BYTES
+        )
+        assert epoch_requests + 1 <= policy.MAX_EPOCH_REQUESTS
+        assert epoch_response + policy.MAX_RESPONSE_BYTES <= policy.MAX_EPOCH_RESPONSE_BYTES
+        assert (
+            epoch_allocated + policy.MAX_RESPONSE_BYTES + policy.PER_REQUEST_METADATA_RESERVE_BYTES
+            <= policy.MAX_EPOCH_PHYSICAL_BYTES
+        )
+
+
+@given(
+    offsets=st.lists(
+        st.tuples(
+            st.integers(min_value=-policy.ROLLING_WINDOW_NS, max_value=policy.ROLLING_WINDOW_NS),
+            st.integers(min_value=0, max_value=policy.MAX_RESPONSE_BYTES),
+            st.integers(
+                min_value=0,
+                max_value=policy.MAX_RESPONSE_BYTES + policy.PER_REQUEST_METADATA_RESERVE_BYTES,
+            ),
+        ),
+        max_size=60,
+    )
+)
+@settings(max_examples=200, deadline=None)
+def test_rolling_usage_counts_only_receipted_forward_window(offsets: list[tuple[int, int]]) -> None:
+    now = 50 * policy.ROLLING_WINDOW_NS
+    rows = [
+        {"decision_ns": now + offset, "response_bytes": size, "allocated_bytes": allocated}
+        for offset, size, allocated in offsets
+    ]
+    usage = policy.conservative_rolling_usage(rows, now_ns=now)
+    expected = [
+        (offset, size, allocated)
+        for offset, size, allocated in offsets
+        if -policy.ROLLING_WINDOW_NS <= offset <= 0
+    ]
+    assert usage.requests == len(expected)
+    assert usage.modeled_credits == len(expected) * policy.CONSERVATIVE_CREDITS_PER_REQUEST
+    assert usage.response_bytes == sum(size for _offset, size, _allocation in expected)
+    assert usage.allocated_bytes == sum(allocated for _offset, _size, allocated in expected)
+
+
+def test_ambiguous_intent_reserves_one_maximum_response_in_rolling_storage() -> None:
+    now = 100 * policy.ROLLING_WINDOW_NS
+    usage = policy.conservative_rolling_usage(
+        [{"decision_ns": now, "response_bytes": None, "allocated_bytes": None}], now_ns=now
+    )
+    assert usage.requests == 1
+    assert usage.modeled_credits == policy.CONSERVATIVE_CREDITS_PER_REQUEST
+    assert usage.response_bytes == policy.MAX_RESPONSE_BYTES
+    assert usage.allocated_bytes == (
+        policy.MAX_RESPONSE_BYTES + policy.PER_REQUEST_METADATA_RESERVE_BYTES
+    )
+
+
+def test_blocked_reason_identifies_bounded_pause_and_clears_on_headroom() -> None:
+    healthy = policy.RollingUsage(0, 0, 0, 0)
+    assert (
+        policy.blocked_reason(
+            healthy,
+            epoch_requests=0,
+            epoch_response_bytes=0,
+            epoch_allocated_bytes=0,
+        )
+        is None
+    )
+    at_request_cap = policy.RollingUsage(
+        policy.MAX_ROLLING_REQUESTS,
+        policy.MAX_ROLLING_REQUESTS * policy.CONSERVATIVE_CREDITS_PER_REQUEST,
+        0,
+        0,
+    )
+    assert (
+        policy.blocked_reason(
+            at_request_cap,
+            epoch_requests=0,
+            epoch_response_bytes=0,
+            epoch_allocated_bytes=0,
+        )
+        == "rolling_request_cap"
+    )
+    assert (
+        policy.blocked_reason(
+            healthy,
+            epoch_requests=0,
+            epoch_response_bytes=policy.MAX_EPOCH_RESPONSE_BYTES,
+            epoch_allocated_bytes=0,
+        )
+        == "epoch_response_cap"
+    )
+
+
+def test_activation_allocation_cap_uses_live_headroom_once() -> None:
+    ample = 219_384_127_488
+    assert policy.activation_allocation_cap(ample) == 150_000_000_000
+    tight = (
+        policy.DISK_FLOOR_BYTES
+        + policy.SERVICE_OPERATING_RESERVE_BYTES
+        + policy.NEXT_EPOCH_ALLOCATION_RESERVE_BYTES
+        + policy.SERVICE_PEAK_METADATA_RESERVE_BYTES
+        + 1
+    )
+    assert policy.activation_allocation_cap(tight) == 1
+    with pytest.raises(policy.PolicyError, match="activation_capacity_insufficient"):
+        policy.activation_allocation_cap(tight - 1)

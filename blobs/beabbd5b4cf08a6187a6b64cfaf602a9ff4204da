@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "task_id": "CC02.6",
+  "acceptance_scope": "page",
+  "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+  "snapshot_sha256": "82a6efd6066b271a6a30de36a7b2d73523d771118eab4882f267c50200cddb1c",
+  "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+  "builder_id": "c23cdb5c-9f90-415f-bbff-44e2ace27560",
+  "reviewer_id": "a480444f-4190-4a80-b78a-51d0f649dcb3",
+  "model_binding": "UNVERIFIED",
+  "first_review": "Первый кадр NEEDS_FIX, среднее 4.0: кнопка «Копировать» пересекала два полных pool id. before.web_sha256 — SHA первого PNG: digest дерева до правки не сохранялся.",
+  "fix_summary": "Кнопка стоит у короткой формы. Полный id — отдельная строка в своей прокрутке. Пересечений текста нет.",
+  "remaining_findings": [
+    {
+      "severity": "minor",
+      "reason": "Числа 6/6 и 9 размером KPI чуть громче amber-вердикта.",
+      "owner": "CC02.6"
+    },
+    {
+      "severity": "minor",
+      "reason": "Длинный pool id остаётся в именованной прокрутке узкой колонки.",
+      "owner": "CC02.6"
+    }
+  ],
+  "screens": [
+    {
+      "route": "/sources",
+      "rubric_scope": "page",
+      "before": {
+        "path": "docs/control-center/references/cc02-final/CC02.6/first/sources-1600.png",
+        "sha256": "dd3d6d9020d4a51384628b2a0d6e41e2c63d8b7498a612bb25797724cc028c9b",
+        "route": "/sources",
+        "capture_id": "cc026-first-sources-1600x1000-viewport",
+        "viewport": [
+          1600,
+          1000
+        ],
+        "capture": "viewport",
+        "dpr": 1,
+        "zoom": 1,
+        "web_sha256": "dd3d6d9020d4a51384628b2a0d6e41e2c63d8b7498a612bb25797724cc028c9b",
+        "captured_at": "2026-10-04T03:00:30Z",
+        "browser": "Chromium 153.0.8010.12"
+      },
+      "after": [
+        {
+          "route": "/sources",
+          "capture_id": "cc026-sources-1440x900-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1440x900-viewport.png",
+          "sha256": "6425733d380a2b12a5ab54395545915727ee253781e28a2512aa9b4e3d8eb98f",
+          "viewport": [
+            1440,
+            900
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+          "captured_at": "2026-10-04T03:08:05.949Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1440x900-viewport.layout.json",
+            "sha256": "172b684b2b864aee8cad352a284a914ff6a1df57c3f38deb1cfb1bbb50a250f5"
+          }
+        },
+        {
+          "route": "/sources",
+          "capture_id": "cc026-sources-1600x1000-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1600x1000-viewport.png",
+          "sha256": "ed8f8fb4097ab3ca51b77bcd99bdf2b4dea4f242fff43878714f2586b69c159e",
+          "viewport": [
+            1600,
+            1000
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+          "captured_at": "2026-10-04T03:08:06.118Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1600x1000-viewport.layout.json",
+            "sha256": "79382b3f8e9a0971e39dc78a5fc36ed60ee02daa820378090eacec91f7707ce6"
+          }
+        },
+        {
+          "route": "/sources",
+          "capture_id": "cc026-sources-1600x1000-fullpage",
+          "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1600x1000-fullpage.png",
+          "sha256": "ed8f8fb4097ab3ca51b77bcd99bdf2b4dea4f242fff43878714f2586b69c159e",
+          "viewport": [
+            1600,
+            1000
+          ],
+          "capture": "fullpage",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+          "captured_at": "2026-10-04T03:08:06.118Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1600x1000-fullpage.layout.json",
+            "sha256": "4623170aee770c7eb7ca70af0849f499fa2f26fdedcf68ae7d1bc602b87d03fb"
+          }
+        },
+        {
+          "route": "/sources",
+          "capture_id": "cc026-sources-1920x1080-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1920x1080-viewport.png",
+          "sha256": "40e5f38ee801950321f2f966d35f74794234ffaef0692ef520063ed0b16a2394",
+          "viewport": [
+            1920,
+            1080
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+          "captured_at": "2026-10-04T03:08:06.261Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1920x1080-viewport.layout.json",
+            "sha256": "0df4c4475d82fe2e54d08155e5ab69125c5e7146c20ddf263481662a5f59b6a9"
+          }
+        },
+        {
+          "route": "/sources",
+          "capture_id": "cc026-sources-1024x768-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1024x768-viewport.png",
+          "sha256": "ece26355fe4dcdf2820e1fbde9c6402db113614ffd679d5f6703deb39f64b47d",
+          "viewport": [
+            1024,
+            768
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+          "captured_at": "2026-10-04T03:08:06.386Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1024x768-viewport.layout.json",
+            "sha256": "57c31fe9e57d062fe2782c45e4fe1cb804e1579f83459a89b2c18917412ef5b7"
+          }
+        }
+      ],
+      "rubric": {
+        "composition": {
+          "score": 4,
+          "reason": "Схема слева, замеры и pool id справа, блокеры под схемой."
+        },
+        "hierarchy": {
+          "score": 4,
+          "reason": "Записанная схема читается раньше списка штампов."
+        },
+        "density": {
+          "score": 4,
+          "reason": "Три роли, шесть полос и три карточки id помещаются в кадр."
+        },
+        "typography": {
+          "score": 4,
+          "reason": "Подписи ролей и русские блокеры читаются."
+        },
+        "geometry": {
+          "score": 5,
+          "reason": "Кнопка не пересекает полный id, страница не вылезает."
+        },
+        "navigation": {
+          "score": 4,
+          "reason": "Штампы и сырой код открываются отдельно."
+        },
+        "identity": {
+          "score": 4,
+          "reason": "Navy и amber-вердикт без анимации потока."
+        },
+        "reference_family": {
+          "score": 4,
+          "reason": "Схема отношений вместо таблицы как героя."
+        },
+        "state_clarity": {
+          "score": 5,
+          "reason": "6/6 не RPC health, рёбра подписаны как запись."
+        },
+        "interaction": {
+          "score": 4,
+          "reason": "Копирование локальное, полный id в своей прокрутке."
+        }
+      },
+      "remaining_weaknesses": "6/6 и 9 чуть громче вердикта. Длинный id остаётся в прокрутке колонки."
+    }
+  ]
+}

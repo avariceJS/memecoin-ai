@@ -1,0 +1,38 @@
+{
+  "schema": "brain-portability-root-entry-identity-v1",
+  "observed_at_utc": "2026-10-14T06:47:00Z",
+  "source_commit": "d602cf6a985fc0329be7da3afff12cac2fff72a2",
+  "observation_method": "lstat of each declared root entry and path components; df/device lookup and diskutil UUID lookup of its resolved path",
+  "payloads_read": false,
+  "private_values_read": false,
+  "protected_payloads_read": false,
+  "services_changed": false,
+  "provider_requests": 0,
+  "data_volume_uuid": "430740ca-42e7-4e6c-a07a-e4e7370152cc",
+  "data_volume_device": "/dev/disk3s5",
+  "current_boot_local_st_dev": 16777234,
+  "data_root_entries": [
+    {"role": "owner checkout", "entry_type": "directory", "mode_octal": "0755", "realpath_equals_declared": true, "symlink_components": []},
+    {"role": "owner work", "entry_type": "directory", "mode_octal": "0755", "realpath_equals_declared": true, "symlink_components": []},
+    {"role": "research checkout", "entry_type": "directory", "mode_octal": "0755", "realpath_equals_declared": true, "symlink_components": []},
+    {"role": "research work", "entry_type": "directory", "mode_octal": "0755", "realpath_equals_declared": true, "symlink_components": []},
+    {"role": "private Brain config", "entry_type": "directory", "mode_octal": "0700", "realpath_equals_declared": true, "symlink_components": []},
+    {"role": "LaunchAgents", "entry_type": "directory", "mode_octal": "0755", "realpath_equals_declared": true, "symlink_components": []},
+    {"role": "owner Codex worktree", "entry_type": "directory", "mode_octal": "0755", "realpath_equals_declared": true, "symlink_components": []},
+    {"role": "owner Codex control-center local state", "entry_type": "directory", "mode_octal": "0755", "realpath_equals_declared": true, "symlink_components": []}
+  ],
+  "kingston_root": {
+    "role": "BrainData root",
+    "entry_type": "directory",
+    "mode_octal": "0700",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "device": "/dev/disk6s1",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "realpath_equals_declared": true,
+    "symlink_components": []
+  },
+  "limitations": [
+    "This assigns each named root entry to a currently observed volume identity; current-boot st_dev is not a portable volume identity.",
+    "It does not enumerate descendants, detect firmlinks inside a root, establish complete root closure, provide held descriptors, prove an offline source view, or establish a consistent Data T."
+  ]
+}

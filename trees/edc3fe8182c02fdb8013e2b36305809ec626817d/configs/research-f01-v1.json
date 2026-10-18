@@ -1,0 +1,278 @@
+{
+  "amendment": "new version + reason + exposure log + fresh future evaluation; never rewrite existing artifacts",
+  "baseline": "action-conditioned empirical quantiles and Laplace classes",
+  "calendar": {
+    "anchor": "future UTC midnight, after inherited holdout end; bind before any new collection",
+    "automatic_collection": false,
+    "day_ns": 86400000000000,
+    "embargo_ns": 30000000000,
+    "final_selection_days": [
+      0,
+      49,
+      56
+    ],
+    "fold_days": [
+      [
+        0,
+        28,
+        35,
+        42
+      ],
+      [
+        0,
+        35,
+        42,
+        49
+      ],
+      [
+        0,
+        42,
+        49,
+        56
+      ]
+    ],
+    "holdout_days": [
+      56,
+      84
+    ],
+    "required_utc_six_hour_strata": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "scope": "new independent prospective sampling plan; D43/D45 calendars cannot satisfy F01"
+  },
+  "candidates": [
+    {
+      "context": 8,
+      "id": "linear16",
+      "kind": "linear",
+      "priority": 0,
+      "width": 16
+    },
+    {
+      "context": 8,
+      "id": "mlp16",
+      "kind": "mlp",
+      "priority": 1,
+      "width": 16
+    },
+    {
+      "context": 8,
+      "id": "gru16",
+      "kind": "gru",
+      "priority": 2,
+      "width": 16
+    },
+    {
+      "context": 8,
+      "id": "tcn16",
+      "kind": "tcn",
+      "priority": 3,
+      "width": 16
+    },
+    {
+      "context": 8,
+      "id": "transformer16",
+      "kind": "transformer",
+      "priority": 4,
+      "width": 16
+    },
+    {
+      "context": 8,
+      "id": "mlp64",
+      "kind": "mlp",
+      "priority": 5,
+      "width": 64
+    },
+    {
+      "context": 8,
+      "id": "gru64",
+      "kind": "gru",
+      "priority": 6,
+      "width": 64
+    },
+    {
+      "context": 8,
+      "id": "tcn64",
+      "kind": "tcn",
+      "priority": 7,
+      "width": 64
+    },
+    {
+      "context": 8,
+      "id": "transformer64",
+      "kind": "transformer",
+      "priority": 8,
+      "width": 64
+    }
+  ],
+  "claim": "forecast skill only within fixed observed cohort and conditional snapshot label support; no trading edge",
+  "cohort": [
+    "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+    "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+    "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2"
+  ],
+  "economic_blockers": [
+    "own admission/inclusion latency",
+    "network/rent/FX/full costs",
+    "independent execution calibration",
+    "portfolio/MPC comparator",
+    "capital and risk budget",
+    "net-OOS evaluation"
+  ],
+  "evaluation": {
+    "block_days": 2,
+    "bootstrap_replicates": 5000,
+    "bootstrap_seed": 4601,
+    "boundary": "bootstrap never bridges missing calendar days or separate folds",
+    "ci_level": 0.975,
+    "class_brier_noninferiority": 0.01,
+    "class_log_loss_noninferiority": 0.02,
+    "holdout_support": "same per-action support/censoring and >=24 observed days, checked only after formal release",
+    "hypothesis_family": "two comparators, family alpha0.05 via two 97.5 percent intervals",
+    "masks": "return only observed roundtrip; class only observed status; censored never zero labels",
+    "max_relative_ci_half_width": 0.02,
+    "min_daily_blocks": 24,
+    "practical_relative_improvement": 0.02,
+    "primary": "paired daily normalized joint proper-loss improvement vs empirical AND linear",
+    "quantile_coverage_max_abs_error": 0.05,
+    "repeated_looks": "no repeated holdout peeking, optional stopping or extension after scores",
+    "result": "improved only if both lower bounds >2 percent, precision/calibration guards pass; else inconclusive/no improvement",
+    "sensitivity_block_days": 4,
+    "weighting": "equal scenarios within decision, equal decisions within pool/day, equal pools then UTC days"
+  },
+  "feature_contract": {
+    "cadence_seconds": 5,
+    "channels": 25,
+    "context": 8,
+    "features": 12,
+    "normalization": "unique train frames only; masks retained",
+    "quantiles": [
+      0.1,
+      0.5,
+      0.9
+    ],
+    "schema": 1
+  },
+  "holdout_release_authorized": false,
+  "id": "F01-v1",
+  "inherited_holdout": {
+    "end_ns": 1791188639502126000,
+    "policy": "quarantine entire intersecting window; no label release",
+    "start_ns": 1791143639502126000
+  },
+  "inherited_registry_protocol_sha256": "73eadc16686711725ab92c0e12b292fa9cbe6c6a2426bda99c6b95feeb0ee03d",
+  "purpose": "conditional_forecast_research",
+  "readiness": {
+    "fractions_are_design_criteria_not_power_guarantees": true,
+    "max_censored_fraction_per_action": 0.35,
+    "min_completed_planned_windows_fraction": 0.8,
+    "min_day_fraction_each_stratum": 0.75,
+    "min_pool_decisions_fraction": 0.15,
+    "min_test_days": 6,
+    "min_test_decisions": 500,
+    "min_test_labels_per_action_class": 10,
+    "min_test_nonoverlap": 50,
+    "min_train_days": 24,
+    "min_train_decisions": 3000,
+    "min_train_labels_per_action_class": 30,
+    "min_train_nonoverlap": 300,
+    "min_usable_fraction": 0.9,
+    "min_validation_days": 6,
+    "min_validation_decisions": 500,
+    "min_validation_labels_per_action_class": 10,
+    "min_validation_nonoverlap": 50
+  },
+  "required_reviews": [
+    "prospective_sampling_binding",
+    "point_in_time_universe_scope",
+    "conditional_target_semantics",
+    "dependence_and_precision_plan",
+    "runner_conformance",
+    "exposure_ledger",
+    "formal_forecast_admission"
+  ],
+  "research_launch_authorized": false,
+  "schema": 1,
+  "seeds": [
+    7,
+    19,
+    41
+  ],
+  "selection": {
+    "aggregation": "mean across all three seeds",
+    "ensemble": "mean ordered quantiles and mean probabilities across three seeds, never best seed",
+    "epoch": "earliest best validation epoch per seed; final refit uses median of selected epochs",
+    "final": "same frozen selection procedure on days49..56; refit chosen and linear ensembles on days0..56",
+    "metric": "validation_joint_proper_loss",
+    "outer_test": "selected validation policy and empirical/linear comparators only; no retuning",
+    "rule": "lowest predeclared priority within 1 percent of best; exact zero has no slack",
+    "tie_relative": 0.01
+  },
+  "source_semantics": {
+    "campaign": {
+      "boundary_policy": "reset history; censor every segment tail; never bridge gaps",
+      "config_layout_version": 2,
+      "endpoint_origin": "https://solana-mainnet.g.alchemy.com",
+      "interval_seconds": 5,
+      "kind": "prospective_campaign",
+      "pools": [
+        "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+        "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+        "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2"
+      ],
+      "schema_version": 2,
+      "source_alias": "calendar-alchemy",
+      "transport_profile": "stdlib_persistent_v1"
+    },
+    "targets": {
+      "admission_probability": null,
+      "assumed_delays_ns": [
+        0,
+        5000000000
+      ],
+      "continuation": "exit entire net acquired amount; hold from entry observation publication",
+      "entry_sizing": "gross wallet input from decision reserve; fixed before future states",
+      "execution_model": "independent_future_snapshot_reset_v1",
+      "execution_qualified": false,
+      "holding_ns": 20000000000,
+      "impact": "integer local quote impact; no persistent own impact or intervening activity",
+      "input_indices": [
+        0,
+        1
+      ],
+      "kind": "conditional_snapshot_execution_targets",
+      "label_definition": "conditional on snapshot fills; net of pool/transfer fees only",
+      "native_network_cost_lamports": null,
+      "network_cost_input_atomic": null,
+      "schema_version": 1,
+      "sizes_ppm": [
+        100,
+        1000
+      ],
+      "slippage_bps": 100,
+      "tolerance_ns": 15000000000,
+      "training_ready": false
+    }
+  },
+  "stage": "D46",
+  "training": {
+    "batch_size": 64,
+    "device": "cpu",
+    "failure": "stop experiment on data/NaN/integrity fault; no replacement seeds or tuning retries",
+    "gradient_clip": 1.0,
+    "learning_rate": 0.001,
+    "loss": "masked pinball / train return IQR floor1e-4 + masked class cross entropy",
+    "max_epochs": 100,
+    "max_fit_seconds": 600,
+    "max_total_seconds": 86400,
+    "max_trainable_fits": 114,
+    "optimizer": "AdamW",
+    "patience": 10,
+    "scale": "pooled observed train return IQR only; no validation/test fit",
+    "threads": 1,
+    "weight_decay": 0.0001
+  }
+}

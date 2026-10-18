@@ -1,0 +1,1508 @@
+{
+  "stage": "B01",
+  "track": "brain_development",
+  "date": "2026-10-04",
+  "verdict": "ACTIVE_BOUNDED_EXPLORATORY_FORECAST_TRACK",
+  "decision": "Продолжать Brain независимо от F01; initial validation выбрал empirical; trading promotion отсутствует.",
+  "authorization": {
+    "basis": "Прямое указание пользователя: historical backfill/universe/continuous corpus/supervised training/shadow",
+    "F01_readiness_gate_applies": false,
+    "F01_rules_changed": false,
+    "D43_changed": false,
+    "holdout_exposed": false
+  },
+  "commits": {
+    "plan": "bf6bd4a822170fd3ccb238ec943b5ade5b41c999",
+    "implementation": "f97b9dc8f11314bb8a356ae55a6593c60e1599ea",
+    "runtime": "424ad2d9dc5945623d430ccd1eedd99b6ad4fe40"
+  },
+  "source": {
+    "provider": "GeckoTerminal public keyless API",
+    "official_sources": [
+      "https://api.geckoterminal.com/docs/v2/swagger.json",
+      "https://www.geckoterminal.com/dex-api"
+    ],
+    "network": "solana",
+    "currency": "usd",
+    "token": "base",
+    "bar_seconds": 300,
+    "include_empty_intervals": false,
+    "nominal_closed_only": true,
+    "provider_candle_finality_verified": false,
+    "strict_coherent_Solana_checkpoint": false,
+    "historical_online_availability_known": false,
+    "current_universe_survivorship_bias": true,
+    "first_observed_versions": true,
+    "revisions_overwrite": false,
+    "Alchemy_RPC": 0,
+    "QuickNode_RPC": 0
+  },
+  "universe": {
+    "pools": 12,
+    "age_buckets": {
+      "lt_1d": 4,
+      "1d_to_7d": 4,
+      "gte_7d": 4
+    },
+    "min_current_liquidity_usd": 10000,
+    "unique_base_mints": true,
+    "excluded_fixed_F01_pools": true,
+    "F01_reference_mint_overlap": false
+  },
+  "initial_history": {
+    "successful_responses": 6,
+    "raw_closed_rows": 3484,
+    "unique_first_version_bars": 3482,
+    "decision_rows": 3454,
+    "pools": 4,
+    "remaining_deep_backfill_pools": 8,
+    "stopped_on_HTTP429": true,
+    "initial_429_body_retained": false,
+    "initial_429_failure_metadata_retained": true
+  },
+  "training": {
+    "model_card": {
+      "baseline": {
+        "1": [
+          -0.01728147754198461,
+          -0.00018221475795942554,
+          0.01527636705604802
+        ],
+        "3": [
+          -0.03205677126806843,
+          -0.001500128617009843,
+          0.029658471007366405
+        ]
+      },
+      "bounds": {
+        "counts": {
+          "purged": 18,
+          "test": 1050,
+          "train": 1791,
+          "validation": 595
+        },
+        "group_maturity_purge": true,
+        "retrospective_not_online": true,
+        "test_end_s": 1791074100,
+        "train_end_s": 1790715300,
+        "train_start_s": 1790177100,
+        "validation_end_s": 1790894700
+      },
+      "candidates": [
+        {
+          "name": "empirical",
+          "validation": 0.010090189625399374
+        },
+        {
+          "name": "linear",
+          "seeds": [
+            7,
+            19
+          ],
+          "validation": 0.016900016702570346
+        },
+        {
+          "name": "gru",
+          "seeds": [
+            7,
+            19
+          ],
+          "validation": 0.011269386293442958
+        }
+      ],
+      "confirmatory_F01": false,
+      "data_fingerprint": "a6c8ae2810e07f76a6daaefa70c94bf828ae93342284e9ac3bb7fc639c80672b",
+      "dataset_sha": "e6fb91f84c16395761949598e6c86fdff2733ef8ff4eaed952af54368f9de004",
+      "execution_model": "none; observed price log returns",
+      "finished_ns": 1791075073154602000,
+      "historical_availability_assumed": false,
+      "historical_event_time_evaluation": true,
+      "ledger_head": "364a2da97267d468ef2a2557c6efde42cf9cf3d2c8765828c7abe802c3daba63",
+      "model_version": "Brain-v1-dev",
+      "production_trade_authorized": false,
+      "prospective_shadow_required": true,
+      "selected": "empirical",
+      "source_identity": {
+        "memecoin_brain/data.py": "f4e3143b9223e47d9bd6fb9f98b6f09faa6a3032619ee8553c328c871958e6cb",
+        "memecoin_brain/model.py": "41e0c0522bd215c46ec6f4f290656f4b51a9d68e973b8619cadfb096427650c6",
+        "memecoin_ml/models.py": "b7b1f5ea8453f43bae54c581df11824f87d9393ef6c063cc72c5250d8fb0442c",
+        "memecoin_ml/training.py": "1dbbbf82ae4598b47ea1ad6301bc777edd7f2bb65c83a9dfee429da144cf98be",
+        "memecoin_runner/ledger.py": "9944df0c9891241b08abbe419a72dada60b51c8b1ebe3c275031a8bb6471aae2",
+        "memecoin_runner/scoring.py": "93e6d676d62f8279c07f6aa2598edc1f044b36b884353163b63019f1f46623b1"
+      },
+      "test": {
+        "empirical": {
+          "confirmatory": false,
+          "coverage": [
+            0.09666666666666666,
+            0.3538095238095238,
+            0.8671428571428571
+          ],
+          "decisions": 1050,
+          "edge_established": false,
+          "labeled_variants": 2100,
+          "per_pool": {
+            "5gepFzo9o9nHkJeNJdKiKRghqYoqcJSzF6X684pUbE7S": {
+              "pinball": 0.06433771853755477,
+              "variants": 186
+            },
+            "ChhuEYyL8QeZq6YDVivaMhNibxmEfZVyttp1crXVngpo": {
+              "pinball": 0.0027278207042395032,
+              "variants": 568
+            },
+            "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+              "pinball": 0.005913595401876763,
+              "variants": 1190
+            },
+            "HUQ2YZbVjhuKfdvjsCtRUwawnvUMuv8WvdYVtwh5PxoF": {
+              "pinball": 0.08947958753449696,
+              "variants": 156
+            }
+          },
+          "pinball": 0.01643438666267052,
+          "pool_macro_pinball": 0.040614680544541995,
+          "pools": 4
+        },
+        "gru": {
+          "confirmatory": false,
+          "coverage": [
+            0.1461904761904762,
+            0.49238095238095236,
+            0.950952380952381
+          ],
+          "decisions": 1050,
+          "edge_established": false,
+          "labeled_variants": 2100,
+          "per_pool": {
+            "5gepFzo9o9nHkJeNJdKiKRghqYoqcJSzF6X684pUbE7S": {
+              "pinball": 0.049682264875033376,
+              "variants": 186
+            },
+            "ChhuEYyL8QeZq6YDVivaMhNibxmEfZVyttp1crXVngpo": {
+              "pinball": 0.0034697684762890666,
+              "variants": 568
+            },
+            "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+              "pinball": 0.007630199441149439,
+              "variants": 1190
+            },
+            "HUQ2YZbVjhuKfdvjsCtRUwawnvUMuv8WvdYVtwh5PxoF": {
+              "pinball": 0.0712150871807909,
+              "variants": 156
+            }
+          },
+          "pinball": 0.01495296223640934,
+          "pool_macro_pinball": 0.032999329993315694,
+          "pools": 4
+        },
+        "linear": {
+          "confirmatory": false,
+          "coverage": [
+            0.047142857142857146,
+            0.44142857142857145,
+            0.960952380952381
+          ],
+          "decisions": 1050,
+          "edge_established": false,
+          "labeled_variants": 2100,
+          "per_pool": {
+            "5gepFzo9o9nHkJeNJdKiKRghqYoqcJSzF6X684pUbE7S": {
+              "pinball": 0.05267556509312156,
+              "variants": 186
+            },
+            "ChhuEYyL8QeZq6YDVivaMhNibxmEfZVyttp1crXVngpo": {
+              "pinball": 0.011896352171065864,
+              "variants": 568
+            },
+            "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+              "pinball": 0.013649833593949279,
+              "variants": 1190
+            },
+            "HUQ2YZbVjhuKfdvjsCtRUwawnvUMuv8WvdYVtwh5PxoF": {
+              "pinball": 0.0827987904759311,
+              "variants": 156
+            }
+          },
+          "pinball": 0.021768903062633765,
+          "pool_macro_pinball": 0.04025513533351695,
+          "pools": 4
+        }
+      },
+      "track": "brain_development",
+      "trained_ns": 1791075069868405000,
+      "training_as_of_ns": 1791074515596023000
+    },
+    "development_neural_fits": 4,
+    "reproduction_neural_fits": 4,
+    "seeds": [
+      7,
+      19
+    ],
+    "epochs": 10,
+    "threads": 1,
+    "device": "cpu",
+    "worker_seconds": 4.921765,
+    "candidates": [
+      "empirical",
+      "linear",
+      "gru"
+    ],
+    "horizons_seconds": [
+      300,
+      900
+    ],
+    "feature_channels": 25,
+    "class_head_unused": true,
+    "selection": "validation pool-macro pinball; simplicity within1%; empirical then linear then gru",
+    "test_use": "exploratory diagnostic after selection",
+    "generalization_established": false,
+    "edge_established": false
+  },
+  "deployment": {
+    "label": "ai.memecoin.brain.dev01",
+    "installed": true,
+    "activation": {
+      "D43_changed": false,
+      "F01_activated": false,
+      "bundle_pin": "8d49becface75853f6a8d89ada3dd44c0be18015a934d34c76c3381d17a0a23c",
+      "exit_code": 0,
+      "first_cycle_qualified": true,
+      "installed_ns": 1791075851623834000,
+      "label": "ai.memecoin.brain.dev01",
+      "plist_sha": "b54dcab6a0ea473504c4d3279d65662ec8b3dc4192636839df042d089852be86",
+      "stderr": "",
+      "stdout": ""
+    },
+    "snapshot_status": {
+      "F01": false,
+      "cycles": [
+        {
+          "category": "completed",
+          "cycle": "1791075600",
+          "elapsed_seconds": 134.46448820782825,
+          "exit_code": 0,
+          "finished_ns": 1791075747657792000,
+          "status": "completed"
+        },
+        {
+          "category": "completed",
+          "cycle": "1791075900",
+          "elapsed_seconds": 139.86284483410418,
+          "exit_code": 0,
+          "finished_ns": 1791076052740011000,
+          "status": "completed"
+        },
+        {
+          "category": "worker_failed",
+          "cycle": "1791076200",
+          "elapsed_seconds": 15.953460125252604,
+          "exit_code": 1,
+          "finished_ns": 1791076251063573000,
+          "status": "failed"
+        }
+      ],
+      "expires_ns": 1791333023405597000,
+      "failures": [
+        {
+          "category": "public_http_failure",
+          "error_type": "HTTPError",
+          "http_status": 429,
+          "no_retry": true,
+          "received_ns": 1791074080765619000,
+          "status": "failed"
+        },
+        {
+          "category": "public_http_failure",
+          "error_type": "URLError",
+          "http_status": null,
+          "no_retry": true,
+          "received_ns": 1791076250866544000,
+          "retry_after_seconds": 0,
+          "status": "failed"
+        }
+      ],
+      "max_requests": 12000,
+      "models": [
+        {
+          "finished_ns": 1791075073154602000,
+          "selected": "empirical",
+          "sha256": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+          "training_cutoff_ns": 1791074515596023000,
+          "version": "000000"
+        }
+      ],
+      "observed_ns": 1791076324954995000,
+      "outcomes": {
+        "scored": 12
+      },
+      "paid_budget_usd": 0,
+      "pending_predictions": 36,
+      "predictions": 48,
+      "root": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01",
+      "runtime": {
+        "bundle": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/runtime-dev01",
+        "pin": "8d49becface75853f6a8d89ada3dd44c0be18015a934d34c76c3381d17a0a23c",
+        "service_plist_sha": "b54dcab6a0ea473504c4d3279d65662ec8b3dc4192636839df042d089852be86"
+      },
+      "shadow_descriptive_pinball": {
+        "empirical": {
+          "mean": 0.008900233891483415,
+          "variants": 12
+        },
+        "gru": {
+          "mean": 0.008786037282324166,
+          "variants": 12
+        },
+        "linear": {
+          "mean": 0.021038395337149532,
+          "variants": 12
+        }
+      },
+      "shadow_statistics_independent": false,
+      "stopped": false,
+      "successful_requests": 34,
+      "total_requests_reserved": 37,
+      "track": "brain_development",
+      "trade_orders": 0,
+      "universe_pools": 12
+    },
+    "expiry_utc": "2026-10-07T00:30:23.405597+00:00",
+    "bounds": {
+      "max_requests": 12000,
+      "paid_usd": 0,
+      "request_gap_seconds": 12,
+      "collection_cadence_seconds": 300,
+      "collection_worker_seconds": 240,
+      "training_worker_seconds": 600,
+      "training_interval_seconds": 21600,
+      "max_training_cycles": 12,
+      "fits_per_cycle": 4,
+      "consecutive_failed_acquisition_stop": 2,
+      "HTTP_timeout_seconds": 15,
+      "HTTP_response_max_bytes": 2097152,
+      "storage_max_bytes": 2147483648,
+      "free_floor_bytes": 4294967296
+    },
+    "config_gap_7s_strengthened_by_runtime_to_12s": true,
+    "Mac_awake_GUI_session_network_required": true,
+    "automatic_renewal": false,
+    "trade_orders": 0
+  },
+  "prospective_snapshot": {
+    "corpus_bars": 4267,
+    "pools": 12,
+    "revision_observations": 8,
+    "predictions": 48,
+    "scored_outcomes": 12,
+    "pending": 36,
+    "all_three_candidates_paired": true,
+    "dependent_descriptive_sample": true,
+    "latest_completed_capture_cycle": "1791075900",
+    "following_cycle_failed": "1791076200"
+  },
+  "failure_history": {
+    "discovery": {
+      "category": "nullable_discovery_metadata",
+      "error_type": "TypeError",
+      "requests_succeeded": 4,
+      "resolution": "explicit missing metadata exclusion, offline reparse",
+      "retried_requests": 0
+    },
+    "HTTP": [
+      {
+        "category": "public_http_failure",
+        "error_type": "HTTPError",
+        "http_status": 429,
+        "no_retry": true,
+        "received_ns": 1791074080765619000,
+        "status": "failed"
+      },
+      {
+        "category": "public_http_failure",
+        "error_type": "URLError",
+        "http_status": null,
+        "no_retry": true,
+        "received_ns": 1791076250866544000,
+        "retry_after_seconds": 0,
+        "status": "failed"
+      }
+    ],
+    "URLError_subtype": "not established; HTTP status absent",
+    "immediate_retries": 0,
+    "cooldown_after_429_seconds_min": 900,
+    "budget_stop_not_relaxed": true,
+    "evidence_builder_issue": "Initial report assembly incorrectly assumed every sealed request had receipt.json; failed sealed requests have failure.json. Corrected report assembly, no runtime/raw mutation."
+  },
+  "reproduction": {
+    "F01_exposures": 0,
+    "completed_ns": 1791076323049453000,
+    "dataset_rebuilt_exact": true,
+    "four_fit_weights_tensor_exact": true,
+    "installed_package": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/installed-wheel-01/memecoin_brain/__init__.py",
+    "max_prediction_absolute_error": 4.0978193283081055e-08,
+    "network_requests": 0,
+    "new_selection_trials": 0,
+    "original_dataset_manifest_sha": "e6fb91f84c16395761949598e6c86fdff2733ef8ff4eaed952af54368f9de004",
+    "original_model_manifest_sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+    "outcome_count": 12,
+    "outcome_hashes": {
+      "2bd1c5ff91650ed951fe519e3398e3e4cd3e626f2c4a97eb966d31b488cfffdf.json": "3ea243c823e5003c5b009faf607a2b677e88afb378373481172c5085c5decbf7",
+      "6c44ac1ac5f0f96d5c129495adb21fdabaa95dc1c7f0197927b082657723106b.json": "273bb301710e7fa85fb77430cdfb829106db57eb16a74f9613a45174e891b35b",
+      "77429f6df3d3c3fbec391c7725fd72a241b8be6a647d16cf9dffc812e8e9a8a4.json": "06cddf2b74733ba6dca0d4f3a3fb6dde81c05e9a6dd9d59bf261868a3a1393f4",
+      "8453eb2cd86e40baa1d313073af24e330b7424ab9b7004409421054c75d9d451.json": "236cff8df9d64a88f1adcd8416d04a2af0d0822c423009abcaf6b94c52bf34ed",
+      "a159fda282481177a3673ba97b1b384c3f8aba8fd850a010de7343b00613dff9.json": "a69cadff34d219d1d068cca13b4eae953f61834cb1dacea444e0f25636ab23de",
+      "a8b0f994a22be8a01ccfacbabe9e77d2229eb4a34cb76768e679d0bb16753dba.json": "b4c2a73e25345f6d7a68ec39e9d144ea5e8ed70ad3ef790f6473c896414b3553",
+      "c2c8dc70a954212c5a877ffd70fb29088faafe07c67661041eafbbe4a41250c0.json": "56ec66de41f4b921644d90acf8b17bde594c946d379c21e0f340c3dabcb0bfd4",
+      "c84e758d8ec70d88fbc24852d7b369b9cfb3b959ffe8cb0d0da1cbfd22a15158.json": "cc522f449693b0f37c8aaaa957378e21cc30fa798486917e8089c99ce25c63dc",
+      "c953a657957440dd4d5fe2a06851affc86fce11bce66495d3f138680b867b1d8.json": "1d3142e5571a0697fc8c945442fe01037df495abb8f494dc89be767c41966a95",
+      "d35835c4e59f8a7b98ec50d31acfdd081c40a2f2cec97fb36402cc58019bba15.json": "39cc2ba3932c434720062b25482789fd1314dd2bd2b4c48f99588de5bf29031a",
+      "f15914bdbfc01af4bfadd4ed7d6b4facca337f363a52fd6b5eb945869246de04.json": "ed589cc45231285dcfb935c7a72970241edd7cb643a5a0f1b5ab2769f6c5b87c",
+      "fc2d2db1f9586d203e57d1ede2f2b1d9da730a848398ce0fd8b55caa0a238647.json": "3c566a5335d8c92121fb3ed723d56f9fea9fdaf0bd6ae0ecf38e77603419166d"
+    },
+    "prediction_count": 48,
+    "prediction_hashes": {
+      "01f5a47be8b28b6476866352ea500154e3a05711606c641e336a5df8d426880b.json": "0e775847095b68a11c0a3aba29710244d42613f4e40ae71ad8c029051f61987a",
+      "080640e5aeae7b57cca8233003d1b12c258ab89ef7c97f433a8f27f0ed909c26.json": "05f2d360fa673adb5dc2d7bac418f14db7e3825cb47d89635730110037a69b9a",
+      "083cac3da8783e9386c2626ac52c1e5ca37a238b2ef4c084aeeb1f8e1a459d53.json": "2aeb419365ad22c81fe7a42a857714fd7b033c9e24b8effa75c15d8bcbc58a55",
+      "0d1f9e418688685750b6552c5b9bcdf74b18a5cbb6f9a4036c9ba87b4c01071b.json": "8defc4708780cae16fba167cbe5c0db2ed03c930a34b21eabd09a9845629fa92",
+      "26d2f0c41cec47692375e40866171b764866c623898ffffc3c1c11f32bbf8531.json": "4f435b5be1c4dc0be20af50b5210abb0807c832718cdc75f7331acdfe32da5b0",
+      "2bd1c5ff91650ed951fe519e3398e3e4cd3e626f2c4a97eb966d31b488cfffdf.json": "92f96e58b0ada0d9537bd1eb07425a1b7a0e5f3f3db68ca50ad4b137f3e1a3b6",
+      "2cf98c4f31c4b268370f78132e1b479042a8895b876c477117471e68789ac65e.json": "835a7ed7a946efb81caba81d1bf5a9820d67071d3af7e9974ba56a5debd6e365",
+      "2f806b7ba66a79007e086a6fc5b598d706799efc59ecbbf75c4a6f427da06adb.json": "773a2ee582009082d6cae5b90940513e030330aba10fa81a4dd36355466001bf",
+      "2fbd7f1f74c77618ddda61bedebc053e939a2105e3c461773ba611b9425a5abb.json": "5e67b0a43e5221a869761e5bab8d4520ae01329a2d31a469e336cf49e73786c3",
+      "432cfff77af3adf19f5c60c215a8d98039ee4f03c33b44cd7b9f3a7d53da0714.json": "0a72c741240b5180dba88715519ed083eda0d195a48c8c39e2f9cabf12516b5d",
+      "520de8110494881dda5b9573c71f14eccadd6529e5357061787f3620a9ceded9.json": "22b2e546c30e58372a82dec2e1365be1e344b6a0b99ccc18565f04fcb896414c",
+      "5a5a517d6bc0ea40f2ad0ec1c59d91840a38fda0a9eda57870da015d0f28d6d8.json": "187c319d79f8bb3c22f98d70610ee154dd8773a8d27a5621d228da8cbfdb53a6",
+      "69c4374703b88fa479b347545224606dc04548d8225311ce84d289c42fc278c9.json": "e7c2275be5fed61b826f9e2a3c7d43f08aa1991378fd1651247fa84f18455b08",
+      "6c44ac1ac5f0f96d5c129495adb21fdabaa95dc1c7f0197927b082657723106b.json": "e6b643b1408af4e8823aa6c50a101fcde6c8a1ca7dacc1cabedafc90ef81ce66",
+      "6e223b1ee8215c1686878009a722eb8b209c314e3434f719961b698d8e0b00b6.json": "8e5d3c4dd9fe09afe35bbdfefcc9d7c248b96ab40638f3c086691c0ae66e8de8",
+      "72b4f09c550eb361ca7293c51d763c61ab2fedf2ed7ec3d1fb902e4c9e31b492.json": "a18b35924ef856e0b1030c8b6b798ad7f198a7910cf0ab0511294e49c5972a4e",
+      "76a592b2815465bb177892ed0ae6781a5174f1930fe1bb4cf6f93b2056818301.json": "d99ce6384f8c475bc3aaf3e2a475b0c1398f8c3e68490181b98dc22cddae9734",
+      "77429f6df3d3c3fbec391c7725fd72a241b8be6a647d16cf9dffc812e8e9a8a4.json": "78337de88665269794e0eca7c4de31e40e2cc7de0b86d233a9c5cb6fabea7091",
+      "8453eb2cd86e40baa1d313073af24e330b7424ab9b7004409421054c75d9d451.json": "b7d0333f4ee728ff2c791ce36e8a6bb6412e7e3b555b11f85951075d31ef8cd2",
+      "8a48f16d3c2e9b02e1bc0b6a07c773f1d6c1def675e5dff88a14fe7d34c50702.json": "8f621b68fcd0bfd673d0dd25982970f2eb5a82f42d2c455abedd8d2665bfe69e",
+      "8ee62db7098a8948541179642b41a01f7b61a47ccca09e31e749878f7ca4c8ad.json": "d4a7d3ad54f78908096a8d61d740d9e97caf5900c388747f9fb328bed1aa27d0",
+      "959ec4fb5121dfd981607ad76346cf9af9f55e21727d25b63d5e202040886b1f.json": "4cc590350cbba23d77bb5d8813ce91849967e80a917af49e4684d0c180efc854",
+      "9a8fc369d8b90cb7450111e18c6733082575e57aa23f7138c8f3942967404e04.json": "8b5c851fc971b6ea54f31d21e8766178f133f8a4d895badbce0b247bb57a951c",
+      "9b0518ce273b7735ce48a4bfd5449551ad61776e1506463c1afb6ae5b3cb4cfb.json": "f082ca510337c2281c87cf07164ed03c21de06355de8804dcaa7c1446394860f",
+      "a159fda282481177a3673ba97b1b384c3f8aba8fd850a010de7343b00613dff9.json": "469fd1019fe4d25a9e86a537665ee24c6766955c9abcb8e4b0a438a328ec1a8f",
+      "a65c246b56ffefee9d99a9255c91d401fa66431c694dfeeee70d8c3a2fd5b8a8.json": "89bc69c8c2fce33975c6e4e53de3810b69f7619a35209044e2d64509461daf04",
+      "a6888a82877ba5947c656486b2a76c70d11d25afeb66d303b32a963e68cd0d6c.json": "04aa6f704fe9c8984682e72b7a9fc74b596afbf1055ab85934f80486fc6a5793",
+      "a68a668fb10ae988706023264be8ecc96515f3373129804d3b35f7aab47a5108.json": "c9578af783274b12c6a322dfc8f1122e787f2a037d1ee2eda1c3dfe01f263559",
+      "a8b0f994a22be8a01ccfacbabe9e77d2229eb4a34cb76768e679d0bb16753dba.json": "18dc3c251199650d446f198133445947381556e2e8f602b6d83e43dd268bf918",
+      "a96fcad60ae5a8a702e5735e816569ab4363cde6d16457db6bc68d22d9120467.json": "ada5378c5f433ecc9e6658706eee16601d8e1076056ae52e95f00aa330568642",
+      "b5a4bdf07d48fd54cb9d271748b23fd642643aae5f20f3ae19612c754d3ca4e0.json": "8ad12de7e63a7989bbce527762d95c9e6748a5cc4ffd13df7827dbe3303d27db",
+      "bcf1ce14a590e5c6eb8b1cbccc1344149431a04de9fdbd492c59b9538692554a.json": "b0d4a82046b7d06ccf064ee574deb35f8a89771c067ff3712ee37b1602e9984f",
+      "bf918356a8f4ad447486c6fb412f2c1056fdf252fe5d53901b9881f64f936b8f.json": "e084461c0823bdd741e6bc2e464417931192898b219efe4cd3ff196ebde0ce9a",
+      "c21677891eb8fe8c6443d8d2c6a7a80ed9ad17c31d4c8efa718059783a3bdc08.json": "c9ed630546b946dd422e5dafa0cc54751ec95d080d355ef2c5882c2e0b0e3206",
+      "c2c8dc70a954212c5a877ffd70fb29088faafe07c67661041eafbbe4a41250c0.json": "f122c913c8ccf3830bedbadf13ead2c3850ab5e93173993dba21d3b59f36fba9",
+      "c7895f8af91b852c88a18463a9f496b11128ba9c5e83376130d076a4f7a9bcdb.json": "99832a9b29c88cb831c878c358d94b875a47001bf15bdddf106f8c55b6ae793c",
+      "c84e758d8ec70d88fbc24852d7b369b9cfb3b959ffe8cb0d0da1cbfd22a15158.json": "fa3ebff3cec02b38a9d2f954f2fd17cf13008eec7a69357cccbc0272d32b6c25",
+      "c953a657957440dd4d5fe2a06851affc86fce11bce66495d3f138680b867b1d8.json": "f65f491f448fa819b0058b6cb994b4610942dbb1d0e7f4a50727a9c0fbcc8c96",
+      "d35835c4e59f8a7b98ec50d31acfdd081c40a2f2cec97fb36402cc58019bba15.json": "e48ef369b08e78e2f1e6994194f80eb91e1d2ff362ac398cebecaf12a86b9a08",
+      "e01a5c548759a4ac51d6f1bd91b91752044c6ad2aa8e238628f3af5caab21bd7.json": "368b97f8469fddf5dedc225e093e0f92ed0520afc24eff0d4d8768bebd557f05",
+      "e434d0e462a19330c4565fc2ce14ca342dc473710cd546a859b41c920b2bf80c.json": "6fe289776521d7d0f13957c4e4750804daf75c86d1e6924210c12253d55ba583",
+      "e67f5ddabc27cf7f97573d7b536ab1e7569ef71051d4da5a9095123eab8583d7.json": "278a7abe0f78d249e423ba41dbda7a1331444b266c75dabd5f51cf41f6ee5c76",
+      "eb0ef6088645ad2622845485939bcbb390380541287fcd744ff7bde02f783f1c.json": "d40e2cfbcdc2a1c27687bdff9ee15a72fcf528b773933a0e09269408a418e296",
+      "eb46d42b68b53f888250cbb8e566fc6bdee9a92288531cee654fceae2c600332.json": "a60f35e2691236c69a804ad3b21e044a459090855c7bb1ed1de8e6f3171ce6b8",
+      "eb4b6064004506eca028f676ae09444723ee8013121ab1e9562d0cace7cda16d.json": "1776be7af5cfca3e8319e06d3d8eae8508695da41056e53a7d59f6fa2f001bde",
+      "f0aed37452c5d74a7a887d914aef337ece80ae7acce14f818533aa9261751088.json": "3f01121be4558b8d01cc57a6f3f4e44f2f128c85f0638c8959eef1999ef09604",
+      "f15914bdbfc01af4bfadd4ed7d6b4facca337f363a52fd6b5eb945869246de04.json": "3fe0f9e3c31c0e5e5f00f77574f67da5c890741326172bf96b9798e1db075599",
+      "fc2d2db1f9586d203e57d1ede2f2b1d9da730a848398ce0fd8b55caa0a238647.json": "a24ecacc1774a2e60e71ffdc717bd415113e74e771aa3eeb4779b438dcefa2a4"
+    },
+    "reproduction_fits": 4,
+    "tolerance": 1e-05,
+    "track": "brain_development",
+    "validation_selection_test_exact": true
+  },
+  "checks": {
+    "base_pass": 525,
+    "base_optional_skips": 3,
+    "combined_pass": 548,
+    "new_brain_tests": 21,
+    "ruff": true,
+    "format": true,
+    "strict_mypy_existing_files": 59,
+    "Brain_in_strict_mypy_target": false,
+    "synthetic_smoke": true,
+    "wheel_build_install": true,
+    "frozen_integrity": {
+      "Brain_runtime_verified": true,
+      "D43_protected_data_opened": false,
+      "D50_bundle_verified": true,
+      "F01_actual_source_exists": false,
+      "F01_holdout_opened": false,
+      "model_verified": true
+    }
+  },
+  "artifacts": [
+    {
+      "path": "work/brain-b01/source-probe-01/capture.json",
+      "sha256": "3666004544f7cfa5a83b2450687313990871f7680352e3e968558e3a61f0263b",
+      "bytes": 311
+    },
+    {
+      "path": "work/brain-b01/discovery-failure-history.json",
+      "sha256": "ea061265d0ec4131733d3a2c0cc3b8f71a366972845532c27c56d4564b3f3751",
+      "bytes": 189
+    },
+    {
+      "path": "work/brain-b01/dev01/config.json",
+      "sha256": "7467b8521328ac351c58c89f292e47658cbdfbc93a9735acbcd703ef9209e576",
+      "bytes": 548
+    },
+    {
+      "path": "work/brain-b01/dev01/universe.json",
+      "sha256": "569d1da8bd06f81ae063a4e86b4a8a976b085ea4962f9b96f1481369ca9446be",
+      "bytes": 6411
+    },
+    {
+      "path": "work/brain-b01/dev01/activation.json",
+      "sha256": "c8e38c7294c0f00dc5ffff154872864bc7c845bd193fa6cf3734823a3d5dbebb",
+      "bytes": 1111
+    },
+    {
+      "path": "work/brain-b01/dev01/external-request-debit.json",
+      "sha256": "5782c59225fbb34fb8f0324f933087c6d55a1ad1b696e5ba390d8429aa1518b8",
+      "bytes": 151
+    },
+    {
+      "path": "work/brain-b01/dev01/deployment.json",
+      "sha256": "ba44f4012085837e6194651318720af37388003a3dfe224f330e17f0b93bcd8e",
+      "bytes": 248
+    },
+    {
+      "path": "work/brain-b01/runtime-dev01/manifest.json",
+      "sha256": "8d49becface75853f6a8d89ada3dd44c0be18015a934d34c76c3381d17a0a23c",
+      "bytes": 8172
+    },
+    {
+      "path": "work/brain-b01/ai.memecoin.brain.dev01.plist",
+      "sha256": "b54dcab6a0ea473504c4d3279d65662ec8b3dc4192636839df042d089852be86",
+      "bytes": 1348
+    },
+    {
+      "path": "work/brain-b01/activation-evidence.json",
+      "sha256": "290f2a0d99dccc626c96da02c68fb51d2d63913c765b5bc1f3e6bbe461ed36f2",
+      "bytes": 380
+    },
+    {
+      "path": "work/brain-b01/dataset-initial-01/manifest.json",
+      "sha256": "e6fb91f84c16395761949598e6c86fdff2733ef8ff4eaed952af54368f9de004",
+      "bytes": 89
+    },
+    {
+      "path": "work/brain-b01/dev01/models/000000/manifest.json",
+      "sha256": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+      "bytes": 15785
+    },
+    {
+      "path": "work/brain-b01/dev01/models/000000/model-card.json",
+      "sha256": "5449e7ea2c98ee6e5d2d2d9b1000d6c3e67a8102b8e4e4d0fa072f32a74118b2",
+      "bytes": 5091
+    },
+    {
+      "path": "work/brain-b01/dev01/training/000000/result.json",
+      "sha256": "c172320d0a24e191b786a3feac3f0202b562c57b1d216041bee0f109d5509410",
+      "bytes": 320
+    },
+    {
+      "path": "work/brain-b01/dev01/cycles/1791075600/result.json",
+      "sha256": "85e3f52563c7e054ea7bf5678e199e442d796e05d1fb983841895b7a197e507f",
+      "bytes": 140
+    },
+    {
+      "path": "work/brain-b01/dev01/cycles/1791075600/collection.json",
+      "sha256": "934f47eaa368287878b9e602f8b0d9b1aaac993aee78eb8027c3d13a0df4bbbe",
+      "bytes": 2410
+    },
+    {
+      "path": "work/brain-b01/dev01/cycles/1791075900/result.json",
+      "sha256": "83a618769c5e3d8dd98693edaee4068a5f5086881ce4b68e836c35c5b138696b",
+      "bytes": 140
+    },
+    {
+      "path": "work/brain-b01/dev01/cycles/1791075900/collection.json",
+      "sha256": "b3a20bf60be329ce353481fd027d3febc7005470ea1fbe1ce0e8a9efb32c166f",
+      "bytes": 2411
+    },
+    {
+      "path": "work/brain-b01/dev01/cycles/1791076200/result.json",
+      "sha256": "f032c23bd210673c290c1fdb6dcade7f2edd6e79395d75543fa63b5fca08894a",
+      "bytes": 141
+    },
+    {
+      "path": "work/brain-b01/status-final-01.json",
+      "sha256": "63c2e8e11962eaa24515406c451ed8f98265336a2181ede54432f11eaae5bb41",
+      "bytes": 2419
+    },
+    {
+      "path": "work/brain-b01/reproduction-01/manifest.json",
+      "sha256": "c7bea68e0b90bda08cfdd416116a5ffa0faa3601ff7d94492e5adcc5998dfcc2",
+      "bytes": 16899
+    },
+    {
+      "path": "work/brain-b01/reproduction-01/result.json",
+      "sha256": "ce9a1af5cfe99bd3a41d4ee8314a6e2e5c0fa3a4ae1d199e27353a09b096d4de",
+      "bytes": 9502
+    },
+    {
+      "path": "work/brain-b01/check-final.log",
+      "sha256": "bd21c7688f67c4c678c2ebb0c2febd3fa8f225d8d757ec8e00abe7a92f5b8943",
+      "bytes": 1422
+    },
+    {
+      "path": "work/brain-b01/combined-final.log",
+      "sha256": "2ebb2e3a6f57b49310c9559d6ee63cc7db788ace81a97386084663b191a929da",
+      "bytes": 661
+    },
+    {
+      "path": "work/brain-b01/smoke.log",
+      "sha256": "e74f77ed30218c7b0e0aa7c4faeb5f7c14c732e05c56cd0d997cd9a3a05874e2",
+      "bytes": 576
+    },
+    {
+      "path": "work/brain-b01/build.log",
+      "sha256": "d958a81fb2a9ac60e6ed6334be9348fabd6104923b07fce57849911b1cdd62aa",
+      "bytes": 18189
+    },
+    {
+      "path": "work/brain-b01/install-wheel.log",
+      "sha256": "fafa11d4e0971ae334aed9434ba4cf908820220446827269a5bba83aee6b024c",
+      "bytes": 267
+    },
+    {
+      "path": "work/brain-b01/build-01/memecoin_ai-0.1.0-py3-none-any.whl",
+      "sha256": "37647f388fe4f51b95ff90be8d9f5b65a399b105366da40e1a1e46d22a7d0059",
+      "bytes": 216140
+    },
+    {
+      "path": "work/brain-b01/frozen-integrity-final.json",
+      "sha256": "1eca75c7222e337aad3e4a91715a5c8f5ab8048d920ecca2d392a3b04d05560b",
+      "bytes": 200
+    },
+    {
+      "path": "work/brain-b01/status-handoff-02.json",
+      "sha256": "02880120e6708c4723987ec017ca92c59064bc3940055a70b5825163a74b9f3f",
+      "bytes": 2627
+    },
+    {
+      "path": "work/brain-b01/dev01/cycles/1791076500/collection.json",
+      "sha256": "c4483887380003289ff67c91e2458e2765f7748a4356a0116bbb8b12f7a953e5",
+      "bytes": 2412
+    },
+    {
+      "path": "work/brain-b01/dev01/cycles/1791076500/result.json",
+      "sha256": "7ef8da37f9e7a183b67a72f0b159b6140252b6a73c5c88ae8064959ff1ab1266",
+      "bytes": 139
+    }
+  ],
+  "request_evidence_through_index_35": [
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000000/request.json",
+        "sha256": "5af6dae6ca0117010b540027b700ad96b6d40824d82bfd2fcfe1eed80a250bc3",
+        "bytes": 133
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000000/manifest.json",
+        "sha256": "19afbdb5d7b70554874763cb1741d6aafa530dcee3d54de38d134f43cbdd639b",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000000/receipt.json",
+        "sha256": "49921dbbfad453a2af5e5b902f96d1fef1b2e06c363e90fad72382a595d9de01",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000001/request.json",
+        "sha256": "b90605aa4fa1c21af287c61157774454f7641ffcf9363c1e7d24e807cf3285bb",
+        "bytes": 133
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000001/manifest.json",
+        "sha256": "6878c3eb5fd1c2235630c2c80f392fd253def3a5eeea64d5ab44ecba032d7143",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000001/receipt.json",
+        "sha256": "e14e9dbd5d545d491e0a7a28cdb1e1c5fbc056cada76c4eb4a5a564bdcc590c6",
+        "bytes": 244
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000002/request.json",
+        "sha256": "2f6b3d85fd98aed59df520fadaf5741bd4bb3eceb22874fda0ace47f1eb3cacd",
+        "bytes": 133
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000002/manifest.json",
+        "sha256": "c3f7e2b41526aa3572d61a6a5ba616b68ee9d30d6828f4dfc9e38918d6687f15",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000002/receipt.json",
+        "sha256": "8c734401d0f9440c84582aaebddc0383ca53b0177541417c12e8df70ddaf8084",
+        "bytes": 244
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000003/request.json",
+        "sha256": "9bb03dca6e777a832e84bbf716d8a05e1a6b99b33e57f99c17786c581abe107f",
+        "bytes": 133
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000003/manifest.json",
+        "sha256": "e5260bbaf88775c50eddb48672271ca924785d09d86dd8a306ba61143d81c5e5",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000003/receipt.json",
+        "sha256": "ec108b199772305c75e7b4f1b4618ef673e586db6fe1cedd50ddaabc38e6c77d",
+        "bytes": 244
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000004/request.json",
+        "sha256": "2361cdc5422b43949fc2634781f88f227c96350bace18e282601bd1a2c5e6884",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000004/manifest.json",
+        "sha256": "148938798b4f1eeca647684c28327d254110ef1e8b93da7422ea8369feaee4df",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000004/receipt.json",
+        "sha256": "ef0a19d2661494b6af06d01868db0ea8e28756e385828a35c8a8488dda60754c",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000005/request.json",
+        "sha256": "9e4323ea9f4a3a7efb7ba5ed6968eff6c7190b2f5957353d02a52be80ad5fffb",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000005/manifest.json",
+        "sha256": "21cab4c24ad3e1f9630ae50c6824daab7078864b36966c4132acd1bf0c419868",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000005/receipt.json",
+        "sha256": "aa9c8ae23c2b1f1815286e4dd23be73701af01526d482dca505829130d308e7f",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000006/request.json",
+        "sha256": "c61f0af746285a165d95b6ef74e5de7ef5e8b2969581983925fbc2559f59cad8",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000006/manifest.json",
+        "sha256": "893fcd05564779fdf7f0f7c12c4720feb901da52326d3b3197db59d2542736a7",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000006/receipt.json",
+        "sha256": "ebecaff8df57322e4ccb917e04602c8407a448348ce7a21d6bf6d776bbe39659",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000007/request.json",
+        "sha256": "614e6a2cff6e3d509acb6722e36c3e351f24823ddd554ab95ed843282b9d6ab9",
+        "bytes": 290
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000007/manifest.json",
+        "sha256": "3de555077d06e4c12a239b4196723e031e53b4af313f523cf4c16fdc8858f2ba",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000007/receipt.json",
+        "sha256": "168ff91d19e21d53bd84e1678673e142691923e52432779416c1a45f004e01f4",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000008/request.json",
+        "sha256": "1ab67dadfa614892e5825b258f7a264235eb9fa785567252ee462838e762916b",
+        "bytes": 290
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000008/manifest.json",
+        "sha256": "17485405401fe9eec7ee67db01521711a8df96326546af0a6a22fd4f16ad6291",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000008/receipt.json",
+        "sha256": "36aad1df730e120114795c73a161849b994a0e6799b7d1806dfeeb80dc1e53a2",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000009/request.json",
+        "sha256": "d7bd310cf0e759ff21067aedaa03a5c5587c982a0847b8724ade897555517f38",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000009/manifest.json",
+        "sha256": "ae10e03a1780f36ca3c72586746369aba638d9d2c09ab5b4044e2c7539728dad",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000009/receipt.json",
+        "sha256": "ff4a700ee2e362b0404d34aa33ee63cd425dce791746ddae6ba332ea07d7e438",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000010/request.json",
+        "sha256": "85e2c50ceed446f605663aaf6d4fbe8c4d9e417efb87a0c78b3f6adf4cb00ed2",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000010/manifest.json",
+        "sha256": "d0e3586193a7d68ab17539a40952e1f442c0f4df4c129509b30f07e3921e484d",
+        "bytes": 175
+      },
+      "failure": {
+        "path": "work/brain-b01/dev01/requests/000010/failure.json",
+        "sha256": "30a4a6b6b72aa1f09a341bd99b0595b3bc2c385ed9bb49761c2d6709b09baf53",
+        "bytes": 157
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000011/request.json",
+        "sha256": "551fba9c171f1ec432b2043486034fed62ade73cb713a3b0cbbdf51215019ee1",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000011/manifest.json",
+        "sha256": "f25fd75a8c3592c9931ce9749ec4e639c38657ae47c4425d424232965ac97656",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000011/receipt.json",
+        "sha256": "b349f040cf60abbf7e9ee1a7ec48f0415bdc5d425eb3b75becbb7b451387cdc1",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000012/request.json",
+        "sha256": "c587b11bae3b1dfe750624b0987634632b0a47e4aa0f999bca9fff1e607a3dff",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000012/manifest.json",
+        "sha256": "aa936b6f9d7197dde473c98c6c25263073dc7c2c47929c6a11de76eba6609e87",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000012/receipt.json",
+        "sha256": "d0cdbeaf9df4eeb6cb36e146ece340cb80db31dabdeae0b1e59b058a7c9a0d2e",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000013/request.json",
+        "sha256": "0d540139d87065daf4b0de725b4660cf7613064826b3df8b879114c7cfafd996",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000013/manifest.json",
+        "sha256": "2623e6e2eb8430c0b5fdddb5813c6820a6856dea9c3ca754cb7f1fed7886251e",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000013/receipt.json",
+        "sha256": "660b730e5bf1fb5ed4bb5940fdc7a4e3c9fcb8a3dd359bad65b234870f43d710",
+        "bytes": 241
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000014/request.json",
+        "sha256": "16f38b9f54591cd76f90739bacbdd2f449db58e508e836e364d498aadabbe7f0",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000014/manifest.json",
+        "sha256": "ff4779929fc26a3e6a68c65b96a063617e75166062ecf4fc2fe2a0e1e28da116",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000014/receipt.json",
+        "sha256": "55786c6b9df926ed323c93cfc3d90125acad40014ddfd045746622d0784b69f5",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000015/request.json",
+        "sha256": "39f43896a8d7962adfb07a609a8355c7019de4be45c014132c786bbb614d3d67",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000015/manifest.json",
+        "sha256": "e7ef5c35d5dfef40b48fa542971578b71fdc39fec8f5e0576353cce60dfd72ab",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000015/receipt.json",
+        "sha256": "d136daf60d61704c3c1f7558600306f771f37c0cfc8972fecf073a08b45debbe",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000016/request.json",
+        "sha256": "8ddb7ba07555dfa1ad45d4d86d4d9f8350e3e37773026f68c92457bd12c70346",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000016/manifest.json",
+        "sha256": "acf5a4349b7f0dde6c3c59bf0cd20fc01fda5aeb802056c3eadae90a39818f31",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000016/receipt.json",
+        "sha256": "51eeea0621b1b4cebf051d3b774969bec8f1b6b92c2b0d63445c6a3e1e20b687",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000017/request.json",
+        "sha256": "7b5de02279b9efa0a52415a8145a35ae3acf722e76cfee01ccbdfc45d8a20ef0",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000017/manifest.json",
+        "sha256": "ae82672f2140b04c5ea7f41ed929068df3f35f6fe4bea5500f23148dc0d7802e",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000017/receipt.json",
+        "sha256": "967fe82d329eeee8faf38195131940e11df95c70de93d804c1b1d3380b20dd7b",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000018/request.json",
+        "sha256": "fa5573b838f027becea880e37fd68411b87b8ae0e808065e93c18c92f4c6da75",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000018/manifest.json",
+        "sha256": "eb2a0e7a8617adc724236fcab632e30c62164dfd665985a5045fc676c1e6fff9",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000018/receipt.json",
+        "sha256": "92ed9cac8c3472a3c6dd3f8232b3040df3567c6ccac78c759e6e0e99525a955e",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000019/request.json",
+        "sha256": "0f13cb1a424a779effc252df31011fb275e35e693fc68e4e397bde413e8cd70b",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000019/manifest.json",
+        "sha256": "ed136de9700ab8e86cb8af7be40a0b7c50943f343d18cf4a7a2128a7f55267cf",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000019/receipt.json",
+        "sha256": "b9baaf8e7b093ad7a8560cc225c5182ae187bbc6816e1073b80f4576d4532e44",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000020/request.json",
+        "sha256": "84f19a6bf8faf58e9d8e9849f10b2b92ad0245d21b8f4a66cfca378990801e11",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000020/manifest.json",
+        "sha256": "eb26c095b334beaded0a6b4d8a28587f484dea30172cd22b0b66dde1db0a572b",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000020/receipt.json",
+        "sha256": "0bc91791a1f248e4a37059af462c9b74fa80ff95312d6389edb82e83af0bebb8",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000021/request.json",
+        "sha256": "1cb612a3b1a81ff6cb5ab862391d5d6300b1bf4a9a94a5695636c0f546670231",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000021/manifest.json",
+        "sha256": "4185f35bc9b07c950958de0a7da4535b99ccd3a69fe23cb38dcaf28a47ee272e",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000021/receipt.json",
+        "sha256": "5b9600aa00a1079bc3e87645de58c463ee47290393e0c8240c4efa0c5cb01589",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000022/request.json",
+        "sha256": "03defc86704909179a7fb2fb440514ab937ec9ba593169ae6b6e5c6711f607db",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000022/manifest.json",
+        "sha256": "a3e4987cc5e46d7ad98bbf30291e6f318146b95b9e081125c0ffcfe4b41d283d",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000022/receipt.json",
+        "sha256": "fc5ab706403bc19c26e1d66db373ed00731a2152ec4f7aefc197909cd61331ed",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000023/request.json",
+        "sha256": "9f2b530faa4d857bbf79d55855d9544bf578010eed24a4c1747aace65228bdf2",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000023/manifest.json",
+        "sha256": "19965ac73cfdb5ce02beee21057014cd054aead2e471d6509732f4cedaa75187",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000023/receipt.json",
+        "sha256": "3216d9964e03b669700ea5b6ce4602083eacf37b5ddd14076e65845b3872ba16",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000024/request.json",
+        "sha256": "fc45a88abfed843ec8f0cb4b5efc93ad4b51ad9ad5ed6c5a2b5df2aa77473841",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000024/manifest.json",
+        "sha256": "eda2d54830e29618d5e3047c50e53a95187a1fe54c3ca923600c3a875b697a11",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000024/receipt.json",
+        "sha256": "db12778518e969d99b44c89d92528ac7a7e4f146fc5de0987f7d4e9f36b2b411",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000025/request.json",
+        "sha256": "59d96b5951f0a2e53cb2e8425131da355b73c265057bdd0fd439ffb6c53ffa25",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000025/manifest.json",
+        "sha256": "500d1ab16f2bb62064abea959de0edf0314bf8e364b78e77321a640dac26afa5",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000025/receipt.json",
+        "sha256": "137a86fcb48de9005fdf89090baa5bd1834f553f33d1693a5c03106b3b08b80a",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000026/request.json",
+        "sha256": "54c7ec7346852c5216a820e3dd4013c39e5ac0dc4ddd0ae08b8e81526472dd47",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000026/manifest.json",
+        "sha256": "832388b6a8564d893a0dc796c0eacff99801c2d49f0378e5b376923bebd5cceb",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000026/receipt.json",
+        "sha256": "1f82fbbafaf41937ffa5a2a0cadb2e91cd5de9ee791a4f6db787121724780c18",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000027/request.json",
+        "sha256": "bcba1332874392b7e516a8b7f2b23f8800e3fdb6025fc3dc6d6122ec1a533919",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000027/manifest.json",
+        "sha256": "6d10fe5bd3ca7479a3d0d996059ae26691155a267ecf296d104cadad76dc30c4",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000027/receipt.json",
+        "sha256": "f17b0208c43df754784566416b907f0dd312deb993d03a9c9a2959057837d140",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000028/request.json",
+        "sha256": "2290bbafdd10714fed5f4f5507e7c0d7b2becb47b808e2ad15a615bfe584bbd8",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000028/manifest.json",
+        "sha256": "42f08009ce7954e8583e53df672430b7186deb9c6958bcfb089eaca738b1bedc",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000028/receipt.json",
+        "sha256": "39f29ae17f03e19141343503a61174cbc015f1518e45b7cfc472091379c2f3f0",
+        "bytes": 241
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000029/request.json",
+        "sha256": "21e29230e020274c11db30f97b8ad782fa60a5c5b52aa3e4f95d9a0d472800b9",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000029/manifest.json",
+        "sha256": "416eb230d2847949cac942423ca52a67e6d2a0d1b0c8b974a06adfb53e456496",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000029/receipt.json",
+        "sha256": "557cf86029b9c0b9cb158c8adf1a6fd7baf2bf3a1450341b7c7ddfd730a86c89",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000030/request.json",
+        "sha256": "88bbd9a945b4456105e865cc036ea238fbbbbaf083dbdebe45d1f23497ffc426",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000030/manifest.json",
+        "sha256": "e5df8a9d22615ca84dcd946a5c9fdd2d09f941f473f479e29bbb65bc517e2268",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000030/receipt.json",
+        "sha256": "0c7fe025fcac03840dcd052e228080a98571ab9f910d5e084d78b5273ee1dad8",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000031/request.json",
+        "sha256": "8fa2c09fe8d86363726bf561f3427808add294d25896a509ee3342c6873bca8a",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000031/manifest.json",
+        "sha256": "dac2d1aa42f28ea6abd1f2e912de04b51107e2c8873c87150301b24073a2ec00",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000031/receipt.json",
+        "sha256": "6a8639a5fa48c7b95e462cc1ebd254e8f3ec5aaa4570546ba0635b8e8ad39888",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000032/request.json",
+        "sha256": "82506d92abf0d83243c1e126f57c366bd5363dce620234a98250f8afc26ddcb6",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000032/manifest.json",
+        "sha256": "0472d0bf99660dbcd2077534e59f23eebc4018102ba24de6ada1e9c3a1833217",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000032/receipt.json",
+        "sha256": "ba4fd7c9a158a6f68323e53dcf4c9fe3024cd04a747324643fa52eb23d61c2a8",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000033/request.json",
+        "sha256": "4714b23c1059c1d1def104c4ffdf7028d29e1e312a30c826fcb55aeed93f2e81",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000033/manifest.json",
+        "sha256": "00cb42f780841d519466f574b2e92dc26c71ea9166d99e3326354ad6ffc579ac",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000033/receipt.json",
+        "sha256": "7c3f3e25c9631c0fa273913d8f9aa96da5c16f999083ce7f6f45b68bafe9e03e",
+        "bytes": 242
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000034/request.json",
+        "sha256": "493fa8eee196006194526695ad194bfebe6516427255de9d687709811299a65d",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000034/manifest.json",
+        "sha256": "52bd334a747de3ee793f8a735005ab0a5e40cdd69689460b9946b977fb86efa2",
+        "bytes": 261
+      },
+      "receipt": {
+        "path": "work/brain-b01/dev01/requests/000034/receipt.json",
+        "sha256": "9ed0cbb46aa9b072dff91e3ae7f7466710586d63cae097d092ecb4c573dfa840",
+        "bytes": 243
+      }
+    },
+    {
+      "request": {
+        "path": "work/brain-b01/dev01/requests/000035/request.json",
+        "sha256": "560df3f44d6f8137e4dae22dc9ae60a232f698098be7a097f74ca5ad0a556c56",
+        "bytes": 262
+      },
+      "manifest": {
+        "path": "work/brain-b01/dev01/requests/000035/manifest.json",
+        "sha256": "19156b5c0c7a39ef6804cbc1f717a1d0c5d6954f4ed3822a24e596a415642022",
+        "bytes": 175
+      },
+      "failure": {
+        "path": "work/brain-b01/dev01/requests/000035/failure.json",
+        "sha256": "cad7a42b244e259e15e9461848aa2e517d72dacc8720bb890855f63b4ba0961f",
+        "bytes": 183
+      }
+    }
+  ],
+  "limitations": [
+    "Неполная история; current-ranking survivorship bias",
+    "Cached/revisable nominally closed candles; unknown historical availability",
+    "Pool/time imbalance; only12future outcomes, no statistical winner/edge",
+    "Price forecasting, no executable costs/fills/portfolio policy",
+    "Bounded laptop runtime may stop early; no perpetual uptime guarantee",
+    "Pins cover source/config/interpreter, not all OS/Torch dependencies"
+  ],
+  "next_stage": "B02: time/pool coverage, missing bounded history, universe revisions, learning curves and paired prospective evaluation; F01 independent",
+  "handoff_update": {
+    "status": {
+      "F01": false,
+      "cycles": [
+        {
+          "category": "completed",
+          "cycle": "1791075600",
+          "elapsed_seconds": 134.46448820782825,
+          "exit_code": 0,
+          "finished_ns": 1791075747657792000,
+          "status": "completed"
+        },
+        {
+          "category": "completed",
+          "cycle": "1791075900",
+          "elapsed_seconds": 139.86284483410418,
+          "exit_code": 0,
+          "finished_ns": 1791076052740011000,
+          "status": "completed"
+        },
+        {
+          "category": "worker_failed",
+          "cycle": "1791076200",
+          "elapsed_seconds": 15.953460125252604,
+          "exit_code": 1,
+          "finished_ns": 1791076251063573000,
+          "status": "failed"
+        },
+        {
+          "category": "completed",
+          "cycle": "1791076500",
+          "elapsed_seconds": 139.3587286248803,
+          "exit_code": 0,
+          "finished_ns": 1791076693143283000,
+          "status": "completed"
+        }
+      ],
+      "expires_ns": 1791333023405597000,
+      "failures": [
+        {
+          "category": "public_http_failure",
+          "error_type": "HTTPError",
+          "http_status": 429,
+          "no_retry": true,
+          "received_ns": 1791074080765619000,
+          "status": "failed"
+        },
+        {
+          "category": "public_http_failure",
+          "error_type": "URLError",
+          "http_status": null,
+          "no_retry": true,
+          "received_ns": 1791076250866544000,
+          "retry_after_seconds": 0,
+          "status": "failed"
+        }
+      ],
+      "max_requests": 12000,
+      "models": [
+        {
+          "finished_ns": 1791075073154602000,
+          "selected": "empirical",
+          "sha256": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+          "training_cutoff_ns": 1791074515596023000,
+          "version": "000000"
+        }
+      ],
+      "observed_ns": 1791076770717851000,
+      "outcomes": {
+        "scored": 36
+      },
+      "paid_budget_usd": 0,
+      "pending_predictions": 36,
+      "predictions": 72,
+      "root": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01",
+      "runtime": {
+        "bundle": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/runtime-dev01",
+        "pin": "8d49becface75853f6a8d89ada3dd44c0be18015a934d34c76c3381d17a0a23c",
+        "service_plist_sha": "b54dcab6a0ea473504c4d3279d65662ec8b3dc4192636839df042d089852be86"
+      },
+      "shadow_descriptive_pinball": {
+        "empirical": {
+          "mean": 0.007208485236187746,
+          "variants": 36
+        },
+        "gru": {
+          "mean": 0.008853431395336718,
+          "variants": 36
+        },
+        "linear": {
+          "mean": 0.01748121009091785,
+          "variants": 36
+        }
+      },
+      "shadow_statistics_independent": false,
+      "stopped": false,
+      "successful_requests": 46,
+      "total_requests_reserved": 49,
+      "track": "brain_development",
+      "trade_orders": 0,
+      "universe_pools": 12
+    },
+    "collection": {
+      "bars": 4291,
+      "captures": [
+        {
+          "closed_bars": 97,
+          "manifest_sha": "3186413bf8a86ffb8aab35d6d8b12cf6cb39c3a6e0bf4a68bf77f93f9596dc3b",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000036"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "44642ccbc0a57a59563d201e36bed3c54177dc60852fc22237f647d638408f52",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000037"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "32a1ff10933ce1fa97fe47d8aa8a3d04dc4d48987aaa84e186860eef4ffd1012",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000038"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "1ed33d1ac5b3563b73a9d1f4cfa8d79eec2d0cf1042345692411056ebf5b8de4",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000039"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "0209f06336ca84b1025e69cd9de8a54d0555aca1f90f82a6be229b129e5233d3",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000040"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "b884de0664d91b750c8c144c3a4d07f05cd344cfff45245d821f737426fc8fe7",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000041"
+        },
+        {
+          "closed_bars": 59,
+          "manifest_sha": "6b8a1ccdc1467ebe56402c1e717949dbe7e682f69c0e550e3dc9542c26650d8e",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000042"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "24ff26f3a898f0f32f405288ec8266c586ea8e50066abbdf399a4f76a5bf9c58",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000043"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "e29cecd3652b554557fcdf7c84e21356f19c65cd2708062c38b30c075d5524dd",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000044"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "bddb9b13bf1bcfa56103c0a1a7d1aecc13c70814d4aca81ada6f6df26b7e0ef5",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000045"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "dd8c4424fe00c79b0df423cdfcc390640b01b2ac6bc5ebca9c0b3190295cc4cf",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000046"
+        },
+        {
+          "closed_bars": 99,
+          "manifest_sha": "1b4ff50f7ae90df2008d608392f035a791992c921ab37fc783ea33f13bfa9fcc",
+          "path": "/Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/requests/000047"
+        }
+      ],
+      "pools": 12,
+      "revisions": 19,
+      "shadow": {
+        "new_outcomes": 24,
+        "new_predictions": 24,
+        "total_outcomes": 36,
+        "total_predictions": 72,
+        "trade_orders": 0
+      }
+    },
+    "result": {
+      "category": "completed",
+      "elapsed_seconds": 139.3587286248803,
+      "exit_code": 0,
+      "finished_ns": 1791076693143283000,
+      "status": "completed"
+    },
+    "interpretation": "Следующий плановый цикл после URLError успешно завершён; no immediate retry/no runtime change. Consecutive failure count reset by successful acquisition."
+  }
+}

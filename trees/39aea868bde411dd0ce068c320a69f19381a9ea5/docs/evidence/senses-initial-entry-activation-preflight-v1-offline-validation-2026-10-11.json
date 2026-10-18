@@ -1,0 +1,54 @@
+{
+  "schema": "brain-senses-initial-entry-activation-preflight-v1-validation-receipt",
+  "created_at_utc": "2026-10-11T10:20:00Z",
+  "checkout": "/Users/root1/Developer/memecoin-research",
+  "branch": "research/active",
+  "base_head": "09600f4",
+  "scope": "offline initial-entry successor eligibility/preflight only",
+  "source_sha256": {
+    "tools/brain_senses_activation_preflight_v1.py": "577c69a8e97c0d02aa2b712d0e26ddf28a1fd90611bdbe6e96c1ce4aa1241317",
+    "tools/brain_senses_activation_preflight_verifier_v1.py": "75e73bc5b11286eee9dcd3b5721495d9bd23bc076a53c4e282f174e893984d14",
+    "tests/brain/test_senses_activation_preflight_v1.py": "f2e57ac4d1145521a5769232815ae83eafaf9b2dc04d7f5eb6a8458c36ef9e9e"
+  },
+  "review": {
+    "tier": "Sol High",
+    "result": "accepted for offline eligibility/preflight only",
+    "review_basis": "read-only source review and independent focused test run",
+    "live_activation_authorized": false,
+    "limitations": [
+      "signed evidence does not prove external reviewer/provider truth",
+      "owner-local registry does not establish cross-host exclusion",
+      "no live adapter consumes this gate"
+    ]
+  },
+  "validation": {
+    "focused_cases_passed": 44,
+    "command": ".venv/bin/python -m pytest -q tests/brain/test_senses_activation_preflight_v1.py",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "git_diff_check": "passed",
+    "provider_requests": 0,
+    "runtime_activation": false
+  },
+  "verified_properties": [
+    "initial-entry certificate file bytes and canonical typed predecessor digest are independently checked",
+    "candidate file hash, compiler inputs, candidate and successor plan are bound to identical canonical plan content",
+    "the c4 abnormal STOP remains a discontinuous predecessor, with four exact gaps and an open unknown interval",
+    "initial-entry claim keys are domain-separated from normal terminal-handoff hashes and remain one-use under the owner-local lock",
+    "signed host clock binds candidate clock pins and requires the first anchor to remain strictly in the future",
+    "artifact replacement between preflight checks fails closed",
+    "normal terminal-handoff packet lineage remains on its prior claim-record format"
+  ],
+  "runtime_snapshot": {
+    "sampled_at_utc": "2026-10-11T10:19:57Z",
+    "research_senses_collector_present": false,
+    "research_senses_helius_launchagent_loaded": false,
+    "helius_mcp_worker_present": true,
+    "helius_mcp_process_arguments_contain_api_key": false,
+    "free_disk_kib": 43386480,
+    "minimum_disk_floor_kib": 52428800,
+    "helius_charge_headroom": "unknown",
+    "chain_rpc_requests": 0,
+    "campaign_c4": "terminal; frozen tail2 unopened; no backfill"
+  }
+}

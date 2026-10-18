@@ -1,0 +1,52 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--cc-header-h);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--cc-main-pad);
+  background: var(--cc-sidebar);
+  border-bottom: 1px solid var(--cc-border);
+  gap: var(--cc-gap);
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cc-text);
+}
+
+.meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--cc-text-muted);
+}
+
+.metaMono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--cc-cyan);
+  color: var(--cc-cyan);
+}

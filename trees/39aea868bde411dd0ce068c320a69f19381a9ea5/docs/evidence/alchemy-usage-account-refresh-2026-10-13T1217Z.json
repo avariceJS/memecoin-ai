@@ -1,0 +1,34 @@
+{
+  "schema": "provider-account-usage-refresh-v1",
+  "observed_at_utc": "2026-10-13T12:17:00Z",
+  "provider": "Alchemy",
+  "scope": "authenticated-team aggregate; not attributed to this repository or a specific app",
+  "usage_summary": {
+    "billing_period": {
+      "start_time": "2026-10-01T00:00:00Z",
+      "end_time": "2026-11-01T00:00:00Z"
+    },
+    "month_to_date": {"amount": "18680", "unit": "ALCHEMY_COMPUTE_UNIT", "usd": "0.01"},
+    "last_7_days": {"amount": "18680", "unit": "ALCHEMY_COMPUTE_UNIT", "usd": "0.01"},
+    "last_30_days": {"amount": "18680", "unit": "ALCHEMY_COMPUTE_UNIT", "usd": "0.01"},
+    "data_through": "2026-10-13T12:16:00Z",
+    "contains_partial_today": true,
+    "update_cadence": "minute",
+    "account_usage_limit": "not_returned"
+  },
+  "usage_time_series": {
+    "start_time": "2026-10-13T04:00:00Z",
+    "end_time": "2026-10-13T12:17:00Z",
+    "granularity": "hour",
+    "products": ["SUPERNODE_CU"],
+    "metrics": ["amount"],
+    "group_by": [],
+    "data_through": "2026-10-13T12:17:00Z",
+    "data": []
+  },
+  "limitations": [
+    "Account-level total has no app, network, method, or repository attribution.",
+    "No account usage limit was returned; it remains unknown.",
+    "The hourly time-series query returned no rows; this is not per-repository attribution or an invoice."
+  ]
+}

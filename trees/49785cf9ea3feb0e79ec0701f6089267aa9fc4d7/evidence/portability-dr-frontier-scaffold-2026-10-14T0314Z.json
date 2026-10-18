@@ -1,0 +1,46 @@
+{
+  "schema": "brain-portability-dr-frontier-scaffold-receipt-v1",
+  "recorded_at": "2026-10-14T03:14:09Z",
+  "base_commit": "c8957def8fbf0c48f623c91fe9f39258b8b81f38",
+  "scope": "synthetic envelope scaffold only",
+  "source_fingerprint": {
+    "meaning": "caller-supplied post-capture synthetic fingerprint assertion",
+    "immutable_cutoff_proven": false,
+    "source_to_member_reconciliation_proven": false,
+    "arbitrary_source_paths_read_by_frontier_module": false
+  },
+  "storage_frontier": {
+    "meaning": "synthetic committed-object and STOP-state fixture",
+    "real_journal_prefix_proven": false,
+    "physical_kingston_used": false,
+    "identity": "temporary fixture with synthetic identity callback"
+  },
+  "restore": {
+    "archive_location": "pytest temporary directory",
+    "inert_recovery_set_and_witness_verified": true,
+    "application_recovery_qualified": false,
+    "factory_reset_ready": false
+  },
+  "tests": {
+    "frontier_specific_passed": 10,
+    "combined_recovery_set_tree_v3_sqlite_frontier_passed": 46,
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "git_diff_check": "passed"
+  },
+  "independent_review": {
+    "reviewer": "Sol",
+    "result": "acceptable for this narrowly stated synthetic scaffold",
+    "real_factory_reset_verdict": "NO-GO"
+  },
+  "artifacts": {
+    "tools/brain_host_recovery_frontier.py": "eb170a9dcfd3e9e16b78c81b3cb8d62ba3d59ecccc12644ce68e2f472a4ca79a",
+    "tests/test_brain_host_recovery_frontier.py": "720c384cdafd5218ec17c81b76a81f42100d957396f1bcf426b2b426d0380448"
+  },
+  "limitations": [
+    "The source fingerprint is recorded after capture and is not a frozen source cutoff.",
+    "The synthetic K object and STOP marker do not prove a real journal prefix or cross-volume durability.",
+    "Fixture inventory code runs only in pytest against temporary synthetic roots.",
+    "The archive uses a temporary directory; no owner, protected, credential-bearing, or live Kingston source was read by this scaffold."
+  ]
+}

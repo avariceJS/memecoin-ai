@@ -1,0 +1,60 @@
+{
+  "schema": "brain-host-inert-restore-engineering-receipt-v1",
+  "captured_at_utc": "2026-10-14T04:38:05Z",
+  "base_commit": "a045cd8a1c6a640e62d9d0a010ff8a3ce61cfadf",
+  "branch": "research/active",
+  "scope": "synthetic six-role inert restore conductor only",
+  "source_sha256": {
+    "tools/brain_host_inert_restore_v1.py": "01f4a9608c25bfb624d95557761080e63b9c4ac8aa30c9def591ad3dbd2f3c3f",
+    "tests/test_brain_host_inert_restore_v1.py": "1536c5a26ca879887a521c96fe3585ec2e4c18455d682efaf374ae6fe3953865",
+    "tests/test_brain_host_recovery_set.py": "ff5f03ecb92fc662d6235fcaecf6170c143be6ebf62ab88c86c01257b525156e"
+  },
+  "checks": {
+    "ruff_format": "pass",
+    "ruff_check": "pass",
+    "direct_cli_help": "pass",
+    "git_diff_check": "pass",
+    "pytest": {
+      "passed": 95,
+      "skipped": 0,
+      "command_scope": [
+        "tests/test_brain_host_inert_restore_v1.py",
+        "tests/test_brain_host_recovery_set.py",
+        "tests/test_brain_host_tree_custody.py",
+        "tests/test_brain_host_tree_custody_v3.py",
+        "tests/test_brain_host_sqlite_backup.py",
+        "tests/test_brain_host_recovery_frontier.py",
+        "tests/test_brain_host_source_view_adapter_v1.py"
+      ]
+    },
+    "sol_review": "accepted for inert-artifact restore implementation scope"
+  },
+  "conductor_contract": {
+    "preflights_six_pinned_roles": true,
+    "create_only_fresh_quarantine": true,
+    "owner_source_and_explicit_forbidden_roots_checked": true,
+    "v3_protected_scope_and_unresolved_exclusions_rejected": true,
+    "v3_absolute_symlinks_rejected": true,
+    "protected_v2_symlinks_rejected": true,
+    "partial_failure_retained_without_resume": true,
+    "witness_bound_and_freshly_verified": true,
+    "provider_requests_sent": 0,
+    "services_changed": false
+  },
+  "hard_false_fields": {
+    "application_recovery_qualified": false,
+    "source_root_closure_verified": false,
+    "T_qualified": false,
+    "K_frontier_qualified": false,
+    "host_closure": false,
+    "activation_authorized": false,
+    "safe_to_erase": false
+  },
+  "limits": [
+    "Fixtures use temporary local storage; no Kingston recovery set or real target was restored.",
+    "Caller-supplied owner checkout and additional forbidden roots do not prove owner-wide source closure.",
+    "The assessor handoff is a manually mapped parameter bundle, not a direct assessor input format.",
+    "No clean-host bootstrap, host-state closure, APFS T cutoff, or durable K frontier is qualified.",
+    "Factory-reset readiness remains NO-GO."
+  ]
+}

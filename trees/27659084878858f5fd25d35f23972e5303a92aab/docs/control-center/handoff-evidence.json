@@ -1,0 +1,60 @@
+{
+  "stage": "CC-00",
+  "date": "2026-10-03",
+  "core_baseline": "6a7e079",
+  "plan_commit": "f28e5fd",
+  "scaffold_commit": "06893f3",
+  "branch": "control-center/observatory-handoff",
+  "worktree": "/Users/root1/.codex/worktrees/ec89/memecoin-ai",
+  "architecture": "reviewed immutable projection -> loopback read API -> future React SPA",
+  "projection": {
+    "path": "apps/control-center/published/observatory-v1.json",
+    "bytes": 33910,
+    "sha256": "82a6efd6066b271a6a30de36a7b2d73523d771118eab4882f267c50200cddb1c",
+    "sources": 9,
+    "scope": "historical recorded evidence; not realtime"
+  },
+  "tests": {
+    "stdlib_passed": 9,
+    "ruff": true,
+    "format": true,
+    "exact_projection_reproduction": true,
+    "scope_guard": true,
+    "relative_doc_links": true,
+    "loopback_HTTP": true,
+    "frontend_build": "not_run_not_implemented",
+    "frontend_E2E": "not_run_not_implemented"
+  },
+  "core_changes": 0,
+  "core_memory_changes": 0,
+  "D43_operations": 0,
+  "protected_raw_reads": 0,
+  "provider_RPC_calls": 0,
+  "training": 0,
+  "transactions": 0,
+  "main_merged": false,
+  "ui_services_installed": false,
+  "npm_dependencies_installed": false,
+  "observed_tools": {
+    "python": "3.13.6",
+    "node": "24.5.0",
+    "npm": "11.5.1"
+  },
+  "development_failures": [
+    {
+      "category": "test_http_module_shadowing",
+      "resolved": true
+    },
+    {
+      "category": "ruff_E731",
+      "resolved": true
+    }
+  ],
+  "remaining": [
+    "React frontend Phase0/1",
+    "runtime UI Zod validation/component/E2E/a11y tests",
+    "core-owned operational export PROPOSED; not implemented here",
+    "Tauri deferred"
+  ],
+  "security_limit": "policy+scope guard+read boundaries, not OS sandbox against same-user malicious agent"
+}

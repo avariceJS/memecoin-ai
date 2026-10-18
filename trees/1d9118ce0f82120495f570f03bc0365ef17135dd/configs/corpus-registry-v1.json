@@ -1,0 +1,49 @@
+{
+  "calendar_plan_sha256": "5b364cd0ea1a898bf1cb7144e94b1fc5bfdc5732841d5f02db2b61cbaaebf25f",
+  "created_ns": 1791024303188721000,
+  "engineering_floors": {
+    "labels_per_action_class": 3,
+    "partition_decisions": 20,
+    "partition_nonoverlap": 3,
+    "utc_days": 2,
+    "utc_hours": 3,
+    "windows": 3
+  },
+  "folds": [
+    {
+      "embargo_ns": 30000000000,
+      "id": "fold0",
+      "test_end_ns": 1791100439502126000,
+      "train_end_ns": 1791035639502126000,
+      "train_start_ns": 1791014039502126000,
+      "validation_end_ns": 1791057239502126000
+    },
+    {
+      "embargo_ns": 30000000000,
+      "id": "fold1",
+      "test_end_ns": 1791143639502126000,
+      "train_end_ns": 1791057239502126000,
+      "train_start_ns": 1791014039502126000,
+      "validation_end_ns": 1791100439502126000
+    }
+  ],
+  "history_policy": {
+    "context": 8,
+    "max_gap_ns": 15000000000
+  },
+  "holdout": {
+    "end_ns": 1791188639502126000,
+    "policy": "quarantine entire intersecting window; no label release",
+    "start_ns": 1791143639502126000
+  },
+  "known_development_exposure": "D44 trained/evaluated window0; never a protected holdout",
+  "qualification": "engineering_only",
+  "research_training_ready": false,
+  "schema": 1,
+  "unresolved": [
+    "market universe and regime coverage",
+    "own execution/cost qualification",
+    "research specification/model-selection budget",
+    "formal readiness decision"
+  ]
+}

@@ -1,0 +1,55 @@
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+.realEvidence {
+  color: #b8e6c8;
+  background: #122418;
+  border-color: #2a5c3a;
+}
+
+.engineering {
+  color: #c8d8f0;
+  background: #141e2e;
+  border-color: #3a5070;
+}
+
+.synthetic {
+  color: #e8dcc0;
+  background: #221e14;
+  border-color: #5c5030;
+}
+
+.protected {
+  color: #d0c0e8;
+  background: #1a1428;
+  border-color: #4a3868;
+}
+
+.locked {
+  color: #f0c8a8;
+  background: #241810;
+  border-color: #6c4830;
+}
+
+.unavailable {
+  color: #9aa8b8;
+  background: #121820;
+  border-color: #384858;
+}
+
+.demo {
+  color: var(--cc-warning);
+  background: rgb(242 193 92 / 12%);
+  border-color: var(--cc-warning);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}

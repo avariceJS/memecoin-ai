@@ -1,0 +1,55 @@
+{
+  "schema": "brain-senses-calendar-supervisor-v1-process-restart-validation",
+  "created_at_utc": "2026-10-11T10:29:40Z",
+  "checkout": "/Users/root1/Developer/memecoin-research",
+  "branch": "research/active",
+  "base_head": "441c3e7",
+  "scope": "synthetic subprocess persistence and no-replay recovery only",
+  "source_sha256": {
+    "tools/brain_senses_calendar_supervisor_v1.py": "d901c5365ce3d8428284756eea4e575b9e340fd1ce4e007a9653c9e8c1ae21e6",
+    "tools/brain_senses_finite_calendar_v3.py": "9d2cf1c8e13ae0d5dbf8ba908d3100d586997e16e9f7c6b82407a2c843fafa14",
+    "tools/brain_senses_operation_bundle_v2.py": "faf0d02ff2bd97e435a9a007b92c25c079670e9dff40b142e3fae033ecadf097",
+    "tools/brain_senses_block_epoch_v3.py": "977aaeca55532031b24d84f1ebf86c0a3ab0143567a7567e2960ce2a2773cc8b",
+    "tests/brain/test_senses_calendar_supervisor_v1.py": "dacf77e4cb2668b8e33c8757ea97012456075b95fb807672167fd016238ff30f"
+  },
+  "review": {
+    "tier": "Sol High",
+    "result": "accepted for synthetic cross-process recovery evidence",
+    "runtime_source_changed": false,
+    "live_activation_authorized": false
+  },
+  "validation": {
+    "focused_cases_passed": 20,
+    "subprocess_cases": 1,
+    "command": ".venv/bin/python -m pytest -q tests/brain/test_senses_calendar_supervisor_v1.py",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "git_diff_check": "passed",
+    "provider_requests": 0,
+    "launchagent_loaded": false,
+    "live_scheduler_qualified": false
+  },
+  "verified_properties": [
+    "a synthetic anchor capture written by one Python process is reopened and independently seal-verified by another",
+    "an injected after_start_before_dispatch prefix reaches the expected state with zero synthetic-client calls before abrupt process exit",
+    "a fresh process recovers the unsealed prefix as terminal abnormal_unsealed_prefix and independently verifies the terminal handoff",
+    "the recovery process makes zero synthetic-client calls and preserves an explicit unknown interval"
+  ],
+  "limitations": [
+    "the injected abrupt exit occurs after the durable start prefix returns; interruption during fsync or a real provider dispatch is not tested",
+    "the fake client performs no network I/O and carries no credentials",
+    "this does not qualify periodic scheduling, LaunchAgent behavior, unattended operation, or live activation",
+    "cross-host exclusion and provider charge/account limits remain unverified"
+  ],
+  "runtime_snapshot": {
+    "sampled_at_utc": "2026-10-11T10:29:40Z",
+    "research_senses_collector_present": false,
+    "research_senses_launchagent_loaded": false,
+    "free_disk_kib": 43369980,
+    "minimum_disk_floor_kib": 52428800,
+    "helius_charge_headroom": "unknown",
+    "helius_mcp_account_status": "transport_closed",
+    "chain_rpc_requests": 0,
+    "campaign_c4": "terminal; frozen tail2 unopened; no backfill"
+  }
+}

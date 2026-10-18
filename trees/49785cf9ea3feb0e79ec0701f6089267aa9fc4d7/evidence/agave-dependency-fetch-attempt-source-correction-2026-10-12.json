@@ -1,0 +1,14 @@
+{
+  "schema": "agave-dependency-fetch-attempt-source-correction-v1",
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-12T02:32:40Z",
+  "corrects_receipt": "agave-dependency-fetch-attempt-2026-10-12.json",
+  "prior_receipt_sha256": "c0b07a66f822777ba2b158ecf78f12f25d91defd8936101679d5c4a878cc264b",
+  "correction": "The prior field source_checkout_modified=true misdescribed the pre-existing approved composite patch as a fetch mutation. It meant only that the checkout was dirty before and after the fetch, not that the fetch changed it.",
+  "observed_source_status_sha256": "0a6b03babdcc0319276edbac7911722d5b6f6ff5c793b8a3ada748901fbfd52a",
+  "expected_preflight_source_status_sha256": "0a6b03babdcc0319276edbac7911722d5b6f6ff5c793b8a3ada748901fbfd52a",
+  "observed_source_diff_sha256": "b35b3dba78a4dc90aee3f91827cf1d6467f728d7218d8e3d7c14a861dcc6aa78",
+  "expected_composite_diff_sha256": "b35b3dba78a4dc90aee3f91827cf1d6467f728d7218d8e3d7c14a861dcc6aa78",
+  "changed_path_count": 20,
+  "conclusion": "Agave source checkout and intended composite diff are unchanged from the exact pre-fetch snapshot. Cargo.lock remains at the pinned post-v5 hash."
+}

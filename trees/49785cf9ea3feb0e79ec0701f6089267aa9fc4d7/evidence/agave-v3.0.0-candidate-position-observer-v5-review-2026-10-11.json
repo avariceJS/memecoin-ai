@@ -1,0 +1,56 @@
+{
+  "receipt_schema": "brain_senses_agave_candidate_position_observer_v5_review",
+  "date": "2026-10-11",
+  "decision": "accepted_for_local_synthetic_program_test_observer_feasibility_only",
+  "review": {
+    "tier": "Sol High",
+    "findings": [
+      "Every event boundary binds execution_id and attempt_ordinal and both writer and independent verifier compare them with the trace.",
+      "Every account-bearing phase validates selected snapshots and aliases; terminal events carry no account snapshots.",
+      "Program ID and instruction data remain bound to the successful push across all frame phases.",
+      "V3/V4 phase ordering, signed-message account binding, BanksClient result comparison, panic propagation and opt-in scope remain present."
+    ],
+    "limitation": "SVMTransaction::signed_message_hash is an additive unconditional default trait method; feature-off execution compiles and does not invoke it."
+  },
+  "source": {
+    "repository": "anza-xyz/agave",
+    "tag": "v3.0.0",
+    "commit": "b6c96e84b10396b92912d4574dae7d03f606da26",
+    "rustc": "1.86.0 (05f9846f8 2025-03-31)",
+    "cargo": "1.86.0 (adf9b6ad1 2025-02-28)",
+    "cargo_lock_sha256": "fc3fdf681e0c0a89399c07376747e13cdd5a31d61f6b209df5437a9594fc76a5"
+  },
+  "artifacts": {
+    "review_directory": "../../work/brain-senses-agave-witness-v3-20261011-v5/",
+    "patch": {
+      "path": "v5-review.patch",
+      "sha256": "e8c977c70a13988213a30a57d3dca36e5f94fab26d1574844c2a378c55cfe5c3"
+    },
+    "implementation_receipt": {
+      "path": "v5-review-receipt.json",
+      "sha256": "cdd875a8d123e452086dc9d62826ef448f96604fd8dba54e8c7ce6539cc2c4b9"
+    },
+    "success_capture_sha256": "060178b8a003db4d19ee3233bff40212c7300e5283c4cb0552bf90c4308a60a3",
+    "early_failure_capture_sha256": "44a143782deaffa1f766b3108305ed7ea49e262a7e6d679597a1610a9e7a29ad"
+  },
+  "verification": {
+    "feature_on_cpi": "11/11 passed",
+    "feature_off": "cargo check passed for solana-program-test, solana-svm, and solana-program-runtime",
+    "mutation_classes": [
+      "cross-attempt boundary splice",
+      "missing or unavailable selected account fields in push, return, pop, and final phases",
+      "program ID drift across phases",
+      "instruction data drift across phases"
+    ],
+    "git_diff_check": "passed",
+    "reviewed_patch_sha256": "e8c977c70a13988213a30a57d3dca36e5f94fab26d1574844c2a378c55cfe5c3"
+  },
+  "scope_limits": [
+    "synthetic local ProgramTest fixtures only",
+    "no production integration, historical replay, Bank persistence/finality, settlement, or network transaction claim",
+    "no real-source qualification, economic admission, completeness, or decoder promotion",
+    "precompile path unsupported pending separate exercise",
+    "no c4/tail2, provider RPC, archive, or audit data used"
+  ],
+  "next_gate": "Independent raw Token-2022/WSOL account parser and disposable ProgramTest fixtures with exact pinned transfer-fee, hook, native-token, Rent, epoch, and runtime inputs; failures remain attempted-only."
+}

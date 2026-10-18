@@ -1,0 +1,195 @@
+{
+  "schema": "brain-post-training-audit-v1",
+  "checked_at_utc": "2026-10-06T21:38:09.415724Z",
+  "scope": "read-only audit; no promotion, AUTO mutation, or production runtime switch",
+  "watch_market": {
+    "feature_commit": "0e9a2c1",
+    "feature_commit_subject": "Add isolated Watch Market paper lane",
+    "new_owner_host_runtime": "operator-runtime10",
+    "source_revision": "0e9a2c1",
+    "runtime09_reusable": false,
+    "champion_selection": "pin official configured champion path and manifest SHA; never latest candidate"
+  },
+  "run": {
+    "candidate_id": "job_5edd5e5ecda88338",
+    "candidate_status": "completed",
+    "selected_by_pipeline": "gru",
+    "candidate_promoted": false,
+    "candidate_model_manifest_sha256": "69ebb2703f8765527911c32511255a27fa8c7d8a3315c2818bea3a329dc583c6",
+    "candidate_artifact_manifest_sha256": "eb235d0de3cac7086847888a321174c890db246534d9358bcdc8ce5c87c082fb",
+    "snapshot_id": "job_f34eb5cc5889b45a",
+    "snapshot_manifest_sha256": "47d3fca46e9ba5c3680997a6b2e5fd5d8192e8791b256f8cec21126f542857dd",
+    "dataset_manifest_sha256": "a1c2f6d101a28ea260c378e05e252bdc0859f8ed964d961bd776aa5cc8971099",
+    "snapshot_as_of_ns": 1791321236919889000,
+    "training_finished_ns": 1791321442518759000,
+    "recipe": {
+      "version": "B13-pool-day-v1",
+      "steps": 1000,
+      "seeds": [7, 19],
+      "kinds": ["linear", "gru"],
+      "train_cap": 48000,
+      "validation_hours": 3,
+      "test_hours": 3,
+      "automatic_promotion": false
+    },
+    "fits": {
+      "gru-7": "completed",
+      "gru-19": "completed",
+      "linear-7": "completed",
+      "linear-19": "completed",
+      "ledger_head": "7aaa7423456785b5ebc919e85fab9db64bc436a88a10b0962db8c014c4c406d1",
+      "incidents": 0
+    },
+    "artifact_integrity": {
+      "candidate_manifest_verified": true,
+      "candidate_manifest_members": 158,
+      "model_manifest_verified": true,
+      "model_manifest_members": 156,
+      "snapshot_manifest_verified": true,
+      "snapshot_manifest_members": 5,
+      "dataset_manifest_verified": true,
+      "dataset_manifest_members": 1,
+      "registry_pins_match_manifests": true,
+      "model_source_identity_matches_active_runtime08": true,
+      "raw_snapshot_audit_exact": true,
+      "raw_snapshot_bars": 100656,
+      "raw_snapshot_captures": 5624,
+      "raw_snapshot_fingerprint": "d836d08d08e7eb799b33abfecbe2f01fd6e46b078fbc444f31b608df3b3b2c9e"
+    }
+  },
+  "temporal_audit": {
+    "cutoff_ns": 1791321236919889000,
+    "bounds_seconds": {
+      "train_end_s": 1791299400,
+      "validation_end_s": 1791310200,
+      "test_end_s": 1791321000
+    },
+    "group_maturity_purge": true,
+    "retrospective_not_online": true,
+    "all_input_receipts_at_or_before_cutoff": true,
+    "all_target_maturities_at_or_before_cutoff": true,
+    "all_maturities_inside_assigned_fold": true,
+    "membership_matches_snapshot_receipt": true,
+    "folds": {
+      "train": {
+        "decisions": 48000,
+        "pools": 86,
+        "membership": "22825ab0d19cf436c62b490cfe6da04678dc52b160289d96a1ac1c8967e11b64"
+      },
+      "validation": {
+        "decisions": 264,
+        "pools": 8,
+        "membership": "f2cdb21af2b25a73c30b3349cf912dcef27318273def31f1814a751e3b1bdc57"
+      },
+      "test": {
+        "decisions": 249,
+        "pools": 8,
+        "membership": "34321898dfffdda3c76afb77303ee62d24783037dee4cce27a14f72f135e0493"
+      }
+    },
+    "violations": []
+  },
+  "matched_forecast_comparison": {
+    "champion": {
+      "selected": "empirical",
+      "manifest_sha256": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920"
+    },
+    "metric": "pool_macro_pinball; lower is better; descriptive historical evaluation",
+    "candidate_vs_champion_delta_pct": "positive means candidate worse",
+    "validation": {
+      "combined_5m_15m": {
+        "candidate": 0.010145666013434168,
+        "champion": 0.007641210036610011,
+        "candidate_delta_pct": 32.775646328591804
+      },
+      "5m": {
+        "candidate": 0.008439314038459472,
+        "champion": 0.005040283451023943,
+        "candidate_delta_pct": 67.4372903917737
+      },
+      "15m": {
+        "candidate": 0.011852017988408865,
+        "champion": 0.01024213662219608,
+        "candidate_delta_pct": 15.718218039817543
+      },
+      "coverage_q10_median_q90": {
+        "candidate": [0.026515151515151516, 0.7935606060606061, 0.9848484848484849],
+        "champion": [0.17045454545454544, 0.5625, 0.9090909090909091]
+      }
+    },
+    "test": {
+      "combined_5m_15m": {
+        "candidate": 0.00890357459361131,
+        "champion": 0.006272406650817546,
+        "candidate_delta_pct": 41.94829973995415
+      },
+      "5m": {
+        "candidate": 0.00805093091015499,
+        "champion": 0.004866756912149804,
+        "candidate_delta_pct": 65.42701958373823
+      },
+      "15m": {
+        "candidate": 0.009756218277067632,
+        "champion": 0.007678056389485289,
+        "candidate_delta_pct": 27.0662493496177
+      },
+      "coverage_q10_median_q90": {
+        "candidate": [0.01606425702811245, 0.7791164658634538, 0.9899598393574297],
+        "champion": [0.15863453815261044, 0.5341365461847389, 0.9337349397590361]
+      }
+    },
+    "confidence_intervals": "not computed; folds are retrospective, short, and serially correlated",
+    "historical_execution_costs": "not applied by the training metric; do not interpret as net PnL"
+  },
+  "matched_prospective_paper_as_of_check": {
+    "exam_id": "job_2069a67d64cf1bc8",
+    "status": "active",
+    "started_at_utc": "2026-10-06T21:17:26.532835Z",
+    "expires_at_utc": "2026-10-07T12:23:51.922091Z",
+    "policy": "B07 fixed-time price proxy; 15m holding; virtual only",
+    "cost_assumptions": {
+      "slippage_bps_per_side": 50,
+      "fee_bps_per_side": 25,
+      "capital_usd_per_book": 1000
+    },
+    "as_of_utc": "2026-10-06T21:38:09.415724Z",
+    "current_official_champion_empirical_book": {
+      "decisions": 8,
+      "trades": 0,
+      "closed_trades": 0,
+      "realized_pnl_usd": "0",
+      "fees_usd": "0",
+      "cash_usd": "1000",
+      "equity_usd": "1000"
+    },
+    "new_candidate_gru_book": {
+      "decisions": 8,
+      "trades": 0,
+      "closed_trades": 0,
+      "realized_pnl_usd": "0",
+      "fees_usd": "0",
+      "cash_usd": "1000",
+      "equity_usd": "1000"
+    },
+    "interpretation": "too few observations and no fills; cost-adjusted superiority is not estimable yet"
+  },
+  "readiness": {
+    "checked_at_utc": "2026-10-06T21:38:09.415724Z",
+    "rechecked_at_utc": "2026-10-06T21:41:18.606875Z",
+    "mode": "auto",
+    "phase": "waiting",
+    "domain_stop": false,
+    "queued_or_running_jobs": 0,
+    "active_managed_exam_id": "job_2069a67d64cf1bc8",
+    "active_managed_exam_expires_at_utc": "2026-10-07T12:23:51.922091Z",
+    "operator_expires_at_utc": "2026-10-11T20:31:13.058527Z",
+    "active_runtime": "operator-runtime08",
+    "active_runtime_manifest_sha256": "fec78c60d5c93b4b1d9cf4a680843162169f214910b98cc135c194cee8e63c3a",
+    "launchagent_pid": 64937,
+    "champion_manifest_sha256": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+    "runtime09_manifest_sha256": "fec78c60d5c93b4b1d9cf4a680843162169f214910b98cc135c194cee8e63c3a",
+    "runtime09_contains_watch_market": false,
+    "release_ready": false,
+    "release_blocker": "managed paper exam remains active; activation also requires routine Control Center Pause after exam expiry"
+  }
+}

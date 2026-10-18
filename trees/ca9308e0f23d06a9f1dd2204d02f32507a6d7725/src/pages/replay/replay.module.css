@@ -1,0 +1,42 @@
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--cc-gap);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cc-text);
+}
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.policyNote {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--cc-text-muted);
+  line-height: 1.45;
+  max-width: 640px;
+}
+
+.boundaryNote {
+  margin: var(--cc-gap) 0 0;
+  font-size: 12px;
+  color: var(--cc-text-muted);
+  line-height: 1.45;
+  max-width: 640px;
+}
+
+.unavailableBlock {
+  margin-top: 12px;
+}

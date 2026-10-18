@@ -1,0 +1,63 @@
+{
+  "archives_or_aliases_touched": false,
+  "cleanup": "Files unlinked through DescriptorWriter; unique directory removed with rmdir(dir_fd=held_root_fd) and confirmed absent.",
+  "contract": "research_kingston_writer_qualify_v1",
+  "descriptor_writer_before_write": "StorageGuard.revalidate",
+  "limitations": [
+    "This proves only the recorded live mount identity, scratch operations, and flock exclusion at qualification time.",
+    "It does not prove device-loss behavior; the separate disposable APFS detach receipt covers that mechanism.",
+    "Independent lock exclusion does not prove collector authorization or lease activation."
+  ],
+  "observed": {
+    "atomic_rename_sha256": "03f627f3e05fbf8a392275bb8c210f73540672c7e3f53e05f8375dd7c1a85f37",
+    "available_bytes_before": 221045207040,
+    "collision_preserved_existing_sha256": "03f627f3e05fbf8a392275bb8c210f73540672c7e3f53e05f8375dd7c1a85f37",
+    "config_mode": "0o600",
+    "config_path": "/Users/root1/.config/brain-research/storage-v1.json",
+    "configured_data_root": "BrainData",
+    "create_only_collision": "external_writer_create_only_collision",
+    "filesystem": "Case-sensitive APFS",
+    "independent_process_lock": {
+      "reason": "external_writer_already_active",
+      "result": "rejected"
+    },
+    "independent_process_lock_path": "writer-qualification-20261011T212320Z-481a88f092d8467aa1e73b1e7931594f/qualification.lock",
+    "is_mountpoint": true,
+    "minimum_free_bytes": 53687091200,
+    "mount_path": "/Volumes/Kingston",
+    "owners_enabled": true,
+    "payload_bytes": 128,
+    "payload_sha256": "26091d04409d4c40cd4aa67775e2154969ec5edf6028f40af43282615141583a",
+    "read_only": false,
+    "readback_bytes": 128,
+    "readback_sha256": "26091d04409d4c40cd4aa67775e2154969ec5edf6028f40af43282615141583a",
+    "root_binding_after": {
+      "available_bytes_after": 221045190656,
+      "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+      "scratch_absent": true,
+      "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf"
+    },
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "scratch_subtree": "writer-qualification-20261011T212320Z-481a88f092d8467aa1e73b1e7931594f",
+    "service_root": "/Volumes/Kingston/BrainData",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf"
+  },
+  "provenance": {
+    "command": "PYTHONPATH=src python3 tools/research_kingston_writer_qualify_v1.py",
+    "completed_utc": "2026-10-11T21:23:22.854408+00:00",
+    "elapsed_monotonic_ns": 1906020000,
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.6",
+    "source_sha256": {
+      "descriptor_writer": "d1407ad17d8819331cc034e75f1425460f836c3644a9527fe4a393d7445ea936",
+      "qualification_harness": "84e63697235da929fa5fe4c27c147fc60d126704b10282a0c3204aa0b929da5b",
+      "storage_library": "672f6d1af8291579a9a2b0d25343f11b23875b4dd9f4598658d95d034e0dfbd5"
+    },
+    "started_utc": "2026-10-11T21:23:20.948411+00:00"
+  },
+  "provider_requests": 0,
+  "schema_version": 1,
+  "scope": "live configured Kingston service root; disposable unique scratch subtree only",
+  "status": "passed",
+  "unmount_performed": false
+}

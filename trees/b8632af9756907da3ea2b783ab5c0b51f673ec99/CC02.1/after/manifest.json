@@ -1,0 +1,726 @@
+{
+  "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+  "browser": "Chromium 153.0.8010.12",
+  "captures": [
+    {
+      "route": "/",
+      "capture_id": "cc021-overview-1440x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1440x900-viewport.png",
+      "sha256": "e90e211e254c8a85929630d422e44af6a110c3e189bed3dba35ed167e1091128",
+      "viewport": [
+        1440,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:29.818Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1440x900-viewport.layout.json",
+        "sha256": "1126fa4a4b3688f195de524b941a75d7702536f66af0e1676aff2238e557815d"
+      }
+    },
+    {
+      "route": "/",
+      "capture_id": "cc021-overview-1600x1000-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1600x1000-viewport.png",
+      "sha256": "a13848668487e5e15961cc00973bfb3724b5d71df575bbbdf2359b6909538dd3",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:29.970Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1600x1000-viewport.layout.json",
+        "sha256": "c0403c3c509ca531cd37475811c06b5ee23a15299a6a530d324e657ff8f31a4c"
+      }
+    },
+    {
+      "route": "/",
+      "capture_id": "cc021-overview-1600x1000-fullpage",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1600x1000-fullpage.png",
+      "sha256": "a13848668487e5e15961cc00973bfb3724b5d71df575bbbdf2359b6909538dd3",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "fullpage",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:29.971Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1600x1000-fullpage.layout.json",
+        "sha256": "ec491ffe1fdcc6cfb5a3e3841b859f76c4d1ce62c85923a8823e9bf78400bbcf"
+      }
+    },
+    {
+      "route": "/",
+      "capture_id": "cc021-overview-1920x1080-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1920x1080-viewport.png",
+      "sha256": "123933a686b2cd8570f1072067c89a25bd9c0ff0c3290a277fcbaa75dade93b6",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:30.075Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1920x1080-viewport.layout.json",
+        "sha256": "b9f648c0c5ed458d1699718aca659c713da1e9c3f6a23eda7d56430b61d0458f"
+      }
+    },
+    {
+      "route": "/",
+      "capture_id": "cc021-overview-1024x768-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1024x768-viewport.png",
+      "sha256": "eb4eaa1bb7a55fc601f6fec44bd1fe1f02cb58529d3b95ec5de87d6faf0703cf",
+      "viewport": [
+        1024,
+        768
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:30.162Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-1024x768-viewport.layout.json",
+        "sha256": "d3b2181d6abd7b9ec07da1dbcbfc2b24236c6074094abcc46a0e9b7a8e3c742d"
+      }
+    },
+    {
+      "route": "/",
+      "capture_id": "cc021-overview-768x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-768x900-viewport.png",
+      "sha256": "c3e5933a4b149edd8cf94cf605048df632835c5301a94c5014ca0e6504369719",
+      "viewport": [
+        768,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:30.279Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-overview-768x900-viewport.layout.json",
+        "sha256": "934855fd0abeb7f19877e295bad12d5ccf4966fdf60b6724a06519ed710b6aef"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc021-calendar-1440x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1440x900-viewport.png",
+      "sha256": "de2adf854ad05bf17dc77f1395439afe36b69af5ddf11f2287b309af2d574ce6",
+      "viewport": [
+        1440,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:30.445Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1440x900-viewport.layout.json",
+        "sha256": "4b9e0230d954d67db88944bccdabad6dc303483783c94fe53ae6154865aa2139"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc021-calendar-1600x1000-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1600x1000-viewport.png",
+      "sha256": "5e5bc80c091719c080d93e96e9870aca45ce18d0e63b6f94af0903bc6d7090e1",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:30.631Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1600x1000-viewport.layout.json",
+        "sha256": "f753be60be46d78559dcd35fe3ef61bcf5b5e53bfbd15cb4ee7d5d4ef6528f9d"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc021-calendar-1600x1000-fullpage",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1600x1000-fullpage.png",
+      "sha256": "5e5bc80c091719c080d93e96e9870aca45ce18d0e63b6f94af0903bc6d7090e1",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "fullpage",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:30.632Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1600x1000-fullpage.layout.json",
+        "sha256": "33e57ee58494fa858e78d4aec2dc9dee231330a7847a79f467895874c66e3747"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc021-calendar-1920x1080-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1920x1080-viewport.png",
+      "sha256": "8aec5c2e331561669baa63debf25a69528e8f3cccbd39543a97ec6949e1b7a76",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:30.803Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1920x1080-viewport.layout.json",
+        "sha256": "82d4373c17b63cffd43e3efd2121cf134f1826be5e5acbe5451912fea1840c4d"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc021-calendar-1024x768-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1024x768-viewport.png",
+      "sha256": "b8ec2452874e41eb08f5d90b68be188414864937475e49b54c4b53acaf5f5f09",
+      "viewport": [
+        1024,
+        768
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:30.926Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-1024x768-viewport.layout.json",
+        "sha256": "c7462dc335f075c1625518dd9c889fc6ab351af797f659d6fcd00602203ef475"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc021-calendar-768x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-768x900-viewport.png",
+      "sha256": "1dc0c45df56fd519b2546a00cf55198e2cfe3f1079b2191b8aa9913f0decacb0",
+      "viewport": [
+        768,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.080Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-calendar-768x900-viewport.layout.json",
+        "sha256": "09906e0fa48438c12ad4a7aaa324e62bc62444c50997d24620060c31bc542778"
+      }
+    },
+    {
+      "route": "/research",
+      "capture_id": "cc021-research-1440x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1440x900-viewport.png",
+      "sha256": "98a3ddf7845aec005cea8d9995ae2406678541c327d5f7b11008e29b399936c2",
+      "viewport": [
+        1440,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.189Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1440x900-viewport.layout.json",
+        "sha256": "5e5fdb69529083b58b538b40fad323a1d443679981d683b741f399e6f20049ae"
+      }
+    },
+    {
+      "route": "/research",
+      "capture_id": "cc021-research-1600x1000-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1600x1000-viewport.png",
+      "sha256": "536e5a85158807c5c9475681eac0f95badccc5102894d83c954904d9999bcdfe",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.322Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1600x1000-viewport.layout.json",
+        "sha256": "145bb14472cd77480166a1d5b8991e4c1e7e1f6491e41fc62726cb69ca7e5377"
+      }
+    },
+    {
+      "route": "/research",
+      "capture_id": "cc021-research-1600x1000-fullpage",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1600x1000-fullpage.png",
+      "sha256": "536e5a85158807c5c9475681eac0f95badccc5102894d83c954904d9999bcdfe",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "fullpage",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.323Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1600x1000-fullpage.layout.json",
+        "sha256": "77ad5470197ba05ccaa51ada371d0789690710060f84aeba05756af074d7f85b"
+      }
+    },
+    {
+      "route": "/research",
+      "capture_id": "cc021-research-1920x1080-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1920x1080-viewport.png",
+      "sha256": "bd6155e0728a38a00422673fdcbd014c56c34b0e90c363fef4e5d0a1815ee4e3",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.426Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1920x1080-viewport.layout.json",
+        "sha256": "b43d53167ed795086e30bc4da6cc7d3e12fd696e7ee4ac04fc172ae99178375a"
+      }
+    },
+    {
+      "route": "/research",
+      "capture_id": "cc021-research-1024x768-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1024x768-viewport.png",
+      "sha256": "5782ffae842692d941ca96942320d57644f729b890dea416772f2488162352ea",
+      "viewport": [
+        1024,
+        768
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.515Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-1024x768-viewport.layout.json",
+        "sha256": "1de89401b1d62bf4cf367bffcb327d347157cb90984fcc2c8efbe8da6b0c9d1b"
+      }
+    },
+    {
+      "route": "/research",
+      "capture_id": "cc021-research-768x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-768x900-viewport.png",
+      "sha256": "06017e9ba5f6a66aecd156b3c21effd38656a4b451f21de337d3455099d0d280",
+      "viewport": [
+        768,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.624Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-research-768x900-viewport.layout.json",
+        "sha256": "614b0fa96dd72798f10130d783c97bb8fd6dd08cb2aef880b2a380b4e99d23a5"
+      }
+    },
+    {
+      "route": "/models",
+      "capture_id": "cc021-models-1440x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1440x900-viewport.png",
+      "sha256": "f42d31c96e9eecbc5ad0aae222074fb3cd699669ddfd8b4398019f43e4eb6e85",
+      "viewport": [
+        1440,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.762Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1440x900-viewport.layout.json",
+        "sha256": "98fcf00141495e39e6034900bd681287f8fd7e6bb0d4d9b9a7b59d1f253964c8"
+      }
+    },
+    {
+      "route": "/models",
+      "capture_id": "cc021-models-1600x1000-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1600x1000-viewport.png",
+      "sha256": "d51964d50a70214c14cd0ad5a7127642e9f473d7c2d22e9a505aa657f67ab261",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.927Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1600x1000-viewport.layout.json",
+        "sha256": "0117949f5ccb7157bb457ec24f51ad10b905224d9e4b7a5678dd3f0529afc3f8"
+      }
+    },
+    {
+      "route": "/models",
+      "capture_id": "cc021-models-1600x1000-fullpage",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1600x1000-fullpage.png",
+      "sha256": "d51964d50a70214c14cd0ad5a7127642e9f473d7c2d22e9a505aa657f67ab261",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "fullpage",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:31.928Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1600x1000-fullpage.layout.json",
+        "sha256": "900e4e14088365903cabd2988ff141e16574a7603d23e1e939c7b8d7d2fb4f78"
+      }
+    },
+    {
+      "route": "/models",
+      "capture_id": "cc021-models-1920x1080-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1920x1080-viewport.png",
+      "sha256": "88798fbce99df6e011857086acc7e51c2cff9c047974ffdc004c99a6e724a9be",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.066Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1920x1080-viewport.layout.json",
+        "sha256": "f57ff9f6a85f5c24b8f9de161b7855068e3ae13bdeebbf0bc26a9abc8fb6f6d1"
+      }
+    },
+    {
+      "route": "/models",
+      "capture_id": "cc021-models-1024x768-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1024x768-viewport.png",
+      "sha256": "d385b33bba6c8c32dee95372b8bf28b2a83c8c97a6917eb99e556972ef08b9ab",
+      "viewport": [
+        1024,
+        768
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.189Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-1024x768-viewport.layout.json",
+        "sha256": "165b7bd76a1e776b77aadfb1c723301f86db3bd6c14c874531421607a6e3b703"
+      }
+    },
+    {
+      "route": "/models",
+      "capture_id": "cc021-models-768x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-768x900-viewport.png",
+      "sha256": "8cbdcece4a617ad6d0eae29ec1de717fef0194d737abe9774d3f744865086ce6",
+      "viewport": [
+        768,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.307Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-models-768x900-viewport.layout.json",
+        "sha256": "b06854a3a4cc9f1d6c8d8757ce3a8d097f766042a40ce70ab13571c80de31a01"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc021-sources-1440x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1440x900-viewport.png",
+      "sha256": "61c4447efe71cfab6a496cb831204cfc4977cfea6cc2bad61039b2a82520d8a6",
+      "viewport": [
+        1440,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.415Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1440x900-viewport.layout.json",
+        "sha256": "3e91c756d0ddf633fd46b2bb3ad2ebaa3ba7d1b0e8645923d5e5f083636c2846"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc021-sources-1600x1000-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1600x1000-viewport.png",
+      "sha256": "10df14149a2f2ecf39fc0b7ec0a6779d23eeed0e963672e72aa72e11a448af0c",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.551Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1600x1000-viewport.layout.json",
+        "sha256": "f5aa2a8132a29c3ca731904670ee3529baa78ffdd62ced9e6179b7681b3c1ebf"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc021-sources-1600x1000-fullpage",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1600x1000-fullpage.png",
+      "sha256": "10df14149a2f2ecf39fc0b7ec0a6779d23eeed0e963672e72aa72e11a448af0c",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "fullpage",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.552Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1600x1000-fullpage.layout.json",
+        "sha256": "b9c637fb5820f6a70e9da8135608a7a67338b03d0726b090993f709dfc2727ea"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc021-sources-1920x1080-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1920x1080-viewport.png",
+      "sha256": "7b7d9ed1f4fd71e6cf8f01bbfc925304056468c6fc38971972f8409d26f88355",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.665Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1920x1080-viewport.layout.json",
+        "sha256": "e850aef0cfdd58959d3119de5fd865783fec4f3290f19ed655a73248424dc651"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc021-sources-1024x768-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1024x768-viewport.png",
+      "sha256": "f1d40d74392f62b6c4f689f947bc652683430e47c2829ab33fe0652d80e17f6e",
+      "viewport": [
+        1024,
+        768
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.755Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-1024x768-viewport.layout.json",
+        "sha256": "45569f05052a0342617ae7bec08da75c661ca463a10965a53f0e3710acfaa6ab"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc021-sources-768x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-768x900-viewport.png",
+      "sha256": "ccf8cde1a8e94d8e5a47b5a9f73f2bba3067e332719802bcc6a9bf554f3c1fd3",
+      "viewport": [
+        768,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.868Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-sources-768x900-viewport.layout.json",
+        "sha256": "ae50d2b6f0fe5794f8fadca5c1c9cd1911bc642d453c2ed5ce8052658ded65da"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc021-system-1440x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1440x900-viewport.png",
+      "sha256": "3a45d35e043ede15187b4115900be684196289ed2e28260775716fd6a9044eb0",
+      "viewport": [
+        1440,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:32.968Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1440x900-viewport.layout.json",
+        "sha256": "b655dc7a9b1887d9f023e0cfb1093f384bdef2dbae80f82d244f35abeb418a13"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc021-system-1600x1000-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1600x1000-viewport.png",
+      "sha256": "047896eeb03b5220410e967c2c65875767f0237f4019b3794e29ac9826d1e450",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:33.100Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1600x1000-viewport.layout.json",
+        "sha256": "bd8f35c47db23d9dcb77451bcf5a286fd199867702f156e36b47ad5eaac03b11"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc021-system-1600x1000-fullpage",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1600x1000-fullpage.png",
+      "sha256": "047896eeb03b5220410e967c2c65875767f0237f4019b3794e29ac9826d1e450",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "fullpage",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:33.101Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1600x1000-fullpage.layout.json",
+        "sha256": "1b20db0f2e0e7f82275a6fd9c66706a660ac774cab32d6620d069af15beb8986"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc021-system-1920x1080-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1920x1080-viewport.png",
+      "sha256": "3fe2f8ac446aa1c842810c83d2718195a56203de035a5811474a20f4e4e0a94d",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:33.212Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1920x1080-viewport.layout.json",
+        "sha256": "7c27398719929900f55e9243395c6f4f7109d9892dd978af7d349e88f4eea7cc"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc021-system-1024x768-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1024x768-viewport.png",
+      "sha256": "c96f5479f7466f0cfa7774837995f1ce004cdb73d2edb756eecb9c32576fc62c",
+      "viewport": [
+        1024,
+        768
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:33.303Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-1024x768-viewport.layout.json",
+        "sha256": "d171217935701c8dc5b4a1dc9447287506808f8614662406ae94745908d886c2"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc021-system-768x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-768x900-viewport.png",
+      "sha256": "26b3c2dea18388af2d0e19a5458d1711e0d45fbdc823c0ae3860c6b3b742347f",
+      "viewport": [
+        768,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "438804bb0b047d579bfde59fdf17ea6b23c2fcd60d5b5d4e7eb74b0b141e3537",
+      "captured_at": "2026-10-04T00:11:33.408Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.1/after/cc021-system-768x900-viewport.layout.json",
+        "sha256": "6921f6a627df6d3c9de86f304254751b8042df1b045bcc6ac26f3e6cca284cfd"
+      }
+    }
+  ]
+}

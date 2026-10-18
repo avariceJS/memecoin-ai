@@ -1,0 +1,88 @@
+{
+  "builder_symbol_search": {
+    "generated_idl_type_declarations": "package/src/types/pump_amm.ts contains buyExactQuoteIn, buy_exact_quote_in as IDL type names; no SDK builder implementation matched",
+    "matches": [],
+    "result": "no_explicit_builder_symbol_found_in_sdk_source",
+    "searched_scope": "package/src/sdk/**/*.ts",
+    "terms": [
+      "buyExactQuoteIn",
+      "buy_exact_quote_in",
+      "ammBuyExactQuoteIn"
+    ]
+  },
+  "created_at_utc": "2026-10-09T23:47:33.661121+00:00",
+  "experiment": "pumpswap_buy_exact_sdk_builder_source_survey",
+  "idl_comparison": {
+    "arguments": [
+      {
+        "name": "spendable_quote_in",
+        "type": "u64"
+      },
+      {
+        "name": "min_base_amount_out",
+        "type": "u64"
+      },
+      {
+        "name": "track_volume",
+        "type": {
+          "defined": {
+            "name": "OptionBool"
+          }
+        }
+      }
+    ],
+    "cashback_doc": "Optional user_volume_accumulator_wsol_ata at remaining_accounts[0].",
+    "fixed_account_count": 23,
+    "fixed_account_names": [
+      "pool",
+      "user",
+      "global_config",
+      "base_mint",
+      "quote_mint",
+      "user_base_token_account",
+      "user_quote_token_account",
+      "pool_base_token_account",
+      "pool_quote_token_account",
+      "protocol_fee_recipient",
+      "protocol_fee_recipient_token_account",
+      "base_token_program",
+      "quote_token_program",
+      "system_program",
+      "associated_token_program",
+      "event_authority",
+      "program",
+      "coin_creator_vault_ata",
+      "coin_creator_vault_authority",
+      "global_volume_accumulator",
+      "user_volume_accumulator",
+      "fee_config",
+      "fee_program"
+    ],
+    "instruction": "buy_exact_quote_in",
+    "package_instruction_equals_pinned_docs_instruction": true
+  },
+  "inspected_file_sha256": {
+    "package/package.json": "01cb2e99bf8f4700e2bb53bee0d58e17b089f7eba7d4836f44dd11cd7f11c4ab",
+    "package/src/idl/pump_amm.json": "a6c9c993f853816ad0d2636d37355430dd2c2c452d20f4f88c86313fbf340dd8",
+    "package/src/sdk/offlinePumpAmm.ts": "88e0cf9b72031484ccbbaeb7f55ece74be5d683eecb4d52b29dcf44c02fc12cb",
+    "package/src/sdk/onlinePumpAmm.ts": "baa1f123e59fddf50ec1c666dbad3ae1a6089b5468a9e1b1cda8858ce0b73d16"
+  },
+  "interpretation": "The pinned official IDL and SDK package agree on the 23 fixed account roles and three arguments. This SDK release has no explicit high-level exact-quote builder symbol in the searched source scope. Remaining-account layouts and the builder for captured transactions remain unresolved; no economic decoder change is justified.",
+  "npm": {
+    "local_tarball": "work/official-sources/pump-swap-sdk-1.14.0.tgz",
+    "local_tarball_sha256": "7358d3f2876e1077baa9b81a7284500e8bf07d937683b94f8ead8355acaf9609",
+    "name": "@pump-fun/pump-swap-sdk",
+    "published_at": "2026-02-17T18:03:23.673Z",
+    "registry_dist_integrity": "sha512-VHk4meE3PoBrkyWIx3O6wAFzO/0Ktj/0pdPWFaL14cOqH/YJ5H50i1asu/A/W1V2j345KTv0ihVgsdi9kPoiQg==",
+    "registry_repository": "git+https://github.com/pump-fun/pump-swap-sdk.git",
+    "version": "1.14.0"
+  },
+  "pinned_official_idl": {
+    "commit": "8cda1fa30ea658b20909d8aedf002047119388d2",
+    "path": "idl/pump_amm.json",
+    "repository": "pump-fun/pump-public-docs",
+    "sha256": "b7d8c57a4d9c4dd0109a9ab893052352333252d4eedced10ac091d4d66cab89b"
+  },
+  "schema_version": 1,
+  "scope": "Read-only source survey. Does not establish which builder produced any captured transaction or assign remaining accounts."
+}

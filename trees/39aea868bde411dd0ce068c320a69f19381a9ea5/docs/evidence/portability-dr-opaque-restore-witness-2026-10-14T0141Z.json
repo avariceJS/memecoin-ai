@@ -1,0 +1,49 @@
+{
+  "schema": "brain-portability-dr-opaque-restore-witness-v1",
+  "created_at_utc": "2026-10-14T01:41:00Z",
+  "status": "isolated_byte_restore_verified",
+  "source_storage": {
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf"
+  },
+  "restored_sets": [
+    {
+      "set": "codex_local_opaque",
+      "archive_sha256": "1a09e1c11ec71d91a7d7b68104b708efebb26db910318c4178cf2da0c6111cc1",
+      "files_verified": 32,
+      "directories_restored": 6,
+      "source_bytes": 2941740
+    },
+    {
+      "set": "private_config_opaque_quarantine",
+      "archive_sha256": "bafc2a1a8289c9493b856fda68e7f59d41691719786419b54694be5fd6bdeb00",
+      "files_verified": 75,
+      "directories_restored": 14,
+      "source_bytes": 187755
+    },
+    {
+      "set": "codex_ignored_opaque",
+      "archive_sha256": "376d94e48793c30a436a420c853493ceb09f95c943ed907b26ee3b970e4b6e84",
+      "files_verified": 10650,
+      "symlinks_restored": 11,
+      "symlink_link_text_hashes_verified": true,
+      "directories_restored": 0,
+      "source_bytes": 189543758
+    }
+  ],
+  "rehearsal": {
+    "destination": "isolated temporary quarantine roots",
+    "all_file_hashes_verified_after_restore": true,
+    "symlink_targets_followed": false,
+    "payloads_executed_or_semantically_parsed": false,
+    "temporary_destinations_removed_after_verification": true
+  },
+  "limitations": [
+    "this verifies only these three host-local opaque groups, not owner-wide Brain restore",
+    "the live source groups were not proven to share an atomic or cross-root consistent boundary",
+    "symlink target dependencies remain unclassified and unproven recoverable",
+    "ACLs and extended attributes were not restored",
+    "the Git bundle has a separate fresh bare import verification in the custody receipt",
+    "no service, provider request, collector, protected reader, or application runtime was started"
+  ]
+}

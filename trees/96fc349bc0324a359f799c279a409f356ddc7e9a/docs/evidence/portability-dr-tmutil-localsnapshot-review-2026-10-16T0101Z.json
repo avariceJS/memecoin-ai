@@ -1,0 +1,62 @@
+{
+  "schema": "portability-dr-tmutil-localsnapshot-review-v1",
+  "observed_at_utc": "2026-10-16T01:01:31Z",
+  "source_commit": "4d820a41fdcccb21f8f9215236898397f9413035",
+  "host": {
+    "os": "macOS 26.5.2",
+    "build": "25F84",
+    "data_device": "disk3s5",
+    "data_mounted_live": true,
+    "data_locked_live": false,
+    "data_free_bytes_approx": 47244640256
+  },
+  "read_only_observations": {
+    "tmutil_help_localsnapshot": "Usage: tmutil localsnapshot",
+    "tmutil_destinationinfo": "No destinations configured.",
+    "tmutil_status_running": false,
+    "local_snapshot_dates_root": [],
+    "local_snapshot_dates_data": [],
+    "diskutil_apfs_creation_verb_present": false,
+    "kingston_volume_uuid": "8F8F1081-9BE4-4914-9111-75F1B90255BF",
+    "kingston_mounted": true,
+    "recovery_set_index_contains_no_set": true
+  },
+  "review": {
+    "reviewer": "Sol High",
+    "decision": "Keep live Data T unresolved; do not run tmutil localsnapshot.",
+    "rationale": [
+      "The installed tmutil manual describes local snapshots for APFS volumes included in a Time Machine backup; this command does not select Data explicitly.",
+      "No Time Machine destination is configured, and command availability does not prove Data inclusion or supported creation on this host.",
+      "Apple documents local snapshot dependence on Time Machine settings and retention under time/space pressure.",
+      "The current 44 GiB free space has no qualified capture-churn or OS-headroom budget.",
+      "A snapshot could be pruned before complete descriptor-bound capture and Kingston readback; K is a separate gate."
+    ],
+    "future_reconsideration_requires": [
+      "A separately qualified supported Time Machine destination/configuration that does not introduce unrelated writes to the sole Kingston custody copy.",
+      "Pinned proof that Data is included and exact Data snapshot identity before and after creation.",
+      "A measured conservative free-space floor, bounded retention, and reviewed writer stop/resume procedure.",
+      "Exact read-only snapshot mount attestation and complete capture/readback before retention ends."
+    ],
+    "apple_sources": [
+      "https://support.apple.com/en-ie/guide/mac-help/mh35933/27/mac/27",
+      "https://support.apple.com/en-ie/102154"
+    ]
+  },
+  "actions": {
+    "snapshot_created_or_mounted": false,
+    "time_machine_configuration_changed": false,
+    "kingston_written": false,
+    "services_changed": false,
+    "protected_payloads_read": false,
+    "secret_values_read": false,
+    "provider_requests": 0,
+    "data_T_qualified": false,
+    "kingston_K_qualified": false,
+    "safe_to_erase": false
+  },
+  "limitations": [
+    "This receipt records current-host command/configuration observations and Sol's bounded decision only.",
+    "It does not establish whether a separately configured Time Machine setup could qualify Data T.",
+    "No source capture, positive full restore, owner/protected closure, or erase readiness is established."
+  ]
+}

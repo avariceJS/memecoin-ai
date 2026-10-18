@@ -1,0 +1,19 @@
+{
+  "stage": "D42",
+  "origins": {"alchemy": "https://solana-mainnet.g.alchemy.com", "public": "https://api.mainnet.solana.com"},
+  "order": ["alchemy", "public", "public", "alchemy"],
+  "round_gap_seconds": 60,
+  "max_connections": 4,
+  "max_rpc_per_connection": 2,
+  "rpc_timeout_seconds": 15,
+  "child_wall_seconds": 35,
+  "max_failed_trials": 3,
+  "retry_within_trial": false,
+  "reference": "work/alchemy-pilot-v2b-01/segment-00/captures/http5-0001",
+  "config_layout_version": 2,
+  "commitment": "finalized",
+  "selection": "eligible if last trial has two strict snapshots; rank completed trials descending; Alchemy wins ties; otherwise no new corpus network",
+  "corpus": {"windows": 2, "minimum_start_separation_seconds": 600, "segments_per_window": 2, "rounds": 30, "interval_seconds": 5, "max_requests": 360, "stop_window_at_first_failure": true, "stop_all_after_failed_windows": 2, "source_switching": false},
+  "uncertainty": {"additional_roundtrip_cost_bps": [0, 5, 10, 25, 50, 100], "calibrated": false, "net_pnl": null, "selection_on_outcomes": false},
+  "seed": null
+}

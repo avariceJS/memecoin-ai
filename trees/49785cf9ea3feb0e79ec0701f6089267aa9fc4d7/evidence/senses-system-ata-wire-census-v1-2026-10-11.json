@@ -1,0 +1,107 @@
+{
+  "ata_single_byte_tag_0_1_account_counts": {
+    "6": 103357,
+    "7": 675
+  },
+  "date": "2026-10-11",
+  "implementation": {
+    "focused_tests_passed": 8,
+    "path": "work/senses-system-ata-wire-census-v1/census.py",
+    "sha256": "b811103da8bdcc291671fad4c7652c18d69c58b70ee11c44c20f6b535523a6cc",
+    "test_path": "work/senses-system-ata-wire-census-v1/test_census.py",
+    "test_sha256": "3c60a226e2df08d5f7c9caafd1380e8fee6a372e30360d368f1bb8092793729d"
+  },
+  "input": {
+    "accepted_ledger_path": "docs/evidence/senses-program-exposure-ledger-v1-pair64-c3-2026-10-10.json",
+    "accepted_ledger_reproducible_content_sha256": "a8a5e9a27827fbc8b4b7e078932896d6f374ec01aa3b84dc3b142a01a0634298",
+    "accepted_ledger_sha256": "65002ae53ed3c7c7b25b0073fd0c816824442e3319a2eea1ad0d01cd6b9dd425",
+    "selected_dataset_ids": [
+      "pair64",
+      "c3:20261010T050000Z",
+      "c3:20261010T060000Z",
+      "c3:20261010T070000Z",
+      "c3:20261010T080000Z",
+      "c3:20261010T090000Z",
+      "c3:20261010T100000Z"
+    ],
+    "source_hashes_rechecked": {
+      "src/memecoin_pumpswap/decoder.py": "21610a62f1e8bb6c54cbe831134e6f170938668d85492434704aa66472471a8b",
+      "src/memecoin_pumpswap/normalize.py": "7253588560626c6f45ed65ebfd802200f20e79e2daec88fadb93d34731e84643",
+      "src/memecoin_pumpswap/schema.py": "dafd0708aad54224565863c3b23deee8440ef3fbcd2c1e7b5ce7629e2a6d5ad1",
+      "tools/brain_senses_program_exposure_ledger_v1.py": "74d26ddf406d829e3e2755e1a29ad7e724039ba2fa8fe440518f3af959a3d61e"
+    }
+  },
+  "prior_candidate_recovery": [
+    {
+      "role_touching_references": 18,
+      "role_touching_seven_account_shapes": 4,
+      "seven_account_ata_shapes": 4,
+      "slot": 454894775,
+      "system_ata_references": 19
+    },
+    {
+      "role_touching_references": 16,
+      "role_touching_seven_account_shapes": 4,
+      "seven_account_ata_shapes": 4,
+      "slot": 454899618,
+      "system_ata_references": 17
+    }
+  ],
+  "private_artifact": {
+    "mode": "0600",
+    "path": "work/senses-system-ata-wire-census-v1/summary-v2.json",
+    "reproducible_content_sha256": "2e690211901c06856117e55830dd7a7a4463eb5980168570ae4ab11038d5a24a",
+    "sha256": "edf8d4515fe4bb253b1393f1502ab9551a35ee5aeba91c19a84d5eedd54d12e9"
+  },
+  "reconciliation": {
+    "cross_dataset_signature_overlap_nonzero_pair_count": 0,
+    "cross_dataset_slot_overlap_count": 0,
+    "inner_instruction_references": 961070,
+    "instruction_references": 2574909,
+    "manual_malformed_or_resolution_failures": {
+      "account_index_resolution_failure": 0,
+      "ambiguous_inner_path": 0,
+      "malformed_account_list": 0,
+      "malformed_inner_group": 0,
+      "malformed_instruction_data": 0,
+      "malformed_instruction_shape": 0,
+      "missing_full_capture_receipts": 0,
+      "missing_inner_instruction_trace": 0,
+      "missing_signature_capture_receipts": 0,
+      "normalization_failures": 0,
+      "program_id_resolution_failure": 0,
+      "unknown_transaction_status": 0
+    },
+    "outer_instruction_references": 1613839,
+    "selected_slots": 608,
+    "system_ata_instruction_references": 407729,
+    "transaction_status_counts": {
+      "failed": 101534,
+      "success": 639771
+    },
+    "transactions": 741305
+  },
+  "schema": "senses_selected_block_system_ata_wire_census_receipt_v1",
+  "scope_limits": [
+    "Only the accepted sealed Pair64 512 slots plus six c3 frames of 16 slots each.",
+    "Counts are instruction wire references including failed transactions, not effects or semantic qualification.",
+    "No chain-wide discovery, source completeness, economic meaning, pool birth/state, settlement, population, lifecycle, or admission claim.",
+    "No provider request or new raw capture was made."
+  ],
+  "seven_account_tag_0_1_seventh_key_frequencies": {
+    "79FPhDG1jQwhRArTqnFgdEd3Pcdy7DXbcyFiSmDam3xk": 4,
+    "7wVrh65P66sriC9RRwktAPPt2kHw38kshgUPo8cjRpKj": 4,
+    "93onvMJ6qNXwAa4dcRf83LcGTrgoTZzSy7zUENUEiEAC": 4,
+    "A9pQ1QsvGXJbQfvi1h9ZbSPNJ5hLTN2xMtWqjxjEU65Z": 4,
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL": 3,
+    "BigC4a6DFs1DZyqvEdKzjH4LANkcfqypzviLXBzCcJyT": 4,
+    "GNLCr9zg7WpiUXkzWyadLeh3dvyuknibfW1ufgsNPxuz": 4,
+    "PoweredByT1tan11111111111111111111111111111": 1,
+    "SysvarRent111111111111111111111111111111111": 636,
+    "jitodontfront111111111111111111111Crossmint": 6,
+    "jitodontfronttitana111111111111111111111111": 2,
+    "jitodontfronttitans111111111111111111111111": 2,
+    "trfb53BmkHNeoqaa3REgqnrbwUZqAFYdjTkivkJ6aWg": 1
+  },
+  "status": "verified_selected_sample_wire_shape_only"
+}

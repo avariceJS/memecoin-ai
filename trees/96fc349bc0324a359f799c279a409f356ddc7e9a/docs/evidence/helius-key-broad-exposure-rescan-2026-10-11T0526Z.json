@@ -1,0 +1,73 @@
+{
+  "checked_at_utc": "2026-10-11T05:26:10Z",
+  "evidence_id": "helius-key-broad-exposure-rescan-2026-10-11T0526Z",
+  "matching": "Exact current credential and URL variants were compared in memory. No credential values, hashes, prefixes, matching paths, or matching contents were persisted.",
+  "schema_version": 1,
+  "scope": {
+    "git_objects": {
+      "all_local_objects_scanned": 6146,
+      "exact_matches": 0
+    },
+    "launchd_plists": {
+      "files_scanned": 65,
+      "exact_matches": 0,
+      "roots": [
+        "~/Library/LaunchAgents",
+        "/Library/LaunchAgents",
+        "/Library/LaunchDaemons"
+      ]
+    },
+    "limitations": [
+      "provider-side and remote tool/session storage, inaccessible files, backups, and Time Machine were not inspectable",
+      "the scan compared the current credential and URL only; historical rotated values were outside this scan",
+      "unreadable-file counts were not separately instrumented"
+    ],
+    "process_arguments": {
+      "all_current_process_command_lines_scanned": true,
+      "exact_matches": 0
+    },
+    "private_config": {
+      "mode": "0o600",
+      "owner_matches_current_user": true,
+      "path": "research/.env.local"
+    },
+    "recent_saved_files": {
+      "bytes_scanned": 390793446,
+      "changed_since_previous_scan_at_2026_10_11T051233Z": true,
+      "files_scanned": 14449,
+      "exact_match_files": 0,
+      "roots": [
+        "~/.codex",
+        "~/.cursor",
+        "~/Library/Logs",
+        "~/Library/Application Support/Codex",
+        "research checkout",
+        "/tmp"
+      ]
+    },
+    "shell_history_and_startup_files": {
+      "files_scanned": 2,
+      "exact_matches": 0,
+      "candidate_locations": [
+        "~/.zsh_history",
+        "~/.bash_history",
+        "~/.zshrc",
+        "~/.bashrc"
+      ]
+    },
+    "npm_cache_and_installer_state": {
+      "bytes_scanned": 4658928959,
+      "files_scanned": 26650,
+      "exact_match_files": 0,
+      "root": "~/.npm"
+    },
+    "unified_log": {
+      "bytes_scanned": 874049429,
+      "exact_match_chunks": 0,
+      "start_utc": "2026-10-11T05:12:33Z"
+    }
+  },
+  "credential_values_written": false,
+  "credential_transport": "collector receives only a private config path and resolves the endpoint in process",
+  "matching_paths_or_content_written": false
+}

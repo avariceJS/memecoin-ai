@@ -1,0 +1,1291 @@
+#!/usr/bin/env python3
+"""Durable same-slot Helius/public finalized block inventory pilot.
+
+The pilot compares provider-returned slot sets, signatures-only blocks, and full blocks. A block
+is eligible for process completeness only when a full response was captured and structurally
+parsed; provider errors, null blocks, and unsupported transaction shapes remain unknown.
+"""
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import os
+import platform
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+from memecoin_ai.domain import canonical, digest
+from memecoin_ai.sources import (
+    Capture,
+    HTTPSourceError,
+    ReadOnlyRPC,
+    TransportSourceError,
+    verify_capture_storage_codec,
+)
+from memecoin_pumpswap.normalize import NormalizationError, normalize_compiled_transaction
+from memecoin_pumpswap.schema import SCHEMA
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.brain_senses_program_watch import (  # noqa: E402
+    _create,
+    _provider_endpoint,
+    _read,
+    _replace,
+)
+
+STOP = False
+PROVIDERS = ("helius-free", "solana-public")
+SUPPORTED_PROVIDERS = ("helius-free", "alchemy-free", "alchemy-payg", "solana-public")
+DETAILS = ("signatures", "full")
+MAX_REQUESTS_PER_PROVIDER = 10_000
+MAX_SLOT_RANGES = 160
+MAX_TOTAL_SLOTS = 3_200
+MAX_RESPONSE_BYTES = 32_000_000
+PUMP_PROGRAM = SCHEMA["address"]
+
+
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _parse_ranges(values: list[str]) -> list[list[int]]:
+    ranges: list[list[int]] = []
+    for value in values:
+        start_text, separator, end_text = value.partition(":")
+        if not separator:
+            raise ValueError("slot_range_must_be_start_colon_exclusive_end")
+        start, end = int(start_text), int(end_text)
+        if start < 1 or end <= start or end - start > 256:
+            raise ValueError("slot_range_outside_pilot_bound")
+        ranges.append([start, end])
+    if not ranges or len(ranges) > MAX_SLOT_RANGES:
+        raise ValueError("pilot_range_count_outside_bound")
+    if len({tuple(pair) for pair in ranges}) != len(ranges):
+        raise ValueError("duplicate_slot_range")
+    ordered = sorted(ranges)
+    if any(left[1] > right[0] for left, right in zip(ordered, ordered[1:], strict=False)):
+        raise ValueError("overlapping_slot_ranges")
+    if sum(end - start for start, end in ranges) > MAX_TOTAL_SLOTS:
+        raise ValueError("pilot_total_slots_outside_bound")
+    return ranges
+
+
+def _build_operations(
+    slot_ranges: list[list[int]],
+    signature_sample_slots: set[int] | None = None,
+    providers: tuple[str, ...] = PROVIDERS,
+    full_sample_slots: set[int] | None = None,
+    signature_sample_slots_by_provider: dict[str, set[int]] | None = None,
+    full_sample_slots_by_provider: dict[str, set[int]] | None = None,
+) -> list[dict[str, Any]]:
+    operations: list[dict[str, Any]] = []
+    for provider in providers:
+        provider_full_slots = (
+            full_sample_slots_by_provider.get(provider)
+            if full_sample_slots_by_provider is not None
+            else full_sample_slots
+        )
+        provider_signature_slots = (
+            signature_sample_slots_by_provider.get(provider)
+            if signature_sample_slots_by_provider is not None
+            else signature_sample_slots
+        )
+        for start, end in slot_ranges:
+            operations.append(
+                dict(
+                    provider=provider,
+                    method="getBlocks",
+                    params=[start, end - 1, {"commitment": "finalized"}],
+                    slot_range=[start, end],
+                    detail="enumeration",
+                )
+            )
+        for start, end in slot_ranges:
+            for slot in range(start, end):
+                if provider_full_slots is not None and slot not in provider_full_slots:
+                    continue
+                for detail in DETAILS:
+                    if (
+                        detail == "signatures"
+                        and provider_signature_slots is not None
+                        and slot not in provider_signature_slots
+                    ):
+                        continue
+                    options: dict[str, Any] = {
+                        "commitment": "finalized",
+                        "encoding": "json",
+                        "transactionDetails": detail,
+                        "rewards": False,
+                    }
+                    if detail == "full":
+                        options["maxSupportedTransactionVersion"] = 1
+                    operations.append(
+                        dict(
+                            provider=provider,
+                            method="getBlock",
+                            params=[slot, options],
+                            slot=slot,
+                            detail=detail,
+                        )
+                    )
+    return operations
+
+
+def _plan(
+    slot_ranges: list[list[int]],
+    request_cap: int,
+    helius_pace: float,
+    sampling_metadata: dict[str, Any] | None = None,
+    signature_sample_slots: list[int] | None = None,
+    full_sample_slots: list[int] | None = None,
+    max_captured_bytes: int = 30_000_000_000,
+    max_captured_stored_bytes: int | None = None,
+    helius_total_credit_cap: int = 75_000,
+    helius_daily_credit_cap: int = 25_000,
+    providers: tuple[str, ...] = PROVIDERS,
+    capture_storage_codec: str = "raw",
+    provider_signature_sample_slots: dict[str, list[int]] | None = None,
+    provider_full_sample_slots: dict[str, list[int]] | None = None,
+) -> dict[str, Any]:
+    if (
+        not providers
+        or len(set(providers)) != len(providers)
+        or len(providers) > 2
+        or any(provider not in SUPPORTED_PROVIDERS for provider in providers)
+    ):
+        raise ValueError("invalid_provider_set")
+    if not 1 <= request_cap <= MAX_REQUESTS_PER_PROVIDER:
+        raise ValueError("request_cap_outside_hard_bound")
+    if not 0.25 <= helius_pace <= 10:
+        raise ValueError("helius_pace_outside_bound")
+    if not MAX_RESPONSE_BYTES <= max_captured_bytes <= 100_000_000_000:
+        raise ValueError("captured_byte_cap_outside_bound")
+    if max_captured_stored_bytes is not None and not (
+        MAX_RESPONSE_BYTES <= max_captured_stored_bytes <= 100_000_000_000
+    ):
+        raise ValueError("stored_byte_cap_outside_bound")
+    if not 1 <= helius_daily_credit_cap <= 1_000_000:
+        raise ValueError("helius_daily_credit_cap_outside_bound")
+    if not helius_daily_credit_cap <= helius_total_credit_cap <= 1_000_000:
+        raise ValueError("helius_total_credit_cap_outside_bound")
+    verify_capture_storage_codec(capture_storage_codec)
+    sample_set = set(signature_sample_slots) if signature_sample_slots is not None else None
+    full_sample_set = set(full_sample_slots) if full_sample_slots is not None else None
+    provider_signature_sets = (
+        {provider: set(slots) for provider, slots in provider_signature_sample_slots.items()}
+        if provider_signature_sample_slots is not None
+        else None
+    )
+    provider_full_sets = (
+        {provider: set(slots) for provider, slots in provider_full_sample_slots.items()}
+        if provider_full_sample_slots is not None
+        else None
+    )
+    selected_slots = {slot for start, end in slot_ranges for slot in range(start, end)}
+    if sample_set is not None:
+        if len(sample_set) != len(signature_sample_slots or []):
+            raise ValueError("duplicate_signature_sample_slot")
+        if not sample_set <= selected_slots:
+            raise ValueError("signature_sample_outside_selected_slots")
+    if full_sample_set is not None:
+        if len(full_sample_set) != len(full_sample_slots or []):
+            raise ValueError("duplicate_full_sample_slot")
+        if not full_sample_set <= selected_slots:
+            raise ValueError("full_sample_outside_selected_slots")
+        if sample_set is not None and not sample_set <= full_sample_set:
+            raise ValueError("signature_sample_missing_full_block")
+    selected_slots = {slot for start, end in slot_ranges for slot in range(start, end)}
+    for name, sample_map in (
+        ("provider_signature", provider_signature_sets),
+        ("provider_full", provider_full_sets),
+    ):
+        if sample_map is None:
+            continue
+        original_map = (
+            provider_signature_sample_slots
+            if name == "provider_signature"
+            else provider_full_sample_slots
+        )
+        if original_map is not None and any(
+            len(set(values)) != len(values) for values in original_map.values()
+        ):
+            raise ValueError(f"{name}_sample_duplicate_slot")
+        if set(sample_map) != set(providers):
+            raise ValueError(f"{name}_sample_provider_mismatch")
+        if any(not values <= selected_slots for values in sample_map.values()):
+            raise ValueError(f"{name}_sample_outside_selected_slots")
+    if provider_signature_sets is not None:
+        if any(
+            not provider_signature_sets[provider]
+            <= (
+                provider_full_sets[provider]
+                if provider_full_sets is not None
+                else full_sample_set
+                if full_sample_set is not None
+                else selected_slots
+            )
+            for provider in providers
+        ):
+            raise ValueError("provider_signature_sample_missing_full_block")
+    operations = _build_operations(
+        slot_ranges,
+        sample_set,
+        providers,
+        full_sample_slots=full_sample_set,
+        signature_sample_slots_by_provider=provider_signature_sets,
+        full_sample_slots_by_provider=provider_full_sets,
+    )
+    per_provider = {
+        provider: sum(op["provider"] == provider for op in operations) for provider in providers
+    }
+    if any(value > request_cap for value in per_provider.values()):
+        raise ValueError("planned_requests_exceed_provider_cap")
+    repo_root = Path(__file__).resolve().parents[1]
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo_root, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    return dict(
+        schema_version=1,
+        code_commit=commit,
+        code_sha256=_sha(Path(__file__)),
+        python_version=platform.python_version(),
+        providers=list(providers),
+        slot_ranges=slot_ranges,
+        full_sample_slots=(sorted(full_sample_set) if full_sample_set is not None else None),
+        signature_sample_slots=(sorted(sample_set) if sample_set is not None else None),
+        provider_full_sample_slots=(
+            {key: sorted(value) for key, value in sorted(provider_full_sets.items())}
+            if provider_full_sets is not None
+            else None
+        ),
+        provider_signature_sample_slots=(
+            {key: sorted(value) for key, value in sorted(provider_signature_sets.items())}
+            if provider_signature_sets is not None
+            else None
+        ),
+        request_caps={provider: request_cap for provider in providers},
+        wave_limits={
+            "max_captured_response_bytes": max_captured_bytes,
+            "max_captured_stored_response_bytes": max_captured_stored_bytes,
+            "helius_expected_credit_reservations_total": helius_total_credit_cap,
+            "helius_expected_credit_reservations_per_utc_day": helius_daily_credit_cap,
+            "helius_expected_credits_per_standard_rpc_request": 1,
+            "helius_actual_billing_meter_available": False,
+        },
+        expected_requests=per_provider,
+        helius_pace_seconds=helius_pace,
+        public_shared_rate_ledger_env="MEMECOIN_SOLANA_PUBLIC_RATE_LEDGER",
+        max_response_bytes=MAX_RESPONSE_BYTES,
+        capture_storage_codec=capture_storage_codec,
+        commitment="finalized",
+        enumerate_method="getBlocks inclusive slot ranges",
+        block_methods={
+            "signatures": "getBlock transactionDetails=signatures",
+            "full": "getBlock transactionDetails=full",
+        },
+        retry_policy="one durable reservation per method/provider/slot; no automatic retry",
+        credit_assumption={
+            "helius": (
+                "published standard getBlock/getBlocks cost is one credit per request; "
+                "no live meter exposed"
+            ),
+            "public": "unmetered public RPC request count; shared 1 request/second start gate",
+        },
+        operations=operations,
+        sampling_metadata=sampling_metadata,
+        scope="provider-returned finalized slots only; no global ledger completeness claim",
+    )
+
+
+def _durable_capture(capture: Capture, path: Path, *, storage_codec: str) -> None:
+    capture.save(path, storage_codec=storage_codec)
+    response_name = "response.json.zst" if storage_codec == "zstd" else "response.json"
+    for name in (response_name, "receipt.json"):
+        with (path / name).open("rb") as stream:
+            os.fsync(stream.fileno())
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    fd = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _result_for(
+    root: Path,
+    sequence: int,
+    operation: dict[str, Any],
+    client: Any,
+    *,
+    storage_codec: str,
+) -> dict[str, Any]:
+    request = dict(jsonrpc="2.0", id=1, method=operation["method"], params=operation["params"])
+    body = canonical(request).encode()
+    reservation_path = root / "requests" / f"{sequence:012d}.json"
+    _create(
+        reservation_path,
+        dict(
+            sequence=sequence,
+            provider=operation["provider"],
+            method=operation["method"],
+            slot=operation.get("slot"),
+            slot_range=operation.get("slot_range"),
+            detail=operation["detail"],
+            request_sha256=hashlib.sha256(body).hexdigest(),
+            params_sha256=hashlib.sha256(canonical(operation["params"]).encode()).hexdigest(),
+            reserved_ns=time.time_ns(),
+            request_reservation=1,
+            credit_reservation=1 if operation["provider"] == "helius-free" else 0,
+            policy="no automatic retry; ambiguous request stays unresolved",
+        ),
+    )
+    try:
+        capture = client.fetch(operation["method"], operation["params"])
+        rel = f"captures/{operation['provider']}/{sequence:012d}"
+        _durable_capture(capture, root / rel, storage_codec=storage_codec)
+        response_name = "response.json.zst" if storage_codec == "zstd" else "response.json"
+        row: dict[str, Any] = dict(
+            sequence=sequence,
+            provider=operation["provider"],
+            method=operation["method"],
+            slot=operation.get("slot"),
+            slot_range=operation.get("slot_range"),
+            detail=operation["detail"],
+            status="captured",
+            capture_path=rel,
+            response_sha256=digest(capture.response),
+            response_bytes=len(capture.response),
+            stored_response_bytes=(root / rel / response_name).stat().st_size,
+            request_started_ns=capture.request_started_ns,
+            receipt_ns=capture.received_ns,
+        )
+        try:
+            value = capture.result()
+            row["result_status"] = "provider_null" if value is None else "parsed"
+            if operation["method"] == "getBlocks":
+                row["returned_slot_count"] = len(value) if isinstance(value, list) else None
+                row["returned_slots_sha256"] = (
+                    digest(canonical(value).encode()) if isinstance(value, list) else None
+                )
+            elif isinstance(value, dict):
+                txs = value.get("transactions")
+                row["blockhash"] = value.get("blockhash")
+                row["parent_slot"] = value.get("parentSlot")
+                row["block_time_seconds"] = value.get("blockTime")
+                row["transaction_count"] = len(txs) if isinstance(txs, list) else None
+                if operation["detail"] == "signatures":
+                    signature_rows = value.get("signatures")
+                    row["signature_count"] = (
+                        len(signature_rows) if isinstance(signature_rows, list) else None
+                    )
+            else:
+                row["result_status"] = "result_shape_unknown"
+        except Exception as exc:
+            row["result_status"] = "response_error"
+            row["result_error_class"] = type(exc).__name__
+    except Exception as exc:
+        row = dict(
+            sequence=sequence,
+            provider=operation["provider"],
+            method=operation["method"],
+            slot=operation.get("slot"),
+            slot_range=operation.get("slot_range"),
+            detail=operation["detail"],
+            status="request_failed",
+            error_class=type(exc).__name__,
+            receipt_ns=time.time_ns(),
+        )
+        if isinstance(exc, HTTPSourceError):
+            row["http_status"] = exc.status
+        elif isinstance(exc, TransportSourceError):
+            row["transport_category"] = exc.reason
+    _create(root / "request-results" / f"{sequence:012d}.json", row)
+    return row
+
+
+def _recover(root: Path, plan: dict[str, Any], plan_path: Path) -> dict[str, Any]:
+    reservations = sorted((root / "requests").glob("*.json"))
+    results = sorted((root / "request-results").glob("*.json"))
+    reservation_names = {path.name for path in reservations}
+    result_names = {path.name for path in results}
+    if result_names - reservation_names:
+        raise ValueError("block_result_without_reservation")
+    if reservation_names - result_names:
+        seq = min(int(name[:-5]) for name in reservation_names - result_names)
+        _create(
+            root / "STOP",
+            dict(
+                reason="ambiguous_block_request_requires_manual_reconciliation",
+                sequence=seq,
+                time_ns=time.time_ns(),
+            ),
+        )
+        raise ValueError("ambiguous_block_request_requires_manual_reconciliation")
+    if len(results) > len(plan["operations"]):
+        raise ValueError("block_attempt_count_exceeds_plan")
+    for index, path in enumerate(results, start=1):
+        if path.name != f"{index:012d}.json":
+            raise ValueError("block_request_history_non_contiguous")
+        result = _read(path)
+        reservation = _read(root / "requests" / path.name)
+        operation = plan["operations"][index - 1]
+        if (
+            result.get("sequence") != index
+            or reservation.get("sequence") != index
+            or result.get("provider") != operation["provider"]
+            or reservation.get("provider") != operation["provider"]
+            or result.get("method") != operation["method"]
+            or reservation.get("method") != operation["method"]
+            or result.get("slot") != operation.get("slot")
+            or result.get("slot_range") != operation.get("slot_range")
+            or result.get("detail") != operation["detail"]
+        ):
+            raise ValueError("block_request_history_identity_mismatch")
+    return dict(
+        plan_sha256=_sha(plan_path),
+        completed=len(results),
+        next_sequence=len(results) + 1,
+        updated_ns=time.time_ns(),
+    )
+
+
+def _block_result(root: Path, row: dict[str, Any]) -> Any:
+    if row.get("status") != "captured" or row.get("result_status") != "parsed":
+        return None
+    cap = Capture.load(root / row["capture_path"])
+    return cap.result()
+
+
+def _transaction_keys(tx: dict[str, Any]) -> list[str | None]:
+    message = (tx.get("transaction") or {}).get("message") or {}
+    keys = message.get("accountKeys") or []
+    resolved: list[str | None] = []
+    for value in keys:
+        resolved.append(
+            value.get("pubkey")
+            if isinstance(value, dict)
+            else value
+            if isinstance(value, str)
+            else None
+        )
+    loaded = (tx.get("meta") or {}).get("loadedAddresses") or {}
+    for value in loaded.get("writable") or []:
+        resolved.append(value if isinstance(value, str) else None)
+    for value in loaded.get("readonly") or []:
+        resolved.append(value if isinstance(value, str) else None)
+    return resolved
+
+
+def _pump_invocations(block: dict[str, Any]) -> dict[str, Any]:
+    total = success = failed = unresolved = transactions = 0
+    normalization_failures: dict[str, int] = {}
+    for entry in block.get("transactions") or []:
+        tx = entry.get("transaction") if isinstance(entry, dict) else None
+        message = (tx or {}).get("message") or {}
+        keys = _transaction_keys(entry)
+        meta = entry.get("meta") or {}
+        try:
+            normalize_compiled_transaction(entry)
+        except NormalizationError as exc:
+            normalization_failures[exc.category] = normalization_failures.get(exc.category, 0) + 1
+            unresolved += 1
+        refs = 0
+        instructions = message.get("instructions") or []
+        all_instructions = list(instructions)
+        for inner in meta.get("innerInstructions") or []:
+            all_instructions.extend(inner.get("instructions") or [])
+        for ix in all_instructions:
+            if not isinstance(ix, dict):
+                unresolved += 1
+                continue
+            program = ix.get("programId")
+            if program is None:
+                index = ix.get("programIdIndex")
+                if type(index) is int and 0 <= index < len(keys):
+                    program = keys[index]
+                else:
+                    unresolved += 1
+            if program == PUMP_PROGRAM:
+                refs += 1
+        total += refs
+        if refs:
+            transactions += 1
+            if meta.get("err") is None:
+                success += refs
+            else:
+                failed += refs
+    return dict(
+        structural_reference_count=total,
+        transactions_with_reference=transactions,
+        references_in_successful_transactions=success,
+        references_in_failed_transactions=failed,
+        unresolved_instruction_shapes=unresolved,
+        compiled_transaction_normalization_failures=dict(sorted(normalization_failures.items())),
+        economic_trade_count=None,
+        exact_market_activity_claim=False,
+    )
+
+
+def _structural_response_validation(block: Any, expected_slot: int) -> list[str]:
+    """Return invariant failures that prevent an exact count over this full response."""
+    failures: list[str] = []
+    if not isinstance(block, dict):
+        return ["block_result_not_object"]
+    if not isinstance(block.get("blockhash"), str) or not block["blockhash"]:
+        failures.append("blockhash_missing")
+    if not isinstance(block.get("previousBlockhash"), str) or not block["previousBlockhash"]:
+        failures.append("previous_blockhash_missing")
+    if type(block.get("parentSlot")) is not int or block["parentSlot"] >= expected_slot:
+        failures.append("parent_slot_invalid")
+    transactions = block.get("transactions")
+    if not isinstance(transactions, list):
+        failures.append("transaction_list_missing")
+        return failures
+    seen_signatures: set[str] = set()
+    for index, entry in enumerate(transactions):
+        label = f"transaction_{index}"
+        if not isinstance(entry, dict):
+            failures.append(f"{label}_not_object")
+            continue
+        transaction = entry.get("transaction")
+        message = transaction.get("message") if isinstance(transaction, dict) else None
+        meta = entry.get("meta")
+        if not isinstance(transaction, dict) or not isinstance(message, dict):
+            failures.append(f"{label}_message_missing")
+            continue
+        version = entry.get("version")
+        if not (version == "legacy" or (type(version) is int and version in (0, 1))):
+            failures.append(f"{label}_unsupported_version")
+        signatures = transaction.get("signatures")
+        if (
+            not isinstance(signatures, list)
+            or not signatures
+            or any(not isinstance(signature, str) or not signature for signature in signatures)
+        ):
+            failures.append(f"{label}_signatures_invalid")
+        elif signatures[0] in seen_signatures:
+            failures.append(f"{label}_duplicate_signature")
+        else:
+            seen_signatures.add(signatures[0])
+        if not isinstance(meta, dict) or "err" not in meta:
+            failures.append(f"{label}_meta_status_missing")
+            continue
+        account_keys = message.get("accountKeys")
+        loaded = meta.get("loadedAddresses")
+        if not isinstance(account_keys, list) or not isinstance(loaded, dict):
+            failures.append(f"{label}_account_resolution_missing")
+            continue
+        if not isinstance(loaded.get("writable"), list) or not isinstance(
+            loaded.get("readonly"), list
+        ):
+            failures.append(f"{label}_loaded_addresses_invalid")
+            continue
+        keys = _transaction_keys(entry)
+        if not keys or any(not isinstance(key, str) or not key for key in keys):
+            failures.append(f"{label}_account_resolution_invalid")
+        outer = message.get("instructions")
+        inner = meta.get("innerInstructions")
+        if not isinstance(outer, list) or not isinstance(inner, list):
+            failures.append(f"{label}_instruction_coverage_missing")
+            continue
+        instruction_lists = [outer]
+        for group in inner:
+            if not isinstance(group, dict) or not isinstance(group.get("instructions"), list):
+                failures.append(f"{label}_inner_instruction_group_invalid")
+                continue
+            instruction_lists.append(group["instructions"])
+        for instructions in instruction_lists:
+            for instruction in instructions:
+                if not isinstance(instruction, dict):
+                    failures.append(f"{label}_instruction_invalid")
+                    continue
+                program_id = instruction.get("programId")
+                if program_id is None:
+                    program_index = instruction.get("programIdIndex")
+                    if type(program_index) is not int or not 0 <= program_index < len(keys):
+                        failures.append(f"{label}_program_id_unresolved")
+                account_indices = instruction.get("accounts")
+                if account_indices is not None and (
+                    not isinstance(account_indices, list)
+                    or any(
+                        type(key_index) is not int or not 0 <= key_index < len(keys)
+                        for key_index in account_indices
+                    )
+                ):
+                    failures.append(f"{label}_instruction_accounts_unresolved")
+    return failures
+
+
+def _signature_list(value: Any, detail: str) -> list[str] | None:
+    if not isinstance(value, dict):
+        return None
+    if detail == "signatures":
+        signatures = value.get("signatures")
+        if not isinstance(signatures, list) or any(not isinstance(sig, str) for sig in signatures):
+            return None
+        return signatures
+    if not isinstance(value.get("transactions"), list):
+        return None
+    signatures: list[str] = []
+    for item in value["transactions"]:
+        tx = item.get("transaction") if isinstance(item, dict) else None
+        values = (tx or {}).get("signatures") or []
+        signature = values[0] if values and isinstance(values[0], str) else None
+        if signature is None:
+            return None
+        signatures.append(signature)
+    return signatures
+
+
+def _transaction_map(block: dict[str, Any]) -> dict[str, dict[str, Any]] | None:
+    transactions = block.get("transactions")
+    if not isinstance(transactions, list):
+        return None
+    mapped: dict[str, dict[str, Any]] = {}
+    for row in transactions:
+        tx = row.get("transaction") if isinstance(row, dict) else None
+        signatures = (tx or {}).get("signatures") if isinstance(tx, dict) else None
+        if (
+            not isinstance(signatures, list)
+            or not signatures
+            or not isinstance(signatures[0], str)
+            or signatures[0] in mapped
+        ):
+            return None
+        mapped[signatures[0]] = row
+    return mapped
+
+
+def _json_diff_paths(left: Any, right: Any, path: str = "") -> list[str]:
+    if left == right:
+        return []
+    if isinstance(left, dict) and isinstance(right, dict):
+        paths: list[str] = []
+        for key in sorted(set(left) | set(right)):
+            child = f"{path}.{key}" if path else str(key)
+            if key not in left or key not in right:
+                paths.append(child)
+            else:
+                paths.extend(_json_diff_paths(left[key], right[key], child))
+        return paths
+    return [path or "$"]
+
+
+def _transaction_comparison(
+    left: dict[str, Any] | None, right: dict[str, Any] | None
+) -> dict[str, Any]:
+    if left is None or right is None:
+        return dict(status="unknown_unpaired_or_unparseable", paired=0, exact=0, differing=0)
+    a, b = _transaction_map(left), _transaction_map(right)
+    if a is None or b is None:
+        return dict(status="unknown_transaction_signature_shape", paired=0, exact=0, differing=0)
+    common = a.keys() & b.keys()
+    exact = 0
+    diff_paths: dict[str, int] = {}
+    differing = 0
+    for signature in common:
+        paths = _json_diff_paths(a[signature], b[signature])
+        if not paths:
+            exact += 1
+            continue
+        differing += 1
+        for path in paths:
+            diff_paths[path] = diff_paths.get(path, 0) + 1
+    return dict(
+        status="paired_transaction_maps",
+        paired=len(common),
+        exact=exact,
+        differing=differing,
+        helius_only=len(a.keys() - b.keys()),
+        public_only=len(b.keys() - a.keys()),
+        difference_paths=dict(sorted(diff_paths.items())),
+    )
+
+
+def _compare(root: Path, plan: dict[str, Any], results: list[dict[str, Any]]) -> dict[str, Any]:
+    providers = tuple(plan.get("providers", PROVIDERS))
+    by_key = {
+        (row["provider"], row["method"], row.get("slot"), row["detail"]): row for row in results
+    }
+    configured_provider_samples = plan.get("provider_full_sample_slots")
+    configured_sample = plan.get("full_sample_slots")
+    selected_slots = (
+        set().union(*(set(slots) for slots in configured_provider_samples.values()))
+        if isinstance(configured_provider_samples, dict)
+        else set(configured_sample)
+        if isinstance(configured_sample, list)
+        else None
+    )
+    windows: list[dict[str, Any]] = []
+    for start, end in plan["slot_ranges"]:
+        enumeration: dict[str, set[int] | None] = {}
+        for provider in providers:
+            row = next(
+                (
+                    r
+                    for r in results
+                    if r.get("provider") == provider
+                    and r.get("method") == "getBlocks"
+                    and r.get("slot_range") == [start, end]
+                ),
+                None,
+            )
+            value = _block_result(root, row) if row else None
+            if not isinstance(value, list) or any(type(slot) is not int for slot in value):
+                enumeration[provider] = None
+            else:
+                enumeration[provider] = set(value)
+        sampled_slots_in_window = (
+            sorted(slot for slot in selected_slots if start <= slot < end)
+            if selected_slots is not None
+            else list(range(start, end))
+        )
+        slot_rows: list[dict[str, Any]] = []
+        for slot in sampled_slots_in_window:
+            per_provider: dict[str, dict[str, Any]] = {}
+            full_values: dict[str, Any] = {}
+            for provider in providers:
+                full_row = by_key.get((provider, "getBlock", slot, "full"))
+                sig_row = by_key.get((provider, "getBlock", slot, "signatures"))
+                full = _block_result(root, full_row) if full_row else None
+                full_values[provider] = full
+                sigs = _block_result(root, sig_row) if sig_row else None
+                full_signatures = _signature_list(full, "full") if isinstance(full, dict) else None
+                signature_only = (
+                    _signature_list(sigs, "signatures") if isinstance(sigs, dict) else None
+                )
+                structural = _pump_invocations(full) if isinstance(full, dict) else None
+                validation_failures = (
+                    _structural_response_validation(full, slot)
+                    if isinstance(full, dict)
+                    else ["full_block_unavailable"]
+                )
+                if structural is not None and structural["unresolved_instruction_shapes"]:
+                    validation_failures.append("instruction_program_resolution_incomplete")
+                exact_count = not validation_failures
+                enumeration_contains_slot = (
+                    slot in enumeration[provider] if enumeration[provider] is not None else None
+                )
+                self_consistency = (
+                    full_signatures == signature_only
+                    if full_signatures is not None and signature_only is not None
+                    else None
+                )
+                inventory_consistent = (
+                    exact_count and enumeration_contains_slot is True and self_consistency is True
+                )
+                provider_slots = (
+                    set(configured_provider_samples.get(provider, []))
+                    if isinstance(configured_provider_samples, dict)
+                    else selected_slots
+                )
+                if provider_slots is None:
+                    provider_slots = set(range(start, end))
+                if enumeration[provider] is None:
+                    observation_status = "unknown_inventory_unavailable"
+                elif not enumeration_contains_slot:
+                    observation_status = (
+                        "provider_inventory_discrepancy"
+                        if full_row is not None
+                        and full_row.get("status") == "captured"
+                        and full_row.get("result_status") == "parsed"
+                        else "no_produced_block_per_provider_inventory"
+                    )
+                elif slot not in (provider_slots or set()):
+                    observation_status = "block_known_full_body_not_sampled"
+                elif full_row is None:
+                    observation_status = "block_known_full_body_not_sampled"
+                elif full_row.get("status") != "captured":
+                    observation_status = "failed_full_body_request"
+                elif full_row.get("result_status") != "parsed":
+                    observation_status = "null_or_unparsed_full_body"
+                elif not exact_count:
+                    observation_status = "unknown_full_response_unresolved"
+                elif self_consistency is not True:
+                    observation_status = "unknown_signature_self_check"
+                else:
+                    observation_status = "qualified_structural_reference_count"
+                per_provider[provider] = dict(
+                    full_status=full_row.get("result_status") if full_row else "not_run",
+                    signatures_status=sig_row.get("result_status") if sig_row else "not_run",
+                    enumeration_contains_slot=enumeration_contains_slot,
+                    full_transaction_count=len(full.get("transactions", []))
+                    if isinstance(full, dict) and isinstance(full.get("transactions"), list)
+                    else None,
+                    signatures_count=len(signature_only) if signature_only is not None else None,
+                    full_signature_count=len(full_signatures)
+                    if full_signatures is not None
+                    else None,
+                    signatures_only_list_sha256=(
+                        digest(canonical(signature_only).encode())
+                        if signature_only is not None
+                        else None
+                    ),
+                    full_signature_list_sha256=(
+                        digest(canonical(full_signatures).encode())
+                        if full_signatures is not None
+                        else None
+                    ),
+                    full_matches_signatures_only=(self_consistency),
+                    blockhash=full.get("blockhash") if isinstance(full, dict) else None,
+                    block_time_seconds=full.get("blockTime") if isinstance(full, dict) else None,
+                    parent_slot=full.get("parentSlot") if isinstance(full, dict) else None,
+                    previous_blockhash=full.get("previousBlockhash")
+                    if isinstance(full, dict)
+                    else None,
+                    program_references=structural,
+                    observation_status=observation_status,
+                    qualified_structural_reference_count=(
+                        structural["structural_reference_count"]
+                        if observation_status == "qualified_structural_reference_count"
+                        and structural is not None
+                        else None
+                    ),
+                    structural_reference_qualification=(
+                        "exact_over_stored_full_response" if exact_count else "unknown"
+                    ),
+                    structural_reference_validation_failures=validation_failures,
+                    provider_inventory_self_consistent=(
+                        inventory_consistent if full is not None else None
+                    ),
+                    independent_corroboration=(
+                        "not_requested" if len(providers) == 1 else "pending"
+                    ),
+                    full_response_bytes=full_row.get("response_bytes") if full_row else None,
+                    signatures_response_bytes=sig_row.get("response_bytes") if sig_row else None,
+                )
+            paired = len(providers) == 2
+            if paired:
+                a, b = (per_provider[provider] for provider in providers)
+                both_full = (
+                    a["full_signature_count"] is not None and b["full_signature_count"] is not None
+                )
+                signature_equivalent = (
+                    both_full and a["full_signature_count"] == b["full_signature_count"]
+                )
+                signature_order_equal = (
+                    both_full
+                    and a["full_signature_list_sha256"] is not None
+                    and a["full_signature_list_sha256"] == b["full_signature_list_sha256"]
+                )
+                block_identity_equivalent = (
+                    both_full
+                    and a["blockhash"] == b["blockhash"]
+                    and a["parent_slot"] == b["parent_slot"]
+                    and a["previous_blockhash"] == b["previous_blockhash"]
+                )
+                transaction_comparison = _transaction_comparison(
+                    full_values.get(providers[0]), full_values.get(providers[1])
+                )
+            else:
+                both_full = per_provider[providers[0]]["full_status"] == "parsed"
+                signature_equivalent = signature_order_equal = block_identity_equivalent = None
+                transaction_comparison = dict(
+                    status="single_provider_no_cross_provider_comparison",
+                    paired=0,
+                    exact=0,
+                    differing=0,
+                    difference_paths={},
+                )
+            if paired:
+                for provider in providers:
+                    item = per_provider[provider]
+                    other = per_provider[providers[1] if provider == providers[0] else providers[0]]
+                    if (
+                        item["structural_reference_qualification"]
+                        != "exact_over_stored_full_response"
+                        or other["structural_reference_qualification"]
+                        != "exact_over_stored_full_response"
+                    ):
+                        item["independent_corroboration"] = "unavailable_or_unqualified"
+                    elif (
+                        item["blockhash"] == other["blockhash"]
+                        and item["parent_slot"] == other["parent_slot"]
+                        and item["previous_blockhash"] == other["previous_blockhash"]
+                        and item["full_signature_list_sha256"]
+                        == other["full_signature_list_sha256"]
+                    ):
+                        item["independent_corroboration"] = "matching_independent_block_response"
+                    else:
+                        item["independent_corroboration"] = "provider_disagreement"
+            slot_rows.append(
+                dict(
+                    slot=slot,
+                    providers=per_provider,
+                    transaction_comparison=transaction_comparison,
+                    cross_provider_signature_count_equal=signature_equivalent,
+                    cross_provider_signature_order_equal=signature_order_equal,
+                    cross_provider_block_identity_equal=block_identity_equivalent,
+                    comparison_status=(
+                        ("paired_full_blocks" if both_full else "unknown_unpaired_or_incomplete")
+                        if paired
+                        else (
+                            "single_provider_full_response"
+                            if both_full
+                            else "unknown_unparsed_or_missing"
+                        )
+                    ),
+                )
+            )
+        left = enumeration[providers[0]]
+        right = enumeration[providers[1]] if len(providers) == 2 else None
+        windows.append(
+            dict(
+                slot_range=[start, end],
+                provider_enumerations={
+                    provider: (
+                        None if enumeration[provider] is None else sorted(enumeration[provider])
+                    )
+                    for provider in providers
+                },
+                enumeration_equal=left == right if left is not None and right is not None else None,
+                enumerated_slot_count=None if left is None else len(left),
+                enumerated_slots_within_selected_range=(
+                    None if left is None else all(start <= slot < end for slot in left)
+                ),
+                sampled_slots=sampled_slots_in_window,
+                unselected_produced_slots={
+                    provider: (
+                        None
+                        if enumeration[provider] is None
+                        else sorted(enumeration[provider] - set(sampled_slots_in_window))
+                    )
+                    for provider in providers
+                },
+                unselected_slot_semantics=(
+                    "provider_inventory_knows_block_existed; structural_reference_count_unknown"
+                ),
+                slots_compared=slot_rows,
+            )
+        )
+    return dict(windows=windows)
+
+
+def run_once(
+    root: Path,
+    *,
+    slot_ranges: list[list[int]],
+    request_cap: int = MAX_REQUESTS_PER_PROVIDER,
+    helius_pace: float = 0.25,
+    sampling_metadata: dict[str, Any] | None = None,
+    signature_sample_slots: list[int] | None = None,
+    full_sample_slots: list[int] | None = None,
+    max_captured_bytes: int = 30_000_000_000,
+    max_captured_stored_bytes: int | None = None,
+    helius_total_credit_cap: int = 75_000,
+    helius_daily_credit_cap: int = 25_000,
+    providers: tuple[str, ...] = PROVIDERS,
+    capture_storage_codec: str = "raw",
+    provider_signature_sample_slots: dict[str, list[int]] | None = None,
+    provider_full_sample_slots: dict[str, list[int]] | None = None,
+    clients: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    plan = _plan(
+        slot_ranges,
+        request_cap,
+        helius_pace,
+        sampling_metadata,
+        signature_sample_slots,
+        full_sample_slots,
+        max_captured_bytes,
+        max_captured_stored_bytes,
+        helius_total_credit_cap,
+        helius_daily_credit_cap,
+        providers,
+        capture_storage_codec,
+        provider_signature_sample_slots,
+        provider_full_sample_slots,
+    )
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(root, 0o700)
+    for name in ("requests", "request-results", "captures", "observations", "events"):
+        (root / name).mkdir(exist_ok=True, mode=0o700)
+        os.chmod(root / name, 0o700)
+    plan_path = root / "plan.json"
+    if plan_path.exists():
+        existing = _read(plan_path)
+        if existing != plan:
+            raise ValueError("block_pilot_plan_changed")
+        plan = existing
+    else:
+        _create(plan_path, plan)
+    if (root / "STOP").exists():
+        raise ValueError("block_pilot_stopped")
+    state = _recover(root, plan, plan_path)
+    state_path = root / "state.json"
+    if state_path.exists() and _read(state_path).get("plan_sha256") != _sha(plan_path):
+        raise ValueError("block_pilot_state_plan_mismatch")
+    _replace(state_path, state)
+    captured_bytes = sum(
+        int(_read(path).get("response_bytes") or 0)
+        for path in (root / "request-results").glob("*.json")
+    )
+    captured_stored_bytes = sum(
+        int(_read(path).get("stored_response_bytes") or _read(path).get("response_bytes") or 0)
+        for path in (root / "request-results").glob("*.json")
+    )
+    helius_reservations = [
+        _read(path)
+        for path in (root / "requests").glob("*.json")
+        if _read(path).get("provider") == "helius-free"
+    ]
+    helius_reservations_by_day: dict[str, int] = {}
+    for reservation in helius_reservations:
+        day = time.strftime("%Y-%m-%d", time.gmtime(reservation["reserved_ns"] / 1_000_000_000))
+        helius_reservations_by_day[day] = helius_reservations_by_day.get(day, 0) + 1
+    own_clients = clients is None
+    if own_clients:
+        clients = {}
+        for provider in providers:
+            endpoint, alias = _provider_endpoint(provider)
+            clients[provider] = ReadOnlyRPC(
+                endpoint, alias, timeout=45, max_bytes=MAX_RESPONSE_BYTES, keep_alive=True
+            )
+    last_attempt: dict[str, int] = {provider: 0 for provider in providers}
+    outcomes: dict[str, int] = {}
+    try:
+        operations = plan["operations"]
+        while state["completed"] < len(operations):
+            seq = state["next_sequence"]
+            operation = operations[state["completed"]]
+            if seq > request_cap * len(providers):
+                _create(root / "STOP", dict(reason="aggregate_request_cap", time_ns=time.time_ns()))
+                break
+            if captured_bytes + MAX_RESPONSE_BYTES > max_captured_bytes:
+                _create(
+                    root / "STOP",
+                    dict(
+                        reason="captured_response_byte_cap_before_request",
+                        captured_response_bytes=captured_bytes,
+                        cap=max_captured_bytes,
+                        time_ns=time.time_ns(),
+                    ),
+                )
+                break
+            if (
+                max_captured_stored_bytes is not None
+                and captured_stored_bytes >= max_captured_stored_bytes
+            ):
+                _create(
+                    root / "STOP",
+                    dict(
+                        reason="stored_response_byte_cap_before_request",
+                        captured_stored_response_bytes=captured_stored_bytes,
+                        cap=max_captured_stored_bytes,
+                        time_ns=time.time_ns(),
+                    ),
+                )
+                break
+            if STOP:
+                break
+            if operation["provider"] == "helius-free":
+                today = time.strftime("%Y-%m-%d", time.gmtime())
+                reserved_today = helius_reservations_by_day.get(today, 0)
+                if len(helius_reservations) >= helius_total_credit_cap or (
+                    reserved_today >= helius_daily_credit_cap
+                ):
+                    _create(
+                        root / "STOP",
+                        dict(
+                            reason="helius_wave_credit_cap",
+                            expected_credit_reservations_total=len(helius_reservations),
+                            expected_credit_reservations_today=reserved_today,
+                            time_ns=time.time_ns(),
+                        ),
+                    )
+                    break
+            pace = helius_pace if operation["provider"] == "helius-free" else 0.25
+            wait = pace - (time.time_ns() - last_attempt[operation["provider"]]) / 1_000_000_000
+            if wait > 0:
+                time.sleep(wait)
+            row = _result_for(
+                root,
+                seq,
+                operation,
+                clients[operation["provider"]],
+                storage_codec=capture_storage_codec,
+            )
+            last_attempt[operation["provider"]] = time.time_ns()
+            if operation["provider"] == "helius-free":
+                reservation = _read(root / "requests" / f"{seq:012d}.json")
+                helius_reservations.append(reservation)
+                day = time.strftime(
+                    "%Y-%m-%d", time.gmtime(reservation["reserved_ns"] / 1_000_000_000)
+                )
+                helius_reservations_by_day[day] = helius_reservations_by_day.get(day, 0) + 1
+            status = row.get("result_status") or row["status"]
+            outcomes[status] = outcomes.get(status, 0) + 1
+            captured_bytes += int(row.get("response_bytes") or 0)
+            captured_stored_bytes += int(
+                row.get("stored_response_bytes") or row.get("response_bytes") or 0
+            )
+            state = _recover(root, plan, plan_path)
+            _replace(state_path, state)
+            if (
+                max_captured_stored_bytes is not None
+                and captured_stored_bytes > max_captured_stored_bytes
+            ):
+                _create(
+                    root / "STOP",
+                    dict(
+                        reason="stored_response_byte_cap_after_capture",
+                        captured_stored_response_bytes=captured_stored_bytes,
+                        cap=max_captured_stored_bytes,
+                        time_ns=time.time_ns(),
+                    ),
+                )
+                break
+        results = [_read(path) for path in sorted((root / "request-results").glob("*.json"))]
+        comparison = _compare(root, plan, results)
+        summary = dict(
+            plan_sha256=_sha(plan_path),
+            updated_ns=time.time_ns(),
+            operation_count=len(operations),
+            completed=state["completed"],
+            attempts=len(list((root / "requests").glob("*.json"))),
+            helius_credit_reservations=sum(
+                _read(path).get("credit_reservation", 0)
+                for path in (root / "requests").glob("*.json")
+            ),
+            outcomes={
+                key: sum(
+                    1 for row in results if (row.get("result_status") or row.get("status")) == key
+                )
+                for key in sorted(
+                    {row.get("result_status") or row.get("status") for row in results}
+                )
+            },
+            newly_completed=outcomes,
+            captured_response_bytes=captured_bytes,
+            stored_response_bytes=captured_stored_bytes,
+            comparison=comparison,
+            claims=(
+                "bounded provider-returned block inventories; no global ledger or "
+                "economic-completeness claim"
+            ),
+        )
+        _replace(root / "summary.json", summary)
+        return summary
+    finally:
+        if own_clients and clients:
+            for client in clients.values():
+                client.close()
+
+
+def _signal(_signum: int, _frame: Any) -> None:
+    global STOP
+    STOP = True
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--slot-range", action="append", required=True, metavar="START:END")
+    parser.add_argument(
+        "--provider",
+        action="append",
+        choices=SUPPORTED_PROVIDERS,
+        help="Provider(s) to request; default remains the established Helius/public pair.",
+    )
+    parser.add_argument("--request-cap-per-provider", type=int, default=MAX_REQUESTS_PER_PROVIDER)
+    parser.add_argument("--helius-pace-seconds", type=float, default=0.25)
+    parser.add_argument("--sampling-metadata", type=Path)
+    parser.add_argument("--max-captured-bytes", type=int, default=30_000_000_000)
+    parser.add_argument("--max-captured-stored-bytes", type=int)
+    parser.add_argument("--helius-total-credit-cap", type=int, default=75_000)
+    parser.add_argument("--helius-daily-credit-cap", type=int, default=25_000)
+    parser.add_argument("--capture-storage-codec", choices=("raw", "zstd"), default="raw")
+    args = parser.parse_args()
+    args.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(args.root, 0o700)
+    with (args.root / ".pilot.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("block pilot already active", file=sys.stderr)
+            return 2
+        signal.signal(signal.SIGTERM, _signal)
+        signal.signal(signal.SIGINT, _signal)
+        try:
+            sampling_metadata = (
+                _read(args.sampling_metadata) if args.sampling_metadata is not None else None
+            )
+            signature_sample_slots = (
+                sampling_metadata.get("signature_only_slots") if sampling_metadata else None
+            )
+            full_sample_slots = (
+                sampling_metadata.get("full_sample_slots") if sampling_metadata else None
+            )
+            summary = run_once(
+                args.root,
+                slot_ranges=_parse_ranges(args.slot_range),
+                request_cap=args.request_cap_per_provider,
+                helius_pace=args.helius_pace_seconds,
+                sampling_metadata=sampling_metadata,
+                signature_sample_slots=signature_sample_slots,
+                full_sample_slots=full_sample_slots,
+                provider_signature_sample_slots=(
+                    sampling_metadata.get("provider_signature_sample_slots")
+                    if sampling_metadata
+                    else None
+                ),
+                provider_full_sample_slots=(
+                    sampling_metadata.get("provider_full_sample_slots")
+                    if sampling_metadata
+                    else None
+                ),
+                providers=tuple(args.provider) if args.provider else PROVIDERS,
+                max_captured_bytes=args.max_captured_bytes,
+                max_captured_stored_bytes=args.max_captured_stored_bytes,
+                helius_total_credit_cap=args.helius_total_credit_cap,
+                helius_daily_credit_cap=args.helius_daily_credit_cap,
+                capture_storage_codec=args.capture_storage_codec,
+            )
+            print(
+                canonical(
+                    {
+                        key: summary[key]
+                        for key in (
+                            "plan_sha256",
+                            "operation_count",
+                            "completed",
+                            "attempts",
+                            "helius_credit_reservations",
+                            "captured_response_bytes",
+                            "outcomes",
+                            "claims",
+                        )
+                    }
+                ),
+                flush=True,
+            )
+            return 0
+        except Exception as exc:
+            if not (args.root / "STOP").exists():
+                _create(
+                    args.root / "STOP",
+                    dict(
+                        reason="runtime_exception",
+                        error_class=type(exc).__name__,
+                        time_ns=time.time_ns(),
+                    ),
+                )
+            print(canonical(dict(status="failed", error_class=type(exc).__name__)), flush=True)
+            return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

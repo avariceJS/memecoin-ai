@@ -1,0 +1,22 @@
+{
+  "stage": "first-autonomous-day-forensics",
+  "date_moscow": "2026-10-06",
+  "initial_git": "6b445b886814449f5bc59d07f4d40b24791d9dd9",
+  "cutoff_ns": 1791235921853405000,
+  "artifacts": {
+    "work/brain-review-20261006/experience01.json": "0661bcf7681fa07216debbc99affd7373ecca645a4095d1ffb16809166e21e07",
+    "work/brain-review-20261006/paired01.json": "aac7b18be2fdd2ac60e24f0cc909e7ab884d550b328a777fff7c93ceb7c73aab"
+  },
+  "new_training_fits": 0,
+  "new_rpc": 0,
+  "runtime_changes": 0,
+  "protected_holdout_read": false,
+  "initial_audit_tests": "4 passed",
+  "limitations": [
+    "Different rolling test cohorts",
+    "Only small NEW future support",
+    "OLD future input comparison is offline inference",
+    "Legacy B10/B12 stopped on DS_Store",
+    "D43 closed after two failed windows"
+  ]
+}

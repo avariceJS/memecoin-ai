@@ -1,0 +1,47 @@
+{
+  "schema": "brain-handoff-readonly-status-v1",
+  "checked_utc": "2026-10-07T17:16:36.036525+00:00",
+  "code_base_git": "2b834db345887223f9a1f09b86d869c8ec06293f",
+  "method": "SSH with pinned host key; owner localhost GET /api/status; SHA256 of deployment.json; whitelist projection only",
+  "runtime_mutations": false,
+  "provider_requests": 0,
+  "training_runs": 0,
+  "inference_runs": 0,
+  "protected_outcomes_read": false,
+  "mode": "paused",
+  "phase": "paused",
+  "revision": 33,
+  "domain_stop": false,
+  "champion": {
+    "promoted": false,
+    "sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920"
+  },
+  "returned_jobs": {
+    "count": 10,
+    "completed": 10,
+    "queued_or_running": 0,
+    "scope": "status API returned jobs, not a fresh whole-database inventory"
+  },
+  "exams": [
+    {
+      "exam_id": "job_b7edd93ea86173f9",
+      "status": "expired",
+      "expires_ns": 1791234816834270000
+    },
+    {
+      "exam_id": "job_3d405d04fd61c744",
+      "status": "expired",
+      "expires_ns": 1791321289537701000
+    },
+    {
+      "exam_id": "job_2069a67d64cf1bc8",
+      "status": "expired",
+      "expires_ns": 1791375831922091000
+    }
+  ],
+  "deployment_file_sha256": "db3f12d9e71fb58cfd966953877d6d2c9fcb7036e3e3d60b18bdd09992578fde",
+  "runtime_identity_basis": "deployment file hash matches prior runtime08 attestation; running executable not freshly re-attested",
+  "previously_attested_runtime": "runtime08",
+  "previously_attested_runtime_pin": "fec78c60d5c93b4b1d9cf4a680843162169f214910b98cc135c194cee8e63c3a",
+  "previous_attestation_report": "docs/brain-research-envelope-2026-10-07.md"
+}

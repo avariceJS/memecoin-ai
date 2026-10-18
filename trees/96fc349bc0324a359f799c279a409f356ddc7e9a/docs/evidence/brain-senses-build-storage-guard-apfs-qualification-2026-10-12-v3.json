@@ -1,0 +1,57 @@
+{
+  "contract": "brain_senses_build_storage_guard_apfs_detach_v1",
+  "recorded_at_utc": "2026-10-12T02:34:54Z",
+  "status": "disposable_apfs_no_underlay_and_group_termination_qualified",
+  "guard": {
+    "source": "tools/brain_senses_build_storage_guard.py",
+    "sha256": "0d3ab97daa196b4b18fe5bfdf8c2ce9e9735899f34e8c7b4c4f4f0e6ee5e77d7",
+    "focused_tests": ["tests/test_brain_senses_build_storage_guard.py", "tests/test_brain_senses_agave_dependency_fetch_v1.py"],
+    "focused_test_results": "14 passed",
+    "build_storage_guard_test_sha256": "37f61a3eace46200080506f1482e9ed333285c869ef40bfc0156dd29daca3c66",
+    "dependency_fetch_test_sha256": "870604728fd3de40e071969f0a01a1f5d57d35ada0be11359c6488335768f1dd",
+    "harness": "tools/brain_senses_build_storage_guard_apfs_qualification.py",
+    "harness_sha256": "7ef3cc22c4873030333f6c8415eed437be6a21ab2c564cb1dffaa4774def7333"
+  },
+  "disposable_apfs_write_test": {
+    "mount": "/Volumes/BrainBuildGuardTest",
+    "image": "/private/tmp/brain-senses-build-guard-v3-20261012/test.sparseimage",
+    "volume_uuid": "2605729E-97AB-446F-A5F6-AAFCE4F3D072",
+    "filesystem": "case-sensitive APFS",
+    "owners_enabled": false,
+    "capacity_overrides_test_only": {"initial_free_bytes": 268435456, "allocation_cap_bytes": 134217728, "min_free_bytes": 67108864},
+    "elapsed_seconds": 1.0245577921159565,
+    "forced_unmount_returncode": 0,
+    "post_detach_attempts": {
+      "mkdir_absolute": {"result": "FileNotFoundError", "errno": 2},
+      "open_create_absolute": {"result": "FileNotFoundError", "errno": 2},
+      "tmp_write_absolute": {"result": "FileNotFoundError", "errno": 2},
+      "rename_absolute": {"result": "FileNotFoundError", "errno": 2},
+      "open_create_held_cwd": {"result": "FileNotFoundError", "errno": 2}
+    },
+    "supervised_process_group_ids": [47629],
+    "supervised_group_survivors": [],
+    "underlay_and_delayed_writes": {
+      "mountpoint_absent_after_unmount": true,
+      "underlay_tree_absent": true,
+      "remount_same_uuid": true,
+      "pre_test_manifest_sha256": "66569684d09f4eb2d5efe7aee645e2b678e329ca5e0ed97c9cf4908e0a3eaad9",
+      "post_remount_manifest_sha256": "66569684d09f4eb2d5efe7aee645e2b678e329ca5e0ed97c9cf4908e0a3eaad9",
+      "forbidden_artifacts_after_remount": []
+    },
+    "cleanup_verified": true,
+    "image_and_scratch_removed": true
+  },
+  "cargo_git_checkout_symlink_policy": {
+    "default": "symlinks in Cargo home remain rejected",
+    "opt_in_scope": "only descendants of Cargo home git/checkouts may resolve within that checkout",
+    "fixtures": "an internal relative Cargo checkout link is accepted only with the explicit option; an escaping link is rejected",
+    "actual_crossbeam_links": 4,
+    "resolved_inside_pinned_checkout": true
+  },
+  "scope_and_limits": [
+    "No Kingston writes, provider requests, credentials, or production/runtime changes occurred during this APFS qualification.",
+    "The disposable image and scratch directory were detached and removed after qualification.",
+    "Test-only ownership normalization and capacity overrides do not qualify Kingston ownership or capacity.",
+    "The supervisor is not an arbitrary build-script sandbox; descendants that deliberately leave the process group remain outside this qualification."
+  ]
+}

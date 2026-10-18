@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "source": "Helius MCP heliusKnowledge.getHeliusCreditsInfo",
+  "captured_at": "2026-10-10T01:41:00Z",
+  "source_url": "https://www.helius.dev/docs/billing",
+  "scope": "generic published method-credit schedule; not connected-account billing evidence",
+  "methods": {
+    "getSlot": 1,
+    "getBlocks": 1,
+    "getBlock": 1
+  },
+  "v3_frame_estimate": {
+    "getSlot_calls": 1,
+    "getBlocks_calls": 1,
+    "getBlock_calls": 32,
+    "total_rpc_calls": 34,
+    "published_method_credits_if_applied": 34
+  },
+  "v3_campaign_estimate": {
+    "frames": 24,
+    "rpc_calls": 816,
+    "published_method_credits_if_applied": 816
+  },
+  "limitations": [
+    "The connected Helius key's plan, credit balance, remaining quota, and actual billing are unavailable from Helius MCP.",
+    "Published method credits are not substituted for measured account credits.",
+    "No provider RPC was made for this pricing lookup."
+  ]
+}

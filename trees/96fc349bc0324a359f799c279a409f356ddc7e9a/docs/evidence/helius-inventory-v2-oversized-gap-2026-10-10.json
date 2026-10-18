@@ -1,0 +1,37 @@
+{
+  "anchor_slot": 455061515,
+  "bucket": "20261010T000000Z",
+  "coverage_interpretation": "explicit oversized numeric-slot gap; no inventory, selected block, transaction or economic-zero evidence",
+  "kind": "helius_inventory_v2_oversized_frame_gap",
+  "observed_width": 23699,
+  "previous_frontier": 455037817,
+  "provider": "helius-free",
+  "range_end_exclusive": 455061516,
+  "raw_artifacts": {
+    "capture_sha256": "c98dbc359306be297a525bf9eb721219b8151a010f25a039b9d5abc283600c0e",
+    "epoch_summary_sha256": "740fe9e57738d02085297e5917b596366733596c8467e854b518b21c22870806",
+    "request_result_sha256": "99eee9ff3bac28f51d85a74e6701db01d8dfaa2512f4b0776210043027b1be22",
+    "request_sha256": "3666e8739b675e280d85919bdddb9b674d4064d54d5ba14acc85112360970ccf",
+    "root": "work/brain-senses-live-helius-inventory-v2-16-hourly-20261010/epochs/20261010T000000Z",
+    "stop_sha256": "d3e49573d0edeef360dd810031ca4dca7f2582b4a7777932d08412a8a61e02f7"
+  },
+  "reason": "frame_exceeds_pinned_width_cap",
+  "recovery": "terminal STOP record and epoch-summary are immutable; do not replay or retry this bucket; next scheduled bucket starts at persisted frontier",
+  "request_accounting": {
+    "captured_results": 1,
+    "method": "getSlot",
+    "no_inventory_or_block_requests": true,
+    "no_retries": true,
+    "phase": "anchor",
+    "provider_charge_status": "unknown_unverified",
+    "receipt_ns": 1791593029992789000,
+    "request_started_ns": 1791593029727985000,
+    "reservations": 1,
+    "response_bytes": 43,
+    "stored_response_bytes": 56
+  },
+  "schedule_id": "helius-inventory-v2-16-hourly-20261010",
+  "schema_version": 1,
+  "status": "oversized_frame",
+  "width_cap": 20000
+}

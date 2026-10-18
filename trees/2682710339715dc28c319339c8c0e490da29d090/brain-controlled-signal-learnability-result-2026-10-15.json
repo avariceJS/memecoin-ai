@@ -1,0 +1,66 @@
+{
+  "version": "brain-synthetic-learnability-result-v1",
+  "created_at_utc": "2026-10-15T00:59:16Z",
+  "preregistration": {
+    "path": "brain-controlled-signal-learnability-prereg-2026-10-15.json",
+    "sha256": "f814669793ae40c991f172f4e8a83b7fa655c1f87985da58bdc538a3a91ce8ba"
+  },
+  "scope": "one frozen synthetic CPU fit and registered retrospective evaluation; no provider, market, protected, production, or prospective data",
+  "execution": {
+    "pre_run_commit": "9bcd169aa9f937cc8854d1c5847dff7d3b3c61ec",
+    "pre_run_test_harness_sha256": "819c0248f34055eb208542a6e3c7e7f6e1702e1186d837326144b4fa86cd3590",
+    "protocol_registered_at_utc": "2026-10-15T00:57:39.830764Z",
+    "protocol_scope": "retrospective synthetic research evaluation"
+  },
+  "recipe": {
+    "model_kind": "gru-quantiles-v1",
+    "width": 8,
+    "batch": 16,
+    "epochs": 100,
+    "seed": 19,
+    "device": "cpu",
+    "cpu_threads": 1,
+    "learning_rate": 0.01,
+    "objective": "partial_count_lower_bound_pinball_v1"
+  },
+  "cohorts": {
+    "training": {"total": 96, "exact": 88, "positive_censored_lower_bound": 8},
+    "validation": {"exact": 32},
+    "temporal_test": {"exact": 32},
+    "registered_evaluation": {
+      "enrolled": 64,
+      "exact_eligible": 63,
+      "purged": 1,
+      "purged_reason": "the first input dependency starts one second before the registered evaluation window"
+    }
+  },
+  "pins": {
+    "train_snapshot": "48d28de3e5305626749ca275686d565d2532f200086beaaa0f337717fc0334d1",
+    "evaluation_snapshot": "c8053bad3ab2fa8cafd2f5efbe1d7e61f87ebf2552d83af4c0934235b5f28817",
+    "model_artifact_manifest_sha256": "da9c502352fba112009c44be0f403faef1c30ea6d5e12edfcc0d4f109d86a818",
+    "evaluation_protocol_sha256": "05c2a35107861352756b2236a42f2349f655e2a4e4d31713d1fd7a7de8d06fed",
+    "evaluation_report_sha256": "a2d818f1c9d012dfb3d0aafbeab64f18c001cc625592f776c85d4256d4ff922a",
+    "predictions_sha256": "f323a83f62c2a70ecd5f1df52f4ccb14cac4b48e2123608e60dee643c43f6dd6",
+    "training_report_sha256": "559d099a0386d6b9e4d485e069f0cb4349e1fb9c82ee1a921c7a4a8ea69b2c68",
+    "training_statistics_sha256": "eb56a5993e9109dedfa386565fb2c3702c676c028b0553f79cfee78cf40bb9e0"
+  },
+  "metrics": {
+    "registered_evaluation_exact_n": 63,
+    "model_raw_count_pinball": 0.0027196147676222236,
+    "train_only_empirical_raw_count_pinball": 0.471957671957672,
+    "known_conditional_oracle_raw_count_pinball": 0.0,
+    "predictions_finite": true
+  },
+  "acceptance": {
+    "required_exact_evaluation_n": 64,
+    "actual_exact_evaluation_n": 63,
+    "denominator_gate": "fail",
+    "loss_thresholds": "numerically met on the 63 eligible rows, but not accepted because the frozen exact-denominator gate failed",
+    "overall_outcome": "fail"
+  },
+  "limitations": [
+    "The single run does not qualify synthetic conditional learnability because the preregistered exact-label denominator was not met.",
+    "The observed score on 63 eligible synthetic rows is descriptive only; no tuning or second run on this fixture is authorized by this result.",
+    "No market forecasting, generalization, calibration on real data, or production claim follows."
+  ]
+}

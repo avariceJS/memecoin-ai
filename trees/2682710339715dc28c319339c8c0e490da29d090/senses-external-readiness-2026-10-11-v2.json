@@ -1,0 +1,207 @@
+{
+  "c4_terminal": {
+    "active_frame_reservation_path": "work/brain-senses-live-helius-inventory-v3-20261010-4/active-frame-reservation.json",
+    "active_frame_reservation_sha256": "25a9a9ccd203915eea9d6c071e97da5797584d992f69662e7436b1d419e5922b",
+    "active_frame_reservation_status": "reconciled",
+    "campaign_id": "helius-inventory-v3-20261010-4",
+    "campaign_root": "work/brain-senses-live-helius-inventory-v3-20261010-4",
+    "frontier_path": "work/brain-senses-live-helius-inventory-v3-20261010-4/frontier-v3.json",
+    "frontier_sha256": "e3a57be723f84265d3720a109125074d76e293f36a28468f5019b3f25211ee9a",
+    "last_attempt_bucket": "20261010T230000Z",
+    "observed_frontier": 455430160,
+    "scope": "STOP, frontier and reservation metadata only; no c4 response bodies or frozen audit payloads opened",
+    "stop_path": "work/brain-senses-live-helius-inventory-v3-20261010-4/STOP",
+    "stop_reason": "minimum_free_disk_floor_plus_frame_envelope",
+    "stop_sha256": "a7ac1fdd02615491fbea494d35f5bbcba8b03d5bf2a4d11f2516616b39f00098",
+    "stop_usage_raw_bytes": 769657370,
+    "stop_usage_requests": 374,
+    "stop_usage_stored_bytes": 177576450
+  },
+  "clock": {
+    "https_checks": [
+      {
+        "age_header": "absent",
+        "curl_return_code": 0,
+        "date": "Sun, 11 Oct 2026 20:55:46 GMT",
+        "host": "www.cloudflare.com",
+        "http_status": 200,
+        "interim_status": 103,
+        "local_realtime_after_ns": 1791752146034070000,
+        "local_realtime_before_ns": 1791752145597828000,
+        "method": "HEAD",
+        "monotonic_after_ns": 3776498622638625,
+        "monotonic_before_ns": 3776498186397375,
+        "redirect_count": 0,
+        "round_trip_ms": 436.2
+      },
+      {
+        "age_header": "absent",
+        "curl_return_code": 0,
+        "date": "Sun, 11 Oct 2026 20:55:46 GMT",
+        "host": "www.google.com",
+        "http_status": 200,
+        "interim_status": null,
+        "local_realtime_after_ns": 1791752146235095000,
+        "local_realtime_before_ns": 1791752146034165000,
+        "method": "HEAD",
+        "monotonic_after_ns": 3776498823664416,
+        "monotonic_before_ns": 3776498622735750,
+        "redirect_count": 0,
+        "round_trip_ms": 200.9
+      }
+    ],
+    "lease_acceptance_scope": "Sol accepted these two HTTPS brackets as a coarse operational clock gate for a short read-only finite acquisition lease only, conditional on refreshing both at lease preparation and immediately before first dispatch: HTTP 200, no redirect, Age absent or zero, RTT <= 2 s each, dates within 2 s, local time within 2 s of conservative Date-second bracket, evidence <= 5 min, first bucket >= 60 s after preflight, and dispatch with >= 5 s endpoint margins. Pair wall and monotonic time through the lease and stop on wall regression, > 2 s wall/monotonic divergence, stale evidence or disagreement. No RPC retry. This does not establish nanosecond accuracy, market causality or cryptographic timestamp proof.",
+    "result": "Both independent HTTPS Date values agree to the same UTC second and bracket the local realtime samples at the endpoints' one-second resolution. This is coarse operational bucket-time corroboration, not a precision error bound or cryptographic timestamp proof.",
+    "sntp_probes": [
+      {
+        "attempts": "Apple debug probe made five timed-out exchanges; one bounded probe each to Cloudflare and Google also timed out",
+        "hosts": [
+          "time.apple.com",
+          "time.cloudflare.com",
+          "time.google.com"
+        ],
+        "result": "timeout; no usable NTP sample"
+      }
+    ],
+    "strict_authenticated_or_high_precision_time_status": "unresolved",
+    "system_timed_daemon_running": true
+  },
+  "contract": "senses_external_readiness_v2",
+  "current_source_pins": {
+    "external_writer_detach_qualified": false,
+    "production_checkout_modified_by_audit": false,
+    "tools/brain_senses_external_service_v1.py": "87fde5597669a3b65c6d868495c9cd1128a02efe32ce581a2daad8e0ff701418",
+    "tools/research_storage.py": "3a7e7d27e315a2cc84518729ce177aacfbca087e28585fe92e84f665928ca491",
+    "tools/research_storage_health.py": "55840a3bcecba19a5bdd0e8bf49eb19bab6d4bfe8716e55277a603913f38f1df"
+  },
+  "health_monitor": {
+    "age_at_receipt_seconds": 102.3,
+    "cadence_seconds": 300,
+    "fresh_for_300_second_cadence": true,
+    "health_status_mode": "0600",
+    "label": "ai.memecoin.brain.research-storage-health-v1",
+    "latest_available_bytes": 221045243904,
+    "latest_checked_at_ns": 1791752106449343000,
+    "latest_root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "latest_status": "ready",
+    "latest_volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "launchd_list_state": "loaded, exit status 0",
+    "observed_free_space_delta_bytes": 0,
+    "plist_path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.research-storage-health-v1.plist",
+    "plist_sha256": "eb1dc6f7a3e534a5323e8df315a82635dd1a636e1459c78d0fe978a4d48b42fc",
+    "sampled_disk_free": [
+      {
+        "available_bytes": 221045243904,
+        "local_utc_ns": 1791752180744969000,
+        "monotonic_ns": 3776533333670083
+      },
+      {
+        "available_bytes": 221045243904,
+        "local_utc_ns": 1791752208764306000,
+        "monotonic_ns": 3776561353112250
+      }
+    ],
+    "sampled_interval_seconds": 28.0,
+    "sampling_limit": "Short read-only samples show no net df change at 4096-byte allocation granularity over 28 seconds; this does not establish peak churn or a worst-case trend.",
+    "source_path": "tools/research_storage_health.py",
+    "source_sha256": "55840a3bcecba19a5bdd0e8bf49eb19bab6d4bfe8716e55277a603913f38f1df",
+    "status_path": "/Users/root1/.config/brain-research/storage-health/status.json",
+    "status_sha256_at_sample_1": "2c8e2ad9ec79dd83c1a783f0e8ff9a7676689b84c477dbdd422b5aa03b817829",
+    "storage_resolver_source_path": "tools/research_storage.py",
+    "storage_resolver_source_sha256": "3a7e7d27e315a2cc84518729ce177aacfbca087e28585fe92e84f665928ca491",
+    "write_scope": "bounded private internal status.json only; no acquisition"
+  },
+  "launchagents": {
+    "active_senses_market_writers": 0,
+    "archived_plist_hashes": {
+      "ai.memecoin.brain.senses.block-epochs": "3e801c2768f676032406329918fc1a6afc766a13b54d4e44dedde5c2f03dbcaf",
+      "ai.memecoin.brain.senses.decode-watch": "3f89d11f0c1da8f2d4aa2a9b110525781e007567bc035008c81cd85944a7f675",
+      "ai.memecoin.brain.senses.helius-decode-watch": "3dbce1172e4ff49daa22a33a3847a1c996097c5a941af779ea525ba9c038442d",
+      "ai.memecoin.brain.senses.helius-inventory-controller-v1": "694f6853606411b38691f52e72bfd88a6470061482adc5f01f3832db4fa67b93",
+      "ai.memecoin.brain.senses.helius-inventory-v3-20261010-1": "b985f5f562b5ab78dd6040a3c6b0ba606c244bf624528f25f34d245225c8e6f1",
+      "ai.memecoin.brain.senses.helius-inventory-v3-20261010-2": "db7353d8cd77d351cce99cb80b932237224911968fa40be750000c741391dee3",
+      "ai.memecoin.brain.senses.helius-inventory-v3-20261010-3": "a022cc3d452d7be5b1c9746a37adc1153e5e6e607eb4a52329e4c520620077f7",
+      "ai.memecoin.brain.senses.helius-inventory-v3-20261010-4": "9a42474eb00d7bbc253b3f461185bd77a8658e131c45bc73881faa034d7283e8",
+      "ai.memecoin.brain.senses.helius-watch": "e1a8fcba0b18c0677434a1cc63170d388b3cbb28012a1bce44e65960b5ffd834",
+      "ai.memecoin.brain.senses.helius-watch-v2": "5fed8bcb9a4a6961ccd2869c500dadc70961d9ce3d56da4ae342ddd951669791",
+      "ai.memecoin.brain.senses.helius-watch-v3": "cea2f61a6408713aa1e3856158f060d82f333f64482607b4c0b2e7abe15101e9",
+      "ai.memecoin.brain.senses.independent-verifier-512": "389ee7ae2fa2ccc7f1302d35a8f13647c638b0b91b7e8b3eb3017e61309d7b99",
+      "ai.memecoin.brain.senses.independent-verifier-512-pair64": "e2a1a872b78476b7475cbb89cc4e706de28b8f4d32c5e472fba5a19f9e94e389",
+      "ai.memecoin.brain.senses.program-watch": "dbbf60e22527fd8fdb1464336f321190215f652eca4a5f363caa4fb0bc15ff45",
+      "ai.memecoin.brain.senses.program-watch-v3": "99ea7bb24186b79ea444642317b6a2d02c253b66b0b1229212cd9dd721d7dd17"
+    },
+    "only_research_agent_in_launchctl_list": "ai.memecoin.brain.research-storage-health-v1",
+    "retired_archived_plist_hashes_match_handoff": true,
+    "retired_installed_plists_absent": true,
+    "retired_labels_disabled": true,
+    "retired_labels_loaded": false,
+    "retired_senses_count": 15,
+    "verification": "launchctl list; launchctl print-disabled gui/$(id -u); installed plist inventory; SHA-256 of each of 15 archive plists compared with senses-external-storage-handoff-2026-10-11.json"
+  },
+  "observed_at_utc": "2026-10-11T20:56:48.764306Z",
+  "read_only_scope": {
+    "c4_payloads_opened": false,
+    "commands": [
+      "git status/rev-parse",
+      "diskutil info",
+      "df",
+      "launchctl list/print-disabled",
+      "SHA-256 and JSON reads",
+      "curl HTTPS HEAD",
+      "sntp debug probes"
+    ],
+    "credentials_read": false,
+    "frozen_audit_payloads_opened": false,
+    "mount_or_unmount": false,
+    "production_checkout_touched": false,
+    "provider_requests": 0,
+    "runtime_mutations": 0
+  },
+  "repository": {
+    "head": "95008a49bbebef493857af7b1ded675dad3b458e",
+    "initial_git_status_short": "clean",
+    "path": "/Users/root1/Developer/memecoin-research",
+    "scope": "read-only readiness audit plus this requested receipt; no commit"
+  },
+  "schema_version": 1,
+  "storage": {
+    "available_bytes": 221045243904,
+    "binding_mode": "0600",
+    "data_root": "/Volumes/Kingston/BrainData",
+    "filesystem": "case-sensitive APFS",
+    "headroom_above_minimum_free_bytes": 167358152704,
+    "host_binding_path": "/Users/root1/.config/brain-research/storage-v1.json",
+    "host_binding_sha256": "8d1dce38f2f65a622b28cc03a78f456b21aed0fe3c5a956e0624bf0caab8b9fe",
+    "implicit_internal_fallback": false,
+    "internal_data_volume_available_bytes": 50257158144,
+    "minimum_free_bytes": 53687091200,
+    "mount": "/Volumes/Kingston",
+    "mounted": true,
+    "owners_enabled": true,
+    "probe": "diskutil info /Volumes/Kingston; df -k /Volumes/Kingston /System/Volumes/Data; read host binding JSON",
+    "read_only": false,
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "root_mode": "0700",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf"
+  },
+  "storage_and_request_envelope": {
+    "accounting_receipt": "docs/evidence/helius-inventory-v3-c4-abnormal-stop-accounting-2026-10-11.json",
+    "accounting_receipt_sha256": "e3a96b30f5e3accaa91906f647d536a0d773f9f76376bf27b5a35fc5a088e26c",
+    "all_in_raw_bytes": 769657413,
+    "all_in_requests": 375,
+    "all_in_stored_bytes": 177576506,
+    "arithmetic_only_24_frame_equivalent_requests": 817,
+    "bootstrap_requests": 1,
+    "current_account_credit_units_and_headroom": "unknown",
+    "lease_or_request_authorization": false,
+    "limitations": "Eleven completed frames are a bounded sample, not a worst-case storage/churn bound. The historical 34-request frame and 674 MB reservation are planning evidence, not an approved cap. Provider charge units and account headroom are unknown; no new request, retry, backfill, or successor lease is authorized by this receipt.",
+    "maximum_frame_raw_bytes": 92082186,
+    "maximum_frame_stored_bytes": 17798128,
+    "observed_complete_frames": 11,
+    "observed_requests_per_frame": 34,
+    "prior_c4_finite_lease_max_frames": 24,
+    "reserved_frame_peak_disk_bytes": 674000000,
+    "sizing_receipt": "docs/evidence/helius-inventory-v3-c4-abnormal-stop-sizing-2026-10-11.json",
+    "sizing_receipt_sha256": "51b155918655f840a1cee9d25dcc6ae91e0b97cc81e523d24720a6f43f959170"
+  }
+}

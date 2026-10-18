@@ -1,0 +1,123 @@
+{
+  "stage": "CC-02-AUDIT",
+  "date": "2026-10-04",
+  "code_baseline": "b97c7b2",
+  "source": "user supplied; exact capture revision unknown",
+  "target": "docs/control-center/references/dashboard-concept-v1.png",
+  "target_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+  "screenshots": [
+    {
+      "path": "docs/control-center/current-v1/image.png",
+      "sha256": "caf30937fc810a5b8af7bc09cf70ae88f18a968c995570b77de4ceadf587ce9e",
+      "width": 2048,
+      "height": 1177,
+      "page": "Overview top",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    },
+    {
+      "path": "docs/control-center/current-v1/image copy.png",
+      "sha256": "726346b4343671017e1bdca05a9e759f59b3e4fca797ca37ee1e2797c0df1c98",
+      "width": 2048,
+      "height": 1171,
+      "page": "Overview lower/capabilities",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    },
+    {
+      "path": "docs/control-center/current-v1/image copy 2.png",
+      "sha256": "866d8aa8ce4823ff5e3ff33fb8ba85f7f59e9bab2e9dbffe236bacf3e004d75d",
+      "width": 2048,
+      "height": 1173,
+      "page": "Calendar D43 + D48 start",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    },
+    {
+      "path": "docs/control-center/current-v1/image copy 3.png",
+      "sha256": "4840216679ad4491f787395b742f3ceeb4e1eabc9e86f7e6fa2b62c02e0bce8d",
+      "width": 2048,
+      "height": 1160,
+      "page": "Calendar D48 + corpus",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    },
+    {
+      "path": "docs/control-center/current-v1/image copy 4.png",
+      "sha256": "cbadecccf5616204155d60957963f9568efa25c495abd5c2605d9361d3a1f3e4",
+      "width": 2048,
+      "height": 1166,
+      "page": "Research",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    },
+    {
+      "path": "docs/control-center/current-v1/image copy 5.png",
+      "sha256": "1f73e0b2c6c66f75b175151d38ca4fbb7ad051b80a4eec2c2e59cf02dd91c2ae",
+      "width": 2048,
+      "height": 1170,
+      "page": "Models",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    },
+    {
+      "path": "docs/control-center/current-v1/image copy 6.png",
+      "sha256": "22edaeaffdf54b20d1c465f9eb7d5cfc98468e3fa1d77b3ef3dd913def68a29a",
+      "width": 2048,
+      "height": 1163,
+      "page": "Sources",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    },
+    {
+      "path": "docs/control-center/current-v1/image copy 7.png",
+      "sha256": "fc9eb74fc106a9e9bffd225f76a3a899eea95f9d0c9e04bb19f0e04acbf6cac8",
+      "width": 2048,
+      "height": 1166,
+      "page": "System",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    },
+    {
+      "path": "docs/control-center/current-v1/image copy 8.png",
+      "sha256": "e0154ab5cebe208455549c12654675e642aa1441bd94a9fc1701a9bd6c6a6171",
+      "width": 2048,
+      "height": 1168,
+      "page": "Replay",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    },
+    {
+      "path": "docs/control-center/current-v1/image copy 9.png",
+      "sha256": "877ad7b21d3c4b080a7b1c9cebaa2af84f5a9dcadf1f4960ac4d27ad92c31fa3",
+      "width": 2048,
+      "height": 1166,
+      "page": "Trading",
+      "opened_by_auditor": true,
+      "css_viewport": "UNKNOWN",
+      "dpr": "UNKNOWN",
+      "zoom": "UNKNOWN"
+    }
+  ],
+  "visual_acceptance": "REJECTED",
+  "functional_foundation": "RETAIN",
+  "note": "Сохранён исходный пользовательский каталог current-v1; ничего не перемещено/удалено. Старые screenshots/reviews не переименованы в PASS CC02."
+}

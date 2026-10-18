@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "evidence_id": "helius-key-post-resume-exposure-rescan-2026-10-10",
+  "checked_at_utc": "2026-10-10T14:30:43Z",
+  "contract": "helius_key_exact_value_post_resume_rescan_v1",
+  "method": "Exact credential-component and full-endpoint equality checks; secret held in process memory and never emitted.",
+  "results": {
+    "git_object_database": {
+      "objects_scanned": 5318,
+      "raw_bytes_scanned": 124599358,
+      "exact_credential_component_matches": 0
+    },
+    "active_process_command_lines": {
+      "processes_scanned": 681,
+      "exact_credential_component_or_endpoint_matches": 0
+    },
+    "accessible_files_modified_since_2026_10_10T13_55_29Z": {
+      "files_scanned": 4995,
+      "exact_credential_component_or_endpoint_matches": 0,
+      "roots": ["~/.cursor", "~/.codex", "research/work", "research/docs/evidence", "~/Library/Logs", "/tmp"],
+      "maximum_file_size_bytes": 300000000
+    },
+    "macos_unified_log_last_35_minutes": {
+      "bytes_scanned": 90043541,
+      "log_show_exit_code": 0,
+      "exact_credential_component_or_endpoint_match": false
+    },
+    "expected_private_configurations": [
+      {"path": "research/.env.local", "mode": "0600", "exact_matches": 1},
+      {"path": "~/.codex/config.toml", "mode": "0600", "exact_matches": 1},
+      {"path": "~/.cursor/mcp.json", "mode": "0600", "exact_matches": 1}
+    ]
+  },
+  "credential_transport": {
+    "helius_mcp": "Pinned helius-mcp@2.2.0; credential configured in environment, absent from command arguments.",
+    "c4_launchagent": "Fixed executable/subcommand/root paths only; no credential environment entry or argument.",
+    "collector": "Reads the endpoint from private mode-0600 .env.local inside the process."
+  },
+  "runtime": {
+    "campaign": "helius-inventory-v3-20261010-4",
+    "launchagent_loaded_idle": true,
+    "launchagent_last_exit_code": 0,
+    "completed_frames": 2,
+    "root_stop_present": false,
+    "open_reservations": 0,
+    "next_calendar_trigger_utc": "2026-10-10T15:05:00Z"
+  },
+  "limitations": [
+    "Provider-side logs, remote conversation storage, backups, Time Machine, and inaccessible services were not inspected.",
+    "A prior credential-bearing process-list result remains in the agent conversation history; the user accepted the no-rotation risk and authorized continued use.",
+    "The saved-file scan covers files modified after the previous full scan; unchanged historical files are covered by the referenced pre-resume scan."
+  ],
+  "prior_full_scan": "helius-key-pre-resume-exposure-rescan-2026-10-10.json",
+  "user_authorized_existing_key": true
+}

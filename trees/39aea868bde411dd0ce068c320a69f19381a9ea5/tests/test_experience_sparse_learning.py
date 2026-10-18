@@ -1,0 +1,1306 @@
+"""Generic sparse price/count/lifecycle integration; synthetic markets only."""
+
+import importlib.util
+import json
+from pathlib import Path
+
+import pytest
+
+np = pytest.importorskip("numpy")
+torch = pytest.importorskip("torch")
+
+from test_experience_sparse import NS, contract, facts, materialized, plan, source  # noqa: E402
+
+from memecoin_experience import (  # noqa: E402
+    evaluation,
+    generations,
+    learning,
+    observations,
+    sparse,
+)
+from memecoin_experience.learning import _censor_bounds, batches, train  # noqa: E402
+from memecoin_experience.predict import Predictor  # noqa: E402
+from memecoin_experience.storage import Snapshot, build, file_hash  # noqa: E402
+from memecoin_population import catalog, diversity  # noqa: E402
+
+
+def test_partial_count_selection_matches_quantile_weighted_training_loss(monkeypatch):
+    schema = {
+        "schema": "brain-experience-v2",
+        "targets": [{"name": "count", "kind": "observed_process_count@1000000000ns"}],
+    }
+    snapshot = type("SnapshotStub", (), {"schema": schema})()
+    packed = (
+        np.array([[[0.0]], [[1.0]]]),
+        np.array([[0.0], [0.0]]),
+        np.array([[False], [True]]),
+        np.array([[4.0], [0.0]]),
+        np.array([[True], [False]]),
+        ["censored", "exact"],
+        (1, 0),
+    )
+    monkeypatch.setattr(learning, "batches", lambda *args, **kwargs: iter([packed]))
+
+    class Candidate:
+        def __init__(self, bound_prediction):
+            self.bound_prediction = torch.tensor(bound_prediction, dtype=torch.float32)
+
+        def eval(self):
+            return self
+
+        def __call__(self, x):
+            result = torch.zeros((2, 1, 3), dtype=torch.float32)
+            result[0, 0] = self.bound_prediction
+            return result
+
+    stats = dict(mean=[0.0], scale=[1.0], target_transforms=["identity"], baseline=[[0, 0, 0]])
+    config = dict(objective="partial_count_lower_bound_pinball_v1", batch=2, device="cpu")
+    first = learning.evaluate(Candidate([0.0, 4.0, 4.0]), snapshot, {}, "validation", stats, config)
+    second = learning.evaluate(
+        Candidate([3.0, 3.0, 3.0]), snapshot, {}, "validation", stats, config
+    )
+
+    # One exact cell with zero loss and one bound cell share the per-horizon denominator.
+    assert first["selection_score"] == pytest.approx((0.1 * 4 / 3) / 2)
+    assert second["selection_score"] == pytest.approx(0.5 / 2)
+    assert first["selection_score"] < second["selection_score"]
+    assert first["selection_metric"] == (
+        "partial_identification_objective_space_v2_quantile_weighted"
+    )
+    # Diagnostics remain in raw count space and unweighted across quantiles.
+    assert first["partial_count_bounds"][0]["mean_lower_bound_violation"] == pytest.approx(4 / 3)
+    assert second["partial_count_bounds"][0]["mean_lower_bound_violation"] == pytest.approx(1.0)
+
+
+def test_evaluation_rejects_nonfinite_censored_prediction_before_inverse_transform(monkeypatch):
+    schema = {
+        "schema": "brain-experience-v2",
+        "targets": [{"name": "count", "kind": "observed_process_count@1000000000ns"}],
+    }
+    snapshot = type("SnapshotStub", (), {"schema": schema})()
+    packed = (
+        np.zeros((1, 1, 1)),
+        np.zeros((1, 1)),
+        np.zeros((1, 1), dtype=bool),
+        np.full((1, 1), 2.0),
+        np.ones((1, 1), dtype=bool),
+        ["censored"],
+        (1, 0),
+    )
+    monkeypatch.setattr(learning, "batches", lambda *args, **kwargs: iter([packed]))
+    stats = dict(mean=[0.0], scale=[1.0], target_transforms=["log1p_nonnegative"], baseline=[None])
+    config = dict(objective="partial_count_lower_bound_pinball_v1", batch=1, device="cpu")
+
+    class Candidate:
+        def __init__(self, prediction):
+            self.prediction = prediction
+
+        def eval(self):
+            return self
+
+        def __call__(self, x):
+            return torch.full((len(x), 1, 3), self.prediction)
+
+    for prediction in (float("inf"), float("-inf"), float("nan")):
+        with pytest.raises(ValueError, match="experience_nonfinite_prediction"):
+            learning.evaluate(Candidate(prediction), snapshot, {}, "validation", stats, config)
+
+    with np.errstate(over="ignore"):
+        with pytest.raises(ValueError, match="experience_nonfinite_prediction"):
+            learning.evaluate(Candidate(100.0), snapshot, {}, "validation", stats, config)
+
+    result = learning.evaluate(Candidate(0.0), snapshot, {}, "validation", stats, config)
+    assert result["model"][0]["n"] == 0
+    assert np.isfinite(result["selection_score"]) and result["selection_score"] > 0
+
+
+def test_partial_count_objective_requires_support_for_each_target(tmp_path):
+    schema = {
+        "schema": "brain-experience-v2",
+        "layout": "dense-sequence-f64-v1",
+        "context": 1,
+        "features": [{"name": "signal", "unit": "indicator", "modality": "synthetic"}],
+        "targets": [
+            {"name": name, "unit": "events", "kind": "observed_process_count@1000000000ns"}
+            for name in ("count_a", "count_b")
+        ],
+        "representation": dict(name="per-target-objective-support", version="1", code_sha="f" * 64),
+        "availability": "historical_replay",
+    }
+
+    def publish(
+        name,
+        train_b,
+        *,
+        train_a="censored",
+        validation_b="observed",
+        late_validation_bound=False,
+    ):
+        rows = []
+        for role, seconds in (("train", 10), ("validation", 110), ("test", 210)):
+            decision = seconds * NS
+            statuses = (
+                [train_a, train_b]
+                if role == "train"
+                else ["observed", validation_b if role == "validation" else "pending"]
+            )
+            values = [None, None]
+            available = [None, None]
+            captures = [[], []]
+            details = [{}, {}]
+            if statuses[0] == "censored":
+                details[0] = dict(lower_bound=2, lower_bound_available_ns=decision + 1)
+            else:
+                values[0], available[0], captures[0] = 2, decision + 1, ["a" * 64]
+            if statuses[1] == "censored":
+                details[1] = dict(
+                    lower_bound=3,
+                    lower_bound_available_ns=300 * NS + 1
+                    if late_validation_bound
+                    else decision + 1,
+                )
+            elif statuses[1] == "observed":
+                values[1], available[1], captures[1] = 3, decision + 1, ["b" * 64]
+            rows.append(
+                dict(
+                    id=f"synthetic:{role}",
+                    pool="synthetic/per-target-support",
+                    decision_ns=decision,
+                    input_start_ns=decision - 1,
+                    input_available_ns=decision,
+                    input_dependencies=[
+                        dict(artifact_sha="c" * 64, event_ns=decision - 1, available_ns=decision)
+                    ],
+                    values=[[float(seconds)]],
+                    targets=values,
+                    target_status=statuses,
+                    target_available_ns=available,
+                    target_maturity_ns=[decision + 1, decision + 1],
+                    target_captures=captures,
+                    target_details=details,
+                )
+            )
+        store = tmp_path / f"store-{name}"
+        result = build(
+            store,
+            rows,
+            sources=[dict(kind="synthetic", pin="d" * 64)],
+            cutoff=300 * NS,
+            schema=schema,
+        )
+        return store, result["snapshot"]
+
+    split = dict(train_start_s=0, train_end_s=100, validation_end_s=200, test_end_s=300)
+
+    empty_store, empty_pin = publish("empty-b", "pending")
+    empty_output = tmp_path / "stats-empty-b"
+    empty_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_training_horizon"):
+        learning.prepare(
+            Snapshot(empty_store, empty_pin),
+            split,
+            empty_output,
+            4,
+            objective="partial_count_lower_bound_pinball_v1",
+        )
+
+    bounds_store, bounds_pin = publish("bound-b", "censored")
+    bounds_output = tmp_path / "stats-bound-b"
+    bounds_output.mkdir()
+    bounded = learning.prepare(
+        Snapshot(bounds_store, bounds_pin),
+        split,
+        bounds_output,
+        4,
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    assert bounded["baseline"] == [None, None]
+    assert bounded["denominators"]["train/0/informative_lower_bound"] == 1
+    assert bounded["denominators"]["train/1/informative_lower_bound"] == 1
+
+    exact_store, exact_pin = publish("exact-b", "observed")
+    exact_output = tmp_path / "stats-exact-b"
+    exact_output.mkdir()
+    exact = learning.prepare(
+        Snapshot(exact_store, exact_pin),
+        split,
+        exact_output,
+        4,
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    assert exact["baseline"][0] is None
+    assert exact["baseline"][1] is not None
+
+    missing_validation_store, missing_validation_pin = publish(
+        "validation-empty-b", "observed", validation_b="pending"
+    )
+    missing_validation_output = tmp_path / "stats-validation-empty-b"
+    missing_validation_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_validation_horizon"):
+        learning.prepare(
+            Snapshot(missing_validation_store, missing_validation_pin),
+            split,
+            missing_validation_output,
+            4,
+            objective="partial_count_lower_bound_pinball_v1",
+        )
+
+    bound_validation_store, bound_validation_pin = publish(
+        "validation-bound-b",
+        "observed",
+        train_a="observed",
+        validation_b="censored",
+    )
+    bound_validation_output = tmp_path / "stats-validation-bound-b"
+    bound_validation_output.mkdir()
+    bound_validation = learning.prepare(
+        Snapshot(bound_validation_store, bound_validation_pin),
+        split,
+        bound_validation_output,
+        4,
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    assert bound_validation["validation_objective_support"][1] == dict(
+        target="count_b",
+        exact_usable=0,
+        informative_lower_bound=1,
+        selected_usable=1,
+    )
+    default_bound_output = tmp_path / "stats-default-validation-bound-b"
+    default_bound_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_validation_horizon"):
+        learning.prepare(
+            Snapshot(bound_validation_store, bound_validation_pin),
+            split,
+            default_bound_output,
+            4,
+        )
+
+    import memecoin_experience.storage as storage
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        late_bound_store, late_bound_pin = publish(
+            "validation-late-bound-b",
+            "observed",
+            train_a="observed",
+            validation_b="censored",
+            late_validation_bound=True,
+        )
+    late_bound_output = tmp_path / "stats-validation-late-bound-b"
+    late_bound_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_validation_horizon"):
+        learning.prepare(
+            Snapshot(late_bound_store, late_bound_pin),
+            split,
+            late_bound_output,
+            4,
+            objective="partial_count_lower_bound_pinball_v1",
+        )
+
+    default_output = tmp_path / "stats-default"
+    default_output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_training_horizon"):
+        learning.prepare(Snapshot(bounds_store, bounds_pin), split, default_output, 4)
+
+
+def test_validation_support_excludes_admission_rejected_count_bound(tmp_path):
+    from memecoin_experience.admission import create
+
+    schema = {
+        "schema": "brain-experience-v2",
+        "layout": "dense-sequence-f64-v1",
+        "context": 1,
+        "features": [
+            dict(name="log_volume_usd", unit="log1p_USD", modality="ohlcv"),
+            dict(name="zero_volume", unit="indicator", modality="ohlcv"),
+        ],
+        "targets": [
+            dict(name=name, unit="events", kind="observed_process_count@1000000000ns")
+            for name in ("count_a", "count_b")
+        ],
+        "representation": dict(name="admission-validation-support", version="1", code_sha="e" * 64),
+        "availability": "historical_replay",
+    }
+
+    def row(name, seconds, volume, statuses, targets, *, bound_b=False):
+        decision = seconds * NS
+        return dict(
+            id=name,
+            pool="synthetic/admission-validation-support",
+            decision_ns=decision,
+            input_start_ns=decision - 1,
+            input_available_ns=decision,
+            input_dependencies=[
+                dict(artifact_sha="a" * 64, event_ns=decision - 1, available_ns=decision)
+            ],
+            values=[[float(np.log1p(volume)), 0.0]],
+            targets=targets,
+            target_status=statuses,
+            target_available_ns=[
+                decision + 1 if status == "observed" else None for status in statuses
+            ],
+            target_maturity_ns=[decision + 1, decision + 1],
+            target_captures=[["b" * 64] if status == "observed" else [] for status in statuses],
+            target_details=[
+                {},
+                dict(lower_bound=2, lower_bound_available_ns=decision + 1) if bound_b else {},
+            ],
+        )
+
+    rows = [
+        row("train", 10, 100, ["observed", "observed"], [2, 3]),
+        row("validation-eligible", 110, 100, ["observed", "pending"], [2, None]),
+        row("validation-rejected", 111, 1, ["pending", "censored"], [None, None], bound_b=True),
+        row("test", 210, 100, ["observed", "pending"], [2, None]),
+    ]
+    store = tmp_path / "admission-validation-store"
+    built = build(
+        store,
+        rows,
+        sources=[dict(kind="synthetic", pin="d" * 64)],
+        cutoff=300 * NS,
+        schema=schema,
+    )
+    admitted = create(
+        store,
+        built["snapshot"],
+        dict(
+            name="causal_activity_v1", min_positive_volume_fraction=0.25, min_context_volume_usd=100
+        ),
+    )
+    output = tmp_path / "admission-validation-stats"
+    output.mkdir()
+    with pytest.raises(ValueError, match="experience_empty_validation_horizon"):
+        learning.prepare(
+            Snapshot(store, admitted["snapshot"]),
+            dict(train_start_s=0, train_end_s=100, validation_end_s=200, test_end_s=300),
+            output,
+            4,
+            objective="partial_count_lower_bound_pinball_v1",
+        )
+
+
+def test_objective_usable_denominators_match_batches_for_each_role(tmp_path):
+    from memecoin_experience.admission import create
+
+    schema = {
+        "schema": "brain-experience-v2",
+        "layout": "dense-sequence-f64-v1",
+        "context": 1,
+        "features": [
+            dict(name="log_volume_usd", unit="log1p_USD", modality="ohlcv"),
+            dict(name="zero_volume", unit="indicator", modality="ohlcv"),
+        ],
+        "targets": [dict(name="count", unit="events", kind="observed_process_count@1000000000ns")],
+        "representation": dict(
+            name="objective-usable-denominators", version="1", code_sha="f" * 64
+        ),
+        "availability": "historical_replay",
+    }
+    rows = []
+    for start, role in ((5, "train"), (100, "validation"), (200, "test")):
+        for suffix, seconds, volume, status in (
+            ("purged", start, 100, "observed"),
+            ("exact", start + 10, 100, "observed"),
+            ("bound", start + 11, 100, "censored"),
+            ("rejected", start + 12, 1, "censored"),
+        ):
+            decision = seconds * NS
+            rows.append(
+                dict(
+                    id=f"{role}:{suffix}",
+                    pool="synthetic/objective-denominator",
+                    decision_ns=decision,
+                    input_start_ns=decision - 1 if suffix != "purged" else decision - NS,
+                    input_available_ns=decision,
+                    input_dependencies=[
+                        dict(
+                            artifact_sha="a" * 64,
+                            event_ns=decision - 1 if suffix != "purged" else decision - NS,
+                            available_ns=decision,
+                        )
+                    ],
+                    values=[[float(np.log1p(volume)), 0.0]],
+                    targets=[2 if status == "observed" else None],
+                    target_status=[status],
+                    target_available_ns=[decision + 1 if status == "observed" else None],
+                    target_maturity_ns=[decision + 1],
+                    target_captures=[["b" * 64] if status == "observed" else []],
+                    target_details=[
+                        dict(lower_bound=1, lower_bound_available_ns=decision + 1)
+                        if status == "censored"
+                        else {}
+                    ],
+                )
+            )
+    rows.sort(key=lambda row: (row["pool"], row["decision_ns"], row["id"]))
+    store = tmp_path / "objective-denominator-store"
+    built = build(
+        store,
+        rows,
+        sources=[dict(kind="synthetic", pin="c" * 64)],
+        cutoff=300 * NS,
+        schema=schema,
+    )
+    view = create(
+        store,
+        built["snapshot"],
+        dict(
+            name="causal_activity_v1", min_positive_volume_fraction=0.25, min_context_volume_usd=100
+        ),
+    )
+    snapshot = Snapshot(store, view["snapshot"])
+    plan = dict(train_start_s=5, train_end_s=100, validation_end_s=200, test_end_s=300)
+
+    for objective, expected_per_role in (
+        ("masked_pinball_v1", 1),
+        ("partial_count_lower_bound_pinball_v1", 2),
+    ):
+        output = tmp_path / f"stats-{objective}"
+        output.mkdir()
+        stats = learning.prepare(
+            snapshot,
+            plan,
+            output,
+            8,
+            objective=objective,
+        )
+        with_censoring = objective == "partial_count_lower_bound_pinball_v1"
+        for role in ("train", "validation", "test"):
+            packed = list(batches(snapshot, plan, role, 8, with_censoring=with_censoring))
+            id_index = 5 if with_censoring else 3
+            emitted = [row_id for batch in packed for row_id in batch[id_index]]
+            assert len(emitted) == expected_per_role
+            assert stats["population"][role + "_objective_usable"] == len(emitted)
+            assert stats["population"][role + "_partial_count_usable"] == 1
+            if role == "validation":
+                assert stats["validation_objective_support"][0]["selected_usable"] == len(emitted)
+
+
+def test_partial_count_batch_keeps_censored_count_separate_from_exact_mask(tmp_path):
+    rows = facts()
+    rows[-1]["status"] = "unknown"
+    projection = plan()
+    projection["targets"] = [projection["targets"][1]]
+    source_data = source(tmp_path, rows)
+    built = sparse.materialize(
+        source_data.store,
+        source_data.pin,
+        tmp_path / "snapshot",
+        plan=projection,
+        chunk=2,
+    )
+    snapshot = Snapshot(tmp_path / "snapshot", built["snapshot"])
+    split = dict(train_start_s=0, train_end_s=50, validation_end_s=60, test_end_s=70)
+    batches_out = list(batches(snapshot, split, "train", 16, with_censoring=True))
+    assert batches_out
+    _, _, exact_mask, lower, censored, ids, _ = batches_out[0]
+    i = ids.index("event:ticks:0")
+    assert exact_mask[i].tolist() == [False]
+    assert lower[i].tolist() == [1.0]
+    assert censored[i].tolist() == [True]
+
+
+def test_late_point_in_time_censor_bound_is_not_train_supervision(tmp_path):
+    rows = facts()
+    rows[-1]["status"] = "unknown"
+    next(r for r in rows if r["kind"] == "event" and r["event_ns"] == 11 * NS)["available_ns"] = (
+        55 * NS
+    )
+    _, samples, _ = materialized(tmp_path, rows, availability="point_in_time")
+    schema = sparse.schema(source(tmp_path / "schema", rows, availability="point_in_time"), plan())
+    split = dict(train_start_s=0, train_end_s=50, validation_end_s=60, test_end_s=70)
+    assert not any(_censor_bounds(samples[1], schema, "train", split)[1])
+
+
+def test_historical_censor_bound_must_be_available_by_snapshot_cutoff(tmp_path, monkeypatch):
+    import memecoin_experience.storage as storage
+
+    cutoff = 100 * NS
+    schema = dict(
+        schema="brain-experience-v2",
+        layout="dense-sequence-f64-v1",
+        context=1,
+        features=[dict(name="signal", unit="indicator", modality="synthetic")],
+        targets=[
+            dict(
+                name="count",
+                unit="events",
+                kind="observed_process_count@1000000000ns",
+            )
+        ],
+        representation=dict(
+            name="historical-censor-cutoff",
+            version="1",
+            code_sha="c" * 64,
+        ),
+        availability="historical_replay",
+    )
+
+    def sample(bound_available, *, maturity_ns=2 * NS):
+        decision = NS
+        return dict(
+            id="synthetic:1",
+            pool="synthetic/historical-censor",
+            decision_ns=decision,
+            input_start_ns=decision - 1,
+            input_available_ns=decision,
+            input_dependencies=[
+                dict(artifact_sha="a" * 64, event_ns=decision - 1, available_ns=decision)
+            ],
+            values=[[1.0]],
+            targets=[None],
+            target_status=["censored"],
+            target_available_ns=[None],
+            target_maturity_ns=[maturity_ns],
+            target_captures=[[]],
+            target_details=[dict(lower_bound=2, lower_bound_available_ns=bound_available)],
+        )
+
+    sources = [dict(kind="synthetic-historical-count", pin="d" * 64)]
+    split = dict(train_start_s=0, train_end_s=100, validation_end_s=200, test_end_s=300)
+    at_cutoff = build(
+        tmp_path / "at-cutoff",
+        [sample(cutoff)],
+        sources=sources,
+        cutoff=cutoff,
+        schema=schema,
+    )
+    snapshot = Snapshot(tmp_path / "at-cutoff", at_cutoff["snapshot"])
+    packed = list(batches(snapshot, split, "train", 8, with_censoring=True))
+    assert len(packed) == 1
+    assert packed[0][4].tolist() == [[True]]
+
+    with pytest.raises(ValueError, match="experience_censor_bound_availability"):
+        build(
+            tmp_path / "after-cutoff",
+            [sample(cutoff + 1)],
+            sources=sources,
+            cutoff=cutoff,
+            schema=schema,
+        )
+
+    # Simulate an immutable v2 snapshot published before the cutoff gate existed. It remains
+    # readable, but consumption must not turn its late bound into optimizer or validation mass.
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        legacy = build(
+            tmp_path / "legacy-after-cutoff",
+            [sample(cutoff + 1)],
+            sources=sources,
+            cutoff=cutoff,
+            schema=schema,
+        )
+    old_snapshot = Snapshot(tmp_path / "legacy-after-cutoff", legacy["snapshot"])
+    assert list(batches(old_snapshot, split, "train", 8, with_censoring=True)) == []
+
+    point_in_time_schema = dict(schema, availability="point_in_time")
+    point_in_time_split = dict(
+        train_start_s=0, train_end_s=200, validation_end_s=300, test_end_s=400
+    )
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        legacy_pit = build(
+            tmp_path / "legacy-pit-after-cutoff",
+            [sample(cutoff + 1)],
+            sources=sources,
+            cutoff=cutoff,
+            schema=point_in_time_schema,
+        )
+    old_pit_snapshot = Snapshot(tmp_path / "legacy-pit-after-cutoff", legacy_pit["snapshot"])
+    assert (
+        list(batches(old_pit_snapshot, point_in_time_split, "train", 8, with_censoring=True)) == []
+    )
+
+    immature = sample(cutoff, maturity_ns=cutoff + 1)
+    with pytest.raises(ValueError, match="experience_censor_target_maturity"):
+        build(
+            tmp_path / "maturity-after-cutoff",
+            [immature],
+            sources=sources,
+            cutoff=cutoff,
+            schema=schema,
+        )
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        legacy_immature = build(
+            tmp_path / "legacy-maturity-after-cutoff",
+            [immature],
+            sources=sources,
+            cutoff=cutoff,
+            schema=schema,
+        )
+    old_immature_snapshot = Snapshot(
+        tmp_path / "legacy-maturity-after-cutoff", legacy_immature["snapshot"]
+    )
+    assert list(batches(old_immature_snapshot, split, "train", 8, with_censoring=True)) == []
+
+
+def test_composition_does_not_widen_legacy_censor_cutoff(tmp_path, monkeypatch):
+    import memecoin_experience.storage as storage
+    from memecoin_experience.composition import compose
+
+    store = tmp_path / "composed-censor-store"
+    schema = dict(
+        schema="brain-experience-v2",
+        layout="dense-sequence-f64-v1",
+        context=1,
+        features=[dict(name="signal", unit="indicator", modality="synthetic")],
+        targets=[
+            dict(
+                name="count",
+                unit="events",
+                kind="observed_process_count@1000000000ns",
+            )
+        ],
+        representation=dict(
+            name="composition-censor-cutoff",
+            version="1",
+            code_sha="e" * 64,
+        ),
+        availability="historical_replay",
+    )
+
+    def build_row(name, decision_s, cutoff_s, available_s, maturity_s):
+        decision = decision_s * NS
+        return build(
+            store,
+            [
+                dict(
+                    id=f"{name}:1",
+                    pool=f"synthetic/{name}",
+                    decision_ns=decision,
+                    input_start_ns=decision - 1,
+                    input_available_ns=decision,
+                    input_dependencies=[
+                        dict(
+                            artifact_sha="a" * 64,
+                            event_ns=decision - 1,
+                            available_ns=decision,
+                        )
+                    ],
+                    values=[[1.0]],
+                    targets=[None],
+                    target_status=["censored"],
+                    target_available_ns=[None],
+                    target_maturity_ns=[maturity_s * NS],
+                    target_captures=[[]],
+                    target_details=[dict(lower_bound=2, lower_bound_available_ns=available_s * NS)],
+                )
+            ],
+            sources=[dict(kind="synthetic-composition-count", pin=name[0] * 64)],
+            cutoff=cutoff_s * NS,
+            schema=schema,
+        )
+
+    # Reproduce a parent that was legally published before lower-bound cutoff validation existed.
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "checked_samples", lambda rows, *_: iter(rows))
+        old = build_row("old", 1, 100, 150, 50)
+    later = build_row("later", 2, 200, 80, 50)
+    direct = compose(store, [old["snapshot"], later["snapshot"]])
+    direct_snapshot = Snapshot(store, direct["snapshot"])
+    assert direct_snapshot.manifest["binding"]["cutoff_ns"] == 200 * NS
+    assert direct_snapshot.censor_cutoff_ns() == 100 * NS
+    direct_batches = list(
+        batches(
+            direct_snapshot,
+            dict(train_start_s=0, train_end_s=500, validation_end_s=600, test_end_s=700),
+            "train",
+            8,
+            with_censoring=True,
+        )
+    )
+    assert [row_id for batch in direct_batches for row_id in batch[5]] == ["later:1"]
+
+    newest = build_row("newest", 3, 300, 90, 60)
+    nested = compose(store, [direct["snapshot"], newest["snapshot"]])
+    nested_snapshot = Snapshot(store, nested["snapshot"])
+    assert nested_snapshot.manifest["binding"]["cutoff_ns"] == 300 * NS
+    assert nested_snapshot.censor_cutoff_ns() == 100 * NS
+    nested_batches = list(
+        batches(
+            nested_snapshot,
+            dict(train_start_s=0, train_end_s=500, validation_end_s=600, test_end_s=700),
+            "train",
+            8,
+            with_censoring=True,
+        )
+    )
+    assert [row_id for batch in nested_batches for row_id in batch[5]] == ["later:1", "newest:1"]
+
+    from memecoin_experience.storage import atomic_json, digest
+
+    def publish_manifest(manifest):
+        pin = digest(manifest)
+        atomic_json(store / "snapshots" / f"{pin}.json", manifest)
+        return pin
+
+    split = dict(train_start_s=0, train_end_s=500, validation_end_s=600, test_end_s=700)
+
+    # Re-pinning a child after removing the old parent must not let its retained partition
+    # inherit only the later parent's cutoff.
+    omitted_source = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    omitted_source["binding"]["sources"] = [dict(kind="snapshot", pin=later["snapshot"])]
+    omitted_pin = publish_manifest(omitted_source)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, omitted_pin), split, "train", 8, with_censoring=True))
+
+    missing_marker = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    missing_marker.pop("composition")
+    missing_marker_pin = publish_manifest(missing_marker)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, missing_marker_pin), split, "train", 8, with_censoring=True))
+
+    missing_all_markers = json.loads(
+        (store / "snapshots" / f"{direct['snapshot']}.json").read_text()
+    )
+    missing_all_markers.pop("composition")
+    missing_all_markers.pop("composition_counts")
+    missing_all_markers_pin = publish_manifest(missing_all_markers)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(
+            batches(
+                Snapshot(store, missing_all_markers_pin),
+                split,
+                "train",
+                8,
+                with_censoring=True,
+            )
+        )
+
+    # Keeping both parents while dropping one of their partition pins is also invalid.
+    missing_member = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    old_part_pin = Snapshot(store, old["snapshot"]).parts[0]["pin"]
+    retained = next(entry for entry in missing_member["partitions"] if entry["pin"] != old_part_pin)
+    missing_member["partitions"] = [retained]
+    missing_member["decisions"] = retained["count"]
+    missing_member["target_statuses"] = retained["statuses"]
+    missing_member["composition_counts"]["unique_partitions"] = 1
+    missing_pin = publish_manifest(missing_member)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, missing_pin), split, "train", 8, with_censoring=True))
+
+    extra_member = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    extra = Snapshot(store, newest["snapshot"]).parts[0]
+    extra_member["partitions"].append(extra)
+    extra_member["decisions"] += extra["count"]
+    extra_statuses = dict(extra_member["target_statuses"])
+    for status, count in extra["statuses"].items():
+        extra_statuses[status] = extra_statuses.get(status, 0) + count
+    extra_member["target_statuses"] = extra_statuses
+    extra_member["composition_counts"]["unique_partitions"] += 1
+    extra_pin = publish_manifest(extra_member)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, extra_pin), split, "train", 8, with_censoring=True))
+
+    # Distinct parents that repeat one pin must agree on that pin's catalog metadata.
+    conflict_parent = json.loads((store / "snapshots" / f"{old['snapshot']}.json").read_text())
+    conflict_parent["partitions"][0]["statuses"] = {"censored": 999}
+    conflict_pin = publish_manifest(conflict_parent)
+    conflicting_child = json.loads((store / "snapshots" / f"{direct['snapshot']}.json").read_text())
+    conflicting_child["binding"]["sources"] = [
+        dict(kind="snapshot", pin=pin)
+        for pin in sorted({old["snapshot"], later["snapshot"], conflict_pin})
+    ]
+    conflicting_pin = publish_manifest(conflicting_child)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        list(batches(Snapshot(store, conflicting_pin), split, "train", 8, with_censoring=True))
+
+    (store / "snapshots" / f"{old['snapshot']}.json").unlink()
+    broken_lineage = Snapshot(store, nested["snapshot"])
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        broken_lineage.censor_cutoff_ns()
+
+
+def test_paged_censored_composition_replication_copies_verified_lineage(tmp_path, monkeypatch):
+    import shutil
+
+    import memecoin_experience.catalog as experience_catalog
+    import memecoin_experience.storage as storage
+    from memecoin_experience.composition import compose
+    from memecoin_experience.storage import object_path
+    from memecoin_experience.transfer import replicate
+
+    monkeypatch.setattr(experience_catalog, "PAGE_SIZE", 2)
+    store = tmp_path / "paged-censored-store"
+    schema = dict(
+        schema="brain-experience-v2",
+        layout="dense-sequence-f64-v1",
+        context=1,
+        features=[dict(name="signal", unit="indicator", modality="synthetic")],
+        targets=[dict(name="count", unit="events", kind="observed_process_count@1000000000ns")],
+        representation=dict(name="paged-censor-replication", version="1", code_sha="f" * 64),
+        availability="historical_replay",
+    )
+
+    def build_series(name, times, cutoff_s, available_s, *, legacy_invalid=False):
+        rows = []
+        for index, (decision_s, lower_available_s) in enumerate(
+            zip(times, available_s, strict=True)
+        ):
+            decision = decision_s * NS
+            rows.append(
+                dict(
+                    id=f"{name}:{index}",
+                    pool=f"synthetic/{name}",
+                    decision_ns=decision,
+                    input_start_ns=decision - 1,
+                    input_available_ns=decision,
+                    input_dependencies=[
+                        dict(artifact_sha="b" * 64, event_ns=decision - 1, available_ns=decision)
+                    ],
+                    values=[[1.0]],
+                    targets=[None],
+                    target_status=["censored"],
+                    target_available_ns=[None],
+                    target_maturity_ns=[50 * NS],
+                    target_captures=[[]],
+                    target_details=[
+                        dict(lower_bound=2, lower_bound_available_ns=lower_available_s * NS)
+                    ],
+                )
+            )
+        args = dict(
+            sources=[dict(kind="synthetic-paged-count", pin=name[0] * 64)],
+            cutoff=cutoff_s * NS,
+            schema=schema,
+            chunk=1,
+        )
+        if legacy_invalid:
+            with monkeypatch.context() as patch:
+                patch.setattr(storage, "checked_samples", lambda samples, *_: iter(samples))
+                return build(store, rows, **args)
+        return build(store, rows, **args)
+
+    old = build_series("oldset", [1, 2, 3], 100, [150, 80, 90], legacy_invalid=True)
+    later = build_series("laterset", [4, 5, 6], 200, [70, 80, 90])
+    direct = compose(store, [old["snapshot"], later["snapshot"]])
+    direct_snapshot = Snapshot(store, direct["snapshot"])
+    assert "partition_pages" in Snapshot(store, old["snapshot"]).manifest
+    assert direct_snapshot.censor_cutoff_ns() == 100 * NS
+
+    newest = build_series("newset", [7, 8, 9], 300, [70, 80, 90])
+    nested = compose(store, [direct["snapshot"], newest["snapshot"]])
+    nested_snapshot = Snapshot(store, nested["snapshot"])
+    split = dict(train_start_s=0, train_end_s=500, validation_end_s=600, test_end_s=700)
+
+    def eligible_ids(snapshot):
+        return [
+            row_id
+            for batch in batches(snapshot, split, "train", 8, with_censoring=True)
+            for row_id in batch[5]
+        ]
+
+    direct_ids = eligible_ids(direct_snapshot)
+    nested_ids = eligible_ids(nested_snapshot)
+    assert len(direct_ids) == 5
+    assert len(nested_ids) == 8
+
+    for result in (direct, nested):
+        target = tmp_path / f"replica-{result['snapshot'][:8]}"
+        assert replicate(store, target, result["snapshot"])["copied"] > 0
+        restored = Snapshot(target, result["snapshot"])
+        assert restored.censor_cutoff_ns() == 100 * NS
+        assert eligible_ids(restored) == (direct_ids if result is direct else nested_ids)
+        assert replicate(store, target, result["snapshot"])["copied"] == 0
+
+    missing_source = tmp_path / "missing-lineage-source"
+    shutil.copytree(store, missing_source)
+    (missing_source / "snapshots" / f"{old['snapshot']}.json").unlink()
+    missing_target = tmp_path / "missing-lineage-target"
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        replicate(missing_source, missing_target, nested["snapshot"])
+    assert not (missing_target / "snapshots" / f"{nested['snapshot']}.json").exists()
+
+    corrupt_source = tmp_path / "corrupt-lineage-source"
+    shutil.copytree(store, corrupt_source)
+    direct_source_snapshot = Snapshot(corrupt_source, direct["snapshot"])
+    page_pin = direct_source_snapshot.manifest["partition_pages"][0]["pin"]
+    (object_path(corrupt_source, page_pin) / "partition-page.json").write_text("corrupt")
+    corrupt_target = tmp_path / "corrupt-lineage-target"
+    with pytest.raises(ValueError, match="checksum"):
+        replicate(corrupt_source, corrupt_target, nested["snapshot"])
+    assert not (corrupt_target / "snapshots" / f"{nested['snapshot']}.json").exists()
+
+
+def test_namespaced_protected_evaluation_rejected_before_artifact_read(tmp_path):
+    from memecoin_brain.source import EXCLUDED
+    from memecoin_experience.storage import atomic_json, digest
+
+    with pytest.raises(ValueError, match="evaluation_protocol"):
+        evaluation.register(
+            tmp_path / "protocols",
+            tmp_path / "absent-artifact",
+            "a" * 64,
+            start_s=10,
+            end_s=20,
+            pools=["solana/pool/" + next(iter(EXCLUDED))],
+        )
+    protocol = dict(
+        version="brain-research-evaluation-v1", pools=["solana/pool/" + next(iter(EXCLUDED))]
+    )
+    pin = digest(protocol)
+    atomic_json(tmp_path / (pin + ".json"), protocol)
+    with pytest.raises(ValueError, match="evaluation_protocol_pin"):
+        evaluation.score(
+            tmp_path,
+            pin,
+            tmp_path / "absent-store",
+            "b" * 64,
+            tmp_path / "absent-artifact",
+            tmp_path / "output",
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "production_true",
+        "production_missing",
+        "metric_changed",
+        "metric_missing",
+        "registered_bool",
+        "registered_negative",
+        "registered_missing",
+    ],
+)
+def test_legacy_evaluation_protocol_fields_fail_before_snapshot(tmp_path, mutation):
+    from memecoin_experience.storage import atomic_json, digest
+
+    protocol = dict(
+        version="brain-research-evaluation-v1",
+        candidate="a" * 64,
+        pools=["synthetic/pool"],
+        scope="retrospective",
+        registered_ns=5,
+        metrics="macro_horizon_pinball_coverage_and_per_pool_day_v1",
+        data_role="research_evaluation",
+        production_eligible=False,
+    )
+    if mutation == "production_true":
+        protocol["production_eligible"] = True
+    elif mutation == "production_missing":
+        protocol.pop("production_eligible")
+    elif mutation == "metric_changed":
+        protocol["metrics"] = "other_metric"
+    elif mutation == "metric_missing":
+        protocol.pop("metrics")
+    elif mutation == "registered_bool":
+        protocol["registered_ns"] = True
+    elif mutation == "registered_negative":
+        protocol["registered_ns"] = -1
+    else:
+        protocol.pop("registered_ns")
+    protocol_pin = digest(protocol)
+    protocol_root = tmp_path / "protocols"
+    protocol_root.mkdir()
+    atomic_json(protocol_root / f"{protocol_pin}.json", protocol)
+    with pytest.raises(ValueError, match="experience_evaluation_protocol_pin"):
+        evaluation.score(
+            protocol_root,
+            protocol_pin,
+            tmp_path / "absent-store",
+            "b" * 64,
+            tmp_path / "absent-artifact",
+            tmp_path / "output",
+        )
+
+
+def data(store, *, eval_only=False, support_status="complete"):
+    rows = []
+    members = []
+    for phase in [3] if eval_only else [0, 1, 2]:
+        for market in range(3):
+            start = phase * 1000
+            end = start + 100
+            entity = f"test/market/{phase}-{market}"
+            common = dict(entity=entity, evidence=["a" * 64])
+            rows.append(
+                dict(
+                    common,
+                    kind="enrollment",
+                    start_ns=start * NS,
+                    end_ns=end * NS,
+                    available_ns=start * NS,
+                )
+            )
+            rows.append(
+                dict(
+                    common,
+                    kind="lifecycle",
+                    id="birth",
+                    event_ns=start * NS,
+                    available_ns=start * NS,
+                    transition="birth",
+                )
+            )
+            # One zero-event market remains a supervised lifecycle/count origin.
+            if market:
+                for i in range(1, 50):
+                    if i % 5 == 0:
+                        continue
+                    t = (start + i * 2) * NS
+                    rows.append(
+                        dict(
+                            common,
+                            kind="event",
+                            stream="ticks",
+                            id=str(i),
+                            event_ns=t,
+                            available_ns=t,
+                            values=[10 + i * 0.01 + market * 0.1],
+                        )
+                    )
+            rows.append(
+                dict(
+                    common,
+                    kind="support",
+                    stream="ticks",
+                    start_ns=start * NS,
+                    end_ns=end * NS,
+                    available_ns=end * NS,
+                    status=support_status,
+                )
+            )
+            members.append(
+                dict(
+                    entity=entity,
+                    start_ns=start * NS,
+                    end_ns=end * NS,
+                    known_ns=start * NS,
+                    attributes=dict(lifecycle="enrolled"),
+                    evidence=["a" * 64],
+                )
+            )
+    role = "research_evaluation" if eval_only else "train"
+    pin = observations.publish(
+        store,
+        sorted(rows, key=observations.key),
+        schema=contract(role=role),
+        cutoff=5000 * NS,
+        sources=[dict(synthetic=True)],
+        chunk=16,
+    )
+    return pin, members
+
+
+def test_sparse_generation_exposure_resume_replica_evaluation(tmp_path):
+    source = tmp_path / "sources"
+    pin, members = data(source)
+    cfg = plan()
+    cfg.update(context=8, max_history_ns=50 * NS)
+    store = tmp_path / "experience"
+    built = sparse.materialize(source, pin, store, plan=cfg, chunk=16)
+    split = dict(train_start_s=0, train_end_s=1000, validation_end_s=2000, test_end_s=3000)
+    population = catalog.publish(
+        tmp_path / "population",
+        "population",
+        members,
+        cutoff_ns=5000 * NS,
+        definition=dict(synthetic=True, role="train"),
+    )
+    policy = dict(
+        entity_prefix="",
+        knowledge="at_decision",
+        axes=[["@entity"], ["lifecycle"]],
+        time_bucket_ns=100 * NS,
+        selection=dict(salt="fixed", numerator=1, denominator=1),
+        enforcement="require",
+        min_train_entities=3,
+        max_entity_share=1,
+        max_unknown_fraction=0,
+        objective=diversity.OBJECTIVE,
+    )
+    audit = diversity.audit(
+        store,
+        built["snapshot"],
+        tmp_path / "population",
+        population,
+        tmp_path / "audit",
+        split=split,
+        config=policy,
+    )
+    assert audit["unmapped_rows"] == 0
+    assert audit["train_distribution"]['["@entity"]']["supported_values"] == 3
+    ref = dict(path=str(tmp_path / "audit"), pin=file_hash(tmp_path / "audit/manifest.json"))
+    config = dict(
+        width=8,
+        epochs=2,
+        batch=16,
+        seed=19,
+        cpu_threads=1,
+        checkpoint_every=2,
+        normalization="constant_feature_scale_one_v1",
+    )
+    kwargs = dict(
+        owner="test",
+        store=store,
+        snapshot=built["snapshot"],
+        split=split,
+        config=config,
+        diversity=ref,
+    )
+    root = tmp_path / "models"
+    assert generations.run(root, name="resumed", stop_after=1, **kwargs)["status"] == "interrupted"
+    resumed = generations.run(root, name="resumed", **kwargs)
+    fresh = generations.run(root, name="fresh", **kwargs)
+    _, ra = generations.get(root, resumed["generation"])
+    _, fa = generations.get(root, fresh["generation"])
+    a = torch.load(ra / "weights.pt", weights_only=True)
+    b = torch.load(fa / "weights.pt", weights_only=True)
+    assert all(torch.equal(a[k], b[k]) for k in a)
+    fitted = json.loads((ra / "report.json").read_text())
+    assert fitted["rows_seen"] == 2 * audit["population"]["train_usable"]
+    assert fitted["exposure"]["draw_distribution"]['["@entity"]']["supported_values"] == 3
+    replica = tmp_path / "source-replica"
+    observations.replicate(source, replica, pin, role="train")
+    assert (
+        sparse.materialize(replica, pin, tmp_path / "copied-data", plan=cfg, chunk=16)["snapshot"]
+        == built["snapshot"]
+    )
+    eval_pin, _ = data(tmp_path / "eval-source", eval_only=True)
+    registered = evaluation.register(
+        tmp_path / "protocols",
+        ra,
+        resumed["artifact"],
+        start_s=3000,
+        end_s=3100,
+        pools=[f"test/market/3-{i}" for i in range(3)],
+    )
+    eval_data = sparse.materialize(
+        tmp_path / "eval-source", eval_pin, store, plan=cfg, role="research_evaluation"
+    )
+    scored = evaluation.score(
+        tmp_path / "protocols",
+        registered["protocol"],
+        store,
+        eval_data["snapshot"],
+        ra,
+        tmp_path / "evaluation",
+    )
+    assert scored["supported_pools"] == 3
+    assert len(scored["metrics"]) == 2
+    # Censored administrative tails are retained, never exact-valued labels.
+    assert any("censored" in k for k in scored["denominators"])
+    x = next(batches(Snapshot(store, built["snapshot"]), split, "test", 16))[0]
+    assert np.isfinite(Predictor(ra, resumed["artifact"]).predict(x)).all()
+
+
+def test_partial_count_objective_trains_only_identified_positive_bounds(tmp_path):
+    source = tmp_path / "sources"
+    pin, _ = data(source, support_status="unknown")
+    cfg = plan()
+    cfg.update(context=8, max_history_ns=50 * NS)
+    store = tmp_path / "experience"
+    built = sparse.materialize(source, pin, store, plan=cfg, chunk=16)
+    split = dict(train_start_s=0, train_end_s=1000, validation_end_s=2000, test_end_s=3000)
+    config = dict(
+        width=8,
+        epochs=1,
+        batch=16,
+        seed=19,
+        cpu_threads=1,
+        checkpoint_every=2,
+        normalization="constant_feature_scale_one_v1",
+        objective="partial_count_lower_bound_pinball_v1",
+    )
+    interrupted = train(
+        store, built["snapshot"], tmp_path / "partial-run", plan=split, config=config, stop_after=1
+    )
+    assert interrupted["status"] == "interrupted"
+    report = train(store, built["snapshot"], tmp_path / "partial-run", plan=split, config=config)
+    train(store, built["snapshot"], tmp_path / "fresh-partial-run", plan=split, config=config)
+    resumed_weights = torch.load(tmp_path / "partial-run/artifact/weights.pt", weights_only=True)
+    fresh_weights = torch.load(
+        tmp_path / "fresh-partial-run/artifact/weights.pt", weights_only=True
+    )
+    assert all(torch.equal(resumed_weights[k], fresh_weights[k]) for k in fresh_weights)
+    stats = report["statistics"]
+    assert stats["target_transforms"][1] == "log1p_nonnegative"
+    assert stats["baseline"][1] is None  # No complete process window; no fabricated baseline.
+    assert stats["population"]["train_partial_count_usable"] > 0
+    assert report["rows_seen"] == stats["population"]["train_objective_usable"]
+    bounds = report["test"]["partial_count_bounds"][0]
+    assert bounds["cells"] > 0
+    assert report["test"]["model"][1]["n"] == 0
+    eval_source = tmp_path / "evaluation-source"
+    eval_pin, _ = data(eval_source, eval_only=True, support_status="unknown")
+    eval_data = sparse.materialize(
+        eval_source,
+        eval_pin,
+        store,
+        plan=cfg,
+        role="research_evaluation",
+    )
+    artifact = tmp_path / "partial-run/artifact"
+    artifact_pin = file_hash(artifact / "manifest.json")
+    registered = evaluation.register(
+        tmp_path / "protocols",
+        artifact,
+        artifact_pin,
+        start_s=3000,
+        end_s=3100,
+        pools=[f"test/market/3-{i}" for i in range(3)],
+    )
+    scored = evaluation.score(
+        tmp_path / "protocols",
+        registered["protocol"],
+        store,
+        eval_data["snapshot"],
+        artifact,
+        tmp_path / "partial-evaluation",
+    )
+    assert scored["metrics"][1]["n"] == 0
+    assert scored["metrics"][1]["empirical_pinball"] is None
+    x = next(batches(Snapshot(store, built["snapshot"]), split, "test", 16))[0]
+    prediction = Predictor(artifact, artifact_pin).predict(x)
+    assert np.isfinite(prediction).all()
+    assert (prediction[:, 1, :] >= 0).all()
+    assert (prediction[:, 1, 0] <= prediction[:, 1, 1]).all()
+    assert (prediction[:, 1, 1] <= prediction[:, 1, 2]).all()
+
+
+def test_qualification_resumes_conversion_without_rewriting_measurements(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location(
+        "sparse_qualify", Path(__file__).parents[1] / "tools/sparse_qualify.py"
+    )
+    qualifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(qualifier)
+    projection = plan()
+    projection.update(context=4, relative_features=[])
+    projection["targets"] = [
+        dict(name="count", kind="observed_process_count", horizon_ns=10 * NS, feature=None)
+    ]
+    job = dict(
+        mode="synthetic",
+        entities=9,
+        events=8,
+        projection=projection,
+        split=dict(train_start_s=0, train_end_s=100000, validation_end_s=200000, test_end_s=300000),
+        train=dict(
+            width=8,
+            epochs=1,
+            batch=16,
+            seed=19,
+            cpu_threads=1,
+            checkpoint_every=2,
+            normalization="constant_feature_scale_one_v1",
+        ),
+    )
+    original = generations.run
+
+    def crash(*args, **kwargs):
+        raise RuntimeError("injected after durable conversion")
+
+    monkeypatch.setattr(generations, "run", crash)
+    with pytest.raises(RuntimeError, match="injected"):
+        qualifier.run(job, tmp_path)
+    before = (tmp_path / "conversion.json").read_bytes()
+    monkeypatch.setattr(generations, "run", original)
+    first = qualifier.run(job, tmp_path)
+    assert qualifier.run(job, tmp_path) == first
+    assert (tmp_path / "conversion.json").read_bytes() == before
+    with pytest.raises(ValueError, match="checkpoint_mismatch"):
+        qualifier.checkpoint(tmp_path / "result.json", dict(first, source="tampered"))

@@ -1,0 +1,232 @@
+{
+  "blockers": [
+    {
+      "blocks": "continuity/readiness",
+      "evidence": "four exact inherited gaps plus unknown-ended STOP interval from frontier slot 455430160; only future finalized anchor can set end",
+      "id": "c4_unknown_ended_discontinuity",
+      "status": "open"
+    },
+    {
+      "blocks": "first entry",
+      "evidence": "no account credit/overage evidence or pinned charge-source parser",
+      "id": "account_specific_billing",
+      "status": "missing"
+    },
+    {
+      "blocks": "first entry",
+      "evidence": "33435664384 free bytes vs 53687091200 floor and 61834628800 composite bytes; peak/stored allowance/churn signed evidence absent",
+      "id": "disk_and_churn_basis",
+      "status": "below_floor_and_missing_evidence"
+    },
+    {
+      "blocks": "time-dependent lease",
+      "evidence": "host UTC sampled; signed trusted clock evidence absent; network-time query unavailable without administrator access",
+      "id": "clock_attestation",
+      "status": "unverified"
+    },
+    {
+      "blocks": "runtime readiness",
+      "evidence": "offline verifier is not wired into C5 runner; C5 source parser and reviewer digest pins are unset",
+      "id": "runtime_preflight_consumption",
+      "status": "missing_and_fail_closed"
+    },
+    {
+      "blocks": "first entry",
+      "evidence": "no candidate plan, activation gate, service root, selected schedule, or initialized lease",
+      "id": "candidate_lease_and_root",
+      "status": "absent"
+    },
+    {
+      "blocks": "owner process/quota reconciliation",
+      "evidence": "four Node workers expose HELIUS_API_KEY variable name in process environment; values not read; no matching key/host marker in argv; do not infer request activity",
+      "id": "helius_mcp_environment",
+      "status": "present_activity_unknown"
+    }
+  ],
+  "c4_predecessor": {
+    "activation_authorized": false,
+    "anchor_slot": 455430159,
+    "certificate_predecessor_digest_sha256": "6f10576acf93609d3beecbf2a6949332d2ae47895406c26e846cfba3f1d90f7d",
+    "certificate_reconstruction": "passed_from_pinned_terminal_receipt_metadata_only",
+    "certificate_sha256": "1fa16d3379798ba633ed4cb1c209c98e2f865b443e70dc8748392cb3abad3da5",
+    "frontier_slot": 455430160,
+    "inherited_gap_count": 4,
+    "inherited_gap_ids": [
+      "c4-gap-c9f7db83feef95c96eb8f4d4376154ad4cf9402ff213037dca1daaf907546bbf",
+      "c4-gap-505b7e807c6a2caf2e691f436ec15421c696ed38b617728a0cdfcb3b990c4f6e",
+      "c4-gap-8e187ec52123925b3524ec237e4cc290e9acbf261d6cb56f5708b505e00f2243",
+      "c4-stop-discontinuity-92d5653b70570bdec6d86255ad130aba169ee225c14f94d487524dfbaf7b33b2"
+    ],
+    "open_or_ambiguous_reservations": 0,
+    "stop_reason": "minimum_free_disk_floor_plus_frame_envelope",
+    "stop_sha256": "a7ac1fdd02615491fbea494d35f5bbcba8b03d5bf2a4d11f2516616b39f00098",
+    "terminal_sha256": "8b97dd4936ddcd6e8494d35e06cb2a86d01929589e4c4c4c5ff7ba91825cbe65",
+    "terminal_status": "abnormal_disk_terminal_proven",
+    "unknown_interval": {
+      "cause": "abnormal_disk_stop_without_successor_anchor",
+      "cause_detail": "minimum_free_disk_floor_plus_frame_envelope",
+      "closure_rule": "only a future finalized anchor-only bootstrap may establish end_exclusive",
+      "end_exclusive": null,
+      "end_known": false,
+      "start_frontier_slot": 455430160
+    }
+  },
+  "candidate_storage": {
+    "c5_composite_required_free_bytes": 61834628800,
+    "capture_root": "/Users/root1/Developer/memecoin-research/work/brain-senses-c5-forward-pilot-v1/service",
+    "capture_root_exists": false,
+    "captured_at_utc": "2026-10-11T13:59:18Z",
+    "clock": {
+      "local_utc_reported": "2026-10-11T13:59:18Z",
+      "network_time_status": "unverified_systemsetup_requires_administrator_access",
+      "signed_clock_evidence_present": false
+    },
+    "deficit_to_composite_bytes": 28398964416,
+    "deficit_to_floor_bytes": 20251426816,
+    "disk_floor_bytes": 53687091200,
+    "filesystem": "apfs",
+    "free_bytes": 33435664384,
+    "free_gib": 31.139389,
+    "work_volume_device": "/dev/disk3s5",
+    "work_volume_mount": "/System/Volumes/Data"
+  },
+  "captured_at_ns": 1791727158982596000,
+  "captured_at_utc": "2026-10-11T13:59:18Z",
+  "decision": "blocked_no_activation",
+  "decision_flags": {
+    "activation_authorized": false,
+    "client_created": false,
+    "economic_qualification": false,
+    "lease_initialized": false,
+    "production_admission": false,
+    "rpc_performed": false,
+    "source_completeness": false,
+    "training_admission": false
+  },
+  "exposure_checks": {
+    "c5_private_config_read": false,
+    "c5_source_credential_path": "mode-0600 private config parsed in-process; endpoint not exported to argv or child environment (static source review)",
+    "endpoint_hostnames_seen_in_process_argv_or_environment": 0,
+    "helius_api_key_environment_variable_names_seen_in_mcp_workers": 0,
+    "helius_api_key_values_disclosed": false,
+    "helius_api_key_values_read": false,
+    "saved_host_readiness_log_credential_pattern_files": [],
+    "saved_host_readiness_log_files_scanned": 20,
+    "tracked_git_credential_pattern_files": []
+  },
+  "git": {
+    "head": "730dce9e61f9f36a70feb6f11eacd43f4902cd44",
+    "working_tree_clean": true
+  },
+  "lease_and_c5": {
+    "account_credit_overage_evidence": "missing",
+    "account_source_parser_sha256": null,
+    "activation_gate_exists": false,
+    "c5_runtime_gate": "fail_closed_source_provenance_unavailable_before_private_config_or_client_creation",
+    "candidate_lease_selected_or_initialized": false,
+    "candidate_plan_exists": false,
+    "disk_source_parser_sha256": null,
+    "full_frame_peak_bytes": 674000000,
+    "host_churn_margin_evidence": "missing",
+    "independent_review_decision_sha256": null,
+    "preflight_verifier_is_consumed_by_c5_runner": false,
+    "remaining_pilot_stored_allowance_evidence": "missing",
+    "runtime_activation_preflight_consumption": "missing",
+    "service_root_exists": false
+  },
+  "owner_runtime": {
+    "all_senses_persistently_disabled_in_receipt": true,
+    "c5_runner_process_count": 0,
+    "helius_mcp_process_count": 8,
+    "helius_mcp_processes": [
+      {
+        "api_key_marker_in_argv": false,
+        "comm": "npm",
+        "endpoint_hostname_in_argv_or_environment": false,
+        "helius_api_key_environment_variable_present": false,
+        "pid": "22677"
+      },
+      {
+        "api_key_marker_in_argv": false,
+        "comm": "node",
+        "endpoint_hostname_in_argv_or_environment": false,
+        "helius_api_key_environment_variable_present": false,
+        "pid": "22710"
+      },
+      {
+        "api_key_marker_in_argv": false,
+        "comm": "npm",
+        "endpoint_hostname_in_argv_or_environment": false,
+        "helius_api_key_environment_variable_present": false,
+        "pid": "22719"
+      },
+      {
+        "api_key_marker_in_argv": false,
+        "comm": "node",
+        "endpoint_hostname_in_argv_or_environment": false,
+        "helius_api_key_environment_variable_present": false,
+        "pid": "22835"
+      },
+      {
+        "api_key_marker_in_argv": false,
+        "comm": "npm",
+        "endpoint_hostname_in_argv_or_environment": false,
+        "helius_api_key_environment_variable_present": false,
+        "pid": "25685"
+      },
+      {
+        "api_key_marker_in_argv": false,
+        "comm": "node",
+        "endpoint_hostname_in_argv_or_environment": false,
+        "helius_api_key_environment_variable_present": false,
+        "pid": "25717"
+      },
+      {
+        "api_key_marker_in_argv": false,
+        "comm": "npm",
+        "endpoint_hostname_in_argv_or_environment": false,
+        "helius_api_key_environment_variable_present": false,
+        "pid": "67265"
+      },
+      {
+        "api_key_marker_in_argv": false,
+        "comm": "node",
+        "endpoint_hostname_in_argv_or_environment": false,
+        "helius_api_key_environment_variable_present": false,
+        "pid": "67296"
+      }
+    ],
+    "launchd_senses_loaded_now": [],
+    "process_activity": "unknown_no_request_or_client_activity_inferred",
+    "quiescence_receipt_sha256": "3b56f0254b6807f68297796d2d6d7075f37052ab83acd7896c1eb82c087f2422",
+    "quiescence_receipt_status": "all_senses_launchagents_disabled_unloaded"
+  },
+  "schema": "brain-senses-first-entry-readiness-v1",
+  "scope": {
+    "c4_payload_opened": false,
+    "credential_value_read": false,
+    "launchagent_load_or_enable": false,
+    "metadata_only_c4": true,
+    "read_only": true,
+    "rpc_or_mcp_call_made": false,
+    "tail2_payload_opened": false
+  },
+  "source_hashes": {
+    "code": {
+      "src/memecoin_collector/private_config.py": "17a3d905898655eb841c0973523c00e8e726babc1a4f70d589d616a6809e85e7",
+      "tools/brain_senses_activation_preflight_v1.py": "577c69a8e97c0d02aa2b712d0e26ddf28a1fd90611bdbe6e96c1ce4aa1241317",
+      "tools/brain_senses_activation_preflight_verifier_v1.py": "75e73bc5b11286eee9dcd3b5721495d9bd23bc076a53c4e282f174e893984d14",
+      "tools/brain_senses_c5_forward_pilot_v1.py": "f7e87c05f687c718ed7e85342d450e7a28ba016b7d3775018970847bed258e19",
+      "tools/brain_senses_c5_http_runner_v1.py": "cda02bc31315bbe830b824f46bfb2cada1a7b74c2b2ee6fd3810af839405944a",
+      "tools/brain_senses_initial_entry_discontinuity_verifier_v1.py": "1312ef071ea3b39a9881b5d2931327aa1f6f85e3914641eadcfcf1e0e6cbfe81",
+      "tools/brain_senses_service_v1_runner.py": "0ba5cf496f6020fec62c21fbca86c683a9420557b403b69ae707c6b583b42d71"
+    },
+    "evidence": {
+      "c4_quiescence": "3b56f0254b6807f68297796d2d6d7075f37052ab83acd7896c1eb82c087f2422",
+      "c4_terminal": "8b97dd4936ddcd6e8494d35e06cb2a86d01929589e4c4c4c5ff7ba91825cbe65",
+      "controller_recovery_validation": "b96fd69cd9cc41d955230d3d1166f41794ab098e5d3041f92a28b09637cc523e",
+      "discontinuity_certificate": "1fa16d3379798ba633ed4cb1c209c98e2f865b443e70dc8748392cb3abad3da5",
+      "preflight_validation": "65aaf9175e4198f3d77b395eebd4d6111239b0621127ff45578b8c2353de1501"
+    }
+  }
+}

@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "task_id": "CC02.3",
+  "acceptance_scope": "page",
+  "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+  "snapshot_sha256": "82a6efd6066b271a6a30de36a7b2d73523d771118eab4882f267c50200cddb1c",
+  "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+  "builder_id": "cc4d915d-ec79-439d-93f1-c7b3e918c922",
+  "reviewer_id": "638a9f59-10ed-4dd9-ab0c-381893d011f9",
+  "model_binding": "UNVERIFIED",
+  "first_review": "Первый кадр NEEDS_FIX, среднее 2.5: сетка была лентой под отчётом, ячейки около 12px. Маркеры D43 и легенда без слов в ячейках уже были. before.web_sha256 — SHA первого PNG: digest дерева до правки не сохранялся.",
+  "fix_summary": "Сетка D48 стала первым блоком, ячейки 28×28, месяцы короткие, счётчики — полоса под сеткой. D43 остался маркерами. Декабрь и reserved остаются в локальной прокрутке.",
+  "remaining_findings": [
+    {
+      "severity": "minor",
+      "reason": "Декабрь и штрих reserved на кадре 1600 не видны без прокрутки матрицы.",
+      "owner": "CC02.3"
+    },
+    {
+      "severity": "minor",
+      "reason": "Янтарная фраза в полосе счётчиков длинная, низ панели деталей близко к краю кадра.",
+      "owner": "CC02.3"
+    }
+  ],
+  "screens": [
+    {
+      "route": "/calendar",
+      "rubric_scope": "page",
+      "before": {
+        "path": "docs/control-center/references/cc02-final/CC02.3/first/calendar-1600.png",
+        "sha256": "1c89c0b500fad272ee042904b3fa0b9e11e7b64580d979731b2fda76002e18a4",
+        "route": "/calendar",
+        "capture_id": "cc023-first-calendar-1600x1000-viewport",
+        "viewport": [
+          1600,
+          1000
+        ],
+        "capture": "viewport",
+        "dpr": 1,
+        "zoom": 1,
+        "web_sha256": "c7cba58f8d8e4f022da8a5c239056adce090338ad5b4c58aeb16b1af2795eec4",
+        "captured_at": "2026-10-04T01:13:00Z",
+        "browser": "Chromium 153.0.8010.12"
+      },
+      "after": [
+        {
+          "route": "/calendar",
+          "capture_id": "cc023-calendar-1440x900-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1440x900-viewport.png",
+          "sha256": "b30857b88cd15f8c7afa4442a4aef63e77c13ba4ccfb06a6569806473297fc46",
+          "viewport": [
+            1440,
+            900
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+          "captured_at": "2026-10-04T01:23:37.181Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1440x900-viewport.layout.json",
+            "sha256": "edfc4e92b42b769cfd799a149cb0105c4c360b690bfa93c3418290f875f119d8"
+          }
+        },
+        {
+          "route": "/calendar",
+          "capture_id": "cc023-calendar-1600x1000-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1600x1000-viewport.png",
+          "sha256": "ef81723b05f0fca430f94a12669441facd64ba9b9a31aca3329f297b859b3f3e",
+          "viewport": [
+            1600,
+            1000
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+          "captured_at": "2026-10-04T01:23:37.378Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1600x1000-viewport.layout.json",
+            "sha256": "080d073bb16df5cf500b6993100a1f5f4b80d2e69e9b9d599d534223c3bb8655"
+          }
+        },
+        {
+          "route": "/calendar",
+          "capture_id": "cc023-calendar-1600x1000-fullpage",
+          "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1600x1000-fullpage.png",
+          "sha256": "ef81723b05f0fca430f94a12669441facd64ba9b9a31aca3329f297b859b3f3e",
+          "viewport": [
+            1600,
+            1000
+          ],
+          "capture": "fullpage",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+          "captured_at": "2026-10-04T01:23:37.379Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1600x1000-fullpage.layout.json",
+            "sha256": "677e39ad20dea5bb618b0dc5563d8412cda8eaf33ec0f9160aed6681a5a7c4ae"
+          }
+        },
+        {
+          "route": "/calendar",
+          "capture_id": "cc023-calendar-1920x1080-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1920x1080-viewport.png",
+          "sha256": "38a56257be53bab96142be1a012680823f61f1f1ca2db8da68898334fbdcf5f7",
+          "viewport": [
+            1920,
+            1080
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+          "captured_at": "2026-10-04T01:23:37.531Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1920x1080-viewport.layout.json",
+            "sha256": "debf39f300359cb20b1303f8b725da6377fc158b00583de887f1ef392e40ff20"
+          }
+        },
+        {
+          "route": "/calendar",
+          "capture_id": "cc023-calendar-1024x768-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1024x768-viewport.png",
+          "sha256": "055131e3713b0acf4a7d255221ba76cbee9734003bb2b70862312a5648dd68b8",
+          "viewport": [
+            1024,
+            768
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+          "captured_at": "2026-10-04T01:23:37.670Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1024x768-viewport.layout.json",
+            "sha256": "fd408387ad8015a650b3df1d8137d6873b87f70958e2229556a335916b5bb658"
+          }
+        }
+      ],
+      "rubric": {
+        "composition": {
+          "score": 4,
+          "reason": "Сетка D48 держит верх кадра, ниже полоса счётчиков и две колонки маркеров с деталями."
+        },
+        "hierarchy": {
+          "score": 4,
+          "reason": "Сначала план, потом цифры, потом маркеры D43 и панель окна."
+        },
+        "density": {
+          "score": 4,
+          "reason": "Ячейки 28px рабочие, полоса счётчиков одна и плотная."
+        },
+        "typography": {
+          "score": 4,
+          "reason": "Короткие месяцы, даты недель и слои UTC читаются."
+        },
+        "geometry": {
+          "score": 5,
+          "reason": "Ровные 28×28, одинаковые зазоры, короткие месяцы не сталкиваются."
+        },
+        "navigation": {
+          "score": 4,
+          "reason": "UTC/MSK и выбранный маркер видны, хвост сетки в локальной прокрутке."
+        },
+        "identity": {
+          "score": 4,
+          "reason": "Navy и teal, честный amber, без клона свечей."
+        },
+        "reference_family": {
+          "score": 4,
+          "reason": "Крупный визуальный блок сверху, детали снизу."
+        },
+        "state_clarity": {
+          "score": 5,
+          "reason": "Две формы в легенде, старт не опубликован, коллектор не активирован."
+        },
+        "interaction": {
+          "score": 4,
+          "reason": "Маркер #0 совпадает с панелью, ячейка достаточна для нажатия."
+        }
+      },
+      "remaining_weaknesses": "Декабрь и reserved за прокруткой. Полоса счётчиков длинная. Низ панели деталей близко к краю кадра."
+    }
+  ]
+}

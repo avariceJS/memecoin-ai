@@ -1,0 +1,339 @@
+{
+  "contract": "brain_senses_c4_abnormal_disk_terminal_v1",
+  "corrected_unified_log_receipt": {
+    "captured_at_ns": 1791681393825989000,
+    "covered_utc_ns": [
+      1791677100000000000,
+      1791681386000000000
+    ],
+    "event_count": 9,
+    "noncollector_processes": [
+      "/System/Library/PrivateFrameworks/BackgroundTaskManagement.framework/Versions/A/Resources/backgroundtaskmanagementd",
+      "/System/Library/PrivateFrameworks/BackgroundTaskManagement.framework/Versions/A/Resources/backgroundtaskmanagementd",
+      "/System/Library/PrivateFrameworks/BackgroundTaskManagement.framework/Versions/A/Resources/backgroundtaskmanagementd",
+      "/System/Library/PrivateFrameworks/BackgroundTaskManagement.framework/Versions/A/Resources/backgroundtaskmanagementd",
+      "/sbin/launchd",
+      "/sbin/launchd",
+      "/sbin/launchd",
+      "/usr/libexec/UserEventAgent",
+      "/usr/libexec/UserEventAgent"
+    ],
+    "path": "/Users/root1/Developer/memecoin-research/work/evidence/c4-terminal-observations-20261011/corrected-log-1791681386775597000.json",
+    "sha256": "7ddaf05fd774b50d31e9a0872dc9d401a3ac02c8ab8b39fa3e7a603ce87f3594"
+  },
+  "created_ns": 1791681400689180000,
+  "evidence": {
+    "artifact_inventory": {
+      "basis": "preexisting external snapshot; body bytes are not re-read",
+      "current_metadata_only": {
+        "file_count": 1600,
+        "logical_bytes": 197799392,
+        "max_mtime_ns": 1791677100419349681,
+        "sha256": "5b66667c79437bf0234a8266acb3c61dbb7b3e16ffa8b67e2307c6dcefd687be"
+      },
+      "sha256": "2594fdf4ed23e4d670944415efcf95c96d711c3a4eaf7c7dc639a319caac810c"
+    },
+    "bootstrap": {
+      "anchor_slot": 455249112,
+      "availability_ns": 1791633901559773000,
+      "bucket": "20261010T120000Z",
+      "journal_binding": {
+        "capture_receipt_sha256": "743afc1cefeae83e5313b9bd3953cd9f710d9c33442a653474943be69d1987c9",
+        "reservation_sha256": "bfcca5e91ea006478076e5a5b164a55bfe53fafd9ad3b7c2874cdbe23866fade",
+        "response_sha256": "c1991b9e7dbfc941a94f5b0b2c3a30be2b29399fcd09a8ac1885b2380b9f2814",
+        "result_sha256": "8a051eb90168bfb7e97aa854de17ebcc50aa2ebfaffb299b4efc786ba8c9bb9e"
+      },
+      "plan_sha256": "5a154f6d2b0619cce988115893379bf778d549d1610c821ba20fdf91d422e277",
+      "raw_bytes": 43,
+      "receipt_ns": 1791633901559773000,
+      "receipt_sha256": "074c1c5837309e5cf3ab4ec024539c56083575b8c0f8d7a4475ef43960030c53",
+      "request_count": 1,
+      "stored_bytes": 56,
+      "summary_sha256": "9147fad9b1476660996e6cb745e0b48f883de59e0e3ac7667d7f5d1104b4deb7"
+    },
+    "bytes_decimal": {
+      "all_in_raw_bytes": 769657413,
+      "all_in_stored_bytes": 177576506,
+      "bootstrap_raw_bytes": 43,
+      "bootstrap_stored_bytes": 56,
+      "frame_raw_bytes": 769657370,
+      "frame_stored_bytes": 177576450
+    },
+    "campaign_id": "helius-inventory-v3-20261010-4",
+    "campaign_manifest": {
+      "lease_sha256": "e6cf53b114d9aa306a74d79103c8e6d79df36a1742731ba6d713b2db578afcf2",
+      "predecessor_lineage_sha256": "0a48d1210830a3e6dc78ae4cf4811e3cbacb521834060461041a08336cb86b79",
+      "schedule_sha256": "2253421b56b52b4636f6a15b682495cb289114887dbf40f517338d252ffc1474",
+      "source_code_sha256": {
+        "ops/launchd/ai.memecoin.brain.senses.helius-inventory-controller.plist": "694f6853606411b38691f52e72bfd88a6470061482adc5f01f3832db4fa67b93",
+        "src/memecoin_ai/domain.py": "8123b98462fb822ec6c27d3f7eadbea0a6daf782165e92d369c1a9a77526a1c2",
+        "src/memecoin_ai/sources.py": "7957340a16896bb9cec6ba744590c1bb75c9d02c21dc3fb1877eb1375297f861",
+        "tools/brain_senses_block_epoch_v2.py": "c3d1d0e4d9824ebd6c67c5e292471b5378249e96c26f16c70cd6f4f26ed33555",
+        "tools/brain_senses_block_epoch_v3_launch.py": "457f68b68aba1b1b7071bb371306b0548a8929d488890df788b12f664058e0f3",
+        "tools/brain_senses_block_epoch_v3_schedule.py": "ee4e643ab194d736b5ebfdbf684cbb9caee4e6b78f3673af5bf483be452c2633",
+        "tools/brain_senses_block_provider_pilot.py": "c2a56de9e0f3ef740967345908dca2a120022e11434ce9ec4ca8251e095ebe3f",
+        "tools/brain_senses_campaign_controller.py": "9799323d3de4d1b2c72d40dfb85354697a0c73f89e57fb6228f1d30c97999bc7",
+        "tools/brain_senses_program_watch.py": "1d8fdd1bd055a1b859ff95b5f5082fd533f4b37467c317cc34102d04b0d82917"
+      }
+    },
+    "campaign_root": "/Users/root1/Developer/memecoin-research/work/brain-senses-live-helius-inventory-v3-20261010-4",
+    "frames": [
+      {
+        "bucket": "20261010T130000Z",
+        "end_exclusive": 455265709,
+        "frame_stop_sha256": "9a461a00361fc31362f7aa9d0ca4d15a5e21cb56c769e61f508388d20971ec0d",
+        "plan_sha256": "837a0fca77acdaae03f4ed6665e4bf407824b3f91213c47a5cb271163f1a6313",
+        "raw_bytes": 58434290,
+        "release_sha256": "e0e4bffcb9f607a64e373c41eda326e735b9a45a31cf06011655b7ff77b45ba9",
+        "request_result_binding_sha256": "65e557381621c767601db9bb70b4d5d02a6ddd07fd485d9622080aab005d57a0",
+        "requests": 34,
+        "reservation_sha256": "8d2289673d0e9379adfed91535c3ebabd52db93935b14aa6c2c88502d56d113b",
+        "stored_bytes": 13182819,
+        "summary_sha256": "3f3fa06add8bb58eb7d518d44fe20f3d28e30996eb318eca87af692fb2109954"
+      },
+      {
+        "bucket": "20261010T140000Z",
+        "end_exclusive": 455282201,
+        "frame_stop_sha256": "94c94f75d5ce150d43e0e7bf4f93243190fe3770ed94176a39f98c5bb9af481e",
+        "plan_sha256": "6f3c3e85e5589976641e21a06ac070bfa19d31922e61f48e9908c1075fefa783",
+        "raw_bytes": 65501052,
+        "release_sha256": "2231777d13ca26f9824dadd1bf2acee0bbb3a65f101f8bf4b904c8a901380ca7",
+        "request_result_binding_sha256": "c43b4252a1feefa404e3bfe9c91c439e018fd516d6df13320c8aefb7d98b8461",
+        "requests": 34,
+        "reservation_sha256": "76503bbd5f2dfa064f225ef27ce7527a82187ecde902190a529f7ed159fa3a23",
+        "stored_bytes": 14230705,
+        "summary_sha256": "d308bec276c5591d490ee6b8204cf23dd6d3c1c9a0fd9103648e469ff1140187"
+      },
+      {
+        "bucket": "20261010T150000Z",
+        "end_exclusive": 455298550,
+        "frame_stop_sha256": "230a798b9594b32f5c04661bc72cd7b424519013c30ca5c6874f38ba24f9a70f",
+        "plan_sha256": "57f21dc0d7f5547e844d35c062bc5b51b24001660adec4783dd0d54edac2d5ed",
+        "raw_bytes": 92082186,
+        "release_sha256": "f1618919d654aedf138bd2e105b6d6c2533547076092a40f1db60f74ca2390bc",
+        "request_result_binding_sha256": "8f9c6ad80cb8e4781aaa01da2072dba5c47b6bc514ae07e4cfa4068b212ba34e",
+        "requests": 34,
+        "reservation_sha256": "6b2769f11aa0562cdf27fce83dbe9571b796a2688baab5d16d1a7ac1cb29ef2f",
+        "stored_bytes": 17798128,
+        "summary_sha256": "70c3068493f4a1a9eb4ebedb9bc0de73fe62b00a275f7c4485351581ba0923d1"
+      },
+      {
+        "bucket": "20261010T160000Z",
+        "end_exclusive": 455314973,
+        "frame_stop_sha256": "eff75456c410f820b8c5596e7cccaadd4130697122f477a0deaed847fd7c1cd8",
+        "plan_sha256": "eb582d0e3f63d29ce13c5e3f0b48b88a5c21a19a54c0b9b604ddda2a37f0ddf6",
+        "raw_bytes": 82842112,
+        "release_sha256": "49c935d6b451b69387199ecafa6e13074b98b28f95784ed8216d0742a92d7b4a",
+        "request_result_binding_sha256": "00e18995a288e0cd738d9fbf2228c381074a405ae8d48ad70ab948af662593cd",
+        "requests": 34,
+        "reservation_sha256": "f2a42fce6fbe15e033cd1dd42f8ef8fffd3db4580943209a1026213a4c37951c",
+        "stored_bytes": 17581286,
+        "summary_sha256": "5f5f459c6e294f4305a1318d0d8fc91b44903a26bfe6cd7b3e59699b37c3acb9"
+      },
+      {
+        "bucket": "20261010T170000Z",
+        "end_exclusive": 455331381,
+        "frame_stop_sha256": "ffa257cfcc5ae65223af7eeccf1b5f07a722194be4b4d8a3ebb4cff80218dc10",
+        "plan_sha256": "e8e56172a21d7adf5eab3343459284907d55f7533553366be655164f7ba63ff3",
+        "raw_bytes": 72830256,
+        "release_sha256": "cdc16acab32275c81ef227cb4c2101e9e17fcc4e0c097d078127f722970eea2c",
+        "request_result_binding_sha256": "853eec385eb141ce24f4d75446e0492e070be806d9f3340bb0f300e58ec62494",
+        "requests": 34,
+        "reservation_sha256": "81e4d105a838394327ff5107d63058973ff7c5817e115f9ce2da7d11cdb9ae4f",
+        "stored_bytes": 16852883,
+        "summary_sha256": "abd18093f2863e13a685871f9db49b06f758fcbd653f2554a556b446f7d9dc95"
+      },
+      {
+        "bucket": "20261010T180000Z",
+        "end_exclusive": 455347753,
+        "frame_stop_sha256": "98ba9e1748c82b602eb73de9ea54ee21961ebe2a450506d4a98285286475a296",
+        "plan_sha256": "fc058de4fcf028fe605a180328fb311a51ccfee3023d08fe6d9bbb5f1a6264df",
+        "raw_bytes": 76081818,
+        "release_sha256": "b9efaeda8dbfeac9998e25d347531324787ffc7d38eb1373349f97322dc7deac",
+        "request_result_binding_sha256": "e1422b44200f399d98f5fe458502baaeb2ca34f2e44819d60ba8c9c85b81d3ee",
+        "requests": 34,
+        "reservation_sha256": "ecad2c227906f97ad813df9a2874249f5cdadd4e674648a8b59eefbfd39b6e6c",
+        "stored_bytes": 17754978,
+        "summary_sha256": "a6c064950434754cc3d64f1bc8db7f0ad7b196480c816750f08df39bfa7621b3"
+      },
+      {
+        "bucket": "20261010T190000Z",
+        "end_exclusive": 455364159,
+        "frame_stop_sha256": "0ad0f09b200196ca7c499c0e6f668a36cb535be03e3e14f7b7527abd3c710c10",
+        "plan_sha256": "afd289cb5ba5c02201dd07cb4e3a2fd7456784e722d6553374774df2bd52571b",
+        "raw_bytes": 69247726,
+        "release_sha256": "1e0f77896bd24b6f421e60335fdb0e792be3dc1cf2176b48ec07377bd48fb878",
+        "request_result_binding_sha256": "4ca0a02768e68325d8b5c89c84c2d924c7086b0c59d1bcbf17f98bd3133db63f",
+        "requests": 34,
+        "reservation_sha256": "1683ea3a50b112b1b71acca43bf1cb9cb90736fb6b33efb508e46c598fcaebb2",
+        "stored_bytes": 17075900,
+        "summary_sha256": "4d3143064fad64f025b96439fffb92f6201c21337fc7a0d54ff0fd05b9b3d40b"
+      },
+      {
+        "bucket": "20261010T200000Z",
+        "end_exclusive": 455380633,
+        "frame_stop_sha256": "2b99ef251c0243bd10b7adbd9b64d9cd2d2e437d4a0f054e1b12575df7526fe3",
+        "plan_sha256": "d89e5aeb3e2dba5579716ec9a460a74436d30091ec5cb242d458474f8ae2a6ae",
+        "raw_bytes": 66563478,
+        "release_sha256": "8c24ca6a1406288b653254888056aa05359b03c518d1c713edf54d4169107889",
+        "request_result_binding_sha256": "d9bc11e533603d3541a3059189f60ca03b82e90745fe6dc5df507782054bd9ef",
+        "requests": 34,
+        "reservation_sha256": "2b6e4ce41ffa35ae828184c69c7613806489dd1a93d92a213bd8ff4282e24b1e",
+        "stored_bytes": 15868074,
+        "summary_sha256": "dd3df6185bd08e1b37a59e804bb2b59897c514c659fee95d3938e0048f254712"
+      },
+      {
+        "bucket": "20261010T210000Z",
+        "end_exclusive": 455397121,
+        "frame_stop_sha256": "a233773911fa2b53b5621a2bec1b20b683770127257668af8272dd742f34d6dc",
+        "plan_sha256": "ebebe298c965638a6ebbb245d794dfb818b0ad534b3d58710cb7256571101265",
+        "raw_bytes": 66024149,
+        "release_sha256": "ba7ebbd0acb996ea114428cb95195d5027b5334ef6f571c307a66e1de386b441",
+        "request_result_binding_sha256": "7e6c206a687ec56a8ef0fb701ad6a1fab0edeb10f612bab4c7ee6a3d1332ac27",
+        "requests": 34,
+        "reservation_sha256": "056a1ea31d4cba3215cdab296b2a51a93496eadf76372fc58e995f1824ec9ff5",
+        "stored_bytes": 16332607,
+        "summary_sha256": "4b40b5f67a37e03f7fbbb3b8b75b0be0173bbc8f5c44e4010d5e36dc454d2946"
+      },
+      {
+        "bucket": "20261010T220000Z",
+        "end_exclusive": 455413633,
+        "frame_stop_sha256": "676c1d844a928e2c66c988440c26fd1f3079499dca2d35456b049f5a7b0dd692",
+        "plan_sha256": "3a2557fdf3f3b62a41186eb092de8e1491702925934135436854f82fcaa58515",
+        "raw_bytes": 56670869,
+        "release_sha256": "067a3c2ae08473c008c30cb67752658dd337ef3a3dbd6debbb32c0876c4af418",
+        "request_result_binding_sha256": "40a35d0358327ca12d33570c34a926bddb735ee66a56fe9393b6c7335132d05c",
+        "requests": 34,
+        "reservation_sha256": "6b721f38aebcb5b8798d9ab5d482dcd474fe0bb469663b566dba003887da67c0",
+        "stored_bytes": 15166543,
+        "summary_sha256": "8e76b2d0233a4326f3ddb40e1859e389c5a01dcd7324b7a333e4665232e2afd1"
+      },
+      {
+        "bucket": "20261010T230000Z",
+        "end_exclusive": 455430160,
+        "frame_stop_sha256": "5db2f01b030d06591c35197aab7b7783aa752dbfc206f20dbdc558d048cad9a2",
+        "plan_sha256": "a49448e057af971fe66a0fb6109d9a87f25d0dfb6d2cfd1a2aa74716e19a0853",
+        "raw_bytes": 63379434,
+        "release_sha256": "9198485d8046362419bc2ef2c275186b1dfefe4432f5ac8d23ba1e992ad1e073",
+        "request_result_binding_sha256": "e81924d68d6aafae4e4b463f1f181447b94aaa59e7a4d87a2bbc8a06bfc87106",
+        "requests": 34,
+        "reservation_sha256": "17846597ff70088384ee8323dfc7b32a2529ff616dd4380a2fa349e25483f80c",
+        "stored_bytes": 15732527,
+        "summary_sha256": "6c4139ff64ea94c9b5ba60bcc95a50ed6d0380f375dd2515fe7aeeb02644d3e3"
+      }
+    ],
+    "last_committed": {
+      "anchor_request_times": {
+        "availability_ns": 1791673505517633000,
+        "receipt_ns": 1791673505517633000,
+        "request_started_ns": 1791673505187305000
+      },
+      "anchor_slot": 455430159,
+      "frontier_slot": 455430160,
+      "last_inventoried_interval": {
+        "anchor_receipt_ns": 1791673505517633000,
+        "end_exclusive": 455430160,
+        "inventory_sha256": "ea1e6fc38f86f536fdfa8094236e6a97fa1168919afd79709d804ecef27c5fdf",
+        "provider_returned_produced_slots": 16527,
+        "start": 455413633,
+        "structural_checks_passed": 16,
+        "structural_checks_total": 16
+      },
+      "preexisting_gaps": [
+        {
+          "bucket": "20261010T000000Z",
+          "interval_end_exclusive": 455061516,
+          "interval_start": 455037817,
+          "reason": "oversized_frame",
+          "receipt": "helius-inventory-v2-oversized-gap-2026-10-10.json"
+        },
+        {
+          "end_exclusive": 455116881,
+          "reason": "missed_schedule_no_backfill",
+          "start": 455082524
+        },
+        {
+          "bootstrap_bucket": "20261010T120000Z",
+          "end_exclusive": 455249113,
+          "from_c3_stop_sha256": "e8666a111d5e9aadd9c12044490e2d0ad4d42b0a204d57fbae0295ba036a9f00",
+          "reason": "uncovered_since_c3_trusted_frontier_no_backfill",
+          "start": 455216025
+        }
+      ]
+    },
+    "launchagent_label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-4",
+    "metadata_only_qualification": {
+      "response_body_validation": "not_replayed; existing immutable response_sha256 and byte counts are bound from request-result metadata",
+      "status": "terminal control/accounting/provenance verified; raw response bodies and structural census not independently replayed in this qualification",
+      "structural_validation": "existing sealed structural summary hashes are bound; not independently replayed"
+    },
+    "requests": {
+      "all_in_requests": 375,
+      "bootstrap_requests": 1,
+      "frame_requests": 374,
+      "provider_charge_units": "unknown_unverified"
+    },
+    "stop": {
+      "active_reservation_status": "reconciled",
+      "attempt_count": 11,
+      "last_attempt_bucket": "20261010T230000Z",
+      "reason": "minimum_free_disk_floor_plus_frame_envelope",
+      "sha256": "a7ac1fdd02615491fbea494d35f5bbcba8b03d5bf2a4d11f2516616b39f00098",
+      "time_ns": 1791677100418875000
+    },
+    "uncovered_continuation": {
+      "cause": "abnormal_disk_stop_without_successor_anchor",
+      "cause_detail": "minimum_free_disk_floor_plus_frame_envelope",
+      "closure_rule": "only a future finalized anchor-only bootstrap may establish end_exclusive",
+      "end_exclusive": null,
+      "end_known": false,
+      "start_frontier_slot": 455430160
+    },
+    "zero_post_stop_io": {
+      "frame_at_00Z_exists": false,
+      "open_or_ambiguous_reservations": 0,
+      "post_stop_rpc_requests": 0,
+      "request_journal_check": "passed",
+      "scope": "c4 request journals and captured local process/launchd/Unified Log evidence"
+    }
+  },
+  "limitations": [
+    "This proves only c4's abnormal terminal state. It does not authorize a successor.",
+    "Post-STOP zero-I/O scope is local c4 journal, process, launchd, and filtered Unified Log evidence.",
+    "Provider-side and host-wide network silence are not established.",
+    "The uncovered continuation has an unknown end; a future finalized anchor-only bootstrap may close it.",
+    "Provider charge units and account headroom remain unknown."
+  ],
+  "normal_terminal_verifier_sha256": "0cad5469892ebda42f73157a36441708fa507bb048704fa552fcc0598811d544",
+  "observations": [
+    {
+      "c4_process_pids": [],
+      "launchagent_loaded": false,
+      "launchctl_output_sha256": "c77dc849cfbaf548caa7ff493aa2f77e752d97392f57d833b072cb77eda6437e",
+      "observed_at_ns": 1791677291890361000,
+      "path": "/Users/root1/Developer/memecoin-research/work/evidence/c4-terminal-observations-20261011/observation-1791677291890361000.json",
+      "process_census_sha256": "40206fd1abafdea5f6c3ab8363002d20d918ad2cdf3b265a1a45a87994427bd4",
+      "senses_launchagent_labels": [],
+      "senses_writer_pids": [],
+      "sensitive_value_detected": false,
+      "sha256": "55e801748c48d340acbd187f09214a1fa718f62aa4f924b134df4d91fef80dd7",
+      "snapshot_contract": "normal_snapshot_wrong_window"
+    },
+    {
+      "c4_process_pids": [],
+      "launchagent_loaded": false,
+      "launchctl_output_sha256": "f793177c7bc49354916f4cb01f01fce077199c76fb33ffb4a8a80267b6861f76",
+      "observed_at_ns": 1791681386774819000,
+      "path": "/Users/root1/Developer/memecoin-research/work/evidence/c4-terminal-observations-20261011/observation-1791681386774645000.json",
+      "process_census_sha256": "27168627e085a35b8ebb6f0c651871aabf81eacb42eb8725eec1fa6e4884b18e",
+      "senses_launchagent_labels": [],
+      "senses_writer_pids": [],
+      "sensitive_value_detected": false,
+      "sha256": "dc295feb48ea0ce9e766c61d168acc757e8a35090d66e1a3fd68e0d9f4c44292",
+      "snapshot_contract": "brain_senses_c4_abnormal_disk_terminal_v1"
+    }
+  ],
+  "qualifier_sha256": "bedd4b2f24d1173497c31924455b80ff539d7a0da4c719a09a7cc7416796f6f9",
+  "schema_version": 1,
+  "status": "abnormal_disk_terminal_proven"
+}

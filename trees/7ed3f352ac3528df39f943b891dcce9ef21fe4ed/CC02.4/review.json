@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "task_id": "CC02.4",
+  "acceptance_scope": "page",
+  "web_sha256": "2c5991f15574ebbd8e7f761a70c8ca3d9e354287b81bf068dc5d80d3cc2b05a8",
+  "snapshot_sha256": "82a6efd6066b271a6a30de36a7b2d73523d771118eab4882f267c50200cddb1c",
+  "reference_sha256": "dd03716ed059c4bdf85726489460d4c07acb6836a872553ccf2157bb8dd014d6",
+  "builder_id": "91929be6-b945-4b44-999a-309de60d9b7f",
+  "reviewer_id": "67900027-e42a-40b4-990f-b9edf06e0b51",
+  "model_binding": "UNVERIFIED",
+  "first_review": "Первый кадр NEEDS_FIX, среднее 3.9: у неизвестного runner стоял бейдж ENGINEERING, число релизов уехало вправо, легенда срезана, допуск был равной плиткой. before.web_sha256 — SHA первого PNG: digest дерева до правки не сохранялся.",
+  "fix_summary": "Бейдж ENGINEERING снят с runner. Релизы и ноль стоят слева. Легенда влезает в кадр 1600. Допуск — жёлтая locked-поверхность в том же ряду. Скрытый текст у знака ≠ убран.",
+  "remaining_findings": [
+    {
+      "severity": "minor",
+      "reason": "Заголовки review и плана выборки начинаются у нижней кромки кадра 1600.",
+      "owner": "CC02.4"
+    },
+    {
+      "severity": "minor",
+      "reason": "Карточка runner короче holdout, потому что отдельный статус не опубликован.",
+      "owner": "CC02.4"
+    }
+  ],
+  "screens": [
+    {
+      "route": "/research",
+      "rubric_scope": "page",
+      "before": {
+        "path": "docs/control-center/references/cc02-final/CC02.4/first/research-1600.png",
+        "sha256": "fb970cc2cc9b8b31edc8c6ae8c9d1cc69ee6b8e7554487faebfe4449ee8d9ee0",
+        "route": "/research",
+        "capture_id": "cc024-first-research-1600x1000-viewport",
+        "viewport": [
+          1600,
+          1000
+        ],
+        "capture": "viewport",
+        "dpr": 1,
+        "zoom": 1,
+        "web_sha256": "fb970cc2cc9b8b31edc8c6ae8c9d1cc69ee6b8e7554487faebfe4449ee8d9ee0",
+        "captured_at": "2026-10-04T01:47:30Z",
+        "browser": "Chromium 153.0.8010.12"
+      },
+      "after": [
+        {
+          "route": "/research",
+          "capture_id": "cc024-research-1440x900-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1440x900-viewport.png",
+          "sha256": "d006835b0fcdf91b95e74cd36b933c6cd7e665a607373cf03b383f205b5b601b",
+          "viewport": [
+            1440,
+            900
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2c5991f15574ebbd8e7f761a70c8ca3d9e354287b81bf068dc5d80d3cc2b05a8",
+          "captured_at": "2026-10-04T01:58:03.388Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1440x900-viewport.layout.json",
+            "sha256": "50edc84708aa03f5f65ae0604fe44de8b22e04aa9e1ff19e3c118d95029e7020"
+          }
+        },
+        {
+          "route": "/research",
+          "capture_id": "cc024-research-1600x1000-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1600x1000-viewport.png",
+          "sha256": "9e36019ec749994f8730b82c9b37d923c5a92a75d486ce74194037839b4ca4ed",
+          "viewport": [
+            1600,
+            1000
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2c5991f15574ebbd8e7f761a70c8ca3d9e354287b81bf068dc5d80d3cc2b05a8",
+          "captured_at": "2026-10-04T01:58:03.609Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1600x1000-viewport.layout.json",
+            "sha256": "07e89f531f0ea9fd48934fc6af75c66ca831f5f8f91ee3a4ce477d80bd84120c"
+          }
+        },
+        {
+          "route": "/research",
+          "capture_id": "cc024-research-1600x1000-fullpage",
+          "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1600x1000-fullpage.png",
+          "sha256": "9e36019ec749994f8730b82c9b37d923c5a92a75d486ce74194037839b4ca4ed",
+          "viewport": [
+            1600,
+            1000
+          ],
+          "capture": "fullpage",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2c5991f15574ebbd8e7f761a70c8ca3d9e354287b81bf068dc5d80d3cc2b05a8",
+          "captured_at": "2026-10-04T01:58:03.610Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1600x1000-fullpage.layout.json",
+            "sha256": "63546d6f96b6171ad33bc9f7d8a8bc2a1a68c1d7c582b909bc082ec21362e5b7"
+          }
+        },
+        {
+          "route": "/research",
+          "capture_id": "cc024-research-1920x1080-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1920x1080-viewport.png",
+          "sha256": "8c07e401a79200cbd1f4409b893f21b7d0c505ea64bb11e4022f9b5e9322387f",
+          "viewport": [
+            1920,
+            1080
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2c5991f15574ebbd8e7f761a70c8ca3d9e354287b81bf068dc5d80d3cc2b05a8",
+          "captured_at": "2026-10-04T01:58:03.773Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1920x1080-viewport.layout.json",
+            "sha256": "741debd13111d10792b3e1a6799eb2bbd673d93fc2db8eebfa8063f13490200e"
+          }
+        },
+        {
+          "route": "/research",
+          "capture_id": "cc024-research-1024x768-viewport",
+          "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1024x768-viewport.png",
+          "sha256": "5b325b360dfba921b75f9bf2981f70526650c03bcfb9f7384da7230eed98df33",
+          "viewport": [
+            1024,
+            768
+          ],
+          "capture": "viewport",
+          "dpr": 1,
+          "zoom": 1,
+          "web_sha256": "2c5991f15574ebbd8e7f761a70c8ca3d9e354287b81bf068dc5d80d3cc2b05a8",
+          "captured_at": "2026-10-04T01:58:03.898Z",
+          "browser": "Chromium 153.0.8010.12",
+          "layout_report": {
+            "path": "docs/control-center/references/cc02-final/CC02.4/after/cc024-research-1024x768-viewport.layout.json",
+            "sha256": "86ded843c9090adef6b0716658cd3a30f69cbf662fced4199acc916a81354e71"
+          }
+        }
+      ],
+      "rubric": {
+        "composition": {
+          "score": 4,
+          "reason": "Цепочка стадий держит верх, ниже runner и holdout, затем раздельные счётчики."
+        },
+        "hierarchy": {
+          "score": 5,
+          "reason": "Разрешения читаются раньше вторичных review и плана выборки."
+        },
+        "density": {
+          "score": 4,
+          "reason": "Четыре стадии, два последствия и два счётчика помещаются в кадр 1600."
+        },
+        "typography": {
+          "score": 4,
+          "reason": "Подписи состояний и числа 0/114 и 135 читаются раздельно."
+        },
+        "geometry": {
+          "score": 4,
+          "reason": "Ряд равных стадий, допуск выделен рамкой, релизы не уезжают вправо."
+        },
+        "navigation": {
+          "score": 4,
+          "reason": "Маршрут исследования активен, сырые коды остаются за раскрытием."
+        },
+        "identity": {
+          "score": 4,
+          "reason": "Navy, amber locked и штрих holdout без чужой свечной схемы."
+        },
+        "reference_family": {
+          "score": 4,
+          "reason": "Плотный центральный блок и честные статусы, не отчёт полей."
+        },
+        "state_clarity": {
+          "score": 5,
+          "reason": "Runner неизвестен, допуск LOCKED, 0/114 не складывается со 135."
+        },
+        "interaction": {
+          "score": 4,
+          "reason": "Формы и легенда читаются без цвета, коды монтируются при открытии."
+        }
+      },
+      "remaining_weaknesses": "Review и план выборки у нижней кромки. Runner короче holdout, потому что статус не опубликован."
+    }
+  ]
+}

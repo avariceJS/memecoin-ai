@@ -1,0 +1,29 @@
+.root {
+  padding: 1.5rem;
+  color: #e7f0fa;
+  background: #1a1214;
+  border: 1px solid #5c3038;
+  border-radius: 6px;
+}
+
+.code {
+  margin: 0 0 0.75rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  color: #f0b4bc;
+}
+
+.button {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.875rem;
+  color: #e7f0fa;
+  background: #243044;
+  border: 1px solid #3d5168;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: 2px solid #6b9fd4;
+  outline-offset: 2px;
+}

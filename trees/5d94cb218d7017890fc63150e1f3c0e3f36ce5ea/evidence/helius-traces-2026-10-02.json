@@ -1,0 +1,407 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-02",
+  "kind": "historical_trace_capability_and_bounded_state_followup",
+  "code_commit": "9236726",
+  "probe_code_commit": "a9c66d8",
+  "seed": null,
+  "temporal_split": null,
+  "execution_model": "none; read-only data audit",
+  "artifacts": [
+    {
+      "path": "work/helius-trace-research-01",
+      "manifest_sha256": "1a7f82936c36ca36a08d5e32c5e577067a2bdb5d46b65595373dc2c0b021d61b",
+      "files": 15
+    },
+    {
+      "path": "work/helius-json-traces-01",
+      "manifest_sha256": "2f8ac651046c0bbef2ccf856861e8651afb7498fd7cc842bbc7b75b4da7b756a",
+      "files": 10
+    },
+    {
+      "path": "work/helius-indexed-traces-01",
+      "manifest_sha256": "32275ce8fd5f65d63bdaea2854cabf66e80b41bef3bfcdabe10b1c7cb86a9067",
+      "files": 10
+    },
+    {
+      "path": "work/helius-scope-01",
+      "manifest_sha256": "b4ba4b954bfa743d385f7536752a96fbb44d619717e136afcca82889dfbd39e2",
+      "files": 4
+    },
+    {
+      "path": "work/helius-state-pairs-01",
+      "manifest_sha256": "00d6c2c89018829e2e61ba6c0219369e2dd2c01d10d4bed6550a0173138270a2",
+      "files": 8
+    },
+    {
+      "path": "work/helius-active-block-01",
+      "manifest_sha256": "8a0c595d27b9c538b85c33cb1c54aafb1b46d3b39c4f556e2912af7e1b068bd9",
+      "files": 6
+    }
+  ],
+  "requests": [
+    {
+      "category": "truncated_logs",
+      "elapsed_ns": 537049292,
+      "http_status": 200,
+      "index": 433,
+      "log_bytes": 9989,
+      "log_lines": 129,
+      "logs_equal_helius_block": true,
+      "logs_equal_primary": false,
+      "method": "getTransaction",
+      "params": [
+        "x5QtkLfgCbcCNusnXAU8BcXUXVKPKWi8mLBgpRdF53ru4bCqX7t3LxRXSv6fkPBVXAaiXHCBymFUquap77H79nB",
+        {
+          "commitment": "finalized",
+          "encoding": "json",
+          "maxSupportedTransactionVersion": 1
+        }
+      ],
+      "received_ns": 1790954798323851000,
+      "response_bytes": 26949,
+      "rpc_code": null,
+      "started_ns": 1790954797671870000,
+      "status": "received"
+    },
+    {
+      "category": "truncated_logs",
+      "elapsed_ns": 397769292,
+      "http_status": 200,
+      "index": 743,
+      "log_bytes": 10008,
+      "log_lines": 127,
+      "logs_equal_helius_block": true,
+      "logs_equal_primary": false,
+      "method": "getTransaction",
+      "params": [
+        "3sneF6gjC75UiQXferoXWqev3HjuY2jRa9PqRkwvn8usNqEZ5wsi7UaBHZDcRrULzF2SCBbGFaUWWFEQAyqYG6m",
+        {
+          "commitment": "finalized",
+          "encoding": "json",
+          "maxSupportedTransactionVersion": 1
+        }
+      ],
+      "received_ns": 1790954801876319000,
+      "response_bytes": 29824,
+      "rpc_code": null,
+      "started_ns": 1790954801328089000,
+      "status": "received"
+    },
+    {
+      "category": "truncated_logs",
+      "elapsed_ns": 2121121291,
+      "http_status": 200,
+      "index": 433,
+      "log_lines": 129,
+      "logs_equal_helius_block": true,
+      "logs_equal_primary": false,
+      "method": "getTransactionsForAddress",
+      "params": [
+        "49uEEv88Jt49crSz6YWYbSPhuwRwG6av3NVSeNzZtFs9",
+        {
+          "commitment": "finalized",
+          "encoding": "jsonParsed",
+          "filters": {
+            "signature": {
+              "gte": "x5QtkLfgCbcCNusnXAU8BcXUXVKPKWi8mLBgpRdF53ru4bCqX7t3LxRXSv6fkPBVXAaiXHCBymFUquap77H79nB",
+              "lte": "x5QtkLfgCbcCNusnXAU8BcXUXVKPKWi8mLBgpRdF53ru4bCqX7t3LxRXSv6fkPBVXAaiXHCBymFUquap77H79nB"
+            },
+            "slot": {
+              "gte": 452408962,
+              "lte": 452408962
+            }
+          },
+          "limit": 1,
+          "maxSupportedTransactionVersion": 1,
+          "transactionDetails": "full"
+        }
+      ],
+      "received_ns": 1790954886415435000,
+      "response_bytes": 44405,
+      "rpc_code": null,
+      "started_ns": 1790954884161879000,
+      "status": "received"
+    },
+    {
+      "category": "truncated_logs",
+      "elapsed_ns": 391478208,
+      "http_status": 200,
+      "index": 743,
+      "log_lines": 127,
+      "logs_equal_helius_block": true,
+      "logs_equal_primary": false,
+      "method": "getTransactionsForAddress",
+      "params": [
+        "Prius3JTjEfAJyW74edM6jqEvTFob9Yjf7U4kCVUQV3",
+        {
+          "commitment": "finalized",
+          "encoding": "jsonParsed",
+          "filters": {
+            "signature": {
+              "gte": "3sneF6gjC75UiQXferoXWqev3HjuY2jRa9PqRkwvn8usNqEZ5wsi7UaBHZDcRrULzF2SCBbGFaUWWFEQAyqYG6m",
+              "lte": "3sneF6gjC75UiQXferoXWqev3HjuY2jRa9PqRkwvn8usNqEZ5wsi7UaBHZDcRrULzF2SCBbGFaUWWFEQAyqYG6m"
+            },
+            "slot": {
+              "gte": 452408962,
+              "lte": 452408962
+            }
+          },
+          "limit": 1,
+          "maxSupportedTransactionVersion": 1,
+          "transactionDetails": "full"
+        }
+      ],
+      "received_ns": 1790954890035608000,
+      "response_bytes": 48587,
+      "rpc_code": null,
+      "started_ns": 1790954889417647000,
+      "status": "received"
+    },
+    {
+      "category": "timeout",
+      "elapsed_ns": 20069404333,
+      "error": "TransportSourceError",
+      "http_status": null,
+      "method": "getMultipleAccounts",
+      "params": [
+        [
+          "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+          "CRRS5ieQmBrZjWhcj99JuGrT5tyuWDaGAXLXLFjbAtjQ",
+          "ApNhP2WjqH6V6CWvNj3qjTgv23eDXLVmWXqNrRVNGhCM",
+          "4ytUhrnGVi6RSC5iqKai2wErwViQ9xNxmpur29qVzgk3",
+          "PEPEqnuuCDbBC89p1u9vpnP1KQ2oj1xTcQBsjt9X55m",
+          "9fJAWKQpkY93hfuZxrHfh5wEh2AV9vjkWNQfzfbziHd2",
+          "SysvarC1ock11111111111111111111111111111111"
+        ],
+        {
+          "commitment": "finalized",
+          "encoding": "base64",
+          "minContextSlot": 452408973
+        }
+      ],
+      "received_ns": 1790955239799670000,
+      "rpc_code": null,
+      "source": "public-mainnet",
+      "started_ns": 1790955219730253000,
+      "status": "error"
+    },
+    {
+      "context_slot": 452651827,
+      "elapsed_ns": 318456666,
+      "http_status": 200,
+      "method": "getMultipleAccounts",
+      "params": [
+        [
+          "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+          "CRRS5ieQmBrZjWhcj99JuGrT5tyuWDaGAXLXLFjbAtjQ",
+          "ApNhP2WjqH6V6CWvNj3qjTgv23eDXLVmWXqNrRVNGhCM",
+          "4ytUhrnGVi6RSC5iqKai2wErwViQ9xNxmpur29qVzgk3",
+          "PEPEqnuuCDbBC89p1u9vpnP1KQ2oj1xTcQBsjt9X55m",
+          "9fJAWKQpkY93hfuZxrHfh5wEh2AV9vjkWNQfzfbziHd2",
+          "SysvarC1ock11111111111111111111111111111111"
+        ],
+        {
+          "commitment": "finalized",
+          "encoding": "base64",
+          "minContextSlot": 452408973
+        }
+      ],
+      "received_ns": 1790955220049376000,
+      "response_bytes": 3707,
+      "rpc_code": null,
+      "source": "helius-secondary",
+      "started_ns": 1790955219730452000,
+      "status": "received"
+    },
+    {
+      "ancestry_to_previous_helius_block": true,
+      "elapsed_ns": 15108226084,
+      "http_status": 200,
+      "method": "getBlock",
+      "params": [
+        452408963,
+        {
+          "commitment": "finalized",
+          "encoding": "jsonParsed",
+          "maxSupportedTransactionVersion": 1,
+          "rewards": false,
+          "transactionDetails": "full"
+        }
+      ],
+      "received_ns": 1790955315351564000,
+      "response_bytes": 8164830,
+      "rpc_code": null,
+      "started_ns": 1790955299416218000,
+      "status": "received"
+    }
+  ],
+  "documentation": {
+    "standard_transaction": "https://www.helius.dev/docs/api-reference/rpc/http/gettransaction",
+    "indexed_transactions": "https://www.helius.dev/docs/rpc/gettransactionsforaddress",
+    "untruncated_stream": "https://www.helius.dev/docs/laserstream/log-truncation",
+    "replay": "https://www.helius.dev/docs/laserstream/historical-replay",
+    "finding": "No documented historical replay on untruncated endpoints; no documented standard RPC log-limit option. Indexed full response and both JSON encodings actually returned the same truncated log arrays.",
+    "mcp": "troubleshootError had no entry for Log truncated; not evidence of plan restriction",
+    "local_docs_failure": "supplement GET .md TLS handshake timeout; web HTML pages available"
+  },
+  "trace_probes_recovered": 0,
+  "trace_signatures_tested": 2,
+  "trace_calls_this_stage": 4,
+  "active_block": {
+    "slot": 452408963,
+    "transaction_count": 1154,
+    "strict_comparison": {
+      "comparison_schema": 3,
+      "independent_infrastructure_verified": false,
+      "left_sha256": "347601b338569c4f5a6e38a4ec39859b08d4f73263d2526916d6986ccfdc40e8",
+      "left_source": "public-mainnet-history",
+      "log_truncation_observed": false,
+      "market_dataset_qualified": false,
+      "method": "getBlock",
+      "right_sha256": "916751e6b7da9c809901f03e353b32f7b9d0b466c2853dfb3338a1d1b5d03176",
+      "right_source": "helius-secondary",
+      "semantic_left_sha256": "738f4e0eebf83d378e7d584e90c87bf6b52e8239c3a02dcdb7e4e2a3533c3e06",
+      "semantic_right_sha256": "738f4e0eebf83d378e7d584e90c87bf6b52e8239c3a02dcdb7e4e2a3533c3e06",
+      "status": "match",
+      "truncated_log_transaction_indices": {
+        "left": [],
+        "right": []
+      }
+    },
+    "ancestry_to_previous_helius_block": true,
+    "scope": {
+      "addresses": [
+        "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+        "ApNhP2WjqH6V6CWvNj3qjTgv23eDXLVmWXqNrRVNGhCM",
+        "4ytUhrnGVi6RSC5iqKai2wErwViQ9xNxmpur29qVzgk3",
+        "CRRS5ieQmBrZjWhcj99JuGrT5tyuWDaGAXLXLFjbAtjQ",
+        "PEPEqnuuCDbBC89p1u9vpnP1KQ2oj1xTcQBsjt9X55m",
+        "9fJAWKQpkY93hfuZxrHfh5wEh2AV9vjkWNQfzfbziHd2"
+      ],
+      "execution_qualified": false,
+      "groups": {
+        "no_reference": {
+          "count": 1083,
+          "exact_matches": 1083,
+          "mismatched_indices": [],
+          "truncated_left": [],
+          "truncated_right": []
+        },
+        "readonly_reference": {
+          "count": 70,
+          "exact_matches": 70,
+          "mismatched_indices": [],
+          "truncated_left": [],
+          "truncated_right": []
+        },
+        "writable_reference": {
+          "count": 1,
+          "exact_matches": 1,
+          "mismatched_indices": [],
+          "truncated_left": [],
+          "truncated_right": []
+        }
+      },
+      "kind": "block_account_scope_diagnostic",
+      "market_dataset_qualified": false,
+      "mismatches": [],
+      "schema_version": 1,
+      "scope_completeness_verified": false,
+      "strict_comparison": {
+        "comparison_schema": 3,
+        "independent_infrastructure_verified": false,
+        "left_sha256": "347601b338569c4f5a6e38a4ec39859b08d4f73263d2526916d6986ccfdc40e8",
+        "left_source": "public-mainnet-history",
+        "log_truncation_observed": false,
+        "market_dataset_qualified": false,
+        "method": "getBlock",
+        "right_sha256": "916751e6b7da9c809901f03e353b32f7b9d0b466c2853dfb3338a1d1b5d03176",
+        "right_source": "helius-secondary",
+        "semantic_left_sha256": "738f4e0eebf83d378e7d584e90c87bf6b52e8239c3a02dcdb7e4e2a3533c3e06",
+        "semantic_right_sha256": "738f4e0eebf83d378e7d584e90c87bf6b52e8239c3a02dcdb7e4e2a3533c3e06",
+        "status": "match",
+        "truncated_log_transaction_indices": {
+          "left": [],
+          "right": []
+        }
+      }
+    }
+  },
+  "first_block_scope": {
+    "no_reference": {
+      "count": 1224,
+      "exact_matches": 1223,
+      "mismatched_indices": [
+        743
+      ],
+      "truncated_left": [],
+      "truncated_right": [
+        743
+      ]
+    },
+    "readonly_reference": {
+      "count": 86,
+      "exact_matches": 85,
+      "mismatched_indices": [
+        433
+      ],
+      "truncated_left": [],
+      "truncated_right": [
+        433
+      ]
+    },
+    "writable_reference": {
+      "count": 0,
+      "exact_matches": 0,
+      "mismatched_indices": [],
+      "truncated_left": [],
+      "truncated_right": []
+    }
+  },
+  "aggregate_historical": {
+    "range": [
+      452408962,
+      452408973
+    ],
+    "enumeration_matches": 12,
+    "full_blocks_compared": 2,
+    "full_blocks_matched": 1,
+    "full_blocks_mismatched": 1,
+    "blocks_not_fetched": 10,
+    "transactions_compared": 2464,
+    "transactions_exact_match": 2462,
+    "full_range_agreement": false
+  },
+  "current_state_pair": {
+    "status": "unavailable_primary_timeout",
+    "attempted_pairs": 1,
+    "helius_context_slot": 452651827,
+    "same_bank_comparison_performed": false
+  },
+  "this_stage": {
+    "helius_successful_requests": 6,
+    "helius_response_bytes": 8318302,
+    "primary_timeouts": 1
+  },
+  "qualification": {
+    "helius_tested_access_eligible_for_complete_historical_trace_crosscheck": false,
+    "helius_usable_for_selective_data_crosschecks": true,
+    "scope_completeness_verified": false,
+    "independent_infrastructure_verified": false,
+    "market_dataset_qualified": false,
+    "execution_qualified": false,
+    "edge_established": false
+  },
+  "checks": {
+    "tests": 252,
+    "lint": true,
+    "format": true,
+    "strict_typing": true,
+    "smoke": true,
+    "manifests_verified": true,
+    "offline_comparisons_reproduced": true,
+    "sdist_wheel_build": true
+  },
+  "next_step": "Predeclare the complete frozen account write-set for remaining 10 blocks, preserve strict comparisons and incomplete traces; complete an independent fixed-cohort history audit before dataset qualification. Investigate public RPC reachability before a new current-state pair; do not replay current state as historical traces."
+}

@@ -1,0 +1,106 @@
+{
+  "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+  "browser": "Chromium 153.0.8010.12",
+  "captures": [
+    {
+      "route": "/sources",
+      "capture_id": "cc026-sources-1440x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1440x900-viewport.png",
+      "sha256": "6425733d380a2b12a5ab54395545915727ee253781e28a2512aa9b4e3d8eb98f",
+      "viewport": [
+        1440,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+      "captured_at": "2026-10-04T03:08:05.949Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1440x900-viewport.layout.json",
+        "sha256": "172b684b2b864aee8cad352a284a914ff6a1df57c3f38deb1cfb1bbb50a250f5"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc026-sources-1600x1000-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1600x1000-viewport.png",
+      "sha256": "ed8f8fb4097ab3ca51b77bcd99bdf2b4dea4f242fff43878714f2586b69c159e",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+      "captured_at": "2026-10-04T03:08:06.118Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1600x1000-viewport.layout.json",
+        "sha256": "79382b3f8e9a0971e39dc78a5fc36ed60ee02daa820378090eacec91f7707ce6"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc026-sources-1600x1000-fullpage",
+      "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1600x1000-fullpage.png",
+      "sha256": "ed8f8fb4097ab3ca51b77bcd99bdf2b4dea4f242fff43878714f2586b69c159e",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "fullpage",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+      "captured_at": "2026-10-04T03:08:06.118Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1600x1000-fullpage.layout.json",
+        "sha256": "4623170aee770c7eb7ca70af0849f499fa2f26fdedcf68ae7d1bc602b87d03fb"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc026-sources-1920x1080-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1920x1080-viewport.png",
+      "sha256": "40e5f38ee801950321f2f966d35f74794234ffaef0692ef520063ed0b16a2394",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+      "captured_at": "2026-10-04T03:08:06.261Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1920x1080-viewport.layout.json",
+        "sha256": "0df4c4475d82fe2e54d08155e5ab69125c5e7146c20ddf263481662a5f59b6a9"
+      }
+    },
+    {
+      "route": "/sources",
+      "capture_id": "cc026-sources-1024x768-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1024x768-viewport.png",
+      "sha256": "ece26355fe4dcdf2820e1fbde9c6402db113614ffd679d5f6703deb39f64b47d",
+      "viewport": [
+        1024,
+        768
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "21b8ab4bdfaedee3f92442eca4153069c75d2fad6159255f1592bc28b8d91756",
+      "captured_at": "2026-10-04T03:08:06.386Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.6/after/cc026-sources-1024x768-viewport.layout.json",
+        "sha256": "57c31fe9e57d062fe2782c45e4fe1cb804e1579f83459a89b2c18917412ef5b7"
+      }
+    }
+  ]
+}

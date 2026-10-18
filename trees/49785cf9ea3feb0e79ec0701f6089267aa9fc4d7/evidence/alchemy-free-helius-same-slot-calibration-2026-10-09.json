@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-10-09",
+  "experiment": "alchemy_free_helius_same_slot_stratified_calibration",
+  "status": "bounded_calibration_complete",
+  "scope": {
+    "commitment": "finalized",
+    "slot_range_exclusive": [
+      454881228,
+      454881260
+    ],
+    "slots": 32,
+    "sampling": "one recent contiguous 32-slot calibration range; not a probability sample",
+    "providers": [
+      "helius-free",
+      "alchemy-free"
+    ],
+    "providers_are_independent_families": true
+  },
+  "request_accounting": {
+    "requests_per_provider": {
+      "helius-free": 65,
+      "alchemy-free": 65
+    },
+    "methods_per_provider": {
+      "getBlocks": 1,
+      "getBlock_full": 32,
+      "getBlock_signatures": 32
+    },
+    "retries": 0,
+    "helius_expected_standard_credits": 65,
+    "helius_account_meter_delta": "not exposed",
+    "alchemy_free_cu_delta": "not exposed",
+    "paid_requests": 0
+  },
+  "provider_measurements": {
+    "helius-free": {
+      "attempts": 65,
+      "parsed": 65,
+      "failures": 0,
+      "raw_response_bytes": 142111361,
+      "stored_zstd_bytes": 36487643,
+      "mean_stored_bytes_per_sampled_slot_including_inventory_and_signature_check": 1140240
+    },
+    "alchemy-free": {
+      "attempts": 65,
+      "parsed": 65,
+      "failures": 0,
+      "raw_response_bytes": 142226638,
+      "stored_zstd_bytes": 36328948,
+      "mean_stored_bytes_per_sampled_slot_including_inventory_and_signature_check": 1135280
+    }
+  },
+  "agreement": {
+    "provider_inventory_slot_sets_equal": true,
+    "inventory_slot_count_each": 32,
+    "same_slot_full_block_identity_equal": 32,
+    "full_vs_signatures_only_ordered_lists_equal": 64,
+    "qualified_exact_structural_reference_count_by_provider": {
+      "helius-free": 32,
+      "alchemy-free": 32
+    },
+    "paired_transactions": 39318,
+    "exact_transaction_tree_matches": 39280,
+    "transaction_tree_differences": 38,
+    "difference_paths": {
+      "meta.logMessages": 38
+    },
+    "differences_with_explicit_helius_log_truncated_marker": 38
+  },
+  "decoder_correction": {
+    "finding": "empty base58 instruction data encodes an exact empty byte sequence and is valid",
+    "prior_failure_category": "instruction_data_invalid_base58",
+    "qualification_before_correction": {
+      "helius-free": 7,
+      "alchemy-free": 7
+    },
+    "qualification_after_offline_replay": {
+      "helius-free": 32,
+      "alchemy-free": 32
+    },
+    "change": "decode58 now accepts an empty string while retaining type and maximum-length bounds"
+  },
+  "storage": {
+    "raw_response_bytes_total": 284337999,
+    "stored_zstd_bytes_total": 72816591,
+    "ratio_is_sample_specific": true,
+    "qualification_note": "This denser 32-slot sample averaged about 1.14 MB/provider/slot stored; do not size future waves from the earlier three-block probe alone."
+  },
+  "interpretation": {
+    "agreement_is_bounded_to_these_slots": true,
+    "provider_agreement_is_not_ground_truth": true,
+    "structural_reference_counts_are_not_economic_swaps": true,
+    "market_activity_zero_or_lifecycle_inference_permitted": false,
+    "historical_capture_is_point_in_time": false
+  },
+  "raw_capture": "ignored work/brain-senses-helius-alchemy-free-calibration-20261009/; captures retain request identity, raw response hash/length, receipt time and zstd object hash/length"
+}

@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "observed_local": "2026-10-14T00:25:08+03:00",
+  "scope": "portability and disaster recovery qualification; no production or provider activity",
+  "research": {
+    "branch": "research/active",
+    "head": "33ff52fbce1571caf1c7ae5bab7303f7f6026fca",
+    "origin_head": "33ff52fbce1571caf1c7ae5bab7303f7f6026fca",
+    "worktree_clean": true
+  },
+  "owner": {
+    "branch": "main",
+    "head": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+    "origin_main": "6feba83525c0d21392432c53becd79e8901650ea",
+    "worktree_clean": true,
+    "read_only_b01_status": {
+      "state": "STOP",
+      "runtime": "expired",
+      "orders_recorded": 0,
+      "scope": "B01 only; not an owner-wide trading-state audit"
+    },
+    "operator_and_owner_paper_ui_processes_running": true
+  },
+  "software_restore_rehearsal": {
+    "source": "origin/research/active",
+    "restored_commit": "33ff52fbce1571caf1c7ae5bab7303f7f6026fca",
+    "fresh_network_clone_seconds": 44.59,
+    "pinned_uncached_dev_setup_seconds": 36.41,
+    "make_smoke_seconds": 1.05,
+    "clone_worktree_clean": true,
+    "scope_limit": "code and development dependencies only; no owner runtime, corpus copy, secrets, services, or protected data"
+  },
+  "kingston": {
+    "mount_path": "/Volumes/Kingston",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "case_sensitive_apfs": true,
+    "encrypted": false,
+    "external_physical_copies": 1,
+    "available_bytes_at_check": 217582518272,
+    "root_check": "passed",
+    "canonical_brain_data_copy_count": 1,
+    "simultaneous_owner_and_kingston_loss_protection": false
+  },
+  "local_inventory": {
+    "research_work_approx_bytes": 17179869184,
+    "owner_work_approx_bytes": 11811160064,
+    "internal_data_volume_available_bytes_approx": 19327352832,
+    "time_machine_destination_configured": false,
+    "data_volume_apfs_snapshots": 0,
+    "kingston_apfs_snapshots": 0,
+    "read_only_owner_wide_snapshot_created": false,
+    "owner_runtime_backup_created": false,
+    "protected_archive_created": false
+  },
+  "launchd_inventory": {
+    "matching_ai_memecoin_labels": 18,
+    "owner_operator_pid": 64937,
+    "owner_ui_or_paper_processes_running": true,
+    "d43_calendar_label_listed_without_pid": true,
+    "senses_capture_or_watchdog_labels_listed": 0,
+    "restore_rehearsal_policy": "zero Brain/Senses labels loaded; plist inventory is not activation authority",
+    "labels": [
+      {
+        "label": "ai.memecoin.brain.operator",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b12.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b04",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b12.paper",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b09r2.audit",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b10r2.train",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.research-storage-health-v1",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b09r2.source",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b10.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.d43.calendar01",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.expansion.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b12r2.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b10r2.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.b12r1.ui",
+        "running_pid_present": true
+      },
+      {
+        "label": "ai.memecoin.brain.expansion.paper",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b10r2.paper",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b12r2.paper",
+        "running_pid_present": false
+      },
+      {
+        "label": "ai.memecoin.brain.b10r1.ui",
+        "running_pid_present": true
+      }
+    ],
+    "running_pid_count": 8,
+    "listed_without_pid_count": 10,
+    "future_owner_role_candidates": [
+      "ai.memecoin.brain.operator",
+      "ai.memecoin.brain.research-storage-health-v1"
+    ],
+    "candidate_activation_authorized": false
+  },
+  "synthetic_encrypted_archive_qualification": {
+    "synthetic_only": true,
+    "archive_tool": "bsdtar 3.5.3",
+    "encryption_tool": "GnuPG 2.4.8",
+    "qualification_program": "tools/brain_dr_synthetic_archive_rehearsal.py",
+    "program_sha256": "91f7ba55381388657419eabe6bd19c12fc6a99060acb481467197f437d783536",
+    "ciphertext_bytes": 2558,
+    "ciphertext_sha256": "8c54d0560c3a604b40313011095d448f82a178bbcddfe33172a9fb385abfae82",
+    "archive_create_options": [
+      "bsdtar --read-sparse --acls --fflags --xattrs -cf - -C <synthetic-source> ."
+    ],
+    "encryption_options": [
+      "GnuPG isolated temporary homedir and agent",
+      "--batch --pinentry-mode loopback --passphrase-fd <private-pipe-fd>",
+      "--symmetric --cipher-algo AES256 --output -"
+    ],
+    "restore_options": [
+      "GnuPG --status-fd 2 --decrypt <synthetic-ciphertext>",
+      "bsdtar --acls --fflags --xattrs -xf - -C <synthetic-restore>"
+    ],
+    "checks": {
+      "complete_member_set": true,
+      "archive_restore_and_gpg_goodmdc": true,
+      "payload_sha256_and_file_mode": true,
+      "owner_ids": true,
+      "hardlink_and_symlink": true,
+      "sparse_logical_size_and_allocated_blocks": true,
+      "user_xattr_and_resource_fork": true,
+      "acl_and_immutable_file_flag": true,
+      "wrong_passphrase_rejected": true,
+      "corrupt_ciphertext_rejected": true
+    },
+    "protected_payload_access": false,
+    "limitations": [
+      "synthetic fixture only; no protected bytes copied",
+      "does not qualify Kingston descriptor-bound writes",
+      "does not test interruption, destination collision, storage detach, or commit-marker publication",
+      "does not establish recovery-secret custody or a source snapshot"
+    ],
+    "exception_cleanup_test": {
+      "passed": true,
+      "scope": "injected synthetic fixture failure; temporary home removed, immutable flag cleared, isolated agent termination requested"
+    }
+  },
+  "activity": {
+    "provider_requests_initiated_by_dr_rehearsal": 0,
+    "collector_started": false,
+    "production_or_champion_changed": false,
+    "protected_evaluation_or_trading_changed": false,
+    "services_changed": false
+  },
+  "readiness": {
+    "safe_to_erase": false,
+    "blocking_gates": [
+      "recovery secret custody is unverified",
+      "no qualified owner-wide source snapshot or equivalent consistent checkpoint",
+      "no owner/protected recovery archive or isolated full restore rehearsal"
+    ]
+  }
+}

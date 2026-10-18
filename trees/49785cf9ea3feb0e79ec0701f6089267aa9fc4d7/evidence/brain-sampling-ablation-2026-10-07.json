@@ -1,0 +1,2413 @@
+{
+  "date_moscow": "2026-10-07",
+  "deltas_capped_minus_current": {
+    "19": {
+      "test": {
+        "coverage_delta_pp": [
+          5.284552845528456,
+          -14.430894308943088,
+          -2.8455284552845517
+        ],
+        "mean_abs_coverage_error_pp_capped": 1.5176151761517598,
+        "mean_abs_coverage_error_pp_current": 9.037940379403791,
+        "pool_macro_pinball_absolute": -0.0017253376829800236,
+        "pool_macro_pinball_relative_pct": -16.125505698779442
+      },
+      "validation": {
+        "coverage_delta_pp": [
+          4.924242424242424,
+          -19.12878787878788,
+          -2.840909090909083
+        ],
+        "mean_abs_coverage_error_pp_capped": 1.8686868686868683,
+        "mean_abs_coverage_error_pp_current": 8.813131313131311,
+        "pool_macro_pinball_absolute": -0.0014858762952129588,
+        "pool_macro_pinball_relative_pct": -9.825824208537604
+      }
+    },
+    "7": {
+      "test": {
+        "coverage_delta_pp": [
+          3.861788617886179,
+          2.0325203252032464,
+          -2.8455284552845517
+        ],
+        "mean_abs_coverage_error_pp_capped": 7.0731707317073145,
+        "mean_abs_coverage_error_pp_current": 8.631436314363143,
+        "pool_macro_pinball_absolute": -0.0005539344846324928,
+        "pool_macro_pinball_relative_pct": -5.219966810341836
+      },
+      "validation": {
+        "coverage_delta_pp": [
+          3.4090909090909087,
+          -1.325757575757569,
+          -2.2727272727272707
+        ],
+        "mean_abs_coverage_error_pp_capped": 6.0353535353535355,
+        "mean_abs_coverage_error_pp_current": 8.37121212121212,
+        "pool_macro_pinball_absolute": -0.00017020577225619442,
+        "pool_macro_pinball_relative_pct": -1.145672873907766
+      }
+    },
+    "ensemble": {
+      "test": {
+        "coverage_delta_pp": [
+          3.6585365853658534,
+          -3.0487804878048697,
+          -2.2357723577235755
+        ],
+        "mean_abs_coverage_error_pp_capped": 6.260162601626018,
+        "mean_abs_coverage_error_pp_current": 9.241192411924116,
+        "pool_macro_pinball_absolute": -0.0012628804236209587,
+        "pool_macro_pinball_relative_pct": -11.911845132429821
+      },
+      "validation": {
+        "coverage_delta_pp": [
+          4.545454545454546,
+          -5.303030303030298,
+          -1.8939393939393923
+        ],
+        "mean_abs_coverage_error_pp_capped": 4.898989898989897,
+        "mean_abs_coverage_error_pp_current": 8.81313131313131,
+        "pool_macro_pinball_absolute": -0.0009547895646283173,
+        "pool_macro_pinball_relative_pct": -6.41922581710298
+      }
+    },
+    "mean_seed_metrics": {
+      "test": {
+        "coverage_delta_pp": [
+          4.573170731707317,
+          -6.1991869918699205,
+          -2.8455284552845517
+        ],
+        "mean_abs_coverage_error_pp_capped": 4.295392953929539,
+        "mean_abs_coverage_error_pp_current": 8.834688346883468,
+        "pool_macro_pinball_absolute": -0.0011396360838062582,
+        "pool_macro_pinball_relative_pct": -10.695148286540624
+      },
+      "validation": {
+        "coverage_delta_pp": [
+          4.166666666666666,
+          -10.22727272727273,
+          -2.5568181818181657
+        ],
+        "mean_abs_coverage_error_pp_capped": 2.9419191919191925,
+        "mean_abs_coverage_error_pp_current": 8.592171717171713,
+        "pool_macro_pinball_absolute": -0.0008280410337345757,
+        "pool_macro_pinball_relative_pct": -5.524222149936431
+      }
+    }
+  },
+  "eval_export_sha": "9a7b2c15db74da63e3e6ec1650d3668accda9aad2e77fe8ae06569aff7ca9c69",
+  "local_artifacts": "/Users/sl-aleksandr/Developer/memecoin-worker/work/brain-sampling-ablation-20261007",
+  "protocol": {
+    "aggregate": "equal-weight mean of seed quantile predictions; seed metric means also reported",
+    "arm_weights": {
+      "current_72_09pct": {
+        "draw_probability_ess": 1171.6022618792185,
+        "new_mass": 0.7209302325581395,
+        "sha": "073cec9e476ddaa23eb1005284f3a7b7c1caf7237a669b48f735f092ef12c834"
+      },
+      "new_cohort_capped_16_64pct": {
+        "draw_probability_ess": 2413.1199957667686,
+        "new_mass": 0.16639583333333335,
+        "sha": "804818b2b13720d874d126c15fcd0d89ea56e2f0a6a9ed40cdc42c522731d441"
+      }
+    },
+    "bounds": {
+      "group_maturity_purge": true,
+      "retrospective_not_online": true,
+      "test_end_s": 1791265800,
+      "train_end_s": 1791244200,
+      "validation_end_s": 1791255000
+    },
+    "checkpoint_selection": "minimum validation pool_macro_pinball at steps 100..1000",
+    "control_dataset_manifest_sha": "6373c2ae03433024d8f8b89eb4c78d89b6af1ba4887c30b86d12cf6fc6331fb7",
+    "created_ns": 1791358982567870000,
+    "dataset": "/Users/root1/Desktop/memecoin-ai/work/brain-expansion-20261006/experiment01/broad-snapshot/dataset",
+    "dataset_content_sha": "a6b987591d6617465e430d74c677c994254d305915fb058671bb21b9e60c3ae0",
+    "dataset_manifest_sha": "ba9081b124dd066df8641a19724300c81785b885a15ce17a288a55cdc95be430",
+    "deterministic_algorithms": true,
+    "device": "cpu",
+    "expected_draws_sha": {
+      "current_72_09pct": {
+        "19": "a8716ca5508f91d86a4a749124df74e2a3b0ad7b7d0840143578416cd799fd02",
+        "7": "ce690c58b495fc833a978682df7d3fd190a930c5f5cfce66dd0a53eada72457f"
+      },
+      "new_cohort_capped_16_64pct": {
+        "19": "5652c518b96a66ccae9f4effb809336daa20df09991980f5bed667754d29a713",
+        "7": "0163d70aaed8aa1a0143a8e7a0887b8f1ae0b0627857dbad730c089581b64ab7"
+      }
+    },
+    "fit_order": [
+      [
+        "current_72_09pct",
+        7
+      ],
+      [
+        "current_72_09pct",
+        19
+      ],
+      [
+        "new_cohort_capped_16_64pct",
+        7
+      ],
+      [
+        "new_cohort_capped_16_64pct",
+        19
+      ]
+    ],
+    "fits_authorized": 4,
+    "new_pools": [
+      "26VKVqp3a9pF1j9GMpTyunbDhwB4dkTMEDy3gwc2eDvS",
+      "2gTjwTNKjfNsETe8LWdVXbMUtckfCs8UdXBPKtvJFy8a",
+      "2pcBimRfLVUkLgb394XMMfrcB82BU7UtLuPhS8WBw6VZ",
+      "39nty5ddXFMk9a5YodpZzMuWG3QcUutoLpMPGKcUvXUQ",
+      "3VvQBXDU2xzRSgZsNwLDcGibUKzLNaf4ZZdQSiUFRpUf",
+      "3qRiqPwNoGajJyVZHtPw8xygicyF9p4HW8PhC2C5DepT",
+      "4FCAbKfooyWZZU1iPcLAdWVNibcXHXZNSvCpXsjcwDkD",
+      "4vZbS2q6HfXnjYC58wc21qrgd48nFGVjZMcN7rGcZuGX",
+      "4xbmWZPs1toK3fyJHB4wu1yscc2BcFNaaEQ72GbVQzh8",
+      "55r2y6BBZdJzYyZYfWzGbLKF7C3M1VkBa7gcCrs3W9ds",
+      "5N5ibEN67y6QnvsARvNS5sUHb88Y251zD2ukJE92UjWJ",
+      "5hjvN1MxxjyZcDtXQJvABkpeNE4t9Y6jzuRunrYojRbV",
+      "69jiwmRZWa3Msg5TSPM3goD9vTSv7rrV3oE8oXjbbrQe",
+      "6N1et9sdNoMvkTxHaMuPZ7ziZrjQM6odSGGFbSsne6to",
+      "6Up9yjkfki91eha1QNna7q3f1pLaJM7UMw4Dz92XBa4S",
+      "6arfYkT2SKwn2s25hLv6Z45RroSxNSBPyHvR8v5tPDBE",
+      "6mx3aKFuPpqui69LXSheR29yGejsLMZ4XfLqt8ZuLMfk",
+      "6xCLVd48UPmHiCyPf1CbFFEbh6CkpnV12MJ3ixMdbA9h",
+      "6yH8WtC1vFYb7i1uiSrUH2ZCk7u5L6dWvek6CuLSeSxt",
+      "7Jkxkb29EtfdwbPnftD2QwQrqCsh92qaHFSYkioX2LFh",
+      "7ZD8Vdx5MZZ9AERf7Fc2iw9RAkWLeU5CJLWAcoHheS6g",
+      "7edsNwQiYkH83cZNr6CiNuQgD27jkZNVbGQmSV1Havxj",
+      "7eoRcR6w9FyiLjeVNRwdgdVP8C54p95xpV2FEZKCPgNG",
+      "7fkERzzH6Wj3rBS21xMiEPQKqaQMB1wGF3VLPadk3H1E",
+      "7oqMSLrzzoBMCYaP1L4hkM42CXzcGF2sWcfCWpL8Lii8",
+      "84aRhQ3RW5d1fbRepoXvi845YzgCT1qRCyd9Uki3HLio",
+      "8JebcQ45Gt7mzoVGkv16Biomnqs4eDCMCfdrov8pvxmQ",
+      "9ot6o3CPkrFTQr36cf23ST5EiD7UbNXqyPBPvWgrqQvD",
+      "9vwXshstge7tPgTnG6KkhmY3FwBN1Bv4ioN8oiBfS5on",
+      "ATXSq8qK4wntQzNdGQjCVpCm8BxCUxZGMFtoYXrcvBcy",
+      "AamTW8PqdRtKU7A49JS2NcDtSJcYNjHaZidMSoxgAxhp",
+      "AcDqduJqBEjcV7pcoe4NobbAfCsFoySRzN6b8RxJGxVU",
+      "AibNurM7Eogb1tRa8mFVgosZrSt9JDWwBHPmBDRiJBVg",
+      "AmzZTdshAvXyz46q8ULE6gWtn3zcje3jYaAmW2o5ASae",
+      "AzBfBTuo3rPrRY5jBV4peGjQF5sXGtVJ6oqb2W6d1f4A",
+      "B71CXmLWwhrp4uDBXMSz1ZeM42yaZsx9Lenph7ZAfL8Y",
+      "BMLg46mqhNuCSeCaJCbXqz2JBDZq3L5HuBTBvmDEbJyz",
+      "BVEbMAuKkXX9d5RdNVkTXVRyLWAYXyJYJDGrobnMCQQg",
+      "C369PgoJhNjm8HwCfMS8hMS6GebwdmYYYifp3qkZHaGb",
+      "CDFa3FdpuD6RR8ebr9DsfXxi3nMyeBX8PpLLoF8Nqqdh",
+      "CPYSawic48TJzi1Y2ktt4gMjtyL7qVm9cENiHZeFhJPi",
+      "CthcE7aanuggWkTx1nnoaUVDte6kQMbE7MgZiJPpYbGc",
+      "CxqZxxLEx9cM5xW1wRFfqyRsC8ZaVaY7gaV3w85Bbh46",
+      "DN9TMPwQ7a67R9dMrNkTFzwES3WsGYVT3UrxbGmns6Nd",
+      "Du59eRH9r7NhL7o2D5H4cxfxELrTQEWk3EtFc9YieBLq",
+      "DwgH6Te2uj81iCZoCLxR9Rw3SXMvotH3QXUwTEPrHPcY",
+      "E5pmixUguhSdQ4xcS6TeKPRuzE7K9Sr2qX3GQ52rSnMB",
+      "EBjhdajq5UeYWL9etEvQ8BnfV5j93kQxx7ZaEke7Ky41",
+      "EMUZqu4im33fDsQV9EX3K3wbsF5ViBsjrnn6S4kfNc98",
+      "EPHB4sMWnviu8n1Xke8rVtnbJFw9RpHayRog9BA74ZUc",
+      "EQtimB4wzAU8mdaaH8jxvKmoqasDeCsxbM2FzsKRQNBn",
+      "EV5ZbNZLsHX1iwLVkJZayY27ZKhMAboxTgi5vFguJCWx",
+      "EirXgcV81qL86APv5Xz1RWChAHJtyNV1D7B6L1nmRQfU",
+      "EuaQXAvEhh1CJhSexBXtAwV8arvFC4ENVmBx8aunMWtV",
+      "F4udDPoMRfk3j2Yux2EDvTpq1uwj1JLh8FSGAu5SZTXu",
+      "FK88hon6N8jnZf5A4gsAxLzty43iMqKoUGarsdScJubB",
+      "Fp4CxwregS8kxZNniRNW9QaJdk7NmS4TWmbXA3PrKi9b",
+      "G6EPiJGRTQ6oZj3MzTnmD5GUFVxKbukJeL4Hksz4qS3X",
+      "GAcTzpYG9LDL6kZgwQM8FN8ajxL2bwrTLbUDRs8geYFS",
+      "GNoaPhoPZkk9URA7F1TW8dxwFh5jreWpJ79orSZK63aD",
+      "GufNWLF6N7FxpihetGqzHSPyGTPS6LZWLaLeauH5P5MR",
+      "HDZnBgKVCqKE1WPqTkve2CkKjFSK23Bb7X3X8avo6Nii"
+    ],
+    "new_row_share": 0.16639583333333333,
+    "new_rows": 7987,
+    "original_binding_sha": "82848df42ceb6332f7fddb9ff2f9243370578ce5a3a38c33f03b41c14faa8312",
+    "production_mutation": false,
+    "promotion": false,
+    "recipe": {
+      "automatic_promotion": false,
+      "evaluation_cap": 6000,
+      "kinds": [
+        "linear",
+        "gru"
+      ],
+      "seeds": [
+        7,
+        19
+      ],
+      "selection": "validation_pool_macro_1pct_simplicity",
+      "steps": 1000,
+      "test_hours": 3,
+      "train_cap": 48000,
+      "validation_hours": 3,
+      "version": "B13-pool-day-v1"
+    },
+    "runner_sha": "6b5637ad9079bc089a4908ad741272a350e79dc26592f1f75573468a56e155e8",
+    "runtime": "/Users/root1/Desktop/memecoin-ai/work/brain-b13/operator-runtime08/runtime",
+    "scaler_sha": "5233417fb0de2f304d04852aa324d558f8da3ee3d1ae0c5edaf2f125ae7b5e5c",
+    "source_identity": {
+      "memecoin_brain/data.py": "f4e3143b9223e47d9bd6fb9f98b6f09faa6a3032619ee8553c328c871958e6cb",
+      "memecoin_brain/model.py": "41e0c0522bd215c46ec6f4f290656f4b51a9d68e973b8619cadfb096427650c6",
+      "memecoin_ml/models.py": "b7b1f5ea8453f43bae54c581df11824f87d9393ef6c063cc72c5250d8fb0442c",
+      "memecoin_ml/training.py": "1dbbbf82ae4598b47ea1ad6301bc777edd7f2bb65c83a9dfee429da144cf98be",
+      "memecoin_runner/ledger.py": "9944df0c9891241b08abbe419a72dada60b51c8b1ebe3c275031a8bb6471aae2",
+      "memecoin_runner/scoring.py": "93e6d676d62f8279c07f6aa2598edc1f044b36b884353163b63019f1f46623b1"
+    },
+    "support": {
+      "test": {
+        "days": 1,
+        "decisions": 246,
+        "effective_decisions": 245.09879304554127,
+        "effective_pools": 8.000000000000005,
+        "first_s": 1791255000,
+        "last_s": 1791264600,
+        "membership": "11f92500e72a31511c830caf173c7d51a25296c7b6b0f3c4748f8b07206016e4",
+        "per_pool": {
+          "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": 33,
+          "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": 33,
+          "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": 28,
+          "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": 29,
+          "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": 29,
+          "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": 30,
+          "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": 32,
+          "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": 32
+        },
+        "pool_days": 8,
+        "pool_probability": {
+          "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": 0.12499999999999992,
+          "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": 0.12499999999999992,
+          "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": 0.12499999999999996,
+          "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": 0.12499999999999994,
+          "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": 0.12499999999999994,
+          "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": 0.12499999999999999,
+          "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": 0.125,
+          "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": 0.125
+        },
+        "pools": 8,
+        "weight_sha": "9d3a6d121217559d454e4658325f7ca2cc2899c8436e67026fb8ae77c19b6a97"
+      },
+      "train": {
+        "days": 104,
+        "decisions": 48000,
+        "effective_decisions": 1171.6022618792185,
+        "effective_pools": 85.99999999999925,
+        "first_s": 1777596600,
+        "last_s": 1791243000,
+        "membership": "d80bdef2ed117577fa67e2212b617693fdea0a0744327f3ea4b658562af5e1c8",
+        "per_pool": {
+          "26VKVqp3a9pF1j9GMpTyunbDhwB4dkTMEDy3gwc2eDvS": 135,
+          "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": 7420,
+          "2gTjwTNKjfNsETe8LWdVXbMUtckfCs8UdXBPKtvJFy8a": 128,
+          "2pcBimRfLVUkLgb394XMMfrcB82BU7UtLuPhS8WBw6VZ": 855,
+          "39nty5ddXFMk9a5YodpZzMuWG3QcUutoLpMPGKcUvXUQ": 119,
+          "3VvQBXDU2xzRSgZsNwLDcGibUKzLNaf4ZZdQSiUFRpUf": 2,
+          "3qRiqPwNoGajJyVZHtPw8xygicyF9p4HW8PhC2C5DepT": 53,
+          "4FCAbKfooyWZZU1iPcLAdWVNibcXHXZNSvCpXsjcwDkD": 25,
+          "4vZbS2q6HfXnjYC58wc21qrgd48nFGVjZMcN7rGcZuGX": 840,
+          "4xbmWZPs1toK3fyJHB4wu1yscc2BcFNaaEQ72GbVQzh8": 3,
+          "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": 7420,
+          "55r2y6BBZdJzYyZYfWzGbLKF7C3M1VkBa7gcCrs3W9ds": 9,
+          "58hou24rrRZkt5Zys9fx2j2twEgVNAphSn9Z48qdBcFB": 192,
+          "5JmftwtmjKaH1dPuuYPp6Eg9xmVJwSQcPh9z3HXDyTDw": 26,
+          "5N5ibEN67y6QnvsARvNS5sUHb88Y251zD2ukJE92UjWJ": 15,
+          "5gepFzo9o9nHkJeNJdKiKRghqYoqcJSzF6X684pUbE7S": 105,
+          "5hjvN1MxxjyZcDtXQJvABkpeNE4t9Y6jzuRunrYojRbV": 30,
+          "5u6gNKSbhoCt9v8ZjgWL1cBBiDQaSufFstxwAs4niFHt": 326,
+          "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": 576,
+          "69jiwmRZWa3Msg5TSPM3goD9vTSv7rrV3oE8oXjbbrQe": 276,
+          "6N1et9sdNoMvkTxHaMuPZ7ziZrjQM6odSGGFbSsne6to": 413,
+          "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": 7420,
+          "6Up9yjkfki91eha1QNna7q3f1pLaJM7UMw4Dz92XBa4S": 78,
+          "6arfYkT2SKwn2s25hLv6Z45RroSxNSBPyHvR8v5tPDBE": 42,
+          "6mx3aKFuPpqui69LXSheR29yGejsLMZ4XfLqt8ZuLMfk": 2,
+          "6xCLVd48UPmHiCyPf1CbFFEbh6CkpnV12MJ3ixMdbA9h": 295,
+          "6yH8WtC1vFYb7i1uiSrUH2ZCk7u5L6dWvek6CuLSeSxt": 22,
+          "7Jkxkb29EtfdwbPnftD2QwQrqCsh92qaHFSYkioX2LFh": 34,
+          "7ZD8Vdx5MZZ9AERf7Fc2iw9RAkWLeU5CJLWAcoHheS6g": 17,
+          "7edsNwQiYkH83cZNr6CiNuQgD27jkZNVbGQmSV1Havxj": 29,
+          "7eoRcR6w9FyiLjeVNRwdgdVP8C54p95xpV2FEZKCPgNG": 3,
+          "7fkERzzH6Wj3rBS21xMiEPQKqaQMB1wGF3VLPadk3H1E": 94,
+          "7oqMSLrzzoBMCYaP1L4hkM42CXzcGF2sWcfCWpL8Lii8": 8,
+          "84aRhQ3RW5d1fbRepoXvi845YzgCT1qRCyd9Uki3HLio": 172,
+          "8E1Zcg4VqnNetv4Pp6fVyYRFbDqUj3RueCcSyJM8sSSX": 442,
+          "8JebcQ45Gt7mzoVGkv16Biomnqs4eDCMCfdrov8pvxmQ": 19,
+          "8jfkMuLmiECdM5k1zJWNrd3T8dYeqBJ6nt8Qn1RqhbgZ": 31,
+          "9ot6o3CPkrFTQr36cf23ST5EiD7UbNXqyPBPvWgrqQvD": 16,
+          "9vwXshstge7tPgTnG6KkhmY3FwBN1Bv4ioN8oiBfS5on": 323,
+          "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": 3759,
+          "ATXSq8qK4wntQzNdGQjCVpCm8BxCUxZGMFtoYXrcvBcy": 8,
+          "AamTW8PqdRtKU7A49JS2NcDtSJcYNjHaZidMSoxgAxhp": 229,
+          "AcDqduJqBEjcV7pcoe4NobbAfCsFoySRzN6b8RxJGxVU": 3,
+          "AdmHAhSKJRGhvbn7C94sMhaAEM3YRUMVHh43uJU2RETL": 309,
+          "AibNurM7Eogb1tRa8mFVgosZrSt9JDWwBHPmBDRiJBVg": 30,
+          "AmzZTdshAvXyz46q8ULE6gWtn3zcje3jYaAmW2o5ASae": 3,
+          "AzBfBTuo3rPrRY5jBV4peGjQF5sXGtVJ6oqb2W6d1f4A": 15,
+          "B1bbUf8XhwMBQmDEM8vKz7HS1k5R9gpyq6zX9ygZ6b2w": 272,
+          "B71CXmLWwhrp4uDBXMSz1ZeM42yaZsx9Lenph7ZAfL8Y": 371,
+          "BMLg46mqhNuCSeCaJCbXqz2JBDZq3L5HuBTBvmDEbJyz": 41,
+          "BVEbMAuKkXX9d5RdNVkTXVRyLWAYXyJYJDGrobnMCQQg": 34,
+          "Be2tZihvmDLs9DHps9wEWmxC5tXGHGhJMhZtry7SVnTw": 332,
+          "BeS6PZpnnfuQruN7vdiy7T6HNtKBHp8rXoBojLfe7c4U": 269,
+          "C369PgoJhNjm8HwCfMS8hMS6GebwdmYYYifp3qkZHaGb": 16,
+          "CDFa3FdpuD6RR8ebr9DsfXxi3nMyeBX8PpLLoF8Nqqdh": 11,
+          "CPYSawic48TJzi1Y2ktt4gMjtyL7qVm9cENiHZeFhJPi": 3,
+          "ChhuEYyL8QeZq6YDVivaMhNibxmEfZVyttp1crXVngpo": 616,
+          "CthcE7aanuggWkTx1nnoaUVDte6kQMbE7MgZiJPpYbGc": 68,
+          "CxqZxxLEx9cM5xW1wRFfqyRsC8ZaVaY7gaV3w85Bbh46": 12,
+          "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": 1155,
+          "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": 7419,
+          "DN9TMPwQ7a67R9dMrNkTFzwES3WsGYVT3UrxbGmns6Nd": 384,
+          "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": 634,
+          "Du59eRH9r7NhL7o2D5H4cxfxELrTQEWk3EtFc9YieBLq": 3,
+          "DwgH6Te2uj81iCZoCLxR9Rw3SXMvotH3QXUwTEPrHPcY": 410,
+          "E5pmixUguhSdQ4xcS6TeKPRuzE7K9Sr2qX3GQ52rSnMB": 82,
+          "EBjhdajq5UeYWL9etEvQ8BnfV5j93kQxx7ZaEke7Ky41": 604,
+          "EFiNgYpXKho8ApCaVke8E53MaEmy77uutwsKsJiWpE66": 166,
+          "EMUZqu4im33fDsQV9EX3K3wbsF5ViBsjrnn6S4kfNc98": 102,
+          "EPHB4sMWnviu8n1Xke8rVtnbJFw9RpHayRog9BA74ZUc": 5,
+          "EQtimB4wzAU8mdaaH8jxvKmoqasDeCsxbM2FzsKRQNBn": 7,
+          "EV5ZbNZLsHX1iwLVkJZayY27ZKhMAboxTgi5vFguJCWx": 2,
+          "EirXgcV81qL86APv5Xz1RWChAHJtyNV1D7B6L1nmRQfU": 220,
+          "EuaQXAvEhh1CJhSexBXtAwV8arvFC4ENVmBx8aunMWtV": 75,
+          "F4udDPoMRfk3j2Yux2EDvTpq1uwj1JLh8FSGAu5SZTXu": 263,
+          "FK88hon6N8jnZf5A4gsAxLzty43iMqKoUGarsdScJubB": 49,
+          "FXgVoNNDEZ5FaxCurucjCAJLogqkuuzNQJt3HGSg3HJP": 470,
+          "Fp4CxwregS8kxZNniRNW9QaJdk7NmS4TWmbXA3PrKi9b": 353,
+          "G6EPiJGRTQ6oZj3MzTnmD5GUFVxKbukJeL4Hksz4qS3X": 6,
+          "GAcTzpYG9LDL6kZgwQM8FN8ajxL2bwrTLbUDRs8geYFS": 4,
+          "GNoaPhoPZkk9URA7F1TW8dxwFh5jreWpJ79orSZK63aD": 163,
+          "GVHLtERqfDABcTZAE7ZGENEHv1XmKonrz4BTnVhYgLb8": 102,
+          "GexknMD8sNb45Antef26Mjd6bQq6PZXWTZqKcDqsNCVk": 461,
+          "GufNWLF6N7FxpihetGqzHSPyGTPS6LZWLaLeauH5P5MR": 55,
+          "HDZnBgKVCqKE1WPqTkve2CkKjFSK23Bb7X3X8avo6Nii": 299,
+          "HUQ2YZbVjhuKfdvjsCtRUwawnvUMuv8WvdYVtwh5PxoF": 91
+        },
+        "pool_days": 465,
+        "pool_probability": {
+          "26VKVqp3a9pF1j9GMpTyunbDhwB4dkTMEDy3gwc2eDvS": 0.011627906976744214,
+          "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": 0.011627906976745109,
+          "2gTjwTNKjfNsETe8LWdVXbMUtckfCs8UdXBPKtvJFy8a": 0.011627906976744201,
+          "2pcBimRfLVUkLgb394XMMfrcB82BU7UtLuPhS8WBw6VZ": 0.01162790697674419,
+          "39nty5ddXFMk9a5YodpZzMuWG3QcUutoLpMPGKcUvXUQ": 0.011627906976744169,
+          "3VvQBXDU2xzRSgZsNwLDcGibUKzLNaf4ZZdQSiUFRpUf": 0.011627906976744186,
+          "3qRiqPwNoGajJyVZHtPw8xygicyF9p4HW8PhC2C5DepT": 0.011627906976744195,
+          "4FCAbKfooyWZZU1iPcLAdWVNibcXHXZNSvCpXsjcwDkD": 0.01162790697674418,
+          "4vZbS2q6HfXnjYC58wc21qrgd48nFGVjZMcN7rGcZuGX": 0.011627906976744201,
+          "4xbmWZPs1toK3fyJHB4wu1yscc2BcFNaaEQ72GbVQzh8": 0.011627906976744186,
+          "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": 0.011627906976745045,
+          "55r2y6BBZdJzYyZYfWzGbLKF7C3M1VkBa7gcCrs3W9ds": 0.011627906976744186,
+          "58hou24rrRZkt5Zys9fx2j2twEgVNAphSn9Z48qdBcFB": 0.01162790697674421,
+          "5JmftwtmjKaH1dPuuYPp6Eg9xmVJwSQcPh9z3HXDyTDw": 0.011627906976744188,
+          "5N5ibEN67y6QnvsARvNS5sUHb88Y251zD2ukJE92UjWJ": 0.011627906976744186,
+          "5gepFzo9o9nHkJeNJdKiKRghqYoqcJSzF6X684pUbE7S": 0.011627906976744188,
+          "5hjvN1MxxjyZcDtXQJvABkpeNE4t9Y6jzuRunrYojRbV": 0.011627906976744186,
+          "5u6gNKSbhoCt9v8ZjgWL1cBBiDQaSufFstxwAs4niFHt": 0.0116279069767442,
+          "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": 0.011627906976744191,
+          "69jiwmRZWa3Msg5TSPM3goD9vTSv7rrV3oE8oXjbbrQe": 0.011627906976744186,
+          "6N1et9sdNoMvkTxHaMuPZ7ziZrjQM6odSGGFbSsne6to": 0.011627906976744195,
+          "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": 0.01162790697674659,
+          "6Up9yjkfki91eha1QNna7q3f1pLaJM7UMw4Dz92XBa4S": 0.011627906976744205,
+          "6arfYkT2SKwn2s25hLv6Z45RroSxNSBPyHvR8v5tPDBE": 0.011627906976744184,
+          "6mx3aKFuPpqui69LXSheR29yGejsLMZ4XfLqt8ZuLMfk": 0.011627906976744186,
+          "6xCLVd48UPmHiCyPf1CbFFEbh6CkpnV12MJ3ixMdbA9h": 0.011627906976744226,
+          "6yH8WtC1vFYb7i1uiSrUH2ZCk7u5L6dWvek6CuLSeSxt": 0.011627906976744191,
+          "7Jkxkb29EtfdwbPnftD2QwQrqCsh92qaHFSYkioX2LFh": 0.011627906976744179,
+          "7ZD8Vdx5MZZ9AERf7Fc2iw9RAkWLeU5CJLWAcoHheS6g": 0.011627906976744186,
+          "7edsNwQiYkH83cZNr6CiNuQgD27jkZNVbGQmSV1Havxj": 0.011627906976744186,
+          "7eoRcR6w9FyiLjeVNRwdgdVP8C54p95xpV2FEZKCPgNG": 0.011627906976744186,
+          "7fkERzzH6Wj3rBS21xMiEPQKqaQMB1wGF3VLPadk3H1E": 0.011627906976744196,
+          "7oqMSLrzzoBMCYaP1L4hkM42CXzcGF2sWcfCWpL8Lii8": 0.011627906976744186,
+          "84aRhQ3RW5d1fbRepoXvi845YzgCT1qRCyd9Uki3HLio": 0.011627906976744153,
+          "8E1Zcg4VqnNetv4Pp6fVyYRFbDqUj3RueCcSyJM8sSSX": 0.011627906976744228,
+          "8JebcQ45Gt7mzoVGkv16Biomnqs4eDCMCfdrov8pvxmQ": 0.011627906976744179,
+          "8jfkMuLmiECdM5k1zJWNrd3T8dYeqBJ6nt8Qn1RqhbgZ": 0.01162790697674419,
+          "9ot6o3CPkrFTQr36cf23ST5EiD7UbNXqyPBPvWgrqQvD": 0.011627906976744182,
+          "9vwXshstge7tPgTnG6KkhmY3FwBN1Bv4ioN8oiBfS5on": 0.011627906976744243,
+          "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": 0.011627906976744144,
+          "ATXSq8qK4wntQzNdGQjCVpCm8BxCUxZGMFtoYXrcvBcy": 0.011627906976744186,
+          "AamTW8PqdRtKU7A49JS2NcDtSJcYNjHaZidMSoxgAxhp": 0.011627906976744245,
+          "AcDqduJqBEjcV7pcoe4NobbAfCsFoySRzN6b8RxJGxVU": 0.011627906976744186,
+          "AdmHAhSKJRGhvbn7C94sMhaAEM3YRUMVHh43uJU2RETL": 0.011627906976744208,
+          "AibNurM7Eogb1tRa8mFVgosZrSt9JDWwBHPmBDRiJBVg": 0.011627906976744186,
+          "AmzZTdshAvXyz46q8ULE6gWtn3zcje3jYaAmW2o5ASae": 0.011627906976744186,
+          "AzBfBTuo3rPrRY5jBV4peGjQF5sXGtVJ6oqb2W6d1f4A": 0.011627906976744186,
+          "B1bbUf8XhwMBQmDEM8vKz7HS1k5R9gpyq6zX9ygZ6b2w": 0.011627906976744219,
+          "B71CXmLWwhrp4uDBXMSz1ZeM42yaZsx9Lenph7ZAfL8Y": 0.01162790697674413,
+          "BMLg46mqhNuCSeCaJCbXqz2JBDZq3L5HuBTBvmDEbJyz": 0.011627906976744193,
+          "BVEbMAuKkXX9d5RdNVkTXVRyLWAYXyJYJDGrobnMCQQg": 0.011627906976744186,
+          "Be2tZihvmDLs9DHps9wEWmxC5tXGHGhJMhZtry7SVnTw": 0.011627906976744276,
+          "BeS6PZpnnfuQruN7vdiy7T6HNtKBHp8rXoBojLfe7c4U": 0.011627906976744217,
+          "C369PgoJhNjm8HwCfMS8hMS6GebwdmYYYifp3qkZHaGb": 0.011627906976744182,
+          "CDFa3FdpuD6RR8ebr9DsfXxi3nMyeBX8PpLLoF8Nqqdh": 0.011627906976744186,
+          "CPYSawic48TJzi1Y2ktt4gMjtyL7qVm9cENiHZeFhJPi": 0.011627906976744186,
+          "ChhuEYyL8QeZq6YDVivaMhNibxmEfZVyttp1crXVngpo": 0.011627906976744266,
+          "CthcE7aanuggWkTx1nnoaUVDte6kQMbE7MgZiJPpYbGc": 0.011627906976744186,
+          "CxqZxxLEx9cM5xW1wRFfqyRsC8ZaVaY7gaV3w85Bbh46": 0.011627906976744186,
+          "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": 0.011627906976744267,
+          "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": 0.01162790697674366,
+          "DN9TMPwQ7a67R9dMrNkTFzwES3WsGYVT3UrxbGmns6Nd": 0.01162790697674417,
+          "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": 0.011627906976744196,
+          "Du59eRH9r7NhL7o2D5H4cxfxELrTQEWk3EtFc9YieBLq": 0.011627906976744186,
+          "DwgH6Te2uj81iCZoCLxR9Rw3SXMvotH3QXUwTEPrHPcY": 0.011627906976744224,
+          "E5pmixUguhSdQ4xcS6TeKPRuzE7K9Sr2qX3GQ52rSnMB": 0.011627906976744172,
+          "EBjhdajq5UeYWL9etEvQ8BnfV5j93kQxx7ZaEke7Ky41": 0.01162790697674424,
+          "EFiNgYpXKho8ApCaVke8E53MaEmy77uutwsKsJiWpE66": 0.011627906976744238,
+          "EMUZqu4im33fDsQV9EX3K3wbsF5ViBsjrnn6S4kfNc98": 0.011627906976744186,
+          "EPHB4sMWnviu8n1Xke8rVtnbJFw9RpHayRog9BA74ZUc": 0.011627906976744186,
+          "EQtimB4wzAU8mdaaH8jxvKmoqasDeCsxbM2FzsKRQNBn": 0.011627906976744188,
+          "EV5ZbNZLsHX1iwLVkJZayY27ZKhMAboxTgi5vFguJCWx": 0.011627906976744186,
+          "EirXgcV81qL86APv5Xz1RWChAHJtyNV1D7B6L1nmRQfU": 0.011627906976744193,
+          "EuaQXAvEhh1CJhSexBXtAwV8arvFC4ENVmBx8aunMWtV": 0.011627906976744175,
+          "F4udDPoMRfk3j2Yux2EDvTpq1uwj1JLh8FSGAu5SZTXu": 0.011627906976744153,
+          "FK88hon6N8jnZf5A4gsAxLzty43iMqKoUGarsdScJubB": 0.011627906976744179,
+          "FXgVoNNDEZ5FaxCurucjCAJLogqkuuzNQJt3HGSg3HJP": 0.011627906976744241,
+          "Fp4CxwregS8kxZNniRNW9QaJdk7NmS4TWmbXA3PrKi9b": 0.011627906976744274,
+          "G6EPiJGRTQ6oZj3MzTnmD5GUFVxKbukJeL4Hksz4qS3X": 0.011627906976744186,
+          "GAcTzpYG9LDL6kZgwQM8FN8ajxL2bwrTLbUDRs8geYFS": 0.011627906976744186,
+          "GNoaPhoPZkk9URA7F1TW8dxwFh5jreWpJ79orSZK63aD": 0.01162790697674419,
+          "GVHLtERqfDABcTZAE7ZGENEHv1XmKonrz4BTnVhYgLb8": 0.011627906976744186,
+          "GexknMD8sNb45Antef26Mjd6bQq6PZXWTZqKcDqsNCVk": 0.011627906976744144,
+          "GufNWLF6N7FxpihetGqzHSPyGTPS6LZWLaLeauH5P5MR": 0.011627906976744195,
+          "HDZnBgKVCqKE1WPqTkve2CkKjFSK23Bb7X3X8avo6Nii": 0.011627906976744214,
+          "HUQ2YZbVjhuKfdvjsCtRUwawnvUMuv8WvdYVtwh5PxoF": 0.01162790697674419
+        },
+        "pools": 86,
+        "weight_sha": "073cec9e476ddaa23eb1005284f3a7b7c1caf7237a669b48f735f092ef12c834"
+      },
+      "validation": {
+        "days": 2,
+        "decisions": 264,
+        "effective_decisions": 60.121212121212125,
+        "effective_pools": 8.000000000000007,
+        "first_s": 1791244200,
+        "last_s": 1791253800,
+        "membership": "8efb7537758310e97eda49405ceee922aac0cec73c76b2a66549a633a32504cf",
+        "per_pool": {
+          "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": 33,
+          "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": 33,
+          "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": 33,
+          "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": 33,
+          "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": 33,
+          "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": 33,
+          "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": 33,
+          "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": 33
+        },
+        "pool_days": 16,
+        "pool_probability": {
+          "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": 0.12499999999999994,
+          "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": 0.12499999999999994,
+          "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": 0.12499999999999994,
+          "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": 0.12499999999999994,
+          "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": 0.12499999999999994,
+          "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": 0.12499999999999994,
+          "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": 0.12499999999999994,
+          "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": 0.12499999999999994
+        },
+        "pools": 8,
+        "weight_sha": "80fc31535c482871d5776d455734da121773242d5905ce44b454fd867ac11b9c"
+      }
+    },
+    "test_scope": "previously exposed historical descriptive test",
+    "threads": 1,
+    "torch": "2.14.1",
+    "training_code": {
+      "memecoin_curriculum/archive.py": "69267d76aa9703a2aa2158550390fcad83a4badb36bcef1adf34451e2df9efcc",
+      "memecoin_curriculum/design.py": "df82ef6e5fc41ffc685ce2ca9f3b029141bc0aebe76468090e388fd85b18737f",
+      "memecoin_curriculum/training.py": "6f41a74f0083793fcac4bcb237412a8ceb4640f59d713698a1c3589238cf08c6",
+      "memecoin_operator/learning.py": "f9468ebbb25ba0c6a118e43516cf4c79d180c49835b589e71ac95a503009a89e"
+    },
+    "version": "cohort-mass-ablation-v1"
+  },
+  "protocol_sha": "a49473def50529fcc7b565cdb5e4dbddafd394a95f69c045e554a6e727ec19df",
+  "remote_output": "/Users/root1/Desktop/memecoin-ai/work/brain-sampling-ablation-20261007/run01",
+  "result": {
+    "arms": {
+      "current_72_09pct": {
+        "ensemble": {
+          "test": {
+            "by_horizon": {
+              "15": {
+                "confirmatory": false,
+                "coverage": [
+                  0.036585365853658534,
+                  0.5284552845528455,
+                  0.9186991869918699
+                ],
+                "decisions": 246,
+                "edge_established": false,
+                "labeled_variants": 246,
+                "per_pool": {
+                  "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                    "pinball": 0.006045706854768321,
+                    "variants": 33
+                  },
+                  "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                    "pinball": 0.006267356268307768,
+                    "variants": 33
+                  },
+                  "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                    "pinball": 0.02188083947262676,
+                    "variants": 28
+                  },
+                  "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                    "pinball": 0.00586490752132451,
+                    "variants": 29
+                  },
+                  "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                    "pinball": 0.005784281950245952,
+                    "variants": 29
+                  },
+                  "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                    "pinball": 0.01872887412696015,
+                    "variants": 30
+                  },
+                  "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                    "pinball": 0.02037979901866041,
+                    "variants": 32
+                  },
+                  "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                    "pinball": 0.016688431899383245,
+                    "variants": 32
+                  }
+                },
+                "pinball": 0.012621425594133354,
+                "pool_macro_pinball": 0.01270502463903464,
+                "pools": 8
+              },
+              "5": {
+                "confirmatory": false,
+                "coverage": [
+                  0.012195121951219513,
+                  0.7804878048780488,
+                  0.975609756097561
+                ],
+                "decisions": 246,
+                "edge_established": false,
+                "labeled_variants": 246,
+                "per_pool": {
+                  "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                    "pinball": 0.005961239423380873,
+                    "variants": 33
+                  },
+                  "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                    "pinball": 0.0058168460037702225,
+                    "variants": 33
+                  },
+                  "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                    "pinball": 0.012634945261897955,
+                    "variants": 28
+                  },
+                  "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                    "pinball": 0.005519031154144382,
+                    "variants": 29
+                  },
+                  "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                    "pinball": 0.005605247311348242,
+                    "variants": 29
+                  },
+                  "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                    "pinball": 0.009840756086669105,
+                    "variants": 30
+                  },
+                  "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                    "pinball": 0.012438973132525802,
+                    "variants": 32
+                  },
+                  "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                    "pinball": 0.010172964984982777,
+                    "variants": 32
+                  }
+                },
+                "pinball": 0.008470992131255132,
+                "pool_macro_pinball": 0.00849875041983992,
+                "pools": 8
+              }
+            },
+            "confirmatory": false,
+            "coverage": [
+              0.024390243902439025,
+              0.6544715447154471,
+              0.9471544715447154
+            ],
+            "decisions": 246,
+            "edge_established": false,
+            "labeled_variants": 492,
+            "per_pool": {
+              "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                "pinball": 0.006003473139074597,
+                "variants": 66
+              },
+              "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                "pinball": 0.006042101136038995,
+                "variants": 66
+              },
+              "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                "pinball": 0.017257892367262356,
+                "variants": 56
+              },
+              "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                "pinball": 0.005691969337734445,
+                "variants": 58
+              },
+              "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                "pinball": 0.0056947646307970974,
+                "variants": 58
+              },
+              "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                "pinball": 0.014284815106814626,
+                "variants": 60
+              },
+              "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                "pinball": 0.016409386075593106,
+                "variants": 64
+              },
+              "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                "pinball": 0.013430698442183012,
+                "variants": 64
+              }
+            },
+            "pinball": 0.010546208862694244,
+            "pool_macro_pinball": 0.01060188752943728,
+            "pools": 8
+          },
+          "validation": {
+            "by_horizon": {
+              "15": {
+                "confirmatory": false,
+                "coverage": [
+                  0.03409090909090909,
+                  0.5795454545454546,
+                  0.9166666666666666
+                ],
+                "decisions": 264,
+                "edge_established": false,
+                "labeled_variants": 264,
+                "per_pool": {
+                  "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                    "pinball": 0.007028651115283309,
+                    "variants": 33
+                  },
+                  "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                    "pinball": 0.006147227263641387,
+                    "variants": 33
+                  },
+                  "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                    "pinball": 0.0716793241664421,
+                    "variants": 33
+                  },
+                  "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                    "pinball": 0.006517986340054161,
+                    "variants": 33
+                  },
+                  "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                    "pinball": 0.006023579502336148,
+                    "variants": 33
+                  },
+                  "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                    "pinball": 0.014474190883298795,
+                    "variants": 33
+                  },
+                  "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                    "pinball": 0.008683555388521053,
+                    "variants": 33
+                  },
+                  "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                    "pinball": 0.026169672054251313,
+                    "variants": 33
+                  }
+                },
+                "pinball": 0.018340523339228535,
+                "pool_macro_pinball": 0.01834052333922853,
+                "pools": 8
+              },
+              "5": {
+                "confirmatory": false,
+                "coverage": [
+                  0.03409090909090909,
+                  0.7537878787878788,
+                  0.946969696969697
+                ],
+                "decisions": 264,
+                "edge_established": false,
+                "labeled_variants": 264,
+                "per_pool": {
+                  "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                    "pinball": 0.006559429997263557,
+                    "variants": 33
+                  },
+                  "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                    "pinball": 0.0058789322940571214,
+                    "variants": 33
+                  },
+                  "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                    "pinball": 0.03290681985448771,
+                    "variants": 33
+                  },
+                  "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                    "pinball": 0.006190822603249118,
+                    "variants": 33
+                  },
+                  "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                    "pinball": 0.005925139145254611,
+                    "variants": 33
+                  },
+                  "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                    "pinball": 0.009991320487721052,
+                    "variants": 33
+                  },
+                  "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                    "pinball": 0.00639555391615504,
+                    "variants": 33
+                  },
+                  "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                    "pinball": 0.01741027869109572,
+                    "variants": 33
+                  }
+                },
+                "pinball": 0.01140728712366049,
+                "pool_macro_pinball": 0.01140728712366049,
+                "pools": 8
+              }
+            },
+            "confirmatory": false,
+            "coverage": [
+              0.03409090909090909,
+              0.6666666666666666,
+              0.9318181818181818
+            ],
+            "decisions": 264,
+            "edge_established": false,
+            "labeled_variants": 528,
+            "per_pool": {
+              "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                "pinball": 0.006794040556273433,
+                "variants": 66
+              },
+              "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                "pinball": 0.006013079778849254,
+                "variants": 66
+              },
+              "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                "pinball": 0.0522930720104649,
+                "variants": 66
+              },
+              "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                "pinball": 0.00635440447165164,
+                "variants": 66
+              },
+              "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                "pinball": 0.005974359323795379,
+                "variants": 66
+              },
+              "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                "pinball": 0.012232755685509925,
+                "variants": 66
+              },
+              "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                "pinball": 0.007539554652338046,
+                "variants": 66
+              },
+              "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                "pinball": 0.02178997537267352,
+                "variants": 66
+              }
+            },
+            "pinball": 0.014873905231444513,
+            "pool_macro_pinball": 0.014873905231444513,
+            "pools": 8
+          }
+        },
+        "mean_seed_metrics": {
+          "test": {
+            "coverage": [
+              0.02540650406504065,
+              0.6422764227642277,
+              0.948170731707317
+            ],
+            "pinball": 0.010599206568691545,
+            "pool_macro_pinball": 0.010655636119046989
+          },
+          "validation": {
+            "coverage": [
+              0.032196969696969696,
+              0.65625,
+              0.9337121212121211
+            ],
+            "pinball": 0.014989278332047256,
+            "pool_macro_pinball": 0.014989278332047256
+          }
+        },
+        "seeds": {
+          "19": {
+            "test": {
+              "by_horizon": {
+                "15": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.036585365853658534,
+                    0.540650406504065,
+                    0.926829268292683
+                  ],
+                  "decisions": 246,
+                  "edge_established": false,
+                  "labeled_variants": 246,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.006481431723982919,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.0064756309661742955,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.021515251071049457,
+                      "variants": 28
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.0059517497433773684,
+                      "variants": 29
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.006024841772438124,
+                      "variants": 29
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.01865960510852161,
+                      "variants": 30
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.020333621632115818,
+                      "variants": 32
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.016715960785035178,
+                      "variants": 32
+                    }
+                  },
+                  "pinball": 0.012693927005397164,
+                  "pool_macro_pinball": 0.012769761600336847,
+                  "pools": 8
+                },
+                "5": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.012195121951219513,
+                    0.7479674796747967,
+                    0.975609756097561
+                  ],
+                  "decisions": 246,
+                  "edge_established": false,
+                  "labeled_variants": 246,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.006021605929532953,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.005902852601207263,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.012885314838874918,
+                      "variants": 28
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.005412411563725048,
+                      "variants": 29
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.005583885191708851,
+                      "variants": 29
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.010151477107464753,
+                      "variants": 30
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.01277550383947112,
+                      "variants": 32
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.01029978460435624,
+                      "variants": 32
+                    }
+                  },
+                  "pinball": 0.00860220364364604,
+                  "pool_macro_pinball": 0.008629104459542644,
+                  "pools": 8
+                }
+              },
+              "confirmatory": false,
+              "coverage": [
+                0.024390243902439025,
+                0.6443089430894309,
+                0.9512195121951219
+              ],
+              "decisions": 246,
+              "edge_established": false,
+              "labeled_variants": 492,
+              "per_pool": {
+                "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                  "pinball": 0.006251518826757937,
+                  "variants": 66
+                },
+                "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                  "pinball": 0.006189241783690779,
+                  "variants": 66
+                },
+                "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                  "pinball": 0.017200282954962186,
+                  "variants": 56
+                },
+                "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                  "pinball": 0.005682080653551209,
+                  "variants": 58
+                },
+                "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                  "pinball": 0.005804363482073488,
+                  "variants": 58
+                },
+                "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                  "pinball": 0.014405541107993183,
+                  "variants": 60
+                },
+                "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                  "pinball": 0.01655456273579347,
+                  "variants": 64
+                },
+                "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                  "pinball": 0.01350787269469571,
+                  "variants": 64
+                }
+              },
+              "pinball": 0.010648065324521602,
+              "pool_macro_pinball": 0.010699433029939745,
+              "pools": 8
+            },
+            "validation": {
+              "by_horizon": {
+                "15": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.03409090909090909,
+                    0.5984848484848485,
+                    0.9204545454545454
+                  ],
+                  "decisions": 264,
+                  "edge_established": false,
+                  "labeled_variants": 264,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.007559301118250007,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.0064904567243484704,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.07260417394003933,
+                      "variants": 33
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.006884822044248703,
+                      "variants": 33
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.006306409824907902,
+                      "variants": 33
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.014504869913357834,
+                      "variants": 33
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.008831070433922323,
+                      "variants": 33
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.026050636476963894,
+                      "variants": 33
+                    }
+                  },
+                  "pinball": 0.01865396755950481,
+                  "pool_macro_pinball": 0.018653967559504808,
+                  "pools": 8
+                },
+                "5": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.030303030303030304,
+                    0.7234848484848485,
+                    0.9507575757575758
+                  ],
+                  "decisions": 264,
+                  "edge_established": false,
+                  "labeled_variants": 264,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.0068351279213850185,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.006092569369095992,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.033253765584754076,
+                      "variants": 33
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.00630479125040731,
+                      "variants": 33
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.005995838442064448,
+                      "variants": 33
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.010409605283589602,
+                      "variants": 33
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.006480767419595432,
+                      "variants": 33
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.017350262589173392,
+                      "variants": 33
+                    }
+                  },
+                  "pinball": 0.01159034098250816,
+                  "pool_macro_pinball": 0.01159034098250816,
+                  "pools": 8
+                }
+              },
+              "confirmatory": false,
+              "coverage": [
+                0.032196969696969696,
+                0.6609848484848485,
+                0.9356060606060606
+              ],
+              "decisions": 264,
+              "edge_established": false,
+              "labeled_variants": 528,
+              "per_pool": {
+                "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                  "pinball": 0.007197214519817513,
+                  "variants": 66
+                },
+                "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                  "pinball": 0.006291513046722231,
+                  "variants": 66
+                },
+                "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                  "pinball": 0.05292896976239671,
+                  "variants": 66
+                },
+                "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                  "pinball": 0.006594806647328006,
+                  "variants": 66
+                },
+                "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                  "pinball": 0.006151124133486175,
+                  "variants": 66
+                },
+                "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                  "pinball": 0.012457237598473716,
+                  "variants": 66
+                },
+                "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                  "pinball": 0.007655918926758877,
+                  "variants": 66
+                },
+                "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                  "pinball": 0.021700449533068645,
+                  "variants": 66
+                }
+              },
+              "pinball": 0.015122154271006483,
+              "pool_macro_pinball": 0.015122154271006483,
+              "pools": 8
+            }
+          },
+          "7": {
+            "test": {
+              "by_horizon": {
+                "15": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.032520325203252036,
+                    0.4796747967479675,
+                    0.9186991869918699
+                  ],
+                  "decisions": 246,
+                  "edge_established": false,
+                  "labeled_variants": 246,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.00575559584822491,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.006136246653719122,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.022326258650418478,
+                      "variants": 28
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.005832063990480311,
+                      "variants": 29
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.0057146197937673286,
+                      "variants": 29
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.018851411783243198,
+                      "variants": 30
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.020445517757333043,
+                      "variants": 32
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.016735149903542877,
+                      "variants": 32
+                    }
+                  },
+                  "pinball": 0.012633104037253566,
+                  "pool_macro_pinball": 0.012724608047591159,
+                  "pools": 8
+                },
+                "5": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.02032520325203252,
+                    0.8008130081300813,
+                    0.9715447154471545
+                  ],
+                  "decisions": 246,
+                  "edge_established": false,
+                  "labeled_variants": 246,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.005946798255089061,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.005759901460089482,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.012702971583281052,
+                      "variants": 28
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.005756645961185593,
+                      "variants": 29
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.0056597450284465,
+                      "variants": 29
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.009690062020656835,
+                      "variants": 30
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.01235961885484241,
+                      "variants": 32
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.01011681978614753,
+                      "variants": 32
+                    }
+                  },
+                  "pinball": 0.008467591588469412,
+                  "pool_macro_pinball": 0.008499070368717308,
+                  "pools": 8
+                }
+              },
+              "confirmatory": false,
+              "coverage": [
+                0.026422764227642278,
+                0.6402439024390244,
+                0.9451219512195121
+              ],
+              "decisions": 246,
+              "edge_established": false,
+              "labeled_variants": 492,
+              "per_pool": {
+                "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                  "pinball": 0.005851197051656985,
+                  "variants": 66
+                },
+                "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                  "pinball": 0.005948074056904301,
+                  "variants": 66
+                },
+                "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                  "pinball": 0.017514615116849767,
+                  "variants": 56
+                },
+                "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                  "pinball": 0.0057943549758329525,
+                  "variants": 58
+                },
+                "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                  "pinball": 0.005687182411106915,
+                  "variants": 58
+                },
+                "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                  "pinball": 0.014270736901950017,
+                  "variants": 60
+                },
+                "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                  "pinball": 0.016402568306087727,
+                  "variants": 64
+                },
+                "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                  "pinball": 0.013425984844845203,
+                  "variants": 64
+                }
+              },
+              "pinball": 0.01055034781286149,
+              "pool_macro_pinball": 0.010611839208154233,
+              "pools": 8
+            },
+            "validation": {
+              "by_horizon": {
+                "15": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.030303030303030304,
+                    0.5075757575757576,
+                    0.9166666666666666
+                  ],
+                  "decisions": 264,
+                  "edge_established": false,
+                  "labeled_variants": 264,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.006549488879588126,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.005985134105295425,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.07220176586527591,
+                      "variants": 33
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.006184487310495551,
+                      "variants": 33
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.0058701603028822585,
+                      "variants": 33
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.014578932530084724,
+                      "variants": 33
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.008576071604464379,
+                      "variants": 33
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.026451932127608394,
+                      "variants": 33
+                    }
+                  },
+                  "pinball": 0.018299746590711846,
+                  "pool_macro_pinball": 0.018299746590711846,
+                  "pools": 8
+                },
+                "5": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.03409090909090909,
+                    0.7954545454545454,
+                    0.946969696969697
+                  ],
+                  "decisions": 264,
+                  "edge_established": false,
+                  "labeled_variants": 264,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.006283732073142096,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.00566529521901825,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.03312927538416713,
+                      "variants": 33
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.00609187477926099,
+                      "variants": 33
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.005894608959467848,
+                      "variants": 33
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.010036820587822924,
+                      "variants": 33
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.006412478011585177,
+                      "variants": 33
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.017790380549249283,
+                      "variants": 33
+                    }
+                  },
+                  "pinball": 0.011413058195464213,
+                  "pool_macro_pinball": 0.011413058195464213,
+                  "pools": 8
+                }
+              },
+              "confirmatory": false,
+              "coverage": [
+                0.032196969696969696,
+                0.6515151515151515,
+                0.9318181818181818
+              ],
+              "decisions": 264,
+              "edge_established": false,
+              "labeled_variants": 528,
+              "per_pool": {
+                "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                  "pinball": 0.006416610476365111,
+                  "variants": 66
+                },
+                "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                  "pinball": 0.005825214662156838,
+                  "variants": 66
+                },
+                "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                  "pinball": 0.05266552062472152,
+                  "variants": 66
+                },
+                "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                  "pinball": 0.006138181044878271,
+                  "variants": 66
+                },
+                "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                  "pinball": 0.005882384631175053,
+                  "variants": 66
+                },
+                "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                  "pinball": 0.012307876558953825,
+                  "variants": 66
+                },
+                "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                  "pinball": 0.007494274808024779,
+                  "variants": 66
+                },
+                "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                  "pinball": 0.02212115633842884,
+                  "variants": 66
+                }
+              },
+              "pinball": 0.014856402393088029,
+              "pool_macro_pinball": 0.014856402393088029,
+              "pools": 8
+            }
+          }
+        }
+      },
+      "new_cohort_capped_16_64pct": {
+        "ensemble": {
+          "test": {
+            "by_horizon": {
+              "15": {
+                "confirmatory": false,
+                "coverage": [
+                  0.09349593495934959,
+                  0.7195121951219512,
+                  0.9024390243902439
+                ],
+                "decisions": 246,
+                "edge_established": false,
+                "labeled_variants": 246,
+                "per_pool": {
+                  "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                    "pinball": 0.0033383009106940768,
+                    "variants": 33
+                  },
+                  "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                    "pinball": 0.0035330620882049434,
+                    "variants": 33
+                  },
+                  "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                    "pinball": 0.02394984173741288,
+                    "variants": 28
+                  },
+                  "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                    "pinball": 0.0029661480166414496,
+                    "variants": 29
+                  },
+                  "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                    "pinball": 0.003036205858647302,
+                    "variants": 29
+                  },
+                  "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                    "pinball": 0.019881865601639157,
+                    "variants": 30
+                  },
+                  "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                    "pinball": 0.022076382105828865,
+                    "variants": 32
+                  },
+                  "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                    "pinball": 0.0166055687870873,
+                    "variants": 32
+                  }
+                },
+                "pinball": 0.011811777262671115,
+                "pool_macro_pinball": 0.011923421888269496,
+                "pools": 8
+              },
+              "5": {
+                "confirmatory": false,
+                "coverage": [
+                  0.028455284552845527,
+                  0.5284552845528455,
+                  0.9471544715447154
+                ],
+                "decisions": 246,
+                "edge_established": false,
+                "labeled_variants": 246,
+                "per_pool": {
+                  "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                    "pinball": 0.002633701467118443,
+                    "variants": 33
+                  },
+                  "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                    "pinball": 0.002997612913571505,
+                    "variants": 33
+                  },
+                  "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                    "pinball": 0.012528667005989303,
+                    "variants": 28
+                  },
+                  "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                    "pinball": 0.0025539216436880046,
+                    "variants": 29
+                  },
+                  "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                    "pinball": 0.002408139121559075,
+                    "variants": 29
+                  },
+                  "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                    "pinball": 0.008909719719924625,
+                    "variants": 30
+                  },
+                  "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                    "pinball": 0.012685167429877419,
+                    "variants": 32
+                  },
+                  "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                    "pinball": 0.009319809285176795,
+                    "variants": 32
+                  }
+                },
+                "pinball": 0.006715392924398812,
+                "pool_macro_pinball": 0.006754592323363146,
+                "pools": 8
+              }
+            },
+            "confirmatory": false,
+            "coverage": [
+              0.06097560975609756,
+              0.6239837398373984,
+              0.9247967479674797
+            ],
+            "decisions": 246,
+            "edge_established": false,
+            "labeled_variants": 492,
+            "per_pool": {
+              "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                "pinball": 0.00298600118890626,
+                "variants": 66
+              },
+              "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                "pinball": 0.0032653375008882242,
+                "variants": 66
+              },
+              "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                "pinball": 0.01823925437170109,
+                "variants": 56
+              },
+              "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                "pinball": 0.002760034830164727,
+                "variants": 58
+              },
+              "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                "pinball": 0.002722172490103188,
+                "variants": 58
+              },
+              "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                "pinball": 0.01439579266078189,
+                "variants": 60
+              },
+              "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                "pinball": 0.017380774767853144,
+                "variants": 64
+              },
+              "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                "pinball": 0.012962689036132046,
+                "variants": 64
+              }
+            },
+            "pinball": 0.009263585093534964,
+            "pool_macro_pinball": 0.00933900710581632,
+            "pools": 8
+          },
+          "validation": {
+            "by_horizon": {
+              "15": {
+                "confirmatory": false,
+                "coverage": [
+                  0.10606060606060606,
+                  0.6931818181818182,
+                  0.8977272727272727
+                ],
+                "decisions": 264,
+                "edge_established": false,
+                "labeled_variants": 264,
+                "per_pool": {
+                  "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                    "pinball": 0.003887745073803446,
+                    "variants": 33
+                  },
+                  "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                    "pinball": 0.003557528649730031,
+                    "variants": 33
+                  },
+                  "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                    "pinball": 0.07826593126634272,
+                    "variants": 33
+                  },
+                  "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                    "pinball": 0.0032078438156170055,
+                    "variants": 33
+                  },
+                  "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                    "pinball": 0.0032650208684070047,
+                    "variants": 33
+                  },
+                  "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                    "pinball": 0.015211667362932453,
+                    "variants": 33
+                  },
+                  "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                    "pinball": 0.006769523328329531,
+                    "variants": 33
+                  },
+                  "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                    "pinball": 0.028058084696925143,
+                    "variants": 33
+                  }
+                },
+                "pinball": 0.017777918132760917,
+                "pool_macro_pinball": 0.017777918132760917,
+                "pools": 8
+              },
+              "5": {
+                "confirmatory": false,
+                "coverage": [
+                  0.05303030303030303,
+                  0.5340909090909091,
+                  0.928030303030303
+                ],
+                "decisions": 264,
+                "edge_established": false,
+                "labeled_variants": 264,
+                "per_pool": {
+                  "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                    "pinball": 0.002825623242628016,
+                    "variants": 33
+                  },
+                  "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                    "pinball": 0.002784652498437971,
+                    "variants": 33
+                  },
+                  "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                    "pinball": 0.037056057764607124,
+                    "variants": 33
+                  },
+                  "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                    "pinball": 0.0026484950120174724,
+                    "variants": 33
+                  },
+                  "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                    "pinball": 0.002665302757331631,
+                    "variants": 33
+                  },
+                  "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                    "pinball": 0.009180381107091413,
+                    "variants": 33
+                  },
+                  "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                    "pinball": 0.004492992063442607,
+                    "variants": 33
+                  },
+                  "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                    "pinball": 0.018829001161415553,
+                    "variants": 33
+                  }
+                },
+                "pinball": 0.010060313200871472,
+                "pool_macro_pinball": 0.010060313200871474,
+                "pools": 8
+              }
+            },
+            "confirmatory": false,
+            "coverage": [
+              0.07954545454545454,
+              0.6136363636363636,
+              0.9128787878787878
+            ],
+            "decisions": 264,
+            "edge_established": false,
+            "labeled_variants": 528,
+            "per_pool": {
+              "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                "pinball": 0.0033566841582157313,
+                "variants": 66
+              },
+              "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                "pinball": 0.003171090574084001,
+                "variants": 66
+              },
+              "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                "pinball": 0.05766099451547493,
+                "variants": 66
+              },
+              "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                "pinball": 0.0029281694138172387,
+                "variants": 66
+              },
+              "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                "pinball": 0.002965161812869318,
+                "variants": 66
+              },
+              "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                "pinball": 0.012196024235011933,
+                "variants": 66
+              },
+              "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                "pinball": 0.005631257695886069,
+                "variants": 66
+              },
+              "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                "pinball": 0.023443542929170346,
+                "variants": 66
+              }
+            },
+            "pinball": 0.013919115666816195,
+            "pool_macro_pinball": 0.013919115666816195,
+            "pools": 8
+          }
+        },
+        "mean_seed_metrics": {
+          "test": {
+            "coverage": [
+              0.07113821138211382,
+              0.5802845528455285,
+              0.9197154471544715
+            ],
+            "pinball": 0.009440182850875209,
+            "pool_macro_pinball": 0.00951600003524073
+          },
+          "validation": {
+            "coverage": [
+              0.07386363636363635,
+              0.5539772727272727,
+              0.9081439393939394
+            ],
+            "pinball": 0.01416123729831268,
+            "pool_macro_pinball": 0.01416123729831268
+          }
+        },
+        "seeds": {
+          "19": {
+            "test": {
+              "by_horizon": {
+                "15": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.08943089430894309,
+                    0.4146341463414634,
+                    0.9024390243902439
+                  ],
+                  "decisions": 246,
+                  "edge_established": false,
+                  "labeled_variants": 246,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.002925758597006205,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.0033638169641939794,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.02285021623240251,
+                      "variants": 28
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.0026711589746125112,
+                      "variants": 29
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.002726435872826238,
+                      "variants": 29
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.019568542059188215,
+                      "variants": 30
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.021222505528590146,
+                      "variants": 32
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.016669039039488805,
+                      "variants": 32
+                    }
+                  },
+                  "pinball": 0.01139625197787306,
+                  "pool_macro_pinball": 0.011499684158538576,
+                  "pools": 8
+                },
+                "5": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.06504065040650407,
+                    0.5853658536585366,
+                    0.943089430894309
+                  ],
+                  "decisions": 246,
+                  "edge_established": false,
+                  "labeled_variants": 246,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.0020845165276988735,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.0023575192794214345,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.013182237511503927,
+                      "variants": 28
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.002107724274410733,
+                      "variants": 29
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.0018945347548670211,
+                      "variants": 29
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.00865369995231591,
+                      "variants": 30
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.012043909851486177,
+                      "variants": 32
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.009263910131342855,
+                      "variants": 32
+                    }
+                  },
+                  "pinball": 0.006395189357016834,
+                  "pool_macro_pinball": 0.006448506535380866,
+                  "pools": 8
+                }
+              },
+              "confirmatory": false,
+              "coverage": [
+                0.07723577235772358,
+                0.5,
+                0.9227642276422764
+              ],
+              "decisions": 246,
+              "edge_established": false,
+              "labeled_variants": 492,
+              "per_pool": {
+                "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                  "pinball": 0.0025051375623525393,
+                  "variants": 66
+                },
+                "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                  "pinball": 0.0028606681218077065,
+                  "variants": 66
+                },
+                "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                  "pinball": 0.018016226871953218,
+                  "variants": 56
+                },
+                "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                  "pinball": 0.0023894416245116216,
+                  "variants": 58
+                },
+                "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                  "pinball": 0.00231048531384663,
+                  "variants": 58
+                },
+                "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                  "pinball": 0.014111121005752063,
+                  "variants": 60
+                },
+                "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                  "pinball": 0.016633207690038163,
+                  "variants": 64
+                },
+                "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                  "pinball": 0.012966474585415829,
+                  "variants": 64
+                }
+              },
+              "pinball": 0.008895720667444948,
+              "pool_macro_pinball": 0.008974095346959721,
+              "pools": 8
+            },
+            "validation": {
+              "by_horizon": {
+                "15": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.08712121212121213,
+                    0.42424242424242425,
+                    0.8977272727272727
+                  ],
+                  "decisions": 264,
+                  "edge_established": false,
+                  "labeled_variants": 264,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.0034261944787436793,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.0030950737042252817,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.07730445158435659,
+                      "variants": 33
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.0031000290589060877,
+                      "variants": 33
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.0030002091478826274,
+                      "variants": 33
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.014770687830011134,
+                      "variants": 33
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.006800094940950109,
+                      "variants": 33
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.0284330478750928,
+                      "variants": 33
+                    }
+                  },
+                  "pinball": 0.017491223577521035,
+                  "pool_macro_pinball": 0.017491223577521038,
+                  "pools": 8
+                },
+                "5": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.07575757575757576,
+                    0.5151515151515151,
+                    0.9166666666666666
+                  ],
+                  "decisions": 264,
+                  "edge_established": false,
+                  "labeled_variants": 264,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.002268490982410466,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.002168411653250701,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.03595428483375942,
+                      "variants": 33
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.002142484872349184,
+                      "variants": 33
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.002125288771600874,
+                      "variants": 33
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.009421548980474414,
+                      "variants": 33
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.004320790960928288,
+                      "variants": 33
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.019849357937754754,
+                      "variants": 33
+                    }
+                  },
+                  "pinball": 0.009781332374066013,
+                  "pool_macro_pinball": 0.009781332374066013,
+                  "pools": 8
+                }
+              },
+              "confirmatory": false,
+              "coverage": [
+                0.08143939393939394,
+                0.4696969696969697,
+                0.9071969696969697
+              ],
+              "decisions": 264,
+              "edge_established": false,
+              "labeled_variants": 528,
+              "per_pool": {
+                "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                  "pinball": 0.002847342730577073,
+                  "variants": 66
+                },
+                "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                  "pinball": 0.0026317426787379914,
+                  "variants": 66
+                },
+                "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                  "pinball": 0.056629368209058,
+                  "variants": 66
+                },
+                "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                  "pinball": 0.0026212569656276358,
+                  "variants": 66
+                },
+                "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                  "pinball": 0.0025627489597417506,
+                  "variants": 66
+                },
+                "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                  "pinball": 0.012096118405242773,
+                  "variants": 66
+                },
+                "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                  "pinball": 0.0055604429509391986,
+                  "variants": 66
+                },
+                "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                  "pinball": 0.024141202906423777,
+                  "variants": 66
+                }
+              },
+              "pinball": 0.013636277975793525,
+              "pool_macro_pinball": 0.013636277975793525,
+              "pools": 8
+            }
+          },
+          "7": {
+            "test": {
+              "by_horizon": {
+                "15": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.10975609756097561,
+                    0.7967479674796748,
+                    0.8983739837398373
+                  ],
+                  "decisions": 246,
+                  "edge_established": false,
+                  "labeled_variants": 246,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.004418942669382745,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.004629966656283249,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.02515147945955598,
+                      "variants": 28
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.003831340745657858,
+                      "variants": 29
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.0041813719857838536,
+                      "variants": 29
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.020327235955582963,
+                      "variants": 30
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.0232578624284285,
+                      "variants": 32
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.016592324526781367,
+                      "variants": 32
+                    }
+                  },
+                  "pinball": 0.012683931557156747,
+                  "pool_macro_pinball": 0.012798815553432064,
+                  "pools": 8
+                },
+                "5": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.02032520325203252,
+                    0.524390243902439,
+                    0.9349593495934959
+                  ],
+                  "decisions": 246,
+                  "edge_established": false,
+                  "labeled_variants": 246,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.003318587628967716,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.0036948931436042295,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.01246605022022955,
+                      "variants": 28
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.0031663952443163877,
+                      "variants": 29
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.0030784724886010932,
+                      "variants": 29
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.009683459819846254,
+                      "variants": 30
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.013560369364621693,
+                      "variants": 32
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.009567723238704414,
+                      "variants": 32
+                    }
+                  },
+                  "pinball": 0.007285358511454194,
+                  "pool_macro_pinball": 0.0073169938936114174,
+                  "pools": 8
+                }
+              },
+              "confirmatory": false,
+              "coverage": [
+                0.06504065040650407,
+                0.6605691056910569,
+                0.9166666666666666
+              ],
+              "decisions": 246,
+              "edge_established": false,
+              "labeled_variants": 492,
+              "per_pool": {
+                "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                  "pinball": 0.003868765149175231,
+                  "variants": 66
+                },
+                "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                  "pinball": 0.00416242989994374,
+                  "variants": 66
+                },
+                "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                  "pinball": 0.018808764839892765,
+                  "variants": 56
+                },
+                "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                  "pinball": 0.0034988679949871228,
+                  "variants": 58
+                },
+                "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                  "pinball": 0.0036299222371924734,
+                  "variants": 58
+                },
+                "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                  "pinball": 0.015005347887714607,
+                  "variants": 60
+                },
+                "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                  "pinball": 0.018409115896525097,
+                  "variants": 64
+                },
+                "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                  "pinball": 0.01308002388274289,
+                  "variants": 64
+                }
+              },
+              "pinball": 0.00998464503430547,
+              "pool_macro_pinball": 0.01005790472352174,
+              "pools": 8
+            },
+            "validation": {
+              "by_horizon": {
+                "15": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.10227272727272728,
+                    0.7765151515151515,
+                    0.8977272727272727
+                  ],
+                  "decisions": 264,
+                  "edge_established": false,
+                  "labeled_variants": 264,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.005032390449565409,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.004673462530615825,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.07945714877329356,
+                      "variants": 33
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.004393435303702048,
+                      "variants": 33
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.004495039995851966,
+                      "variants": 33
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.015790809229762115,
+                      "variants": 33
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.007101111631375564,
+                      "variants": 33
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.02839642476651116,
+                      "variants": 33
+                    }
+                  },
+                  "pinball": 0.018667477835084705,
+                  "pool_macro_pinball": 0.018667477835084705,
+                  "pools": 8
+                },
+                "5": {
+                  "confirmatory": false,
+                  "coverage": [
+                    0.030303030303030304,
+                    0.5,
+                    0.9204545454545454
+                  ],
+                  "decisions": 264,
+                  "edge_established": false,
+                  "labeled_variants": 264,
+                  "per_pool": {
+                    "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                      "pinball": 0.003588766932189038,
+                      "variants": 33
+                    },
+                    "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                      "pinball": 0.0034806708600617865,
+                      "variants": 33
+                    },
+                    "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                      "pinball": 0.0385381197511302,
+                      "variants": 33
+                    },
+                    "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                      "pinball": 0.0034430006886989905,
+                      "variants": 33
+                    },
+                    "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                      "pinball": 0.003460196138157785,
+                      "variants": 33
+                    },
+                    "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                      "pinball": 0.009616073470451559,
+                      "variants": 33
+                    },
+                    "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                      "pinball": 0.004827420426401955,
+                      "variants": 33
+                    },
+                    "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                      "pinball": 0.01868507498554038,
+                      "variants": 33
+                    }
+                  },
+                  "pinball": 0.010704915406578962,
+                  "pool_macro_pinball": 0.010704915406578962,
+                  "pools": 8
+                }
+              },
+              "confirmatory": false,
+              "coverage": [
+                0.06628787878787878,
+                0.6382575757575758,
+                0.9090909090909091
+              ],
+              "decisions": 264,
+              "edge_established": false,
+              "labeled_variants": 528,
+              "per_pool": {
+                "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2": {
+                  "pinball": 0.004310578690877223,
+                  "variants": 66
+                },
+                "54Vp27uLaw4wNLo5n7r4fcC6zLamoQc28xBARjss4EUJ": {
+                  "pinball": 0.004077066695338806,
+                  "variants": 66
+                },
+                "61Xw4Vm2AHZiQ2bQPtHZynuHoDzpJ2TKnYNjHN4Sjpmm": {
+                  "pinball": 0.058997634262211884,
+                  "variants": 66
+                },
+                "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo": {
+                  "pinball": 0.003918217996200519,
+                  "variants": 66
+                },
+                "ASAxmEaTT1HFe3mVC3zbKDE4tuB28W7732XQrEMBM5W2": {
+                  "pinball": 0.003977618067004876,
+                  "variants": 66
+                },
+                "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5": {
+                  "pinball": 0.012703441350106837,
+                  "variants": 66
+                },
+                "DA4pM4xSDY4M9V4CgAKKBVH1pw1yscTQQa5nEkGHuKpt": {
+                  "pinball": 0.0059642660288887605,
+                  "variants": 66
+                },
+                "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW": {
+                  "pinball": 0.023540749876025772,
+                  "variants": 66
+                }
+              },
+              "pinball": 0.014686196620831834,
+              "pool_macro_pinball": 0.014686196620831834,
+              "pools": 8
+            }
+          }
+        }
+      }
+    },
+    "execution_model": "none; price log-return forecasts only",
+    "finished_ns": 1791358990637912000,
+    "fits": [
+      {
+        "arm": "current_72_09pct",
+        "best_step": 1000,
+        "manifest_sha": "135a52f2c6afc1a49dfcb5e4ad818f21183e3895866e25787315e3a634b12a1d",
+        "original_baseline_weights_exact": true,
+        "reused_sealed_fit": false,
+        "seconds": 1.0507144583389163,
+        "seed": 7
+      },
+      {
+        "arm": "current_72_09pct",
+        "best_step": 700,
+        "manifest_sha": "e19931da28b3a032a0309c8d18257f25cc006ba359038229a6f17cba2eda82e7",
+        "original_baseline_weights_exact": true,
+        "reused_sealed_fit": false,
+        "seconds": 0.9332949593663216,
+        "seed": 19
+      },
+      {
+        "arm": "new_cohort_capped_16_64pct",
+        "best_step": 900,
+        "manifest_sha": "5fd6afffe0467a88c027d376d88071c9ef7668d285578e5c4dd8eea53ba44ffb",
+        "original_baseline_weights_exact": null,
+        "reused_sealed_fit": false,
+        "seconds": 1.0069590001367033,
+        "seed": 7
+      },
+      {
+        "arm": "new_cohort_capped_16_64pct",
+        "best_step": 1000,
+        "manifest_sha": "6733ff05b62837876075106fdda344f0aea822d06bcc16b30daf06544d924896",
+        "original_baseline_weights_exact": null,
+        "reused_sealed_fit": false,
+        "seconds": 0.974609250202775,
+        "seed": 19
+      }
+    ],
+    "new_promotions": 0,
+    "new_provider_calls": 0,
+    "protocol_sha": "a49473def50529fcc7b565cdb5e4dbddafd394a95f69c045e554a6e727ec19df",
+    "wall_seconds": 8.070042
+  },
+  "result_sha": "7e7c7e013cfb0bef2642acb2f26cfe7263d4a45600f7c6dc416247d233bda9f2",
+  "run_manifest_sha": "94c86c385c5d944ab34869874cb0922473af6c8fe9676744ad03ace518d15d11",
+  "runner_sha": "6b5637ad9079bc089a4908ad741272a350e79dc26592f1f75573468a56e155e8",
+  "schema": "brain-sampling-ablation-evidence-v1",
+  "scope": {
+    "AUTO_changed": false,
+    "generalization_CI": null,
+    "production_recipe_changed": false,
+    "promotion": false,
+    "snapshot": "B13 expansion experiment01; not latest AUTO candidate snapshot",
+    "test_previously_exposed": true
+  },
+  "verification": {
+    "artifact_hashes": "all verified",
+    "baseline_state_tensors_match_original_both_seeds": true,
+    "independently_rescored_metric_groups": 36,
+    "new_fits": 4,
+    "operator_observed_before_after": {
+      "champion_sha": "9ea4a6bd7977fb66fe4a18eba54ed7eaed0afd65810ec99c75aec3e1443e3920",
+      "domain_stop": false,
+      "mode": "paused",
+      "phase": "paused",
+      "queued_running_jobs": 0
+    },
+    "pre_network_output_directory_absent": true,
+    "tolerance": 1e-14
+  }
+}

@@ -1,0 +1,3443 @@
+{
+  "artifacts": {
+    "access-check.json": "500f1587bc6248d99e26198b6519182bd40532c25afdc666d032e8aeaf97307f",
+    "all-tests.log": "0a58aa8eaa6f5e9bfa431c809fcad8bcb3961a058e90b90459fdd65f52d9203d",
+    "build.log": "609d5f7a8ae2aa753f6c06ad458a43566f4dc580c5bd88ca18599ac765ea307c",
+    "check-02.log": "ffbda5f2f05865a20e9429a70142357e5220c72adda45557d6fece008de1c134",
+    "check.log": "4c2183c2eb05fc70ef859693fba595723dab9969d7fa8b0cbde1f900c829319a",
+    "freeze.json": "23f7a600915fcea185b5a4f20944d2b05ad5089f0cd527f0589616d754be21ef",
+    "initial-lint.log": "3e082be4a047c03411ec2744b9508aba41adfdf8ae2930f2526306e0e9cbcf8d",
+    "lint-initial-02.log": "8147024250224588af7fe5b10c6f6bcee03a8b83ecfd49d33228cd0951831eda",
+    "plan-output.json": "2345350cb8bbb81c0b678be8655b0a8b956c6ea96f94e6bce38c524f6695151a",
+    "reproduction.json": "b4c16b3302620a66d3b6b4ff1893aee1caaafab884e63998aa13ddff5a14ce64",
+    "smoke.log": "e74f77ed30218c7b0e0aa7c4faeb5f7c14c732e05c56cd0d997cd9a3a05874e2",
+    "synthetic-contract-check.json": "c462dc1302a081a1a09231ce287d959402e1f01926c944769c21e4998a84a68c",
+    "trial-plan.json": "44ec57a6b4cb1b5c67613e09f2b0d112613e160f76ece79af1abc1e5001ec356",
+    "unit-tests.log": "a3a035c0a1954d50955063c38f419bc95528dad397e611a442da2a0ee0beafea",
+    "wheel-assessment-output.json": "d0f02cab96c3e14a18d2760436f62edb6f68026129c84865977f01ef02c81b9b",
+    "wheel-install.log": "5b1d20fef0cbf37924b2c90c7d460054e99adc6e33b7e04d55d8257d12c3fdde"
+  },
+  "assessment": {
+    "D43_accessed": false,
+    "checks": {
+      "completed_fraction_against_frozen_F01_schedule": false,
+      "f01_prospective_sampling_binding": false,
+      "final_selection.train.censoring": false,
+      "final_selection.train.cohort": false,
+      "final_selection.train.days": false,
+      "final_selection.train.decisions": false,
+      "final_selection.train.nonoverlap": false,
+      "final_selection.train.per_action_classes": false,
+      "final_selection.train.strata": false,
+      "final_selection.validation.censoring": false,
+      "final_selection.validation.cohort": false,
+      "final_selection.validation.days": false,
+      "final_selection.validation.decisions": false,
+      "final_selection.validation.nonoverlap": false,
+      "final_selection.validation.per_action_classes": false,
+      "final_selection.validation.strata": false,
+      "fold0.test.censoring": false,
+      "fold0.test.cohort": false,
+      "fold0.test.days": false,
+      "fold0.test.decisions": false,
+      "fold0.test.nonoverlap": false,
+      "fold0.test.per_action_classes": false,
+      "fold0.test.strata": false,
+      "fold0.train.censoring": true,
+      "fold0.train.cohort": true,
+      "fold0.train.days": false,
+      "fold0.train.decisions": false,
+      "fold0.train.nonoverlap": false,
+      "fold0.train.per_action_classes": false,
+      "fold0.train.strata": false,
+      "fold0.validation.censoring": false,
+      "fold0.validation.cohort": false,
+      "fold0.validation.days": false,
+      "fold0.validation.decisions": false,
+      "fold0.validation.nonoverlap": false,
+      "fold0.validation.per_action_classes": false,
+      "fold0.validation.strata": false,
+      "fold1.test.censoring": false,
+      "fold1.test.cohort": false,
+      "fold1.test.days": false,
+      "fold1.test.decisions": false,
+      "fold1.test.nonoverlap": false,
+      "fold1.test.per_action_classes": false,
+      "fold1.test.strata": false,
+      "fold1.train.censoring": true,
+      "fold1.train.cohort": true,
+      "fold1.train.days": false,
+      "fold1.train.decisions": false,
+      "fold1.train.nonoverlap": false,
+      "fold1.train.per_action_classes": false,
+      "fold1.train.strata": false,
+      "fold1.validation.censoring": false,
+      "fold1.validation.cohort": false,
+      "fold1.validation.days": false,
+      "fold1.validation.decisions": false,
+      "fold1.validation.nonoverlap": false,
+      "fold1.validation.per_action_classes": false,
+      "fold1.validation.strata": false,
+      "fold2.test.censoring": false,
+      "fold2.test.cohort": false,
+      "fold2.test.days": false,
+      "fold2.test.decisions": false,
+      "fold2.test.nonoverlap": false,
+      "fold2.test.per_action_classes": false,
+      "fold2.test.strata": false,
+      "fold2.train.censoring": false,
+      "fold2.train.cohort": false,
+      "fold2.train.days": false,
+      "fold2.train.decisions": false,
+      "fold2.train.nonoverlap": false,
+      "fold2.train.per_action_classes": false,
+      "fold2.train.strata": false,
+      "fold2.validation.censoring": false,
+      "fold2.validation.cohort": false,
+      "fold2.validation.days": false,
+      "fold2.validation.decisions": false,
+      "fold2.validation.nonoverlap": false,
+      "fold2.validation.per_action_classes": false,
+      "fold2.validation.strata": false,
+      "integrity": true,
+      "source_semantics": true,
+      "usable_fraction": true
+    },
+    "current_calendar_can_satisfy_F01": false,
+    "holdout_accessed": false,
+    "missing_implementation": [
+      "F01 sampling/registry adapter",
+      "fold-aware admitted research runner",
+      "paired block inference and exposure/trial ledger"
+    ],
+    "qualification": "readiness_assessment_not_training",
+    "registry_as_of_ns": 1791024303311510000,
+    "registry_manifest_sha256": "2a1b96a1a43e464e75fbdd4f52b53a0f072a062c131058c72ea3d80776962350",
+    "registry_revision": 0,
+    "reviews": {
+      "conditional_target_semantics": "missing",
+      "dependence_and_precision_plan": "missing",
+      "exposure_ledger": "missing",
+      "formal_forecast_admission": "missing",
+      "point_in_time_universe_scope": "missing",
+      "prospective_sampling_binding": "missing",
+      "runner_conformance": "missing"
+    },
+    "role_statistics": {
+      "final_selection.train": {
+        "all_scenarios_observed_decisions": 0,
+        "day_fraction_each_stratum": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 0,
+        "decisions_per_pool": {},
+        "greedy_nonoverlap_decisions": 0,
+        "min_pool_fraction": 0.0,
+        "nonoverlap_ids": [],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          }
+        ],
+        "statuses": {},
+        "unique_pools": 0,
+        "utc_days": 0,
+        "variants": 0
+      },
+      "final_selection.validation": {
+        "all_scenarios_observed_decisions": 0,
+        "day_fraction_each_stratum": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 0,
+        "decisions_per_pool": {},
+        "greedy_nonoverlap_decisions": 0,
+        "min_pool_fraction": 0.0,
+        "nonoverlap_ids": [],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          }
+        ],
+        "statuses": {},
+        "unique_pools": 0,
+        "utc_days": 0,
+        "variants": 0
+      },
+      "fold0.test": {
+        "all_scenarios_observed_decisions": 0,
+        "day_fraction_each_stratum": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 0,
+        "decisions_per_pool": {},
+        "greedy_nonoverlap_decisions": 0,
+        "min_pool_fraction": 0.0,
+        "nonoverlap_ids": [],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          }
+        ],
+        "statuses": {},
+        "unique_pools": 0,
+        "utc_days": 0,
+        "variants": 0
+      },
+      "fold0.train": {
+        "all_scenarios_observed_decisions": 122,
+        "day_fraction_each_stratum": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 174,
+        "decisions_per_pool": {
+          "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm": 58,
+          "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr": 58,
+          "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2": 58
+        },
+        "greedy_nonoverlap_decisions": 5,
+        "min_pool_fraction": 0.3333333333333333,
+        "nonoverlap_ids": [
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014064607703000",
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014114612548000",
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014214791535000",
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014264561872000",
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2:1791014314549444000"
+        ],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 40,
+              "conditional_roundtrip": 131,
+              "entry_unfilled": 2,
+              "exit_unfilled": 1
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 52,
+              "conditional_roundtrip": 114,
+              "entry_unfilled": 3,
+              "exit_unfilled": 5
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 40,
+              "conditional_roundtrip": 131,
+              "entry_unfilled": 2,
+              "exit_unfilled": 1
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 52,
+              "conditional_roundtrip": 114,
+              "entry_unfilled": 3,
+              "exit_unfilled": 5
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 39,
+              "conditional_roundtrip": 131,
+              "entry_unfilled": 2,
+              "exit_unfilled": 2
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 50,
+              "conditional_roundtrip": 118,
+              "entry_unfilled": 4,
+              "exit_unfilled": 2
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 39,
+              "conditional_roundtrip": 131,
+              "entry_unfilled": 2,
+              "exit_unfilled": 2
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 50,
+              "conditional_roundtrip": 118,
+              "entry_unfilled": 4,
+              "exit_unfilled": 2
+            }
+          }
+        ],
+        "statuses": {
+          "censored": 362,
+          "conditional_roundtrip": 988,
+          "entry_unfilled": 22,
+          "exit_unfilled": 20
+        },
+        "unique_pools": 3,
+        "utc_days": 1,
+        "variants": 1392
+      },
+      "fold0.validation": {
+        "all_scenarios_observed_decisions": 0,
+        "day_fraction_each_stratum": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 0,
+        "decisions_per_pool": {},
+        "greedy_nonoverlap_decisions": 0,
+        "min_pool_fraction": 0.0,
+        "nonoverlap_ids": [],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          }
+        ],
+        "statuses": {},
+        "unique_pools": 0,
+        "utc_days": 0,
+        "variants": 0
+      },
+      "fold1.test": {
+        "all_scenarios_observed_decisions": 0,
+        "day_fraction_each_stratum": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 0,
+        "decisions_per_pool": {},
+        "greedy_nonoverlap_decisions": 0,
+        "min_pool_fraction": 0.0,
+        "nonoverlap_ids": [],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          }
+        ],
+        "statuses": {},
+        "unique_pools": 0,
+        "utc_days": 0,
+        "variants": 0
+      },
+      "fold1.train": {
+        "all_scenarios_observed_decisions": 122,
+        "day_fraction_each_stratum": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 174,
+        "decisions_per_pool": {
+          "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm": 58,
+          "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr": 58,
+          "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2": 58
+        },
+        "greedy_nonoverlap_decisions": 5,
+        "min_pool_fraction": 0.3333333333333333,
+        "nonoverlap_ids": [
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014064607703000",
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014114612548000",
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014214791535000",
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014264561872000",
+          "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2:1791014314549444000"
+        ],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 40,
+              "conditional_roundtrip": 131,
+              "entry_unfilled": 2,
+              "exit_unfilled": 1
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 52,
+              "conditional_roundtrip": 114,
+              "entry_unfilled": 3,
+              "exit_unfilled": 5
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 40,
+              "conditional_roundtrip": 131,
+              "entry_unfilled": 2,
+              "exit_unfilled": 1
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 52,
+              "conditional_roundtrip": 114,
+              "entry_unfilled": 3,
+              "exit_unfilled": 5
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 39,
+              "conditional_roundtrip": 131,
+              "entry_unfilled": 2,
+              "exit_unfilled": 2
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 50,
+              "conditional_roundtrip": 118,
+              "entry_unfilled": 4,
+              "exit_unfilled": 2
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 39,
+              "conditional_roundtrip": 131,
+              "entry_unfilled": 2,
+              "exit_unfilled": 2
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 50,
+              "conditional_roundtrip": 118,
+              "entry_unfilled": 4,
+              "exit_unfilled": 2
+            }
+          }
+        ],
+        "statuses": {
+          "censored": 362,
+          "conditional_roundtrip": 988,
+          "entry_unfilled": 22,
+          "exit_unfilled": 20
+        },
+        "unique_pools": 3,
+        "utc_days": 1,
+        "variants": 1392
+      },
+      "fold1.validation": {
+        "all_scenarios_observed_decisions": 0,
+        "day_fraction_each_stratum": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 0,
+        "decisions_per_pool": {},
+        "greedy_nonoverlap_decisions": 0,
+        "min_pool_fraction": 0.0,
+        "nonoverlap_ids": [],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          }
+        ],
+        "statuses": {},
+        "unique_pools": 0,
+        "utc_days": 0,
+        "variants": 0
+      },
+      "fold2.test": {
+        "all_scenarios_observed_decisions": 0,
+        "day_fraction_each_stratum": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 0,
+        "decisions_per_pool": {},
+        "greedy_nonoverlap_decisions": 0,
+        "min_pool_fraction": 0.0,
+        "nonoverlap_ids": [],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          }
+        ],
+        "statuses": {},
+        "unique_pools": 0,
+        "utc_days": 0,
+        "variants": 0
+      },
+      "fold2.train": {
+        "all_scenarios_observed_decisions": 0,
+        "day_fraction_each_stratum": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 0,
+        "decisions_per_pool": {},
+        "greedy_nonoverlap_decisions": 0,
+        "min_pool_fraction": 0.0,
+        "nonoverlap_ids": [],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          }
+        ],
+        "statuses": {},
+        "unique_pools": 0,
+        "utc_days": 0,
+        "variants": 0
+      },
+      "fold2.validation": {
+        "all_scenarios_observed_decisions": 0,
+        "day_fraction_each_stratum": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "decisions": 0,
+        "decisions_per_pool": {},
+        "greedy_nonoverlap_decisions": 0,
+        "min_pool_fraction": 0.0,
+        "nonoverlap_ids": [],
+        "nonoverlap_is_not_independence": true,
+        "per_action": [
+          {
+            "action": [
+              0,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              0,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.0001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              0.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          },
+          {
+            "action": [
+              1,
+              0.001,
+              5.0,
+              20.0
+            ],
+            "statuses": {
+              "censored": 0,
+              "conditional_roundtrip": 0,
+              "entry_unfilled": 0,
+              "exit_unfilled": 0
+            }
+          }
+        ],
+        "statuses": {},
+        "unique_pools": 0,
+        "utc_days": 0,
+        "variants": 0
+      }
+    },
+    "seed": null,
+    "source": {
+      "__init__.py": "fea21e81263bffa6b1c69fde45de53e84fa81a9acce843904bdb4757ec04f90c",
+      "framework.py": "60944901a568e095590b91d96e7b89441696297309292acee0ef406ca3a014c3"
+    },
+    "spec_sha256": "b86472406e06a15bd23124d208ba7f4a6ea8f2a4e5871603a316eb9aa0d6c8e9",
+    "verdict": {
+      "blockers": [
+        "f01_prospective_sampling_binding",
+        "fold0.train.days",
+        "fold0.train.decisions",
+        "fold0.train.nonoverlap",
+        "fold0.train.strata",
+        "fold0.train.per_action_classes",
+        "fold0.validation.days",
+        "fold0.validation.decisions",
+        "fold0.validation.nonoverlap",
+        "fold0.validation.cohort",
+        "fold0.validation.strata",
+        "fold0.validation.per_action_classes",
+        "fold0.validation.censoring",
+        "fold0.test.days",
+        "fold0.test.decisions",
+        "fold0.test.nonoverlap",
+        "fold0.test.cohort",
+        "fold0.test.strata",
+        "fold0.test.per_action_classes",
+        "fold0.test.censoring",
+        "fold1.train.days",
+        "fold1.train.decisions",
+        "fold1.train.nonoverlap",
+        "fold1.train.strata",
+        "fold1.train.per_action_classes",
+        "fold1.validation.days",
+        "fold1.validation.decisions",
+        "fold1.validation.nonoverlap",
+        "fold1.validation.cohort",
+        "fold1.validation.strata",
+        "fold1.validation.per_action_classes",
+        "fold1.validation.censoring",
+        "fold1.test.days",
+        "fold1.test.decisions",
+        "fold1.test.nonoverlap",
+        "fold1.test.cohort",
+        "fold1.test.strata",
+        "fold1.test.per_action_classes",
+        "fold1.test.censoring",
+        "fold2.train.days",
+        "fold2.train.decisions",
+        "fold2.train.nonoverlap",
+        "fold2.train.cohort",
+        "fold2.train.strata",
+        "fold2.train.per_action_classes",
+        "fold2.train.censoring",
+        "fold2.validation.days",
+        "fold2.validation.decisions",
+        "fold2.validation.nonoverlap",
+        "fold2.validation.cohort",
+        "fold2.validation.strata",
+        "fold2.validation.per_action_classes",
+        "fold2.validation.censoring",
+        "fold2.test.days",
+        "fold2.test.decisions",
+        "fold2.test.nonoverlap",
+        "fold2.test.cohort",
+        "fold2.test.strata",
+        "fold2.test.per_action_classes",
+        "fold2.test.censoring",
+        "final_selection.train.days",
+        "final_selection.train.decisions",
+        "final_selection.train.nonoverlap",
+        "final_selection.train.cohort",
+        "final_selection.train.strata",
+        "final_selection.train.per_action_classes",
+        "final_selection.train.censoring",
+        "final_selection.validation.days",
+        "final_selection.validation.decisions",
+        "final_selection.validation.nonoverlap",
+        "final_selection.validation.cohort",
+        "final_selection.validation.strata",
+        "final_selection.validation.per_action_classes",
+        "final_selection.validation.censoring",
+        "completed_fraction_against_frozen_F01_schedule",
+        "prospective_sampling_binding",
+        "point_in_time_universe_scope",
+        "conditional_target_semantics",
+        "dependence_and_precision_plan",
+        "runner_conformance",
+        "exposure_ledger",
+        "formal_forecast_admission"
+      ],
+      "design_checks_passed": false,
+      "economic_blockers": [
+        "own admission/inclusion latency",
+        "network/rent/FX/full costs",
+        "independent execution calibration",
+        "portfolio/MPC comparator",
+        "capital and risk budget",
+        "net-OOS evaluation"
+      ],
+      "economic_ready": false,
+      "forecast_review_candidate": false,
+      "holdout_release_authorized": false,
+      "notice": "review artifacts required; this function cannot authorize execution",
+      "research_launch_authorized": false
+    }
+  },
+  "code_commit": "2fbd09d",
+  "date": "2026-10-03",
+  "decision": {
+    "holdout_release_authorized": false,
+    "next": "D47 admitted runner conformance and trial/exposure ledger; fixture-only until readiness",
+    "protocol_frozen": true,
+    "research_launch_authorized": false
+  },
+  "failure_history": [
+    {
+      "D43_RPC": false,
+      "category": "external_reference_lookup_unresolved",
+      "safe_log": "web tool call remained pending; execution terminated without retry",
+      "upstream_cause": "unknown"
+    },
+    {
+      "category": "format_check",
+      "resolved": true,
+      "safe_log": "ruff E501 108 > 100 characters"
+    }
+  ],
+  "known_limitations": [
+    "future F01 sampling/registry adapter missing",
+    "fold-aware admitted runner missing",
+    "paired bootstrap and scoring implementation pending",
+    "formal review/launch/release absent",
+    "84day design not a power guarantee or collection authorization"
+  ],
+  "local_artifact_root": "work/research-d46",
+  "plan_commit": "58c66da",
+  "protocol_manifest_sha256": "ef44854828106b82e0857659238a1773c253ff69acdefa0ef3e235731f7e78f2",
+  "reproduction": {
+    "D43_not_opened": {
+      "D43_access_guard": true,
+      "D43_open_attempts": 0,
+      "assessment_readiness": false,
+      "holdout_raw_read": false,
+      "registry_read_count": 39
+    },
+    "D44_source_identity_unchanged": true,
+    "D45_source_identity_unchanged": true,
+    "actual_research_runs": 0,
+    "assessment_exact": true,
+    "holdout_releases": 0
+  },
+  "seed": null,
+  "spec_id": "F01-v1",
+  "spec_sha256": "b86472406e06a15bd23124d208ba7f4a6ea8f2a4e5871603a316eb9aa0d6c8e9",
+  "stage": "D46",
+  "synthetic_contract_checks": {
+    "calendar_example": {
+      "anchor_ns": 1791331200000000000,
+      "automatic_collection": false,
+      "binding_status": "design_only_pending_sampling_plan_and_admission",
+      "created_ns": 1791188639502126000,
+      "final_selection": {
+        "train_end_ns": 1795564800000000000,
+        "train_start_ns": 1791331200000000000,
+        "validation_end_ns": 1796169600000000000
+      },
+      "folds": [
+        {
+          "embargo_ns": 30000000000,
+          "id": "fold0",
+          "test_end_ns": 1794960000000000000,
+          "train_end_ns": 1793750400000000000,
+          "train_start_ns": 1791331200000000000,
+          "validation_end_ns": 1794355200000000000
+        },
+        {
+          "embargo_ns": 30000000000,
+          "id": "fold1",
+          "test_end_ns": 1795564800000000000,
+          "train_end_ns": 1794355200000000000,
+          "train_start_ns": 1791331200000000000,
+          "validation_end_ns": 1794960000000000000
+        },
+        {
+          "embargo_ns": 30000000000,
+          "id": "fold2",
+          "test_end_ns": 1796169600000000000,
+          "train_end_ns": 1794960000000000000,
+          "train_start_ns": 1791331200000000000,
+          "validation_end_ns": 1795564800000000000
+        }
+      ],
+      "holdout": {
+        "end_ns": 1798588800000000000,
+        "start_ns": 1796169600000000000
+      },
+      "research_launch_authorized": false,
+      "spec_sha256": "8e3213272ac164603965d5de832d2625a01740ffad3dba268b7dd171f0766aa7"
+    },
+    "calendar_example_not_an_active_sampling_plan": true,
+    "positive_readiness_fixture": {
+      "blockers": [],
+      "design_checks_passed": true,
+      "economic_blockers": [
+        "own admission/inclusion latency",
+        "network/rent/FX/full costs",
+        "independent execution calibration",
+        "portfolio/MPC comparator",
+        "capital and risk budget",
+        "net-OOS evaluation"
+      ],
+      "economic_ready": false,
+      "forecast_review_candidate": true,
+      "holdout_release_authorized": false,
+      "notice": "review artifacts required; this function cannot authorize execution",
+      "research_launch_authorized": false
+    },
+    "selected": {
+      "ensemble_seeds": [
+        7,
+        19,
+        41
+      ],
+      "evidence_sha256": "a315a9420e58fd07063b4b77bf4508dbd4952be9ac4543a781c7537156267342",
+      "final_refit_epochs": {
+        "linear16": 5
+      },
+      "mean_validation_scores": {
+        "gru16": 1.0,
+        "gru64": 1.0,
+        "linear16": 1.0,
+        "mlp16": 1.0,
+        "mlp64": 1.0,
+        "tcn16": 1.0,
+        "tcn64": 1.0,
+        "transformer16": 1.0,
+        "transformer64": 1.0
+      },
+      "phase": "fold0",
+      "research_launch_authorized": false,
+      "selected": {
+        "context": 8,
+        "id": "linear16",
+        "kind": "linear",
+        "priority": 0,
+        "width": 16
+      },
+      "spec_sha256": "8e3213272ac164603965d5de832d2625a01740ffad3dba268b7dd171f0766aa7"
+    },
+    "synthetic": true
+  },
+  "trial_plan": {
+    "deterministic_empirical_fits": 4,
+    "final_refit_slots": [
+      {
+        "candidate_from": "selected_validation_policy",
+        "id": "final_refit:selected_validation_policy:7",
+        "seed": 7
+      },
+      {
+        "candidate_from": "selected_validation_policy",
+        "id": "final_refit:selected_validation_policy:19",
+        "seed": 19
+      },
+      {
+        "candidate_from": "selected_validation_policy",
+        "id": "final_refit:selected_validation_policy:41",
+        "seed": 41
+      },
+      {
+        "candidate_from": "linear16",
+        "id": "final_refit:linear16:7",
+        "seed": 7
+      },
+      {
+        "candidate_from": "linear16",
+        "id": "final_refit:linear16:19",
+        "seed": 19
+      },
+      {
+        "candidate_from": "linear16",
+        "id": "final_refit:linear16:41",
+        "seed": 41
+      }
+    ],
+    "requirements_before_reservation": [
+      "immutable data manifest",
+      "code/device binding",
+      "readiness admission",
+      "append-only trial/exposure ledger",
+      "sampling binding"
+    ],
+    "spec_sha256": "8e3213272ac164603965d5de832d2625a01740ffad3dba268b7dd171f0766aa7",
+    "trainable_fit_budget": 114,
+    "training_started": false,
+    "trials": [
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "fold0:linear16:7",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "fold0:linear16:19",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "fold0:linear16:41",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "fold0:mlp16:7",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "fold0:mlp16:19",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "fold0:mlp16:41",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "fold0:gru16:7",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "fold0:gru16:19",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "fold0:gru16:41",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "fold0:tcn16:7",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "fold0:tcn16:19",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "fold0:tcn16:41",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "fold0:transformer16:7",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "fold0:transformer16:19",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "fold0:transformer16:41",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "fold0:mlp64:7",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "fold0:mlp64:19",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "fold0:mlp64:41",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "fold0:gru64:7",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "fold0:gru64:19",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "fold0:gru64:41",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "fold0:tcn64:7",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "fold0:tcn64:19",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "fold0:tcn64:41",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "fold0:transformer64:7",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "fold0:transformer64:19",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "fold0:transformer64:41",
+        "max_seconds": 600,
+        "phase": "fold0",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "fold1:linear16:7",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "fold1:linear16:19",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "fold1:linear16:41",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "fold1:mlp16:7",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "fold1:mlp16:19",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "fold1:mlp16:41",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "fold1:gru16:7",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "fold1:gru16:19",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "fold1:gru16:41",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "fold1:tcn16:7",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "fold1:tcn16:19",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "fold1:tcn16:41",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "fold1:transformer16:7",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "fold1:transformer16:19",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "fold1:transformer16:41",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "fold1:mlp64:7",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "fold1:mlp64:19",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "fold1:mlp64:41",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "fold1:gru64:7",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "fold1:gru64:19",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "fold1:gru64:41",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "fold1:tcn64:7",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "fold1:tcn64:19",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "fold1:tcn64:41",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "fold1:transformer64:7",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "fold1:transformer64:19",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "fold1:transformer64:41",
+        "max_seconds": 600,
+        "phase": "fold1",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "fold2:linear16:7",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "fold2:linear16:19",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "fold2:linear16:41",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "fold2:mlp16:7",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "fold2:mlp16:19",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "fold2:mlp16:41",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "fold2:gru16:7",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "fold2:gru16:19",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "fold2:gru16:41",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "fold2:tcn16:7",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "fold2:tcn16:19",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "fold2:tcn16:41",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "fold2:transformer16:7",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "fold2:transformer16:19",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "fold2:transformer16:41",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "fold2:mlp64:7",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "fold2:mlp64:19",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "fold2:mlp64:41",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "fold2:gru64:7",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "fold2:gru64:19",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "fold2:gru64:41",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "fold2:tcn64:7",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "fold2:tcn64:19",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "fold2:tcn64:41",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "fold2:transformer64:7",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "fold2:transformer64:19",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "fold2:transformer64:41",
+        "max_seconds": 600,
+        "phase": "fold2",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "final_selection:linear16:7",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "final_selection:linear16:19",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "linear16",
+          "kind": "linear",
+          "priority": 0,
+          "width": 16
+        },
+        "id": "final_selection:linear16:41",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "final_selection:mlp16:7",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "final_selection:mlp16:19",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp16",
+          "kind": "mlp",
+          "priority": 1,
+          "width": 16
+        },
+        "id": "final_selection:mlp16:41",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "final_selection:gru16:7",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "final_selection:gru16:19",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru16",
+          "kind": "gru",
+          "priority": 2,
+          "width": 16
+        },
+        "id": "final_selection:gru16:41",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "final_selection:tcn16:7",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "final_selection:tcn16:19",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn16",
+          "kind": "tcn",
+          "priority": 3,
+          "width": 16
+        },
+        "id": "final_selection:tcn16:41",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "final_selection:transformer16:7",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "final_selection:transformer16:19",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer16",
+          "kind": "transformer",
+          "priority": 4,
+          "width": 16
+        },
+        "id": "final_selection:transformer16:41",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "final_selection:mlp64:7",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "final_selection:mlp64:19",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "mlp64",
+          "kind": "mlp",
+          "priority": 5,
+          "width": 64
+        },
+        "id": "final_selection:mlp64:41",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "final_selection:gru64:7",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "final_selection:gru64:19",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "gru64",
+          "kind": "gru",
+          "priority": 6,
+          "width": 64
+        },
+        "id": "final_selection:gru64:41",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "final_selection:tcn64:7",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "final_selection:tcn64:19",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "tcn64",
+          "kind": "tcn",
+          "priority": 7,
+          "width": 64
+        },
+        "id": "final_selection:tcn64:41",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 41
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "final_selection:transformer64:7",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 7
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "final_selection:transformer64:19",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 19
+      },
+      {
+        "candidate": {
+          "context": 8,
+          "id": "transformer64",
+          "kind": "transformer",
+          "priority": 8,
+          "width": 64
+        },
+        "id": "final_selection:transformer64:41",
+        "max_seconds": 600,
+        "phase": "final_selection",
+        "role": "validation_selection",
+        "seed": 41
+      }
+    ]
+  },
+  "validation": {
+    "all_tests_in_ml_environment": 448,
+    "base_optional_torch_module_skipped": 1,
+    "base_tests": 434,
+    "build": true,
+    "new_tests": 15,
+    "remote_CI": "not_observed",
+    "ruff": true,
+    "smoke": true,
+    "strict_mypy": true
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "schema": "brain-portability-dr-host-metadata-census-v1",
+  "observed_at_utc": "2026-10-14T01:53:00Z",
+  "scope": {
+    "metadata_only": true,
+    "file_contents_read": false,
+    "protected_payloads_read": false,
+    "secret_values_read": false,
+    "provider_requests": 0,
+    "services_changed": false,
+    "paths_recorded": false
+  },
+  "host": {
+    "macos": "26.5.2",
+    "architecture": "arm64",
+    "python": "3.13.6",
+    "git": "2.39.5 (Apple Git-154)",
+    "bsdtar": "3.5.3",
+    "sqlite": "3.51.0",
+    "homebrew": "7.0.9"
+  },
+  "state_roots": {
+    "owner_work": {
+      "files": 285577,
+      "directories_including_root": 35394,
+      "symlinks": 18,
+      "unreadable_entries": 0,
+      "apparent_regular_bytes_first_pass": 10913097442,
+      "apparent_regular_bytes_second_pass": 10912503394
+    },
+    "research_work": {
+      "files": 330273,
+      "directories_including_root": 80860,
+      "symlinks": 108,
+      "unreadable_entries": 0,
+      "apparent_regular_bytes": 17710028593
+    },
+    "private_brain_config": {
+      "files": 75,
+      "directories_including_root": 14,
+      "symlinks": 0,
+      "apparent_regular_bytes": 187755,
+      "mode_0600_files": 75
+    },
+    "launch_agent_definitions": {
+      "regular_plist_files": 60,
+      "mode_0600_files": 15,
+      "mode_0644_files": 45,
+      "symlinks": 0
+    }
+  },
+  "metadata_churn_observation": {
+    "method": "two consecutive full-tree lstat/scandir inventories; no file bytes opened",
+    "owner_work": {
+      "entry_counts_changed": false,
+      "apparent_regular_bytes_delta": -594048,
+      "membership_metadata_digest_changed": true
+    },
+    "research_work": {
+      "entry_counts_changed": false,
+      "apparent_regular_bytes_delta": 0,
+      "membership_metadata_digest_changed": false
+    },
+    "short_repeat": {
+      "minimum_explicit_wait_seconds": 2,
+      "owner_work_added_or_removed_entries": 0,
+      "owner_work_metadata_changed_entries": 3,
+      "changed_suffix_groups": {
+        ".log": {"entries": 1, "size_delta_bytes": 56423},
+        ".sqlite": {"entries": 1, "size_delta_bytes": 0},
+        "[none]": {"entries": 1, "size_delta_bytes": 0}
+      },
+      "research_work_metadata_changed_entries": 0
+    }
+  },
+  "owner_env_local": {
+    "present": true,
+    "regular_file": true,
+    "mode": "0600",
+    "size_bytes": 470,
+    "contents_read_or_hashed": false,
+    "disposition": "credential_reissue",
+    "archive_policy": "designated_for_exclusion_from_future_recovery_archives"
+  },
+  "owner_runtime_open_file_metadata": {
+    "owner_cwd_processes_probed": 12,
+    "processes_with_state_root_file_records": 9,
+    "lsof_file_records": 668,
+    "absolute_path_records_by_category": {
+      "owner_work": 26,
+      "research_work": 0,
+      "kingston_data": 0,
+      "private_config": 0,
+      "launch_agents": 0,
+      "homebrew_tooling": 250,
+      "unclassified_absolute": 132
+    },
+    "nonfilesystem_records": 260,
+    "named_sqlite_family_records_under_work_roots": {
+      "owner_work": 0,
+      "research_work": 0
+    },
+    "arguments_or_environments_read": false,
+    "file_contents_read": false,
+    "limitation": "Point-in-time open-file metadata only; it neither proves a write frontier nor proves files or processes were inactive."
+  },
+  "storage": {
+    "kingston_root_verified": true,
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "available_bytes_at_check": 217244610560
+  },
+  "conclusion": {
+    "work_tree_bytes_combined_first_pass": 28623126035,
+    "owner_work_is_stable_static_source": false,
+    "qualified_consistent_source_point": false,
+    "safe_to_erase": false,
+    "reason": "Owner work metadata and apparent size changed across read-only inventories, including an actively changing log and SQLite metadata. This census defines neither byte custody nor an application-consistent recovery boundary."
+  }
+}

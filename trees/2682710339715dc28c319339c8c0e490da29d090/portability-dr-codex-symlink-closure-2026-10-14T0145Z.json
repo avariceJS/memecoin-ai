@@ -1,0 +1,23 @@
+{
+  "schema": "brain-portability-dr-codex-symlink-closure-v1",
+  "checked_at_utc": "2026-10-14T01:45:00Z",
+  "source_archive_sha256": "376d94e48793c30a436a420c853493ceb09f95c943ed907b26ee3b970e4b6e84",
+  "result": {
+    "symlinks_checked": 11,
+    "targets_relative_and_resolve_inside_source_worktree": 11,
+    "target_paths_present_as_archived_file_members": 11,
+    "targets_resolved_inside_isolated_restore": 11,
+    "restored_target_bytes_match_private_manifest": 11,
+    "target_types": "regular_file"
+  },
+  "scope": {
+    "link_targets_followed_only_in_isolated_restore": true,
+    "payloads_semantically_parsed": false,
+    "target_paths_or_contents_recorded": false
+  },
+  "limitations": [
+    "closes only the 11 symlink-to-file dependencies found in this ignored archive",
+    "does not establish application package correctness or project runtime readiness",
+    "does not close external dependencies outside the captured worktree"
+  ]
+}

@@ -1,0 +1,1174 @@
+{
+  "apiVersion": "1.0",
+  "calendar": {
+    "availability": "AVAILABLE",
+    "data": {
+      "holdoutEndNs": "1791188639502126000",
+      "holdoutStartNs": "1791143639502126000",
+      "windows": [
+        {
+          "access": "DEVELOPMENT",
+          "actualStartNs": null,
+          "corpusExitCode": 0,
+          "executionOrCollectionExitCode": 0,
+          "finishedNs": "1791014383729491000",
+          "firstReceiptAt": "2026-10-03T07:54:16.398615+00:00",
+          "id": "d43:0",
+          "index": 0,
+          "lastReceiptAt": "2026-10-03T07:59:14.565974+00:00",
+          "matureDecisions": 135,
+          "plannedAt": "2026-10-03T07:53:59.502126+00:00",
+          "plannedSnapshots": 180,
+          "qaExitCode": 0,
+          "recordedSealSha256": "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208",
+          "recordedStatus": "completed",
+          "scenarios": 1440,
+          "snapshots": 180,
+          "usable": 174
+        },
+        {
+          "access": "DEVELOPMENT",
+          "actualStartNs": null,
+          "corpusExitCode": null,
+          "executionOrCollectionExitCode": null,
+          "finishedNs": null,
+          "firstReceiptAt": null,
+          "id": "d43:1",
+          "index": 1,
+          "lastReceiptAt": null,
+          "matureDecisions": null,
+          "plannedAt": "2026-10-03T13:53:59.502126+00:00",
+          "plannedSnapshots": 180,
+          "qaExitCode": null,
+          "recordedSealSha256": null,
+          "recordedStatus": "pending",
+          "scenarios": null,
+          "snapshots": null,
+          "usable": null
+        },
+        {
+          "access": "DEVELOPMENT",
+          "actualStartNs": null,
+          "corpusExitCode": null,
+          "executionOrCollectionExitCode": null,
+          "finishedNs": null,
+          "firstReceiptAt": null,
+          "id": "d43:2",
+          "index": 2,
+          "lastReceiptAt": null,
+          "matureDecisions": null,
+          "plannedAt": "2026-10-03T19:53:59.502126+00:00",
+          "plannedSnapshots": 180,
+          "qaExitCode": null,
+          "recordedSealSha256": null,
+          "recordedStatus": "pending",
+          "scenarios": null,
+          "snapshots": null,
+          "usable": null
+        },
+        {
+          "access": "DEVELOPMENT",
+          "actualStartNs": null,
+          "corpusExitCode": null,
+          "executionOrCollectionExitCode": null,
+          "finishedNs": null,
+          "firstReceiptAt": null,
+          "id": "d43:3",
+          "index": 3,
+          "lastReceiptAt": null,
+          "matureDecisions": null,
+          "plannedAt": "2026-10-04T07:53:59.502126+00:00",
+          "plannedSnapshots": 180,
+          "qaExitCode": null,
+          "recordedSealSha256": null,
+          "recordedStatus": "pending",
+          "scenarios": null,
+          "snapshots": null,
+          "usable": null
+        },
+        {
+          "access": "PROTECTED",
+          "id": "d43:4",
+          "index": 4,
+          "plannedAt": "2026-10-04T19:53:59.502126+00:00"
+        },
+        {
+          "access": "PROTECTED",
+          "id": "d43:5",
+          "index": 5,
+          "plannedAt": "2026-10-05T07:53:59.502126+00:00"
+        }
+      ]
+    },
+    "provenance": "REAL_EVIDENCE",
+    "qualification": "ENGINEERING_CORPUS",
+    "reasonCode": null,
+    "sourceIds": [
+      "d43",
+      "registry_protocol"
+    ]
+  },
+  "capabilities": [
+    {
+      "availability": "AVAILABLE",
+      "id": "calendar",
+      "mode": "READ_ONLY_RECORDED",
+      "version": 1
+    },
+    {
+      "availability": "AVAILABLE",
+      "id": "corpus",
+      "mode": "READ_ONLY_RECORDED",
+      "version": 1
+    },
+    {
+      "availability": "AVAILABLE",
+      "id": "research",
+      "mode": "READ_ONLY_RECORDED",
+      "version": 1
+    },
+    {
+      "availability": "AVAILABLE",
+      "id": "models",
+      "mode": "READ_ONLY_RECORDED",
+      "version": 1
+    },
+    {
+      "availability": "AVAILABLE",
+      "id": "sourceQualification",
+      "mode": "READ_ONLY_RECORDED",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "marketFeed",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "predictions",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "trainingControl",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "collectorControl",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "portfolio",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "shadow",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "paper",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "live",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "emergencyStop",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "hardwareLive",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "rawLogs",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    },
+    {
+      "availability": "UNAVAILABLE",
+      "id": "replay",
+      "reasonCode": "NO_APPROVED_CORE_READ_OR_CONTROL_CONTRACT",
+      "version": 1
+    }
+  ],
+  "coreBaselineCommit": "6a7e079",
+  "corpus": {
+    "availability": "AVAILABLE",
+    "data": {
+      "allScenariosObservedDecisions": 122,
+      "censoredScenarios": 362,
+      "developmentWindows": 1,
+      "greedyNonoverlapDecisions": 5,
+      "nonoverlapIsIndependent": false,
+      "researchPermission": "NOT_GRANTED_BY_UI",
+      "revision": "000000",
+      "scenarios": 1392,
+      "usableDecisions": 174
+    },
+    "provenance": "REAL_EVIDENCE",
+    "qualification": "ENGINEERING_ONLY",
+    "reasonCode": null,
+    "sourceIds": [
+      "d45"
+    ]
+  },
+  "market": {
+    "availability": "UNAVAILABLE",
+    "data": null,
+    "provenance": null,
+    "qualification": null,
+    "reasonCode": "NO_APPROVED_PRICE_RESERVES_VOLUME_EXPORT",
+    "sourceIds": []
+  },
+  "mode": "OBSERVATORY",
+  "models": {
+    "availability": "AVAILABLE",
+    "data": {
+      "activeModel": null,
+      "benchmarks": [
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:0",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.0829165,
+          "medianInferenceMs": 0.02375,
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:1",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.0764165,
+          "medianInferenceMs": 0.029291499999999998,
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:2",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.069125,
+          "medianInferenceMs": 0.023792,
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:3",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.081209,
+          "medianInferenceMs": 0.0391875,
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:4",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.09568750000000001,
+          "medianInferenceMs": 0.0309165,
+          "modelKind": "mlp",
+          "parameters": 3614,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:5",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.135875,
+          "medianInferenceMs": 0.051250000000000004,
+          "modelKind": "mlp",
+          "parameters": 3614,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:6",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.1367915,
+          "medianInferenceMs": 0.0406455,
+          "modelKind": "mlp",
+          "parameters": 55838,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:7",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.1550205,
+          "medianInferenceMs": 0.064021,
+          "modelKind": "mlp",
+          "parameters": 55838,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:8",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.3600625,
+          "medianInferenceMs": 0.069833,
+          "modelKind": "gru",
+          "parameters": 2174,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:9",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.53175,
+          "medianInferenceMs": 0.136021,
+          "modelKind": "gru",
+          "parameters": 2174,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:10",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 1.4348125,
+          "medianInferenceMs": 0.2395,
+          "modelKind": "gru",
+          "parameters": 27038,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:11",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 2.1525415,
+          "medianInferenceMs": 0.7399165000000001,
+          "modelKind": "gru",
+          "parameters": 27038,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:12",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.1596665,
+          "medianInferenceMs": 0.051958,
+          "modelKind": "tcn",
+          "parameters": 2110,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:13",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.772521,
+          "medianInferenceMs": 0.365479,
+          "modelKind": "tcn",
+          "parameters": 2110,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:14",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.2507915,
+          "medianInferenceMs": 0.110979,
+          "modelKind": "tcn",
+          "parameters": 26782,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:15",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 6.2319375,
+          "medianInferenceMs": 4.652479,
+          "modelKind": "tcn",
+          "parameters": 26782,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:16",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.3,
+          "medianInferenceMs": 0.08739549999999999,
+          "modelKind": "transformer",
+          "parameters": 2894,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "cpu",
+          "id": "d44:benchmark:17",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.46962499999999996,
+          "medianInferenceMs": 0.175417,
+          "modelKind": "transformer",
+          "parameters": 2894,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:18",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.39102099999999995,
+          "medianInferenceMs": 0.1473545,
+          "modelKind": "transformer",
+          "parameters": 37598,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "cpu",
+          "id": "d44:benchmark:19",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 1.7847499999999998,
+          "medianInferenceMs": 0.826479,
+          "modelKind": "transformer",
+          "parameters": 37598,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:20",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.864854,
+          "medianInferenceMs": 0.4970415,
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:21",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.961104,
+          "medianInferenceMs": 0.5723750000000001,
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:22",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.618479,
+          "medianInferenceMs": 0.511979,
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:23",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 0.655959,
+          "medianInferenceMs": 0.433083,
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:24",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 1.0256465000000001,
+          "medianInferenceMs": 0.5862295,
+          "modelKind": "mlp",
+          "parameters": 3614,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:25",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 1.211833,
+          "medianInferenceMs": 0.6015204999999999,
+          "modelKind": "mlp",
+          "parameters": 3614,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:26",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 1.000688,
+          "medianInferenceMs": 0.525416,
+          "modelKind": "mlp",
+          "parameters": 55838,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:27",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 1.2250005000000002,
+          "medianInferenceMs": 0.6203544999999999,
+          "modelKind": "mlp",
+          "parameters": 55838,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:28",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 2.4483335000000004,
+          "medianInferenceMs": 1.5873545,
+          "modelKind": "gru",
+          "parameters": 2174,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:29",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 2.6777085,
+          "medianInferenceMs": 1.707625,
+          "modelKind": "gru",
+          "parameters": 2174,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:30",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 6.567729,
+          "medianInferenceMs": 3.105375,
+          "modelKind": "gru",
+          "parameters": 27038,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:31",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 7.921791499999999,
+          "medianInferenceMs": 2.855625,
+          "modelKind": "gru",
+          "parameters": 27038,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:32",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 1.6221255,
+          "medianInferenceMs": 0.8512500000000001,
+          "modelKind": "tcn",
+          "parameters": 2110,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:33",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 2.152521,
+          "medianInferenceMs": 0.866083,
+          "modelKind": "tcn",
+          "parameters": 2110,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:34",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 1.813229,
+          "medianInferenceMs": 0.8875625,
+          "modelKind": "tcn",
+          "parameters": 26782,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:35",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 1.3428749999999998,
+          "medianInferenceMs": 1.08175,
+          "modelKind": "tcn",
+          "parameters": 26782,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 1,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:36",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 2.4539165,
+          "medianInferenceMs": 1.2478544999999999,
+          "modelKind": "transformer",
+          "parameters": 2894,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 32,
+          "context": 8,
+          "device": "mps",
+          "id": "d44:benchmark:37",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 3.138896,
+          "medianInferenceMs": 1.4052705,
+          "modelKind": "transformer",
+          "parameters": 2894,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 16
+        },
+        {
+          "batchSize": 1,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:38",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 2.8832709999999997,
+          "medianInferenceMs": 1.2545,
+          "modelKind": "transformer",
+          "parameters": 37598,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        },
+        {
+          "batchSize": 32,
+          "context": 32,
+          "device": "mps",
+          "id": "d44:benchmark:39",
+          "inputKind": "SYNTHETIC",
+          "medianForwardBackwardMs": 3.4342505,
+          "medianInferenceMs": 1.5591045000000001,
+          "modelKind": "transformer",
+          "parameters": 37598,
+          "scope": "ENGINEERING_BENCHMARK",
+          "status": "ok",
+          "width": 64
+        }
+      ],
+      "marketBackboneSelected": false,
+      "runs": [
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:0",
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:1",
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 19,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:2",
+          "modelKind": "mlp",
+          "parameters": 3614,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:3",
+          "modelKind": "mlp",
+          "parameters": 3614,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 19,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:4",
+          "modelKind": "gru",
+          "parameters": 2174,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:5",
+          "modelKind": "gru",
+          "parameters": 2174,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 19,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:6",
+          "modelKind": "tcn",
+          "parameters": 2110,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:7",
+          "modelKind": "tcn",
+          "parameters": 2110,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 19,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:8",
+          "modelKind": "transformer",
+          "parameters": 2894,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "SYNTHETIC",
+          "epochs": 3,
+          "id": "d44:run:9",
+          "modelKind": "transformer",
+          "parameters": 2894,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 19,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "REAL",
+          "epochs": 3,
+          "id": "d44:run:10",
+          "modelKind": "linear",
+          "parameters": 180,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "REAL",
+          "epochs": 3,
+          "id": "d44:run:11",
+          "modelKind": "mlp",
+          "parameters": 3614,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "REAL",
+          "epochs": 3,
+          "id": "d44:run:12",
+          "modelKind": "gru",
+          "parameters": 2174,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "REAL",
+          "epochs": 3,
+          "id": "d44:run:13",
+          "modelKind": "tcn",
+          "parameters": 2110,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        },
+        {
+          "datasetKind": "REAL",
+          "epochs": 3,
+          "id": "d44:run:14",
+          "modelKind": "transformer",
+          "parameters": 2894,
+          "scope": "ENGINEERING_SMOKE",
+          "seed": 7,
+          "selectedEpoch": 3
+        }
+      ]
+    },
+    "provenance": "REAL_EVIDENCE",
+    "qualification": "ENGINEERING_ONLY",
+    "reasonCode": null,
+    "sourceIds": [
+      "d44"
+    ]
+  },
+  "predictions": {
+    "availability": "UNAVAILABLE",
+    "data": null,
+    "provenance": null,
+    "qualification": null,
+    "reasonCode": "NO_PUBLISHED_PREDICTION_STREAM",
+    "sourceIds": []
+  },
+  "research": {
+    "availability": "AVAILABLE",
+    "data": {
+      "admission": "LOCKED",
+      "engineeringFits": 135,
+      "fitBudget": 114,
+      "globallyUnseenHoldout": "NOT_CERTIFIED",
+      "holdout": "PROTECTED",
+      "missingReviews": [
+        "prospective_sampling_binding",
+        "point_in_time_universe_scope",
+        "conditional_target_semantics",
+        "dependence_and_precision_plan",
+        "runner_conformance",
+        "exposure_ledger",
+        "formal_forecast_admission"
+      ],
+      "numericBlockers": 111,
+      "numericChecks": 113,
+      "recordedHoldoutReleaseAuthorized": false,
+      "recordedHoldoutReleases": 0,
+      "recordedProtocolFrozen": true,
+      "recordedResearchFits": 0,
+      "recordedResearchLaunchAuthorized": false,
+      "sampling": {
+        "admittedWindows": 0,
+        "anchorNs": "1791331200000000000",
+        "developmentEndNs": "1796169600000000000",
+        "developmentWindows": 224,
+        "holdoutEndNs": "1798588800000000000",
+        "plannedWindows": 336,
+        "recordedCollectionAuthorized": false,
+        "reservedWindows": 112,
+        "utcOffsets": [
+          "00:30",
+          "06:30",
+          "12:30",
+          "18:30"
+        ]
+      },
+      "specId": "F01-v1"
+    },
+    "provenance": "REAL_EVIDENCE",
+    "qualification": "FROZEN_DESIGN_NOT_ADMISSION",
+    "reasonCode": null,
+    "sourceIds": [
+      "d46",
+      "d47",
+      "d48",
+      "f01"
+    ]
+  },
+  "sourcePolicy": "REVIEWED_PROJECTION_ONLY",
+  "sourceQualification": {
+    "availability": "AVAILABLE",
+    "data": {
+      "accepted": 6,
+      "blockers": [
+        "account_plan_and_zero_dollar_hard_cap_unverified",
+        "runtime_credential_to_billing_account_mapping_unverified",
+        "calendar_service_and_wake_uptime_unqualified",
+        "full_live_window_not_qualified",
+        "separate_activation_decision_absent"
+      ],
+      "clockAgeRangeSeconds": [
+        9.949759006500244,
+        10.767560958862305
+      ],
+      "commitment": "finalized",
+      "latencySeconds": [
+        0.599614,
+        0.115246,
+        0.13462,
+        0.134666,
+        0.136345,
+        0.130995
+      ],
+      "pools": [
+        "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+        "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+        "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2"
+      ],
+      "recordedBaseTestsPassed": 481,
+      "recordedCombinedTestsPassed": 502,
+      "recordedVerdict": "NOT_READY_FOR_ACTIVATION",
+      "requests": 6,
+      "sourceName": "Alchemy HTTP"
+    },
+    "provenance": "REAL_EVIDENCE",
+    "qualification": "BOUNDED_PROBE_ONLY",
+    "reasonCode": null,
+    "sourceIds": [
+      "d49"
+    ]
+  },
+  "sources": {
+    "d43": {
+      "artifactId": "d43",
+      "coreBaselineCommit": "6a7e079",
+      "evidenceDate": "2026-10-03",
+      "integrity": "PINNED_BYTES",
+      "recordedAtNs": "1791014398607333000",
+      "sha256": "8df28a7d1cc07cd91f4fc01fe8ddcb2aaecb6f13afed2feae257258346f573a1",
+      "temporalScope": "RECORDED_SNAPSHOT"
+    },
+    "d44": {
+      "artifactId": "d44",
+      "coreBaselineCommit": "6a7e079",
+      "evidenceDate": "2026-10-03",
+      "integrity": "PINNED_BYTES",
+      "recordedAtNs": null,
+      "sha256": "efe143d358f0f3558e39c7aa57ac715bffd4926af13af123c84b24a053310f1a",
+      "temporalScope": "RECORDED_SNAPSHOT"
+    },
+    "d45": {
+      "artifactId": "d45",
+      "coreBaselineCommit": "6a7e079",
+      "evidenceDate": "2026-10-03",
+      "integrity": "PINNED_BYTES",
+      "recordedAtNs": null,
+      "sha256": "77a61bdc5bcc938d0d7570b57b53bbf634a21fb84eed111d459ea9889c161aaa",
+      "temporalScope": "RECORDED_SNAPSHOT"
+    },
+    "d46": {
+      "artifactId": "d46",
+      "coreBaselineCommit": "6a7e079",
+      "evidenceDate": "2026-10-03",
+      "integrity": "PINNED_BYTES",
+      "recordedAtNs": null,
+      "sha256": "74a939baa9e4e35f559ae25953d06a9ec8e45f81cdb3528376ad79baacfb311e",
+      "temporalScope": "RECORDED_SNAPSHOT"
+    },
+    "d47": {
+      "artifactId": "d47",
+      "coreBaselineCommit": "6a7e079",
+      "evidenceDate": "2026-10-03",
+      "integrity": "PINNED_BYTES",
+      "recordedAtNs": null,
+      "sha256": "72c5d3cb69149a7664a129a0f55763a64ecefceed98a26b460290b42315e0db8",
+      "temporalScope": "RECORDED_SNAPSHOT"
+    },
+    "d48": {
+      "artifactId": "d48",
+      "coreBaselineCommit": "6a7e079",
+      "evidenceDate": "2026-10-03",
+      "integrity": "PINNED_BYTES",
+      "recordedAtNs": null,
+      "sha256": "0abd776fdf970d74cd2deb08aaf3f0add9ad2024ec4f22005d514229fdc7218f",
+      "temporalScope": "RECORDED_SNAPSHOT"
+    },
+    "d49": {
+      "artifactId": "d49",
+      "coreBaselineCommit": "6a7e079",
+      "evidenceDate": "2026-10-03",
+      "integrity": "PINNED_BYTES",
+      "recordedAtNs": null,
+      "sha256": "f05249a999a0cd64a913404d64c5087034176cc9a4790082999224ccf5666d7e",
+      "temporalScope": "RECORDED_SNAPSHOT"
+    },
+    "f01": {
+      "artifactId": "f01",
+      "coreBaselineCommit": "6a7e079",
+      "evidenceDate": "2026-10-03",
+      "integrity": "PINNED_BYTES",
+      "recordedAtNs": null,
+      "sha256": "b86472406e06a15bd23124d208ba7f4a6ea8f2a4e5871603a316eb9aa0d6c8e9",
+      "temporalScope": "RECORDED_SNAPSHOT"
+    },
+    "registry_protocol": {
+      "artifactId": "registry_protocol",
+      "coreBaselineCommit": "6a7e079",
+      "evidenceDate": "2026-10-03",
+      "integrity": "PINNED_BYTES",
+      "recordedAtNs": null,
+      "sha256": "73eadc16686711725ab92c0e12b292fa9cbe6c6a2426bda99c6b95feeb0ee03d",
+      "temporalScope": "RECORDED_SNAPSHOT"
+    }
+  },
+  "system": {
+    "availability": "UNAVAILABLE",
+    "data": null,
+    "provenance": null,
+    "qualification": null,
+    "reasonCode": "NO_CURRENT_SERVICE_OR_HARDWARE_FEED",
+    "sourceIds": []
+  },
+  "trading": {
+    "availability": "UNAVAILABLE",
+    "data": null,
+    "provenance": null,
+    "qualification": null,
+    "reasonCode": "NO_APPROVED_TRADING_CONTRACT",
+    "sourceIds": []
+  }
+}

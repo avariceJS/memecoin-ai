@@ -1,0 +1,73 @@
+{
+  "schema": "brain-portability-dr-owner-deployment-pointer-v1",
+  "captured_at_utc": {
+    "start": "2026-10-14T02:50:49.494082Z",
+    "end": "2026-10-14T02:50:50.968617Z"
+  },
+  "source_commit": "9817c4f6fabe8ccac3501451aed4f50be3f4a9e3",
+  "owner_source": {
+    "head": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+    "branch": "main",
+    "dirty": false,
+    "head_behind_live_main_commits": 507,
+    "pointer_bundle_binds_owner_git_revision": false
+  },
+  "scope": {
+    "one_documented_nonprotected_owner_operator_pointer_read": true,
+    "pointer_schema": "deployment.json {bundle,pin}",
+    "pointer_bytes": 153,
+    "pointer_sha256": "db3f12d9e71fb58cfd966953877d6d2c9fcb7036e3e3d60b18bdd09992578fde",
+    "pointer_and_bundle_manifest_metadata_match_recursive_inventory_a3": true,
+    "pointer_and_bundle_paths_intersect_protected_candidate_inventory": false,
+    "pointer_and_bundle_path_components_symlink_free": true,
+    "private_candidate_inventory_sha256_verified": true,
+    "launchagent_fields_selected": ["ProgramArguments", "WorkingDirectory"],
+    "launchagent_environment_values_inspected_or_emitted": false,
+    "bundle_payload_contents_read_or_hashed": false,
+    "bundle_manifest_bytes": 16876,
+    "bundle_manifest_sha256": "fec78c60d5c93b4b1d9cf4a680843162169f214910b98cc135c194cee8e63c3a",
+    "deployment_pin_matches_manifest": true,
+    "protected_payloads_read": false,
+    "process_arguments_or_environments_read": false,
+    "secret_values_inspected_or_emitted": false,
+    "services_changed": false,
+    "provider_requests": 0
+  },
+  "current_service_counts": {
+    "captured_at_utc": "2026-10-14T02:50:49Z",
+    "brain_labels_loaded": 17,
+    "brain_labels_with_pid": 8,
+    "d43_labels_loaded": 1,
+    "d43_labels_with_pid": 0,
+    "operator_label_loaded_and_running": true,
+    "other_running_brain_roles_with_unresolved_identity": 7
+  },
+  "private_kingston_artifact": {
+    "relative_path": "host-recovery/private-deployment-pointer-20261014-a1",
+    "manifest_bytes": 2359,
+    "manifest_sha256": "2f18154fdd14418121b3c37f52090bb1ea14efa56d94ca5ba4b7b229a472af7e",
+    "complete_sha256": "ceae3582fd5c279ba638875d4e3696b42b0e9f076da84ffeaa055a284f5f5ff5",
+    "publication": "descriptor-bound create-only; COMPLETE marker published last",
+    "directory_mode_octal": "0700",
+    "file_modes_octal": ["0600"],
+    "fresh_descriptor_bound_readback_verified": true,
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8"
+  },
+  "qualification": {
+    "one_declared_operator_bundle_manifest_pin_verified": true,
+    "currently_executed_process_image_or_loaded_code_proven": false,
+    "other_running_brain_code_identities_proven": false,
+    "owner_wide_source_frontier_proven": false,
+    "owner_runtime_state_byte_custody_complete": false,
+    "protected_custody_closed": false,
+    "full_inert_brain_restore_rehearsed": false,
+    "safe_to_erase": false,
+    "limitations": [
+      "The exact bundle path remains only in the private Kingston manifest.",
+      "The pointer pin authenticates the bundle manifest bytes only; bundle payloads were not read, and no owner Git commit is bound by this manifest.",
+      "The running operator process may have loaded a different code image. Seven other running Brain roles remain unresolved.",
+      "This is a live point-in-time read, not an immutable owner-wide source view or complete recovery custody set."
+    ]
+  }
+}

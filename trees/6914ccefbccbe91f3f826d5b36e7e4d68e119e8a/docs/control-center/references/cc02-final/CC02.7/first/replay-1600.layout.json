@@ -1,0 +1,23 @@
+{
+  "page_overflow_px": 0,
+  "text_overlap_count": 0,
+  "card_escape_count": 0,
+  "unintended_clip_count": 0,
+  "page_overflow_hidden": false,
+  "allowed_scroll_containers": [
+    "replay-reason"
+  ],
+  "inspected_regions": [
+    "sidebar",
+    "header",
+    "main-grid",
+    "shell-containment"
+  ],
+  "shell_counts": {
+    "overflow_px": 0,
+    "text_overlap_count": 0,
+    "card_escape_count": 0,
+    "unintended_clip_count": 0
+  },
+  "samples": []
+}

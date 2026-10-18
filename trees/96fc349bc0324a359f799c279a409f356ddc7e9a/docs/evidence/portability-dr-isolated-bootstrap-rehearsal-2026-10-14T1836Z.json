@@ -1,0 +1,67 @@
+{
+  "schema": "brain-host-isolated-bootstrap-rehearsal-v1",
+  "recorded_at_utc": "2026-10-14T18:40:36Z",
+  "source": {
+    "branch": "research/active",
+    "commit": "8544c4d82ebc7dbf277cab5e68715e279f2b267b",
+    "fixture": "disposable local bare clone of the exact source checkout",
+    "remote_authentication_tested": false
+  },
+  "bootstrap": {
+    "state": "complete",
+    "entry_head_equals_requested_commit": true,
+    "final_head_equals_requested_commit": true,
+    "final_worktree_clean": true,
+    "python_version": "3.13.6",
+    "dependency_lock_sha256": "13a38c32b3c3ea4af3dc0da61be93ce1a5f5437aeb95b8039f1c31053bb7c7e5",
+    "pip_check": "passed",
+    "smoke": "passed",
+    "services_changed": false,
+    "storage_changed": false
+  },
+  "isolation": {
+    "temporary_home": true,
+    "system_git_config_disabled": true,
+    "global_git_config_disabled": true,
+    "pip_config_disabled": true,
+    "pip_cache_disabled": true,
+    "python_user_site_disabled": true,
+    "package_index": "https://pypi.org/simple",
+    "injected_host_pip_index": "https://127.0.0.1:9/simple",
+    "injected_host_pip_config_index": "https://127.0.0.1:9/simple",
+    "injected_host_pip_cache_path_used": false,
+    "injected_host_python_user_site_used": false,
+    "scope": "python_venv_install_checks_and_smoke",
+    "temporary_home_applies_to": "python_venv_install_checks_and_smoke",
+    "git_clone_and_fetch_use": "caller_environment_for_user_controlled_git_auth",
+    "python_version_probe_uses": "caller_environment"
+  },
+  "negative_cases": {
+    "unknown_exact_commit": {
+      "exit_code": 2,
+      "state": "failed",
+      "failed_stage": "fetch_exact_commit"
+    },
+    "preexisting_destination": {
+      "exit_code": 2,
+      "state": "invalid_request",
+      "error": "destination_must_be_new"
+    }
+  },
+  "scope": {
+    "same_host_isolated_code_bootstrap_only": true,
+    "package_index_requests": true,
+    "project_provider_requests": 0,
+    "production_or_owner_runtime_changed": false,
+    "brain_state_restored": false,
+    "clean_mac_rehearsed": false,
+    "safe_to_erase": false
+  },
+  "limitations": [
+    "The local bare Git fixture does not prove private GitHub authentication on a replacement Mac.",
+    "The run used the current Mac and its selected Python 3.13.6 interpreter; this is not a clean-Mac test.",
+    "Dependency versions are pinned by the lockfile, but package artifact hashes and offline availability are not established.",
+    "The deliberate invalid host index/config values did not affect pip because the bootstrap used an explicit PyPI index with pip config and cache disabled.",
+    "The helper intentionally leaves Git clone/fetch and the initial Python-version probe in the caller environment; pip/Python user-state isolation applies only to venv creation, dependency install/checks, the isolation probe, and smoke."
+  ]
+}

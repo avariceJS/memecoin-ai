@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-09",
+  "method": "getBlock",
+  "scope": "one finalized Solana slot; cross-provider response consistency only",
+  "request": {
+    "commitment": "finalized",
+    "encoding": "jsonParsed",
+    "transaction_details": "full",
+    "max_supported_transaction_version": 1,
+    "rewards": false,
+    "retry_count": 0
+  },
+  "block": {
+    "slot": 454538107,
+    "block_time_unix_seconds": 1791460702,
+    "blockhash_sha256": "3eec87f75eeae897bc32f543b6beb85a7203db55d536dc2929c15964e7a27f8e",
+    "previous_blockhash_sha256": "b4e8f955cd9cd524c5365d0e5150515b47242338703612c8d31db729d86bfb3d",
+    "parent_slot": 454538106,
+    "block_identity_agreed": true,
+    "transaction_count": 1132
+  },
+  "providers": [
+    {
+      "provider_alias": "alchemy_free",
+      "http_status": 200,
+      "transport_error": null,
+      "jsonrpc_error": null,
+      "latency_ms": 25474.2,
+      "response_bytes": 7079073,
+      "response_complete": true,
+      "response_sha256": "6858c7631538abb1206f21ee40086740f73104839b7074d402adc6864e241896",
+      "transaction_count": 1132,
+      "flattened_signature_count": 1171,
+      "ordered_flattened_signature_sha256": "d5528af37c6ca7fa1b5c2d5f2d72eb3ba4d57bda6a2c552085e2212067952889"
+    },
+    {
+      "provider_alias": "independent_public_solana_rpc",
+      "http_status": 200,
+      "transport_error": null,
+      "jsonrpc_error": null,
+      "latency_ms": 21862.5,
+      "response_bytes": 7073449,
+      "response_complete": true,
+      "response_sha256": "88d50f65b0467369bcab23ae9160e5f4ad0698dc1c1bfff2910d362ce3fa43bd",
+      "transaction_count": 1132,
+      "flattened_signature_count": 1171,
+      "ordered_flattened_signature_sha256": "d5528af37c6ca7fa1b5c2d5f2d72eb3ba4d57bda6a2c552085e2212067952889"
+    }
+  ],
+  "agreement": {
+    "transaction_order_and_flattened_signatures_agreed": true,
+    "ordered_flattened_signature_sha256": "d5528af37c6ca7fa1b5c2d5f2d72eb3ba4d57bda6a2c552085e2212067952889",
+    "block_identity_and_transaction_order_agreed": true
+  },
+  "interpretation": {
+    "single_slot_only": true,
+    "slot_range_coverage_established": false,
+    "rpc_transaction_list_exhaustiveness_established": false,
+    "market_process_coverage_established": false,
+    "market_zero_or_death_inference_permitted": false,
+    "support_status": "unknown",
+    "alchemy_free_cu_delta_available": false,
+    "request_count_cost_inferred": false
+  },
+  "raw_capture": "ignored work/brain-senses-source-qual-20261009/block-cross-provider/; mode 0700 directory and 0600 request/response files"
+}

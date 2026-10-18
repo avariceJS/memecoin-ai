@@ -1,0 +1,404 @@
+{
+  "stage": "B06",
+  "date": "2026-10-04",
+  "track": "Brain Development exploratory",
+  "plan_commit": "eafed8e",
+  "acquisition_code_commit": "7b4448b",
+  "replay_fix_commit": "d6bb9f2",
+  "verdict": {
+    "engineering_foundation": "fixture/recorded qualified",
+    "PumpSwap_production_admission": "REJECTED pending deployed ABI and Token-2022 qualification",
+    "indexed_source": "INCONCLUSIVE: client version config failure",
+    "long_running_activation": false,
+    "new_fits": 0,
+    "champion_changed": false,
+    "edge_established": false,
+    "next": "B07 deployed protocol/mint profile qualification + separate corrected bounded indexed probe"
+  },
+  "official_IDL": {
+    "commit": "cb188ce08b5069196eef1f3e4a0c43b70099793b",
+    "received_ns": 1791106195473849000,
+    "sha256": "2091433899b07d003d98118ae6cd3c628960fd393b40710b6e15bce6d0e7f2d1",
+    "url": "https://raw.githubusercontent.com/pump-fun/pump-public-docs/cb188ce08b5069196eef1f3e4a0c43b70099793b/idl/pump_amm.json"
+  },
+  "raw_interpretation": {
+    "transactions": 4,
+    "pump_swap_calls": 5,
+    "transaction_vault_reconciliation_passed": 4,
+    "fully_qualified_transactions": 0,
+    "training_eligible": false,
+    "swaps": [
+      {
+        "selected_pool": "58hou24rrRZkt5Zys9fx2j2twEgVNAphSn9Z48qdBcFB",
+        "actual_pool": "58hou24rrRZkt5Zys9fx2j2twEgVNAphSn9Z48qdBcFB",
+        "kind": "sell",
+        "path": [
+          3,
+          1
+        ],
+        "blockers": [
+          "unreviewed_remaining_accounts",
+          "token2022_extensions_unqualified",
+          "unknown_event_suffix"
+        ],
+        "movement": {
+          "base_amount": 6072309,
+          "base_decimals": 6,
+          "external_quote_fees": 3,
+          "quote_decimals": 9,
+          "quote_user_amount": 104,
+          "quote_vault_amount": 107
+        },
+        "event_bytes": 449,
+        "IDL_consumed_bytes": 441,
+        "unconsumed_hex": "0000000000000000",
+        "event_layout_verified": false
+      },
+      {
+        "selected_pool": "58hou24rrRZkt5Zys9fx2j2twEgVNAphSn9Z48qdBcFB",
+        "actual_pool": "CnWYyymRpynfxHcFkEAvCA6N7HnEWhTVozBrCfWatZ4a",
+        "kind": "buy_exact_quote_in",
+        "path": [
+          3,
+          9
+        ],
+        "blockers": [
+          "unreviewed_remaining_accounts",
+          "token2022_extensions_unqualified",
+          "unknown_event_suffix",
+          "event_transfer_mismatch"
+        ],
+        "movement": {
+          "base_amount": 2873567,
+          "base_decimals": 6,
+          "external_quote_fees": 2,
+          "quote_decimals": 9,
+          "quote_user_amount": 104,
+          "quote_vault_amount": 102
+        },
+        "event_bytes": 512,
+        "IDL_consumed_bytes": 504,
+        "unconsumed_hex": "6db5060000000000",
+        "event_layout_verified": false
+      },
+      {
+        "selected_pool": "8E1Zcg4VqnNetv4Pp6fVyYRFbDqUj3RueCcSyJM8sSSX",
+        "actual_pool": "8E1Zcg4VqnNetv4Pp6fVyYRFbDqUj3RueCcSyJM8sSSX",
+        "kind": "sell",
+        "path": [
+          2,
+          2
+        ],
+        "blockers": [
+          "unreviewed_remaining_accounts",
+          "token2022_extensions_unqualified",
+          "unknown_event_suffix"
+        ],
+        "movement": {
+          "base_amount": 49041121642,
+          "base_decimals": 6,
+          "external_quote_fees": 12153,
+          "quote_decimals": 9,
+          "quote_user_amount": 975628,
+          "quote_vault_amount": 987781
+        },
+        "event_bytes": 449,
+        "IDL_consumed_bytes": 441,
+        "unconsumed_hex": "0000000000000000",
+        "event_layout_verified": false
+      },
+      {
+        "selected_pool": "FXgVoNNDEZ5FaxCurucjCAJLogqkuuzNQJt3HGSg3HJP",
+        "actual_pool": "FXgVoNNDEZ5FaxCurucjCAJLogqkuuzNQJt3HGSg3HJP",
+        "kind": "sell",
+        "path": [
+          2,
+          5
+        ],
+        "blockers": [
+          "unreviewed_remaining_accounts",
+          "token2022_extensions_unqualified",
+          "unknown_event_suffix"
+        ],
+        "movement": {
+          "base_amount": 1861763697890,
+          "base_decimals": 6,
+          "external_quote_fees": 482339,
+          "quote_decimals": 9,
+          "quote_user_amount": 38724314,
+          "quote_vault_amount": 39206653
+        },
+        "event_bytes": 449,
+        "IDL_consumed_bytes": 441,
+        "unconsumed_hex": "9c09010000000000",
+        "event_layout_verified": false
+      },
+      {
+        "selected_pool": "ChhuEYyL8QeZq6YDVivaMhNibxmEfZVyttp1crXVngpo",
+        "actual_pool": "ChhuEYyL8QeZq6YDVivaMhNibxmEfZVyttp1crXVngpo",
+        "kind": "buy",
+        "path": [
+          6
+        ],
+        "blockers": [
+          "unreviewed_remaining_accounts",
+          "token2022_extensions_unqualified",
+          "unknown_event_suffix"
+        ],
+        "movement": {
+          "base_amount": 6324996,
+          "base_decimals": 6,
+          "external_quote_fees": 27868,
+          "quote_decimals": 9,
+          "quote_user_amount": 27950093,
+          "quote_vault_amount": 27922225
+        },
+        "event_bytes": 497,
+        "IDL_consumed_bytes": 489,
+        "unconsumed_hex": "af2e010000000000",
+        "event_layout_verified": false
+      }
+    ],
+    "source_B05_pin": "088d61f3ec317f13cdffa61451f3dd95f5372c07e0da8b4f273bdc6347eeb9f4",
+    "independent_provider_verification": false
+  },
+  "source_probe": {
+    "max_RPC": 5,
+    "actual_RPC": 1,
+    "max_nominal_CU": 440,
+    "reserved_nominal_CU": 100,
+    "monetary_USD": 0,
+    "obtained_pages": 0,
+    "retries": 0,
+    "provider_error": {
+      "category": "rpc_error",
+      "code": -32015,
+      "message": "Transaction version (0) is not supported by the requesting client. Please try the request again with the following configuration parameter: \"maxSupportedTransactionVersion\": 0",
+      "no_retry": true,
+      "reserved_CU": 100
+    },
+    "actual_billing_charge_known": false,
+    "source_entitlement_verified": false,
+    "measured_economy": false,
+    "budget_basis": "same-day owner no-PAYG/no-card, unchanged credential; new B06 autonomous read-only allocation",
+    "MCP_usage": {
+      "amount": 8520,
+      "dataThrough": "2026-10-04T09:36:00.000Z",
+      "provider_plan_verified": false,
+      "usd": "0.00"
+    }
+  },
+  "range_journal": {
+    "qualified_on": "fixtures only",
+    "live_indexed_pages": 0,
+    "anchor_not_completeness": true,
+    "limits_survive_restart": true,
+    "raw_seal_before_cursor": true,
+    "week_scale_performance_measured": false
+  },
+  "corpus": {
+    "bars": 15364,
+    "pools": 12,
+    "revision_observations": 185,
+    "revised_unique_keys": 126,
+    "receipt_UTC_hours": {
+      "497520": 3482,
+      "497521": 1371,
+      "497528": 10442,
+      "497529": 69
+    },
+    "sampling_bias": {
+      "age_balanced_pools_not_rows": true,
+      "current_ranking": true,
+      "deaths_unseen": true,
+      "liquidity_filtered": true,
+      "survivorship": true
+    }
+  },
+  "shadow": {
+    "as_of_ns": 1791106925498129000,
+    "predictions": 324,
+    "statuses": {
+      "censored": 6,
+      "scored": 302
+    },
+    "pending": 28,
+    "pending_after_offline_recovery": 16,
+    "recovered_mature_outcomes": 12,
+    "published_only": {
+      "blocks": 3,
+      "ci": null,
+      "inference": "exploratory; temporal1h clusters shared across all pools",
+      "pool_macro": {
+        "empirical": 0.0062294501150472305,
+        "gru": 0.007902205632746831,
+        "linear": 0.014785449915414755
+      },
+      "pooled": {
+        "empirical": 0.007464024344724574,
+        "gru": 0.008719742949275702,
+        "linear": 0.015726064987504274
+      },
+      "pools": 12,
+      "variants": 290
+    },
+    "overall": {
+      "blocks": 3,
+      "ci": null,
+      "inference": "exploratory; temporal1h clusters shared across all pools",
+      "pool_macro": {
+        "empirical": 0.006132151312506295,
+        "gru": 0.00792636970208613,
+        "linear": 0.014732814954094947
+      },
+      "pooled": {
+        "empirical": 0.007400545658314416,
+        "gru": 0.00881557179593377,
+        "linear": 0.015709039687919257
+      },
+      "pools": 12,
+      "variants": 302
+    },
+    "raw_reproduction_exact": true
+  },
+  "shadow_interpretation": {
+    "offline_recovery": 12,
+    "offline_recovery_scored_ns_semantics": "logical snapshot cutoff in legacy helper; NOT actual publication time",
+    "offline_results_available_no_earlier_than_this_review": true,
+    "online_outcomes_replaced": false,
+    "primary_comparison": "published_only",
+    "published_pending": 28,
+    "published_scored": 290,
+    "review_available_ns": 1791107069234754000,
+    "snapshot_manifest_sha": "c776d8d1bfaaf8fc9dcf6d19363c0f907c7da123484bd6731d4166d831ce2c4c"
+  },
+  "handoff": {
+    "observed_ns": 1791106987982045000,
+    "root": "/Users/root1/Desktop/memecoin-ai/work/brain-b04/prospective01",
+    "runtime": {
+      "bundle": "/Users/root1/Desktop/memecoin-ai/work/brain-b04/runtime01",
+      "pin": "f248c0305d81f684db7954d1c914c335c01c2ab0f9312d10ecc593ab6d2d183e",
+      "service_plist_sha": "d5c060ad7344c945bb3c09e6c7182c243ec3299ba4438b81c7df548c4bbb4b5f"
+    },
+    "stopped": false,
+    "expires_ns": 1791333023405597000,
+    "total_requests_reserved": 248,
+    "max_requests": 12000,
+    "predictions": 338,
+    "outcomes": {
+      "scored": 304,
+      "censored": 6
+    },
+    "pending_predictions": 28
+  },
+  "tests": {
+    "new": 23,
+    "base_passed": 588,
+    "optional_skips": 6,
+    "combined_passed": 614,
+    "check": true,
+    "smoke": true,
+    "build": true,
+    "wheel_reproduction_exact": true,
+    "frozen_B04_D50_verified": true
+  },
+  "artifacts": {
+    "indexed01": {
+      "path": "work/brain-b06/indexed01",
+      "manifest_sha256": "10afcea8fecc42e991706f0abd2069e8656798acdf6420b520060fc14e270e35"
+    },
+    "official01": {
+      "path": "work/brain-b06/official01",
+      "manifest_sha256": "0973db80ff91306cb85e1b57e8a5b3369c757bba7076711ec4fa334b461b1ac4"
+    },
+    "audit01": {
+      "path": "work/brain-b06/audit01",
+      "manifest_sha256": "9f26abb533b8ad2c3aacca9bbf4dbe3b58988ac4c7c6acdb42520b8603a237fb"
+    },
+    "bar-snapshot01": {
+      "path": "work/brain-b06/bar-snapshot01",
+      "manifest_sha256": "c776d8d1bfaaf8fc9dcf6d19363c0f907c7da123484bd6731d4166d831ce2c4c"
+    },
+    "status-initial.json": {
+      "path": "work/brain-b06/status-initial.json",
+      "sha256": "cdd6e66d692bc336a3803660cfe63669e2dca855541a43046e8f416e3bdffde4"
+    },
+    "status-handoff.json": {
+      "path": "work/brain-b06/status-handoff.json",
+      "sha256": "bdbe5cbd43fdf65c5f66be071a5ce15d44b6116585a1e2c7d11c01017ba4c5c0"
+    },
+    "provider-error-safe.json": {
+      "path": "work/brain-b06/provider-error-safe.json",
+      "sha256": "446c90a5e0a7a6ecce98cc0e880a60517373c603de4e9d838c8e65bc69a2edd4"
+    },
+    "acquisition-pin.json": {
+      "path": "work/brain-b06/acquisition-pin.json",
+      "sha256": "5492781fde908cfb283e54345cf1ed398710d539deb49296e9e9c875468775f1"
+    },
+    "wheel-reproduction.json": {
+      "path": "work/brain-b06/wheel-reproduction.json",
+      "sha256": "97559e2453fe6383f05cdcd89b41d013ac16def148d60d0fa39d9eb17854a8c0"
+    },
+    "shadow-review.json": {
+      "path": "work/brain-b06/shadow-review.json",
+      "sha256": "0f4256bb101e4b1c7e48d419953e58613c02188cddd0392f0d2e4560c133a131"
+    },
+    "frozen-verified.json": {
+      "path": "work/brain-b06/frozen-verified.json",
+      "sha256": "89053b15ffcdcfab14c5560acfcf9a5831c3ffd6f2982ab1a0d68d384d9ae60c"
+    },
+    "fixtures.log": {
+      "path": "work/brain-b06/fixtures.log",
+      "sha256": "9ba3b609b01928bf21efd9377872d501c54b627081cf61c1d883c002be9376c0"
+    },
+    "check.log": {
+      "path": "work/brain-b06/check.log",
+      "sha256": "6d844ca310a38c9f2636a205f86c68ecd987199efcead7eed721065793dc1fc0"
+    },
+    "combined.log": {
+      "path": "work/brain-b06/combined.log",
+      "sha256": "ce031cf25028899aeb9c14e3b5888be7dacb96400ee9d430ac1362ba46842f67"
+    },
+    "smoke.log": {
+      "path": "work/brain-b06/smoke.log",
+      "sha256": "e74f77ed30218c7b0e0aa7c4faeb5f7c14c732e05c56cd0d997cd9a3a05874e2"
+    },
+    "build.log": {
+      "path": "work/brain-b06/build.log",
+      "sha256": "566390202300e32ef7c149437133193ceda6bb5c8e00e8b85a763bba4b0cf975"
+    },
+    "indexed01-process.json": {
+      "path": "work/brain-b06/indexed01-process.json",
+      "sha256": "6664bf6c62255549ddd264ee46a687064c034d614d7541a1f500b7eb20ef9294"
+    },
+    "job-handoff.log": {
+      "path": "work/brain-b06/job-handoff.log",
+      "sha256": "a2399c0ccb03e68928b7b5b6342b1726212155d0ff1297d9ac5402c12dfdf572"
+    },
+    "initial-inspection-error.json": {
+      "path": "work/brain-b06/initial-inspection-error.json",
+      "sha256": "6d3b707cf2593f6c47626d3d59cff7ee66be35bd7e8f46e3a43ba4dcfb7337f3"
+    },
+    "documentation-error.json": {
+      "path": "work/brain-b06/documentation-error.json",
+      "sha256": "ede98cdb0a4d834303e19a90921c02c6cedec4cfece22bdcbe16cd737196a524"
+    }
+  },
+  "limits": [
+    "public IDL does not exhaust real payload; location and semantics of drift unknown",
+    "Token-2022 mint extensions and remaining accounts unqualified",
+    "one route-leg event user quote field mismatch:101 versus104 raw units",
+    "no raw-to-training admission, execution adapter or USD prices",
+    "indexed -32015 caused by omitted maxSupportedTransactionVersion; fixed offline only",
+    "no cost/page coverage conclusion from failed RPC",
+    "legacy offline shadow recovered scored_ns is cutoff, not actual publication; published_only used",
+    "B04 expiry and quota unchanged; no weekly activation",
+    "F01/D43/holdout untouched"
+  ],
+  "sources": [
+    "https://github.com/pump-fun/pump-public-docs/blob/cb188ce08b5069196eef1f3e4a0c43b70099793b/idl/pump_amm.json",
+    "https://www.anchor-lang.com/docs/features/events",
+    "https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-transactions-for-address",
+    "https://www.alchemy.com/docs/reference/compute-unit-costs"
+  ]
+}

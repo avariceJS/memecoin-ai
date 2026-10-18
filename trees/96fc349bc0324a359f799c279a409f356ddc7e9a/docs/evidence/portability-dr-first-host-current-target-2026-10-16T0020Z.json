@@ -1,0 +1,64 @@
+{
+  "schema": "portability-dr-first-host-current-target-bootstrap-v1",
+  "observed_at_utc": "2026-10-16T00:20:04Z",
+  "source_commit": "68253b84c5aefd8676b85b9415d2d242ada58d73",
+  "branch": "research/active",
+  "bootstrap": {
+    "remote": "https://github.com/avariceJS/memecoin-ai.git",
+    "exact_commit_fetch_and_detached_checkout": true,
+    "destination_was_new": true,
+    "destination_head": "68253b84c5aefd8676b85b9415d2d242ada58d73",
+    "destination_worktree_clean": true,
+    "python_version": "3.13.6",
+    "dependency_lock_sha256": "13a38c32b3c3ea4af3dc0da61be93ce1a5f5437aeb95b8039f1c31053bb7c7e5",
+    "venv_created": true,
+    "isolated_temporary_home": true,
+    "pip_configuration_disabled": true,
+    "pip_cache_disabled": true,
+    "python_user_site_disabled": true,
+    "pip_check": "passed",
+    "project_smoke": "passed",
+    "recovery_cli_help": "passed",
+    "state": "complete"
+  },
+  "entry_card": {
+    "kingston_sha256": "ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76",
+    "checkout_sha256": "ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76",
+    "matches": true,
+    "historical_last_content_change_commit": "edf2898ba4fb877ed8bee159fc9673754f7e12e4"
+  },
+  "host": {
+    "os": "Darwin",
+    "release": "25.5.0",
+    "architecture": "arm64",
+    "reused_owner_mac_and_auth_context": true
+  },
+  "focused_checks": {
+    "test_brain_host_recovery": "17 passed",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "git_diff_check": "passed"
+  },
+  "scope": {
+    "owner_or_brain_state_restored": false,
+    "services_changed": false,
+    "storage_changed": false,
+    "provider_requests": 0,
+    "protected_payloads_read": false,
+    "credentials_copied": false
+  },
+  "qualification": {
+    "published_exact_commit_code_bootstrap": true,
+    "entry_card_bytes_match_kingston": true,
+    "clean_compatible_host": false,
+    "kingston_brain_data_restore": false,
+    "owner_runtime_restore": false,
+    "inert_full_brain_restore": false,
+    "safe_to_erase": false
+  },
+  "limitations": [
+    "This rehearsal reused the owner Mac, its Git authentication context, network, toolchain, and attached volumes.",
+    "It tests exact code bootstrap and card-byte equality only; it does not restore Brain-owned data or runtime.",
+    "The independent trusted handoff with the exact source commit and card hash has not been persisted outside Kingston."
+  ]
+}

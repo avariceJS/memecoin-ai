@@ -1,0 +1,72 @@
+{
+  "at_ns": 1791755195072105000,
+  "authority": {
+    "activation": false,
+    "dispatch": false,
+    "economic_admission": false,
+    "provider_io": false,
+    "training": false
+  },
+  "candidate_path": "docs/evidence/external-v1-20261011T2133Z-successor-v2-candidate.json",
+  "candidate_sha256": "48feecec662b74b5428e31804784fcfd94d0f6916ef513e6490fe5c3f432c709",
+  "clock_corroboration": {
+    "checked_ns": 1791755193192514000,
+    "monotonic_ns": 3779545733411250,
+    "samples": [
+      {
+        "age": null,
+        "date": "Sun, 11 Oct 2026 21:46:33 GMT",
+        "host": "www.cloudflare.com",
+        "monotonic_received_ns": 3779545570870875,
+        "monotonic_sent_ns": 3779545373642916,
+        "received_ns": 1791755193029923000,
+        "sent_ns": 1791755192832634000,
+        "status": 200
+      },
+      {
+        "age": null,
+        "date": "Sun, 11 Oct 2026 21:46:33 GMT",
+        "host": "www.google.com",
+        "monotonic_received_ns": 3779545733411250,
+        "monotonic_sent_ns": 3779545571122208,
+        "received_ns": 1791755193192514000,
+        "sent_ns": 1791755193030175000,
+        "status": 200
+      }
+    ],
+    "schema": "brain-senses-external-v1-clock",
+    "schema_version": 1
+  },
+  "compiler_sha256": "ac8076e74adeada5c2044e6e6e32e7d4aebfc99777476afa51b350d01705eb6d",
+  "fd_count_before_after": [
+    4,
+    4
+  ],
+  "focused_compiler_verifier_tests": 34,
+  "focused_external_tests": 91,
+  "independent_manifest_unchanged": "91408a22d940238145be12671363a51f7f6ca61d8a4caea2880b2fcefa7e48c4",
+  "limitations": [
+    "Candidate is an offline qualification artifact; no v2 runtime exists or was activated.",
+    "Proposal windows must be regenerated and separately reviewed for any future live lease.",
+    "Local root/clock pins and hashes do not attest provider truth or exact billing."
+  ],
+  "predecessor_completion_sha256": "c92faf906a6fafd406d600880ca6354b03b5275baa0c70b24a9a368dfc4a4ded",
+  "predecessor_sha256": "e5840c659f7d4e94a375fa14cfffd0911989320c5ee581b75671889cd149790d",
+  "quiescence": {
+    "host_lock_held": true,
+    "launchagent_unloaded": true,
+    "service_lock_held": true,
+    "storage_lock_held": true
+  },
+  "ruff_format_mypy": "passed",
+  "schema": "external-successor-v2-actual-root-qualification",
+  "status": "passed_non_authorizing_only",
+  "test_receipt_date_erratum": {
+    "correction": "This is the Europe/Moscow calendar label; observation occurred on 2026-10-11 UTC. It is not an execution timestamp; no full-run log was persisted.",
+    "field": "recorded_date_utc",
+    "receipt": "docs/evidence/senses-external-full-suite-validation-2026-10-12.json",
+    "receipt_sha256": "513b77213b5f1c9759200fce5e9858bdb29a7f6126f3c231ca75530505e339ac",
+    "recorded_value": "2026-10-12"
+  },
+  "tests_sha256": "021c40b561a926bef41183cccd461b3bd0e15cd3b234fcb3c1524c00e09974b9"
+}

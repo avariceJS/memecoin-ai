@@ -1,0 +1,59 @@
+{
+  "schema": "portability-dr-launchagent-reconciliation-v1",
+  "observed_at_utc": "2026-10-15T23:01:00Z",
+  "status": "brain_d43_current_bytes_match_prior_opaque_custody",
+  "source": {
+    "scope": "immediate regular-file children of the current user's LaunchAgents directory",
+    "entry_count": 61,
+    "stable_no_follow_hash_count": 61,
+    "changed_or_unstable_count": 0,
+    "cross_file_snapshot": false
+  },
+  "prior_capture": {
+    "receipt": "portability-dr-launchagent-custody-2026-10-14T0143Z.json",
+    "archive_sha256": "5d5c26d73d60535f31795801af3a3ceacabe33124cfdc592f07cdfa23ea0540c",
+    "member_count": 60,
+    "role_counts": {
+      "brain": 55,
+      "protected_d43_opaque": 1,
+      "other_host_or_unclassified": 4
+    }
+  },
+  "reconciliation": {
+    "same_name_same_bytes": 60,
+    "changed": 0,
+    "missing": 0,
+    "added": 1,
+    "matched_brain_definitions": 55,
+    "matched_protected_d43_definitions_opaque": 1,
+    "matched_other_prior_definitions": 4,
+    "added_role": "other_or_unclassified",
+    "added_entry_label_matches_private_basename": true,
+    "added_entry_environment_variables_key_present": true,
+    "added_entry_environment_variable_count": 4,
+    "added_entry_environment_values_read": false,
+    "identity_label_read_for_added_entry_role_only": true,
+    "other_field_values_read": false,
+    "current_hashing": "no-follow descriptor reads with pre/post object identity, type, link-count, ownership, size, mtime, and ctime checks"
+  },
+  "private_roster": {
+    "storage": "Kingston BrainData private recovery metadata",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "sha256": "db64d16366526e2ac5cad15754e5b86067406f7aaaee5e4f21b9f6d03c072465",
+    "create_only_descriptor_bound_write": true,
+    "fresh_descriptor_readback_verified": true,
+    "contains_private_names_and_hashes": true
+  },
+  "qualification": {
+    "no_new_brain_or_d43_definition_byte_gap_observed": true,
+    "launchagents_fully_backed_up": false,
+    "xattrs_and_acls_complete": false,
+    "loaded_definitions_bound_to_disk_bytes": false,
+    "running_code_identity_bound": false,
+    "common_source_cutoff": false,
+    "full_restore_rehearsed": false,
+    "safe_to_erase": false,
+    "extra_non_brain_entry": "private and unresolved; not copied under Brain authority"
+  }
+}

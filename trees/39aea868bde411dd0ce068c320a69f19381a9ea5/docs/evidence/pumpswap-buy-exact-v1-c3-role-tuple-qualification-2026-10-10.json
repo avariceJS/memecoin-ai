@@ -1,0 +1,1596 @@
+{
+  "created_at_utc": "2026-10-10T05:26:52Z",
+  "evidence_id": "pumpswap-buy-exact-v1-c3-role-tuple-qualification-2026-10-10",
+  "limitations": [
+    "This validates structural IDL-position attribution only, not economic role orientation, pool state, settlement, amounts, pricing, fees, or completeness.",
+    "The 59 references are dependent observations from one sampled c3 frame and 27 pools.",
+    "Successful transaction status does not establish that the candidate instruction settled an economic fill.",
+    "Failed transaction references remain attempts without settlement."
+  ],
+  "result": {
+    "distinct_pools": 27,
+    "failed_transaction_references": 6,
+    "mints_nonaliased": true,
+    "no_conflicting_tuple_per_pool": true,
+    "pools": [
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "2kZ6zUPreSEBHZYtqTyX9L5C4pLkTZcdcr5k37aPAUGN",
+        "quote_mint": "EPByUcHk1ULFUiREP9mihbMWY4ACxbXvoes7R3iYW63D",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 3,
+        "pool": "4A75ccL4GaJxS49yY99VQTwPuoEyTDLNGg8SXBzTeK25",
+        "quote_mint": "8mrep8TdkF9t716NUjjuxqoJnTmwRVTKp31DryFaHqwB",
+        "quote_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "successful_references": 2
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "5FPnaangSbQvn39k7kEvLdABgmqttrFUEPayaGUwpEWn",
+        "quote_mint": "FXTJ2QCAyzu17NQ8kF28Gv1N5ZE2hbyodW3owoJinDS6",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "6kEt1sSyzDSMx4nr3vkHWpKzYKzZ68Jc7Un81s9ps1t6",
+        "quote_mint": "9YY6FoZbycnJsJUdnAhXJCFyvsDSEG4Fy9va3D93bpk2",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 3
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "6xr19y2TuJdB6XtZGMC5fRderZW9R7c3xE4BDC1ZcSLe",
+        "quote_mint": "5RjxvePmJFaZnjKtTTHtuAuSiXdWmn3jjyFZUS8G5kE8",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 1,
+        "pool": "7KS3k916DcuPQCWgyoHQ8GazEpQPHvRhPej1RLvbje9A",
+        "quote_mint": "mL5o2MLWjiRZsxwig1stgCNimL3nkCk55DDWtA3YsR4",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 0
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "8KCkBvagGLrtHAmbgaN8JgfycZxQay3t5RAxGh4H5kjU",
+        "quote_mint": "Daq9t7wzn36uxfe2nCd13tiMpPdwez3NvnwrGuNCh62u",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 2
+      },
+      {
+        "base_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "9FiN5WMFoHVaTeH8eP2VWa45kBTyjuUt436ksS1toDxV",
+        "quote_mint": "8aZucFWM6nfR69K6PY7b17BTnYexpC5r7cyPV2uHNSNK",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 2
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "9fHaKepDge4pLvfP6dPHeQPdvk1qgWjH244Yqj751ahC",
+        "quote_mint": "5FLiSkUrYWvxPAMMaNdtL4QFtceTFKBXshxTqRePVXh2",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 2
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "AEDSgMgCgD2PHFRfDD9ZbTJgAxKondDrRtADGWS3RBkG",
+        "quote_mint": "BMb4eRYu7on1N2VckV2BSKpiyr6SFBNHVGrYhYpxetCX",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "ANFhXY8fmUVE7kRpiQ1cEGJyqeUCoyNh2NkTrqnnHjUn",
+        "quote_mint": "23sWoMAUSEQ4sbVaPcRen1CVbYvxGXaL8MbvLAju2Bwc",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 3
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "ATvMQpjn38HtTKRBnWbYEZG7ZiiXD2TW9W1zJwdxUAvw",
+        "quote_mint": "D9iEbP1F38iZur7PhtCVmKS4dHcoPyTuTHVVmb2Zyt26",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 3
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "AZgECLWq2Xd7KfjKVt6jFuJTWmFxqBuhAA4PXKDMwVcr",
+        "quote_mint": "G8Bc5CoEM15pY7SLbfxDv7c7H6HkyxVFdLK8J6egUXaq",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 1,
+        "pool": "AcK47AGszYA6MKwbY9XuLUuhZqygv7rN2ejeo1LqjLrq",
+        "quote_mint": "HhRZYtKXntiSz4UtA7zm59LNU7qnqqPqeyFafs9V8TbR",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 3
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "BGPaWnJb2tydPWuZKd5nvCy8SbATdpxGdGKacu8Kgar4",
+        "quote_mint": "7fEDVwKfxnDEZAdcwaeJAWJreUEoTavZ4pKsS9SL7obm",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "BTNWc1d6EqKM12MyVhK3zTFjeUckRUr9xp4CdARFBNBe",
+        "quote_mint": "EKC3BKvhsfa9GF4KPqH4VN5FpiJndJ175ZjuLjo8ny9C",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "Bbm7UXFUs4N4kaMktZisJKkuVYuh8MnSbzgev7FhNFq1",
+        "quote_mint": "3SAiEmcrWULM2oRAcrtHGS2QLdK9vBkGAPxS44ZHWyC7",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "CxhDbi3WDpjtdUrbo5GLEFVLMM5uSx3MCiqc2tFJTtSw",
+        "quote_mint": "5f4jg6UQAex1PmsvYuKH29XJiJSLtDokBfnvYp4aAam7",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "DCCS7WwLf6f2WsEFhZ8jSPHBrsvT2JRTQR8ngycBbNTx",
+        "quote_mint": "7nK5oiiZSU1VjsudmLXudfFFFF1Y9JeM3nB3qWxPa4Cb",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 2
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "DSL3kXApTs63UGcMjZx4fVaGubj8iTcK8ogKRtXy9ysE",
+        "quote_mint": "6PWW6FcfpjzL8cE7tTrD3DXPqe3axovFWatyKCs7GNYn",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 3
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "DW9zHVTQUwjz8zDc4hSWUb1TiaEUGZEz5WjyxQ3tixET",
+        "quote_mint": "AFePRS33DGqQrhBT3ifJuhJKHb7DCZ53TAZ1RU3QRp6C",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "DZEeQy9WAEzn7aJhZGqmqrdLSMR4hKCrr7aPfUjPpfT5",
+        "quote_mint": "4TzztGHGcbCueahMVV74LmkykjQi5adswdLNnCRbDhTD",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 3
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "EcLqxcv7F1geQLBNQg3cawYnsuDzZRfDbcc1JqJM5UGa",
+        "quote_mint": "8U1HtiKtFShHcyAQFJoRdCCNEaWqKVrDcwbAUuW1BuQh",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 3
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "EnWyYP8Rwd3weJkVMffG4FoseKJqisS6tAXFXVdTQK72",
+        "quote_mint": "FAcMn3oZJfuVfPS3NpACapGqdzZog1iLstrBnVDMTwtK",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 2
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "G3iPb5PxxZgNZg7MGDWdcj1AhpsKVi4uiTZX9YbtTwQT",
+        "quote_mint": "BwcjC1pFRryBpmJ9T6s3mczQTWVCYF2LeoVWsVTgUtVc",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 1
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 0,
+        "pool": "H5A2rJp8RBJfNNPSZTQWfQsCwguBwKyUeY6pTcZuQBTN",
+        "quote_mint": "6sPxJWoBdSUsRsGF9hg7G3ewodPhHqw4ax6LNaid14Sj",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 2
+      },
+      {
+        "base_mint": "So11111111111111111111111111111111111111112",
+        "base_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "failed_transaction_references": 1,
+        "pool": "HFxXFny98pN7YuhH5cqikY2MQzQrCnQ78E9eQW72eMJq",
+        "quote_mint": "7wYVEczBNpijdhGuD5tTYwZgCu8PdH62GA8gAGNVzGuu",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "successful_references": 7
+      }
+    ],
+    "raw_roles_match_census": true,
+    "references_verified": 59,
+    "successful_transaction_references": 53,
+    "suffix_candidate_references": 59,
+    "suffix_references": [
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "G3iPb5PxxZgNZg7MGDWdcj1AhpsKVi4uiTZX9YbtTwQT",
+        "quote_mint": "BwcjC1pFRryBpmJ9T6s3mczQTWVCYF2LeoVWsVTgUtVc",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "J81KFT9pSVJTuajCiUXeQ4hfsKJrCw4wrcMzxfsUDioK"
+        ],
+        "signature": "4J4Bqc6PYG2N7higuAFnmSi5fRwgbLEDJgmR8idm5eoJYyLby34LgK7AYc8rCjhh82koZkAZdDULsShQ2vCZsCqh",
+        "slot": 455118532,
+        "source_checks_pass": true,
+        "transaction_index": 787,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "AcK47AGszYA6MKwbY9XuLUuhZqygv7rN2ejeo1LqjLrq",
+        "quote_mint": "HhRZYtKXntiSz4UtA7zm59LNU7qnqqPqeyFafs9V8TbR",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2GjRY121W187JQRu47DhxepUn9jn65m7LJozEbgAtGdp"
+        ],
+        "signature": "5gCVnzJgn4Mo39VwoNNQjSvWPqPmaqqtdd8jdujw6fv2nPhMndN3MBPEsY2ryMgVakFL8TwwC4b7hwavi5Y7LLhJ",
+        "slot": 455119007,
+        "source_checks_pass": true,
+        "transaction_index": 214,
+        "transaction_status": "failed",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "DZEeQy9WAEzn7aJhZGqmqrdLSMR4hKCrr7aPfUjPpfT5",
+        "quote_mint": "4TzztGHGcbCueahMVV74LmkykjQi5adswdLNnCRbDhTD",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "GW9F2RwgB6btVHey3UimARBhHEqsZ6tqLEHyRvnp75YE"
+        ],
+        "signature": "2UwdXtqgwptyc5HGYUGaWWb8y9dXaWF7A1s3gCpfMfb4wHqk12xb7MxZTt55GKR5fv5xK2fMdbTbLLtTRFhBf293",
+        "slot": 455119007,
+        "source_checks_pass": true,
+        "transaction_index": 641,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "4A75ccL4GaJxS49yY99VQTwPuoEyTDLNGg8SXBzTeK25",
+        "quote_mint": "8mrep8TdkF9t716NUjjuxqoJnTmwRVTKp31DryFaHqwB",
+        "quote_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "5V33ZP777nYaCjEPd7xF3akNSDnp9P11eqhp5jnP3gtB"
+        ],
+        "signature": "4MXx2Y3MEqDoW3WT6jXHDUtSCvRZkq63ufApqyyQj1u1Qn9LcxRx1QdVZMMxoBjbBB361Axm8YfhaMSSXkhAxtTL",
+        "slot": 455119007,
+        "source_checks_pass": true,
+        "transaction_index": 812,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "H5A2rJp8RBJfNNPSZTQWfQsCwguBwKyUeY6pTcZuQBTN",
+        "quote_mint": "6sPxJWoBdSUsRsGF9hg7G3ewodPhHqw4ax6LNaid14Sj",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "3raTCCmejjUgfZxCBN7oCeBs8vXUAPhK73BEaBxjcAvV"
+        ],
+        "signature": "CAUB1xSZyjoZL2F88qruDHkNhQ96dMsxcow7mnaKgnmVpMsD5zouwStFL7J9kUVuGwokggtsqRkhwRNmiNvWACN",
+        "slot": 455119007,
+        "source_checks_pass": true,
+        "transaction_index": 887,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "DZEeQy9WAEzn7aJhZGqmqrdLSMR4hKCrr7aPfUjPpfT5",
+        "quote_mint": "4TzztGHGcbCueahMVV74LmkykjQi5adswdLNnCRbDhTD",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "GW9F2RwgB6btVHey3UimARBhHEqsZ6tqLEHyRvnp75YE"
+        ],
+        "signature": "2NM53vmq4uwYWjYbbEpqK7n3cqRehFxKNagoas3wAhRE8xNbbca2f9AmMW1rWmMh5dUccUGkcjDAEXgh5TBacJ74",
+        "slot": 455121087,
+        "source_checks_pass": true,
+        "transaction_index": 32,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          8
+        ],
+        "pool": "HFxXFny98pN7YuhH5cqikY2MQzQrCnQ78E9eQW72eMJq",
+        "quote_mint": "7wYVEczBNpijdhGuD5tTYwZgCu8PdH62GA8gAGNVzGuu",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2QoEVrDtSWBhVNfMA3UU1H3ntr6v859GaS8apnyNR2fH"
+        ],
+        "signature": "2gGNfgSh9Hcs49Bk1h7cHagBUTrCeJpfNMoEFd8eZPtvNVpLuC29a3NzvGUa3eSqfrgNFhoqurFVXBBBEyD7Ls3y",
+        "slot": 455121087,
+        "source_checks_pass": true,
+        "transaction_index": 47,
+        "transaction_status": "failed",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "HFxXFny98pN7YuhH5cqikY2MQzQrCnQ78E9eQW72eMJq",
+        "quote_mint": "7wYVEczBNpijdhGuD5tTYwZgCu8PdH62GA8gAGNVzGuu",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2QoEVrDtSWBhVNfMA3UU1H3ntr6v859GaS8apnyNR2fH"
+        ],
+        "signature": "2FSCbEjGE23vYSCXFPNvbFLqPEzwH49JPuHHEaQ9JnS6TMtKqNJKnygr9Ndp4NwX3N5HABQra8hSpg3RZwMFKVFu",
+        "slot": 455121087,
+        "source_checks_pass": true,
+        "transaction_index": 137,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "AcK47AGszYA6MKwbY9XuLUuhZqygv7rN2ejeo1LqjLrq",
+        "quote_mint": "HhRZYtKXntiSz4UtA7zm59LNU7qnqqPqeyFafs9V8TbR",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2GjRY121W187JQRu47DhxepUn9jn65m7LJozEbgAtGdp"
+        ],
+        "signature": "53asDMHyzR1JvyU4yNqfSe9AxKpL5tuXaGrgnz2RLMA7QMF9VBY6L3aLgLWXx1eTc5X2a3ZciRc3RNjStLfmLDGu",
+        "slot": 455121087,
+        "source_checks_pass": true,
+        "transaction_index": 139,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "6kEt1sSyzDSMx4nr3vkHWpKzYKzZ68Jc7Un81s9ps1t6",
+        "quote_mint": "9YY6FoZbycnJsJUdnAhXJCFyvsDSEG4Fy9va3D93bpk2",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "4dGsJvwz1q2SPwLjbVZcirCLf7dUVcYK93CKbhQquTvN"
+        ],
+        "signature": "294ynKzhnpLcnmRi8WLjGzsVg8Xt8HshktotZ79uJNvfJGTmB5Y8r1H9xd8pzs5yXivNoMnBKaEkyUkktXyCZj2v",
+        "slot": 455121087,
+        "source_checks_pass": true,
+        "transaction_index": 343,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "HFxXFny98pN7YuhH5cqikY2MQzQrCnQ78E9eQW72eMJq",
+        "quote_mint": "7wYVEczBNpijdhGuD5tTYwZgCu8PdH62GA8gAGNVzGuu",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2QoEVrDtSWBhVNfMA3UU1H3ntr6v859GaS8apnyNR2fH"
+        ],
+        "signature": "4H2zdtvJuKdeDsppNkcYpnkk51cWqP75i3KRNEmGH8nUzwVqjcAmV6vAqQ7nmJMF7HPccowPF8BFiWf6xKNZ8wYq",
+        "slot": 455122471,
+        "source_checks_pass": true,
+        "transaction_index": 22,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "AEDSgMgCgD2PHFRfDD9ZbTJgAxKondDrRtADGWS3RBkG",
+        "quote_mint": "BMb4eRYu7on1N2VckV2BSKpiyr6SFBNHVGrYhYpxetCX",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "3gPjpdum5YBuSRxkcWmSxZxgTg1aTPqvSYrzz3jUTh8r"
+        ],
+        "signature": "iECcCEVZM9zFV9L9Mv9q1h4RvHjf7WHXv2ALMu26gY8KBXsmvxWo8JRLzFeC3A2kgwXbVCZfhJatAux7ZrRKG5N",
+        "slot": 455122471,
+        "source_checks_pass": true,
+        "transaction_index": 36,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "6kEt1sSyzDSMx4nr3vkHWpKzYKzZ68Jc7Un81s9ps1t6",
+        "quote_mint": "9YY6FoZbycnJsJUdnAhXJCFyvsDSEG4Fy9va3D93bpk2",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "4dGsJvwz1q2SPwLjbVZcirCLf7dUVcYK93CKbhQquTvN"
+        ],
+        "signature": "3pje3ikkJ7UPmcYB4kRWBwL8qgtn5fs4uGYVfd9gdsRurp9sTM7G5y8wpXUEM11msWWgMAWxyaWbvBhqyvPL3GQs",
+        "slot": 455122471,
+        "source_checks_pass": true,
+        "transaction_index": 46,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          7
+        ],
+        "pool": "4A75ccL4GaJxS49yY99VQTwPuoEyTDLNGg8SXBzTeK25",
+        "quote_mint": "8mrep8TdkF9t716NUjjuxqoJnTmwRVTKp31DryFaHqwB",
+        "quote_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "5V33ZP777nYaCjEPd7xF3akNSDnp9P11eqhp5jnP3gtB"
+        ],
+        "signature": "4tVxGELVseGbTm5xmsPtMBKzf3dymvwgLNpA6ABpGvkz4anreaZ5rDgDxNkrPHAspoJ6qeq4PJvdM83AVpT5RgCL",
+        "slot": 455122471,
+        "source_checks_pass": true,
+        "transaction_index": 49,
+        "transaction_status": "failed",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          9
+        ],
+        "pool": "7KS3k916DcuPQCWgyoHQ8GazEpQPHvRhPej1RLvbje9A",
+        "quote_mint": "mL5o2MLWjiRZsxwig1stgCNimL3nkCk55DDWtA3YsR4",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "6PBtUqSVL9ERp265cW7DxVhQevPaXi6tB1CW4ffiL2PN"
+        ],
+        "signature": "3kmDr1zCUyodpj5WNQziocUMHZbaLVAuSQz8R5PrgGNM5DdzjopxpUmZVmSywNdWgnMmJ8qqU11yn6ijxW3p6xMJ",
+        "slot": 455122471,
+        "source_checks_pass": true,
+        "transaction_index": 55,
+        "transaction_status": "failed",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "9FiN5WMFoHVaTeH8eP2VWa45kBTyjuUt436ksS1toDxV",
+        "quote_mint": "8aZucFWM6nfR69K6PY7b17BTnYexpC5r7cyPV2uHNSNK",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD",
+          "G88b2gGgfnE5mrBfjZAtstRhxcPNVsywk8aXNxQDVryS"
+        ],
+        "signature": "54GWtoTUqkZRst2Rv2g7NXNgq1ByqmUBw41R9dFW52VK6qPTsRw3mFbxhCReFpD3b4qTrsqb2RcH1mLVgpUufD17",
+        "slot": 455122471,
+        "source_checks_pass": true,
+        "transaction_index": 598,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "8KCkBvagGLrtHAmbgaN8JgfycZxQay3t5RAxGh4H5kjU",
+        "quote_mint": "Daq9t7wzn36uxfe2nCd13tiMpPdwez3NvnwrGuNCh62u",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "GogaBUCApiMp2gavnFFH5UgrWiGPwsBB1xA43CBJLnp"
+        ],
+        "signature": "57a2uCmXFK8SFaP8tdUomgAYcdw8bKeQhvaDEC5B8gGsENQuZDffUiMm2xUkJzL9Fq51qoHYbw5VhrJbhZZUit4F",
+        "slot": 455124489,
+        "source_checks_pass": true,
+        "transaction_index": 164,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "4A75ccL4GaJxS49yY99VQTwPuoEyTDLNGg8SXBzTeK25",
+        "quote_mint": "8mrep8TdkF9t716NUjjuxqoJnTmwRVTKp31DryFaHqwB",
+        "quote_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "5V33ZP777nYaCjEPd7xF3akNSDnp9P11eqhp5jnP3gtB"
+        ],
+        "signature": "2GzF7nm2FxDUjoWDXxK9Zz2tVVchsr3teq3cM85o42YoeVUqxq5FrFqRCUHboAerDkV8skFg63ueCDoJSPnNxJ3n",
+        "slot": 455124489,
+        "source_checks_pass": true,
+        "transaction_index": 167,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          7
+        ],
+        "pool": "4A75ccL4GaJxS49yY99VQTwPuoEyTDLNGg8SXBzTeK25",
+        "quote_mint": "8mrep8TdkF9t716NUjjuxqoJnTmwRVTKp31DryFaHqwB",
+        "quote_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "5V33ZP777nYaCjEPd7xF3akNSDnp9P11eqhp5jnP3gtB"
+        ],
+        "signature": "22k51JJpsUegv3y6UyNvFDJDqpb4czfYkQVLGEcxTejtAagYfd7tH83c6oSDVV1LuW5CbxeaiFPtseuo8zGWftc7",
+        "slot": 455124489,
+        "source_checks_pass": true,
+        "transaction_index": 336,
+        "transaction_status": "failed",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "HFxXFny98pN7YuhH5cqikY2MQzQrCnQ78E9eQW72eMJq",
+        "quote_mint": "7wYVEczBNpijdhGuD5tTYwZgCu8PdH62GA8gAGNVzGuu",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2QoEVrDtSWBhVNfMA3UU1H3ntr6v859GaS8apnyNR2fH"
+        ],
+        "signature": "5XQNrpnUhporGHAYj2BiRRn8UdTz7epHQkD13sFpP7SR6CA9zRzGX3w1emEuRpKv6orNt7Qf9NAt9LW91ARnHD8z",
+        "slot": 455124489,
+        "source_checks_pass": true,
+        "transaction_index": 1038,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "AcK47AGszYA6MKwbY9XuLUuhZqygv7rN2ejeo1LqjLrq",
+        "quote_mint": "HhRZYtKXntiSz4UtA7zm59LNU7qnqqPqeyFafs9V8TbR",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2GjRY121W187JQRu47DhxepUn9jn65m7LJozEbgAtGdp"
+        ],
+        "signature": "3sJdEu88qxipyghKDeCJQyRTDoTKysotJmDSbf1AKpD6AB49BNenuf356GgkzHqFaAAq1RqiLCzpsNNmCYiyDRnx",
+        "slot": 455124489,
+        "source_checks_pass": true,
+        "transaction_index": 1039,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "DZEeQy9WAEzn7aJhZGqmqrdLSMR4hKCrr7aPfUjPpfT5",
+        "quote_mint": "4TzztGHGcbCueahMVV74LmkykjQi5adswdLNnCRbDhTD",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "GW9F2RwgB6btVHey3UimARBhHEqsZ6tqLEHyRvnp75YE"
+        ],
+        "signature": "4UQU2aWzuDVTy96WTqwD7AG8b8punA2jMoVcaAzdWKNDyZNjuej8iyvTRm7CoDy7X8vuLHTqtLqRqyp9YZW4jtVh",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 97,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "8KCkBvagGLrtHAmbgaN8JgfycZxQay3t5RAxGh4H5kjU",
+        "quote_mint": "Daq9t7wzn36uxfe2nCd13tiMpPdwez3NvnwrGuNCh62u",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "GogaBUCApiMp2gavnFFH5UgrWiGPwsBB1xA43CBJLnp"
+        ],
+        "signature": "2bKACgr1BYvkc3zCVyFrgBXY1JGNtKe8iov8k3Tw7s1sBeo2HV8ygSsdbYdH3PHUrWrBc21EZZ1MuHK56z2GwFrp",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 266,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "ATvMQpjn38HtTKRBnWbYEZG7ZiiXD2TW9W1zJwdxUAvw",
+        "quote_mint": "D9iEbP1F38iZur7PhtCVmKS4dHcoPyTuTHVVmb2Zyt26",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "8s8RdeG7FTwtwnJFTgqeejsyXnxNFe81fuJPEdUeNGJX"
+        ],
+        "signature": "2kAMyGPWS595LKi2L1K6exKKPzJrYJCwpGBLcCeSw9eTFvbBDmedKnURpsUn3y8CQ3TEDn1yNq2imL8wpB6iw47Y",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 389,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "ATvMQpjn38HtTKRBnWbYEZG7ZiiXD2TW9W1zJwdxUAvw",
+        "quote_mint": "D9iEbP1F38iZur7PhtCVmKS4dHcoPyTuTHVVmb2Zyt26",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "8s8RdeG7FTwtwnJFTgqeejsyXnxNFe81fuJPEdUeNGJX"
+        ],
+        "signature": "2DVZZN1mSKWb9258L8PEMBViYhugPG5SiEjLL8Sush9R1sV4e3UzVeNHKPfFchKRi5YNi7PiLQv45fMfvHTyaVao",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 390,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "H5A2rJp8RBJfNNPSZTQWfQsCwguBwKyUeY6pTcZuQBTN",
+        "quote_mint": "6sPxJWoBdSUsRsGF9hg7G3ewodPhHqw4ax6LNaid14Sj",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "3raTCCmejjUgfZxCBN7oCeBs8vXUAPhK73BEaBxjcAvV"
+        ],
+        "signature": "5e9yfLrJ5ffVFLX3Lkzka852JgRU5mSVNWmuwftQWcgSFTLmrW4RJvCZqaD9kVzV4rNK2oTDsEawRopSTPsy5aLx",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 391,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "BTNWc1d6EqKM12MyVhK3zTFjeUckRUr9xp4CdARFBNBe",
+        "quote_mint": "EKC3BKvhsfa9GF4KPqH4VN5FpiJndJ175ZjuLjo8ny9C",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "BQEhHKKaEHrfE72kmKfeWecjiXMdaBw31cVFBJegRoMA"
+        ],
+        "signature": "2qg3FVWeZVw2wdCE7SzQXr9xBN81t7pvrHLKVpffwBeyvL9LtRTa5uCjLtdz4LXXfHU5NbpWafiqxLmuxEWKC3PD",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 393,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "AZgECLWq2Xd7KfjKVt6jFuJTWmFxqBuhAA4PXKDMwVcr",
+        "quote_mint": "G8Bc5CoEM15pY7SLbfxDv7c7H6HkyxVFdLK8J6egUXaq",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2oXS9TnsTFjHst35HdmG7FeiGXJBV18sNx58tnYRNz31"
+        ],
+        "signature": "5ZjdGCk71P3QijzhjhU4BrnsezZK6B4WzQFNkvL9bArW5dkBHcjPbriU3ZsgGLJV1VbojuNMhBuEeToJ6wt1WnUo",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 394,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "HFxXFny98pN7YuhH5cqikY2MQzQrCnQ78E9eQW72eMJq",
+        "quote_mint": "7wYVEczBNpijdhGuD5tTYwZgCu8PdH62GA8gAGNVzGuu",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2QoEVrDtSWBhVNfMA3UU1H3ntr6v859GaS8apnyNR2fH"
+        ],
+        "signature": "3tN5u971hj6khRmg4sg7yPPohwiUcEV5NU4LSVHd7DevaU3C2ep1GMLe6dD9vTMWTKc5kUsiN8AqF4YCHtrerigN",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 412,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "ANFhXY8fmUVE7kRpiQ1cEGJyqeUCoyNh2NkTrqnnHjUn",
+        "quote_mint": "23sWoMAUSEQ4sbVaPcRen1CVbYvxGXaL8MbvLAju2Bwc",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "Frqc7WPEFCfADWoWmFJVkqvUhkauxtfriwjSt9BywVCH"
+        ],
+        "signature": "2TUQGCdanQcT8Lf32pbwdwK5RFzNJLQ8r9wg41wwGh321ZanhkyrTdJWDLgjR3L2Kzid7KYpDsES7xxNPUBbFG85",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 414,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "6kEt1sSyzDSMx4nr3vkHWpKzYKzZ68Jc7Un81s9ps1t6",
+        "quote_mint": "9YY6FoZbycnJsJUdnAhXJCFyvsDSEG4Fy9va3D93bpk2",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "4dGsJvwz1q2SPwLjbVZcirCLf7dUVcYK93CKbhQquTvN"
+        ],
+        "signature": "4tgd9Q9VsKZCqndenKh6GaWD3jBtwa8Mk9dpGXmv2FpWpqyx1iNbpMgMTfZ17i6ABCpTw2gYWN1HGB9xDMwxCuXB",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 454,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "AcK47AGszYA6MKwbY9XuLUuhZqygv7rN2ejeo1LqjLrq",
+        "quote_mint": "HhRZYtKXntiSz4UtA7zm59LNU7qnqqPqeyFafs9V8TbR",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2GjRY121W187JQRu47DhxepUn9jn65m7LJozEbgAtGdp"
+        ],
+        "signature": "SAfVng9UTBZQwK3uMhW5fMX6somrEQ65dJNb6s34BY6BSCNGVSRDXBAxA7DV4VALdczzwrKcUiJSLbTEWymerSy",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 461,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          8
+        ],
+        "pool": "ATvMQpjn38HtTKRBnWbYEZG7ZiiXD2TW9W1zJwdxUAvw",
+        "quote_mint": "D9iEbP1F38iZur7PhtCVmKS4dHcoPyTuTHVVmb2Zyt26",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "8s8RdeG7FTwtwnJFTgqeejsyXnxNFe81fuJPEdUeNGJX"
+        ],
+        "signature": "2SbvPovR1hNFopFB8sGBpcEscRrFgF2pT6Zu8nZubjaGssZNCu1u4eEyzWhxn7ecMr5jqchKgjed23bX7dGgbaFL",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 520,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "5FPnaangSbQvn39k7kEvLdABgmqttrFUEPayaGUwpEWn",
+        "quote_mint": "FXTJ2QCAyzu17NQ8kF28Gv1N5ZE2hbyodW3owoJinDS6",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "DSGaS4KqVVgUYF1obMgVzvbQv3TGJsc1iwUHqeJhQSGM"
+        ],
+        "signature": "QjfZ4X1fM5JALsKdMUwEQtf8KL4d5rdm9MgzeipzQJfjEAMmZTtwcvZc8c8r8DTqiGZb3bX3TYV7g2DnZacjpaK",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 573,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          8
+        ],
+        "pool": "HFxXFny98pN7YuhH5cqikY2MQzQrCnQ78E9eQW72eMJq",
+        "quote_mint": "7wYVEczBNpijdhGuD5tTYwZgCu8PdH62GA8gAGNVzGuu",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2QoEVrDtSWBhVNfMA3UU1H3ntr6v859GaS8apnyNR2fH"
+        ],
+        "signature": "3Zco8YL5i26Zz3WprvVfWffAezUxvBA1QeRRYtzhYc9CWSHySjjdXgd1XQd1zuJkDVUsBYjEscg3G2VTXnkrEbA4",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 574,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          7
+        ],
+        "pool": "4A75ccL4GaJxS49yY99VQTwPuoEyTDLNGg8SXBzTeK25",
+        "quote_mint": "8mrep8TdkF9t716NUjjuxqoJnTmwRVTKp31DryFaHqwB",
+        "quote_token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "5V33ZP777nYaCjEPd7xF3akNSDnp9P11eqhp5jnP3gtB"
+        ],
+        "signature": "67SaJQTMUrsH3KL9srkPpbJfRdvCWnUpaYcGdfckYSYr2T8mCNNyfLgzsvd281rbEs5U1TovK5t3aiy8eoQfCRdE",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 581,
+        "transaction_status": "failed",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          8
+        ],
+        "pool": "HFxXFny98pN7YuhH5cqikY2MQzQrCnQ78E9eQW72eMJq",
+        "quote_mint": "7wYVEczBNpijdhGuD5tTYwZgCu8PdH62GA8gAGNVzGuu",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2QoEVrDtSWBhVNfMA3UU1H3ntr6v859GaS8apnyNR2fH"
+        ],
+        "signature": "Wn62ZKXh7zZCjMromqrrioiaFjWwHMwFYEPjuAvyT5R5US95CJ3RRJnhea7j5iw7VLh8xB7whEtUwxsHEDCYuLf",
+        "slot": 455125204,
+        "source_checks_pass": true,
+        "transaction_index": 1117,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "HFxXFny98pN7YuhH5cqikY2MQzQrCnQ78E9eQW72eMJq",
+        "quote_mint": "7wYVEczBNpijdhGuD5tTYwZgCu8PdH62GA8gAGNVzGuu",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "2QoEVrDtSWBhVNfMA3UU1H3ntr6v859GaS8apnyNR2fH"
+        ],
+        "signature": "4HjEQ4gqM5wRa9gVhT1ve5nKPb27MWdMonZ3mkmopUVBPHWuzRqTKe86d7QAYDBHLwjTfiXASir5pArBUDBT9Et1",
+        "slot": 455128514,
+        "source_checks_pass": true,
+        "transaction_index": 596,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "CxhDbi3WDpjtdUrbo5GLEFVLMM5uSx3MCiqc2tFJTtSw",
+        "quote_mint": "5f4jg6UQAex1PmsvYuKH29XJiJSLtDokBfnvYp4aAam7",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "4r256tU6EiQAtZHSin77SJR7r2riNs5vca4gRXDcwwKV"
+        ],
+        "signature": "3kBYTyFL9EHZpU5NiaFKug75AK9jKFD1uecSqNH19B39PxEPchKaaWNXu8LoD1htb1mKcSC6cZZ6z1akUNz8vRaP",
+        "slot": 455128514,
+        "source_checks_pass": true,
+        "transaction_index": 598,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "ANFhXY8fmUVE7kRpiQ1cEGJyqeUCoyNh2NkTrqnnHjUn",
+        "quote_mint": "23sWoMAUSEQ4sbVaPcRen1CVbYvxGXaL8MbvLAju2Bwc",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "Frqc7WPEFCfADWoWmFJVkqvUhkauxtfriwjSt9BywVCH"
+        ],
+        "signature": "2gicguTSez93snGsbUgcwV4cDQ9VujbtEpiyowmoNvYccXoDjUmczk3Cka1if3nwpyaC97yLrY9UX9jgVy9Q4qnt",
+        "slot": 455128514,
+        "source_checks_pass": true,
+        "transaction_index": 750,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "9FiN5WMFoHVaTeH8eP2VWa45kBTyjuUt436ksS1toDxV",
+        "quote_mint": "8aZucFWM6nfR69K6PY7b17BTnYexpC5r7cyPV2uHNSNK",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "5eHhjP8JaYkz83CWwvGU2uMUXefd3AazWGx4gpcuEEYD",
+          "DRHnmi5NftLiDhdeVnj2UNLRjscNAgdmtT2jaghMdXSb"
+        ],
+        "signature": "5WJ4KTvqR6WnUvLus6Lhh7VC4RqRTiDyiUZB6VdzVuAtffuQ9BqRRwWXkkUy37jsRggitkMr3LmZ1tf1B4Lf7HJ1",
+        "slot": 455128514,
+        "source_checks_pass": true,
+        "transaction_index": 850,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "6xr19y2TuJdB6XtZGMC5fRderZW9R7c3xE4BDC1ZcSLe",
+        "quote_mint": "5RjxvePmJFaZnjKtTTHtuAuSiXdWmn3jjyFZUS8G5kE8",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "37BRCZeKREBhj39U17dKPfqSeX68fcCUnwkoUEJcW8AQ"
+        ],
+        "signature": "5doRystSu2BPNBXwbxj4YeZVUSwddmkcivApH9MWGLS5jeD9KrKtw2hMFtFHTynCCCK1VFwHxnVSG1je3EjDWg4P",
+        "slot": 455130383,
+        "source_checks_pass": true,
+        "transaction_index": 312,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "DSL3kXApTs63UGcMjZx4fVaGubj8iTcK8ogKRtXy9ysE",
+        "quote_mint": "6PWW6FcfpjzL8cE7tTrD3DXPqe3axovFWatyKCs7GNYn",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "FWGnzGazrzPRHcXArFPPzwiLdPYdPXmiY19pPajCxCz8"
+        ],
+        "signature": "5z4yVNNnbwyeKuVyNvRb6Jgfkzneruc9eJLiAZmTkCavavhgA23W69xsyyqtWeb9eyg7wFd3bZmjrDYfK1xxLtY9",
+        "slot": 455130383,
+        "source_checks_pass": true,
+        "transaction_index": 595,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "Bbm7UXFUs4N4kaMktZisJKkuVYuh8MnSbzgev7FhNFq1",
+        "quote_mint": "3SAiEmcrWULM2oRAcrtHGS2QLdK9vBkGAPxS44ZHWyC7",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "BCx4kg2dak92dDuQJEjFcCUSo9kp2cnn4WVpcJUtgwe2"
+        ],
+        "signature": "4kG2cQZvEd7LoQyh3ZMus7iDp124RHagYvmLaLoYz7zq3GkTPjQAbvijoV5FjMvrw1txCAQF6pCPyNK6NEwwhyTi",
+        "slot": 455130383,
+        "source_checks_pass": true,
+        "transaction_index": 627,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "ANFhXY8fmUVE7kRpiQ1cEGJyqeUCoyNh2NkTrqnnHjUn",
+        "quote_mint": "23sWoMAUSEQ4sbVaPcRen1CVbYvxGXaL8MbvLAju2Bwc",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "Frqc7WPEFCfADWoWmFJVkqvUhkauxtfriwjSt9BywVCH"
+        ],
+        "signature": "5R6SdBzWmveERYq8PSdLa677hMPX2sxyWTid1FHD9AS1mRYkZT75oeAykPzv9izZZKZ7fuQNBbWBuFsRF5cRCZLi",
+        "slot": 455130383,
+        "source_checks_pass": true,
+        "transaction_index": 754,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "9fHaKepDge4pLvfP6dPHeQPdvk1qgWjH244Yqj751ahC",
+        "quote_mint": "5FLiSkUrYWvxPAMMaNdtL4QFtceTFKBXshxTqRePVXh2",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "ELbz64rKVi9WgyZ1zjTPqz455zzv48kE2JpeAP2zdETi"
+        ],
+        "signature": "4sQvE7E5yM4ra8SoGZ6M7EMJjQ6o6Df7rZ5DMZxQPAi9hmDJKb41neMAwazEmCHyQBbdFUM5LjZ6vGJsFMijaqbm",
+        "slot": 455130383,
+        "source_checks_pass": true,
+        "transaction_index": 855,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "EcLqxcv7F1geQLBNQg3cawYnsuDzZRfDbcc1JqJM5UGa",
+        "quote_mint": "8U1HtiKtFShHcyAQFJoRdCCNEaWqKVrDcwbAUuW1BuQh",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "7RBBWu5y18j9jWwJnChosUKFpjeFHXxykbmTsboYdqqT"
+        ],
+        "signature": "5gTooumtSJD5EjgUL4badJEgCH32ZJjhWZdSwia1zAAgtgojSPvuXbedBPEbfxNCRconpoW3dvDU22xmcodtxYLU",
+        "slot": 455130383,
+        "source_checks_pass": true,
+        "transaction_index": 919,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "EcLqxcv7F1geQLBNQg3cawYnsuDzZRfDbcc1JqJM5UGa",
+        "quote_mint": "8U1HtiKtFShHcyAQFJoRdCCNEaWqKVrDcwbAUuW1BuQh",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "7RBBWu5y18j9jWwJnChosUKFpjeFHXxykbmTsboYdqqT"
+        ],
+        "signature": "2MDHMNogHjqozGpJ1D3wR9jE8wnBXFuBsaLoSsNyLes6FBM1gED1JjpFzmoGC3yF5iDT18LtcFPGSh8pPs9gGjpk",
+        "slot": 455130657,
+        "source_checks_pass": true,
+        "transaction_index": 65,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "DCCS7WwLf6f2WsEFhZ8jSPHBrsvT2JRTQR8ngycBbNTx",
+        "quote_mint": "7nK5oiiZSU1VjsudmLXudfFFFF1Y9JeM3nB3qWxPa4Cb",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "FRMW2fammnZ2cGoJs1LNjWRimLEHHKEgxxF4mnayQs1D"
+        ],
+        "signature": "51YWbHdTdY19khRcVyz2m653weBes6c1kCcFW8EzVVPpEJvv9tytaWpc2iUCifCnysHj5aqUrNKG6usbnaBjTrLn",
+        "slot": 455130657,
+        "source_checks_pass": true,
+        "transaction_index": 919,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          3
+        ],
+        "pool": "2kZ6zUPreSEBHZYtqTyX9L5C4pLkTZcdcr5k37aPAUGN",
+        "quote_mint": "EPByUcHk1ULFUiREP9mihbMWY4ACxbXvoes7R3iYW63D",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "Adqvcvh8ms8p6cyRoHtSaf7nyru8XPHqPbHA216d21ZS"
+        ],
+        "signature": "3wUwp65ArF3Y47KNnJ5PqhLV9f136oTDrAnpGj6QTTs5oKxxkBBRepdgsMfrzLQg1RKNcBaLBufi17Z1f46ArdDm",
+        "slot": 455131700,
+        "source_checks_pass": true,
+        "transaction_index": 694,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "DW9zHVTQUwjz8zDc4hSWUb1TiaEUGZEz5WjyxQ3tixET",
+        "quote_mint": "AFePRS33DGqQrhBT3ifJuhJKHb7DCZ53TAZ1RU3QRp6C",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "AwNN1Vp1w2Bx1qPy27XqMxqNZpMJfQip6ZtfNkoa9obH"
+        ],
+        "signature": "4e2LrGiCd8hYgHEiuwuy7A81FqMqqNt34BFadWnYs2MapReqK8td9VSq54YKSJ443GGmWEm698H9CwraFZWjvJok",
+        "slot": 455131700,
+        "source_checks_pass": true,
+        "transaction_index": 695,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "EcLqxcv7F1geQLBNQg3cawYnsuDzZRfDbcc1JqJM5UGa",
+        "quote_mint": "8U1HtiKtFShHcyAQFJoRdCCNEaWqKVrDcwbAUuW1BuQh",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "7RBBWu5y18j9jWwJnChosUKFpjeFHXxykbmTsboYdqqT"
+        ],
+        "signature": "eQmiGqy7htmq4bRHXf8Ep3T1voUGeFaSmvoRTGLyX7jAdapMm42NxvBRzdV7p6wuaiwiqRKtYyTCyMZHXLwrcD4",
+        "slot": 455131700,
+        "source_checks_pass": true,
+        "transaction_index": 701,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "BGPaWnJb2tydPWuZKd5nvCy8SbATdpxGdGKacu8Kgar4",
+        "quote_mint": "7fEDVwKfxnDEZAdcwaeJAWJreUEoTavZ4pKsS9SL7obm",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "3JDBbK9dRCjmQ3g2Yk7CkNeCSUA97fB1H3Xhaem77WdG"
+        ],
+        "signature": "2X7KDZLTShYvmJccwYyVg7P61y937tuZpyKbdBVcNVuZ9o9BPtVULHNZH55sB88f7Ch3Qs1tyLHbD7Gks1vhNofJ",
+        "slot": 455131700,
+        "source_checks_pass": true,
+        "transaction_index": 702,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "DSL3kXApTs63UGcMjZx4fVaGubj8iTcK8ogKRtXy9ysE",
+        "quote_mint": "6PWW6FcfpjzL8cE7tTrD3DXPqe3axovFWatyKCs7GNYn",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "FWGnzGazrzPRHcXArFPPzwiLdPYdPXmiY19pPajCxCz8"
+        ],
+        "signature": "2p5F4BkeUSTTdvzu1Mcmu74vSD7Rfpv2Yq8nzfkCBgrv4Jmtm735A5k1qFkwWkU95qmcNnhcNVUXpUQj1uF24QoR",
+        "slot": 455131700,
+        "source_checks_pass": true,
+        "transaction_index": 1358,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "EnWyYP8Rwd3weJkVMffG4FoseKJqisS6tAXFXVdTQK72",
+        "quote_mint": "FAcMn3oZJfuVfPS3NpACapGqdzZog1iLstrBnVDMTwtK",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "8RT4RKgiHAC3B3yMVptRar1XBbmAkVUjn9zZ7VPS8uVT"
+        ],
+        "signature": "2UdyZZhFh4KrMZx1GmeZHVtTYqPZ2ssFJ7akppAZC277ptJcJbdgmvVuNKmhmBLy9mKcQxkZqSRP81yA1BpbXPAt",
+        "slot": 455131700,
+        "source_checks_pass": true,
+        "transaction_index": 1359,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "DCCS7WwLf6f2WsEFhZ8jSPHBrsvT2JRTQR8ngycBbNTx",
+        "quote_mint": "7nK5oiiZSU1VjsudmLXudfFFFF1Y9JeM3nB3qWxPa4Cb",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "FRMW2fammnZ2cGoJs1LNjWRimLEHHKEgxxF4mnayQs1D"
+        ],
+        "signature": "3z4EGGGwrYj6W9uc7cG5C9ut4RLLq1w7qBQQp3zBMB217CapdgVamxFkaFtmezaEmNN8fnST6ka1wZhjANozwKq",
+        "slot": 455131700,
+        "source_checks_pass": true,
+        "transaction_index": 1360,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "EnWyYP8Rwd3weJkVMffG4FoseKJqisS6tAXFXVdTQK72",
+        "quote_mint": "FAcMn3oZJfuVfPS3NpACapGqdzZog1iLstrBnVDMTwtK",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "8RT4RKgiHAC3B3yMVptRar1XBbmAkVUjn9zZ7VPS8uVT"
+        ],
+        "signature": "2uuogFfyG5QLPHR852Ng2umtaSz19iiNk6UbzuySvAzATN4SvsHhEx5QYEyrv3pdwvy2M9EZEdXUyK28n6fpktHS",
+        "slot": 455132283,
+        "source_checks_pass": true,
+        "transaction_index": 720,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "9fHaKepDge4pLvfP6dPHeQPdvk1qgWjH244Yqj751ahC",
+        "quote_mint": "5FLiSkUrYWvxPAMMaNdtL4QFtceTFKBXshxTqRePVXh2",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "ELbz64rKVi9WgyZ1zjTPqz455zzv48kE2JpeAP2zdETi"
+        ],
+        "signature": "4vjyaayqNGSdY95WtB3k1k7PRz9ZpJKYbY1PGWAmeWHPe1EtJ3uTb9XrBd9rgGtCBs8j1S8gV9fW6E26SwoYxiqN",
+        "slot": 455132283,
+        "source_checks_pass": true,
+        "transaction_index": 783,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      },
+      {
+        "ata_matches_observed_quote_mint": true,
+        "path": [
+          2
+        ],
+        "pool": "DSL3kXApTs63UGcMjZx4fVaGubj8iTcK8ogKRtXy9ysE",
+        "quote_mint": "6PWW6FcfpjzL8cE7tTrD3DXPqe3axovFWatyKCs7GNYn",
+        "quote_token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "raw_accounts_match_census": true,
+        "raw_suffix_accounts": [
+          "A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW",
+          "FWGnzGazrzPRHcXArFPPzwiLdPYdPXmiY19pPajCxCz8"
+        ],
+        "signature": "5K3kAbHnWPeSG6rFGFtGEzzD9EdsawQetteyXxYuiBte3HYBCs2wthEXCP981aVy7W1kgeVgtbetQPXBNcihk2X3",
+        "slot": 455132283,
+        "source_checks_pass": true,
+        "transaction_index": 784,
+        "transaction_status": "success",
+        "wallet_in_pinned_eight": true
+      }
+    ],
+    "suffix_source_checks_failed_or_unresolved": 0,
+    "suffix_source_checks_passed": 59,
+    "suffix_status_denominators": {
+      "failed": {
+        "ata_matches_observed_quote_mint": 6,
+        "exact_pair_present": 6,
+        "raw_accounts_match_census": 6,
+        "source_checks_pass": 6,
+        "wallet_in_pinned_eight": 6
+      },
+      "success": {
+        "ata_matches_observed_quote_mint": 53,
+        "exact_pair_present": 53,
+        "raw_accounts_match_census": 53,
+        "source_checks_pass": 53,
+        "wallet_in_pinned_eight": 53
+      }
+    }
+  },
+  "schema_version": 1,
+  "scope": "offline raw-capture qualification of 59 preselected 25-byte/two-account structural suffix candidates in one sealed c3 frame",
+  "source": {
+    "buy_exact_decoder_sha256": "028998b1860bf9528cdfd20c7d94223c605e934f05b89ebd3835796233a2dccb",
+    "census_report_sha256": "f89036b703f337b4206a5fdb58f31f846c5868534e517913e7291cde3f83b89c",
+    "compiled_economics_sha256": "693a87b3e3826fd77bd1d7b2328a4b2b6f02becab80369089d8c9fe65adee2cc",
+    "epoch_plan_sha256": "273ef0e974b4bee82978a43d41842c5cfc538f727cd108bb3a1478d318cf8129",
+    "epoch_summary_sha256": "74cccb5eee1b5dc416491f2912b7a7a05b8eaa04a2251a18b03416430a7c54fa",
+    "fee_recipient_notice_commit": "8cda1fa30ea658b20909d8aedf002047119388d2",
+    "fee_recipient_notice_sha256": "8b05e0906eaf1746508b0b2f909ac7c344ce7be33a6564d595335c9fda399868",
+    "frame_receipt": "docs/evidence/helius-inventory-v3-c3-first-frame-2026-10-10.json",
+    "frame_receipt_sha256": "cb422dbd8a8d3d7be4efdd1978b5c69b912b4b199bcef8e4499f9bcb0a6fb103",
+    "full_block_captures": [
+      {
+        "capture_bytes": 514307,
+        "capture_sha256": "8a954c1e2da58cfa1023261bb8cad4dfa9cbd72ccc5299644d41ea386e28a13a",
+        "response_bytes": 2287736,
+        "response_sha256": "3c23c666577b9141e3bc812ecc90fa652721139296e30913e93c853abd229c36",
+        "slot": 455116910
+      },
+      {
+        "capture_bytes": 165150,
+        "capture_sha256": "ac4ae2321f6ae2246d1542f04abcc01a0092fb9828f37f2b931539c09975cdd2",
+        "response_bytes": 867736,
+        "response_sha256": "3259263ac7747058082a0ef88487207acd02a025126a2cd42a2691cc9986768d",
+        "slot": 455117620
+      },
+      {
+        "capture_bytes": 600422,
+        "capture_sha256": "f002d19aa6033d0592951c382c89fda30d07bf94a1b3ea601c17e451c62d2229",
+        "response_bytes": 2626005,
+        "response_sha256": "c84b7af0cb2f38c943af455c3c699be2156e9afed073abed2fbf120a8e68f85f",
+        "slot": 455118532
+      },
+      {
+        "capture_bytes": 637844,
+        "capture_sha256": "3dd09b02d1bdc936575956b749ad7c54396590c0c109ab6c2845d43dcb83cdfb",
+        "response_bytes": 3072833,
+        "response_sha256": "6439ff3d3f457b58525a367fee6b9e257d04eb2e3406d187983f5787a0dc1f09",
+        "slot": 455119007
+      },
+      {
+        "capture_bytes": 699567,
+        "capture_sha256": "50926b7acdefd9608d4caeb586eb51853c920e77af3d318b5cd620e98d6c9a81",
+        "response_bytes": 3259030,
+        "response_sha256": "c9321def9d022894404913f4ac52b66d9162a27e2c4f9c3d28cb003bed7e1451",
+        "slot": 455121087
+      },
+      {
+        "capture_bytes": 796063,
+        "capture_sha256": "3213e2340ca064452f44c6402e796b89f9a5bf523999e052b41f7cd204ff0b85",
+        "response_bytes": 4011468,
+        "response_sha256": "1b8af1fef06d8e2195f704715443ae600fea6a7fae24884c977c6954328b2dd9",
+        "slot": 455122471
+      },
+      {
+        "capture_bytes": 1167288,
+        "capture_sha256": "997581958028f381b48614242a2af24838a296ed01e6270b6dccb63fb6849ac0",
+        "response_bytes": 7717342,
+        "response_sha256": "66507481f2b8404589ee80a90c2b49688f3219c9c675779441e3aef0402557b2",
+        "slot": 455124489
+      },
+      {
+        "capture_bytes": 1067569,
+        "capture_sha256": "6d75ab2cf39daf1ab5bfb45f7e1744dfb82a2085f7e12fd28d86c6e4818e41cb",
+        "response_bytes": 5181570,
+        "response_sha256": "999412c57abc69aa4997a7fd1ed92631d94ebc9775ba5ba236f46ebe4af8d5f8",
+        "slot": 455125204
+      },
+      {
+        "capture_bytes": 622136,
+        "capture_sha256": "e9c563f783adf7c128e3d783de3aaa77b941e65d4391cb2fbb4f580a69251674",
+        "response_bytes": 2982720,
+        "response_sha256": "67f1d04c75cf730f7110cd1b05d39785fd4846a147dcc06d55fa89ebfb80d119",
+        "slot": 455126097
+      },
+      {
+        "capture_bytes": 636915,
+        "capture_sha256": "a93c1d7f3edfafbb334368cd1d1af84d91ebe9a5e7d3c328ab5f75d499fe7d9d",
+        "response_bytes": 2857673,
+        "response_sha256": "85fddec437cad01d9f0c8dc1967225c4b710dd3a8dfa4c0f122c3cfc6ab50f0d",
+        "slot": 455128514
+      },
+      {
+        "capture_bytes": 689253,
+        "capture_sha256": "7b85f844defd98a15e99707957a0fcb3b58587401ad61fca380be1028bc68f63",
+        "response_bytes": 3055986,
+        "response_sha256": "5eb9da5de2f488fe9d2bb1a6c03ffe92eec2d471e8d3466837689de885de4cad",
+        "slot": 455129770
+      },
+      {
+        "capture_bytes": 660703,
+        "capture_sha256": "4ad4202b54bc2f57fa90e42cf87f52b05e1d32fc9be3bb366719fd8bbc994cad",
+        "response_bytes": 2924869,
+        "response_sha256": "1483e0fa4a3b3179b1e4a9caa3b38fe17f336d3a0fc992bff96df745eb0ffa44",
+        "slot": 455130383
+      },
+      {
+        "capture_bytes": 657680,
+        "capture_sha256": "a470fd23101cba8a65678bc70172c488bac3713a519ea5b6024379a15ad6e93e",
+        "response_bytes": 3183439,
+        "response_sha256": "9572a7e296a7ef47555b9e86f03023bd152dafe900f64b57b2fabfbc5b3da06e",
+        "slot": 455130657
+      },
+      {
+        "capture_bytes": 1451761,
+        "capture_sha256": "15c2def65514e66556300959452af1145aaa81cf2bc26a4dbbb08d4c9a2d15a5",
+        "response_bytes": 8185100,
+        "response_sha256": "59678415114f9652a2824a5f1f6d8bec970b63685120007d09d30aeb3ab90088",
+        "slot": 455131700
+      },
+      {
+        "capture_bytes": 1075562,
+        "capture_sha256": "3761b3de717d00454e2e8348fd05debec9f17623e95378304865e311dc81e970",
+        "response_bytes": 4969648,
+        "response_sha256": "d52f3d4d577ea8bbed63c573be0b3ac2fbc6397d626c2254dadc338d8cb6c51c",
+        "slot": 455132283
+      },
+      {
+        "capture_bytes": 570703,
+        "capture_sha256": "d8d941edd43cf0e7c7c9dc32d18cd542afc185a0fb7b0800fea98a3e5b1fdb4a",
+        "response_bytes": 2538732,
+        "response_sha256": "35a1e11d7b7db65c12258e08257f306a215cf24978a88d11fcafce69ed7e7729",
+        "slot": 455132900
+      }
+    ],
+    "pinned_idl_sha256": "b7d8c57a4d9c4dd0109a9ab893052352333252d4eedced10ac091d4d66cab89b",
+    "qualifier_git_commit": "f89b3df5a02bc1e456ca6e527d55a34dd922a671",
+    "qualifier_sha256": "5240996229f9ee6e73f36890a46722abed81bbb621de7abf067a5d0f103a669c",
+    "source_binding": "raw_full_block_account_indices_and_message_keys; loaded writable then readonly"
+  }
+}

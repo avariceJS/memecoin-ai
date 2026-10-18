@@ -1,0 +1,254 @@
+{
+  "schema_version": 2,
+  "scope": "control-center-cc02-visual-reconstruction",
+  "overall": "IN_PROGRESS",
+  "current_task": "CC02.0",
+  "last_completed": "Web v1 engineering foundation готов; visual acceptance REJECTED. CC02 audit/handoff подготовлен; redesign ещё не выполнен.",
+  "last_verified_commit": "9f47abf9e473ef4f46c6238d805c917490aa9b21",
+  "last_checks": "CC02 audit: target + 10 user PNG reviewed; 44 Vitest PASS; tsc/build PASS (existing warnings); 37 scoped Python PASS; Ruff/format, exact projection, scope PASS. Browser redesign acceptance NOT_RUN. Workflow/reference conformance PASS; see cc02/audit-evidence.json.",
+  "model_binding": {
+    "configured_coordinator": "grok-4.7 / xhigh (picker)",
+    "configured_executor": "composer-2.5[fast=false]",
+    "observed_executor": null,
+    "status": "UNVERIFIED",
+    "evidence": "2026-10-03: task card cannot be confirmed in Cursor UI. User directed binding to stay UNVERIFIED and not block web v1. Configured executor remains composer-2.5[fast=false]. Earlier Task parameter composer-2.5[fast=false] was rejected; tool results had no model field. VERIFIED is not claimed.",
+    "configured_visual_executor": "grok-4.7 (documented default high; runtime UNVERIFIED)"
+  },
+  "blockers": [],
+  "next_action": "Grok: прочитать CC02 audit/plan/acceptance, baseline и target; начать CC02.0 browser harness, затем shell first. Не переписывать adapter/core.",
+  "capabilities": [
+    "existing read-only adapter + immutable historical projection",
+    "primary visual reference available",
+    "6 native custom agent definitions configured"
+  ],
+  "limitations": [
+    "User rejected web v1 visuals; historical PASS superseded, before preserved.",
+    "No browser E2E/layout harness currently in package.json; required in CC02.0.",
+    "Current recorded data limited; no live/control/new backend scope.",
+    "Actual model binding UNVERIFIED is nonblocking."
+  ],
+  "interface_requests": [
+    "CC-P001 PROPOSED — safe operational metadata export; web v1 не ждёт его"
+  ],
+  "tasks": [
+    {
+      "id": "CC02.0",
+      "phase": 0,
+      "title": "Baseline и browser gate harness",
+      "role": "coordinator",
+      "depends_on": [],
+      "required_reviews": [
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null,
+      "visual_receipt": null,
+      "accepted_web_sha256": null
+    },
+    {
+      "id": "CC02.1",
+      "phase": 1,
+      "title": "App shell и design primitives",
+      "role": "ui-builder",
+      "depends_on": [
+        "CC02.0"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null,
+      "visual_receipt": null,
+      "accepted_web_sha256": null
+    },
+    {
+      "id": "CC02.2",
+      "phase": 2,
+      "title": "Overview — visual gold standard",
+      "role": "ui-builder",
+      "depends_on": [
+        "CC02.1"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null,
+      "visual_receipt": null,
+      "accepted_web_sha256": null
+    },
+    {
+      "id": "CC02.3",
+      "phase": 3,
+      "title": "Calendar / corpus reconstruction",
+      "role": "ui-builder",
+      "depends_on": [
+        "CC02.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null,
+      "visual_receipt": null,
+      "accepted_web_sha256": null
+    },
+    {
+      "id": "CC02.4",
+      "phase": 4,
+      "title": "Research gate visualization",
+      "role": "ui-builder",
+      "depends_on": [
+        "CC02.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null,
+      "visual_receipt": null,
+      "accepted_web_sha256": null
+    },
+    {
+      "id": "CC02.5",
+      "phase": 5,
+      "title": "Models / matched benchmarks",
+      "role": "ui-builder",
+      "depends_on": [
+        "CC02.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null,
+      "visual_receipt": null,
+      "accepted_web_sha256": null
+    },
+    {
+      "id": "CC02.6",
+      "phase": 6,
+      "title": "Sources evidence topology",
+      "role": "ui-builder",
+      "depends_on": [
+        "CC02.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null,
+      "visual_receipt": null,
+      "accepted_web_sha256": null
+    },
+    {
+      "id": "CC02.7",
+      "phase": 7,
+      "title": "System / locked surfaces",
+      "role": "ui-builder",
+      "depends_on": [
+        "CC02.2"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null,
+      "visual_receipt": null,
+      "accepted_web_sha256": null
+    },
+    {
+      "id": "CC02.8",
+      "phase": 8,
+      "title": "Integration и final visual acceptance",
+      "role": "coordinator",
+      "depends_on": [
+        "CC02.3",
+        "CC02.4",
+        "CC02.5",
+        "CC02.6",
+        "CC02.7"
+      ],
+      "required_reviews": [
+        "visual",
+        "boundary"
+      ],
+      "status": "PENDING",
+      "write_files": [],
+      "checks": [],
+      "reviews": [],
+      "attempts": [],
+      "blocker": "",
+      "summary": "",
+      "reference_viewed": false,
+      "reference_sha256": null,
+      "visual_receipt": null,
+      "accepted_web_sha256": null
+    }
+  ],
+  "user_acceptance": "REJECTED_V1; CC02_NOT_REVIEWED",
+  "historical_state": "apps/control-center/memory/history/web-v1-WORK_STATE.json"
+}

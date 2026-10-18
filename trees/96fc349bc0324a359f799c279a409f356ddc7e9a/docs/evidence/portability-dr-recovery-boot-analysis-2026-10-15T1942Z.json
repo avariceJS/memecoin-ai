@@ -1,0 +1,69 @@
+{
+  "schema": "brain-portability-dr-recovery-boot-analysis-v1",
+  "observed_at_utc": "2026-10-15T19:42:00Z",
+  "source_commit": "60f421251b4a3f8627f392ce60d6a3d164bbc24b",
+  "sources": [
+    {
+      "path": "/Users/root1/.codex/worktrees/ec89/memecoin-ai/docs/snapshot/Вывод Терминала.txt",
+      "sha256": "37ea3c44e4ca3483cdfc16c7551a8e8695d80283f5f972120346a4c3e091a0ab",
+      "size_bytes": 249641,
+      "tracked_in_research_checkout": false,
+      "screenshots_from_prior_attempt_excluded": true
+    }
+  ],
+  "scope": {
+    "protected_payloads_read": false,
+    "data_unlocked_or_mounted_by_this_review": false,
+    "services_changed": false,
+    "provider_requests": 0
+  },
+  "recovery_boot": {
+    "user_reported_clean_recovery_boot": true,
+    "boot_time_utc": "2026-10-15T19:39:01.915Z",
+    "first_saved_unified_log_event_utc": "2026-10-15T19:39:05.573Z",
+    "terminal_date_probe_utc": "2026-10-15T19:41:36Z",
+    "data_volume_uuid": "430740ca-42e7-4e6c-a07a-e4e7370152cc",
+    "data_device": "/dev/disk3s5",
+    "filevault": true,
+    "locked_at_first_and_last_info_probe": true,
+    "mounted_at_first_and_last_info_probe": false,
+    "first_and_last_mount_listing_include_data_device": false,
+    "recovery_log_command": "/usr/bin/log show",
+    "recovery_log_command_succeeded": true,
+    "apfs_probe_succeeded_at_utc": "2026-10-15T19:39:06.105Z",
+    "automatic_mount_attempt_started_at_utc": "2026-10-15T19:39:06.131Z",
+    "automatic_mount_attempt_result_at_utc": "2026-10-15T19:39:06.150Z",
+    "automatic_mount_attempt_result": "failure",
+    "automatic_mount_status_code": "0x0000004D",
+    "status_code_interpretation": "unresolved; no cause or access-mode semantics inferred",
+    "snapshot_listing": {
+      "attempted_in_saved_transcript": false,
+      "result": "command and output are absent from the final text transcript; prior-attempt screenshot is excluded",
+      "snapshot_inventory": "unknown"
+    },
+    "log_coverage_gap_seconds_from_kernel_boot_time": 3.658,
+    "pre_terminal_authentication_and_data_access_history": "not recorded"
+  },
+  "live_mac_followup_utc": "2026-10-15T20:31:30Z",
+  "live_mac_followup": {
+    "same_data_uuid_device": "/dev/disk3s5",
+    "data_mounted_by_normal_macos": true,
+    "data_locked": false,
+    "data_apfs_snapshots_reported": 0,
+    "data_volume_group_member_count": 1,
+    "interpretation": "current live-OS inventory only; it does not fill the Recovery-boot log gap or qualify a historical source view"
+  },
+  "decision": {
+    "sol_review": "Do not request a second dedicated Recovery boot merely to repeat the locked/mount-history preflight. Keep prior writable-mount history as an explicit human-attested residual assumption; no Data T is qualified and erase remains NO-GO.",
+    "automatic_mount_interpretation": "The saved log establishes one automatic disk3s5 mount attempt and an explicit failure. It neither demonstrates a successful or writable Data mount nor proves no earlier mount before the first logged event.",
+    "next_recovery_boot": "Only when a separately planned source-view rehearsal is ready. A repeat preflight cannot retroactively close this boot's log gap."
+  },
+  "limitations": [
+    "The screenshots document an earlier failed attempt and are excluded from this boot's evidence. The final text transcript has no listSnapshots command/output, so Recovery snapshot enumeration is unknown.",
+    "The successful /usr/bin/log show transcript filters selected processes and omits debug messages; it is not independent proof of complete logging before its first event.",
+    "Recovery authentication choices before Terminal were not recorded.",
+    "No-prior-writable-mount history is not established; APFS snapshot state during Recovery remains unknown.",
+    "No Data unlock, explicit read-only mount, held-view validation, T, capture, restore, or erase readiness was qualified."
+  ],
+  "safe_to_erase": false
+}

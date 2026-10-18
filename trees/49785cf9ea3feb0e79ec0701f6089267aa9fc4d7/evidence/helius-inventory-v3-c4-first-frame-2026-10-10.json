@@ -1,0 +1,117 @@
+{
+  "campaign_id": "helius-inventory-v3-20261010-4",
+  "campaign_lease_sha256": "e6cf53b114d9aa306a74d79103c8e6d79df36a1742731ba6d713b2db578afcf2",
+  "campaign_schedule_sha256": "2253421b56b52b4636f6a15b682495cb289114887dbf40f517338d252ffc1474",
+  "campaign_usage_after_frame": {
+    "raw_bytes": 58434333,
+    "requests": 35,
+    "reserved_raw_bytes": 0,
+    "reserved_stored_bytes": 0,
+    "stored_bytes": 13182875
+  },
+  "evidence_id": "helius-inventory-v3-c4-first-frame-20261010",
+  "frame": {
+    "actual_requests": 34,
+    "anchor": {
+      "availability_ns": 1791637508920532000,
+      "commitment": "finalized",
+      "method": "getSlot",
+      "receipt_ns": 1791637508920532000,
+      "slot": 455265708
+    },
+    "bucket": "20261010T130000Z",
+    "capture_artifacts_count": 34,
+    "capture_artifacts_digest_sha256": "822d869e4c407ffe4bd3c8d3615f3b6fe88b5cc63dfb4b5d558bcefaede6031c",
+    "code_commit": "1a1712588e304f5d161c12687d31f80a0c11ead3",
+    "code_sha256": "c3d1d0e4d9824ebd6c67c5e292471b5378249e96c26f16c70cd6f4f26ed33555",
+    "end_exclusive": 455265709,
+    "epoch_stop_sha256": "9a461a00361fc31362f7aa9d0ca4d15a5e21cb56c769e61f508388d20971ec0d",
+    "forward_only": {
+      "bootstrap": false,
+      "frame_width_cap": 20000,
+      "gap_reset_anchor_only": false,
+      "missed_schedule_buckets": [],
+      "missed_slot_backfill": false,
+      "plan_start": 455249113,
+      "previous_observed_frontier": 455249113
+    },
+    "inventory": {
+      "inventory_sha256": "12b104e31d521a72942992370fbcbd28297d10db3486b4cce08f1b1f9cd02b5c",
+      "not_returned_means_economic_zero": false,
+      "numeric_positions_not_returned": 0,
+      "numeric_range_positions": 16596,
+      "provider_returned_produced_slots": 16596
+    },
+    "manifest_digest_spec": "SHA-256 of UTF-8 newline-terminated rows sorted by sequence; artifact rows are 12-digit sequence, capture-receipt SHA-256, compressed-response SHA-256, raw-response SHA-256 separated by tabs; request/result rows are filename and file SHA-256 separated by a tab.",
+    "plan_sha256": "837a0fca77acdaae03f4ed6665e4bf407824b3f91213c47a5cb271163f1a6313",
+    "raw_response_bytes": 58434290,
+    "release_sha256": "e0e4bffcb9f607a64e373c41eda326e735b9a45a31cf06011655b7ff77b45ba9",
+    "request_identity_semantics": "Unique by c4 campaign bucket and sequence reservation. All 34 request/result pairs are captured and reconciled; no same-method+params duplicate occurred within this frame.",
+    "request_records_count": 34,
+    "request_records_digest_sha256": "a8bf4ac1b05dce4ee77f44d725f5658c596a89ede4ddd682d8d6eb0c110d5cae",
+    "request_results_count": 34,
+    "request_results_digest_sha256": "57da2fce323db25cfa41bdebd278f6aeff75f5ce23489f20b76a75f5c66ec4ee",
+    "request_statuses": {
+      "captured": 34
+    },
+    "requests_by_method": {
+      "getBlock": 32,
+      "getBlocks": 1,
+      "getSlot": 1
+    },
+    "reservation_sha256": "8d2289673d0e9379adfed91535c3ebabd52db93935b14aa6c2c88502d56d113b",
+    "reservation_status": "reconciled",
+    "sampled_structural_checks": {
+      "economic_zero_or_global_completeness_inferred": false,
+      "passed": 16,
+      "total": 16,
+      "unresolved_instruction_shapes_total": 0
+    },
+    "selected_slots": [
+      455249274,
+      455249498,
+      455249729,
+      455251428,
+      455252433,
+      455252566,
+      455253858,
+      455255904,
+      455256769,
+      455257788,
+      455259096,
+      455259434,
+      455261895,
+      455261931,
+      455261947,
+      455265504
+    ],
+    "start_inclusive": 455249113,
+    "status": "frame_complete",
+    "stored_capture_bytes": 13182819,
+    "summary_sha256": "3f3fa06add8bb58eb7d518d44fe20f3d28e30996eb318eca87af692fb2109954",
+    "width_slots": 16596
+  },
+  "predecessor_lineage_sha256": "0a48d1210830a3e6dc78ae4cf4811e3cbacb521834060461041a08336cb86b79",
+  "provider": "helius-free",
+  "resources": {
+    "free_disk_bytes_at_review": 73055227904,
+    "measurement_ns": 1791637824888219000,
+    "minimum_campaign_floor_bytes": 53687091200
+  },
+  "schema_version": 1,
+  "scope_limitations": [
+    "One provider-reported produced-slot inventory and 16 selected full blocks only; this is not global or economic completeness.",
+    "The 16 sampled block/signature structure checks establish response consistency for selected slots, not economic activity or exact-zero.",
+    "This c4 first frame starts at the new finalized anchor frontier; the c3-to-c4 uncovered interval remains explicit and was not fetched.",
+    "The frame is forward-only; no missed prospective slots were backfilled."
+  ],
+  "sealed_at": "2026-10-10T13:06:36.299949Z",
+  "service_after_frame": {
+    "campaign_stop_exists": false,
+    "launchagent_label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-4",
+    "loaded": true,
+    "next_calendar_minute": 5,
+    "no_repeat_or_backfill": true,
+    "running": false
+  }
+}

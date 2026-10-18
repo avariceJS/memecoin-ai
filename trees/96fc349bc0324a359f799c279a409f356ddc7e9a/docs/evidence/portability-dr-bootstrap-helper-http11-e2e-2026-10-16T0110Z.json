@@ -1,0 +1,44 @@
+{
+  "schema": "portability-dr-bootstrap-helper-http11-e2e-v1",
+  "observed_at_utc": "2026-10-16T01:10:21Z",
+  "source_commit": "8d6dd13bc0c8f0f94610c9dd65ebd4b1dd06c26d",
+  "bootstrap": {
+    "method": "brain_host_recovery.py bootstrap",
+    "remote_transport": {
+      "http_version": "HTTP/1.1",
+      "scope": "clone_and_fetch_commands_only",
+      "persistent_configuration_changed": false
+    },
+    "interactive_git_authentication_disabled": false,
+    "result_state": "complete",
+    "head": "8d6dd13bc0c8f0f94610c9dd65ebd4b1dd06c26d",
+    "python": "3.13.6",
+    "dependency_lock_sha256": "13a38c32b3c3ea4af3dc0da61be93ce1a5f5437aeb95b8039f1c31053bb7c7e5",
+    "isolated_venv_setup": "passed",
+    "pip_check": "passed",
+    "smoke": "passed",
+    "services_changed": false,
+    "storage_changed": false
+  },
+  "post_bootstrap_focused_tests": {
+    "checkout_head": "8d6dd13bc0c8f0f94610c9dd65ebd4b1dd06c26d",
+    "suite": "tests/test_brain_host_recovery.py",
+    "passed": 17
+  },
+  "sol_review": {
+    "decision": "Use command-local HTTP/1.1 for recovery clone and exact-commit fetch; do not disable user-controlled Git authentication or alter persistent configuration.",
+    "limitation": "The earlier no-output default clone and successful retry differed in both transport setting and terminal-prompt environment, so the transport change is a bounded reliability policy, not proof of the earlier stall's cause."
+  },
+  "scope": {
+    "checkout_context": "same owner Mac and existing Git authentication context",
+    "brain_state_restored": false,
+    "kingston_written": false,
+    "services_changed": false,
+    "provider_requests": 0,
+    "protected_payloads_read": false,
+    "secret_values_read": false,
+    "clean_host_git_authentication_proven": false,
+    "clean_host_restore_proven": false,
+    "safe_to_erase": false
+  }
+}

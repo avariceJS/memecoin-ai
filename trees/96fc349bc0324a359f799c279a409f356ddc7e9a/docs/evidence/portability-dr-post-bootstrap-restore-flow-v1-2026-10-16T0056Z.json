@@ -1,0 +1,124 @@
+{
+  "schema": "brain-portability-post-bootstrap-restore-flow-v1",
+  "observed_at_utc": "2026-10-16T00:56:00Z",
+  "source_commit": "75f580b2741ed34dff47c7ec567a53388979c503",
+  "post_rehearsal_error_reporting_fix_commit": "3d56dd3153e56548bc6191d45cf24d4923678f36",
+  "sol_review": {
+    "reviewed_commit": "f24de81417bd13800eb89b527c2c8d79a8be25f8",
+    "accepted_scope": "missing-set blocked path only",
+    "critical_fixes_checked": [
+      "no records for unsafe run parent or unresolved source roots",
+      "run parent device/inode and Kingston binding revalidated before record creation",
+      "target parent device/inode and emptiness rechecked before conductor",
+      "saved conductor result passed through strict assessor handoff loader",
+      "set ID, repository and independent pins compared before assessment",
+      "research and execution commits explicitly equal in v1",
+      "required commit, capacity, set, witness and stable-root assessor gates"
+    ],
+    "positive_extraction_path_reviewed_or_qualified": false
+  },
+  "entrypoint_correction": {
+    "first_direct_script_attempt": "ModuleNotFoundError before storage inspection or any writes",
+    "fix_commit": "75f580b2741ed34dff47c7ec567a53388979c503",
+    "neutral_cwd_help_probe": "passed; subprocess test clears PYTHONPATH and runs outside the checkout"
+  },
+  "focused_verification": {
+    "ruff_check_touched_files": "passed",
+    "ruff_format_touched_files": "passed",
+    "restore_flow_and_related_recovery_tests": "56 passed",
+    "missing checkout/Kingston entry card probes": "named blockers, no traceback",
+    "json_receipt_parse": "passed",
+    "git_diff_check": "passed",
+    "project_smoke": "passed in primary checkout and fresh clone"
+  },
+  "clean_clone_bootstrap": {
+    "remote_branch": "origin/research/active",
+    "commit": "75f580b2741ed34dff47c7ec567a53388979c503",
+    "shallow_single_branch_clone": true,
+    "python": "3.13.6",
+    "development_lock_installed": true,
+    "home_at_start_of_dependency_install": "new isolated empty local directory",
+    "pip_cache": "separate isolated temporary directory",
+    "make_smoke": "passed",
+    "restore_flow_direct_cli_help_from_neutral_cwd": "passed",
+    "restore_flow_focused_tests": "9 passed",
+    "same_mac_and_git_auth_context": true,
+    "brain_state_restored": false
+  },
+  "rehearsal": {
+    "kind": "same-host synthetic-handoff missing-set blocked-path rehearsal",
+    "handoff_sha256": "d43d4edb32e3c312774dccfb601e09692c66a30f09235baa600dad17527bebc4",
+    "handoff_trust": "self-generated rehearsal input; its digest is not an independent recovery trust anchor",
+    "execution_commit": "75f580b2741ed34dff47c7ec567a53388979c503",
+    "execution_checkout_clean": true,
+    "entry_card_sha256_checkout_and_kingston_match": "ac8859ee4fc499ffe55dc1824be11a55fd4475fee2dbe0cae749a7f6cbbb5b76",
+    "kingston": {
+      "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+      "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+      "read_only_set_and_witness_probes": true
+    },
+    "inspect": {
+      "status": "blocked",
+      "blockers": ["set_missing"],
+      "run_parent_safe_for_records": true,
+      "clean_host_claim": false
+    },
+    "restore_inert": {
+      "exit_code": 2,
+      "status": "blocked_before_extraction",
+      "blockers": ["set_missing"],
+      "run_record_created": true,
+      "quarantine_created": false,
+      "kingston_restore_witness_written": false,
+      "activation_authorized": false,
+      "final_readiness": false,
+      "safe_to_erase": false
+    },
+    "local_run_record": {
+      "directory_mode": "0700",
+      "record_mode": "0600",
+      "files": {
+        "REQUEST.JSON": {
+          "bytes": 1514,
+          "sha256": "d43d4edb32e3c312774dccfb601e09692c66a30f09235baa600dad17527bebc4"
+        },
+        "INSPECT.JSON": {
+          "bytes": 1686,
+          "sha256": "3291f8bb01854eda49b601751b1727b2e91e43d091241bb984435cd4cda201aa"
+        },
+        "BLOCKED.JSON": {
+          "bytes": 1918,
+          "sha256": "b61ed8b46e7382eb9522433eed444f745d2042b146c8621a24ea5959ce666a17"
+        }
+      }
+    },
+    "postconditions": {
+      "target_parent_empty": true,
+      "pinned_recovery_set_index_exists": false,
+      "restore_witness_for_pinned_set_exists": false,
+      "kingston_data_written": false,
+      "brain_services_changed": false,
+      "provider_requests": 0,
+      "protected_payloads_read": false,
+      "secret_values_read": false,
+      "data_unlocked_or_mounted": false
+    }
+  },
+  "qualification": {
+    "same_host_blocked_operator_path": true,
+    "unsafe_parent_no_write_behavior": "unit tested",
+    "positive_set_extraction": false,
+    "clean_compatible_host_restore": false,
+    "recovery_os_compatibility": "unverified",
+    "data_T": false,
+    "kingston_K_frontier": false,
+    "owner_and_protected_custody_closed": false,
+    "safe_to_erase": false
+  },
+  "limitations": [
+    "The handoff and absent set ID were generated for this bounded rejection rehearsal; they are not a trusted production handoff.",
+    "Only the missing-set path was live-exercised; positive extraction is intentionally unreachable with the current Kingston inventory.",
+    "The same host had loaded Brain/D43 services and workspace processes; explicit same-host-isolated mode permitted diagnosis and made no clean-host or inert-host claim.",
+    "No full owner-state restore, provider reauthentication, activation, Recovery view, T, or K was performed."
+  ]
+}

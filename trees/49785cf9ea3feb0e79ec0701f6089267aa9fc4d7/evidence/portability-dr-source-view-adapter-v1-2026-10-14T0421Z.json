@@ -1,0 +1,65 @@
+{
+  "schema": "brain-host-source-view-adapter-engineering-receipt-v1",
+  "captured_at_utc": "2026-10-14T04:21:24Z",
+  "base_commit": "a33c62036d0f3123c1dab3b1861204d76140ab8b",
+  "branch": "research/active",
+  "scope": "synthetic consume-existing-view adapter contract only",
+  "source_sha256": {
+    "tools/brain_host_source_view_adapter_v1.py": "075aa13e153475ca105fc2b75364f90a33a1e5a720ebde3cccc9d88a9197b301",
+    "tests/test_brain_host_source_view_adapter_v1.py": "6f7664d43243958534df8e7c6a93b3ebeb27cb369664447165d24f8583280801",
+    "tests/test_brain_host_source_view_proof_v1.py": "6ea1cc1d1d6f00ad5c25ffcaff8743c6e5e2d3e70250ff8fb9fb1f4bbdf57977",
+    "tests/test_brain_host_recovery_frontier.py": "3fba60ca0566f8790db7a6939910124669894658ea9e0ddb1791500fdaf1df40",
+    "tests/test_brain_host_recovery_set.py": "6c92bcc4bf5311fd24cb24d1d853c0bc9b437a4cedf99f23bcf8f9e51124f036"
+  },
+  "checks": {
+    "ruff_format": "pass",
+    "ruff_check": "pass",
+    "git_diff_check": "pass",
+    "pytest": {
+      "passed": 43,
+      "skipped": 1,
+      "skip_reason": "Kingston rehearsal requires explicit opt-in"
+    },
+    "sol_review": "accepted for synthetic-only adapter contract"
+  },
+  "adapter_contract": {
+    "held_no_follow_view_and_root_descriptors": true,
+    "path_and_identity_revalidation": true,
+    "same_device_root_check": true,
+    "exact_credential_file_exclusions_require_reauth_reissue": true,
+    "credential_scope_complete": false,
+    "capture_relation": "post_capture_path_reconciliation",
+    "capture_was_descriptor_sourced": false,
+    "reconciled_roots": [
+      "owner_work",
+      "research_work",
+      "private_config",
+      "launchagent_definitions"
+    ],
+    "source_unbound_roles": ["protected_d43", "sqlite_backup"],
+    "sqlite_family": "metadata-only synthetic check tied through owner_work root"
+  },
+  "negative_cases": [
+    "symlink view ancestor",
+    "declared root replacement",
+    "cross-device root simulation",
+    "use after view release",
+    "forged APFS scenario and caller qualification fields",
+    "credential payload included in capture",
+    "missing or mismatched artifact pins and unresolved source-proof claims in the prior proof suite",
+    "SQLite family metadata drift and parent replacement in the prior proof suite"
+  ],
+  "hard_false_fields": {
+    "apfs_snapshot_attested": false,
+    "T_qualified": false,
+    "host_closure": false,
+    "erase_ready": false
+  },
+  "limits": [
+    "No real APFS snapshot was created or mounted; snapshot UUID, read-only mount, and cutoff are not independently attested.",
+    "The four v3 roots are reconciled after capture by path; the capture was not descriptor-sourced.",
+    "The protected-v2 and SQLite member locators are not independently bound by this adapter.",
+    "Credential verification covers only exact declared file exclusions and does not prove exhaustive credential closure.",
+    "This is synthetic-only, does not prove a durable T view or K frontier, and does not change factory-reset NO-GO."
+  ]
+}

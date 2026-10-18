@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>ai.memecoin.brain.senses.launch-v3-rehearsal-REVIEW-NONCE</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/ABSOLUTE/PATH/TO/python3</string>
+		<string>/ABSOLUTE/PATH/TO/tools/brain_senses_external_launch_v3_rehearsal.py</string>
+		<string>--config</string>
+		<string>/ABSOLUTE/PATH/TO/disposable/storage.json</string>
+		<string>--state-dir</string>
+		<string>/ABSOLUTE/PATH/TO/disposable/state</string>
+		<string>--result</string>
+		<string>/ABSOLUTE/PATH/TO/disposable/state/result.json</string>
+		<string>--label</string>
+		<string>ai.memecoin.brain.senses.launch-v3-rehearsal-REVIEW-NONCE</string>
+	</array>
+	<key>StandardOutPath</key>
+	<string>/ABSOLUTE/PATH/TO/disposable/state/stdout.log</string>
+	<key>StandardErrorPath</key>
+	<string>/ABSOLUTE/PATH/TO/disposable/state/stderr.log</string>
+</dict>
+</plist>

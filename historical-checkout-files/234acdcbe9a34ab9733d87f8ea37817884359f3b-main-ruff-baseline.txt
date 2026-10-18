@@ -1,0 +1,1463 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:3:1
+   |
+ 1 |   """Finite, single-writer WSS campaign journal and authorization binding."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | import fcntl
+ 6 | | import hashlib
+ 7 | | import json
+ 8 | | import os
+ 9 | | import stat
+10 | | import time
+11 | | from collections.abc import Callable
+12 | | from pathlib import Path
+13 | | from typing import Any
+14 | |
+15 | | from memecoin_collector.wss_reference import (
+16 | |     DISK_FLOOR_BYTES,
+17 | |     MAX_CONTROL_RESPONSE_BYTES,
+18 | |     MAX_MESSAGE_BYTES,
+19 | |     MAX_SESSION_NS,
+20 | |     MAX_BILLABLE_MESSAGES,
+21 | |     MAX_BILLABLE_UNCOMPRESSED_BYTES,
+22 | |     MAX_TRANSPORT_CONTROL_FRAMES,
+23 | |     MAX_TRANSPORT_CONTROL_WIRE_BYTES,
+24 | |     RAW_LIMIT_BYTES,
+25 | |     RECONNECTABLE_REASONS,
+26 | |     STORED_LIMIT_BYTES,
+27 | |     WssReferenceSession,
+28 | |     _canonical,
+29 | |     _safe_now,
+30 | |     _write_new,
+31 | |     default_binding,
+32 | | )
+   | |_^
+33 |
+34 |   MAX_SESSIONS = 2
+   |
+help: Organize imports
+   |
+16 |     DISK_FLOOR_BYTES,
+17 +     MAX_BILLABLE_MESSAGES,
+18 +     MAX_BILLABLE_UNCOMPRESSED_BYTES,
+19 |     MAX_CONTROL_RESPONSE_BYTES,
+20 |     MAX_MESSAGE_BYTES,
+21 |     MAX_SESSION_NS,
+   -     MAX_BILLABLE_MESSAGES,
+   -     MAX_BILLABLE_UNCOMPRESSED_BYTES,
+22 |     MAX_TRANSPORT_CONTROL_FRAMES,
+   |
+
+E501 Line too long (107 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:305:101
+    |
+303 |             sum(item.billable_message_count for item in self.sessions) + 1
+304 |             > self.authorization["max_billable_messages"]
+305 |             or sum(item.billable_uncompressed_bytes for item in self.sessions) + MAX_CONTROL_RESPONSE_BYTES
+    |                                                                                                     ^^^^^^^
+306 |             > self.authorization["max_billable_uncompressed_bytes"]
+307 |         ):
+    |
+
+F841 Local variable `control` is assigned to but never used
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:455:13
+    |
+453 |                 )
+454 |                 raise
+455 |             control = message if message is not None and message[0] in {"ping", "pong", "close"} else None
+    |             ^^^^^^^
+456 |             if message is None:
+457 |                 continue
+    |
+help: Remove assignment to unused variable `control`
+
+E501 Line too long (106 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:455:101
+    |
+453 |                 )
+454 |                 raise
+455 |             control = message if message is not None and message[0] in {"ping", "pong", "close"} else None
+    |                                                                                                     ^^^^^^
+456 |             if message is None:
+457 |                 continue
+    |
+
+E501 Line too long (107 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:552:101
+    |
+550 |             "raw_message_bytes": sum(item.raw_bytes for item in self.sessions),
+551 |             "billable_message_count": sum(item.billable_message_count for item in self.sessions),
+552 |             "billable_uncompressed_bytes": sum(item.billable_uncompressed_bytes for item in self.sessions),
+    |                                                                                                     ^^^^^^^
+553 |             "transport_control_frames": sum(item.transport_control_frames for item in self.sessions),
+554 |             "transport_control_wire_bytes": sum(item.transport_control_bytes for item in self.sessions),
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:553:101
+    |
+551 |             "billable_message_count": sum(item.billable_message_count for item in self.sessions),
+552 |             "billable_uncompressed_bytes": sum(item.billable_uncompressed_bytes for item in self.sessions),
+553 |             "transport_control_frames": sum(item.transport_control_frames for item in self.sessions),
+    |                                                                                                     ^
+554 |             "transport_control_wire_bytes": sum(item.transport_control_bytes for item in self.sessions),
+555 |             "stored_bytes_before_stop_record": self._stored_bytes(),
+    |
+
+E501 Line too long (104 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:554:101
+    |
+552 |             "billable_uncompressed_bytes": sum(item.billable_uncompressed_bytes for item in self.sessions),
+553 |             "transport_control_frames": sum(item.transport_control_frames for item in self.sessions),
+554 |             "transport_control_wire_bytes": sum(item.transport_control_bytes for item in self.sessions),
+    |                                                                                                     ^^^^
+555 |             "stored_bytes_before_stop_record": self._stored_bytes(),
+556 |             "no_resume": True,
+    |
+
+E501 Line too long (117 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:689:101
+    |
+687 |             raw_total = sum(row["stop"].get("raw_bytes", 0) for row in session_stops)
+688 |             billing_totals = {
+689 |                 "billable_message_count": sum(row["stop"].get("billable_message_count", 0) for row in session_stops),
+    |                                                                                                     ^^^^^^^^^^^^^^^^^
+690 |                 "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+691 |                 "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+    |
+
+E501 Line too long (127 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:690:101
+    |
+688 |             billing_totals = {
+689 |                 "billable_message_count": sum(row["stop"].get("billable_message_count", 0) for row in session_stops),
+690 |                 "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+691 |                 "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+692 |                 "transport_control_wire_bytes": sum(row["stop"].get("transport_control_wire_bytes", 0) for row in session_stops),
+    |
+
+E501 Line too long (121 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:691:101
+    |
+689 |                 "billable_message_count": sum(row["stop"].get("billable_message_count", 0) for row in session_stops),
+690 |                 "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+691 |                 "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^
+692 |                 "transport_control_wire_bytes": sum(row["stop"].get("transport_control_wire_bytes", 0) for row in session_stops),
+693 |             }
+    |
+
+E501 Line too long (129 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:692:101
+    |
+690 |                 "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+691 |                 "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+692 |                 "transport_control_wire_bytes": sum(row["stop"].get("transport_control_wire_bytes", 0) for row in session_stops),
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+693 |             }
+694 |             stored_before_stop = (
+    |
+
+E501 Line too long (113 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:712:101
+    |
+710 |         raw_total = sum(row["stop"].get("raw_bytes", 0) for row in session_stops)
+711 |         billing_totals = {
+712 |             "billable_message_count": sum(row["stop"].get("billable_message_count", 0) for row in session_stops),
+    |                                                                                                     ^^^^^^^^^^^^^
+713 |             "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+714 |             "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+    |
+
+E501 Line too long (123 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:713:101
+    |
+711 |         billing_totals = {
+712 |             "billable_message_count": sum(row["stop"].get("billable_message_count", 0) for row in session_stops),
+713 |             "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^
+714 |             "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+715 |             "transport_control_wire_bytes": sum(row["stop"].get("transport_control_wire_bytes", 0) for row in session_stops),
+    |
+
+E501 Line too long (117 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:714:101
+    |
+712 |             "billable_message_count": sum(row["stop"].get("billable_message_count", 0) for row in session_stops),
+713 |             "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+714 |             "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+    |                                                                                                     ^^^^^^^^^^^^^^^^^
+715 |             "transport_control_wire_bytes": sum(row["stop"].get("transport_control_wire_bytes", 0) for row in session_stops),
+716 |         }
+    |
+
+E501 Line too long (125 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:715:101
+    |
+713 |             "billable_uncompressed_bytes": sum(row["stop"].get("billable_uncompressed_bytes", 0) for row in session_stops),
+714 |             "transport_control_frames": sum(row["stop"].get("transport_control_frames", 0) for row in session_stops),
+715 |             "transport_control_wire_bytes": sum(row["stop"].get("transport_control_wire_bytes", 0) for row in session_stops),
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+716 |         }
+717 |         if (
+    |
+
+E501 Line too long (111 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:719:101
+    |
+717 |         if (
+718 |             billing_totals["billable_message_count"] > authorization["max_billable_messages"]
+719 |             or billing_totals["billable_uncompressed_bytes"] > authorization["max_billable_uncompressed_bytes"]
+    |                                                                                                     ^^^^^^^^^^^
+720 |             or billing_totals["transport_control_frames"] > authorization["max_transport_control_frames"]
+721 |             or billing_totals["transport_control_wire_bytes"] > authorization["max_transport_control_wire_bytes"]
+    |
+
+E501 Line too long (105 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:720:101
+    |
+718 |             billing_totals["billable_message_count"] > authorization["max_billable_messages"]
+719 |             or billing_totals["billable_uncompressed_bytes"] > authorization["max_billable_uncompressed_bytes"]
+720 |             or billing_totals["transport_control_frames"] > authorization["max_transport_control_frames"]
+    |                                                                                                     ^^^^^
+721 |             or billing_totals["transport_control_wire_bytes"] > authorization["max_transport_control_wire_bytes"]
+722 |         ):
+    |
+
+E501 Line too long (113 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_campaign.py:721:101
+    |
+719 |             or billing_totals["billable_uncompressed_bytes"] > authorization["max_billable_uncompressed_bytes"]
+720 |             or billing_totals["transport_control_frames"] > authorization["max_transport_control_frames"]
+721 |             or billing_totals["transport_control_wire_bytes"] > authorization["max_transport_control_wire_bytes"]
+    |                                                                                                     ^^^^^^^^^^^^^
+722 |         ):
+723 |             raise ValueError("wss_campaign_recovered_billable_cap_exceeded")
+    |
+
+E501 Line too long (118 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_reference.py:751:101
+    |
+749 |             or type(inbound_wire_bytes) is not int
+750 |             or inbound_wire_bytes < 2
+751 |             or (outbound_wire_bytes is not None and (type(outbound_wire_bytes) is not int or outbound_wire_bytes < 0))
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^
+752 |         ):
+753 |             raise ValueError("wss_transport_control_accounting_invalid")
+    |
+
+E501 Line too long (112 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_reference.py:854:101
+    |
+852 |                 "billable_message_count": sum(
+853 |                     row.get("kind") in {"message", "protocol_response"}
+854 |                     for row in (json.loads(path.read_text()) for path in (self.root / "journal").glob("*.json"))
+    |                                                                                                     ^^^^^^^^^^^^
+855 |                 ),
+856 |                 "billable_uncompressed_bytes": sum(
+    |
+
+E501 Line too long (112 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_reference.py:858:101
+    |
+856 |                 "billable_uncompressed_bytes": sum(
+857 |                     row.get("raw_bytes", 0)
+858 |                     for row in (json.loads(path.read_text()) for path in (self.root / "journal").glob("*.json"))
+    |                                                                                                     ^^^^^^^^^^^^
+859 |                     if row.get("kind") in {"message", "protocol_response"}
+860 |                 ),
+    |
+
+E501 Line too long (107 > 100)
+    --> /private/tmp/brain-dr-main-baseline-770699d/src/memecoin_collector/wss_reference.py:1214:101
+     |
+1212 |                     or (
+1213 |                         row.get("outbound_wire_bytes") is not None
+1214 |                         and (type(row["outbound_wire_bytes"]) is not int or row["outbound_wire_bytes"] < 0)
+     |                                                                                                     ^^^^^^^
+1215 |                     )
+1216 |                     or row.get("payload_captured") is not False
+     |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_campaign.py:1:1
+   |
+ 1 | / import fcntl
+ 2 | | import hashlib
+ 3 | | import json
+ 4 | | import os
+ 5 | | import socket
+ 6 | | from pathlib import Path
+ 7 | |
+ 8 | | import pytest
+ 9 | |
+10 | | from memecoin_collector.wss_campaign import (
+11 | |     WssReferenceCampaign,
+12 | |     default_authorization,
+13 | | )
+14 | | from memecoin_collector.wss_reference import DISK_FLOOR_BYTES, MAX_SESSION_NS
+15 | | from memecoin_collector import wss_campaign as campaign_module, wss_reference as reference_module
+   | |_________________________________________________________________________________________________^
+help: Organize imports
+   |
+9  |
+10 + from memecoin_collector import wss_campaign as campaign_module
+11 + from memecoin_collector import wss_reference as reference_module
+12 | from memecoin_collector.wss_campaign import (
+--------------------------------------------------------------------------------
+16 | from memecoin_collector.wss_reference import DISK_FLOOR_BYTES, MAX_SESSION_NS
+   - from memecoin_collector import wss_campaign as campaign_module, wss_reference as reference_module
+17 |
+   |
+
+F401 [*] `pathlib.Path` imported but unused
+ --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_campaign.py:6:21
+  |
+4 | import os
+5 | import socket
+6 | from pathlib import Path
+  |                     ^^^^
+7 |
+8 | import pytest
+  |
+help: Remove unused import: `pathlib.Path`
+  |
+5 | import socket
+  - from pathlib import Path
+6 |
+  |
+
+F401 [*] `memecoin_collector.wss_campaign` imported but unused
+  --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_campaign.py:15:48
+   |
+13 | )
+14 | from memecoin_collector.wss_reference import DISK_FLOOR_BYTES, MAX_SESSION_NS
+15 | from memecoin_collector import wss_campaign as campaign_module, wss_reference as reference_module
+   |                                                ^^^^^^^^^^^^^^^
+help: Remove unused import
+   |
+14 | from memecoin_collector.wss_reference import DISK_FLOOR_BYTES, MAX_SESSION_NS
+   - from memecoin_collector import wss_campaign as campaign_module, wss_reference as reference_module
+15 |
+   |
+
+F401 [*] `memecoin_collector.wss_reference` imported but unused
+  --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_campaign.py:15:82
+   |
+13 | )
+14 | from memecoin_collector.wss_reference import DISK_FLOOR_BYTES, MAX_SESSION_NS
+15 | from memecoin_collector import wss_campaign as campaign_module, wss_reference as reference_module
+   |                                                                                  ^^^^^^^^^^^^^^^^
+help: Remove unused import
+   |
+14 | from memecoin_collector.wss_reference import DISK_FLOOR_BYTES, MAX_SESSION_NS
+   - from memecoin_collector import wss_campaign as campaign_module, wss_reference as reference_module
+15 |
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import hashlib
+ 4 | | import json
+ 5 | | import os
+ 6 | | import plistlib
+ 7 | | import shutil
+ 8 | | import subprocess
+ 9 | | import uuid
+10 | | from concurrent.futures import ThreadPoolExecutor
+11 | | from pathlib import Path
+12 | |
+13 | | import pytest
+14 | | from hypothesis import given, settings, strategies as st
+15 | |
+16 | | from tools import brain_senses_wss_initial_entry_v2 as gate
+   | |___________________________________________________________^
+help: Organize imports
+   |
+13 | import pytest
+   - from hypothesis import given, settings, strategies as st
+14 + from hypothesis import given, settings
+15 + from hypothesis import strategies as st
+16 |
+   |
+
+E501 Line too long (102 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:275:101
+    |
+273 |         "sol_reviewer": (review, "c" * 64),
+274 |     }
+275 |     monkeypatch.setattr(gate, "_read_signed", lambda _root, _ref, role, **kwargs: signed_values[role])
+    |                                                                                                     ^^
+276 |     (packet / "gate.json").write_bytes(canonical(manifest) + b"\n")
+277 |     (packet / "gate.json").chmod(0o600)
+    |
+
+E501 Line too long (111 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:362:101
+    |
+360 |     assert claim["schema"] == gate.CLAIM_SCHEMA
+361 |     assert claim["activation_performed"] is False
+362 |     assert claim["claim_key_sha256"] == gate.auth._initial_entry_claim_key(kwargs["predecessor_digest_sha256"])
+    |                                                                                                     ^^^^^^^^^^^
+363 |     claim_path = registry / "successor-claims-v1.json"
+364 |     assert claim_path.stat().st_mode & 0o777 == 0o600
+    |
+
+E501 Line too long (102 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:455:101
+    |
+454 | @pytest.mark.parametrize("first", ["http", "wss"])
+455 | def test_http_api_and_wss_claim_writer_share_one_predecessor(tmp_path: Path, monkeypatch, first: str):
+    |                                                                                                     ^^
+456 |     digest = "9" * 64
+457 |     key = gate.auth._initial_entry_claim_key(digest)
+    |
+
+E731 Do not assign a `lambda` expression, use a `def`
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:463:5
+    |
+461 |       (packet / "gate.json").write_bytes(b"reviewed-gate")
+462 |       registry_identity = gate.auth._registry_snapshot(registry)[1]
+463 | /     wss_claim = lambda: reserve_wss_claim_fixture(
+464 | |         registry, predecessor_digest_sha256=digest,
+465 | |         gate_manifest_sha256="f" * 64, claimed_at_ns=100,
+466 | |         review_signature_sha256="8" * 64,
+467 | |     )
+    | |_____^
+468 |
+469 |       def verify_http(_root, **kwargs):
+    |
+help: Rewrite `wss_claim` as a `def`
+
+E731 Do not assign a `lambda` expression, use a `def`
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:486:5
+    |
+485 |       monkeypatch.setattr(gate.common_claims.verifier, "verify_packet", verify_http)
+486 | /     http_claim = lambda: gate.common_claims.claim_successor(
+487 | |         packet, registry_root=registry, trust_store_path=tmp_path / "trust.json",
+488 | |         trust_store_sha256="0" * 64, openssl_path=tmp_path / "openssl",
+489 | |         openssl_sha256="0" * 64, verifier_sha256="0" * 64,
+490 | |         helius_price_source_sha256="6" * 64, helius_price_table_sha256="7" * 64,
+491 | |         clock_source_id="fixture-clock", capture_root_path=tmp_path,
+492 | |     )
+    | |_____^
+493 |
+494 |       if first == "http":
+    |
+help: Rewrite `http_claim` as a `def`
+
+E501 Line too long (109 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:500:101
+    |
+498 |     else:
+499 |         assert wss_claim()["claim_key_sha256"] == key
+500 |         with pytest.raises(gate.common_claims.PreflightError, match="predecessor_successor_already_claimed"):
+    |                                                                                                     ^^^^^^^^^
+501 |             http_claim()
+    |
+
+E501 Line too long (107 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:505:101
+    |
+504 | @pytest.mark.parametrize("modality", ["http", "wss_private_claim_writer"])
+505 | def test_actual_claim_apis_fail_closed_on_pending_crash_prefix(tmp_path: Path, monkeypatch, modality: str):
+    |                                                                                                     ^^^^^^^
+506 |     registry = private_dir(tmp_path / "canonical-registry")
+507 |     monkeypatch.setattr(gate.auth, "CANONICAL_CLAIM_REGISTRY_ROOT", registry)
+    |
+
+E731 Do not assign a `lambda` expression, use a `def`
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:514:9
+    |
+512 |       (packet / "gate.json").write_bytes(b"manifest")
+513 |       if modality == "wss_private_claim_writer":
+514 | /         call = lambda: reserve_wss_claim_fixture(
+515 | |             registry, predecessor_digest_sha256="a" * 64,
+516 | |             gate_manifest_sha256="b" * 64, claimed_at_ns=123,
+517 | |         )
+    | |_________^
+518 |           expected = gate.auth.VerificationError
+519 |       else:
+    |
+help: Rewrite `call` as a `def`
+
+E731 Do not assign a `lambda` expression, use a `def`
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:536:9
+    |
+534 |               },
+535 |           )
+536 | /         call = lambda: gate.common_claims.claim_successor(
+537 | |             packet, registry_root=registry, trust_store_path=tmp_path / "trust",
+538 | |             trust_store_sha256="0" * 64, openssl_path=tmp_path / "openssl",
+539 | |             openssl_sha256="0" * 64, verifier_sha256="0" * 64,
+540 | |             helius_price_source_sha256="2" * 64, helius_price_table_sha256="3" * 64,
+541 | |             clock_source_id="clock", capture_root_path=tmp_path,
+542 | |         )
+    | |_________^
+543 |           expected = gate.auth.VerificationError
+544 |       with pytest.raises(expected, match="crash_prefix"):
+    |
+help: Rewrite `call` as a `def`
+
+E731 Do not assign a `lambda` expression, use a `def`
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:560:5
+    |
+558 |       packet = private_dir(tmp_path / "packet")
+559 |       (packet / "gate.json").write_bytes(b"manifest")
+560 | /     call = lambda: gate.common_claims.claim_successor(
+561 | |         packet, registry_root=supplied, trust_store_path=tmp_path / "trust",
+562 | |         trust_store_sha256="0" * 64, openssl_path=tmp_path / "openssl",
+563 | |         openssl_sha256="0" * 64, verifier_sha256="0" * 64,
+564 | |         helius_price_source_sha256="2" * 64, helius_price_table_sha256="3" * 64,
+565 | |         clock_source_id="clock", capture_root_path=tmp_path,
+566 | |     )
+    | |_____^
+567 |       expected = gate.common_claims.PreflightError
+568 |       reason = "claim_registry_not_canonical_owner_root"
+    |
+help: Rewrite `call` as a `def`
+
+E501 Line too long (110 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:606:101
+    |
+605 |     monkeypatch.setattr(gate.common_claims.verifier, "verify_packet", verify_http)
+606 |     with pytest.raises(gate.common_claims.PreflightError, match="claim_registry_identity_changed_under_lock"):
+    |                                                                                                     ^^^^^^^^^^
+607 |         gate.common_claims.claim_successor(
+608 |             packet, registry_root=registry, trust_store_path=tmp_path / "trust",
+    |
+
+E501 Line too long (105 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:658:101
+    |
+656 |     lock.write_bytes(b"")
+657 |     lock.chmod(0o600)
+658 |     before = {path.name: (path.read_bytes(), path.stat().st_mode & 0o777) for path in registry.iterdir()}
+    |                                                                                                     ^^^^^
+659 |
+660 |     def forbidden_access(_path):
+    |
+
+E501 Line too long (104 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:666:101
+    |
+664 |     with pytest.raises(gate.GateError, match="source_qualified_live_gate_required"):
+665 |         gate.claim_first_entry(registry, tmp_path / "packet", now_ns=88)
+666 |     after = {path.name: (path.read_bytes(), path.stat().st_mode & 0o777) for path in registry.iterdir()}
+    |                                                                                                     ^^^^
+667 |     assert after == before
+    |
+
+E501 Line too long (109 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:682:101
+    |
+680 |             return subprocess.CompletedProcess(args, 0, "", "")
+681 |         if args[:2] == ["/bin/ps", "-axo"]:
+682 |             return subprocess.CompletedProcess(args, 0, "201 node /usr/local/bin/node /opt/helius-mcp\n", "")
+    |                                                                                                     ^^^^^^^^^
+683 |         return subprocess.CompletedProcess(args, 1, "", "permission denied")
+    |
+
+E501 Line too long (113 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:691:101
+    |
+690 | def test_census_detects_new_loaded_senses_namespace_label(monkeypatch, tmp_path: Path):
+691 |     monkeypatch.setattr(gate, "_installed_senses_launchagent_labels", lambda: ["ai.memecoin.brain.senses.known"])
+    |                                                                                                     ^^^^^^^^^^^^^
+692 |     evidence = tmp_path / gate.QUIESCENCE_PATH
+693 |     evidence.parent.mkdir(parents=True)
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:694:101
+    |
+692 |     evidence = tmp_path / gate.QUIESCENCE_PATH
+693 |     evidence.parent.mkdir(parents=True)
+694 |     evidence.write_bytes(canonical({"senses_plists": [{"label": "ai.memecoin.brain.senses.known"}]}))
+    |                                                                                                     ^
+695 |
+696 |     def run(args, **kwargs):
+    |
+
+E501 Line too long (109 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:702:101
+    |
+700 |             )
+701 |         if args[:2] == ["/bin/launchctl", "print-disabled"]:
+702 |             return subprocess.CompletedProcess(args, 0, '"ai.memecoin.brain.senses.known" => disabled\n', "")
+    |                                                                                                     ^^^^^^^^^
+703 |         if args[:2] == ["/bin/ps", "-axo"]:
+704 |             return subprocess.CompletedProcess(args, 0, "", "")
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:891:101
+    |
+891 | def test_full_offline_dry_run_revalidates_without_client_or_credentials(tmp_path: Path, monkeypatch):
+    |                                                                                                     ^
+892 |     packet, _, _, _, inputs = make_gate_case(tmp_path, monkeypatch)
+893 |     result = gate.dry_run_activation(packet, **inputs)
+    |
+
+E501 Line too long (106 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tests/brain/test_senses_wss_initial_entry_v2.py:964:101
+    |
+962 |         manifest["limits"]["max_billable_uncompressed_bytes"] -= 1
+963 |     elif mutation == "source_freshness":
+964 |         account["price_source"]["sampled_at_ns"] = inputs["now_ns"] - gate.MAX_ACCOUNT_EVIDENCE_AGE_NS - 1
+    |                                                                                                     ^^^^^^
+965 |     elif mutation == "billing_ambiguous":
+966 |         account["billing"]["rounding_scope"] = "unknown"
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> /private/tmp/brain-dr-main-baseline-770699d/tests/test_brain_senses_gecko_capture_only_v3_host.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import hashlib
+ 4 | | import json
+ 5 | | import os
+ 6 | | from pathlib import Path
+ 7 | | from typing import Any
+ 8 | |
+ 9 | | import pytest
+10 | |
+11 | | import memecoin_research_storage as storage
+12 | | from memecoin_research_storage import (
+13 | |     StorageConfig,
+14 | |     StorageError,
+15 | |     VolumeInfo,
+16 | |     _open_relative_directory,
+17 | |     create_root,
+18 | |     writer_guard,
+19 | | )
+20 | | from memecoin_research_storage.live_writer import revalidate_descriptor_write
+21 | | from tools import brain_senses_gecko_canary_watchdog_v1 as watchdog
+22 | | from tools import brain_senses_gecko_capture_only_v3_host as v3
+23 | | from tools.brain_senses_external_writer_v1 import DescriptorWriter
+   | |__________________________________________________________________^
+24 |
+25 |   UUID = "11111111-2222-3333-4444-555555555555"
+   |
+help: Organize imports
+   |
+9  | import pytest
+10 + from memecoin_research_storage.live_writer import revalidate_descriptor_write
+11 |
+--------------------------------------------------------------------------------
+20 | )
+   - from memecoin_research_storage.live_writer import revalidate_descriptor_write
+21 | from tools import brain_senses_gecko_canary_watchdog_v1 as watchdog
+   |
+
+E501 Line too long (111 > 100)
+  --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_activation_preflight_verifier_v1.py:39:101
+   |
+37 | REGISTRY_CLAIMS_FILENAME = "successor-claims-v1.json"
+38 | CANONICAL_CLAIM_REGISTRY_ROOT = (
+39 |     Path.home() / "Library" / "Application Support" / "MemecoinResearch" / "senses-successor-claim-registry-v1"
+   |                                                                                                     ^^^^^^^^^^^
+40 | )
+41 | INITIAL_ENTRY_PREDECESSOR_KIND = "initial_entry_discontinuity_certificate_v1"
+   |
+
+E501 Line too long (106 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:124:101
+    |
+122 |         fee_recipient_set_sha != PINNED_FEE_RECIPIENT_SET_SHA256
+123 |         or FEE_RECIPIENTS_DOC_COMMIT != "8cda1fa30ea658b20909d8aedf002047119388d2"
+124 |         or FEE_RECIPIENTS_DOC_SHA256 != "8b05e0906eaf1746508b0b2f909ac7c344ce7be33a6564d595335c9fda399868"
+    |                                                                                                     ^^^^^^
+125 |     ):
+126 |         raise ValueError("pinned_fee_recipient_source_mismatch")
+    |
+
+E501 Line too long (121 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:161:101
+    |
+159 |         "pump_amm_program": PUMP_AMM_PROGRAM,
+160 |         "isolated_node_dependencies": SDK_DEPENDENCIES,
+161 |         "node_version": subprocess.run(["node", "--version"], check=True, capture_output=True, text=True).stdout.strip(),
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^
+162 |     }
+    |
+
+E501 Line too long (104 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:220:101
+    |
+218 |     frame = frame_receipt.get("frame")
+219 |     summary = json.loads(summary_bytes)
+220 |     frame_receipt_hash = source.get("frame_receipt_sha256", source.get("provider_audit_receipt_sha256"))
+    |                                                                                                     ^^^^
+221 |     plan_hash = source.get("epoch_plan_sha256", source.get("plan_sha256"))
+222 |     summary_hash = source.get("epoch_summary_sha256", frame.get("summary_sha256") if isinstance(frame, dict) else None)
+    |
+
+E501 Line too long (119 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:222:101
+    |
+220 |     frame_receipt_hash = source.get("frame_receipt_sha256", source.get("provider_audit_receipt_sha256"))
+221 |     plan_hash = source.get("epoch_plan_sha256", source.get("plan_sha256"))
+222 |     summary_hash = source.get("epoch_summary_sha256", frame.get("summary_sha256") if isinstance(frame, dict) else None)
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^
+223 |     if (
+224 |         Path(source.get("root", "")).resolve() != epoch_root.resolve()
+    |
+
+E501 Line too long (106 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:339:101
+    |
+337 |         if not isinstance(indexes, list) or len(indexes) != 26:
+338 |             raise ValueError("compiled_account_index_count_mismatch")
+339 |         transaction_status = "failed" if transaction.get("meta", {}).get("err") is not None else "success"
+    |                                                                                                     ^^^^^^
+340 |         if row.get("transaction_status") != transaction_status:
+341 |             raise ValueError("candidate_status_mismatch")
+    |
+
+E501 Line too long (123 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:347:101
+    |
+345 |         if raw_roles["quote_mint"] != row.get("quote_mint", identified_roles.get("quote_mint")):
+346 |             raise ValueError("candidate_quote_mint_role_mismatch")
+347 |         if raw_roles["quote_token_program"] != row.get("quote_token_program", identified_roles.get("quote_token_program")):
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^
+348 |             raise ValueError("candidate_quote_program_role_mismatch")
+349 |         expected_tail = row.get("ordered_extra_accounts")
+    |
+
+E501 Line too long (102 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:353:101
+    |
+351 |             if accounts[23:] != expected_tail:
+352 |                 raise ValueError("candidate_remaining_accounts_mismatch")
+353 |         elif row.get("observed_fee_recipient") is not None or row.get("observed_fee_ata") is not None:
+    |                                                                                                     ^^
+354 |             if accounts[24:] != [row.get("observed_fee_recipient"), row.get("observed_fee_ata")]:
+355 |                 raise ValueError("candidate_fee_pair_mismatch")
+    |
+
+E501 Line too long (110 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:423:101
+    |
+421 |         ):
+422 |             raise ValueError("official_sdk_derivation_row_identity_mismatch")
+423 |         ix = _compiled_instruction(blocks[raw["slot"]]["transactions"][raw["transaction_index"]], raw["path"])
+    |                                                                                                     ^^^^^^^^^^
+424 |         account_indexes = ix["accounts"]
+425 |         transaction = blocks[raw["slot"]]["transactions"][raw["transaction_index"]]
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:436:101
+    |
+434 |         )
+435 |         checks = {
+436 |             "pool_v2_pda_matches_raw_prefix": raw["raw_remaining_accounts"][0] == derived["pool_v2"],
+    |                                                                                                     ^
+437 |             "raw_prefix_not_cashback_quote_ata": raw["raw_remaining_accounts"][0] != derived["cashback_quote_ata"],
+438 |             "pool_v2_transaction_readonly": pool_writable is False,
+    |
+
+E501 Line too long (115 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:437:101
+    |
+435 |         checks = {
+436 |             "pool_v2_pda_matches_raw_prefix": raw["raw_remaining_accounts"][0] == derived["pool_v2"],
+437 |             "raw_prefix_not_cashback_quote_ata": raw["raw_remaining_accounts"][0] != derived["cashback_quote_ata"],
+    |                                                                                                     ^^^^^^^^^^^^^^^
+438 |             "pool_v2_transaction_readonly": pool_writable is False,
+439 |             "pool_v2_nonsigner": pool_signer is False,
+    |
+
+E501 Line too long (105 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:448:101
+    |
+446 |         }
+447 |         failed_checks = [name for name, passed in checks.items() if not passed]
+448 |         state = "sdk_source_bound_pool_v2_pda_candidate" if not failed_checks else "quarantined_mismatch"
+    |                                                                                                     ^^^^^
+449 |         counts[state] += 1
+450 |         by_status[raw["transaction_status"]][state] += 1
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:496:101
+    |
+494 |             "sdk": sdk_pin,
+495 |             "fee_recipient_set_sha256": _sha256(
+496 |                 json.dumps(sorted(FEE_RECIPIENTS_UPGRADE_2026_04_28), separators=(",", ":")).encode()
+    |                                                                                                     ^
+497 |             ),
+498 |             "classifier_sha256": _sha256(Path(__file__).read_bytes()),
+    |
+
+E501 Line too long (189 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:507:101
+    |
+505 | …
+506 | …
+507 | …al candidate; it does not prove initialized historical pool state or which builder produced the transaction.",
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+508 | … economic fills or settled wallet outcomes.",
+509 | …account checks pass.",
+    |
+
+E501 Line too long (124 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:508:101
+    |
+506 | …     "limitations": [
+507 | …         "A matching pool-v2 PDA prefix is only an SDK-source-bound structural candidate; it does not prove initialized historical p…
+508 | …         "Successful transaction references are not independently reconciled economic fills or settled wallet outcomes.",
+    |                                                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^
+509 | …         "Failed transactions remain attempt-only, even when all structural account checks pass.",
+510 | …         "Cashback applicability, fees moved, reserves, price, Token-2022 effects, CPI sibling effects, and training/execution admis…
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:509:101
+    |
+507 | …     "A matching pool-v2 PDA prefix is only an SDK-source-bound structural candidate; it does not prove initialized historical pool …
+508 | …     "Successful transaction references are not independently reconciled economic fills or settled wallet outcomes.",
+509 | …     "Failed transactions remain attempt-only, even when all structural account checks pass.",
+    |                                                                                               ^
+510 | …     "Cashback applicability, fees moved, reserves, price, Token-2022 effects, CPI sibling effects, and training/execution admission…
+511 | …     "This classifier is restricted to exact 25-byte valid-boolean buy_exact_quote_in with exactly three remaining accounts; all oth…
+    |
+
+E501 Line too long (159 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:510:101
+    |
+508 | …ntly reconciled economic fills or settled wallet outcomes.",
+509 | …all structural account checks pass.",
+510 | …, Token-2022 effects, CPI sibling effects, and training/execution admission are not assessed.",
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+511 | …d-boolean buy_exact_quote_in with exactly three remaining accounts; all other shapes remain quarantined.",
+512 | …
+    |
+
+E501 Line too long (170 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:511:101
+    |
+509 | …tructural account checks pass.",
+510 | …en-2022 effects, CPI sibling effects, and training/execution admission are not assessed.",
+511 | …lean buy_exact_quote_in with exactly three remaining accounts; all other shapes remain quarantined.",
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+512 | …
+513 | …
+    |
+
+E501 Line too long (131 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:523:101
+    |
+521 |     parser.add_argument("--sdk-root", required=True, type=Path)
+522 |     parser.add_argument("--node-dependencies", required=True, type=Path)
+523 |     parser.add_argument("--derive-script", type=Path, default=REPO_ROOT / "tools/brain_senses_buy_exact_v1_pool_v2_pda_derive.cjs")
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+524 |     parser.add_argument("--output", required=True, type=Path)
+525 |     args = parser.parse_args()
+    |
+
+E501 Line too long (163 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier.py:543:101
+    |
+541 | …
+542 | …
+543 | …["result"]["state_counts"], "status_counts": result["result"]["status_counts"]}, sort_keys=True))
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+544 | …
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:24:1
+   |
+22 |       sys.path.insert(0, str(REPO_ROOT / "src"))
+23 |
+24 | / from memecoin_pumpswap.buy_exact_v1 import (  # noqa: E402
+25 | |     ACCOUNT_ROLES,
+26 | |     DISCRIMINATOR,
+27 | |     FEE_RECIPIENTS_DOC_COMMIT,
+28 | |     FEE_RECIPIENTS_DOC_SHA256,
+29 | |     IDL_SHA256,
+30 | | )
+31 | | from memecoin_pumpswap.compiled_economics import (  # noqa: E402
+32 | |     FEE_RECIPIENTS_UPGRADE_2026_04_28,
+33 | |     associated_token_address,
+34 | | )
+35 | | from tools.brain_senses_buy_exact_v1_census import _capture_rows, _read_block  # noqa: E402
+36 | | from tools.brain_senses_buy_exact_v1_role_qualifier import (  # noqa: E402
+37 | |     _compiled_instruction,
+38 | |     _roles_from_raw,
+39 | | )
+40 | | from memecoin_pumpswap.buy_exact_v1 import inspect_buy_exact_quote_in_v1  # noqa: E402
+   | |________________________________________________________________________^
+41 |
+42 |   CONTRACT = "pumpswap_v1_buy_exact_pool_v2_three_tail_prefix_v2_raw_report_reconciled"
+   |
+help: Organize imports
+   |
+29 |     IDL_SHA256,
+30 +     inspect_buy_exact_quote_in_v1,  # noqa: E402
+31 | )
+--------------------------------------------------------------------------------
+40 | )
+   - from memecoin_pumpswap.buy_exact_v1 import inspect_buy_exact_quote_in_v1  # noqa: E402
+41 |
+   |
+
+E501 Line too long (106 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:139:101
+    |
+137 |         fee_recipient_set_sha != PINNED_FEE_RECIPIENT_SET_SHA256
+138 |         or FEE_RECIPIENTS_DOC_COMMIT != "8cda1fa30ea658b20909d8aedf002047119388d2"
+139 |         or FEE_RECIPIENTS_DOC_SHA256 != "8b05e0906eaf1746508b0b2f909ac7c344ce7be33a6564d595335c9fda399868"
+    |                                                                                                     ^^^^^^
+140 |     ):
+141 |         raise ValueError("pinned_fee_recipient_source_mismatch")
+    |
+
+E501 Line too long (121 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:176:101
+    |
+174 |         "pump_amm_program": PUMP_AMM_PROGRAM,
+175 |         "isolated_node_dependencies": SDK_DEPENDENCIES,
+176 |         "node_version": subprocess.run(["node", "--version"], check=True, capture_output=True, text=True).stdout.strip(),
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^
+177 |     }
+    |
+
+E501 Line too long (104 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:235:101
+    |
+233 |     frame = frame_receipt.get("frame")
+234 |     summary = json.loads(summary_bytes)
+235 |     frame_receipt_hash = source.get("frame_receipt_sha256", source.get("provider_audit_receipt_sha256"))
+    |                                                                                                     ^^^^
+236 |     plan_hash = source.get("epoch_plan_sha256", source.get("plan_sha256"))
+237 |     summary_hash = source.get("epoch_summary_sha256", frame.get("summary_sha256") if isinstance(frame, dict) else None)
+    |
+
+E501 Line too long (119 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:237:101
+    |
+235 |     frame_receipt_hash = source.get("frame_receipt_sha256", source.get("provider_audit_receipt_sha256"))
+236 |     plan_hash = source.get("epoch_plan_sha256", source.get("plan_sha256"))
+237 |     summary_hash = source.get("epoch_summary_sha256", frame.get("summary_sha256") if isinstance(frame, dict) else None)
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^
+238 |     if (
+239 |         Path(source.get("root", "")).resolve() != epoch_root.resolve()
+    |
+
+E501 Line too long (104 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:314:101
+    |
+312 |                 )
+313 |             signatures = transaction.get("transaction", {}).get("signatures", [])
+314 |             if not isinstance(signatures, list) or not signatures or not isinstance(signatures[0], str):
+    |                                                                                                     ^^^^
+315 |                 raise ValueError(f"raw_transaction_signature_missing:{slot}:{transaction_index}")
+316 |             signature = signatures[0]
+    |
+
+E501 Line too long (105 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:339:101
+    |
+337 |                 ):
+338 |                     raise ValueError("raw_candidate_wire_or_account_shape_mismatch")
+339 |                 tx_status = "failed" if transaction.get("meta", {}).get("err") is not None else "success"
+    |                                                                                                     ^^^^^
+340 |                 if reference.get("transaction_status") != (
+341 |                     "failed_tx_attempt_only" if tx_status == "failed" else "successful_tx_instruction_reference"
+    |
+
+E501 Line too long (112 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:341:101
+    |
+339 |                 tx_status = "failed" if transaction.get("meta", {}).get("err") is not None else "success"
+340 |                 if reference.get("transaction_status") != (
+341 |                     "failed_tx_attempt_only" if tx_status == "failed" else "successful_tx_instruction_reference"
+    |                                                                                                     ^^^^^^^^^^^^
+342 |                 ):
+343 |                     raise ValueError("raw_candidate_status_inconsistent")
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:407:101
+    |
+405 |             raise ValueError("raw_report_remaining_account_mismatch")
+406 |     return {
+407 |         "method": "independent_full_block_instruction_normalization_and_exact_identity_set_equality",
+    |                                                                                                     ^
+408 |         "full_blocks_enumerated": len(blocks),
+409 |         "transactions_normalized": transactions_normalized,
+    |
+
+E501 Line too long (106 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:523:101
+    |
+521 |         if not isinstance(indexes, list) or len(indexes) != 26:
+522 |             raise ValueError("compiled_account_index_count_mismatch")
+523 |         transaction_status = "failed" if transaction.get("meta", {}).get("err") is not None else "success"
+    |                                                                                                     ^^^^^^
+524 |         if row.get("transaction_status") != transaction_status:
+525 |             raise ValueError("candidate_status_mismatch")
+    |
+
+E501 Line too long (123 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:531:101
+    |
+529 |         if raw_roles["quote_mint"] != row.get("quote_mint", identified_roles.get("quote_mint")):
+530 |             raise ValueError("candidate_quote_mint_role_mismatch")
+531 |         if raw_roles["quote_token_program"] != row.get("quote_token_program", identified_roles.get("quote_token_program")):
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^
+532 |             raise ValueError("candidate_quote_program_role_mismatch")
+533 |         expected_tail = row.get("ordered_extra_accounts")
+    |
+
+E501 Line too long (102 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:537:101
+    |
+535 |             if accounts[23:] != expected_tail:
+536 |                 raise ValueError("candidate_remaining_accounts_mismatch")
+537 |         elif row.get("observed_fee_recipient") is not None or row.get("observed_fee_ata") is not None:
+    |                                                                                                     ^^
+538 |             if accounts[24:] != [row.get("observed_fee_recipient"), row.get("observed_fee_ata")]:
+539 |                 raise ValueError("candidate_fee_pair_mismatch")
+    |
+
+E501 Line too long (110 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:607:101
+    |
+605 |         ):
+606 |             raise ValueError("official_sdk_derivation_row_identity_mismatch")
+607 |         ix = _compiled_instruction(blocks[raw["slot"]]["transactions"][raw["transaction_index"]], raw["path"])
+    |                                                                                                     ^^^^^^^^^^
+608 |         account_indexes = ix["accounts"]
+609 |         transaction = blocks[raw["slot"]]["transactions"][raw["transaction_index"]]
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:620:101
+    |
+618 |         )
+619 |         checks = {
+620 |             "pool_v2_pda_matches_raw_prefix": raw["raw_remaining_accounts"][0] == derived["pool_v2"],
+    |                                                                                                     ^
+621 |             "raw_prefix_not_cashback_quote_ata": raw["raw_remaining_accounts"][0] != derived["cashback_quote_ata"],
+622 |             "pool_v2_transaction_readonly": pool_writable is False,
+    |
+
+E501 Line too long (115 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:621:101
+    |
+619 |         checks = {
+620 |             "pool_v2_pda_matches_raw_prefix": raw["raw_remaining_accounts"][0] == derived["pool_v2"],
+621 |             "raw_prefix_not_cashback_quote_ata": raw["raw_remaining_accounts"][0] != derived["cashback_quote_ata"],
+    |                                                                                                     ^^^^^^^^^^^^^^^
+622 |             "pool_v2_transaction_readonly": pool_writable is False,
+623 |             "pool_v2_nonsigner": pool_signer is False,
+    |
+
+E501 Line too long (105 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:632:101
+    |
+630 |         }
+631 |         failed_checks = [name for name, passed in checks.items() if not passed]
+632 |         state = "sdk_source_bound_pool_v2_pda_candidate" if not failed_checks else "quarantined_mismatch"
+    |                                                                                                     ^^^^^
+633 |         counts[state] += 1
+634 |         by_status[raw["transaction_status"]][state] += 1
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:680:101
+    |
+678 |             "sdk": sdk_pin,
+679 |             "fee_recipient_set_sha256": _sha256(
+680 |                 json.dumps(sorted(FEE_RECIPIENTS_UPGRADE_2026_04_28), separators=(",", ":")).encode()
+    |                                                                                                     ^
+681 |             ),
+682 |             "classifier_sha256": _sha256(Path(__file__).read_bytes()),
+    |
+
+E501 Line too long (189 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:693:101
+    |
+691 | …
+692 | …
+693 | …al candidate; it does not prove initialized historical pool state or which builder produced the transaction.",
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+694 | … economic fills or settled wallet outcomes.",
+695 | …account checks pass.",
+    |
+
+E501 Line too long (124 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:694:101
+    |
+692 | …     "limitations": [
+693 | …         "A matching pool-v2 PDA prefix is only an SDK-source-bound structural candidate; it does not prove initialized historical p…
+694 | …         "Successful transaction references are not independently reconciled economic fills or settled wallet outcomes.",
+    |                                                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^
+695 | …         "Failed transactions remain attempt-only, even when all structural account checks pass.",
+696 | …         "Cashback applicability, fees moved, reserves, price, Token-2022 effects, CPI sibling effects, and training/execution admis…
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:695:101
+    |
+693 | …     "A matching pool-v2 PDA prefix is only an SDK-source-bound structural candidate; it does not prove initialized historical pool …
+694 | …     "Successful transaction references are not independently reconciled economic fills or settled wallet outcomes.",
+695 | …     "Failed transactions remain attempt-only, even when all structural account checks pass.",
+    |                                                                                               ^
+696 | …     "Cashback applicability, fees moved, reserves, price, Token-2022 effects, CPI sibling effects, and training/execution admission…
+697 | …     "This classifier is restricted to exact 25-byte valid-boolean buy_exact_quote_in with exactly three remaining accounts; all oth…
+    |
+
+E501 Line too long (159 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:696:101
+    |
+694 | …ntly reconciled economic fills or settled wallet outcomes.",
+695 | …all structural account checks pass.",
+696 | …, Token-2022 effects, CPI sibling effects, and training/execution admission are not assessed.",
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+697 | …d-boolean buy_exact_quote_in with exactly three remaining accounts; all other shapes remain quarantined.",
+698 | …
+    |
+
+E501 Line too long (170 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:697:101
+    |
+695 | …tructural account checks pass.",
+696 | …en-2022 effects, CPI sibling effects, and training/execution admission are not assessed.",
+697 | …lean buy_exact_quote_in with exactly three remaining accounts; all other shapes remain quarantined.",
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+698 | …
+699 | …
+    |
+
+E501 Line too long (131 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:709:101
+    |
+707 |     parser.add_argument("--sdk-root", required=True, type=Path)
+708 |     parser.add_argument("--node-dependencies", required=True, type=Path)
+709 |     parser.add_argument("--derive-script", type=Path, default=REPO_ROOT / "tools/brain_senses_buy_exact_v1_pool_v2_pda_derive.cjs")
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+710 |     parser.add_argument("--output", required=True, type=Path)
+711 |     parser.add_argument("--supersedes-receipt", type=Path)
+    |
+
+E501 Line too long (163 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_buy_exact_v1_pool_v2_prefix_qualifier_v2.py:734:101
+    |
+732 | …
+733 | …
+734 | …["result"]["state_counts"], "status_counts": result["result"]["status_counts"]}, sort_keys=True))
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+735 | …
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_gecko_capture_only_v3_host.py:23:1
+   |
+21 |           sys.path.insert(0, str(_entry))
+22 |
+23 | / from memecoin_research_storage import (  # noqa: E402
+24 | |     _open_relative_directory,
+25 | |     writer_guard,
+26 | | )
+27 | | from memecoin_research_storage.live_writer import (  # noqa: E402
+28 | |     revalidate_descriptor_write,
+29 | | )
+30 | | from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
+31 | | from tools import brain_senses_external_clock_v1 as external_clock  # noqa: E402
+32 | | from tools import brain_senses_gecko_capture_only_v2_host as v2  # noqa: E402
+33 | | from tools import brain_senses_gecko_capture_only_v2_service as service  # noqa: E402
+34 | | from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
+35 | | from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
+   | |__________________________________________________________________^
+36 |
+37 |   CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+   |
+help: Organize imports
+   |
+22 |
+23 + from memecoin_research_storage.live_writer import (  # noqa: E402
+24 +     revalidate_descriptor_write,
+25 + )
+26 +
+27 | from memecoin_research_storage import (  # noqa: E402
+28 |     _open_relative_directory,
+29 |     writer_guard,
+   - )
+   - from memecoin_research_storage.live_writer import (  # noqa: E402
+   -     revalidate_descriptor_write,
+30 | )
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_gecko_capture_only_v4_host.py:23:1
+   |
+21 |           sys.path.insert(0, str(_entry))
+22 |
+23 | / from memecoin_research_storage import (  # noqa: E402
+24 | |     _open_relative_directory,
+25 | |     writer_guard,
+26 | | )
+27 | | from memecoin_research_storage.live_writer import (  # noqa: E402
+28 | |     revalidate_descriptor_write,
+29 | | )
+30 | | from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
+31 | | from tools import brain_senses_external_clock_v1 as external_clock  # noqa: E402
+32 | | from tools import brain_senses_gecko_capture_only_v2_host as v2  # noqa: E402
+33 | | from tools import brain_senses_gecko_capture_only_v2_service as service  # noqa: E402
+34 | | from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
+35 | | from tools import brain_senses_gecko_usage_inventory_v2 as usage_inventory_v2  # noqa: E402
+36 | | from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
+   | |__________________________________________________________________^
+37 |
+38 |   CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+   |
+help: Organize imports
+   |
+22 |
+23 + from memecoin_research_storage.live_writer import (  # noqa: E402
+24 +     revalidate_descriptor_write,
+25 + )
+26 +
+27 | from memecoin_research_storage import (  # noqa: E402
+28 |     _open_relative_directory,
+29 |     writer_guard,
+   - )
+   - from memecoin_research_storage.live_writer import (  # noqa: E402
+   -     revalidate_descriptor_write,
+30 | )
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:8:1
+   |
+ 6 |   """
+ 7 |
+ 8 | / from __future__ import annotations
+ 9 | |
+10 | | import hashlib
+11 | | import json
+12 | | import math
+13 | | import os
+14 | | import plistlib
+15 | | import re
+16 | | import shlex
+17 | | import shutil
+18 | | import stat
+19 | | import subprocess
+20 | | import time
+21 | | import xml.parsers.expat
+22 | | from pathlib import Path
+23 | | from typing import Any
+24 | |
+25 | | from tools import brain_senses_activation_preflight_verifier_v1 as auth
+26 | | from tools import brain_senses_activation_preflight_v1 as common_claims
+27 | | from tools import brain_senses_initial_entry_discontinuity_verifier_v1 as discontinuity
+28 | |
+29 | | from memecoin_collector import wss_campaign, wss_reference
+   | |__________________________________________________________^
+30 |
+31 |   SCHEMA = "brain-senses-wss-initial-entry-gate-v2"
+   |
+help: Organize imports
+   |
+24 |
+   - from tools import brain_senses_activation_preflight_verifier_v1 as auth
+25 + from memecoin_collector import wss_campaign, wss_reference
+26 | from tools import brain_senses_activation_preflight_v1 as common_claims
+27 + from tools import brain_senses_activation_preflight_verifier_v1 as auth
+28 | from tools import brain_senses_initial_entry_discontinuity_verifier_v1 as discontinuity
+   -
+   - from memecoin_collector import wss_campaign, wss_reference
+29 |
+   |
+
+E501 Line too long (103 > 100)
+  --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:66:101
+   |
+64 |     "activation_preflight_claim_writer.py": Path(common_claims.__file__),
+65 |     "activation_preflight_claim_verifier.py": Path(auth.__file__),
+66 |     "brain_senses_wss_resolver.py": Path(__file__).resolve().with_name("brain_senses_wss_resolver.py"),
+   |                                                                                                     ^^^
+67 |     "wss_initial_entry_gate_verifier.py": Path(__file__).resolve(),
+68 | }
+   |
+
+E501 Line too long (101 > 100)
+  --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:92:101
+   |
+90 |     root = path.resolve(strict=True)
+91 |     st = root.lstat()
+92 |     if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid() or stat.S_IMODE(st.st_mode) != 0o700:
+   |                                                                                                     ^
+93 |         raise GateError("evidence_root_owner_or_mode_invalid")
+94 |     return root
+   |
+
+E501 Line too long (109 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:180:101
+    |
+178 |             except GateError:
+179 |                 raise
+180 |             except (OSError, plistlib.InvalidFileException, ValueError, xml.parsers.expat.ExpatError) as exc:
+    |                                                                                                     ^^^^^^^^^
+181 |                 raise GateError("launchagent_plist_invalid") from exc
+182 |             label = document.get("Label") if isinstance(document, dict) else None
+    |
+
+B904 Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:234:13
+    |
+232 |         except ValueError:
+233 |             # An unparseable process command line cannot be safely classified.
+234 |             raise GateError("current_owner_process_argv_unparseable")
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+235 |         if (
+236 |             Path(comm).name.startswith("python")
+    |
+
+E501 Line too long (101 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:252:101
+    |
+250 |             and any("helius-mcp@" in token.lower() for token in argv_tokens)
+251 |         ) or any(
+252 |             Path(token).name.lower() in {"helius-mcp-secure-wrapper", "helius-mcp-secure-wrapper.py"}
+    |                                                                                                     ^
+253 |             for token in argv_tokens
+254 |         )
+    |
+
+E501 Line too long (102 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:297:101
+    |
+295 |     path = packet_root / "gate.json"
+296 |     try:
+297 |         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    |                                                                                                     ^^
+298 |     except FileExistsError as exc:
+299 |         raise GateError("gate_receipt_already_exists") from exc
+    |
+
+E501 Line too long (102 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:342:101
+    |
+340 |         )
+341 |     elif rounding_scope == "message":
+342 |         # At most N positive messages: aggregate chunks plus at most one extra per additional message.
+    |                                                                                                     ^^
+343 |         chunks = (
+344 |             math.ceil(byte_count / chunk_bytes) + max(0, message_count - 1)
+    |
+
+E501 Line too long (109 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:377:101
+    |
+375 |     for key in ("account_fingerprint_sha256", "endpoint_key_fingerprint_sha256"):
+376 |         value = account.get(key)
+377 |         if not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+    |                                                                                                     ^^^^^^^^^
+378 |             raise GateError("account_evidence_source_pin_missing")
+379 |     for name in ("account_source", "price_source"):
+    |
+
+E501 Line too long (116 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:454:101
+    |
+452 |     ):
+453 |         raise GateError("suspended_shared_clients_must_have_zero_caps")
+454 |     for key in ("remaining_wss_credits", "control_tls_reconnect_overhead_credits", "reset_at_ns", "valid_until_ns"):
+    |                                                                                                     ^^^^^^^^^^^^^^^^
+455 |         if type(account.get(key)) is not int or account[key] < 0:
+456 |             raise GateError("account_credit_fields_invalid")
+    |
+
+E501 Line too long (111 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:457:101
+    |
+455 |         if type(account.get(key)) is not int or account[key] < 0:
+456 |             raise GateError("account_credit_fields_invalid")
+457 |     if account["valid_until_ns"] < window["expires_at_ns"] or account["reset_at_ns"] < window["expires_at_ns"]:
+    |                                                                                                     ^^^^^^^^^^^
+458 |         raise GateError("account_credit_evidence_expires_before_window")
+459 |     if account.get("overage_ceiling_credits") != 0:
+    |
+
+E501 Line too long (113 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:526:101
+    |
+524 |     manifest = auth._json(manifest_raw)
+525 |     required_manifest_keys = {
+526 |         "schema", "status", "predecessor", "c4_quiescence_receipt_sha256", "window", "limits", "source_bindings",
+    |                                                                                                     ^^^^^^^^^^^^^
+527 |         "wss_contract_versions",
+528 |         "authorization_scope", "live_gate_qualified",
+    |
+
+E501 Line too long (106 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:582:101
+    |
+580 |     ):
+581 |         raise GateError("wss_first_entry_window_invalid")
+582 |     if phase not in {"preauthorize", "pre_dns", "pre_subscribe"} or type(now_ns) is not int or now_ns < 0:
+    |                                                                                                     ^^^^^^
+583 |         raise GateError("wss_first_entry_phase_or_clock_invalid")
+584 |     if phase == "preauthorize":
+    |
+
+E501 Line too long (141 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:617:101
+    |
+615 | …
+616 | …
+617 | …d account.get("endpoint_key_fingerprint_sha256") != expected_endpoint_key_fingerprint:
+    |                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+618 | …ismatch")
+619 | …
+    |
+
+E501 Line too long (126 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:628:101
+    |
+626 |         + wss_reference.MAX_MESSAGE_BYTES
+627 |         + METADATA_RESERVE_BYTES
+628 |         + (host.get("reviewed_host_churn_reserve_bytes") if type(host.get("reviewed_host_churn_reserve_bytes")) is int else 0)
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+629 |     )
+630 |     if (
+    |
+
+E501 Line too long (116 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:655:101
+    |
+653 |         or monotonic_now_ns < host["sampled_monotonic_ns"]
+654 |         or monotonic_now_ns - host["sampled_monotonic_ns"] > MAX_GATE_AGE_NS
+655 |         or abs((now_ns - host["sampled_at_ns"]) - (monotonic_now_ns - host["sampled_monotonic_ns"])) > 5_000_000_000
+    |                                                                                                     ^^^^^^^^^^^^^^^^
+656 |         or not isinstance(host.get("trusted_clock_evidence_sha256"), str)
+657 |         or len(host["trusted_clock_evidence_sha256"]) != 64
+    |
+
+E501 Line too long (106 > 100)
+   --> /private/tmp/brain-dr-main-baseline-770699d/tools/brain_senses_wss_initial_entry_v2.py:753:101
+    |
+752 | def dry_run_due_window_checks(packet_root: Path, **verification_inputs: Any) -> dict[str, Any]:
+753 |     """Check due-window evidence twice, as separate pre-DNS and pre-subscribe phases; no client exists."""
+    |                                                                                                     ^^^^^^
+754 |     first_now = verification_inputs.pop("pre_dns_now_ns")
+755 |     first_mono = verification_inputs.pop("pre_dns_monotonic_ns")
+    |
+
+Found 110 errors.
+[*] 11 fixable with the `--fix` option (6 hidden fixes can be enabled with the `--unsafe-fixes` option).

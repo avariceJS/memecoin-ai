@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-01",
+  "evidence_type": "protocol_engineering_validation_not_market_edge",
+  "audit_code_commit": "2d9a61c6ae46ba2e2e5a5883d77162d9699052d4",
+  "report_path": "work/protocol-source/audit-complete.json",
+  "report_sha256": "9a3566316b583c5ad934c3caedb64d757bf3912e6018317716bd7cc204a4a6bf",
+  "decoder_snapshot_sha256": "56ca15d78b28860c95154196775401ef6dac1db882592769a259f1cef7f09999",
+  "frozen_pilot_manifest_sha256": "21c7efe581753768807e9d6e2707218a78b556d597941200bcc49442c1140a33",
+  "regression_manifest_sha256": "c6a1e5e9e74f3eddb66f5d0c4aeeaa1aae4fbc5e1d6abcfbb4dfd740d7023c5e",
+  "counts": {
+    "creator_fee_swaps": 0,
+    "failed": 143,
+    "operations": {
+      "swap_base_input": 42,
+      "swap_base_output": 2
+    },
+    "successful_no_pool_operation": 2,
+    "transactions": 189
+  },
+  "intervals": [
+    {
+      "pool_id": "3pb9vkSkhFp9Y4fNp1rXanFhYUqCoKEztvy2eU9KXX3d",
+      "start_slot": 452384039,
+      "end_slot": 452384086,
+      "consistency_passed": true,
+      "blockers": []
+    },
+    {
+      "pool_id": "3pb9vkSkhFp9Y4fNp1rXanFhYUqCoKEztvy2eU9KXX3d",
+      "start_slot": 452384086,
+      "end_slot": 452384667,
+      "consistency_passed": true,
+      "blockers": []
+    },
+    {
+      "pool_id": "3pb9vkSkhFp9Y4fNp1rXanFhYUqCoKEztvy2eU9KXX3d",
+      "start_slot": 452384667,
+      "end_slot": 452384747,
+      "consistency_passed": true,
+      "blockers": []
+    },
+    {
+      "pool_id": "3pb9vkSkhFp9Y4fNp1rXanFhYUqCoKEztvy2eU9KXX3d",
+      "start_slot": 452384747,
+      "end_slot": 452384827,
+      "consistency_passed": true,
+      "blockers": []
+    },
+    {
+      "pool_id": "7JuwJuNU88gurFnyWeiyGKbFmExMWcmRZntn9imEzdny",
+      "start_slot": 452384045,
+      "end_slot": 452384092,
+      "consistency_passed": true,
+      "blockers": []
+    },
+    {
+      "pool_id": "7JuwJuNU88gurFnyWeiyGKbFmExMWcmRZntn9imEzdny",
+      "start_slot": 452384092,
+      "end_slot": 452384670,
+      "consistency_passed": true,
+      "blockers": []
+    },
+    {
+      "pool_id": "7JuwJuNU88gurFnyWeiyGKbFmExMWcmRZntn9imEzdny",
+      "start_slot": 452384670,
+      "end_slot": 452384749,
+      "consistency_passed": true,
+      "blockers": []
+    },
+    {
+      "pool_id": "7JuwJuNU88gurFnyWeiyGKbFmExMWcmRZntn9imEzdny",
+      "start_slot": 452384749,
+      "end_slot": 452384831,
+      "consistency_passed": true,
+      "blockers": []
+    }
+  ],
+  "upstream_revision": "59fb845a9e5bb569c8b2f3415f13b0c0ebcc6b92",
+  "upstream_file_sha256": {
+    "curve/calculator.rs": "aee16991f81d755a72eae70cdf929816fc9571144cf8570f5049f42af0e7f7f8",
+    "curve/fees.rs": "fe0ed88648aa76a4781412cdca591c4b1a0982db30e017f4ad228f02f3927364",
+    "curve/constant_product.rs": "5a6ab835ba35e872df53d12df58f98f0b5919592450872eb25e273ce18255077",
+    "instructions/deposit.rs": "c48da84808719e7d6ce94114118ddc1012908aac0fdf6a022a9b4dee397e992f",
+    "instructions/withdraw.rs": "1a8e40f32bb6abd979a6a758b36fed035df99c4fa818d5a7a2a1d3b83d3cd59f",
+    "instructions/swap_base_input.rs": "5878ed09654745b5725030c5d84a8794a07088e836330890cbae2b0d7d7b1349",
+    "instructions/swap_base_output.rs": "90d9ffd040b88e5311abaf42c31b511a0dd4b7c727120debc9e3d995225eb6b5",
+    "instructions/collect_creator_fee.rs": "d580686261b38ab3c631b1459e9a2802f66e65d954d731f9c0b98a400f95493f",
+    "instructions/admin/collect_protocol_fee.rs": "e34610c5788e55132db66360c2251a5691bdae9e1a655eee1b77fdc6a5073c46",
+    "instructions/admin/collect_fund_fee.rs": "cbf1ac3945aa92372d429654cf757e61dae02fa20d32cdccd21af60d8b4061d7",
+    "states/pool.rs": "439aecb1d3ff023c3907a9189db8ae04571c9d6d96391013d2f2a79a438b20fa",
+    "utils/math.rs": "3a093f73bc0dffa7e82b9ad9891cc3eb7fc836b589de0d7b17a2bb8840a515f0",
+    "utils/token.rs": "c9137c9aa1824fa4c235193475d04d687ba5ba1eaefe4eb4741d542fb29e0a1a"
+  },
+  "diagnostic_probe": {
+    "selection": "24 deterministic time-spread successful transactions from latest 1000 program signatures; diagnostic only",
+    "successful_transactions": 24,
+    "operations": {
+      "swap_base_input": 13
+    },
+    "no_cpmm_swap": 11,
+    "rpc_calls": 25,
+    "configured_request_spacing_seconds": 2,
+    "candidate_pool_reads": [
+      {
+        "pool": "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+        "token_programs": [
+          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        ],
+        "creator_fee_on": 1,
+        "enable_creator_fee": true
+      },
+      {
+        "pool": "5FkSzug8NV1fpMGgEAMnd12zmN6Qnyyyc8etrKynbTtC",
+        "token_programs": [
+          "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        ],
+        "creator_fee_on": 1,
+        "enable_creator_fee": true
+      },
+      {
+        "pool": "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+        "token_programs": [
+          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        ],
+        "creator_fee_on": 1,
+        "enable_creator_fee": true
+      },
+      {
+        "pool": "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+        "token_programs": [
+          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        ],
+        "creator_fee_on": 1,
+        "enable_creator_fee": true
+      }
+    ],
+    "raw_files": {
+      "work/protocol-probe/signatures/receipt.json": "a4f4ae5cf71ab5613bc35ecc6620a192824693101030123a93ba192fa193d625",
+      "work/protocol-probe/signatures/response.json": "4e0b9818db04eb8ebf5f05e7df786f9ace8c13e332936f8b13dee042e018202a",
+      "work/protocol-probe/summary.json": "3709f54c7967cb18310e514068bc77ccd0cef2c29bba068e968bf8432934ef25",
+      "work/protocol-probe/tx-00/receipt.json": "c8d4ebeadd8a63d107d0826b11ec9f4e48fde42820ab711f893ff657fc5df5ed",
+      "work/protocol-probe/tx-00/response.json": "61a06ef734a61f1c860d59776b5fb737596e6c75dfbc79e77d7a218ac3211999",
+      "work/protocol-probe/tx-01/receipt.json": "90ecc1256de29dbed179eb9836650a3762c112eb93f2c17ce0a66345c287778a",
+      "work/protocol-probe/tx-01/response.json": "c93314450da7975fab728738ee2b505944bb9ac41a5aeb2b64650d931a6b48d4",
+      "work/protocol-probe/tx-02/receipt.json": "db3288a6e1776d0f0a21c290e00d5324ac8fb5efa463fe1b51542a238ddc1e12",
+      "work/protocol-probe/tx-02/response.json": "0976fe97f9eb2e0e85b49a1f0ae5653b86153236db9bedcd4a595a32baf66409",
+      "work/protocol-probe/tx-03/receipt.json": "f27e1bba81041f4c08638ed888b829837d0c107631efb63a4d22084408133a7c",
+      "work/protocol-probe/tx-03/response.json": "b43b9a07298e18251b7fc16b52a405b12b61f3f366fe3734da1460bf5a1afa44",
+      "work/protocol-probe/tx-04/receipt.json": "c7997a90ef2ac94ae461859745543f553d3438ecb26d544d33dc4c173b9d9a6f",
+      "work/protocol-probe/tx-04/response.json": "4d7160d695db6cb78415fd6ef8fe58de49693aeb8aad589ac356711d088dfe6a",
+      "work/protocol-probe/tx-05/receipt.json": "d6b0cc509bb364b3cb46529f80958f29b2aab4f37ff96218424f315de9887b22",
+      "work/protocol-probe/tx-05/response.json": "6b5e76f21b5a7e11fca47d1fd9a56d6dc057adf58e0682c96f253a47190757a0",
+      "work/protocol-probe/tx-06/receipt.json": "5527d5881c4cab9de6e12c973706ce0b56e96ddcdd2faae07390348aa1ee7c1e",
+      "work/protocol-probe/tx-06/response.json": "17466badcdeb46cc938d381d8767a408a381a8b2e33e8d1dcf9eb10fcfbcc7de",
+      "work/protocol-probe/tx-07/receipt.json": "d6711d22db036e4dfd0466b600b5a21b789ae532932c7338432e94fca212da1e",
+      "work/protocol-probe/tx-07/response.json": "42e4661deb3a2735fa1f67f8c9be7ea8bb1a94cc9f477012e5f8643255a79973",
+      "work/protocol-probe/tx-08/receipt.json": "b7b29bed6c1730587d410e121e16aa7c01118f88c850b6e1507a75e8834261df",
+      "work/protocol-probe/tx-08/response.json": "511e7e235a08937b974c84456c4bec353ef9bbf243f894bb92e38ce8ebf8ef20",
+      "work/protocol-probe/tx-09/receipt.json": "8bf8b6680ad284a5d32860097e254f45df9d164d1acce6d38202b1d7878f2524",
+      "work/protocol-probe/tx-09/response.json": "304e44ba098e31eef7e927b99cdc85d580f5472bc5bd20df1e81129c6b68fbce",
+      "work/protocol-probe/tx-10/receipt.json": "d9b9d7639af0e204a25821107ff02cb9ad8e83d279ad3754ee0a52ca5b3db95c",
+      "work/protocol-probe/tx-10/response.json": "61d6d4635a19d381e6147871c86288500c7a680aef3f777d520ef209b2f768a7",
+      "work/protocol-probe/tx-11/receipt.json": "3bafe5f17017e60010db032b947cc573b9e877e61cc1afa69891bacbf514c2bc",
+      "work/protocol-probe/tx-11/response.json": "6285c6e953c7c628c9cc83e8031d0ed230d6b34ca6f09a6a668f6b3c560993c8",
+      "work/protocol-probe/tx-12/receipt.json": "eac0ad3de9d2e112d34e8b7851b7c770673edb15e5ed2b9219878ec9b67603b5",
+      "work/protocol-probe/tx-12/response.json": "9daad84e529081c8a9086eb4ea81b354a6ce7537bd5ac7398091f8ec28ea0f63",
+      "work/protocol-probe/tx-13/receipt.json": "8a6bdced01c75df63821e87202c664849bd5309818708dd0f4226cfc0a1f5ac4",
+      "work/protocol-probe/tx-13/response.json": "30697cd414e70ce9d21623f3089837d5bd1639674c1edf0bd0cc22cbd36f9428",
+      "work/protocol-probe/tx-14/receipt.json": "00ba66169356e6c23dd33d77aa28cc77df0aa644936aacae690f804b23e52b14",
+      "work/protocol-probe/tx-14/response.json": "16e20f15625e576fd8989aa67408ce35fc318154252e7497d7323bff50b5768c",
+      "work/protocol-probe/tx-15/receipt.json": "30b9b5ccaada524a41a5492c6cb92b5550dd80508ffe49362fbf015909dfd826",
+      "work/protocol-probe/tx-15/response.json": "3cdfeeea1716039ff8639a5222321b03f59d3f11d14a47a801c6325deb4be03f",
+      "work/protocol-probe/tx-16/receipt.json": "5a3fdf7e28b51b2d5578c0bb9827a9329c0a7f8852c039a2f24c5846802e4597",
+      "work/protocol-probe/tx-16/response.json": "e7bd3ba6bf871bcfc34a6a8686186668906eb235ef3735a78765a2d325506af5",
+      "work/protocol-probe/tx-17/receipt.json": "af28f36a18595fb4ce972d2eeefd94025f267a60487aae8a18ec5c4a46901788",
+      "work/protocol-probe/tx-17/response.json": "ee255e3c428460b187b2113fac2a9b031a89056442e0929d2e6878bac618ca0e",
+      "work/protocol-probe/tx-18/receipt.json": "a4435d0e57f800782bfedbf2458e6c7ee1e7141ff2c1794d848742eb376dd4d2",
+      "work/protocol-probe/tx-18/response.json": "cd76c1589b813284c09a6469bbf478cbbc6913bb9791ecdb6eed4f47494d4cb8",
+      "work/protocol-probe/tx-19/receipt.json": "1ce0eb69c9586804490a197210abb069cea5fdc797e195e81b53c6f828650a02",
+      "work/protocol-probe/tx-19/response.json": "8f03e1ce31d13f6b59316e1a13a5a40874308e09ab07e3b764c33b1b08ae2c84",
+      "work/protocol-probe/tx-20/receipt.json": "cb5c2a04ce88b351320a0b6f2f26bb00441654ae156d90100cf3106a07aa85d4",
+      "work/protocol-probe/tx-20/response.json": "7ff31cf81f10346a321e61752a20a0e3267ae76aa0b639195caf0a9a6a4c9299",
+      "work/protocol-probe/tx-21/receipt.json": "d2fd6da8f81bc595e6408cef4b66d8e637f3a6378bd9c9f2da97e1bfa2eb0fef",
+      "work/protocol-probe/tx-21/response.json": "927bc3e7e17ee47b765b1884998f32e43049e095352805e7b071edbf76b58a2e",
+      "work/protocol-probe/tx-22/receipt.json": "0a748b600f6b204c68e7d26a13d9e0e69da866a8524be67c09b461fc39d9fd1f",
+      "work/protocol-probe/tx-22/response.json": "db4af26ca05b0d05e4df5c908f08f7ad072962af1cae846c8e8374b636124b13",
+      "work/protocol-probe/tx-23/receipt.json": "7665978d0defe450c0e399a1174b336e9edd71dcc34df8baf4bbd313452032a5",
+      "work/protocol-probe/tx-23/response.json": "200f7a53f9c4dcd30b061e018ef23ac4534565ee0a6ec18a937c4b08a1d7bd81",
+      "work/creator-probe/pool-0/receipt.json": "413b5fca0c56f2dd53e4d62e32e1d178e4a2317718cacf0595a055debff1d7ea",
+      "work/creator-probe/pool-0/response.json": "56eeefac2d1016beee0d60bde1b8e25a65d1f541ff43dce01448feabf7c2b4e1",
+      "work/creator-probe/pool-1/receipt.json": "47934a08cdfa6d6173552e646e8180c8573db00ad09b5897712c0dd99b874d22",
+      "work/creator-probe/pool-1/response.json": "2817bc8a3e7d6a5c92e624ee593e3428120ee11683569068d696c3bee27452c1",
+      "work/creator-probe/pool-2/receipt.json": "fec7e901992128360a151434f8cb783e319e2938f36e291ecd0e0891bb8cdac0",
+      "work/creator-probe/pool-2/response.json": "35f4cd51ab2abd7e7f57e5eb71758ef78881051bc04ea84f14ba9a3009ab9e0e",
+      "work/creator-probe/pool-3/receipt.json": "b0574e37526b4cdc4bf57717baad4ffb9b66a8b37982166987e90449d1777ca9",
+      "work/creator-probe/pool-3/response.json": "0fc484fa9c2da26112d20930de7cfaa0b8b40ac597a030cb00905310cf77a3a0"
+    }
+  },
+  "verification": {
+    "tests": 126,
+    "strict_mypy": true,
+    "ruff": true,
+    "synthetic_smoke": true,
+    "build": true,
+    "repeated_report_byte_identical": true,
+    "installed_wheel_report_byte_identical": true,
+    "frozen_pilot_reverified": true
+  },
+  "unverified_operations": [
+    "creator fee accrual",
+    "deposit",
+    "withdraw",
+    "fee collection"
+  ],
+  "assumptions": [
+    "provider address index complete",
+    "config unchanged between checkpoints"
+  ],
+  "exclusions": [
+    "Token-2022",
+    "oracle and recent_epoch",
+    "admin/config transitions",
+    "initialization",
+    "caught CPI failures",
+    "unattributed vault changes",
+    "Clock sysvar/admission/account permissions",
+    "future inclusion/latency/MEV",
+    "network/priority fees/rent",
+    "deployed binary equivalence"
+  ],
+  "transaction_execution_qualified": false,
+  "market_dataset_qualified": false,
+  "edge_established": false
+}

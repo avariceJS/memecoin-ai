@@ -1,0 +1,77 @@
+{
+  "activation_or_rpc_performed": false,
+  "credential_rescan": {
+    "current_process_argv_matches": 0,
+    "expected_private_config_mode": "0600",
+    "git_blobs": 2918,
+    "git_matches": 0,
+    "git_objects": 5676,
+    "method": "In-memory exact endpoint and api-key matching; values never printed.",
+    "recent_local_log_text_bytes": 50424563,
+    "recent_local_log_text_files": 270,
+    "recent_local_log_text_matches": 0,
+    "unified_log_bytes_last_3h": 672578423,
+    "unified_log_matches": 0
+  },
+  "finding": {
+    "fixes": [
+      "LaunchAgent template sets system-only PATH and fixed versioned zstd executable.",
+      "Every scheduled runner invocation verifies zstd after service/gate/source checks and before credential loading or any bootstrap/frame reservation. Failure returns sanitized no_rpc/storage_codec_unavailable."
+    ],
+    "issue": "LaunchAgent environment lacked zstd; a later missing Homebrew binary could otherwise fail after durable request reservation.",
+    "review_limits": [
+      "External binary may still be removed after preflight.",
+      "Synthetic validation does not establish live launchd behavior.",
+      "Provider-side logs, remote storage, backups and Time Machine were not inspected."
+    ],
+    "secret_transport": "Fixed path-only argv. Helius endpoint is loaded in-process from mode-0600 config and is never copied into argv or environment. No key or endpoint emitted."
+  },
+  "review_status": "offline_operational_fix_accepted_by_sol",
+  "reviewed_at_utc": "2026-10-10T21:51:12Z",
+  "reviewed_head": "6375158bd90a3a67cf7bd007bfc468797739d51b",
+  "runtime_snapshot": {
+    "campaign": "helius-inventory-v3-20261010-4",
+    "failed_epochs": 0,
+    "frames_complete": 9,
+    "frames_max": 24,
+    "free_disk_bytes": 61518856192,
+    "gapped_epochs": 0,
+    "loaded_and_idle_between_ticks": true,
+    "next_calendar_trigger_utc": "2026-10-10T22:05:00Z",
+    "open_reservations": 0,
+    "raw_bytes_all_in": 649607110,
+    "requests_all_in": 307,
+    "service_v1_launchagent_loaded": false,
+    "stored_bytes_all_in": 146677436
+  },
+  "schema_version": 1,
+  "source_sha256": {
+    "ops/launchd/ai.memecoin.brain.senses.helius-service-v1.plist": "bbbc01bb3e88d4c6fd5ed2d77e61136e35dcfa37a2a08c64fc365258a6bbf312",
+    "src/memecoin_ai/domain.py": "8123b98462fb822ec6c27d3f7eadbea0a6daf782165e92d369c1a9a77526a1c2",
+    "src/memecoin_ai/sources.py": "7957340a16896bb9cec6ba744590c1bb75c9d02c21dc3fb1877eb1375297f861",
+    "src/memecoin_collector/private_config.py": "17a3d905898655eb841c0973523c00e8e726babc1a4f70d589d616a6809e85e7",
+    "tests/test_brain_senses_service_v1_runner.py": "ab8faf367eb000294b9a1df069728ae9d2e4d7889d805cf4382c02d56e2c4d00",
+    "tools/brain_senses_block_epoch_v2.py": "c3d1d0e4d9824ebd6c67c5e292471b5378249e96c26f16c70cd6f4f26ed33555",
+    "tools/brain_senses_block_epoch_v2_schedule.py": "246cf5fdcb255e04274dc0155bab29304aeb8494772f921298b4035c7cbba68c",
+    "tools/brain_senses_block_epoch_v3_launch.py": "457f68b68aba1b1b7071bb371306b0548a8929d488890df788b12f664058e0f3",
+    "tools/brain_senses_block_epoch_v3_schedule.py": "ee4e643ab194d736b5ebfdbf684cbb9caee4e6b78f3673af5bf483be452c2633",
+    "tools/brain_senses_block_provider_pilot.py": "c2a56de9e0f3ef740967345908dca2a120022e11434ce9ec4ca8251e095ebe3f",
+    "tools/brain_senses_campaign_controller.py": "9799323d3de4d1b2c72d40dfb85354697a0c73f89e57fb6228f1d30c97999bc7",
+    "tools/brain_senses_program_watch.py": "1d8fdd1bd055a1b859ff95b5f5082fd533f4b37467c317cc34102d04b0d82917",
+    "tools/brain_senses_service_v1.py": "8d92ab878f93552ebc29afbb5a4717929f84055ffacfdc16a1699629af4b1f4e",
+    "tools/brain_senses_service_v1_runner.py": "0ba5cf496f6020fec62c21fbca86c683a9420557b403b69ae707c6b583b42d71"
+  },
+  "verification": {
+    "focused_tests": "80 passed: service v1 runner and policy suites.",
+    "git_diff_check": "passed",
+    "plist_lint": "passed",
+    "ruff": "passed",
+    "ruff_format": "passed",
+    "sol_review": "Accepted preflight ordering; no further blocker in the reviewed arguments, credential reader, source/plist pins, locks, no-retry recovery or logs."
+  },
+  "zstd": {
+    "path": "/opt/homebrew/Cellar/zstd/1.5.7_1/bin/zstd",
+    "sha256": "aff8169fb421bb925fb16c44a7e0143fa2c7a941dc45cce76b15062a2ce54917",
+    "version": "*** Zstandard CLI (64-bit) v1.5.7, by Yann Collet ***"
+  }
+}

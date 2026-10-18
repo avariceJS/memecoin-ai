@@ -1,0 +1,28 @@
+# Engineering fixture only. Amounts are arbitrary atomic units, not a capital recommendation.
+schema_version = 1
+quote_asset = "SOL"
+initial_cash = 100000
+decision_times_ns = [5000000000, 10000000000, 20000000000, 30000000000, 40000000000, 50000000000]
+end_ns = 60000000000
+policy = "scripted_fixture"
+entry_ns = 10000000000
+exit_ns = 40000000000
+pool_id = "pool-a"
+target_units = 1000
+slippage_bps = 100
+allow_assumed = false
+
+[execution]
+latency_ns = 1000000000
+network_fee_quote = 2
+drop_probability = 0.0
+fail_probability = 0.0
+seed = 7
+
+[risk]
+max_order_quote = 5000
+max_position_quote = 10000
+max_total_exposure_quote = 20000
+max_snapshot_age_ns = 60000000000
+max_input_bps = 100
+cumulative_input_bps = 500

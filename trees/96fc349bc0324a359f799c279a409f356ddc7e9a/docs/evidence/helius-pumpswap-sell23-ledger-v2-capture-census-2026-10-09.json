@@ -1,0 +1,54 @@
+{
+  "capture_root": "work/brain-senses-live-helius-alchemy-512-20261009/20261009T130000Z/paired-block-capture/captures/helius-free",
+  "code_sha256": {
+    "src/memecoin_pumpswap/compiled_economics.py": "693a87b3e3826fd77bd1d7b2328a4b2b6f02becab80369089d8c9fe65adee2cc",
+    "src/memecoin_pumpswap/decoder.py": "21610a62f1e8bb6c54cbe831134e6f170938668d85492434704aa66472471a8b",
+    "src/memecoin_pumpswap/economic_v2.py": "47e20f6bc4c480feda9eb774694f58e5a4681e9bc2b317a3d1b6e62bba52694e",
+    "src/memecoin_pumpswap/legacy_token_ledger.py": "65d59ab27488513d814b12cc9eff08b004d24e3ae008f7ede80bd7432545c8e8",
+    "src/memecoin_pumpswap/normalize.py": "7253588560626c6f45ed65ebfd802200f20e79e2daec88fadb93d34731e84643",
+    "src/memecoin_pumpswap/schema.py": "dafd0708aad54224565863c3b23deee8440ef3fbcd2c1e7b5ce7629e2a6d5ad1",
+    "tools/brain_senses_census_pumpswap_sell_ledger.py": "6f48d1534f21809681b94500bfd0c8647186316b8641b7cf215ce1a866ed7eb2",
+    "tools/brain_senses_select_pumpswap_sell_sample.py": "638752ab19e1b9c8e80e92b6f8d534b3072f0872af695153bbc3dd344a78a312"
+  },
+  "created_at_utc": "2026-10-09T15:21:13.729425+00:00",
+  "eligible_candidates": 1255,
+  "equations": {
+    "gross_less_lp_equals_quote_without_lp:pass": 1253,
+    "hypothesis_buyback_floor_split_from_protocol_basis_points:pass": 1253,
+    "hypothesis_lp_ceil_fee_from_gross_basis_points:pass": 1253,
+    "hypothesis_protocol_ceil_fee_from_gross_basis_points:pass": 1253,
+    "pool_quote_debit_equals_quote_without_lp:pass": 1253,
+    "quote_without_lp_less_fees_equals_user_output:pass": 1253
+  },
+  "experiment": "pumpswap_sell23_full_transaction_ledger_v2_capture_census",
+  "git_commit": "d2f39b519db33fb2a5b5edca84acb03f1d663464",
+  "helius_requests_made": 0,
+  "ledger_censored_reasons": {
+    "native_close_after_sync_amount_unknown": 842,
+    "native_sync_lamport_delta_unproven": 1
+  },
+  "ledger_statuses": {
+    "censored_partial": 843,
+    "exact": 410,
+    "unknown_partial": 2
+  },
+  "ledger_unknown_reasons": {
+    "token_instruction_unsupported": 2
+  },
+  "matched_candidates": 1255,
+  "offline_replay": true,
+  "outcomes": {
+    "quarantined": 2,
+    "reconciled_diagnostic_only": 410,
+    "reconciled_trade_with_censored_account_settlement": 843
+  },
+  "reasons": {
+    "native_close_after_sync_amount_unknown": 842,
+    "native_sync_lamport_delta_unproven": 1,
+    "token_instruction_unsupported": 2
+  },
+  "schema_version": 1,
+  "scope": "census of the declared sell23 structural candidate class in these captured full blocks; not global PumpSwap completeness, economic market coverage, or training eligibility",
+  "selected_full_blocks_verified": 512,
+  "status": "complete_over_eligible_captured_candidates"
+}

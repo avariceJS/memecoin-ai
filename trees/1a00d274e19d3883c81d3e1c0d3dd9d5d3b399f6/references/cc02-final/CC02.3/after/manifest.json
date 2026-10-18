@@ -1,0 +1,106 @@
+{
+  "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+  "browser": "Chromium 153.0.8010.12",
+  "captures": [
+    {
+      "route": "/calendar",
+      "capture_id": "cc023-calendar-1440x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1440x900-viewport.png",
+      "sha256": "b30857b88cd15f8c7afa4442a4aef63e77c13ba4ccfb06a6569806473297fc46",
+      "viewport": [
+        1440,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+      "captured_at": "2026-10-04T01:23:37.181Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1440x900-viewport.layout.json",
+        "sha256": "edfc4e92b42b769cfd799a149cb0105c4c360b690bfa93c3418290f875f119d8"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc023-calendar-1600x1000-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1600x1000-viewport.png",
+      "sha256": "ef81723b05f0fca430f94a12669441facd64ba9b9a31aca3329f297b859b3f3e",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+      "captured_at": "2026-10-04T01:23:37.378Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1600x1000-viewport.layout.json",
+        "sha256": "080d073bb16df5cf500b6993100a1f5f4b80d2e69e9b9d599d534223c3bb8655"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc023-calendar-1600x1000-fullpage",
+      "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1600x1000-fullpage.png",
+      "sha256": "ef81723b05f0fca430f94a12669441facd64ba9b9a31aca3329f297b859b3f3e",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "fullpage",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+      "captured_at": "2026-10-04T01:23:37.379Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1600x1000-fullpage.layout.json",
+        "sha256": "677e39ad20dea5bb618b0dc5563d8412cda8eaf33ec0f9160aed6681a5a7c4ae"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc023-calendar-1920x1080-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1920x1080-viewport.png",
+      "sha256": "38a56257be53bab96142be1a012680823f61f1f1ca2db8da68898334fbdcf5f7",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+      "captured_at": "2026-10-04T01:23:37.531Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1920x1080-viewport.layout.json",
+        "sha256": "debf39f300359cb20b1303f8b725da6377fc158b00583de887f1ef392e40ff20"
+      }
+    },
+    {
+      "route": "/calendar",
+      "capture_id": "cc023-calendar-1024x768-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1024x768-viewport.png",
+      "sha256": "055131e3713b0acf4a7d255221ba76cbee9734003bb2b70862312a5648dd68b8",
+      "viewport": [
+        1024,
+        768
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "2ba2a48cd05d147e7e8e506a33b10ef2a160310872931d88c67ec7f4596a4375",
+      "captured_at": "2026-10-04T01:23:37.670Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.3/after/cc023-calendar-1024x768-viewport.layout.json",
+        "sha256": "fd408387ad8015a650b3df1d8137d6873b87f70958e2229556a335916b5bb658"
+      }
+    }
+  ]
+}

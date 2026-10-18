@@ -1,0 +1,47 @@
+.root {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.trigger {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--cc-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.trigger:hover,
+.trigger:focus-visible {
+  color: var(--cc-text);
+}
+
+.body {
+  margin-top: 6px;
+}
+
+.caption {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--cc-text-muted);
+}
+
+.value {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--cc-text);
+  overflow-wrap: anywhere;
+}

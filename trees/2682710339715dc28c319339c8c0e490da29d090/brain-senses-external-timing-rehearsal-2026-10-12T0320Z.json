@@ -1,0 +1,33 @@
+{
+  "activation_sha256": "64975708930d053d2fcdb0502e2ee6dcf6b0b6d935da81bd4b8d6e622aead9dc",
+  "decision": "timing_rehearsal_no_provider",
+  "dispatch_calls": 0,
+  "error_class": "ModuleNotFoundError",
+  "error_module": "unknown_not_captured",
+  "expires_ns": 1791775260000000000,
+  "interpretation": "Calendar delivery was observed, but the status-only path did not qualify. No provider or status result is claimed. The exception module and exact internal failure point were not captured.",
+  "label": "ai.memecoin.brain.senses.timing-rehearsal-20261012T0320Z",
+  "launchagent_disabled_and_unloaded_after_failure": true,
+  "launchd_calendar_callback": true,
+  "launchd_exit_code": 1,
+  "launchd_runs": 1,
+  "next_action": "Keep this activation terminal; fix repository-root imports, test in an isolated subprocess, then use a distinct future one-shot activation.",
+  "plist_sha256": "24733361a62fbd39fe62f4c3003a28974b6e1cccf2c642627e27223cfcd926dc",
+  "provider_io": false,
+  "reported_result": {
+    "error_class": "ModuleNotFoundError",
+    "schema": "brain-senses-external-timing-rehearsal-result-v1",
+    "status": "failed"
+  },
+  "scheduled_minute_ns": 1791775200000000000,
+  "schema": "brain-senses-external-timing-rehearsal-terminal-v1",
+  "schema_version": 1,
+  "service_snapshot_completed": false,
+  "source_sha256": "6fec0f1281d741a0650fe4333c92e1675fa459f3910d7b35e9b682356f70d41a",
+  "status": "failed",
+  "status_call_completed": false,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "88498105bf22aa153c25b52b522a77e52067102d3226873d733db2aa7c48b489",
+  "storage_config_sha256": "8d1dce38f2f65a622b28cc03a78f456b21aed0fe3c5a956e0624bf0caab8b9fe",
+  "terminal_receipt_sha256": "b213b8587713097160684a58c528ae25d433ad2ff320324d3adba61d1fcb6f15"
+}

@@ -1,0 +1,829 @@
+{
+  "schema_version": 1,
+  "stage": "D40",
+  "date": "2026-10-03",
+  "timezone": "Europe/Moscow",
+  "kind": "bounded_real_transport_pilot",
+  "collection_code_commit": "6368cafc6ce1e90d52114baf043b3f4653f26b93",
+  "plan_code_commit": "b3e7d89abb7d371c840ef0692dc6f2260f51ff7a",
+  "seed": null,
+  "hardware": "Apple M4 Pro",
+  "python": "3.13.6",
+  "execution_model": "none; existing observed-price targets schema2, horizon20s tolerance15s; not executable return",
+  "protocol_scope": "strict finalized CPMM checkpoint profile2; collection replay unchanged",
+  "plan": {
+    "schema_version": 1,
+    "stage": "D40",
+    "commitment": "finalized",
+    "config_layout_version": 2,
+    "cohort": [
+      {
+        "pool_id": "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+        "params": [
+          [
+            "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+            "CRRS5ieQmBrZjWhcj99JuGrT5tyuWDaGAXLXLFjbAtjQ",
+            "BNNTGouis3rq1fNpjCxYYSEdC1zciruGgVTYpX37WG3Q",
+            "3g4fSK8jW7fSTUiGL147Aiih8ny4Lpjch9oiQ5MDRPXs",
+            "6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+            "DESwuRnMHpsUfLWPrF8s6Ph9LTAVyCrMUzwhcN8kSTNK",
+            "SysvarC1ock11111111111111111111111111111111"
+          ],
+          {
+            "commitment": "finalized",
+            "encoding": "base64",
+            "minContextSlot": 452398723
+          }
+        ],
+        "reference": "work/prospective-campaign-01/references/000",
+        "response_sha256": "9f439b6c84272a1b330503ba78c01475b94b176960267a3e7d27f013f882e6bf"
+      },
+      {
+        "pool_id": "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+        "params": [
+          [
+            "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+            "CRRS5ieQmBrZjWhcj99JuGrT5tyuWDaGAXLXLFjbAtjQ",
+            "7oo6fd6q1WQiWLNmP2a2T9SUqvK2wKSDQzeQRp1xwMj",
+            "2HHogmf5zRDwY5PwGNE5siVgGvFNQSZBjJroNMv9QufV",
+            "A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS",
+            "HuAXPyDWDaMYFKuwQHpqL1oPnj93zdzWmtvFGzCeCUa7",
+            "SysvarC1ock11111111111111111111111111111111"
+          ],
+          {
+            "commitment": "finalized",
+            "encoding": "base64",
+            "minContextSlot": 452398741
+          }
+        ],
+        "reference": "work/prospective-campaign-01/references/001",
+        "response_sha256": "94780324e9962aacf479c3e6abc0e934f7b262bd870a04ef74d69beeb34d84c2"
+      },
+      {
+        "pool_id": "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+        "params": [
+          [
+            "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+            "CRRS5ieQmBrZjWhcj99JuGrT5tyuWDaGAXLXLFjbAtjQ",
+            "ApNhP2WjqH6V6CWvNj3qjTgv23eDXLVmWXqNrRVNGhCM",
+            "4ytUhrnGVi6RSC5iqKai2wErwViQ9xNxmpur29qVzgk3",
+            "PEPEqnuuCDbBC89p1u9vpnP1KQ2oj1xTcQBsjt9X55m",
+            "9fJAWKQpkY93hfuZxrHfh5wEh2AV9vjkWNQfzfbziHd2",
+            "SysvarC1ock11111111111111111111111111111111"
+          ],
+          {
+            "commitment": "finalized",
+            "encoding": "base64",
+            "minContextSlot": 452398758
+          }
+        ],
+        "reference": "work/prospective-campaign-01/references/002",
+        "response_sha256": "7d1d77f498faaa3c18e1a864ac1ea4a12e083b0162691786bcb1bbd6535f6b53"
+      }
+    ],
+    "http_origin": "https://solana-mainnet.g.alchemy.com",
+    "wss_origin": "wss://solana-mainnet.streaming.alchemy.com",
+    "control_origin": "https://api.mainnet.solana.com",
+    "preflight_max_http": 7,
+    "segments": 2,
+    "segment_seconds": 120,
+    "http_interval_seconds": 5,
+    "hybrid_min_interval_seconds": 5,
+    "hybrid_heartbeat_seconds": 15,
+    "forced_disconnect_seconds": 60,
+    "recovery": "new acknowledged subscriptions then fresh coherent snapshots; unresolved historical gap remains censored",
+    "max_connections_per_segment": 2,
+    "max_subscriptions": 20,
+    "max_http_per_segment_per_arm": 78,
+    "max_wss_bytes_per_segment": 8000000,
+    "max_http_response_bytes": 1000000,
+    "max_wss_message_bytes": 65536,
+    "max_pending_messages": 128,
+    "max_notifications_per_segment": 10000,
+    "timeout_seconds": 10,
+    "max_wall_seconds_per_segment": 180,
+    "automatic_retries": 0,
+    "unexpected_failure": "stop segment immediately; no automatic resume after unexpected error",
+    "restart": "separate process for segment 2 only if segment 1 completed; reset all history",
+    "seed": null,
+    "training_ready": false,
+    "primary_criterion": "at least 20 percent fewer HTTP requests with usable feature fraction no more than 5 percentage points lower; or 20 percent more distinct economic changes at matched HTTP budget; all integrity gates required",
+    "secondary_metrics": [
+      "payload bytes",
+      "HTTP duration",
+      "chain age",
+      "notification receipt age where timestamp exists",
+      "CPU",
+      "peak RSS",
+      "gap duration",
+      "resync time"
+    ],
+    "coverage_claim": "snapshots only; no complete intermediate write sequence",
+    "partitions": "engineering only; frozen per-segment midpoint cutoff, horizon20s/tolerance15s; no final holdout"
+  },
+  "mcp": {
+    "list_apps_success": true,
+    "selected_existing_app": true,
+    "mainnet_genesis_confirmed": true,
+    "runtime_credentials_separately_present": true,
+    "credential_values_persisted": false
+  },
+  "preflight": {
+    "http_requests": 7,
+    "strict_snapshots": 6,
+    "provider_errors": 0,
+    "local_reporting_errors": 1,
+    "captures": [
+      {
+        "path": "work/alchemy-preflight-01/captures/000",
+        "response_sha256": "072c547ad3321ad6379bf249c218bcf112eaa3bd0138f07ace4077db1785a37d",
+        "received_ns": 1790981387430554000,
+        "method": "getGenesisHash",
+        "mainnet_genesis": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
+      },
+      {
+        "path": "work/alchemy-preflight-01/captures/001",
+        "response_sha256": "ac12a14fcfdff19a0811644d2bc9e44fea308ca1888f3382945c0876d5a30c93",
+        "received_ns": 1790981388523276000,
+        "method": "getMultipleAccounts",
+        "pool_id": "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+        "strict_decode": true,
+        "slot": 452749359
+      },
+      {
+        "path": "work/alchemy-preflight-continuation-01/captures/002",
+        "response_sha256": "610d4739fb9056e9ba67f62261279a3dc460cfc45b0ad8953cc90745711e518c",
+        "received_ns": 1790981413214421000,
+        "method": "getMultipleAccounts",
+        "pool_id": "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+        "strict_decode": true,
+        "slot": 452749450
+      },
+      {
+        "path": "work/alchemy-preflight-continuation-01/captures/003",
+        "response_sha256": "aaa36cd18bdd6eb80fa89180c32180bd433cf40f54bd0dafeb611aef365ce4fe",
+        "received_ns": 1790981414311842000,
+        "method": "getMultipleAccounts",
+        "pool_id": "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+        "strict_decode": true,
+        "slot": 452749452
+      },
+      {
+        "path": "work/alchemy-preflight-continuation-01/captures/004",
+        "response_sha256": "3e22de55e57e2fbec5f62765ee90cd1906e5ec467a6856fe820cbe6271b83e70",
+        "received_ns": 1790981415379078000,
+        "method": "getMultipleAccounts",
+        "pool_id": "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+        "strict_decode": true,
+        "slot": 452749458
+      },
+      {
+        "path": "work/alchemy-preflight-continuation-01/captures/005",
+        "response_sha256": "46fd6660ed06b3ba39c0513aea9bbc957be6307671e1138e80479787f71bf5ff",
+        "received_ns": 1790981416453269000,
+        "method": "getMultipleAccounts",
+        "pool_id": "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+        "strict_decode": true,
+        "slot": 452749461
+      },
+      {
+        "path": "work/alchemy-preflight-continuation-01/captures/006",
+        "response_sha256": "6324aad280152b01a27f1cfe3f01bfa890b41685b36e884bb0ed52ee57815e8e",
+        "received_ns": 1790981417520076000,
+        "method": "getMultipleAccounts",
+        "pool_id": "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+        "strict_decode": true,
+        "slot": 452749466
+      }
+    ],
+    "correction": "work/alchemy-preflight-offline-correction-01.json"
+  },
+  "segments": [
+    {
+      "path": "work/alchemy-pilot-01/segment-00",
+      "manifest_sha256": "be6166ce7e5f188ce60e85d654324ca11c2a065da1884b5bf253a508aef842c9",
+      "source_sha256": "ad63f39df3173de937a7b8778cf03fc9a473b00982a70a5b1a7a5d08f7e682c7",
+      "run": {
+        "pid": 271,
+        "plan_sha256": "7ce80fc2e662bed26c78c4699d4b102a228781f5fc4bc4aa265fe043e5108296",
+        "seed": null,
+        "started_ns": 1790982106496377000,
+        "started_utc": "2026-10-02T23:01:46.496377+00:00"
+      },
+      "verification": {
+        "verified": true,
+        "stream_stats": {
+          "ack": 34,
+          "hint": 155,
+          "root": 443
+        },
+        "rows": {
+          "http": 72,
+          "hybrid": 75
+        }
+      },
+      "arms": {
+        "http": {
+          "http_requests": 72,
+          "accepted_snapshots": 72,
+          "distinct_banks": 72,
+          "distinct_economic_states": 10,
+          "observed_economic_changes": {
+            "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm": 3,
+            "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr": 3,
+            "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2": 1
+          },
+          "feature_rows": 72,
+          "usable": 69,
+          "usable_fraction": 0.9583333333333334,
+          "masks": {
+            "history_warmup": 3
+          },
+          "targets": {
+            "censored": 17,
+            "calibration": 18,
+            "purged": 15,
+            "engineering_evaluation": 22
+          },
+          "response_bytes": 262152,
+          "capture_and_decode_seconds": {
+            "count": 72,
+            "min": 0.059640124905854464,
+            "p50": 0.0626808749511838,
+            "p95": 0.0785247921012342,
+            "max": 0.3026608331128955
+          },
+          "http_transport_seconds": {
+            "count": 72,
+            "min": 0.056090292,
+            "p50": 0.058511916,
+            "p95": 0.07528325,
+            "max": 0.298247375
+          },
+          "chain_age_seconds": {
+            "count": 72,
+            "min": 9.540332,
+            "p50": 9.706359,
+            "p95": 10.713425,
+            "max": 10.713908
+          },
+          "receipt_age_seconds": {
+            "count": 72,
+            "min": 0.001753,
+            "p50": 0.06642300000000001,
+            "p95": 0.14518,
+            "max": 0.165483
+          },
+          "receipt_span_seconds": 113.78697,
+          "request_reasons": {
+            "periodic": 72
+          },
+          "scheduled_rows": 72,
+          "scheduled_usable_fraction": 0.9583333333333334
+        },
+        "hybrid": {
+          "http_requests": 36,
+          "accepted_snapshots": 36,
+          "distinct_banks": 36,
+          "distinct_economic_states": 9,
+          "observed_economic_changes": {
+            "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr": 3,
+            "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm": 2,
+            "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2": 1
+          },
+          "feature_rows": 75,
+          "usable": 60,
+          "usable_fraction": 0.8,
+          "masks": {
+            "history_warmup": 12,
+            "forced_disconnect_history_unrecoverable": 3
+          },
+          "targets": {
+            "censored": 50,
+            "calibration": 12,
+            "engineering_evaluation": 13
+          },
+          "response_bytes": 131076,
+          "capture_and_decode_seconds": {
+            "count": 36,
+            "min": 0.05865537468343973,
+            "p50": 0.06179104186594486,
+            "p95": 0.07486466597765684,
+            "max": 0.07584187481552362
+          },
+          "http_transport_seconds": {
+            "count": 36,
+            "min": 0.056213125,
+            "p50": 0.058133582,
+            "p95": 0.067022874,
+            "max": 0.073769958
+          },
+          "chain_age_seconds": {
+            "count": 72,
+            "min": 9.722216,
+            "p50": 11.8820595,
+            "p95": 14.518345,
+            "max": 14.518466
+          },
+          "receipt_age_seconds": {
+            "count": 72,
+            "min": 0.001644,
+            "p50": 1.698383,
+            "p95": 4.747755,
+            "max": 4.761452
+          },
+          "receipt_span_seconds": 108.775453,
+          "request_reasons": {
+            "notification": 36
+          },
+          "scheduled_rows": 72,
+          "scheduled_usable_fraction": 0.8333333333333334
+        }
+      },
+      "stream": {
+        "bytes": 149480,
+        "messages": 632,
+        "wire_received_bytes": 151544,
+        "wire_sent_bytes": 5426
+      },
+      "stream_stats": {
+        "ack": 34,
+        "hint": 155,
+        "root": 443
+      },
+      "complete": true,
+      "failure": null,
+      "wall_seconds": 120.02245312510058,
+      "cpu_seconds": 2.258441,
+      "peak_rss_bytes_macos": 39550976,
+      "recovery": [
+        {
+          "reason": "forced_disconnect_history_unrecoverable",
+          "gap_available_ns": 1790982166501964000,
+          "all_pool_new_snapshot_seconds": 1.21949,
+          "historical_recovery": false
+        }
+      ],
+      "raw_stream_audit": {
+        "receipts_verified": 632,
+        "processed": 632,
+        "raw_not_processed": 0,
+        "per_account": [
+          {
+            "address": "CRRS5ieQmBrZjWhcj99JuGrT5tyuWDaGAXLXLFjbAtjQ",
+            "notifications": 108,
+            "distinct_values": 1
+          },
+          {
+            "address": "HuAXPyDWDaMYFKuwQHpqL1oPnj93zdzWmtvFGzCeCUa7",
+            "notifications": 26,
+            "distinct_values": 23
+          },
+          {
+            "address": "2HHogmf5zRDwY5PwGNE5siVgGvFNQSZBjJroNMv9QufV",
+            "notifications": 4,
+            "distinct_values": 4
+          },
+          {
+            "address": "3g4fSK8jW7fSTUiGL147Aiih8ny4Lpjch9oiQ5MDRPXs",
+            "notifications": 3,
+            "distinct_values": 3
+          },
+          {
+            "address": "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+            "notifications": 3,
+            "distinct_values": 3
+          },
+          {
+            "address": "BNNTGouis3rq1fNpjCxYYSEdC1zciruGgVTYpX37WG3Q",
+            "notifications": 3,
+            "distinct_values": 3
+          },
+          {
+            "address": "7oo6fd6q1WQiWLNmP2a2T9SUqvK2wKSDQzeQRp1xwMj",
+            "notifications": 2,
+            "distinct_values": 2
+          },
+          {
+            "address": "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+            "notifications": 2,
+            "distinct_values": 2
+          },
+          {
+            "address": "4ytUhrnGVi6RSC5iqKai2wErwViQ9xNxmpur29qVzgk3",
+            "notifications": 1,
+            "distinct_values": 1
+          },
+          {
+            "address": "ApNhP2WjqH6V6CWvNj3qjTgv23eDXLVmWXqNrRVNGhCM",
+            "notifications": 1,
+            "distinct_values": 1
+          },
+          {
+            "address": "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2",
+            "notifications": 1,
+            "distinct_values": 1
+          },
+          {
+            "address": "9fJAWKQpkY93hfuZxrHfh5wEh2AV9vjkWNQfzfbziHd2",
+            "notifications": 1,
+            "distinct_values": 1
+          }
+        ]
+      },
+      "notification_chain_age_seconds": null,
+      "notification_chain_age_reason": "account/root notification has no source wall timestamp",
+      "hybrid_total_received_payload_bytes": 280556,
+      "same_bank_cross_provider_agreement": "not tested; polls at different banks",
+      "cpu_scope": "whole paired process including public collector thread; not per arm",
+      "http_reduction_fraction": 0.5,
+      "usable_fraction_delta": -0.15833333333333333,
+      "load_criterion_met": false,
+      "partitions": {
+        "calibration_end_ns": 1790982166496377000,
+        "final_holdout": false,
+        "cross_segment_targets": false
+      }
+    },
+    {
+      "path": "work/alchemy-pilot-01/segment-01",
+      "manifest_sha256": "6dd379b32511da33c56b8478e9f4ac954101b98d73f6a22ed44d1dafa8d98e6e",
+      "source_sha256": "ad63f39df3173de937a7b8778cf03fc9a473b00982a70a5b1a7a5d08f7e682c7",
+      "run": {
+        "pid": 459,
+        "plan_sha256": "7ce80fc2e662bed26c78c4699d4b102a228781f5fc4bc4aa265fe043e5108296",
+        "seed": null,
+        "started_ns": 1790982268751881000,
+        "started_utc": "2026-10-02T23:04:28.751881+00:00"
+      },
+      "verification": {
+        "verified": true,
+        "stream_stats": {
+          "ack": 34,
+          "root": 394,
+          "hint": 98
+        },
+        "rows": {
+          "http": 72,
+          "hybrid": 75
+        }
+      },
+      "arms": {
+        "http": {
+          "http_requests": 72,
+          "accepted_snapshots": 72,
+          "distinct_banks": 72,
+          "distinct_economic_states": 4,
+          "observed_economic_changes": {
+            "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm": 1
+          },
+          "feature_rows": 72,
+          "usable": 69,
+          "usable_fraction": 0.9583333333333334,
+          "masks": {
+            "history_warmup": 3
+          },
+          "targets": {
+            "censored": 18,
+            "calibration": 21,
+            "purged": 12,
+            "engineering_evaluation": 21
+          },
+          "response_bytes": 262152,
+          "capture_and_decode_seconds": {
+            "count": 72,
+            "min": 0.06494583375751972,
+            "p50": 0.06898825010284781,
+            "p95": 0.0794904581271112,
+            "max": 0.3155171670950949
+          },
+          "http_transport_seconds": {
+            "count": 72,
+            "min": 0.061393999,
+            "p50": 0.0645046245,
+            "p95": 0.076029124,
+            "max": 0.309989792
+          },
+          "chain_age_seconds": {
+            "count": 72,
+            "min": 9.960099,
+            "p50": 9.9839325,
+            "p95": 10.956323,
+            "max": 10.960691
+          },
+          "receipt_age_seconds": {
+            "count": 72,
+            "min": 0.001197,
+            "p50": 0.073852,
+            "p95": 0.150511,
+            "max": 0.214591
+          },
+          "receipt_span_seconds": 114.115023,
+          "request_reasons": {
+            "periodic": 72
+          },
+          "scheduled_rows": 72,
+          "scheduled_usable_fraction": 0.9583333333333334
+        },
+        "hybrid": {
+          "http_requests": 36,
+          "accepted_snapshots": 36,
+          "distinct_banks": 36,
+          "distinct_economic_states": 4,
+          "observed_economic_changes": {
+            "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm": 1
+          },
+          "feature_rows": 75,
+          "usable": 60,
+          "usable_fraction": 0.8,
+          "masks": {
+            "history_warmup": 12,
+            "forced_disconnect_history_unrecoverable": 3
+          },
+          "targets": {
+            "censored": 45,
+            "calibration": 18,
+            "engineering_evaluation": 12
+          },
+          "response_bytes": 131076,
+          "capture_and_decode_seconds": {
+            "count": 36,
+            "min": 0.06462400034070015,
+            "p50": 0.06831320840865374,
+            "p95": 0.11738433316349983,
+            "max": 0.16051191603764892
+          },
+          "http_transport_seconds": {
+            "count": 36,
+            "min": 0.061157083,
+            "p50": 0.064003771,
+            "p95": 0.110074374,
+            "max": 0.157036958
+          },
+          "chain_age_seconds": {
+            "count": 72,
+            "min": 9.202159,
+            "p50": 11.962711,
+            "p95": 15.754917,
+            "max": 20.040326
+          },
+          "receipt_age_seconds": {
+            "count": 72,
+            "min": 0.002347,
+            "p50": 1.8599825,
+            "p95": 5.121585,
+            "max": 9.98027
+          },
+          "receipt_span_seconds": 109.12663,
+          "request_reasons": {
+            "heartbeat": 2,
+            "notification": 34
+          },
+          "scheduled_rows": 72,
+          "scheduled_usable_fraction": 0.8333333333333334
+        }
+      },
+      "stream": {
+        "bytes": 109186,
+        "messages": 526,
+        "wire_received_bytes": 110924,
+        "wire_sent_bytes": 5426
+      },
+      "stream_stats": {
+        "ack": 34,
+        "hint": 98,
+        "root": 394
+      },
+      "complete": true,
+      "failure": null,
+      "wall_seconds": 120.0260032499209,
+      "cpu_seconds": 2.215324,
+      "peak_rss_bytes_macos": 41943040,
+      "recovery": [
+        {
+          "reason": "forced_disconnect_history_unrecoverable",
+          "gap_available_ns": 1790982328769397000,
+          "all_pool_new_snapshot_seconds": 1.468483,
+          "historical_recovery": false
+        }
+      ],
+      "raw_stream_audit": {
+        "receipts_verified": 526,
+        "processed": 526,
+        "raw_not_processed": 0,
+        "per_account": [
+          {
+            "address": "CRRS5ieQmBrZjWhcj99JuGrT5tyuWDaGAXLXLFjbAtjQ",
+            "notifications": 62,
+            "distinct_values": 1
+          },
+          {
+            "address": "HuAXPyDWDaMYFKuwQHpqL1oPnj93zdzWmtvFGzCeCUa7",
+            "notifications": 30,
+            "distinct_values": 30
+          },
+          {
+            "address": "2HHogmf5zRDwY5PwGNE5siVgGvFNQSZBjJroNMv9QufV",
+            "notifications": 2,
+            "distinct_values": 2
+          },
+          {
+            "address": "6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+            "notifications": 1,
+            "distinct_values": 1
+          },
+          {
+            "address": "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+            "notifications": 1,
+            "distinct_values": 1
+          },
+          {
+            "address": "7oo6fd6q1WQiWLNmP2a2T9SUqvK2wKSDQzeQRp1xwMj",
+            "notifications": 1,
+            "distinct_values": 1
+          },
+          {
+            "address": "3g4fSK8jW7fSTUiGL147Aiih8ny4Lpjch9oiQ5MDRPXs",
+            "notifications": 1,
+            "distinct_values": 1
+          }
+        ]
+      },
+      "notification_chain_age_seconds": null,
+      "notification_chain_age_reason": "account/root notification has no source wall timestamp",
+      "hybrid_total_received_payload_bytes": 240262,
+      "same_bank_cross_provider_agreement": "not tested; polls at different banks",
+      "cpu_scope": "whole paired process including public collector thread; not per arm",
+      "http_reduction_fraction": 0.5,
+      "usable_fraction_delta": -0.15833333333333333,
+      "load_criterion_met": false,
+      "partitions": {
+        "calibration_end_ns": 1790982328751881000,
+        "final_holdout": false,
+        "cross_segment_targets": false
+      }
+    }
+  ],
+  "controls": [
+    {
+      "path": "work/alchemy-pilot-01/control-00",
+      "report": {
+        "schema_version": 1,
+        "kind": "causal_forward_corpus",
+        "source_alias": "solana-public-persistent",
+        "requests": 72,
+        "planned_requests": 72,
+        "complete": true,
+        "response_bytes": 262152,
+        "attempt_statuses": {
+          "advanced": 72
+        },
+        "feature_rows": 72,
+        "usable_feature_rows": 69,
+        "masked_reasons": {
+          "history_warmup": 3
+        },
+        "target_partitions": {
+          "censored": 18,
+          "calibration": 19,
+          "purged": 14,
+          "engineering_evaluation": 21
+        },
+        "censor_reasons": {
+          "invalid_start_observation": 3,
+          "right_censored": 15
+        },
+        "temporal_checks_passed": true,
+        "training_ready": false,
+        "market_dataset_qualified": false,
+        "execution_qualified": false,
+        "edge_established": false,
+        "blockers": [
+          "short fixed cohort engineering sample; no regime/universe coverage",
+          "observed price targets are not executable returns",
+          "snapshot polling has unknown intervening activity",
+          "calibration/evaluation split is engineering-only; no final holdout"
+        ]
+      },
+      "manifest_sha256": "52dee61f4c1585780e9bf87d0fda93d0c255787f39946d3e5365782597814ec7"
+    },
+    {
+      "path": "work/alchemy-pilot-01/control-01",
+      "report": {
+        "schema_version": 1,
+        "kind": "causal_forward_corpus",
+        "source_alias": "solana-public-persistent",
+        "requests": 72,
+        "planned_requests": 72,
+        "complete": true,
+        "response_bytes": 262152,
+        "attempt_statuses": {
+          "advanced": 72
+        },
+        "feature_rows": 72,
+        "usable_feature_rows": 69,
+        "masked_reasons": {
+          "history_warmup": 3
+        },
+        "target_partitions": {
+          "censored": 17,
+          "calibration": 19,
+          "purged": 14,
+          "engineering_evaluation": 22
+        },
+        "censor_reasons": {
+          "invalid_start_observation": 3,
+          "right_censored": 14
+        },
+        "temporal_checks_passed": true,
+        "training_ready": false,
+        "market_dataset_qualified": false,
+        "execution_qualified": false,
+        "edge_established": false,
+        "blockers": [
+          "short fixed cohort engineering sample; no regime/universe coverage",
+          "observed price targets are not executable returns",
+          "snapshot polling has unknown intervening activity",
+          "calibration/evaluation split is engineering-only; no final holdout"
+        ]
+      },
+      "manifest_sha256": "7c2cb82103b41c0aa0f7fdf7c40a51ec8036fef4b6bf1f125ee5c66bfdf49e6d"
+    }
+  ],
+  "summary": {
+    "alchemy_runtime_http_requests": 223,
+    "alchemy_snapshot_requests": 222,
+    "public_snapshot_requests": 144,
+    "accepted_strict_checkpoints": 366,
+    "wss_messages": 1158,
+    "wss_payload_bytes": 258666,
+    "http_only_requests": 144,
+    "hybrid_http_requests": 72,
+    "http_reduction_fraction": 0.5,
+    "http_only_payload_bytes": 524304,
+    "hybrid_http_plus_wss_payload_bytes": 520818,
+    "payload_reduction_fraction": 0.0066488144282705886,
+    "http_usable": 138,
+    "http_rows": 144,
+    "hybrid_usable": 120,
+    "hybrid_rows": 150,
+    "hybrid_scheduled_rows": 144,
+    "unexpected_collection_errors": 0,
+    "forced_disconnects": 2,
+    "distinct_pids": 2,
+    "load_criterion_met": false,
+    "coverage_criterion_proven": false,
+    "stream_history_complete": false,
+    "migration_approved": false,
+    "training_ready": false,
+    "edge_established": false
+  },
+  "verification": {
+    "tests": 364,
+    "make_setup": true,
+    "lint_format_mypy": true,
+    "smoke": true,
+    "build": true,
+    "dev_offline": true,
+    "installed_wheel_offline": true,
+    "d39_pinned_reproduction": true
+  },
+  "files": {
+    "configs/alchemy-pilot-v1.json": "7ce80fc2e662bed26c78c4699d4b102a228781f5fc4bc4aa265fe043e5108296",
+    "work/alchemy-preflight-offline-correction-01.json": "ae7c16bfa54ba8df521f914c0a5dba3f73e7ae9938cee1a06a6d139268acf425",
+    "work/alchemy-pilot-source-6368caf.tar": "ba227e47f428c3c179a2cf4319128b7fe50ba89cbb835884b8b59182c2020a33",
+    "work/alchemy-wheel-verify-00.jsonl": "be7cd05c035915f456a68e6046c2555700149137b2c31671dd4bfa043ff8208b",
+    "work/alchemy-wheel-verify-01.jsonl": "c98d9419572e036f157b7d2a20a25ea36440a7163c92e80ea3e0d42df1e5f040",
+    "work/d40-verify-d39-01.jsonl": "83024038781640ff23954b637cf041cd12305d0642185e5718bcd9dfcd6c1765",
+    "work/d40-verify-d39-02.jsonl": "c882191d282a2c305753aeed5e71a88383b19da82e0d54a32e622e3ec37fc936",
+    "work/alchemy-final-check.log": "5833b4f65b8d9af53c85b643deff5cb650b921ff5d63506e1f3079ff15b9ad35",
+    "work/alchemy-final-smoke.log": "e74f77ed30218c7b0e0aa7c4faeb5f7c14c732e05c56cd0d997cd9a3a05874e2",
+    "tools/alchemy_pilot_report.py": "444330723a8f2579b61de25134cfa7286185b1e99d97db0a56f12fab9ba31f49",
+    "work/alchemy_preflight_original.py": "acbf7feb00e55c5e580998cbe51b32bc0592620044e011d09cfa76d4e4579a12",
+    "work/alchemy_preflight.py": "d92c31d3a35fa1dd75f3b68705f5859bfb7f250de1662d39f479730d0bc530c7",
+    "work/alchemy-final-build.log": "e41cafea0543ad33262d4f4923223b914dba08eeb5b53604a05098c901f14a6d"
+  },
+  "limitations": [
+    "Same three pools / two 120s windows; engineering comparison, no market qualification",
+    "5s scheduler and min-interval interaction throttles hybrid to roughly10s; no causal WSS-only efficiency attribution",
+    "Fault stress applied only to hybrid; no matched10s HTTP baseline in v1",
+    "Actual WSS chain-to-receipt latency unknown: no source wall timestamp",
+    "Silent intermediate state changes cannot be fully detected or recovered; historical gaps stay unresolved",
+    "CPU/RSS measured for whole process including control; not per-arm",
+    "Payload excludes HTTP headers and TLS/TCP overhead; account quotas and bill unknown",
+    "No live overload or mid-segment process-kill test; adversarial faults tested synthetically",
+    "No independent same-bank provider comparison, no historical D33 reopening"
+  ],
+  "decision": "retain D39 collector; Alchemy HTTP qualifies for bounded strict snapshots; reject v1 hybrid migration; prepare separately frozen v2 cadence/coalescing comparison",
+  "official_docs": [
+    "https://www.alchemy.com/docs/reference/account-subscribe",
+    "https://www.alchemy.com/docs/reference/solana-subscription-api-endpoints",
+    "https://www.alchemy.com/docs/reference/subscription-api",
+    "https://www.alchemy.com/docs/reference/root-subscribe",
+    "https://www.alchemy.com/docs/reference/block-subscribe",
+    "https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-multiple-accounts",
+    "https://solana.com/docs/rpc/http/getmultipleaccounts",
+    "https://www.alchemy.com/docs/reference/compute-unit-costs"
+  ],
+  "audit_code_commit": "7220728e0ce9ea36c4b5ebc2b902d41e8cc7c9c1"
+}

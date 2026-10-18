@@ -1,0 +1,106 @@
+{
+  "web_sha256": "c73e2087ea606ba6734f5a92301f8b5743c9ae3496c211b3a0c67b3ae0f59435",
+  "browser": "Chromium 153.0.8010.12",
+  "captures": [
+    {
+      "route": "/system",
+      "capture_id": "cc027-system-1440x900-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1440x900-viewport.png",
+      "sha256": "2764977092a2183f144313e21da5faac9630456335a6b298b53b12afe7b3eb06",
+      "viewport": [
+        1440,
+        900
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "c73e2087ea606ba6734f5a92301f8b5743c9ae3496c211b3a0c67b3ae0f59435",
+      "captured_at": "2026-10-04T03:45:24.149Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1440x900-viewport.layout.json",
+        "sha256": "5fffdaf1a03631e3ce37ec9ef79d40963ae29dcdc25ba047c75154676eba95ae"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc027-system-1600x1000-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1600x1000-viewport.png",
+      "sha256": "69b450ab5cc85ca2622a17932d9144b4b987f3e05a9f6a266f101f68d086adce",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "c73e2087ea606ba6734f5a92301f8b5743c9ae3496c211b3a0c67b3ae0f59435",
+      "captured_at": "2026-10-04T03:45:24.357Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1600x1000-viewport.layout.json",
+        "sha256": "236049c611236c5fc63f1c5bed4542793426131cb3cc572c659da5897eb18f70"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc027-system-1600x1000-fullpage",
+      "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1600x1000-fullpage.png",
+      "sha256": "69b450ab5cc85ca2622a17932d9144b4b987f3e05a9f6a266f101f68d086adce",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "capture": "fullpage",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "c73e2087ea606ba6734f5a92301f8b5743c9ae3496c211b3a0c67b3ae0f59435",
+      "captured_at": "2026-10-04T03:45:24.357Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1600x1000-fullpage.layout.json",
+        "sha256": "88b3fa40f3cb9185ee394ebd5464596ee5fb7c441edf579b727d56a77faaabe5"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc027-system-1920x1080-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1920x1080-viewport.png",
+      "sha256": "42e202352bbbe56f2c0a5fd6e51b1fbd58dcea8721ff18cafb00421578ade00b",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "c73e2087ea606ba6734f5a92301f8b5743c9ae3496c211b3a0c67b3ae0f59435",
+      "captured_at": "2026-10-04T03:45:24.502Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1920x1080-viewport.layout.json",
+        "sha256": "d9b37909a37c7b56f785128c3c7d2de7adc4d760534eaee5dee8dd531ec35260"
+      }
+    },
+    {
+      "route": "/system",
+      "capture_id": "cc027-system-1024x768-viewport",
+      "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1024x768-viewport.png",
+      "sha256": "2f2259ffd91355204d7d181f4d191ba61beee2601ea9987dba87e7fcd22c8e1c",
+      "viewport": [
+        1024,
+        768
+      ],
+      "capture": "viewport",
+      "dpr": 1,
+      "zoom": 1,
+      "web_sha256": "c73e2087ea606ba6734f5a92301f8b5743c9ae3496c211b3a0c67b3ae0f59435",
+      "captured_at": "2026-10-04T03:45:24.593Z",
+      "browser": "Chromium 153.0.8010.12",
+      "layout_report": {
+        "path": "docs/control-center/references/cc02-final/CC02.7/after/cc027-system-1024x768-viewport.layout.json",
+        "sha256": "035a9d906b8a126ac904d84ee46ee4ee34ce4e29dbed3c2026016274b116016e"
+      }
+    }
+  ]
+}

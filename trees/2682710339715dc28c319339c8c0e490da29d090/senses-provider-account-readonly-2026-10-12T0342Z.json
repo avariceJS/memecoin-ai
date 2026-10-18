@@ -1,0 +1,75 @@
+{
+  "alchemy": {
+    "account_limit": "not_returned",
+    "app_network_method_attribution": "not_returned",
+    "billing_period": {
+      "end": "2026-11-01T00:00:00.000Z",
+      "start": "2026-10-01T00:00:00.000Z"
+    },
+    "data_through": "2026-10-12T03:42:00.000Z",
+    "last_30_days": {
+      "amount": 18680,
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": "0.01"
+    },
+    "last_7_days": {
+      "amount": 18680,
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": "0.01"
+    },
+    "month_to_date": {
+      "amount": 18680,
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": "0.01"
+    }
+  },
+  "alchemy_rpc_requests_by_snapshot": 0,
+  "captured_at_utc": "2026-10-12T03:43:56Z",
+  "clock": {
+    "checked_ns": 1791776636993592000,
+    "monotonic_ns": 3800989450915083,
+    "samples": [
+      {
+        "age": null,
+        "date": "Mon, 12 Oct 2026 03:43:56 GMT",
+        "host": "www.cloudflare.com",
+        "monotonic_received_ns": 3800989287366416,
+        "monotonic_sent_ns": 3800989091978791,
+        "received_ns": 1791776636830043000,
+        "sent_ns": 1791776636634657000,
+        "status": 200
+      },
+      {
+        "age": null,
+        "date": "Mon, 12 Oct 2026 03:43:56 GMT",
+        "host": "www.google.com",
+        "monotonic_received_ns": 3800989450915083,
+        "monotonic_sent_ns": 3800989287826500,
+        "received_ns": 1791776636993592000,
+        "sent_ns": 1791776636830504000,
+        "status": 200
+      }
+    ],
+    "schema": "brain-senses-external-v1-clock",
+    "schema_version": 1
+  },
+  "helius": {
+    "account_status": "authenticated_api_key_configured",
+    "balance": "unknown",
+    "charge_history": "unknown",
+    "credit_usage": "unavailable",
+    "jwt_session": "not_found",
+    "plan": "unknown",
+    "quota": "unknown",
+    "signup_or_account_mutation": false
+  },
+  "helius_rpc_requests_by_snapshot": 0,
+  "limits": [
+    "No exact Helius plan/usage/charge evidence was available without JWT.",
+    "Alchemy result is an authenticated-team aggregate, not checkout/app/method attribution or an invoice.",
+    "No exact charge is inferred from planned or observed request counts."
+  ],
+  "research_lease_metering": "not_attributable_from_account_summary",
+  "schema": "senses-provider-account-readonly-v1",
+  "schema_version": 1
+}

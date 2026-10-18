@@ -1,0 +1,102 @@
+{
+  "all_senses_labels_persistently_disabled": true,
+  "c4_campaign_id": "helius-inventory-v3-20261010-4",
+  "c4_disabled_override": true,
+  "c4_label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-4",
+  "c4_plist": {
+    "label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-4",
+    "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-inventory-v3-20261010-4.plist",
+    "plist_sha256": "9a42474eb00d7bbc253b3f461185bd77a8658e131c45bc73881faa034d7283e8"
+  },
+  "captured_at_ns": 1791679411616617000,
+  "contract": "brain_senses_launchd_quiescence_post_c4_stop_v1",
+  "credential_match_in_process_arguments": false,
+  "disk_floor_bytes": 53687091200,
+  "disk_free_bytes": 49089638400,
+  "free_below_floor": true,
+  "limitations": [
+    "Local launchd and process state only; no provider-side account or request claims."
+  ],
+  "loaded_senses_labels": [],
+  "process_command_output_sha256": "4b7ac5741904f1511eb85c25e9d8aac18d92d758d9ec20d5e153ad2af1950733",
+  "schema_version": 1,
+  "senses_plist_count": 15,
+  "senses_plists": [
+    {
+      "label": "ai.memecoin.brain.senses.block-epochs",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.block-epochs.plist",
+      "plist_sha256": "3e801c2768f676032406329918fc1a6afc766a13b54d4e44dedde5c2f03dbcaf"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.decode-watch",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.decode-watch.plist",
+      "plist_sha256": "3f89d11f0c1da8f2d4aa2a9b110525781e007567bc035008c81cd85944a7f675"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.helius-decode-watch",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-decode-watch.plist",
+      "plist_sha256": "3dbce1172e4ff49daa22a33a3847a1c996097c5a941af779ea525ba9c038442d"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.helius-inventory-controller-v1",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-inventory-controller-v1.plist",
+      "plist_sha256": "694f6853606411b38691f52e72bfd88a6470061482adc5f01f3832db4fa67b93"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-1",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-inventory-v3-20261010-1.plist",
+      "plist_sha256": "b985f5f562b5ab78dd6040a3c6b0ba606c244bf624528f25f34d245225c8e6f1"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-2",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-inventory-v3-20261010-2.plist",
+      "plist_sha256": "db7353d8cd77d351cce99cb80b932237224911968fa40be750000c741391dee3"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-3",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-inventory-v3-20261010-3.plist",
+      "plist_sha256": "a022cc3d452d7be5b1c9746a37adc1153e5e6e607eb4a52329e4c520620077f7"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.helius-inventory-v3-20261010-4",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-inventory-v3-20261010-4.plist",
+      "plist_sha256": "9a42474eb00d7bbc253b3f461185bd77a8658e131c45bc73881faa034d7283e8"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.helius-watch-v2",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-watch-v2.plist",
+      "plist_sha256": "5fed8bcb9a4a6961ccd2869c500dadc70961d9ce3d56da4ae342ddd951669791"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.helius-watch-v3",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-watch-v3.plist",
+      "plist_sha256": "cea2f61a6408713aa1e3856158f060d82f333f64482607b4c0b2e7abe15101e9"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.helius-watch",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.helius-watch.plist",
+      "plist_sha256": "e1a8fcba0b18c0677434a1cc63170d388b3cbb28012a1bce44e65960b5ffd834"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.independent-verifier-512-pair64",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.independent-verifier-512-pair64.plist",
+      "plist_sha256": "e2a1a872b78476b7475cbb89cc4e706de28b8f4d32c5e472fba5a19f9e94e389"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.independent-verifier-512",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.independent-verifier-512.plist",
+      "plist_sha256": "389ee7ae2fa2ccc7f1302d35a8f13647c638b0b91b7e8b3eb3017e61309d7b99"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.program-watch-v3",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.program-watch-v3.plist",
+      "plist_sha256": "99ea7bb24186b79ea444642317b6a2d02c253b66b0b1229212cd9dd721d7dd17"
+    },
+    {
+      "label": "ai.memecoin.brain.senses.program-watch",
+      "path": "/Users/root1/Library/LaunchAgents/ai.memecoin.brain.senses.program-watch.plist",
+      "plist_sha256": "dbbf60e22527fd8fdb1464336f321190215f652eca4a5f363caa4fb0bc15ff45"
+    }
+  ],
+  "status": "all_senses_launchagents_disabled_unloaded"
+}

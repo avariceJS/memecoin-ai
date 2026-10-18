@@ -1,0 +1,72 @@
+{
+  "bindings": [
+    {
+      "bytes": 67500,
+      "path": "tools/brain_senses_candidate_position_witness_check_v1.py",
+      "sha256": "db7c2676eade5ee696e81e60df2ef2071da4fbde206cd6ad4925effe59a1af43"
+    },
+    {
+      "bytes": 45202,
+      "path": "tests/brain/test_senses_candidate_position_witness_check_v1.py",
+      "sha256": "1cc7a028c734f0cbd185f395acae0791381c0a6439ee0ecc3bf5ee8a541859a1"
+    },
+    {
+      "bytes": 9525,
+      "path": "docs/evidence/solana-candidate-position-witness-synthetic-checker-validation-v1-2026-10-11.json",
+      "sha256": "e62a53e4630e47f5b0422d2673aa6845d87ed8d866fc72574b9c7c19d8283cca"
+    },
+    {
+      "bytes": 355475,
+      "path": "work/official-sources/solana-token-2022/b4724e6e7fecc8fc36295f861a769401bf92b270/processor.rs",
+      "sha256": "57e451a47aba32e0eac5ab079696b5ff6ac96532b19de5cec4d6bc610fe4ef04"
+    },
+    {
+      "bytes": 102176,
+      "path": "work/official-sources/solana-token-2022/b4724e6e7fecc8fc36295f861a769401bf92b270/instruction.rs",
+      "sha256": "672b3890cb58e5700a67f202491069ed44dffcbfa0e7d0b83a0cfbbb05b3a287"
+    }
+  ],
+  "created_utc": "2026-10-11T10:53:24Z",
+  "implementation": {
+    "git_diff_check": "passed",
+    "hypothesis": "6.168.0",
+    "python": "3.13.6",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "test_command": ".venv/bin/pytest tests/brain/test_senses_candidate_position_witness_check_v1.py -q",
+    "test_count_passed": 63
+  },
+  "invariants": {
+    "economic_admission": false,
+    "real_runtime_or_provider_completeness_certified": false,
+    "source_capability_qualified": false
+  },
+  "limitations": [
+    "All transition facts are supplied synthetic claims; checker consistency is not independent observation.",
+    "No raw account/instruction bytes are decoded.",
+    "Token-2022 epoch fee schedule and fee rounding are not derived or qualified.",
+    "Rent reserve is accepted as supplied; Rent is not calculated or qualified.",
+    "Transfer-hook side effects and extra-account semantics remain unsupported.",
+    "No runtime witness, provider acquisition, replay, completeness, economic settlement, or admission is established.",
+    "c4 remains terminal; no tail2 body opened, no missed slot backfill, no RPC, and no collector activation."
+  ],
+  "review": {
+    "decision": "Validate supplied Token-2022 gross/fee transitions and hook ordering, plus WSOL SyncNative/CloseAccount balance and path continuity. No raw decoding or economic admission.",
+    "reviewer": "Sol",
+    "status": "accepted_synthetic_checker_only"
+  },
+  "schema": "solana_candidate_position_witness_transition_consistency_validation_v1",
+  "scope": "offline synthetic transition consistency only",
+  "source_revision": {
+    "commit": "b4724e6e7fecc8fc36295f861a769401bf92b270",
+    "repository": "solana-program/token-2022"
+  },
+  "synthetic_checks": [
+    "Token-2022 source/destination base amount transitions using supplied gross and fee atomic units",
+    "Token-2022 destination withheld fee transition and source withheld stability when supplied",
+    "Token-2022 hook entry after successful core transition with gross amount",
+    "WSOL SyncNative token amount equals supplied lamports less supplied reserve and preserves lamports",
+    "WSOL CloseAccount transfers supplied source lamports, closes source and zeros native token amount",
+    "SyncNative to CloseAccount account, program, path, ordering and lamport continuity"
+  ]
+}

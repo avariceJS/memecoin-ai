@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>ai.memecoin.brain.senses.gecko-capture-only-v1</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/root1/Developer/memecoin-research/.venv/bin/python</string>
+		<string>-B</string>
+		<string>/Users/root1/Developer/memecoin-research/tools/brain_senses_gecko_capture_only_runtime_v1.py</string>
+		<string>--scheduled-tick</string>
+		<string>--capture-id</string>
+		<string>6c4e52c7a9bb4bdc8e5f1d774ec8aa17</string>
+	</array>
+	<key>StartInterval</key>
+	<integer>60</integer>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<false/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>StandardOutPath</key>
+	<string>/dev/null</string>
+	<key>StandardErrorPath</key>
+	<string>/dev/null</string>
+</dict>
+</plist>

@@ -1,0 +1,91 @@
+{
+  "acquisition": {
+    "failed_or_ambiguous": 0,
+    "phases": {
+      "anchor": 1,
+      "full_block": 16,
+      "inventory": 1,
+      "signature_check": 16
+    },
+    "provider_charge_units": "unknown_unverified; request count is not treated as credits",
+    "raw_response_bytes": 53057298,
+    "receipt_first_ns": 1791594010234748000,
+    "receipt_last_ns": 1791594026347634000,
+    "requests": 34,
+    "reservations": 34,
+    "results": 34,
+    "retry_count": 0,
+    "stored_zstd_bytes": 12349827
+  },
+  "artifacts": {
+    "epoch_root": "work/brain-senses-live-helius-inventory-v2-16-hourly-20261010/epochs/20261010T010000Z",
+    "frontier_sha256": "04e45b633aad8b1766a945e6a40dfb63b2b5512cd26f4af1f1df2ecc7bd88d96",
+    "plan_sha256": "589f4b80106ce33f32f5e7be195a6a010936dda87ac88e3f3fc9c35c74e93653",
+    "summary_sha256": "b6c961fdb087e4156b79e522570012ccdb9bf163bdf5cf4871b86a27969991cb"
+  },
+  "campaign_cumulative_after_epoch": {
+    "provider_charge_units": "unknown_unverified",
+    "raw_response_bytes": 124996480,
+    "requests": 70,
+    "stored_bytes": 27685203
+  },
+  "campaign_root_ignored_work": "work/brain-senses-live-helius-inventory-v2-16-hourly-20261010",
+  "epoch_id": "20261010T010000Z",
+  "interval": {
+    "end_exclusive": 455066012,
+    "gap_before_this_interval": [
+      455037817,
+      455061516
+    ],
+    "inventory_sha256": "9f218f0b4524f0f14d495c616aaf18a9c6007c9122c1533fa64f1e5749112b3f",
+    "next_observed_frontier": 455066012,
+    "provider_returned_produced_slots": 4496,
+    "start_inclusive": 455061516,
+    "width": 4496
+  },
+  "kind": "helius_inventory_v2_frame",
+  "offline_validation": {
+    "journal": "34/34 reservations, result identities and capture hashes validated by the v2 offline journal validator",
+    "recovery": "not yet tested against a separately interrupted live frame; captured bucket is terminal and not replayed"
+  },
+  "provider": "helius-free",
+  "receipt_id": "helius-inventory-v2-hourly-frame-2026-10-10T010000Z",
+  "sampling": {
+    "checks_passed": 16,
+    "checks_total": 16,
+    "economic_swap_count": null,
+    "exact_economic_zero_allowed": false,
+    "inclusion_probability_per_returned_slot": "1/281",
+    "references_in_failed_transactions": 170,
+    "selected_count": 16,
+    "selected_slots": [
+      455061681,
+      455062189,
+      455062383,
+      455062573,
+      455062705,
+      455063517,
+      455063528,
+      455063693,
+      455063992,
+      455064048,
+      455064317,
+      455064389,
+      455064802,
+      455064847,
+      455065631,
+      455065797
+    ],
+    "structural_instruction_references": 1710,
+    "transactions_with_reference": 835
+  },
+  "schema_version": 1,
+  "scope": "one Helius-only finalized numeric interval; provider-returned produced-slot inventory and 16 selected structural block checks; no global inventory, economic completeness, or exact-zero claim",
+  "status": "frame_complete",
+  "temporal_semantics": {
+    "availability": "captured response receipt_ns in the raw request journal",
+    "decision_time_claim": false,
+    "event_coordinate": "Solana slot; selected blockTime values remain in raw epoch summary",
+    "historical_point_in_time_claim": false
+  }
+}

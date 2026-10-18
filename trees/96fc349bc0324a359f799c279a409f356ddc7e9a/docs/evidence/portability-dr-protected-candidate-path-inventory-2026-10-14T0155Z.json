@@ -1,0 +1,53 @@
+{
+  "schema": "brain-portability-dr-protected-candidate-path-inventory-v1",
+  "captured_at_utc": "2026-10-14T01:55:00Z",
+  "scope": {
+    "regular_file_contents_opened": false,
+    "symlinks_followed": false,
+    "protected_payloads_read": false,
+    "secret_values_read": false,
+    "provider_requests": 0,
+    "service_changes": false,
+    "source_snapshot_created": false,
+    "candidate_paths_in_public_receipt": false
+  },
+  "candidate_matching": {
+    "method": "case-insensitive basename prefix in directory-entry metadata",
+    "prefixes": ["f01", "d43", "holdout", "reserved"],
+    "pruned_directory_names": [".git", ".venv", "__pycache__"],
+    "role_inferred_from_name": false
+  },
+  "scanned_root_labels": ["owner_work", "research_work", "kingston_data"],
+  "not_scanned_roots": {
+    "private_config": "Not included in this capture; the earlier 2026-10-14T01:17Z metadata receipt recorded zero prefix matches there."
+  },
+  "candidate_counts": {
+    "owner_work": {"total": 67, "d43": 37, "f01": 30},
+    "research_work": {"total": 99, "d43": 15, "f01": 81, "reserved": 3},
+    "kingston_data": {"total": 12, "d43": 4, "reserved": 8}
+  },
+  "private_kingston_artifact": {
+    "relative_path": "host-recovery/private-path-inventory-20261014-a1",
+    "manifest_name": "candidate-paths.json",
+    "manifest_bytes": 62395,
+    "manifest_sha256": "e2a0c9c57cd4f484352210d9f34318f4d28aa1bc43299247b3ba7dd48fae7619",
+    "complete_marker_name": "COMPLETE.json",
+    "complete_marker_sha256": "fdb1838803ff868a51593ea1adac203b4d35fafa9b8d84d5635a26aed7c48ec3",
+    "descriptor_bound_create_only_publication": true,
+    "directory_mode_0700_verified": true,
+    "manifest_and_complete_file_mode_0600_verified": true,
+    "all_178_candidate_entry_metadata_stable_at_end_of_scan": true,
+    "fresh_descriptor_bound_reread_and_hash_verification": true,
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8"
+  },
+  "qualification": {
+    "candidate_metadata_inventory_complete_for_scanned_roots_and_pruning_rule": true,
+    "protected_roles_classified": false,
+    "custody_bytes_copied": false,
+    "protected_custody_closure_proven": false,
+    "consistent_source_point_proven": false,
+    "safe_to_erase": false,
+    "limitation": "The private manifest preserves candidate paths and lstat metadata only. Basename prefixes are not role evidence; the inventory neither captures bytes nor establishes a consistent source boundary."
+  }
+}

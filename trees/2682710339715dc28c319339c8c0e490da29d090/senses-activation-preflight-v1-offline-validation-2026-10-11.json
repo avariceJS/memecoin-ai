@@ -1,0 +1,58 @@
+{
+  "schema": "brain-senses-activation-preflight-v1-validation-receipt",
+  "created_at_utc": "2026-10-11T05:01:20Z",
+  "checkout": "/Users/root1/Developer/memecoin-research",
+  "branch": "research/active",
+  "base_head": "570b516",
+  "scope": "offline successor eligibility preflight only",
+  "source_sha256": {
+    "tools/brain_senses_activation_preflight_v1.py": "bf04b433794380d016a8ba876202cb14418634ded557bc94cf9d5688d385d5f3",
+    "tools/brain_senses_activation_preflight_verifier_v1.py": "38f5679f7c83e9c305379dae9f1bb9ab722146285f9c0fb1611f6d5bcb874e20",
+    "tests/brain/test_senses_activation_preflight_v1.py": "7a3bdc48aaaf327af9e3eca1d5adea247c488161cac27edb6799cf9f833d6b35"
+  },
+  "review": {
+    "tier": "Sol High",
+    "result": "conditional offline-only acceptance; distinct Ed25519 public keys required across host, Helius checker and Sol reviewer roles",
+    "condition_satisfied": true,
+    "live_activation_authorized": false
+  },
+  "validation": {
+    "activation_preflight_cases_passed": 36,
+    "combined_related_cases_passed": 131,
+    "combined_command": ".venv/bin/python -m pytest -q tests/brain/test_senses_activation_preflight_v1.py tests/brain/test_senses_finite_calendar_v3.py tests/brain/test_senses_operation_bundle_v2.py tests/brain/test_senses_prospective_controller_v1.py tests/brain/test_senses_prospective_verifier_v1.py",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "py_compile": "passed",
+    "git_diff_check": "passed",
+    "provider_requests": 0,
+    "runtime_activation": false
+  },
+  "verified_properties": [
+    "transitive predecessor terminal time, gaps, and unknown intervals are preserved and successor times cannot overlap",
+    "plan kind, first anchor, bucket expiry, and source digest shapes fail closed",
+    "daily request and full lease byte bounds charge every UTC day intersected by each half-open bucket",
+    "storage runway uses full lease caps and binds signed free-space evidence to caller-pinned capture path, device, inode, and filesystem",
+    "churn reserve and clock source are explicit out-of-band reviewed/pinned values",
+    "Helius method counts and units are recomputed from a signed plan-specific price table with canonical unit and independent out-of-band source/table hashes",
+    "claim uniqueness is serialized in one configured owner-local registry by predecessor terminal hash, including distinct-packet concurrency and crash-prefix fail-closed behavior",
+    "historical claim verification reports eligible_at_claim while current eligible remains false",
+    "trust store rejects reuse of an Ed25519 public key across attestor/reviewer roles"
+  ],
+  "limitations": [
+    "offline eligibility only; activation_authorized is always false and current calendar/bridge/runtime does not consume this gate",
+    "no actual trust root, Helius charge account evidence, or production charge table was supplied; test keys and price tables are synthetic",
+    "local registry coordinates only callers using the same owner-local durable root; cross-host exclusion is not established",
+    "a future runtime adapter must independently consume the same pinned capture root and undergo a separate Sol activation review",
+    "full lease raw/stored byte caps are charged to every intersected bucket/day and can conservatively reject larger schedules",
+    "host signatures bind claims but do not prove host/provider/reviewer truth or completeness"
+  ],
+  "runtime_snapshot": {
+    "sampled_at_utc": "2026-10-11T05:01:20Z",
+    "free_disk_kib": 26346692,
+    "minimum_disk_floor_kib": 52428800,
+    "senses_helius_launchagents_loaded": false,
+    "senses_helius_collector_process_present": false,
+    "helius_charge_headroom": "unknown",
+    "campaign_c4_tail2": "frozen, unopened; no backfill"
+  }
+}

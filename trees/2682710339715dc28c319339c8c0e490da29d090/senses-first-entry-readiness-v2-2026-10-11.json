@@ -1,0 +1,96 @@
+{
+  "schema": "senses_first_entry_readiness_v2",
+  "created_at_utc": "2026-10-11T15:02:00Z",
+  "supersedes": "senses-first-entry-readiness-v1-2026-10-11.json",
+  "baseline_head": "730dce9e61f9f36a70feb6f11eacd43f4902cd44",
+  "decision": "blocked_offline_only",
+  "gate_contract": {
+    "status": "offline_signed_assertion_only",
+    "scope": "offline_signed_assertion_contract",
+    "live_gate_qualified": false,
+    "raw_account_price_source_verified": false,
+    "activation_authorized": false,
+    "production_claim_entry": "fails_closed_before_registry_access",
+    "credential_loaded": false,
+    "client_created": false,
+    "dns_or_wss_request_performed": false
+  },
+  "implementation_pins": {
+    "tools/brain_senses_wss_initial_entry_v2.py": "0231e32322a39ca7088489812fca67d377ef56ae1790faa3cc6d62dc4860e1d2",
+    "tests/brain/test_senses_wss_initial_entry_v2.py": "d3af1612f758d180800ad4de45496e510d2d2ab835145a20ec9795bd03553c05",
+    "src/memecoin_collector/wss_campaign.py": "194cbe256bd2df607147f05dea03d0d3c5f04411e3bc8faa6666afd35db32d6d",
+    "src/memecoin_collector/wss_reference.py": "715deffdc9a0fe02c70b9b7abbd939883cd0f3c3d07bf278a859f43e727bf81d",
+    "tools/brain_senses_activation_preflight_v1.py": "e78691ffb06a94484acd5e63e7217d1c2fce5937daededdf7adc3af6e036c647",
+    "tools/brain_senses_activation_preflight_verifier_v1.py": "dc8d4c3bc9289186bc0cf80f6f52cca41212cf02ea2fba07b19e1e2170bb7433"
+  },
+  "public_billing_source_receipt": "helius-public-wss-billing-source-capture-2026-10-11.json",
+  "public_billing_scope": "2 credits per 0.1 MB uncompressed standard WSS across plans; monthly then prepaid then autoscaling",
+  "unverified_billing_facts": [
+    "account balance and plan",
+    "overage/autoscaling controls and enforceable ceiling",
+    "per-message/session/aggregate rounding boundary",
+    "control, handshake, TLS, reconnect and other overhead treatment",
+    "shared-client maximum consumption through lease expiry"
+  ],
+  "account_knowledge_tool_result": "Transport closed",
+  "historical_v1_receipt_status": {
+    "receipt": "senses-first-entry-readiness-v1-2026-10-11.json",
+    "authoritative": false,
+    "superseded": true,
+    "stale_field": "helius_api_key_environment_variable_present",
+    "reason": "old MCP environment-presence classifier was stale/incorrect; receipt bytes remain frozen"
+  },
+  "fresh_runtime_census": {
+    "sampled_at_utc_approx": "2026-10-11T15:05:00Z",
+    "network_used": false,
+    "expected_senses_labels": 15,
+    "disabled_senses_labels": 15,
+    "loaded_senses_labels": 0,
+    "active_senses_writers": 0,
+    "provider_key_process_count": 4,
+    "provider_key_process_count_semantics": "count only; values not read; presence does not establish request activity",
+    "activity_inferred": false,
+    "evidence": "root no-network owner census"
+  },
+  "historical_exposure_scan": {
+    "receipt": "helius-key-post-legacy-mcp-stop-exposure-rescan-2026-10-11T1337Z.json",
+    "result": "zero exact matches in argv and scanned Unified Log",
+    "scope": "historical exposure scan; not current process census"
+  },
+  "blockers": [
+    {
+      "id": "c4_discontinuity_and_quiescence",
+      "status": "open",
+      "evidence_receipt": "senses-first-entry-readiness-v1-2026-10-11.json",
+      "detail": "four inherited gaps and an unknown-ended STOP interval remain; no c4/tail2 payload was opened"
+    },
+    {
+      "id": "account_billing_source_qualification",
+      "status": "missing",
+      "detail": "public docs do not establish account state or detailed charge semantics; MCP is unavailable"
+    },
+    {
+      "id": "storage_and_churn_runway",
+      "status": "below_floor",
+      "sampled_at_utc": "2026-10-11T15:01:43Z",
+      "free_bytes": 33634115584,
+      "required_floor_bytes": 53687091200,
+      "detail": "fresh free space is below the 50 GiB floor before lease-specific peak and churn reserves"
+    },
+    {
+      "id": "runtime_consumption_and_trust",
+      "status": "not_authorized_or_qualified",
+      "detail": "no live runtime consumes this assertion-only gate; independent trust/clock/root and reviewer evidence are not qualified for activation"
+    }
+  ],
+  "validation": {
+    "focused_wss_command": ".venv/bin/python -m pytest -q tests/brain/test_senses_wss_initial_entry_v2.py tests/brain/test_senses_wss_campaign.py tests/brain/test_senses_pump_wss_reference.py",
+    "focused_wss_result": "75 passed",
+    "focused_http_claim_command": ".venv/bin/python -m pytest -q tests/brain/test_senses_activation_preflight_v1.py -k 'claim or registry' --deselect=tests/brain/test_senses_activation_preflight_v1.py::test_initial_entry_claim_is_domain_separated_and_one_use --tb=short",
+    "focused_http_claim_result": "11 passed, 33 deselected",
+    "py_compile": "passed",
+    "git_diff_check": "passed",
+    "known_excluded_test": "test_initial_entry_claim_is_domain_separated_and_one_use is blocked at immutable external c4 log receipt replay mismatch before claim behavior"
+  },
+  "evidence_boundary": "No provider request, credential load, LaunchAgent activation, canonical claim registry write, c4/tail2 payload read, or live activation occurred. The signed rate/rounding/control values remain assertions and are not a provider-qualified billing model."
+}

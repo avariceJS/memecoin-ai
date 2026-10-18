@@ -1,0 +1,94 @@
+{
+  "admission": {
+    "economic_edge": "none",
+    "execution": "none",
+    "training": "none",
+    "wallet_net_price": "none"
+  },
+  "contract": "pumpswap_v1_buy_exact_quote_in_full_transaction_diagnostic_v1",
+  "date_utc": "2026-10-10",
+  "denominators": {
+    "both_legacy_token_program_selected_refs": 62,
+    "distinct_full_block_slots_replayed": 48,
+    "successful_pinned25_tail2_valid_pair_refs_in_captured_class": 1299,
+    "token2022_or_other_program_refs_excluded_and_quarantined": 1237,
+    "unique_transactions_replayed": 62
+  },
+  "experiment": "PumpSwap v1 buy_exact_quote_in legacy-token development qualification",
+  "fee_flow_hypotheses": {
+    "fee:buyback_ata_transfer_equals_event_buyback_fee:True": 62,
+    "fee:creator_vault_transfer_equals_event_creator_fee:True": 62,
+    "fee:only_supported_quote_destination_roles_observed:True": 62,
+    "fee:pool_credit_less_lp_fee_equals_event_net_user_quote_amount:True": 62,
+    "fee:protocol_recipient_transfer_equals_protocol_fee_less_buyback:True": 62,
+    "fee:protocol_recipient_transfer_plus_buyback_equals_event_protocol_fee:True": 62
+  },
+  "limitations": [
+    "Development-only qualification; the 13:00Z disjoint audit was unopened for this instruction class at receipt creation.",
+    "Captured-block structural class only, not global transaction discovery, market/process completeness, or provider-wide completeness.",
+    "Fee distribution and net-pricing equations remain empirical hypotheses despite matching in this sample.",
+    "The selected 62 refs cover a narrow dual-legacy subset; Token-2022 and unverified variants remain quarantined.",
+    "Exact token-account settlement does not establish wallet-net execution price or account-level market outcome."
+  ],
+  "observations": {
+    "additional_v1_references_in_selected_transactions": 0,
+    "base_credit_equals_event_base_amount_out_and_meets_minimum": 62,
+    "checked_legacy_token_transfer_instructions_per_reference": 4,
+    "event_quote_amount_in_differs_from_event_net_user_quote_amount_in": 62,
+    "exact_buy_events_per_reference": 1,
+    "exact_full_transaction_ledgers": 62,
+    "exact_instruction_event_transfer_fact_records": 62,
+    "exact_target_accounts_per_reference": 6,
+    "fee_flow_hypotheses_each_matched": 62,
+    "gross_quote_debit_within_spendable_argument": 62,
+    "normalization_failures": 0,
+    "observed_base_quote_decimal_pairs": {
+      "base_6_quote_9": 1,
+      "base_9_quote_6": 61
+    },
+    "pool_credit_equals_event_quote_amount_in_with_lp_fee": 62,
+    "selected_references": 62,
+    "ui_unit_conversion_performed": false,
+    "user_gross_quote_debit_equals_event_quote_amount_in": 62
+  },
+  "pins": {
+    "attempt_inspector_sha256": "028998b1860bf9528cdfd20c7d94223c605e934f05b89ebd3835796233a2dccb",
+    "dev_replay_tool_sha256": "4c56fa4dc8ba2256f53d04430ecfd2340b96eccb17b091a6c376f9fb2b6012cf",
+    "economic_diagnostic_sha256": "8ff85c50ff7a5c6825852de523e83a09dfc3fd9c7f77b0d83d93a3fe2170d176",
+    "fee_recipient_notice_sha256": "8b05e0906eaf1746508b0b2f909ac7c344ce7be33a6564d595335c9fda399868",
+    "pump_amm_idl_commit": "8cda1fa30ea658b20909d8aedf002047119388d2",
+    "pump_amm_idl_sha256": "b7d8c57a4d9c4dd0109a9ab893052352333252d4eedced10ac091d4d66cab89b"
+  },
+  "schema_version": 1,
+  "scope": "all successful captured-class refs meeting the frozen 25-byte, validated two-account suffix, legacy base-token, legacy quote-token predicate in the 2026-10-09 15:00Z Helius pair64 capture; no subsampling",
+  "source": {
+    "all_source_census_blocks": 512,
+    "all_source_census_raw_bytes": 2619584841,
+    "all_source_census_zstd_bytes": 559112149,
+    "census_contract": "pumpswap_v1_buy_exact_quote_in_attempt_and_suffix_candidate_v1",
+    "census_report_path": "work/brain-senses-live-helius-alchemy-512-pair64-20261009/20261009T150000Z/paired-block-capture/buy_exact_v1_census_v3.json",
+    "census_report_sha256": "74cf0ed6b3e404874e98a7562d42ec25476214a1bbfac0cbc66ab9d83406ca37",
+    "development_full_block_raw_bytes_read": 207519587,
+    "development_full_block_zstd_bytes_read": 45915432,
+    "development_plan_path": "work/pumpswap-buy-exact-v1-dev-plan-1500.json",
+    "development_plan_sha256": "c2d86ec3aa46d2f364acb98dadd88a8500380caa01caf0dc888cfaa1bba810a8",
+    "development_replay_path": "work/pumpswap-buy-exact-v1-dev-replay-v7.json",
+    "development_replay_sha256": "712c198f799d206f4b70f514d203342bd1c5e5e60d953070eab5ca3241b82fed",
+    "development_slots_replayed": 48,
+    "independent_audit_full_block_slots": 512,
+    "independent_audit_plan_sha256": "ecced158edc3bf54ed25c1f2a5971955b5e7dfe2f40aa9fbd239ca96e11603d2",
+    "independent_audit_slots_disjoint": true,
+    "independent_audit_source_binding_receipt": "docs/evidence/helius-pumpswap-sell23-ledger-v2-capture-census-2026-10-09.json",
+    "independent_audit_source_binding_receipt_sha256": "29051d9cb0eb4367052c4b70e693e13e6a4477f9cbac2217df1670eacbe25554",
+    "independent_audit_summary_sha256": "a70030724f2d57ec40bb1e609dde7424a70227be9fa506ca045522f75eb8be32",
+    "network_requests_during_development_replay": 0,
+    "unread_independent_audit_manifest_path": "work/pumpswap-buy-exact-v1-audit-1300-manifest.json",
+    "unread_independent_audit_manifest_sha256": "36c35b4dbadedec3392bdcb6cf7b454deb9af694484632236445d143fa11be65"
+  },
+  "status": "development_diagnostic_only",
+  "time_semantics": {
+    "availability": "local Helius full-block receipt time; not historical provider availability",
+    "decision_time": "not applicable to offline development replay",
+    "native_event_time": "captured finalized blockTime and exact event timestamp are retained separately"
+  }
+}

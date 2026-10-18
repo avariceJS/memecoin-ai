@@ -1,0 +1,1201 @@
+{
+  "artifacts": {
+    "all-tests.log": "d9539afa446da1aece716aeec4b7e5a561a42e7c54345a87e7ac287f78502f0f",
+    "audit-wheel.json": "d88a62500f1b1b4e6728c879218784da890e282222b5ab1e5fe484759631bce0",
+    "audit.json": "d88a62500f1b1b4e6728c879218784da890e282222b5ab1e5fe484759631bce0",
+    "build-final.log": "0259b197fdfd0388c77e0cfb95811c288385a43d770c17768a715b21fec4101a",
+    "build.log": "01653d7aa1de783545a46b9ec8a12380223b0145d6facf576fce0e6d921ef9dc",
+    "check-final.log": "a999cd29da3a5db37ecfe1de01c1c2af723ea935fcc6fd5540fb276dae11c40a",
+    "check.log": "c49290039b52d18d4797c4a3b76daec528cb4c80086f3f359834d115840569e5",
+    "d43-after.json": "968151b1e0a1fdd6c26b6106df9545919b3f48baf96a189a0473e52c8dab7a38",
+    "d43-before.json": "5fc241caac7c209051ebb6f2e5a95bacd587ec1dfbfe49aa98b7c737ca8305aa",
+    "d43-inventory.json": "22e6a25d48bec1c4601303ddfc2f9824621387c85265afaf0b15312e992006db",
+    "export-wheel.json": "f2fcd9a0218f86187e38c27052ad804243029a34f2ced092134e7c64ab3fffe4",
+    "export.json": "f2fcd9a0218f86187e38c27052ad804243029a34f2ced092134e7c64ab3fffe4",
+    "format-initial.log": "dc18505d085ec469826ece89cae2776932f3880204f4d83fe4dd7f88a8db8adc",
+    "init.json": "723d53bb33e3d0d1a924ac3f671e355fcb1163e5aa061153ba5dda2582e9b41a",
+    "registry-tests-final.log": "d9fbae4b94ed7cd2cbade573260a36f8b4e2c4ac4612d50cf73b3ae325af7f6a",
+    "registry-tests.log": "32da8146bdd2dbbf882af718eb4802bec7cd7e58e9e4c320c7aa406c24ad0731",
+    "reproduction.json": "510fdbca5557d56523ed1b9f15de18f2ca220b62ff7be76f726aab44831f0665",
+    "smoke.log": "e74f77ed30218c7b0e0aa7c4faeb5f7c14c732e05c56cd0d997cd9a3a05874e2",
+    "sync-01.json": "c385b16f06254111b40a5aafe904de4f39e34434f4cae6469d0d5972d37a648b",
+    "sync-02.json": "fccb3b1e3902450ccf8ba85f287bd288448d259f8a5af52903a773e6a83c19b5",
+    "wheel-install.log": "5b1d20fef0cbf37924b2c90c7d460054e99adc6e33b7e04d55d8257d12c3fdde"
+  },
+  "calendar_plan_sha256": "5b364cd0ea1a898bf1cb7144e94b1fc5bfdc5732841d5f02db2b61cbaaebf25f",
+  "code_commit": "1038265",
+  "date": "2026-10-03",
+  "decision": {
+    "D43_changed": false,
+    "holdout_labels_released": false,
+    "next": "D46 research specification and readiness dossier",
+    "readiness_gate_open": false,
+    "registry_accepted_for_incremental_offline_sync": true
+  },
+  "export_manifest": {
+    "dataset.json": "f55540a2e7d7066323aac1da290adcecba73079ca4509ca71cf2789fa0af2cd8",
+    "manifest.json": "a93d512c7f30cf33a8bf7829e64e7aa0c967d8b6546f326d1ae5b984f36dbd9d"
+  },
+  "inventory": [
+    {
+      "admission": "development",
+      "due_ns": 1791014039502126000,
+      "finished_ns": 1791014383729491000,
+      "index": 0,
+      "outcome_sha256": "02d7a88ed7bad4d7fd3262ff6d320d0bbf978ebf41b8387688d0a066609c2b88",
+      "outcome_status": "completed",
+      "seal_sha256": "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208",
+      "started_ns": 1791014055607478000
+    },
+    {
+      "admission": "pending",
+      "due_ns": 1791035639502126000,
+      "index": 1
+    },
+    {
+      "admission": "pending",
+      "due_ns": 1791057239502126000,
+      "index": 2
+    },
+    {
+      "admission": "pending",
+      "due_ns": 1791100439502126000,
+      "index": 3
+    },
+    {
+      "admission": "pending",
+      "due_ns": 1791143639502126000,
+      "index": 4
+    },
+    {
+      "admission": "pending",
+      "due_ns": 1791186839502126000,
+      "index": 5
+    }
+  ],
+  "operations": {
+    "first_sync": {
+      "revision": "work/corpus-registry-01/revisions/000000",
+      "status": "published"
+    },
+    "fold_export": {
+      "decisions": 174,
+      "research_training_ready": false
+    },
+    "repeat_sync": {
+      "revision": "work/corpus-registry-01/revisions/000000",
+      "status": "no_change"
+    }
+  },
+  "plan_commit": "6da8aba",
+  "protocol": {
+    "calendar_plan_sha256": "5b364cd0ea1a898bf1cb7144e94b1fc5bfdc5732841d5f02db2b61cbaaebf25f",
+    "created_ns": 1791024303188721000,
+    "engineering_floors": {
+      "labels_per_action_class": 3,
+      "partition_decisions": 20,
+      "partition_nonoverlap": 3,
+      "utc_days": 2,
+      "utc_hours": 3,
+      "windows": 3
+    },
+    "folds": [
+      {
+        "embargo_ns": 30000000000,
+        "id": "fold0",
+        "test_end_ns": 1791100439502126000,
+        "train_end_ns": 1791035639502126000,
+        "train_start_ns": 1791014039502126000,
+        "validation_end_ns": 1791057239502126000
+      },
+      {
+        "embargo_ns": 30000000000,
+        "id": "fold1",
+        "test_end_ns": 1791143639502126000,
+        "train_end_ns": 1791057239502126000,
+        "train_start_ns": 1791014039502126000,
+        "validation_end_ns": 1791100439502126000
+      }
+    ],
+    "history_policy": {
+      "context": 8,
+      "max_gap_ns": 15000000000
+    },
+    "holdout": {
+      "end_ns": 1791188639502126000,
+      "policy": "quarantine entire intersecting window; no label release",
+      "start_ns": 1791143639502126000
+    },
+    "known_development_exposure": "D44 trained/evaluated window0; never a protected holdout",
+    "qualification": "engineering_only",
+    "research_training_ready": false,
+    "schema": 1,
+    "unresolved": [
+      "market universe and regime coverage",
+      "own execution/cost qualification",
+      "research specification/model-selection budget",
+      "formal readiness decision"
+    ]
+  },
+  "protocol_sha256": "73eadc16686711725ab92c0e12b292fa9cbe6c6a2426bda99c6b95feeb0ee03d",
+  "qualification": "engineering_only",
+  "qualification_report": {
+    "as_of_ns": 1791024303311510000,
+    "blockers": [
+      "fold0.train.support",
+      "fold0.validation.support",
+      "fold0.test.support",
+      "fold1.train.support",
+      "fold1.validation.support",
+      "fold1.test.support",
+      "windows",
+      "utc_days",
+      "utc_hours",
+      "market universe and regime coverage",
+      "own execution/cost qualification",
+      "research specification/model-selection budget",
+      "formal readiness decision"
+    ],
+    "development": {
+      "all_scenarios_observed_decisions": 122,
+      "decisions": 174,
+      "decisions_per_pool": {
+        "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm": 58,
+        "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr": 58,
+        "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2": 58
+      },
+      "greedy_nonoverlap_decisions": 5,
+      "nonoverlap_ids": [
+        "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014064607703000",
+        "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014114612548000",
+        "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014214791535000",
+        "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014264561872000",
+        "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2:1791014314549444000"
+      ],
+      "nonoverlap_is_not_independence": true,
+      "per_action": [
+        {
+          "action": [
+            0,
+            0.0001,
+            0.0,
+            20.0
+          ],
+          "statuses": {
+            "censored": 40,
+            "conditional_roundtrip": 131,
+            "entry_unfilled": 2,
+            "exit_unfilled": 1
+          }
+        },
+        {
+          "action": [
+            0,
+            0.0001,
+            5.0,
+            20.0
+          ],
+          "statuses": {
+            "censored": 52,
+            "conditional_roundtrip": 114,
+            "entry_unfilled": 3,
+            "exit_unfilled": 5
+          }
+        },
+        {
+          "action": [
+            0,
+            0.001,
+            0.0,
+            20.0
+          ],
+          "statuses": {
+            "censored": 40,
+            "conditional_roundtrip": 131,
+            "entry_unfilled": 2,
+            "exit_unfilled": 1
+          }
+        },
+        {
+          "action": [
+            0,
+            0.001,
+            5.0,
+            20.0
+          ],
+          "statuses": {
+            "censored": 52,
+            "conditional_roundtrip": 114,
+            "entry_unfilled": 3,
+            "exit_unfilled": 5
+          }
+        },
+        {
+          "action": [
+            1,
+            0.0001,
+            0.0,
+            20.0
+          ],
+          "statuses": {
+            "censored": 39,
+            "conditional_roundtrip": 131,
+            "entry_unfilled": 2,
+            "exit_unfilled": 2
+          }
+        },
+        {
+          "action": [
+            1,
+            0.0001,
+            5.0,
+            20.0
+          ],
+          "statuses": {
+            "censored": 50,
+            "conditional_roundtrip": 118,
+            "entry_unfilled": 4,
+            "exit_unfilled": 2
+          }
+        },
+        {
+          "action": [
+            1,
+            0.001,
+            0.0,
+            20.0
+          ],
+          "statuses": {
+            "censored": 39,
+            "conditional_roundtrip": 131,
+            "entry_unfilled": 2,
+            "exit_unfilled": 2
+          }
+        },
+        {
+          "action": [
+            1,
+            0.001,
+            5.0,
+            20.0
+          ],
+          "statuses": {
+            "censored": 50,
+            "conditional_roundtrip": 118,
+            "entry_unfilled": 4,
+            "exit_unfilled": 2
+          }
+        }
+      ],
+      "statuses": {
+        "censored": 362,
+        "conditional_roundtrip": 988,
+        "entry_unfilled": 22,
+        "exit_unfilled": 20
+      },
+      "unique_pools": 3,
+      "variants": 1392
+    },
+    "development_windows": 1,
+    "elapsed_calendar_ns": 289962105000,
+    "engineering_checks": {
+      "fold0.test.support": false,
+      "fold0.train.support": false,
+      "fold0.validation.support": false,
+      "fold1.test.support": false,
+      "fold1.train.support": false,
+      "fold1.validation.support": false,
+      "utc_days": false,
+      "utc_hours": false,
+      "windows": false
+    },
+    "execution_qualified": false,
+    "feature_starts": 180,
+    "folds": {
+      "fold0": {
+        "partitions": {
+          "test": {
+            "all_scenarios_observed_decisions": 0,
+            "decisions": 0,
+            "decisions_per_pool": {},
+            "greedy_nonoverlap_decisions": 0,
+            "nonoverlap_ids": [],
+            "nonoverlap_is_not_independence": true,
+            "per_action": [
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              }
+            ],
+            "statuses": {},
+            "support_floor_passed": false,
+            "unique_pools": 0,
+            "variants": 0
+          },
+          "train": {
+            "all_scenarios_observed_decisions": 122,
+            "decisions": 174,
+            "decisions_per_pool": {
+              "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm": 58,
+              "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr": 58,
+              "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2": 58
+            },
+            "greedy_nonoverlap_decisions": 5,
+            "nonoverlap_ids": [
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014064607703000",
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014114612548000",
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014214791535000",
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014264561872000",
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2:1791014314549444000"
+            ],
+            "nonoverlap_is_not_independence": true,
+            "per_action": [
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 40,
+                  "conditional_roundtrip": 131,
+                  "entry_unfilled": 2,
+                  "exit_unfilled": 1
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 52,
+                  "conditional_roundtrip": 114,
+                  "entry_unfilled": 3,
+                  "exit_unfilled": 5
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 40,
+                  "conditional_roundtrip": 131,
+                  "entry_unfilled": 2,
+                  "exit_unfilled": 1
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 52,
+                  "conditional_roundtrip": 114,
+                  "entry_unfilled": 3,
+                  "exit_unfilled": 5
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 39,
+                  "conditional_roundtrip": 131,
+                  "entry_unfilled": 2,
+                  "exit_unfilled": 2
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 50,
+                  "conditional_roundtrip": 118,
+                  "entry_unfilled": 4,
+                  "exit_unfilled": 2
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 39,
+                  "conditional_roundtrip": 131,
+                  "entry_unfilled": 2,
+                  "exit_unfilled": 2
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 50,
+                  "conditional_roundtrip": 118,
+                  "entry_unfilled": 4,
+                  "exit_unfilled": 2
+                }
+              }
+            ],
+            "statuses": {
+              "censored": 362,
+              "conditional_roundtrip": 988,
+              "entry_unfilled": 22,
+              "exit_unfilled": 20
+            },
+            "support_floor_passed": false,
+            "unique_pools": 3,
+            "variants": 1392
+          },
+          "validation": {
+            "all_scenarios_observed_decisions": 0,
+            "decisions": 0,
+            "decisions_per_pool": {},
+            "greedy_nonoverlap_decisions": 0,
+            "nonoverlap_ids": [],
+            "nonoverlap_is_not_independence": true,
+            "per_action": [
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              }
+            ],
+            "statuses": {},
+            "support_floor_passed": false,
+            "unique_pools": 0,
+            "variants": 0
+          }
+        },
+        "purged": 0
+      },
+      "fold1": {
+        "partitions": {
+          "test": {
+            "all_scenarios_observed_decisions": 0,
+            "decisions": 0,
+            "decisions_per_pool": {},
+            "greedy_nonoverlap_decisions": 0,
+            "nonoverlap_ids": [],
+            "nonoverlap_is_not_independence": true,
+            "per_action": [
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              }
+            ],
+            "statuses": {},
+            "support_floor_passed": false,
+            "unique_pools": 0,
+            "variants": 0
+          },
+          "train": {
+            "all_scenarios_observed_decisions": 122,
+            "decisions": 174,
+            "decisions_per_pool": {
+              "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm": 58,
+              "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr": 58,
+              "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2": 58
+            },
+            "greedy_nonoverlap_decisions": 5,
+            "nonoverlap_ids": [
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014064607703000",
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:0:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014114612548000",
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014214791535000",
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm:1791014264561872000",
+              "2fcc7f68749b1882bf8ca9ff0f868cd24fa093e60a2e3645a0efe35da732e208:1:G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2:1791014314549444000"
+            ],
+            "nonoverlap_is_not_independence": true,
+            "per_action": [
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 40,
+                  "conditional_roundtrip": 131,
+                  "entry_unfilled": 2,
+                  "exit_unfilled": 1
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 52,
+                  "conditional_roundtrip": 114,
+                  "entry_unfilled": 3,
+                  "exit_unfilled": 5
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 40,
+                  "conditional_roundtrip": 131,
+                  "entry_unfilled": 2,
+                  "exit_unfilled": 1
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 52,
+                  "conditional_roundtrip": 114,
+                  "entry_unfilled": 3,
+                  "exit_unfilled": 5
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 39,
+                  "conditional_roundtrip": 131,
+                  "entry_unfilled": 2,
+                  "exit_unfilled": 2
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 50,
+                  "conditional_roundtrip": 118,
+                  "entry_unfilled": 4,
+                  "exit_unfilled": 2
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 39,
+                  "conditional_roundtrip": 131,
+                  "entry_unfilled": 2,
+                  "exit_unfilled": 2
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 50,
+                  "conditional_roundtrip": 118,
+                  "entry_unfilled": 4,
+                  "exit_unfilled": 2
+                }
+              }
+            ],
+            "statuses": {
+              "censored": 362,
+              "conditional_roundtrip": 988,
+              "entry_unfilled": 22,
+              "exit_unfilled": 20
+            },
+            "support_floor_passed": false,
+            "unique_pools": 3,
+            "variants": 1392
+          },
+          "validation": {
+            "all_scenarios_observed_decisions": 0,
+            "decisions": 0,
+            "decisions_per_pool": {},
+            "greedy_nonoverlap_decisions": 0,
+            "nonoverlap_ids": [],
+            "nonoverlap_is_not_independence": true,
+            "per_action": [
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  0,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.0001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  0.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              },
+              {
+                "action": [
+                  1,
+                  0.001,
+                  5.0,
+                  20.0
+                ],
+                "statuses": {
+                  "censored": 0,
+                  "conditional_roundtrip": 0,
+                  "entry_unfilled": 0,
+                  "exit_unfilled": 0
+                }
+              }
+            ],
+            "statuses": {},
+            "support_floor_passed": false,
+            "unique_pools": 0,
+            "variants": 0
+          }
+        },
+        "purged": 0
+      }
+    },
+    "history_groups": 6,
+    "holdout": {
+      "end_ns": 1791188639502126000,
+      "labels_released": false,
+      "os_access_control": false,
+      "quarantined_windows": 0,
+      "semantic_verification": "deferred_until_formal_release",
+      "start_ns": 1791143639502126000
+    },
+    "integrity_verified": true,
+    "inventory_statuses": {
+      "development": 1,
+      "pending": 5
+    },
+    "membership_sha256": "7be46aab5da81bad2234e33bfa6c2fe7df27b5e7602545b1999e838499e7a70b",
+    "numeric_floors_passed": false,
+    "observed_development_span_union_ns": 279775962000,
+    "observed_utc_days": [
+      "2026-10-03"
+    ],
+    "observed_utc_hours": [
+      "2026-10-03T07"
+    ],
+    "per_window_feature_quality": [
+      {
+        "feature_starts": 180,
+        "index": 0,
+        "unusable": 6,
+        "unusable_reasons": {
+          "history_warmup": 6
+        },
+        "usable": 174
+      }
+    ],
+    "qualification": "engineering_only",
+    "research_training_ready": false,
+    "schema": 1,
+    "seed": null,
+    "source_segments": 2,
+    "unusable_starts": 6
+  },
+  "registry_root": "work/corpus-registry-01",
+  "reproduction": {
+    "D44_source_identity_unchanged": true,
+    "audit_exact": true,
+    "fold_export_exact": true,
+    "protected_D43_files": 70,
+    "protected_D43_unchanged": true
+  },
+  "revision": "000000",
+  "revision_sha256": "2a1b96a1a43e464e75fbdd4f52b53a0f072a062c131058c72ea3d80776962350",
+  "seed": null,
+  "source": {
+    "__init__.py": "8c731578fcd54cd118598c82499f611e4be098f8fa40cc235a42fdce613a4d2a",
+    "contracts.py": "771bcbad1a2687e91d5ad296c84d428a6206ec3dc15ee036e81cd6f9c3199fee",
+    "memecoin_ml.data": "1990f57f6cd50ed30fc3417e241e248ccc13ff2aecc1d29bfa305740d3e300ac",
+    "qualification.py": "0bc0799a05a40410d4ef5bf2abe7d6b8101ecc792cff920f4151d6dc5228b0d2",
+    "registry.py": "5487d1bb012d0b44a325f88bb6247b002bfa698d6faaf9a323f8197f20fce889"
+  },
+  "stage": "D45",
+  "validation": {
+    "actual_research_training_runs": 0,
+    "base_optional_torch_module_skipped": 1,
+    "base_tests": 419,
+    "build": true,
+    "combined_ml_environment_tests": 433,
+    "proven_properties": [
+      "multi-window append",
+      "idempotent rescan",
+      "old membership immutable",
+      "late registration without changing source availability",
+      "offline audit from pinned objects",
+      "crash before revision publish; restart reuses verified object",
+      "second writer rejected",
+      "source race/corruption/manifest path escape/symlink rejected",
+      "overlapping decision identity rejected",
+      "whole-window holdout quarantine including crossing window",
+      "no holdout exporter/release API",
+      "all numeric floors true still research readiness false",
+      "group maturity/nominal horizon purge and embargo",
+      "immutable output prevents overwrite"
+    ],
+    "registry_tests": 17,
+    "remote_CI": "not_observed",
+    "ruff": true,
+    "smoke": true,
+    "strict_mypy": true,
+    "synthetic_scope": "D43-shaped multi-window fixtures with mocked export boundary; not market data"
+  }
+}

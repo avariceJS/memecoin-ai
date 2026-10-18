@@ -1,0 +1,60 @@
+{
+  "checked_at_utc": "2026-10-10T13:55:29Z",
+  "contract": "helius_key_pre_resume_exact_value_exposure_rescan_v1",
+  "credential_transport": {
+    "checkout_rpc_source": "private mode-0600 .env.local; endpoint loaded by the collector in-process",
+    "mcp_server": "pinned helius-mcp@2.2.0; key supplied through environment configuration",
+    "c4_launchagent_arguments": "paths and fixed subcommands only; no credential argument",
+    "current_process_command_line_exact_matches": 0
+  },
+  "method": "exact-byte equality scan; credential value remained in process memory and was never emitted",
+  "results": {
+    "git_object_database": {
+      "objects_scanned": 5253,
+      "raw_bytes_scanned": 108257677,
+      "exact_matches": 0
+    },
+    "accessible_saved_text_runtime_and_evidence_files": {
+      "files_scanned": 253570,
+      "bytes_scanned": 23476338195,
+      "exact_matches": 0,
+      "roots": [
+        "~/.cursor",
+        "~/.codex",
+        "research/work",
+        "research/docs/evidence",
+        "~/Library/Logs",
+        "/tmp"
+      ],
+      "limitations": [
+        "Files above 300000000 bytes and non-text extensions were skipped."
+      ]
+    },
+    "macos_unified_log_last_8_hours": {
+      "bytes_scanned": 1313859327,
+      "exact_matches": 0,
+      "log_show_exit_code": 0
+    },
+    "expected_private_configurations": [
+      {
+        "path": "research/.env.local",
+        "mode": "0600",
+        "exact_matches": 1
+      },
+      {
+        "path": "~/.codex/config.toml",
+        "mode": "0600",
+        "exact_matches": 1
+      },
+      {
+        "path": "~/.cursor/mcp.json",
+        "mode": "0600",
+        "exact_matches": 1
+      }
+    ]
+  },
+  "limitations": [
+    "Provider-side logs, remote conversation storage, backups, Time Machine, and other inaccessible services were not inspected.",
+    "The prior process-list disclosure remains part of the agent conversation history; the user accepted this risk and authorized continued use without rotation."
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "agreement": {
+    "block_identity_equal": 50,
+    "difference_paths": {
+      "meta.logMessages": 120
+    },
+    "exact_transaction_tree_matches": 56495,
+    "full_vs_signatures_only_matches": 100,
+    "getBlocks_slot_set_equal_ranges": 3,
+    "helius_difference_semantics": "logMessages contains explicit Log truncated; public response contains longer logs",
+    "ordered_signature_lists_equal": 50,
+    "paired_transactions": 56615,
+    "same_slot_full_blocks": 50,
+    "transaction_differences": 120
+  },
+  "corrected_analyzer_commit": "5892104",
+  "date_utc": "2026-10-09",
+  "experiment": "helius_public_same_slot_full_block_pilot",
+  "follow_up": "Expand beyond the initial 103 Helius-credit pilot using precommitted stratified finalized-slot sampling; preserve raw responses and stop only at wave-specific measured storage/credit bounds, not this pilot size.",
+  "interpretation": "Strong bounded cross-provider response agreement and high-yield block capture, plus a material provider-specific log truncation discrepancy. Agreement is not proof of unsampled-slot, provider-global, transaction-semantic, or economic-process completeness. Helius and public are peer sources; no source is treated as ground truth.",
+  "offline_analysis_sha256": "e0c77428ee86963aaf8bdb1a96f36e6f796388f6e03a6d12279cdc17be1d8ea7",
+  "original_code_commit": "1647b57",
+  "plan_sha256": "808419b0e852ad575b68ca42334d7bd873fd430d14befc132230a9850837434b",
+  "provider_measurements": {
+    "helius-free": {
+      "effective_requests_per_second": 1.4313394325717461,
+      "elapsed_seconds": 71.960569,
+      "requests": 103,
+      "response_bytes": 215369183,
+      "rpc_latency_ms": {
+        "median": 377.446,
+        "n": 103,
+        "p95": 797.779
+      }
+    },
+    "solana-public": {
+      "effective_requests_per_second": 0.4584102188521149,
+      "elapsed_seconds": 224.689581,
+      "requests": 103,
+      "response_bytes": 215832805,
+      "rpc_latency_ms": {
+        "median": 321.45,
+        "n": 103,
+        "p95": 649.104
+      }
+    }
+  },
+  "pumpswap_structural_references": {
+    "count": 7953,
+    "economic_swap_claims": 0,
+    "failed_transaction_refs": 192,
+    "successful_transaction_refs": 7761
+  },
+  "requests": {
+    "failures": 0,
+    "helius_actual_account_meter_delta": "not exposed",
+    "helius_expected_standard_credits": 103,
+    "parsed": 206,
+    "per_provider": 103,
+    "retries": 0,
+    "total": 206
+  },
+  "schema_version": 1,
+  "scope": {
+    "commitment": "finalized",
+    "providers": [
+      "helius-free",
+      "solana-public"
+    ],
+    "sampling": "three separated fixed ranges: two dense historical clusters and one fresh public-page range; not a probability sample",
+    "slot_count": 50,
+    "slot_ranges": [
+      [
+        454849547,
+        454849557
+      ],
+      [
+        454850810,
+        454850838
+      ],
+      [
+        454854212,
+        454854224
+      ]
+    ]
+  },
+  "status": "bounded_qualification_complete"
+}

@@ -1,0 +1,37 @@
+{
+  "schema": "brain-portability-dr-clean-home-git-auth-boundary-v1",
+  "captured_at_utc": "2026-10-14T02:08:00Z",
+  "source": {
+    "remote": "https://github.com/avariceJS/memecoin-ai.git",
+    "branch": "research/active",
+    "commit": "d79066ddc1a9e5483a416dda59ae4fc251a594e7"
+  },
+  "rehearsal": {
+    "host": "macOS",
+    "home_isolated": true,
+    "environment_inherited": false,
+    "bootstrap_tool": "tools/brain_host_recovery.py",
+    "result": "failed_before_checkout",
+    "failed_stage": "clone",
+    "exit_code": 128,
+    "sanitized_remote_probe": "private_git_authentication_required",
+    "partial_checkout_remained": false,
+    "temporary_home_removed": true
+  },
+  "side_effects": {
+    "provider_or_mcp_requests": 0,
+    "services_changed": false,
+    "kingston_storage_changed": false,
+    "brain_state_storage_changed": false,
+    "production_changed": false,
+    "protected_payloads_read": false
+  },
+  "qualification": {
+    "clean_home_bootstrap_complete": false,
+    "github_authentication_reissued": false,
+    "temporary_home_created_and_removed": true,
+    "safe_to_erase": false,
+    "interpretation": "The private Git remote requires user-controlled account authentication. This isolated attempt intentionally supplied none; no checkout or environment was created. Reauthentication is an explicit clean-host restore step, not evidence that source bootstrap succeeds without account access.",
+    "limitation": "No credential or authentication database was opened or copied. A fully authenticated clean-home clone and dependency bootstrap remain unrehearsed."
+  }
+}

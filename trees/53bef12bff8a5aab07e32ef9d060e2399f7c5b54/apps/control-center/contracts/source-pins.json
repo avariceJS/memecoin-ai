@@ -1,0 +1,43 @@
+{
+  "core_baseline_commit": "6a7e079",
+  "review_date": "2026-10-03",
+  "schema": 1,
+  "sources": {
+    "d43": {
+      "path": "docs/evidence/calendar-execution-2026-10-03.json",
+      "sha256": "8df28a7d1cc07cd91f4fc01fe8ddcb2aaecb6f13afed2feae257258346f573a1"
+    },
+    "d44": {
+      "path": "docs/evidence/ml-foundation-2026-10-03.json",
+      "sha256": "efe143d358f0f3558e39c7aa57ac715bffd4926af13af123c84b24a053310f1a"
+    },
+    "d45": {
+      "path": "docs/evidence/corpus-registry-2026-10-03.json",
+      "sha256": "77a61bdc5bcc938d0d7570b57b53bbf634a21fb84eed111d459ea9889c161aaa"
+    },
+    "d46": {
+      "path": "docs/evidence/research-readiness-2026-10-03.json",
+      "sha256": "74a939baa9e4e35f559ae25953d06a9ec8e45f81cdb3528376ad79baacfb311e"
+    },
+    "d47": {
+      "path": "docs/evidence/f01-runner-integrity-2026-10-03.json",
+      "sha256": "72c5d3cb69149a7664a129a0f55763a64ecefceed98a26b460290b42315e0db8"
+    },
+    "d48": {
+      "path": "docs/evidence/f01-sampling-2026-10-03.json",
+      "sha256": "0abd776fdf970d74cd2deb08aaf3f0add9ad2024ec4f22005d514229fdc7218f"
+    },
+    "d49": {
+      "path": "docs/evidence/f01-collector-qualification-2026-10-03.json",
+      "sha256": "f05249a999a0cd64a913404d64c5087034176cc9a4790082999224ccf5666d7e"
+    },
+    "f01": {
+      "path": "configs/research-f01-v1.json",
+      "sha256": "b86472406e06a15bd23124d208ba7f4a6ea8f2a4e5871603a316eb9aa0d6c8e9"
+    },
+    "registry_protocol": {
+      "path": "configs/corpus-registry-v1.json",
+      "sha256": "73eadc16686711725ab92c0e12b292fa9cbe6c6a2426bda99c6b95feeb0ee03d"
+    }
+  }
+}

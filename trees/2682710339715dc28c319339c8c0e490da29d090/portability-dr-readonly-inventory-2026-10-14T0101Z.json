@@ -1,0 +1,115 @@
+{
+  "claim_limit": "integrity-tooling progress and host inventory only; no SAFE_TO_ERASE claim",
+  "host": {
+    "architecture": "arm64",
+    "brain_launchagent_files": 55,
+    "cwd_process_count_at_probe": 67,
+    "data_volume_apfs_snapshot_count": 0,
+    "data_volume_free_bytes": 13660758016,
+    "loaded_brain_labels": 18,
+    "noninteractive_privilege_available": false,
+    "os": "Darwin",
+    "owner_work_size_approx": "11 GiB",
+    "private_config_size_approx": "348 KiB",
+    "process_arguments_read": false,
+    "process_environments_read": false,
+    "python": "3.13.6",
+    "release": "25.5.0",
+    "research_work_size_approx": "16 GiB",
+    "running_brain_labels": 8,
+    "time_machine_destination_configured": false
+  },
+  "kingston": {
+    "available_bytes": 217479991296,
+    "brain_data_size_approx": "19 GiB",
+    "encrypted": false,
+    "identity_verified": true,
+    "mount_path": "/Volumes/Kingston",
+    "root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "single_reset_surviving_copy": true,
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf"
+  },
+  "limitations": [
+    "No qualified owner-wide APFS snapshot or alternative consistent source point.",
+    "Recovery-set coverage is caller-declared and does not close every owner, service, F01, or reserved root.",
+    "No actual owner/operator/paper/private-config/LaunchAgent/protected restore has been rehearsed.",
+    "B01-B04 read-only scopes are STOPped and expired but do not audit owner operator/paper databases.",
+    "Unprivileged iostat combines reads and writes and did not establish a source snapshot churn bound.",
+    "Provider credentials are reissued by user authentication after inert restore.",
+    "Kingston single-copy and plaintext custody risks are explicitly accepted for this iteration."
+  ],
+  "observed_at_utc": "2026-10-14T01:02:05+00:00",
+  "owner": {
+    "head": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+    "private_env_contents_read": false,
+    "private_env_local": {
+      "mode_octal": "0600",
+      "size_bytes": 470
+    },
+    "read_only_runtime_scopes": [
+      {
+        "F01_accessed": false,
+        "expired": true,
+        "pending_predictions": 48,
+        "provider_requests": 0,
+        "root": "work/brain-b01/dev01",
+        "state": "present",
+        "stopped": true
+      },
+      {
+        "F01_accessed": false,
+        "expired": true,
+        "pending_predictions": 48,
+        "provider_requests": 0,
+        "root": "work/brain-b02/prospective01",
+        "state": "present",
+        "stopped": true
+      },
+      {
+        "F01_accessed": false,
+        "expired": true,
+        "pending_predictions": 19,
+        "provider_requests": 0,
+        "root": "work/brain-b03/prospective01",
+        "state": "present",
+        "stopped": true
+      },
+      {
+        "F01_accessed": false,
+        "expired": true,
+        "pending_predictions": 28,
+        "provider_requests": 0,
+        "root": "work/brain-b04/prospective01",
+        "state": "present",
+        "stopped": true
+      }
+    ],
+    "worktree_dirty": false
+  },
+  "qualification": {
+    "factory_reset_readiness": "NO-GO",
+    "focused_recovery_tests": "90 passed",
+    "full_clean_room_restore": false,
+    "git_diff_check": "passed",
+    "make_smoke": "passed; synthetic only",
+    "owner_or_protected_archive_created": false,
+    "protected_payloads_read": false,
+    "provider_requests": 0,
+    "restore_witness_created": false,
+    "scoped_format": "passed",
+    "scoped_ruff": "passed",
+    "services_changed": false
+  },
+  "research": {
+    "branch": "research/active",
+    "changed_tool_sha256": {
+      "tools/brain_host_recovery.py": "0e2300ad04d1c7354136cbb6629e5821e57ce00e1c26135686f2f91ad32a4852",
+      "tools/brain_host_recovery_set.py": "e8907b3299f91c639d171667970740555225fcc5f480b11ebb19a5a3370e029b",
+      "tools/brain_host_tree_custody_v3.py": "dc873f7bc7ba879d068f296ec3da5a06905171ca45c420bb3913dda48f9dd5e9"
+    },
+    "head": "eaedeae61cd101882835095c2f54158ca07a2945",
+    "origin_research_active": "eaedeae61cd101882835095c2f54158ca07a2945",
+    "worktree_dirty": true
+  },
+  "schema": "brain-portability-dr-readonly-inventory-v1"
+}

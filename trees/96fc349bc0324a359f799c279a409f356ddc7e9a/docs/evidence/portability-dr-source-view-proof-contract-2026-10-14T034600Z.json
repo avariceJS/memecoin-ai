@@ -1,0 +1,51 @@
+{
+  "schema": "brain-host-source-view-contract-rehearsal-v1",
+  "created_utc": "2026-10-14T03:46:00Z",
+  "supersedes": [
+    "portability-dr-source-view-proof-contract-2026-10-14T0341Z.json",
+    "portability-dr-source-view-proof-contract-2026-10-14T0343Z.json"
+  ],
+  "scenario": "synthetic_pytest_only",
+  "claims": {
+    "six_recovery_set_artifacts_reverified": true,
+    "member_pins_bound_to_verified_set_index_sha256": true,
+    "capture_inventory_commitments_derived_from_verified_artifacts": true,
+    "closure_counts_derived_from_verified_artifacts": true,
+    "declared_capture_window_covers_member_intervals": true,
+    "declared_unknown_member_count_preserved": 1,
+    "source_view_identity_attested_by_os": false,
+    "source_root_locators_attested_by_held_descriptor": false,
+    "event_times_attested_by_clock_or_adapter": false,
+    "source_to_capture_equality_verified": false,
+    "source_root_closure_verified": false,
+    "application_recovery_qualified": false,
+    "factory_reset_ready": false,
+    "apfs_snapshot_created_or_mounted": false,
+    "owner_or_protected_payload_accessed": false,
+    "provider_requests_sent": 0,
+    "services_activated": false,
+    "recovery_set_v1_verifier_source_unchanged": true
+  },
+  "verification": {
+    "command": ".venv/bin/python -m pytest -q tests/test_brain_host_source_view_proof_v1.py tests/test_brain_host_recovery_frontier.py tests/test_brain_host_recovery_set.py",
+    "result": "31 passed in 4.44s",
+    "ruff": "passed",
+    "hypothesis_property": "all permutations of the seven declared event times accepted only in strict chronological order"
+  },
+  "source_sha256": {
+    "tools/brain_host_source_view_proof_v1.py": "4e4943cb0ff51ab6bc1a01dbc3278fc2f7b8241b852b8ff5070aeeac8c0e661d",
+    "tools/brain_host_recovery_set.py": "dfcec0f115c07a0faebea6ffb6e312171d5d86e4a0cc8c20b72c6f15190ed598",
+    "tests/test_brain_host_source_view_proof_v1.py": "9b3ac62b0287ea791a1eadc920ce73a7f4f8dea0aa1e2fc354022efb66b5df65"
+  },
+  "limitations": [
+    "The test uses synthetic fixtures; view identity, root locators, tool/policy hashes, and event times are declared inputs, not OS or adapter attestations.",
+    "Inventory commitments bind verified v2/v3 page references or the SQLite backup bytes; they do not prove those artifacts were read from the declared source view.",
+    "SQLite snapshot DB/WAL/journal-family identity is not included; the current member is the derived backup artifact.",
+    "No xattr/ACL/flags parity, clean-host restore, complete owner/protected custody, K journal prefix, or erase readiness is established."
+  ],
+  "review": {
+    "independent_reviewer": "Sol",
+    "decision": "accepted_as_synthetic_contract_parser_only",
+    "next_horizon": "held_readonly_source_adapter_with_derived_root_closure_and_sqlite_source_family_inventory"
+  }
+}

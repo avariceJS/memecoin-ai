@@ -1,0 +1,47 @@
+{
+  "schema": "brain-portability-dr-pruned-subtree-metadata-v1",
+  "captured_at_utc": {
+    "start": "2026-10-14T02:40:59.932417Z",
+    "end": "2026-10-14T02:41:00.880233Z"
+  },
+  "source_commit": "2262d3dddaae3d3f20ac2121b65ded6a4b4b8e02",
+  "source_inventory": "host-recovery/private-recursive-work-inventory-20261014-a3",
+  "scope": {
+    "metadata_only_lstat_and_scandir": true,
+    "file_payload_bytes_read_or_hashed": false,
+    "child_filenames_or_paths_retained_or_emitted": false,
+    "symlinks_followed": false,
+    "xattrs_or_acl_read": false,
+    "provider_requests": 0,
+    "services_changed": false
+  },
+  "research_work_sensitive_directory_category": "wallets",
+  "pruned_directory_count": 3,
+  "descendant_entry_counts": {"directory": 3, "file": 21},
+  "descendant_entries_total": 24,
+  "regular_file_apparent_bytes": 69375,
+  "symlink_descendants": 0,
+  "special_file_descendants": 0,
+  "cross_device_entries_not_descended": 0,
+  "pruned_directory_signatures_unchanged_during_scan": true,
+  "prior_census_scope_reconciliation": {
+    "earlier_research_work_file_count_delta": 21,
+    "earlier_research_work_directory_count_delta": 3,
+    "current_pruned_descendant_files": 21,
+    "current_pruned_descendant_directories": 3,
+    "numeric_scope_difference_accounted_for": true,
+    "same_source_cutoff_or_membership_proven": false
+  },
+  "qualification": {
+    "sensitive_subtree_descendant_counts_known": true,
+    "sensitive_subtree_semantic_role_known": false,
+    "sensitive_subtree_bytes_in_recovery_custody": false,
+    "safe_to_erase": false,
+    "limitations": [
+      "The directories are named wallets; names do not prove they contain credentials, useful Brain state, or disposable material.",
+      "Child names were transiently enumerated to traverse entries, but not retained or emitted. Payloads, xattrs, and ACLs were not read; no file payload bytes were copied.",
+      "The count difference is numerically explained by the currently pruned descendants, but separate scan times and mutable source state do not prove historical membership continuity.",
+      "These sensitive directories remain outside the recovery set pending private user classification or separately authorized custody design."
+    ]
+  }
+}

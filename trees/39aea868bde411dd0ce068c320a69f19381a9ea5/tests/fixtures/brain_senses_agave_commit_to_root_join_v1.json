@@ -1,0 +1,187 @@
+{
+  "attempts": [
+    {
+      "attempt_id": "attempt-0",
+      "attempt_status": "executed_success",
+      "bank_instance_id": "bank-A",
+      "candidate_trace_id": "trace-0",
+      "execution_id": "execution-0",
+      "fee_nonce_disposition": "separate_commit_result",
+      "message_hash": "message-0",
+      "program_write_disposition": "unqualified",
+      "signature": "sig-0",
+      "transaction_id": "tx-0"
+    },
+    {
+      "attempt_id": "attempt-1",
+      "attempt_status": "executed_failed",
+      "bank_instance_id": "bank-A",
+      "candidate_trace_id": "trace-1",
+      "execution_id": "execution-1",
+      "fee_nonce_disposition": "separate_rollback_effect",
+      "message_hash": "message-1",
+      "program_write_disposition": "rolled_back",
+      "signature": "sig-1",
+      "transaction_id": "tx-1"
+    },
+    {
+      "attempt_id": "attempt-2",
+      "attempt_status": "fees_only",
+      "bank_instance_id": "bank-A",
+      "candidate_trace_id": null,
+      "execution_id": "execution-2",
+      "fee_nonce_disposition": "rollback_accounts",
+      "message_hash": "message-2",
+      "program_write_disposition": "no_executed_trace",
+      "signature": "sig-2",
+      "transaction_id": "tx-2"
+    }
+  ],
+  "block_entries": [
+    {
+      "absolute_block_transaction_index": 40,
+      "bank_hash": "hash-A",
+      "bank_instance_id": "bank-A",
+      "block_hash": "block-A",
+      "entry_hash": "entry-0",
+      "message_hash": "message-0",
+      "parent_bank_hash": null,
+      "signature": "sig-0",
+      "slot": 100,
+      "transaction_id": "tx-0"
+    },
+    {
+      "absolute_block_transaction_index": 41,
+      "bank_hash": "hash-A",
+      "bank_instance_id": "bank-A",
+      "block_hash": "block-A",
+      "entry_hash": "entry-1",
+      "message_hash": "message-1",
+      "parent_bank_hash": null,
+      "signature": "sig-1",
+      "slot": 100,
+      "transaction_id": "tx-1"
+    },
+    {
+      "absolute_block_transaction_index": 42,
+      "bank_hash": "hash-A",
+      "bank_instance_id": "bank-A",
+      "block_hash": "block-A",
+      "entry_hash": "entry-2",
+      "message_hash": "message-2",
+      "parent_bank_hash": null,
+      "signature": "sig-2",
+      "slot": 100,
+      "transaction_id": "tx-2"
+    }
+  ],
+  "commit_batches": [
+    {
+      "attempt_id": "attempt-0",
+      "batch_index": 0,
+      "commit_batch_id": "batch-7",
+      "commit_disposition": "executed_success",
+      "message_hash": "message-0",
+      "signature": "sig-0",
+      "transaction_id": "tx-0"
+    },
+    {
+      "attempt_id": "attempt-1",
+      "batch_index": 1,
+      "commit_batch_id": "batch-7",
+      "commit_disposition": "executed_failed",
+      "message_hash": "message-1",
+      "signature": "sig-1",
+      "transaction_id": "tx-1"
+    },
+    {
+      "attempt_id": "attempt-2",
+      "batch_index": 2,
+      "commit_batch_id": "batch-7",
+      "commit_disposition": "fees_only",
+      "message_hash": "message-2",
+      "signature": "sig-2",
+      "transaction_id": "tx-2"
+    }
+  ],
+  "decision_time_ms": 1000,
+  "frozen_banks": [
+    {
+      "bank_hash": "hash-A",
+      "bank_instance_id": "bank-A",
+      "frozen": true,
+      "parent_bank_hash": null,
+      "slot": 100
+    }
+  ],
+  "root_selection": [
+    {
+      "root_bank_hash": "hash-A",
+      "root_receipt_id": "root-receipt",
+      "root_slot": 100,
+      "selected": true
+    }
+  ],
+  "schema": "agave_commit_to_root_synthetic_join_v1",
+  "schema_version": 1,
+  "source_pin": {
+    "composite_diff_sha256": "b35b3dba78a4dc90aee3f91827cf1d6467f728d7218d8e3d7c14a861dcc6aa78",
+    "composite_patches": [
+      "candidate_position_observer_v5",
+      "token2022_parser_scaffold_corrected_v3"
+    ],
+    "source_commit": "b6c96e84b10396b92912d4574dae7d03f606da26",
+    "source_map_sha256": "2af1c308cae82cb168b1b35e8aca350af51eb94ed821f9b15a37ef486ee9d0f1"
+  },
+  "time_receipts": [
+    {
+      "availability_lower_ms": 1,
+      "availability_upper_ms": 2,
+      "receipt_id": "receipt-attempt-0",
+      "stage": "attempt",
+      "subject_id": "attempt-0"
+    },
+    {
+      "availability_lower_ms": 2,
+      "availability_upper_ms": 3,
+      "receipt_id": "receipt-attempt-1",
+      "stage": "attempt",
+      "subject_id": "attempt-1"
+    },
+    {
+      "availability_lower_ms": 3,
+      "availability_upper_ms": 4,
+      "receipt_id": "receipt-attempt-2",
+      "stage": "attempt",
+      "subject_id": "attempt-2"
+    },
+    {
+      "availability_lower_ms": 10,
+      "availability_upper_ms": 11,
+      "receipt_id": "receipt-commit",
+      "stage": "commit",
+      "subject_id": "batch-7"
+    },
+    {
+      "availability_lower_ms": 20,
+      "availability_upper_ms": 21,
+      "receipt_id": "receipt-freeze",
+      "stage": "freeze",
+      "subject_id": "bank-A"
+    },
+    {
+      "availability_lower_ms": 30,
+      "availability_upper_ms": 31,
+      "receipt_id": "receipt-block",
+      "stage": "block",
+      "subject_id": "block-A"
+    },
+    {
+      "availability_lower_ms": 40,
+      "availability_upper_ms": 41,
+      "receipt_id": "root-receipt",
+      "stage": "root",
+      "subject_id": "root-receipt"
+    }
+  ]
+}

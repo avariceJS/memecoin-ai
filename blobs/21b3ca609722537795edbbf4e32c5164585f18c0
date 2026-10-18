@@ -1,0 +1,85 @@
+{
+  "schema": "helius_key_cursor_state_redaction_v1",
+  "checked_at_utc": "2026-10-11T15:44:59Z",
+  "credential_values_written": false,
+  "credential_handling": "The current exact API key and configured endpoint were read from the expected private source and compared in memory. The values, hashes, prefixes and matching content were not emitted or recorded.",
+  "initial_delta_findings": {
+    "cutoff_utc": "2026-10-11T15:12:00Z",
+    "recent_files_scanned": 364177,
+    "bytes_scanned": 49040751820,
+    "skipped_or_inaccessible": 9,
+    "exact_key_occurrences": 3,
+    "exact_endpoint_occurrences": 0,
+    "matching_files": [
+      {
+        "path": "~/Library/Application Support/Cursor/User/workspaceStorage/d85dc8e09c4dfab71a485187a097fc2d/state.vscdb",
+        "table": "ItemTable",
+        "row": 54,
+        "occurrences": 1
+      },
+      {
+        "path": "~/Library/Application Support/Cursor/User/globalStorage/conversation-search.db",
+        "table": "conversation_fts",
+        "row": 574,
+        "occurrences": 2,
+        "note": "One logical body value was mirrored in the FTS content store."
+      }
+    ],
+    "additional_logical_database_findings": {
+      "path": "~/Library/Application Support/Cursor/User/globalStorage/state.vscdb",
+      "tables": {
+        "ItemTable": {"rows": 1, "occurrences": 2},
+        "cursorDiskKV": {"rows": 31, "occurrences": 52}
+      },
+      "total_occurrences": 54
+    }
+  },
+  "remediation": {
+    "replacement": "[REDACTED]",
+    "databases_updated": 3,
+    "logical_exact_key_occurrences_replaced": 57,
+    "sqlite_secure_delete_enabled": true,
+    "vacuum_completed": true,
+    "sqlite_integrity_checks": "ok",
+    "conversation_fts_content_rebuilt": true,
+    "database_and_wal_exact_key_bytes_after_redaction": 0,
+    "cursor_database_file_modes_after_redaction": "0600"
+  },
+  "post_remediation_scan": {
+    "roots": [
+      "~/.codex",
+      "~/Library/Logs",
+      "~/Library/Application Support/Cursor",
+      "research checkout"
+    ],
+    "cutoff_utc": "2026-10-11T15:12:00Z",
+    "recent_files_scanned": 364193,
+    "bytes_scanned": 49780761214,
+    "skipped_or_inaccessible_or_over_limit": 10,
+    "per_file_limit_bytes": 209715200,
+    "exact_key_occurrences": 0,
+    "exact_endpoint_occurrences": 0,
+    "values_emitted": false
+  },
+  "other_surfaces": {
+    "all_git_objects_including_unreachable": 6540,
+    "git_exact_key_occurrences": 0,
+    "git_exact_endpoint_occurrences": 0,
+    "current_process_argv_exact_key_or_endpoint_matches": 0,
+    "helius_mcp_process_count": 8,
+    "unified_log_window": "last hour",
+    "unified_log_bytes_scanned": 500300655,
+    "unified_log_exact_key_occurrences": 0,
+    "unified_log_exact_endpoint_occurrences": 0,
+    "local_time_machine_snapshots_reported": 0,
+    "codex_mcp_config": "owner-only helius-mcp-secure wrapper, pinned to helius-mcp@2.2.0; endpoint key is passed to child environment, not argv",
+    "separate_app_hosted_worker": "A ChatGPT-hosted npm exec helius-mcp@latest worker was present; its current argv had no exact key or endpoint match. The Helius account MCP returned Transport closed, and its package source is outside the research checkout."
+  },
+  "limits": [
+    "The Cursor application remained running and held the globalStorage database open during redaction. A final filesystem scan found no exact value, but future in-memory reserialization by the application is not ruled out.",
+    "Provider-side logs, remote conversation storage, cloud backups, external backup volumes, other users' inaccessible files and the ten skipped/inaccessible/oversized files are outside this scan.",
+    "This receipt does not claim that prior agent-session outputs or provider records can be retracted."
+  ],
+  "provider_rpc_requests_performed": 0,
+  "senses_launchagent_activation": false
+}

@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "receipt_id": "senses-storage-readiness-2026-10-11T065300Z",
+  "captured_utc": {
+    "start": "2026-10-11T06:58:06.268+00:00",
+    "end": "2026-10-11T06:58:12.768+00:00"
+  },
+  "intended_capture_root": "/Users/root1/Developer/memecoin-research/work",
+  "capture_artifact_root": "/Users/root1/Developer/memecoin-research/work/brain-senses-host-readiness-20261011T065300Z",
+  "commands": {
+    "df_work.txt": {
+      "argv": [
+        "df",
+        "-Pk",
+        "/Users/root1/Developer/memecoin-research/work"
+      ],
+      "started_utc": "2026-10-11T06:58:06.268+00:00",
+      "completed_utc": "2026-10-11T06:58:06.271+00:00",
+      "returncode": 0,
+      "stdout_sha256": "bea45fd399d69d56278832b188c57041764d1637063413ff43b0502441eb7e5d",
+      "stdout_bytes": 142,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "artifact_relative_path": "work/brain-senses-host-readiness-20261011T065300Z/df_work.txt",
+      "stdout_summary": [
+        "Filesystem   1024-blocks      Used Available Capacity  Mounted on",
+        "/dev/disk3s5   482797652 419474576  19990468    96%    /System/Volumes/Data"
+      ]
+    },
+    "diskutil_data_volume.plist": {
+      "argv": [
+        "diskutil",
+        "info",
+        "-plist",
+        "/System/Volumes/Data"
+      ],
+      "started_utc": "2026-10-11T06:58:06.271+00:00",
+      "completed_utc": "2026-10-11T06:58:06.379+00:00",
+      "returncode": 0,
+      "stdout_sha256": "b7bb40375da89b421b0ebdcdd81141188fef2db33b68b6e7dd2cb5acb1cb6ca1",
+      "stdout_bytes": 4721,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "artifact_relative_path": "work/brain-senses-host-readiness-20261011T065300Z/diskutil_data_volume.plist",
+      "parsed_selected_fields": {
+        "DeviceIdentifier": "disk3s5",
+        "FilesystemType": "apfs",
+        "FilesystemName": "APFS",
+        "MountPoint": "/System/Volumes/Data",
+        "TotalSize": 494384795648,
+        "ParentWholeDisk": "disk3",
+        "APFSContainerReference": "disk3",
+        "CapacityInUse": 429541969920,
+        "APFSContainerSize": 494384795648
+      },
+      "volume_uuid_sha256": "b9cf87f28de5127804ff95503ad1b7e90323262ecd2ac306ecd1f6d0391fe71f",
+      "diskutil_free_space_field_bytes": 0,
+      "field_consistency_note": "diskutil reports FreeSpace=0/VolumeSize=0 for the APFS data volume; use the contemporaneous df Available field and APFS container unallocated capacity for free-space gating."
+    },
+    "stat_work.txt": {
+      "argv": [
+        "stat",
+        "-f",
+        "%d %i %Su %Sp %N",
+        "/Users/root1/Developer/memecoin-research/work"
+      ],
+      "started_utc": "2026-10-11T06:58:06.379+00:00",
+      "completed_utc": "2026-10-11T06:58:06.384+00:00",
+      "returncode": 0,
+      "stdout_sha256": "cd32ebbe873b0f8a0e4695c75264bd0b722808e25fd0360ef5fd31a57c11feb6",
+      "stdout_bytes": 81,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "artifact_relative_path": "work/brain-senses-host-readiness-20261011T065300Z/stat_work.txt",
+      "stdout_summary": "16777234 40325844 root1 drwxr-xr-x /Users/root1/Developer/memecoin-research/work"
+    },
+    "du_candidates.txt": {
+      "argv": [
+        "du",
+        "-sk",
+        "/Users/root1/Developer/memecoin-research/work",
+        "/Users/root1/Library/Containers/com.docker.docker",
+        "/Users/root1/Library/Application Support/Steam"
+      ],
+      "started_utc": "2026-10-11T06:58:06.384+00:00",
+      "completed_utc": "2026-10-11T06:58:12.617+00:00",
+      "returncode": 0,
+      "stdout_sha256": "3ba48f3a23c3fb831dd3d4c69c56e53a31560c3313bc4f73ffa8b58ba3f88390",
+      "stdout_bytes": 171,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "artifact_relative_path": "work/brain-senses-host-readiness-20261011T065300Z/du_candidates.txt",
+      "stdout_summary": [
+        "27779080\t/Users/root1/Developer/memecoin-research/work",
+        "69823064\t/Users/root1/Library/Containers/com.docker.docker",
+        "106697988\t/Users/root1/Library/Application Support/Steam"
+      ]
+    },
+    "localsnapshots.txt": {
+      "argv": [
+        "tmutil",
+        "listlocalsnapshots",
+        "/"
+      ],
+      "started_utc": "2026-10-11T06:58:12.620+00:00",
+      "completed_utc": "2026-10-11T06:58:12.645+00:00",
+      "returncode": 0,
+      "stdout_sha256": "fa91885a018b8fce59510fca6a5f399acbcc02f38a9fd31f838b93eb0c45767b",
+      "stdout_bytes": 22,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "artifact_relative_path": "work/brain-senses-host-readiness-20261011T065300Z/localsnapshots.txt",
+      "stdout_summary": [
+        "Snapshots for disk /:"
+      ]
+    },
+    "apfs.txt": {
+      "argv": [
+        "diskutil",
+        "apfs",
+        "list"
+      ],
+      "started_utc": "2026-10-11T06:58:12.645+00:00",
+      "completed_utc": "2026-10-11T06:58:12.768+00:00",
+      "returncode": 0,
+      "stdout_sha256": "97c1ee1e005aaf5fd3d8403792038277b16ba3424a00441af1a32ec3aaba70ad",
+      "stdout_bytes": 3032,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "artifact_relative_path": "work/brain-senses-host-readiness-20261011T065300Z/apfs.txt",
+      "container_summary": [
+        "APFS Container Reference:     disk3",
+        "Size (Capacity Ceiling):      494384795648 B (494.4 GB)",
+        "Capacity In Use By Volumes:   473914564608 B (473.9 GB) (95.9% used)",
+        "Capacity Not Allocated:       20470231040 B (20.5 GB) (4.1% free)",
+        "|   Mount Point:               Not Mounted",
+        "|   Snapshot Mount Point:      /",
+        "|   Mount Point:               /System/Volumes/Preboot",
+        "|   Mount Point:               Not Mounted",
+        "|   Mount Point:               /System/Volumes/Data",
+        "Mount Point:               /System/Volumes/VM"
+      ]
+    }
+  },
+  "decision_facts": {
+    "no_deletion": true,
+    "no_provider_rpc": true,
+    "no_campaign_or_lease_started": true,
+    "helius_account_usage": "unknown; account-status MCP returned Transport closed",
+    "minimum_free_floor_bytes": 53687091200,
+    "observed_historical_stored_bytes_per_day": 388425415.2,
+    "historical_rate_limit": "10-frame mean only; not a tail guarantee",
+    "new_lease_schedule_bound": false
+  },
+  "capture_artifact_root_mode": "0700; individual artifacts mode 0600",
+  "interpretation": {
+    "free_space_source": "df -Pk Available at the intended capture path, cross-checked against APFS container unallocated capacity",
+    "diskutil_data_volume_free_space": "reported as 0 and is inconsistent; not used for capacity decisions",
+    "lease_capacity": "not calculated because no successor finite schedule/caps are selected or authorized",
+    "non_research_large_paths_are_inventory_only": [
+      "/Users/root1/Library/Containers/com.docker.docker",
+      "/Users/root1/Library/Application Support/Steam"
+    ]
+  }
+}

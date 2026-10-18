@@ -1,0 +1,8 @@
+include Makefile requirements-dev.lock AGENTS.md .env.example
+recursive-include configs *.toml *.json
+recursive-include docs *.md *.json
+recursive-include memory *.md
+recursive-include tools *.py
+recursive-include tests *.py
+recursive-include tests/fixtures *.json *.md
+include src/memecoin_ai/py.typed

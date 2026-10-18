@@ -1,0 +1,238 @@
+import json
+import shutil
+
+import pytest
+from test_experience import create
+from test_experience_schema import custom_samples
+
+from memecoin_experience import catalog
+from memecoin_experience.composition import compose
+from memecoin_experience.storage import (
+    Snapshot,
+    atomic_json,
+    build,
+    digest,
+    object_path,
+    seal_files,
+)
+from memecoin_experience.transfer import replicate
+
+
+def test_catalog_pages_are_lazy_bounded_verified_and_portable(tmp_path, monkeypatch):
+    monkeypatch.setattr(catalog, "PAGE_SIZE", 4)
+    store = tmp_path / "store"
+    result = create(store, n=120, chunk=5)
+    assert "partitions" not in result and len(result["partition_pages"]) > 2
+    snapshot = Snapshot(store, result["snapshot"])
+    assert snapshot.parts.page.cache_info().currsize == 0
+    with pytest.raises(TypeError, match="streaming_iteration"):
+        snapshot.parts[:]
+    assert len(snapshot.parts) == result["partition_count"]
+    assert sum(len(snapshot.partition(i)[1]) for i in range(len(snapshot.parts))) == 113
+    assert snapshot.parts.page.cache_info().currsize == 2
+    assert snapshot.parts[-1] == snapshot.parts[len(snapshot.parts) - 1]
+    copied = replicate(store, tmp_path / "replica", result["snapshot"])
+    assert copied["copied"] == len(snapshot.parts) + len(result["partition_pages"])
+    assert replicate(store, tmp_path / "replica", result["snapshot"])["copied"] == 0
+    page = object_path(store, result["partition_pages"][0]["pin"])
+    (page / "partition-page.json").write_text("corrupt")
+    with pytest.raises(ValueError, match="checksum"):
+        Snapshot(store, result["snapshot"]).partition(0)
+    assert Snapshot(tmp_path / "replica", result["snapshot"]).partition(0)[1]
+
+
+def test_paged_composition_preserves_payloads_and_source_accounting(tmp_path, monkeypatch):
+    monkeypatch.setattr(catalog, "PAGE_SIZE", 4)
+    schema, rows = custom_samples(60)
+    first = build(
+        tmp_path,
+        rows[:30],
+        schema=schema,
+        sources=[dict(synthetic=True, range=1)],
+        cutoff=10**18,
+        chunk=3,
+        source_counts=dict(source_rows=30),
+    )
+    second = build(
+        tmp_path,
+        rows[30:],
+        schema=schema,
+        sources=[dict(synthetic=True, range=2)],
+        cutoff=10**18,
+        chunk=3,
+        source_counts=dict(source_rows=30),
+    )
+    result = compose(tmp_path, [first["snapshot"], second["snapshot"]])
+    assert "partition_pages" in result
+    assert result["source_counts"] is None
+    assert result["source_accounting"]["parents"][first["snapshot"]] == dict(source_rows=30)
+    snapshot = Snapshot(tmp_path, result["snapshot"])
+    originals = {p["pin"] for s in (first, second) for p in Snapshot(tmp_path, s["snapshot"]).parts}
+    assert {p["pin"] for p in snapshot.parts} == originals
+    assert sum(len(snapshot.partition(i)[1]) for i in range(len(snapshot.parts))) == 60
+
+
+@pytest.mark.parametrize("forged_field", ["statuses", "bounds"])
+def test_nested_composition_reuses_verified_shared_partitions(tmp_path, monkeypatch, forged_field):
+    from collections import Counter
+
+    from test_experience import bars
+
+    monkeypatch.setattr(catalog, "PAGE_SIZE", 1024)
+    store = tmp_path / "nested-store"
+
+    def make(start):
+        return build(
+            store,
+            bars(40, start=start),
+            sources=[dict(synthetic=True, start=start)],
+            cutoff=10**18,
+            chunk=10,
+        )
+
+    first, second, third = make(0), make(30000), make(60000)
+    left = compose(store, [first["snapshot"], second["snapshot"]])
+    right = compose(store, [first["snapshot"], third["snapshot"]])
+    unique_pins = {
+        entry["pin"]
+        for result in (first, second, third)
+        for entry in Snapshot(store, result["snapshot"]).parts
+    }
+    original_partition = Snapshot.partition
+    calls = []
+
+    def tracked_partition(snapshot, index):
+        calls.append(
+            (
+                snapshot.parts[index]["pin"],
+                snapshot.manifest["binding"].get("cutoff_ns"),
+            )
+        )
+        return original_partition(snapshot, index)
+
+    monkeypatch.setattr(Snapshot, "partition", tracked_partition)
+    nested = compose(store, [left["snapshot"], right["snapshot"]])
+    assert {pin for pin, _ in calls} == unique_pins
+    assert len(calls) == len(unique_pins)
+    expected_statuses = Counter()
+    for result in (first, second, third):
+        expected_statuses.update(result["target_statuses"])
+    assert nested["target_statuses"] == dict(expected_statuses)
+
+    forged = json.loads((store / "snapshots" / f"{left['snapshot']}.json").read_text())
+    if forged_field == "statuses":
+        forged["partitions"][0]["statuses"] = {"pending": 999}
+    else:
+        forged["partitions"][0]["bounds"]["first_ns"] += 1
+    for index in range(10000):
+        forged["compose_test_order"] = index
+        forged_pin = digest(forged)
+        if forged_pin > left["snapshot"]:
+            break
+    else:
+        raise AssertionError("could not order forged snapshot after valid parent")
+    atomic_json(store / "snapshots" / f"{forged_pin}.json", forged)
+    with pytest.raises(ValueError, match="experience_composition_lineage"):
+        compose(store, [left["snapshot"], forged_pin])
+
+
+def test_legacy_flat_object_location_remains_readable(tmp_path):
+    result = create(tmp_path, n=30)
+    pin = result["partitions"][0]["pin"]
+    modern = object_path(tmp_path, pin)
+    assert modern.parent.name == pin[:2]
+    legacy = tmp_path / "objects" / pin
+    shutil.move(modern, legacy)
+    assert object_path(tmp_path, pin) == legacy
+    Snapshot(tmp_path, result["snapshot"]).partition(0)
+
+
+@pytest.mark.parametrize("field", ["first", "last", "statuses"])
+def test_partition_summary_must_match_authenticated_rows(tmp_path, field):
+    store = tmp_path / field
+    result = create(store, n=60, chunk=10)
+    manifest = json.loads((store / "snapshots" / f"{result['snapshot']}.json").read_text())
+    entry = manifest["partitions"][0]
+
+    if field == "statuses":
+        status = next(iter(entry["statuses"]))
+        entry["statuses"][status] += 1
+    else:
+        staged = tmp_path / f"staged-{field}"
+        shutil.copytree(object_path(store, entry["pin"]), staged)
+        description_path = staged / "partition.json"
+        description = json.loads(description_path.read_text())
+        description[field] = "forged-row-id"
+        description_path.write_text(json.dumps(description, sort_keys=True, separators=(",", ":")))
+        (staged / "manifest.json").unlink()
+        partition_pin = seal_files(staged)
+        partition_path = object_path(store, partition_pin)
+        partition_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(staged, partition_path)
+        entry["pin"] = partition_pin
+
+    forged_snapshot_pin = digest(manifest)
+    atomic_json(store / "snapshots" / f"{forged_snapshot_pin}.json", manifest)
+    forged = Snapshot(store, forged_snapshot_pin)
+    expected_error = (
+        "experience_partition_extent" if field != "statuses" else "experience_partition_statuses"
+    )
+    with pytest.raises(ValueError, match=expected_error):
+        forged.partition(0)
+    with pytest.raises(ValueError, match=expected_error):
+        compose(store, [forged_snapshot_pin])
+
+
+def test_training_uses_paged_metadata_and_exact_resume(tmp_path, monkeypatch):
+    pytest.importorskip("torch")
+    from test_experience_learning import CONFIG, PLAN
+
+    from memecoin_experience.learning import train
+
+    monkeypatch.setattr(catalog, "PAGE_SIZE", 4)
+    result = create(tmp_path / "store", n=310, chunk=10)
+    first = train(
+        tmp_path / "store", result["snapshot"], tmp_path / "first", plan=PLAN, config=CONFIG
+    )
+    train(
+        tmp_path / "store",
+        result["snapshot"],
+        tmp_path / "resumed",
+        plan=PLAN,
+        config=CONFIG,
+        stop_after=2,
+    )
+    assert (
+        train(
+            tmp_path / "store", result["snapshot"], tmp_path / "resumed", plan=PLAN, config=CONFIG
+        )
+        == first
+    )
+
+
+def test_role_reader_skips_payloads_outside_authenticated_bounds(tmp_path, monkeypatch):
+    pytest.importorskip("torch")
+    from test_experience_learning import PLAN
+
+    from memecoin_experience.learning import batches
+
+    monkeypatch.setattr(catalog, "PAGE_SIZE", 4)
+    result = create(tmp_path, n=310, chunk=10)
+    snapshot = Snapshot(tmp_path, result["snapshot"])
+    real = snapshot.partition
+    touched = []
+
+    def read(index):
+        extent = snapshot.parts[index]["bounds"]
+        assert extent["first_ns"] < PLAN["train_end_s"] * 10**9
+        touched.append(index)
+        return real(index)
+
+    monkeypatch.setattr(snapshot, "partition", read)
+    data = list(batches(snapshot, PLAN, "train", 64, seed=42))
+    assert len({i for batch in data for i in batch[3]}) == 91
+    assert 0 < len(touched) < len(snapshot.parts)
+    remainder = list(batches(snapshot, PLAN, "train", 64, seed=42, cursor=data[0][4]))
+    assert [i for batch in remainder for i in batch[3]] == [
+        i for batch in data[1:] for i in batch[3]
+    ]

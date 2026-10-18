@@ -1,0 +1,56 @@
+{
+  "recorded_at_utc": "2026-10-12T02:40:58Z",
+  "status": "terminal_fetch_failure_no_retry",
+  "approval": {
+    "reviewer": "Sol High",
+    "scope": "exactly one cargo fetch --locked, maximum 30 minutes and 8 GiB growth, followed only on success by offline cargo metadata",
+    "wrapper_sha256": "2c59357d236ef93b92cf162f8e889e2f136514cebca834452e7f3a29a10f6ea3",
+    "guard_sha256": "e650659e5acc6dd3c0ecd0d0963faabe03dfdec3d6de3246511372b8c9f2fe2e",
+    "preflight_receipt_sha256": "5f9cdc7c98b1f75d7e54483a4073a1181219e2969762908b5d12174615abbf43"
+  },
+  "source": {
+    "path": "/Volumes/Kingston/BrainData/qualifications/agave-v3.0.0-witness-20261012/source",
+    "head": "b6c96e84b10396b92912d4574dae7d03f606da26",
+    "source_diff_sha256_after_attempt": "b35b3dba78a4dc90aee3f91827cf1d6467f728d7218d8e3d7c14a861dcc6aa78",
+    "cargo_lock_sha256_after_attempt": "fc3fdf681e0c0a89399c07376747e13cdd5a31d61f6b209df5437a9594fc76a5"
+  },
+  "operation": {
+    "argv": [
+      "/Users/root1/Developer/memecoin-research/.venv/bin/python",
+      "tools/brain_senses_agave_dependency_fetch_v1.py",
+      "--source",
+      "/Volumes/Kingston/BrainData/qualifications/agave-v3.0.0-witness-20261012/source",
+      "--cargo-home",
+      "/Volumes/Kingston/BrainData/qualifications/agave-v3.0.0-witness-20261012/tmp/fetch-cargo-home-v2",
+      "--target-dir",
+      "/Volumes/Kingston/BrainData/qualifications/agave-v3.0.0-witness-20261012/tmp/fetch-target-v2",
+      "--tmpdir",
+      "/Volumes/Kingston/BrainData/qualifications/agave-v3.0.0-witness-20261012/tmp/fetch-tmp-v2"
+    ],
+    "cargo_exit": 101,
+    "wrapper_reason": "cargo_fetch_exit_101",
+    "elapsed_seconds_observed": 16.1,
+    "cargo_stdout_stderr_capture": "discarded by the bounded wrapper; diagnostic cause unknown",
+    "retry_count": 0,
+    "offline_metadata_run": false,
+    "build_run": false
+  },
+  "post_attempt_state": {
+    "v2_cargo_home": "preserved; do not reuse or clean",
+    "v2_cargo_home_allocated_kib": 26104,
+    "v2_cargo_home_file_count": 499,
+    "v2_cargo_home_symlink_count": 4,
+    "v2_target_directory": "empty",
+    "v2_tmp_directory": "empty",
+    "source_and_lock_unchanged": true,
+    "active_fetch_or_cargo_process": false,
+    "storage_root_id": "9428695af6d4f46c08e1a444cdc66de8",
+    "volume_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+    "available_bytes_after_kib": 215793592
+  },
+  "limits": [
+    "The v1 partial Cargo cache remains preserved and was not reused.",
+    "The v2 partial Cargo cache is preserved as the sole approved attempt result and must not be reused or cleaned without a separately reviewed disposition.",
+    "No further Cargo fetch, Cargo metadata, build, ProgramTest, provider, production, or economic operation is authorized by this receipt."
+  ]
+}

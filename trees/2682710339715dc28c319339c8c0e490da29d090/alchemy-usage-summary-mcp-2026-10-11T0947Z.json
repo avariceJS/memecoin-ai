@@ -1,0 +1,39 @@
+{
+  "schema_version": "provider-account-usage-mcp-observation-v1",
+  "observed_at_utc": "2026-10-11T09:47:00Z",
+  "provider": "Alchemy",
+  "tool": "mcp__alchemy__get_usage_summary",
+  "request": {},
+  "scope": "authenticated-team account aggregate returned by the MCP; not attributed to this repository or research workload",
+  "result": {
+    "billing_period": {
+      "start_time": "2026-10-01T00:00:00.000Z",
+      "end_time": "2026-11-01T00:00:00.000Z"
+    },
+    "month_to_date": {
+      "amount": "18680",
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": "0.01"
+    },
+    "last_7_days": {
+      "amount": "18680",
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": "0.01"
+    },
+    "last_30_days": {
+      "amount": "18680",
+      "unit": "ALCHEMY_COMPUTE_UNIT",
+      "usd": "0.01"
+    },
+    "data_through": "2026-10-11T09:47:00.000Z",
+    "contains_partial_today": true,
+    "update_cadence": "minute",
+    "account_usage_limit": "not_returned"
+  },
+  "limitations": [
+    "MCP summary is account-level metering output, not a raw RPC capture or invoice.",
+    "No app, network, method, or repository attribution was returned.",
+    "The absent account limit is unknown, not zero or unlimited.",
+    "This does not authorize acquisition, paid upgrades, or a provider schedule."
+  ]
+}

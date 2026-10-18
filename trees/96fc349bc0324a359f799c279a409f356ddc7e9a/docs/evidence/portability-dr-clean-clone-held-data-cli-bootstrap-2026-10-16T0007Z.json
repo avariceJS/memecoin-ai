@@ -1,0 +1,52 @@
+{
+  "schema": "brain-portability-dr-clean-clone-held-data-cli-bootstrap-v1",
+  "observed_at_utc": "2026-10-16T00:07:20Z",
+  "source_commit": "f079e0c7aa5111a6bb0c68ec6eda3c3fc37dd3a7",
+  "branch": "research/active",
+  "bootstrap": {
+    "remote": "https://github.com/avariceJS/memecoin-ai.git",
+    "exact_commit_fetch_and_detached_checkout": true,
+    "destination_was_new": true,
+    "python_version": "3.13.6",
+    "dependency_lock_sha256": "13a38c32b3c3ea4af3dc0da61be93ce1a5f5437aeb95b8039f1c31053bb7c7e5",
+    "venv_created": true,
+    "isolated_temporary_home": true,
+    "pip_configuration_disabled": true,
+    "pip_cache_disabled": true,
+    "python_user_site_disabled": true,
+    "package_index": "https://pypi.org/simple",
+    "pip_check": "passed",
+    "project_smoke": "passed",
+    "state": "complete"
+  },
+  "operator_cli": {
+    "direct_help_invocation": "passed",
+    "missing_inputs": {
+      "exit_code": 2,
+      "json_error": "arguments_invalid",
+      "T_qualified": false,
+      "erase_ready": false
+    },
+    "source_mount_or_data_opened": false
+  },
+  "scope": {
+    "services_changed": false,
+    "storage_changed": false,
+    "provider_requests": 0,
+    "protected_payloads_read": false,
+    "credentials_copied": false
+  },
+  "qualification": {
+    "exact_commit_code_bootstrap": true,
+    "clean_compatible_host": false,
+    "kingston_data_restore": false,
+    "owner_runtime_restore": false,
+    "inert_full_brain_restore": false,
+    "erase_ready": false
+  },
+  "limitations": [
+    "This rehearsal used the owner Mac, attached volumes, network, and its existing Git authentication context; it is a clean checkout on the same host, not a replacement Mac.",
+    "Only code and the development environment were bootstrapped. No Brain-owned state or runtime was restored or activated.",
+    "This does not close the Recovery source-view, owner/protected custody, T/K, or full inert restore gates."
+  ]
+}

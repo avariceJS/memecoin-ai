@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "source": "Helius MCP heliusAccount",
+  "captured_at": "2026-10-12T02:24:18Z",
+  "queries": [
+    {
+      "action": "getAccountStatus",
+      "result": "authenticated; API key configured; credit usage unavailable because no JWT session was found"
+    }
+  ],
+  "limitations": [
+    "The read-only account tool did not expose the connected key's active plan, credit balance, remaining quota, or charge history.",
+    "The tool suggested signup to reveal plan details; no signup, key mutation, plan change, purchase, or paid RPC request was made.",
+    "This account result is not an RPC acquisition and does not establish collector request accounting or actual lease charge."
+  ]
+}

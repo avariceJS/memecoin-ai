@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-09",
+  "source_account_alias": "free_solana",
+  "endpoint_recorded": false,
+  "network": "solana-mainnet",
+  "method": "getTransaction",
+  "read_only": true,
+  "probes": [
+    {
+      "signature_sha256": "a18eab00f091c31d21f446567540d508de9d7a13c79588c5068ff5e4079834b8",
+      "encoding": "json",
+      "max_supported_transaction_version": 0,
+      "http_status": 200,
+      "latency_ms": 781.5,
+      "response_bytes": 258,
+      "response_sha256": "87589da002124ad89717d2d4a512a1d8f8281596bdde81555c7823f8cd0384cf",
+      "jsonrpc_error_code": -32015,
+      "provider_message_class": "requires maxSupportedTransactionVersion=1",
+      "retry": false
+    },
+    {
+      "signature_sha256": "a18eab00f091c31d21f446567540d508de9d7a13c79588c5068ff5e4079834b8",
+      "encoding": "json",
+      "max_supported_transaction_version": 1,
+      "http_status": null,
+      "latency_ms": 20013.2,
+      "transport_error_class": "URLError",
+      "response_bytes": 0,
+      "retry": false,
+      "interpretation": "one bounded transport timeout"
+    },
+    {
+      "signature_sha256": "57e435bb0df5608f3c9a5d41f44d6bec553d816c8b74f568ddd661d7e7cae156",
+      "encoding": "json",
+      "max_supported_transaction_version": 1,
+      "http_status": 200,
+      "latency_ms": 550.9,
+      "response_bytes": 12793,
+      "response_sha256": "4b374c5ee263804ecb809ac9716aa350bccd54355edd29308443b88788135a21",
+      "slot": 453315022,
+      "version": 1,
+      "block_time_resolved": true,
+      "inner_groups": 2,
+      "retry": false
+    },
+    {
+      "signature_sha256": "57e435bb0df5608f3c9a5d41f44d6bec553d816c8b74f568ddd661d7e7cae156",
+      "encoding": "jsonParsed",
+      "max_supported_transaction_version": 1,
+      "http_status": 200,
+      "latency_ms": 435.2,
+      "response_bytes": 21177,
+      "response_sha256": "caef56340254663686f9be2b1193c799d67b4641c08ee7828656e0b6b477eb1a",
+      "slot": 453315022,
+      "version": 1,
+      "inner_groups": 2,
+      "inner_instructions_with_stack_height": 13,
+      "retry": false
+    }
+  ],
+  "private_capture": {
+    "root": "work/brain-senses-source-qual-20261009/free-transaction-probe/",
+    "permissions": "0700 directory, 0600 requests, responses and receipts",
+    "exact_free_json_and_jsonParsed_bodies_saved_before_decode": true
+  },
+  "decoder_result": {
+    "implementation": "memecoin_pumpswap.decoder",
+    "change": "supports version 1 only when account keys resolve from the transaction itself and no address lookup table or loaded keys exist",
+    "real_transaction_status": "quarantined",
+    "swap_count": 1,
+    "errors": [],
+    "blockers": ["unreviewed_remaining_accounts", "token2022_extensions_unqualified", "unknown_event_suffix"],
+    "training_eligible": false,
+    "execution_supported": false,
+    "protocol_qualified": false
+  },
+  "payg_mcp_limit": "A PAYG getTransaction result was truncated by the MCP output boundary (~8 KB); it is not a complete transaction capture.",
+  "qualification": {
+    "real_modality": "finalized Solana transaction bodies and parsed instruction structure, for two bounded signatures",
+    "complete_chain_or_market_support": "not established",
+    "market_activity_zero_inference": "not permitted",
+    "usage_cu_for_getTransaction": "not visible in the current PAYG Supernode-CU method series; no zero-cost inference",
+    "training_claim": "none"
+  }
+}

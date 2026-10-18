@@ -1,0 +1,115 @@
+{
+  "capture_root": "/Users/root1/Developer/memecoin-research/work",
+  "commands": [
+    {
+      "argv": [
+        "df",
+        "-Pk",
+        "work"
+      ],
+      "exit_code": 0,
+      "name": "df_work",
+      "stderr_bytes": 0,
+      "stderr_path": "work/brain-senses-host-readiness-20261011T071800Z/df_work.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 142,
+      "stdout_path": "work/brain-senses-host-readiness-20261011T071800Z/df_work.stdout",
+      "stdout_sha256": "4dcd303db87f87254ab0306fb322acd91936e9189162dd8ac660b9f2c520625a"
+    },
+    {
+      "argv": [
+        "diskutil",
+        "apfs",
+        "list"
+      ],
+      "exit_code": 0,
+      "name": "apfs_list",
+      "stderr_bytes": 0,
+      "stderr_path": "work/brain-senses-host-readiness-20261011T071800Z/apfs_list.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 3032,
+      "stdout_path": "work/brain-senses-host-readiness-20261011T071800Z/apfs_list.stdout",
+      "stdout_sha256": "0be3951b223d33961e3e74722129c9527b3ad72021e1a2131805a79f87fd7bc2"
+    },
+    {
+      "argv": [
+        "diskutil",
+        "info",
+        "/System/Volumes/Data"
+      ],
+      "exit_code": 0,
+      "name": "volume_info",
+      "stderr_bytes": 0,
+      "stderr_path": "work/brain-senses-host-readiness-20261011T071800Z/volume_info.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 1850,
+      "stdout_path": "work/brain-senses-host-readiness-20261011T071800Z/volume_info.stdout",
+      "stdout_sha256": "8937ef71a5f4c39c523c9904e49312bcb4a95ca43bfb6854abaa4c3402be56d9"
+    },
+    {
+      "argv": [
+        "tmutil",
+        "listlocalsnapshots",
+        "/"
+      ],
+      "exit_code": 0,
+      "name": "local_snapshots",
+      "stderr_bytes": 0,
+      "stderr_path": "work/brain-senses-host-readiness-20261011T071800Z/local_snapshots.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 22,
+      "stdout_path": "work/brain-senses-host-readiness-20261011T071800Z/local_snapshots.stdout",
+      "stdout_sha256": "fa91885a018b8fce59510fca6a5f399acbcc02f38a9fd31f838b93eb0c45767b"
+    },
+    {
+      "argv": [
+        "du",
+        "-sk",
+        "work"
+      ],
+      "exit_code": 0,
+      "name": "work_usage",
+      "stderr_bytes": 0,
+      "stderr_path": "work/brain-senses-host-readiness-20261011T071800Z/work_usage.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 14,
+      "stdout_path": "work/brain-senses-host-readiness-20261011T071800Z/work_usage.stdout",
+      "stdout_sha256": "a60c928f118916544f2dffff534d2091d2367e3d53c17d9d7785c7900abfc17b"
+    },
+    {
+      "argv": [
+        "diskutil",
+        "list"
+      ],
+      "exit_code": 0,
+      "name": "disk_list",
+      "stderr_bytes": 0,
+      "stderr_path": "work/brain-senses-host-readiness-20261011T071800Z/disk_list.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 1703,
+      "stdout_path": "work/brain-senses-host-readiness-20261011T071800Z/disk_list.stdout",
+      "stdout_sha256": "54b067d173def6a387e5f4cb42388920826ecbedd0527e2142f7f1ef5b3e3079"
+    },
+    {
+      "argv": [
+        "launchctl",
+        "list"
+      ],
+      "exit_code": 0,
+      "name": "launchd_list",
+      "stderr_bytes": 0,
+      "stderr_path": "work/brain-senses-host-readiness-20261011T071800Z/launchd_list.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 19371,
+      "stdout_path": "work/brain-senses-host-readiness-20261011T071800Z/launchd_list.stdout",
+      "stdout_sha256": "65723b3de41628fc918a8d0c96a941a7c25d3eb103c859a22f54f9aff09d54b8"
+    }
+  ],
+  "created_utc": "2026-10-11T07:18:23Z",
+  "limitations": [
+    "Single instantaneous filesystem observation; no storage runway is inferred without a selected schedule and measured campaign bound.",
+    "APFS/container, volume, and df counters can report different semantics; raw outputs are preserved for review."
+  ],
+  "receipt_id": "senses-storage-readiness-2026-10-11T071800Z",
+  "scope": "read-only host observation; no cleanup, mount changes, acquisition, lease, or launchd changes"
+}

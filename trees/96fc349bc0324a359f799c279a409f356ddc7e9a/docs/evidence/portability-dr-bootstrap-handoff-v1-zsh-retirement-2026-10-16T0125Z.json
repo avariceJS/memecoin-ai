@@ -1,0 +1,39 @@
+{
+  "schema": "portability-dr-bootstrap-handoff-zsh-retirement-v1",
+  "observed_at_utc": "2026-10-16T01:25:50Z",
+  "retired_locator": {
+    "tag_ref": "refs/tags/brain-dr-handoff-v1",
+    "tag_object": "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc",
+    "peeled_commit": "605010638a9e5aeb241bc809a943b4169c90445a",
+    "disposition": "preserved_immutable_but_unusable_for_operator_entry"
+  },
+  "failure": {
+    "shell": "zsh -f",
+    "unbraced_expression": "git show \"$HANDOFF_COMMIT:recovery/BOOTSTRAP-HANDOFF-v1.json\"",
+    "exit_code": 128,
+    "observed_revision": "605010638a9e5aeb241bc809a943b4169c90445aecovery/BOOTSTRAP-HANDOFF-v1.json",
+    "consequence": "handoff retrieval stops before the Kingston card is inspected or executed"
+  },
+  "correction": {
+    "braced_expression": "git show \"${HANDOFF_COMMIT}:recovery/BOOTSTRAP-HANDOFF-v1.json\"",
+    "exit_code": 0,
+    "result": "exact handoff JSON extracted from the pinned commit"
+  },
+  "replacement": {
+    "tag_ref": "refs/tags/brain-dr-handoff-v2",
+    "policy": "create_once_never_retarget",
+    "publication_state_at_receipt": "draft_not_published",
+    "accepted_set": false,
+    "data_T_qualified": false,
+    "kingston_K_frontier_qualified": false,
+    "brain_state_restored": false,
+    "activation_authorized": false,
+    "final_readiness": false,
+    "safe_to_erase": false
+  },
+  "trust_limits": [
+    "Authenticated origin is the accepted external trust domain for accidental Mac loss, not a cryptographic signature.",
+    "The authenticated Git account and remote remain assumed available and uncompromised.",
+    "This receipt proves only zsh command behavior and handoff retirement; it proves no clean-host restore or erase readiness."
+  ]
+}

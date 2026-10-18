@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-09",
+  "scope": "bounded read-only Solana indexed-signature response probe",
+  "provider_account_alias": "existing PAYG app via Alchemy MCP",
+  "network": "solana-mainnet",
+  "method": "getSignaturesForAddress",
+  "address": "58hou24rrRZkt5Zys9fx2j2twEgVNAphSn9Z48qdBcFB",
+  "commitment": "finalized",
+  "request_limit": 10,
+  "successful_small_page": {
+    "returned": 10,
+    "finalized_rows": 10,
+    "slots_monotonic_descending": true,
+    "newest_slot": 454538107,
+    "oldest_slot": 453121085,
+    "raw_response_retained": false,
+    "response_sha256": null
+  },
+  "larger_page_attempts": {
+    "requests": 2,
+    "requested_limit": 1000,
+    "fully_parsed_responses": 0,
+    "outcome": "MCP result surface was not parseable as a complete JSON array; provider result versus MCP truncation was not distinguishable",
+    "cursor_chain_verified": false
+  },
+  "additional_small_page_attempt": {
+    "requests": 1,
+    "requested_limit": 10,
+    "outcome": "RPC call returned to the local tool runtime, then local hashing failed because TextEncoder was unavailable; response summary was lost",
+    "retried": false
+  },
+  "accounting": {
+    "meter_before_mtd_cu": 5520,
+    "meter_after_mtd_cu": 5680,
+    "meter_data_through_utc": "2026-10-08T21:55:00Z",
+    "observed_delta_cu": 160,
+    "method_cost_cu": 40,
+    "reconciled_attempts": 4,
+    "estimated_increment_usd": 0.000084,
+    "reason": "four bounded getSignaturesForAddress calls × published 40 CU match the refreshed account meter"
+  },
+  "qualification": {
+    "provider_response_shape": "qualified for one 10-row response",
+    "large_response_transport": "unqualified through MCP surface",
+    "pagination": "unqualified",
+    "historical_retention": "unknown",
+    "market_event_completeness": "unknown",
+    "zero_activity_inference": "not permitted"
+  },
+  "limitations": [
+    "MCP response text does not preserve a raw provider receipt suitable for replay",
+    "the meter refreshed later than the requests; the delayed 160 CU delta now reconciles all four calls",
+    "no signature-page attempt establishes a complete market observation process"
+  ]
+}

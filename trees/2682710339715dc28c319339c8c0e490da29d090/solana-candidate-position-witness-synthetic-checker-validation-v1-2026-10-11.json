@@ -1,0 +1,199 @@
+{
+  "checker_output_invariant": {
+    "economic_admission": false,
+    "real_runtime_or_provider_completeness_certified": false,
+    "source_capability_qualified": false
+  },
+  "contract": "solana_candidate_position_witness_synthetic_checker_validation_v1",
+  "contract_source_bindings": [
+    {
+      "bytes": 63114,
+      "path": "program-runtime/src/invoke_context.rs",
+      "sha256": "80a5e57a4516fcf42665e3d6cae5749b07d46e83b05671f96ed636e49475c0a1",
+      "symbols": [
+        "InvokeContext::process_instruction",
+        "InvokeContext::process_precompile"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/program-runtime/src/invoke_context.rs"
+    },
+    {
+      "bytes": 47949,
+      "path": "transaction-context/src/lib.rs",
+      "sha256": "561f09e681df882e3f22a6341490d3cc8b65477e2aa3f532380db6b8c67cfafa",
+      "symbols": [
+        "TransactionContext::accounts",
+        "TransactionAccounts::try_borrow",
+        "TransactionContext::get_instruction_trace_length",
+        "TransactionContext::get_instruction_context_at_index_in_trace",
+        "InstructionContext::{get_stack_height,get_instruction_data,get_program_key,get_index_of_instruction_account_in_transaction}"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/transaction-context/src/lib.rs"
+    },
+    {
+      "bytes": 82526,
+      "path": "syscalls/src/cpi.rs",
+      "sha256": "9d7ef66b571eb688863ebefb2213d23cb41de099d39ae9e9d0998d93483b29d5",
+      "symbols": [
+        "CPI syscall invokes InvokeContext::process_instruction",
+        "CPI entry/exit synchronization"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/syscalls/src/cpi.rs"
+    },
+    {
+      "bytes": 26713,
+      "path": "svm/src/message_processor.rs",
+      "sha256": "0b65fb152836662fb88e9c6e38c2d0951aaf2aed87cf01b36b17549f1604b83a",
+      "symbols": [
+        "process_message top-level instruction loop"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/svm/src/message_processor.rs"
+    },
+    {
+      "bytes": 99147,
+      "path": "svm/src/transaction_processor.rs",
+      "sha256": "cca925fd268a2232418a0178f5574f3dbc8a89f3cb0ece615504ab188a4df93e",
+      "symbols": [
+        "execute_loaded_transaction",
+        "process_message result/status",
+        "inner instruction trace extraction"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/svm/src/transaction_processor.rs"
+    },
+    {
+      "bytes": 115127,
+      "path": "svm/src/account_loader.rs",
+      "sha256": "caba9b5b37894ac148a744df8b7856dc332c9897074935d491780f379d535c3c",
+      "symbols": [
+        "AccountLoader::update_accounts_for_executed_tx",
+        "update_accounts_for_failed_tx"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/svm/src/account_loader.rs"
+    },
+    {
+      "bytes": 9185,
+      "path": "svm/src/rollback_accounts.rs",
+      "sha256": "97efed809023bedea9a997fb0551ec8d4af96f2837c63507320f4650b683b53a",
+      "symbols": [
+        "RollbackAccounts"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/svm/src/rollback_accounts.rs"
+    },
+    {
+      "bytes": 241616,
+      "path": "runtime/src/bank.rs",
+      "sha256": "b40b6048e62f586ec6036b32a27537b9c53e23c9591753923505545509d581c4",
+      "symbols": [
+        "Bank::{slot,hash,parent_hash,freeze}",
+        "Bank::feature_set"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/runtime/src/bank.rs"
+    },
+    {
+      "bytes": 113553,
+      "path": "program-runtime/src/loaded_programs.rs",
+      "sha256": "d3c7e2d5f651f0174a535d2bc95b23ff478d6d7ea14405b81a44195328963680",
+      "symbols": [
+        "ProgramCacheEntry::{account_owner,deployment_slot,effective_slot,program}"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/program-runtime/src/loaded_programs.rs"
+    },
+    {
+      "bytes": 129705,
+      "path": "core/src/validator.rs",
+      "sha256": "db53080f61c85e2b59c878b01163b1311550e6717d5fab4a6680df964bb65f83",
+      "symbols": [
+        "Validator bank/status forwarding context"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/core/src/validator.rs"
+    },
+    {
+      "bytes": 16756,
+      "path": "geyser-plugin-interface/src/geyser_plugin_interface.rs",
+      "sha256": "1bb2590b60db1d30af95588cad23124f02d1909770e11bb5534489ae7bdac7ff",
+      "symbols": [
+        "ReplicaTransactionInfoV2::index",
+        "ReplicaBlockInfoV2::{parent_blockhash,blockhash}",
+        "SlotStatus::{Processed,Confirmed,Rooted,Dead}",
+        "GeyserPlugin::{notify_transaction,notify_block_metadata,update_slot_status}"
+      ],
+      "url": "https://github.com/anza-xyz/agave/blob/b6c96e84b10396b92912d4574dae7d03f606da26/geyser-plugin-interface/src/geyser_plugin_interface.rs"
+    }
+  ],
+  "created_utc": "2026-10-11T09:59:00Z",
+  "implementation": {
+    "git_diff_check": "passed",
+    "hypothesis": "6.168.0",
+    "python": "3.13.6",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "test": "tests/brain/test_senses_candidate_position_witness_check_v1.py",
+    "test_command": ".venv/bin/pytest -q tests/brain/test_senses_candidate_position_witness_check_v1.py",
+    "test_count_passed": 54,
+    "test_sha256": "31857c4175b5c3ff735828b61861bcaea182e4f0fe41688f3cc1345302e6d8ca",
+    "tool": "tools/brain_senses_candidate_position_witness_check_v1.py",
+    "tool_sha256": "a30323fea60e15ed327e0cca200c766ff797caeb50d68246015b443350946769"
+  },
+  "limitations": [
+    "Pinned source inspection establishes a plausible custom Agave hook in principle, not a deployable or complete implementation.",
+    "Synthetic fixtures cannot prove real runtime account snapshots, Bank commit capture, fork join, availability, validator performance, provider completeness, Token-2022 semantics, or economic settlement.",
+    "No real witness passes through this checker and its result must not be used as an admission predicate.",
+    "The accepted scope is narrow core synthetic consistency, not full v4 protocol-specific fixture qualification.",
+    "Token-2022 fee-config bytes, epoch-selected fee schedule, withheld amount transitions, and hook extra-account semantics are not yet bound by dedicated fixture records.",
+    "WSOL account snapshots, rent reserve/close-account balance effects, and SyncNative/CloseAccount frame-path bindings are not yet represented.",
+    "The two protocol-specific fixture gates remain open for separate synthetic binding work; this receipt makes no Token-2022 or WSOL economic-semantics claim."
+  ],
+  "runtime_boundary": {
+    "alchemy_rpc_requests": 0,
+    "c4_tail2_opened": false,
+    "helius_mcp_last_readonly_account_status": "Transport closed; not retried",
+    "helius_rpc_requests": 0,
+    "internal_free_disk_kib": 42251576,
+    "live_collector_process_found": false,
+    "prior_reviewed_floor_bytes": 53687091200,
+    "prospective_backfill": false,
+    "senses_or_helius_launchagent_found": false,
+    "status_check_utc": "2026-10-11T09:46:03Z",
+    "successor_lease_or_activation": false,
+    "validator_build_or_run": false
+  },
+  "scope": "offline synthetic consistency checker only; no source adapter, runtime, provider, replay, audit, decoder promotion, or economic admission",
+  "sol_decision": {
+    "contract_draft_sha256": "e867062f8b319568c77eff766e53f31bc36a7ca9e0f061d90247a804b4f1fda1",
+    "source_revision": {
+      "peeled_commit": "b6c96e84b10396b92912d4574dae7d03f606da26",
+      "repository": "https://github.com/anza-xyz/agave",
+      "tag": "v3.0.0",
+      "tag_object": "f77a8f7acf96695cce161d94666643f32a1ce398"
+    },
+    "status": "go_for_inert_synthetic_checker_only"
+  },
+  "synthetic_fixture_coverage": [
+    "complete_typed_commit_freeze_block_root_receipt_chain_with_same-host-causal-monotonic-order",
+    "equal_transaction_endpoints_different_candidate_position",
+    "failed_transaction_attempt_and_rollback_disposition",
+    "token2022_readonly_role_presence_and_hook_path_only",
+    "wsol_effect_order_and_dimensional-labels-only",
+    "signature_message_hash_and_fork_join_mismatch",
+    "candidate-path-selector-frame-scope-required-roles-and-depth-first-trace-order",
+    "durable_seal_missing",
+    "push_failed_entered_pop_failed_capture_failed_frames",
+    "successful_execution_without_bank_commit_or_candidate_effect_state_mismatch",
+    "ambiguous_same_slot_root_join_suppresses_availability",
+    "shared-runtime-feature-identity-and-deployed-program-binding",
+    "commit_rebound_to_wrong_frozen_bank",
+    "commit_batch_index_distinct_from_block_transaction_index",
+    "unknown_cross_host_clock_uncertainty_preserves_unknown_availability",
+    "canonical_receipt_hash_and_mutation-detection",
+    "malformed_non-object_and-malformed-runtime-inputs_fail-closed"
+  ],
+  "checker_review": {
+    "reviewer": "Sol",
+    "status": "accepted_narrow_core_consistency_only",
+    "tool_sha256": "a30323fea60e15ed327e0cca200c766ff797caeb50d68246015b443350946769",
+    "test_sha256": "31857c4175b5c3ff735828b61861bcaea182e4f0fe41688f3cc1345302e6d8ca",
+    "open_fixture_gates": [
+      "Token-2022 fee/epoch/withheld/hook binding",
+      "WSOL account/rent/frame-path binding"
+    ]
+  }
+}

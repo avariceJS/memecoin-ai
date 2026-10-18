@@ -1,0 +1,352 @@
+{
+  "activation_decision": null,
+  "billing_UI_access": {
+    "available_browsers": [],
+    "billing_page_opened": false,
+    "browser_attempts": 1,
+    "category": "browser_runtime_unavailable",
+    "selection": "No browser is available",
+    "settings_mutations": 0
+  },
+  "blockers": [
+    "account_plan_and_zero_dollar_hard_cap_unverified",
+    "runtime_credential_to_billing_account_mapping_unverified",
+    "calendar_service_and_wake_uptime_unqualified",
+    "full_live_window_not_qualified",
+    "separate_activation_decision_absent"
+  ],
+  "collection_authorized": false,
+  "constraints": {
+    "D43_changed": false,
+    "D43_raw_opened": false,
+    "F01_rules_changed": false,
+    "QuickNode_calls": 0,
+    "WSS_calls": 0,
+    "actual_F01_windows": 0,
+    "holdout_opened": false,
+    "long_term_collector_started": false,
+    "source_root_created": false,
+    "training": 0,
+    "transactions": 0
+  },
+  "created_ns": 1791046031852540000,
+  "date": "2026-10-03",
+  "development_failures": [
+    {
+      "category": "lint_style",
+      "resolution": "lambda declarations reformatted before checks"
+    },
+    {
+      "category": "static_API_contract",
+      "resolution": "verify_execution_targets corrected to parent/output before fixture or network; mypy passed"
+    }
+  ],
+  "evidence_files": {
+    "work/collector-d49/account-usage-after.json": "30579c9edbc1d7e29eee340c84842d382cea6ec14c92fc640cbffbd7cecd870e",
+    "work/collector-d49/account-usage-before.json": "cf410b7e302fd9a9cb577775b04480822303f3c469a02982799a5a233958f62d",
+    "work/collector-d49/activation-candidate/candidate.json": "e4100009208e0b7b563d6aa013fe4227f847be15d39e26ba44ad26cb1c184f21",
+    "work/collector-d49/activation-candidate/manifest.json": "f3572d120306a1464ea5844c3dfbb1987d21df8b8f687a07a940b7001ee28616",
+    "work/collector-d49/billing-access.json": "36967f728be282c51720fbc3b4d3c46bd8eea1ecc22172f04374de6defde4f30",
+    "work/collector-d49/build.log": "2e7f51ae7ba9044a42be37ce89c8b718a23b73f051f867044867b40fb4a8ef2c",
+    "work/collector-d49/check.log": "e710cfd1533f64bf180603c7cdba438e9df4a4c28e7905dbb5bd8d196880f4ee",
+    "work/collector-d49/combined-tests.log": "a2fcf914995c7726549a1ed9946e2db8551765fdd1e5cb7545b43ab44a005d1b",
+    "work/collector-d49/environment.json": "8afee47d42e6861e00ccc3d2ecc798858eadf1c6c3a19da3d5bc5c93f6dd552d",
+    "work/collector-d49/http-probe-01/manifest.json": "d690eeb2b51d230340cad9591f7a3b86e7655716d3a35587b0d0a10754bd70b4",
+    "work/collector-d49/http-probe-01/result.json": "c6aa5c997285349de3f8e7b8b88d86717fcaa81ec4da15293c04981b365bdbcd",
+    "work/collector-d49/raw-fixture-01/evidence.json": "5a607aeddc82afaa1f1cb3ab0312bda1254a2ac41b8a437036414758907cb775",
+    "work/collector-d49/smoke.log": "e74f77ed30218c7b0e0aa7c4faeb5f7c14c732e05c56cd0d997cd9a3a05874e2",
+    "work/collector-d49/tests-first.log": "208d8b2df7529dcf5af2e212dfaf8d3211d0de6c5b688ce71bfc3eb4b4c73913",
+    "work/collector-d49/tests-second.log": "bfbce0007cc620829426c6b476df6a9fca9af440c352048bc8d18aa2801c2430",
+    "work/collector-d49/wheel-evidence.json": "de2e593bb81a3ea0efc588d3a2674af160dca8a663958d0767b77f5a66bf46dc",
+    "work/sampling-d48/proposal/binding.json": "57fed4401f8471a05d7682abfbf36ff4bf0fbe7b034cfed3fdbb1f3798fa6d4c",
+    "work/sampling-d48/proposal/manifest.json": "2900ad85dbb72a2f1fc3343b5b6a27635511887b31848aeadb97264a2c26d5bf"
+  },
+  "exact_binding": {
+    "activation_record": null,
+    "binds": [
+      "D48 proposal/spec/source root",
+      "all old+new package sources",
+      "Python executable bytes/version/platform",
+      "reference captures",
+      "credential fingerprint without secret",
+      "evidence files",
+      "installed wheel artifact"
+    ],
+    "path": "/Users/root1/Desktop/memecoin-ai/work/collector-d49/activation-candidate",
+    "proposal_sha256": "57fed4401f8471a05d7682abfbf36ff4bf0fbe7b034cfed3fdbb1f3798fa6d4c",
+    "sha256": "e4100009208e0b7b563d6aa013fe4227f847be15d39e26ba44ad26cb1c184f21",
+    "verified_from_installed_wheel": true
+  },
+  "fixture": {
+    "D43_opened": false,
+    "collector_and_conversion_seconds": 4.099569291807711,
+    "dossier_reproduction": {
+      "dataset_sha256": "8523758b590a95551fafd851f003712492c192b6d616058ad3d8134e6f97651d",
+      "dossier_sha256": "debc56a62600f5f8e4cdb07158ed5d115a8d6a004f7a11ef865a8e1719927647",
+      "exact": true,
+      "registry_revision": 0,
+      "research_launch_authorized": false
+    },
+    "fake_calls": 180,
+    "holdout_opened": false,
+    "qualification": "synthetic_fixture_only",
+    "raw_reproduction": {
+      "holdout_opened": false,
+      "research_launch_authorized": false,
+      "windows": [
+        {
+          "exact_except_conversion_path": true,
+          "index": 0,
+          "semantic_dataset_sha256": "1446e0bf046be878311b99cfc0c35d732f353028b7f6a69a9f3f6c8a4c35d7cd"
+        }
+      ]
+    },
+    "real_rpc": 0,
+    "source_bytes": 4738917,
+    "training": 0
+  },
+  "implementation_commit": "b1ad81a",
+  "plan_commit": "4af4ae9",
+  "quota": {
+    "account_plan_confirmed": false,
+    "account_zero_dollar_hard_cap_confirmed": false,
+    "documented": {
+      "actual_account_hard_usd_limit": null,
+      "actual_account_plan": null,
+      "actual_future_usd": null,
+      "authorized_paid_usd": 0,
+      "cu_per_window": 3600,
+      "documented_cu_per_rpc": 20,
+      "free_tier_documented_monthly_cu": 30000000,
+      "instantaneous_three_request_cu": 60,
+      "max_cu": 1209600,
+      "max_rpc": 60480,
+      "method": "getMultipleAccounts",
+      "monthly": {
+        "2026-10": {
+          "cu": 360000,
+          "rpc": 18000,
+          "windows": 100
+        },
+        "2026-11": {
+          "cu": 432000,
+          "rpc": 21600,
+          "windows": 120
+        },
+        "2026-12": {
+          "cu": 417600,
+          "rpc": 20880,
+          "windows": 116
+        }
+      },
+      "nominal_cu_per_second": 12,
+      "public_payg_estimate_usd": 0.63504,
+      "public_payg_rate_per_million_cu": 0.525,
+      "raw_response_upper_bytes": 60480000000,
+      "shared_account_usage_must_be_reserved": true,
+      "source_plus_registry_raw_upper_bytes": 100800000000,
+      "upper_excludes_metadata_targets_dossiers": true
+    },
+    "inference": "120 CU delta matches6*20; rounded USD0 and sole app do not prove tariff or key identity",
+    "measured_usage_delta_cu": 120,
+    "paid_billing_or_upgrade_actions": 0,
+    "runtime_to_MCP_billing_account_exact_mapping_confirmed": false,
+    "usage_after": {
+      "billingPeriod": {
+        "endTime": "2026-11-01T00:00:00.000Z",
+        "startTime": "2026-10-01T00:00:00.000Z"
+      },
+      "freshness": {
+        "containsPartialToday": true,
+        "dataThrough": "2026-10-03T16:41:00.000Z",
+        "updateCadence": "minute"
+      },
+      "totals": {
+        "last30Days": {
+          "amount": "27660",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.00"
+        },
+        "last7Days": {
+          "amount": "27660",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.00"
+        },
+        "monthToDate": {
+          "amount": "27660",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.00"
+        }
+      }
+    },
+    "usage_before": {
+      "billingPeriod": {
+        "endTime": "2026-11-01T00:00:00.000Z",
+        "startTime": "2026-10-01T00:00:00.000Z"
+      },
+      "freshness": {
+        "containsPartialToday": true,
+        "dataThrough": "2026-10-03T16:30:00.000Z",
+        "updateCadence": "minute"
+      },
+      "totals": {
+        "last30Days": {
+          "amount": "27540",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.00"
+        },
+        "last7Days": {
+          "amount": "27540",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.00"
+        },
+        "monthToDate": {
+          "amount": "27540",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.00"
+        }
+      }
+    }
+  },
+  "scheduler": {
+    "OS_login_sleep_and_service_restart_qualified": false,
+    "activated": false,
+    "catch_up": false,
+    "exclusive_lock": true,
+    "fsync_reservation_before_callback": true,
+    "installed": false,
+    "interrupted_reserved_rpc": 180,
+    "journal_hash_chain": true,
+    "max_failed_windows": 8,
+    "production_supervisor_210s_segment_600s_window_wiring_qualified": false,
+    "qualification_only": true,
+    "retries": 0,
+    "tests_include_real_child_kill_and_partial_bytes": true
+  },
+  "source": {
+    "accepted": 6,
+    "chain_age_seconds": [
+      9.949759006500244,
+      10.767560958862305
+    ],
+    "commitment": "finalized",
+    "config_layout_version": 2,
+    "execution_model": "none; strict supported checkpoint validation",
+    "full_live_window_performed": false,
+    "latency_seconds": [
+      0.599614,
+      0.115246,
+      0.13462,
+      0.134666,
+      0.136345,
+      0.130995
+    ],
+    "mcp_admin_worked": true,
+    "mcp_app_id": "nsvflslm1kqtntvz",
+    "origin": "https://solana-mainnet.g.alchemy.com",
+    "pools": [
+      "7zBzrNNbdQJo1ShWYtZniRJ3WyRF5YmYr4LVd8HKuXMr",
+      "4GWh5saKgzoukhhj4Rh3p5FmPU6yPuAexV6FaH5JQYfm",
+      "G7iLGa5Y8CERJaW2asC4bMV5SWjijQ1y2SWU5sBdZxr2"
+    ],
+    "probe_ran_on_implementation_worktree_based_on_plan_commit": true,
+    "profile": "stdlib_persistent_v1",
+    "qualification": "one 7.42-second probe, not 84-day SLA or full window",
+    "raw_response_total_bytes": 21848,
+    "response_bytes": [
+      3524,
+      3699,
+      3701,
+      3524,
+      3699,
+      3701
+    ],
+    "rpc": 6,
+    "runtime_HTTP_worked": true,
+    "same_request_Clock_and_pool_dependencies": true,
+    "seed": null,
+    "temporal_partitions": "D49 engineering probe only, outside future F01 calendar"
+  },
+  "sources": [
+    {
+      "fact": "getMultipleAccounts20CU",
+      "url": "https://www.alchemy.com/docs/reference/compute-unit-costs"
+    },
+    {
+      "fact": "account-shared10s token bucket;Free300CU/s",
+      "url": "https://www.alchemy.com/docs/reference/throughput"
+    },
+    {
+      "fact": "Free30M CU/month;PAYG0.525USD/M CU",
+      "url": "https://www.alchemy.com/docs/reference/pricing-plans"
+    },
+    {
+      "fact": "usage limit dashboard; opened page0.525USD/M, stale search0.45 ignored",
+      "url": "https://www.alchemy.com/docs/reference/pay-as-you-go-pricing-faq"
+    },
+    {
+      "fact": "multiple account request supported",
+      "url": "https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-multiple-accounts"
+    }
+  ],
+  "stage": "D49",
+  "storage": {
+    "available_bytes": 135669321728,
+    "awake_uptime_qualified": false,
+    "excludes_extra_dossiers_metadata": true,
+    "linear_source_plus_registry_raw_projection_bytes": 2653793520,
+    "raw_response_only_projection_bytes": 220227840.0,
+    "source_fixture_bytes": 4738917,
+    "space_reserved": false,
+    "worst_case_source_plus_registry_raw_bytes": 100800000000
+  },
+  "tests": {
+    "base_passed": 481,
+    "base_skipped": 2,
+    "build": true,
+    "combined_passed": 502,
+    "make_smoke": true,
+    "mypy": true,
+    "new_tests": 16,
+    "ruff": true
+  },
+  "verdict": "NOT_READY_FOR_ACTIVATION",
+  "wheel": {
+    "D43_opened": false,
+    "actual_empty_dossier": {
+      "dataset_sha256": "f97401ac44d58b55bb8ffcb0c2802f6954d43d10b6e9eafe0f295bf449168988",
+      "dossier_sha256": "d8aafff926653c8898b5805078342b3683794a06f3801851dae8eea03765dd4c",
+      "exact": true,
+      "registry_revision": -1,
+      "research_launch_authorized": false
+    },
+    "candidate_verified": true,
+    "created_ns": 1791045921119606000,
+    "dossier": {
+      "dataset_sha256": "8523758b590a95551fafd851f003712492c192b6d616058ad3d8134e6f97651d",
+      "dossier_sha256": "debc56a62600f5f8e4cdb07158ed5d115a8d6a004f7a11ef865a8e1719927647",
+      "exact": true,
+      "registry_revision": 0,
+      "research_launch_authorized": false
+    },
+    "holdout_opened": false,
+    "installed_wheel": true,
+    "network_calls": 0,
+    "probe": {
+      "exact": true,
+      "real_rpc": 0,
+      "reproduced_checkpoints": 6
+    },
+    "raw": {
+      "holdout_opened": false,
+      "research_launch_authorized": false,
+      "windows": [
+        {
+          "exact_except_conversion_path": true,
+          "index": 0,
+          "semantic_dataset_sha256": "1446e0bf046be878311b99cfc0c35d732f353028b7f6a69a9f3f6c8a4c35d7cd"
+        }
+      ]
+    }
+  }
+}
