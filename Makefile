@@ -20,7 +20,7 @@ smoke:
 	$(VENV)/python tools/smoke.py
 
 build:
-	$(VENV)/python -m build
+	$(VENV)/python tools/build_distribution.py
 
 # Optional ML environment: Python 3.13, isolated from the frozen D43 collector.
 MLVENV := work/ml-venv/bin
