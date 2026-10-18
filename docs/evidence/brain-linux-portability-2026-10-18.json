@@ -1,0 +1,124 @@
+{
+  "schema": "brain-linux-portability-rehearsal-v2",
+  "date": "2026-10-18",
+  "scope": "isolated Linux portability, reproducible build, and inert restore qualification",
+  "repository": {
+    "owner": "avariceJS/memecoin-ai",
+    "base_branch": "research/active",
+    "base_commit": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+    "topic_branch": "codex/linux-portability-20261018",
+    "head_commit": "d12d8eb9d424e50f8b631627f9e2340ebfee5d31",
+    "pushed_to_topic_branch": true,
+    "main_and_research_active_unchanged": true,
+    "migration_v1_candidate_and_handoff_changed": false,
+    "owner_mac_runtime_and_kingston_touched": false
+  },
+  "host": {
+    "provider": "Aéza disposable VPS",
+    "os": "Ubuntu 24.04 LTS",
+    "architecture": "x86_64",
+    "cpu_count": 4,
+    "ram_gib_approx": 7.8,
+    "root_filesystem_gib_approx": 119,
+    "root_free_gib_after_rehearsal_approx": 108,
+    "python": "3.12.3",
+    "git_access": "read-only deploy key via configured SSH alias; exact topic commit fetched in fresh clone",
+    "gpu": "none"
+  },
+  "bootstrap_and_build": {
+    "fresh_clone": "passed at exact topic HEAD; checkout clean",
+    "make_setup": "passed unattended using requirements-dev.lock",
+    "source_date_epoch": 1792294985,
+    "repeated_same_checkout_builds": "separate output directories produced identical wheel and sdist hashes",
+    "separate_clean_clone_build": "identical wheel and sdist hashes at the same commit",
+    "wheel": {
+      "filename": "memecoin_ai-0.1.0-py3-none-any.whl",
+      "sha256": "8da9d0568c427d364c9ac07519221713c8493f33c00243c4f4dbf9f7f9a82191"
+    },
+    "sdist": {
+      "filename": "memecoin_ai-0.1.0.tar.gz",
+      "sha256": "57f35dcc0dde0f3a73c1ebe3fa4c1ef8d2fb633745f6cfb8829b38b943bc43e7",
+      "members": 1866,
+      "member_bytes_and_metadata_identical": true
+    },
+    "release": {
+      "release_id": "269c232a5c563eb450f2139db0eab91695ad8da5fbed08143a414b8a76d863a3",
+      "source_commit": "d12d8eb9d424e50f8b631627f9e2340ebfee5d31",
+      "wheel_sha256": "8da9d0568c427d364c9ac07519221713c8493f33c00243c4f4dbf9f7f9a82191",
+      "manifest_sha256": "f62c1e17fd2458654d75bc50554340f7257440b69b9dbae4684c57777b1cbe9d",
+      "installed_inventory_sha256": "5bf164f4367d67dfb44db046f39d1922f8efac02a86aceca24df5e2afb98cbaa",
+      "unit": "memecoin-brain-269c232a5c563eb450f2139db0eab91695ad8da5fbed08143a414b8a76d863a3.service",
+      "unit_sha256": "ab56e04c05bdc9abf233be6aaeb7ac092c82746ebcffbb2b81b5e241ed2c0745",
+      "staged_state": "loaded, disabled, inactive, MainPID=0",
+      "verify": "passed before activation and after reboot"
+    }
+  },
+  "synthetic_restore_and_runtime": {
+    "fixture": "synthetic empty operator SQLite state and config only",
+    "storage": "disposable ext4 image, exact UUID/root identity checked; no real Brain data",
+    "restore_run_id": "attachment-source-d12d8eb",
+    "restore_manifest_sha256": "c5ab3dfd2c8260f12e0d21431d4ab2489cb0d4891956b840dc2df3f46d237647",
+    "restore_state": "inert_quarantine_verified",
+    "attachment_id": "att-d12d8eb",
+    "attachment_manifest_sha256": "eb833bbe0bec915c4c44b55d88d5b82f94c31322d5cadfedcf65b2812d4aa2d3",
+    "unit": "memecoin-brain-36e0588eaf1b5a9c4f1b789f1654182e1f2c679100da0b94439302303476e113.service",
+    "before_activation": "independent verify passed; attachment and service remained inert",
+    "explicit_activation": "passed; loopback probe returned operator-status-v1, mode=idle, phase=idle, jobs=0",
+    "idle_soak_seconds": 24,
+    "soak_observations": {
+      "revision": "idle before and after",
+      "jobs": 0,
+      "incident_events": 0,
+      "database_change": "only periodic last_maintain_ns metadata checkpoint; initialized event and revision unchanged",
+      "NRestarts": 0
+    },
+    "stop_finalize_and_verify": "passed; state activated_stopped_idle_verified",
+    "final_inventory_sha256": "c1ab74f8646efb1f638440f85d4dcd4062ccc5fa318236f96cbd6b31527b3888",
+    "final_operator_sqlite_sha256": "aa5a475df4f223a0ba845e05d52744e6d8f4e068232ee143459e301ef3f30e4d",
+    "after_reboot": "release verify and attachment verify passed; unit disabled/inactive, MainPID=0, NRestarts=0",
+    "root_owned_mode_0444_receipts_survived_reboot": [
+      "att-d12d8eb.json",
+      "att-d12d8eb.start-intent.json",
+      "att-d12d8eb.idle-probe.json",
+      "att-d12d8eb.activation-result.json"
+    ]
+  },
+  "linux_policy_review": {
+    "exact_commit_reviewed_by_sol": "e5110b7e55ebf6ec3321c963fede3f4941e7c333",
+    "review_result": "no blocker in pristine synthetic idle scope; generic adapter bypassed on Linux view/status/tick/maintenance/stop paths; no-replace attachment publish and collision cleanup present",
+    "follow_up_fix": "d12d8eb moved Linux policy checks before cached command-response replay; reused-request regression test added",
+    "config_drift_rehearsal_commit": "e5110b7e55ebf6ec3321c963fede3f4941e7c333",
+    "config_drift_result": "linux_unsupported_mode; two maintenance ticks left last_maintain_ns unchanged, idle revision and initialized event unchanged, zero jobs; config restored byte-for-byte",
+    "scope_limit": "synthetic idle only; arbitrary restored databases and active modes remain unsupported"
+  },
+  "verification": {
+    "focused_tests": {
+      "command": "pytest tests/test_brain_linux_release.py tests/test_brain_linux_service.py tests/operator/test_host.py tests/operator/test_ui_polish.py tests/test_build_distribution.py tests/test_brain_linux_attachment.py -q",
+      "result": "75 passed, 1 skipped (optional Playwright browser acceptance; Node/Chromium unavailable)"
+    },
+    "changed_file_ruff": "passed for all eight changed Linux implementation/test/rehearsal files",
+    "changed_file_ruff_format": "passed for all eight changed Linux implementation/test/rehearsal files",
+    "smoke": "passed; edge_established=false; synthetic_engineering_check_only",
+    "full_make_check": {
+      "result": "stopped at first tree-wide Ruff step with 107 findings, before mypy and pytest",
+      "changed_linux_files": "focused Ruff and format checks pass"
+    }
+  },
+  "data_and_authority": {
+    "provider_calls": 0,
+    "provider_credentials_or_tokens_transferred": false,
+    "protected_data_transferred": false,
+    "kingston_touched": false,
+    "migration_v1_acceptance_state_changed": false,
+    "owner_mac_runtime_touched": false,
+    "main_or_research_active_changed": false
+  },
+  "limitations": [
+    "This qualifies only synthetic idle restore and explicit activation, not production or arbitrary restored Brain state.",
+    "Source authenticity is bounded by the trusted read-only Git checkout and local builder; no independent signed source attestation was used.",
+    "Linux research-data writer semantics are not qualified for real research data.",
+    "Boot-time activation is not qualified; the tested unit remains disabled and inert after reboot.",
+    "No provider access, GPU, CUDA/NVIDIA, ARM64, Windows/WSL, or macOS-to-Linux payload migration was qualified.",
+    "Full make check remains blocked by 107 tree-wide Ruff findings; full typecheck and test suite did not run."
+  ]
+}

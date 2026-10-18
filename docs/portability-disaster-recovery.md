@@ -268,6 +268,59 @@ This document owns Brain host portability, recovery inventory, and erase readine
 checkout, owner runtime, large research-data root, and protected evaluations have separate authority
 and recovery boundaries. A clean code clone is not a recovery of Brain state.
 
+## Parallel Linux portability qualification
+
+The separate topic branch `codex/linux-portability-20261018` advances portable build and Linux
+operator-host support from `research/active` commit `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`.
+It does not change the active Migration v1 candidate, its handoff, the owner Mac runtime, Kingston,
+`research/active`, or `main`. The branch pins source archive metadata to the source commit, provides
+a read-only Linux systemd host adapter, and stages content-addressed Linux release candidates.
+Release identity binds the wheel SHA-256 to the resolved Python path, version, SOABI, and installer
+schema. Each candidate has its own version-specific disabled unit; staging never switches a pointer,
+starts, or enables it. Wheel installation and import probing run as `nobody`; promoted files are
+root-owned, readable by the service group, and not writable by the `brain` runtime account. A
+separate verify action checks the source/wheel identity recorded in the manifest, installed-file
+inventory, interpreter identity, unit bytes/path, ownership, permissions, and disabled/inactive
+systemd state before explicit activation.
+
+On 2026-10-18, clean Ubuntu 24.04 x86_64 VPS clones at topic HEAD
+`d12d8eb9d424e50f8b631627f9e2340ebfee5d31` completed unattended `make setup`. Repeated builds in
+separate output directories and a build from a separate clean clone produced identical wheel SHA-256
+`8da9d0568c427d364c9ac07519221713c8493f33c00243c4f4dbf9f7f9a82191` and source-distribution SHA-256
+`57f35dcc0dde0f3a73c1ebe3fa4c1ef8d2fb633745f6cfb8829b38b943bc43e7`, with `SOURCE_DATE_EPOCH`
+bound to the source commit. The current wheel was installed into a root-owned content-addressed
+release; verification checked its manifest, installed inventory, interpreter, unit, ownership, and
+disabled/inactive state.
+
+A fresh synthetic fixture was restored inert to ext4 quarantine and attached to that exact release.
+Independent verification passed before explicit activation. The service ran as `brain` with
+`PrivateNetwork=yes` and `Restart=no`; its loopback probe returned `operator-status-v1`, idle mode,
+idle phase, and zero jobs. During a 24-second soak, the only SQLite change was the periodic
+`last_maintain_ns` checkpoint; revision stayed idle, there were zero jobs or incident events, and
+`NRestarts=0`. Stop and finalization passed, and after a real VPS reboot the release and attachment
+verifiers passed again. The attachment unit remained disabled/inactive with `MainPID=0`; create-only
+root-owned start-intent, idle-probe, pin, and activation-result records survived reboot. A Linux
+config-drift exercise on the preceding exact source revision returned `linux_unsupported_mode`,
+kept the database idle, and did not dispatch the generic adapter. New non-stop Linux commands are
+blocked before cached command replay; a focused regression test covers a reused request ID.
+
+At exact HEAD, 75 focused tests passed and one optional Playwright browser acceptance was skipped
+because Node/Chromium is unavailable. Changed-file Ruff and format checks passed; `make smoke` passed
+with `edge_established: false` and `synthetic_engineering_check_only`. Full `make check` stops at 107
+tree-wide Ruff findings outside the changed Linux files, so typecheck and full pytest were not run.
+No provider traffic, credentials, protected data, restored Brain root, CUDA, or NVIDIA capability
+was used or qualified.
+
+This proves clean Linux setup, repeated package-build identity, inert staging, synthetic idle restore
+and explicit activation, bounded maintenance, stop/finalize, and verifier recovery after reboot. It
+does not qualify production or arbitrary restored-state modes, source authenticity beyond the
+trusted Git checkout and builder, Linux research-data writer semantics, boot-time activation,
+ARM64, Windows/WSL, macOS-to-Linux payload portability, CUDA, or NVIDIA. The immutable
+[`Linux portability receipt`](evidence/brain-linux-portability-2026-10-18.json) records exact
+artifacts, lifecycle hashes, host facts, failures, and limitations. The next architecture horizon is
+the Linux storage writer contract: mount identity, descriptor-bound writes, crash consistency, and
+recovery must be reviewed and qualified before Linux can host real research data.
+
 ## Current readiness
 
 **NO-GO for erasing Mac1 as of 2026-10-17.** The full seven-root ordinary capture and

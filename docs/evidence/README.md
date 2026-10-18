@@ -6,6 +6,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [Linux portability qualification](brain-linux-portability-2026-10-18.json): clean Linux setup,
+  byte-identical wheel/sdist builds, inert synthetic restore, explicit idle activation, stop and
+  reboot verification on an isolated topic branch; production data, provider calls, CUDA, and other
+  architectures remain unqualified.
+
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume
   weights, separate registered research-evaluation cohort, and finite inference. Plumbing evidence;

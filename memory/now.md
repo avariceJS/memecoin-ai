@@ -1,6 +1,6 @@
 # Current state
 
-As of 2026-10-17, active scope is **Practical Brain Migration v1**. Erasure remains
+As of 2026-10-18, active scope remains **Practical Brain Migration v1**. Erasure remains
 **NO-GO** until the second MacBook restores the full Kingston pair and passes the handoff checks,
 then Sol independently reviews the transcript. Hardened DR is deferred to
 [`portability-disaster-recovery-v2-roadmap.md`](../docs/portability-disaster-recovery-v2-roadmap.md).
@@ -19,5 +19,17 @@ incomplete and must not be restored. Failed ordinary partial `58e4596a3db5403a9b
 also remains incomplete. Do not delete partial candidates or activate Brain. The published Mac2
 operator package is awaiting final Sol review. No second-Mac restore has occurred.
 
-`research/active` is at `feb2cccebb023aa1a484909cccc5b47e7d2fd4ea`; `main` remains
+A separate Linux portability branch, `codex/linux-portability-20261018` at
+`d12d8eb9d424e50f8b631627f9e2340ebfee5d31`, is isolated from that acceptance path. Fresh Ubuntu
+24.04 clones completed `make setup`; repeated builds across separate output directories and a clean
+clone matched both wheel and sdist hashes. The exact-head release restored a synthetic ext4 fixture
+inert, activated explicitly, stopped/finalized, then passed release and attachment verification
+after reboot; its unit remained disabled/inactive. Focused Linux/build tests passed (75 passed, one
+optional browser skip); changed-file lint/format and synthetic smoke passed. `make check` stops at
+107 tree-wide Ruff findings outside the changed Linux files. No provider credentials or protected
+data were used. Exact evidence and limits are in
+[`Linux portability receipt`](../docs/evidence/brain-linux-portability-2026-10-18.json). This is not
+Migration v1 acceptance or qualification of production state, CUDA, ARM64, or Windows/WSL.
+
+`research/active` is at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`; `main` remains
 `770699d3ef8558518ae750b6d5d6cab41c2e82c8`. Future-v2 v3 drafts remain untracked and untouched.
