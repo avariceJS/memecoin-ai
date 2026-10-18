@@ -351,6 +351,127 @@ def _prepare_runtime_directories(operator: Path, uid: int, gid: int) -> None:
                 raise StorageError("handoff_runtime_directory_unsafe")
 
 
+def _render_handoff_unit(
+    binding_id: str, installation_id: str, generation_id: str, release_id: str
+) -> tuple[str, Path, str]:
+    unit_name = f"memecoin-brain-{binding_id}.service"
+    unit_path = linux_service.UNIT_PATH.parent / unit_name
+    generation_root, _receipt_root = _paths(installation_id, generation_id, binding_id)
+    code_root = linux_release.RELEASE_BASE / release_id
+    state_root = generation_root / "operator"
+    port = 20000 + int(binding_id[:8], 16) % 40000
+    unit_text = linux_service.render_unit(
+        code_root / "venv/bin/python",
+        state_root,
+        port,
+        code_root=code_root,
+        readwrite_path=state_root,
+        state_directory=False,
+        state_base=INSTALLATION_BASE,
+        home=state_root,
+        state_layout="handoff-v1",
+    )
+    unit_text = unit_text.replace(
+        "Description=Disposable Brain operator lab (manual activation only)",
+        f"Description=Brain handoff {binding_id} (manual activation only)",
+    )
+    return unit_text, unit_path, unit_name
+
+
+def _prepare_intent(
+    binding_id: str,
+    installation_id: str,
+    generation_id: str,
+    release_id: str,
+    unit_name: str,
+    unit_text: str,
+) -> bool:
+    """Return True for a previously completed prepare; reset only our pinned partial attempt."""
+    generation_root, receipt_root = _paths(installation_id, generation_id, binding_id)
+    unit_path = linux_service.UNIT_PATH.parent / unit_name
+    intent_path = receipt_root / "PREPARE.json"
+    expected_intent = {
+        "schema": SCHEMA,
+        "binding_id": binding_id,
+        "installation_id": installation_id,
+        "generation_id": generation_id,
+        "target_release_id": release_id,
+        "unit_name": unit_name,
+        "unit_sha256": _sha256(unit_text.encode()),
+    }
+    if not os.path.lexists(receipt_root):
+        if os.path.lexists(generation_root) or os.path.lexists(unit_path):
+            raise StorageError("handoff_generation_collision")
+        _root_directory(receipt_root, 0o700)
+        _write_receipt(intent_path, expected_intent)
+        return False
+    receipt_metadata = receipt_root.lstat()
+    if (
+        not stat.S_ISDIR(receipt_metadata.st_mode)
+        or receipt_metadata.st_uid != 0
+        or stat.S_IMODE(receipt_metadata.st_mode) != 0o700
+    ):
+        raise StorageError("handoff_prepare_receipt_directory_unsafe")
+    names = set(os.listdir(receipt_root))
+    if "PREPARE.json" not in names:
+        if not names and not os.path.lexists(generation_root) and not os.path.lexists(unit_path):
+            _write_receipt(intent_path, expected_intent)
+            return False
+        raise StorageError("handoff_prepare_intent_missing")
+    intent, _intent_raw = _read_receipt(intent_path)
+    if intent != expected_intent:
+        raise StorageError("handoff_prepare_intent_mismatch")
+    if {"GENERATION.json", "BINDING.json"} <= names:
+        if not names <= {
+            "PREPARE.json",
+            "GENERATION.json",
+            "BINDING.json",
+            "START.json",
+            "PROBE.json",
+            "FINAL.json",
+        }:
+            raise StorageError("handoff_prepare_receipt_set_mismatch")
+        lifecycle_names = names & {"START.json", "PROBE.json", "FINAL.json"}
+        if lifecycle_names and lifecycle_names != {"START.json", "PROBE.json", "FINAL.json"}:
+            raise StorageError("handoff_prepare_lifecycle_incomplete")
+        verify(binding_id)
+        return True
+    if names != {"PREPARE.json"}:
+        raise StorageError("handoff_prepare_partial_receipts")
+    if os.path.lexists(unit_path):
+        try:
+            unit_metadata = unit_path.lstat()
+            unit_bytes = unit_path.read_bytes()
+        except OSError as exc:
+            raise StorageError("handoff_prepare_unit_unavailable") from exc
+        state = linux_service._unit_status(unit_name)
+        if (
+            not stat.S_ISREG(unit_metadata.st_mode)
+            or unit_metadata.st_uid != 0
+            or stat.S_IMODE(unit_metadata.st_mode) != 0o644
+            or _sha256(unit_bytes) != expected_intent["unit_sha256"]
+            or state[1] != "inactive"
+            or state[2] not in {"disabled", "static"}
+            or state[3] != 0
+        ):
+            raise StorageError("handoff_prepare_unit_recovery_unsafe")
+        unit_path.unlink()
+        subprocess.run(["systemctl", "daemon-reload"], check=True, timeout=10)
+    if os.path.lexists(generation_root):
+        metadata = generation_root.lstat()
+        if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != 0:
+            raise StorageError("handoff_prepare_generation_recovery_unsafe")
+        shutil.rmtree(generation_root)
+    pending_prefix = f".pending-{generation_id}-"
+    for candidate in generation_root.parent.iterdir():
+        if candidate.name.startswith(pending_prefix):
+            metadata = candidate.lstat()
+            if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != 0:
+                raise StorageError("handoff_prepare_pending_recovery_unsafe")
+            shutil.rmtree(candidate)
+    return False
+
+
 def prepare(
     installation_id: str, source_attachment_id: str, target_release_id: str
 ) -> dict[str, object]:
@@ -390,6 +511,9 @@ def prepare(
     )
     binding_id = _handoff_identity(installation_id, generation_id, target_release_id)
     generation_root, receipt_root = _paths(installation_id, generation_id, binding_id)
+    unit_text, unit_path, unit_name = _render_handoff_unit(
+        binding_id, installation_id, generation_id, target_release_id
+    )
     _root_directory(LOCK_BASE, 0o700)
     lock_fd = os.open(
         LOCK_BASE / f"{installation_id}.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600
@@ -403,8 +527,26 @@ def prepare(
         _root_directory(INSTALLATION_BASE / installation_id)
         _root_directory(INSTALLATION_BASE / installation_id / "generations")
         _root_directory(HANDOFF_BASE, 0o700)
-        if os.path.lexists(generation_root) or os.path.lexists(receipt_root):
-            raise StorageError("handoff_generation_collision")
+        if _prepare_intent(
+            binding_id,
+            installation_id,
+            generation_id,
+            target_release_id,
+            unit_name,
+            unit_text,
+        ):
+            binding, _binding_raw = _read_receipt(receipt_root / "BINDING.json")
+            generation, _generation_raw = _read_receipt(receipt_root / "GENERATION.json")
+            return {
+                "state": "prepared-inert",
+                "installation_id": installation_id,
+                "generation_id": generation_id,
+                "binding_id": binding_id,
+                "target_release_id": target_release_id,
+                "unit": unit_name,
+                "sqlite_schema_sha256": generation["sqlite_schema_sha256"],
+                "logical_state_sha256": generation["output_logical_state_sha256"],
+            }
         brain = pwd.getpwnam("brain")
         pending = generation_root.parent / f".pending-{generation_id}-{os.getpid()}"
         pending.mkdir(mode=0o700)
@@ -484,28 +626,6 @@ def prepare(
             os.fsync(generation_parent_fd)
         finally:
             os.close(generation_parent_fd)
-        unit_name = f"memecoin-brain-{binding_id}.service"
-        unit_path = linux_service.UNIT_PATH.parent / unit_name
-        if os.path.lexists(unit_path):
-            raise StorageError("handoff_unit_collision")
-        code_root = linux_release.RELEASE_BASE / target_release_id
-        state_root = generation_root / "operator"
-        port = 20000 + int(binding_id[:8], 16) % 40000
-        unit_text = linux_service.render_unit(
-            code_root / "venv/bin/python",
-            state_root,
-            port,
-            code_root=code_root,
-            readwrite_path=state_root,
-            state_directory=False,
-            state_base=INSTALLATION_BASE,
-            home=state_root,
-            state_layout="handoff-v1",
-        )
-        unit_text = unit_text.replace(
-            "Description=Disposable Brain operator lab (manual activation only)",
-            f"Description=Brain handoff {binding_id} (manual activation only)",
-        )
         linux_service.install(
             unit_text,
             unit_path=unit_path,
