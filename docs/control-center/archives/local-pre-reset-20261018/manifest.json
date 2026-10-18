@@ -1,0 +1,264 @@
+{
+  "schema": "brain-ui-local-artifact-custody-v1",
+  "date": "2026-10-18",
+  "source": "apps/control-center/.local in owner Codex worktree",
+  "scope": "Historical UI screenshots, browser measurements and test/build logs of the approved pinned Observatory projection. No new acceptance or runtime claim. Original bytes retained; previously published blobs referenced without duplicate files.",
+  "files": [
+    {
+      "path": "cc02-audit/build.log",
+      "oid": "447710f5253158c318673c62a0570713c5cedd36",
+      "sha256": "a4077e353267d2b48b63aef6862d7a9d9385b4a2bd3fdd7739c5116c4f131990",
+      "bytes": 1027,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/cc02-audit/build.log"
+    },
+    {
+      "path": "cc02-audit/vitest.log",
+      "oid": "349f0c193ec537919cae8e909e8817a154a8af41",
+      "sha256": "4bc2b924f94346b5462d5fb7f8e19a996752d1e4ba3e672bcfe05b63062da392",
+      "bytes": 298,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/cc02-audit/vitest.log"
+    },
+    {
+      "path": "reviews/p1-left.png",
+      "oid": "f12ad09f2462d9d5b83c241c4edfe7f716bdb0c2",
+      "sha256": "0828d914f9866053d69411b6fb9d335dd676a0d15a7cf667f549f2b14f2d2519",
+      "bytes": 97362,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p1-left.png"
+    },
+    {
+      "path": "reviews/p1-overview-1672-full.png",
+      "oid": "048e0d4ec70af3a9db7afb3fe7a501d5c3483d17",
+      "sha256": "660319d6529cd0e40d779a0a0ef6518fe1740a78f93da527330efa71fc9c4b53",
+      "bytes": 117207,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p1-overview-1672-full.png"
+    },
+    {
+      "path": "reviews/p1-overview-1672.png",
+      "oid": "2f3bea4a8418397e7f877a70afcca6e36014601b",
+      "sha256": "36403c28abd201f57a1e1e75a2b61da70c4b4761c3585cbc2ca5a5d05629bfe5",
+      "bytes": 100109,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p1-overview-1672.png"
+    },
+    {
+      "path": "reviews/p1-right.png",
+      "oid": "dc5570dd6dfaf6383dcf89eee273ad9b788c9509",
+      "sha256": "fd6f07a54964a6f2f4204939aa10765b289b53e03023f1b722c84583e0b52ea3",
+      "bytes": 111900,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p1-right.png"
+    },
+    {
+      "path": "reviews/p1-trading-1672.png",
+      "oid": "5a5abf12eef2559610314162fec453192351dd81",
+      "sha256": "25156fcbccc3135c0da0b9fda6fbe9f10b2aa3d8d9e18549dc3ebfaf7fb2265b",
+      "bytes": 76729,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p1-trading-1672.png"
+    },
+    {
+      "path": "reviews/p2-calendar-1672.png",
+      "oid": "8e4e4f8682f7637e02d503b5e945f15c638f8d93",
+      "sha256": "4f01a2f9ff85de3800c450cfb1c1d79a79091bf9964c8807b4f0beb9c2d4af24",
+      "bytes": 126743,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p2-calendar-1672.png"
+    },
+    {
+      "path": "reviews/p2-calendar-detail.png",
+      "oid": "7da0ab14f49087979489a8f3b5624ee07ee4068e",
+      "sha256": "565b990d619b60ff3348d09182c41642ca92d8e4ac6a5ab36cf159076ec0ebb7",
+      "bytes": 49345,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p2-calendar-detail.png"
+    },
+    {
+      "path": "reviews/p2-calendar-right.png",
+      "oid": "e5cbc7639e9d5459e6b885e1abf3e5dff14bec75",
+      "sha256": "b1f8b39841b38c37e86605e218f97e2eb1cfe9225c4a9278592421ca609ae29d",
+      "bytes": 113115,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p2-calendar-right.png"
+    },
+    {
+      "path": "reviews/p2-d48-summary.png",
+      "oid": "0018a63371a0f9c7d2c94987254374c632de297d",
+      "sha256": "7fa97945373a38253301dd2cc25e59b4daf96ccea79b68b9d82090d78ab85487",
+      "bytes": 118119,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p2-d48-summary.png"
+    },
+    {
+      "path": "reviews/p3-overview.png",
+      "oid": "fc9da3f7ef440f24d7707ffeee166ef93cc40467",
+      "sha256": "4a57e32115fb009f6ef570bcee6d7335f92cc953700ed0a611f6559f9bcf546e",
+      "bytes": 71236,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p3-overview.png"
+    },
+    {
+      "path": "reviews/p3-sources.png",
+      "oid": "db68ba54e10d17a1537f60ad8a4ea6ee91182ef9",
+      "sha256": "06808e0c6a2c8cc2b9c8181e01f9cdf72fe9430bc0269e1d40431fb3e4cedda7",
+      "bytes": 110473,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p3-sources.png"
+    },
+    {
+      "path": "reviews/p4-research.png",
+      "oid": "1b57cb4b304dbdec74a05dd36432aee3b4ade6de",
+      "sha256": "29731e1145dc662b5c14d38cf3391dc3df749eaffd5778e0a2d079f663e3207f",
+      "bytes": 134997,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p4-research.png"
+    },
+    {
+      "path": "reviews/p5-models.png",
+      "oid": "5ac4e44ed8fe62ed0764a5fc78084aa98b632219",
+      "sha256": "bfe00d5b0ad1ccfb6ecbb941287bfb82e735567cab5170deb0260111b8126795",
+      "bytes": 116215,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p5-models.png"
+    },
+    {
+      "path": "reviews/p6-system.png",
+      "oid": "9e3b2a0cf91375481ea8e5a24d2954b0349ae882",
+      "sha256": "51243054b4cc78023269237f268294529ef56b45abbb35bd763676e938644d2d",
+      "bytes": 145409,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p6-system.png"
+    },
+    {
+      "path": "reviews/p7-overview-768.png",
+      "oid": "dd321f7f644ef91afd47cfeb9c31f9d4d606bec6",
+      "sha256": "38fb136be1b990e551d2c0ef44e27c5f2865c21ed59213a20d6694b737fd8c96",
+      "bytes": 76293,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/reviews/p7-overview-768.png"
+    },
+    {
+      "path": "tasks/CC02.0/captures/calendar-1600.json",
+      "oid": "df60be43ea7e36ae2b7737cfb1e651b2abb9bf70",
+      "sha256": "8a4af9a1e025090c0e27f1e457f461fa435942535853c03ba27c0702e84af190",
+      "bytes": 968,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/captures/calendar-1600.json"
+    },
+    {
+      "path": "tasks/CC02.0/captures/calendar-1600.png",
+      "oid": "a76ad69ad2777060ea296b1543b7379c50ea7623",
+      "sha256": "ef81723b05f0fca430f94a12669441facd64ba9b9a31aca3329f297b859b3f3e",
+      "bytes": 171112,
+      "published": true,
+      "recovery": "git show a76ad69ad2777060ea296b1543b7379c50ea7623"
+    },
+    {
+      "path": "tasks/CC02.0/captures/models-1600.json",
+      "oid": "22f33a080799e04f3ee1e675c8f06c52712f8ffc",
+      "sha256": "d5c076bb54c2ec9930b19ec9db23fb04c89fa2b6e21bd3063422edc7f753cc36",
+      "bytes": 1000,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/captures/models-1600.json"
+    },
+    {
+      "path": "tasks/CC02.0/captures/models-1600.png",
+      "oid": "f091be9224395f6a759c9c33ccb7ec0850c2cee7",
+      "sha256": "3efaed940b0372e1eb98ecbe52c1e2d34f6e6cf130f3d3abebd15ef7415ff520",
+      "bytes": 228311,
+      "published": true,
+      "recovery": "git show f091be9224395f6a759c9c33ccb7ec0850c2cee7"
+    },
+    {
+      "path": "tasks/CC02.0/captures/overview-1600.json",
+      "oid": "f548cf91fdbcca71cbd8ef7711acbcdd965ac000",
+      "sha256": "05de97f1e50e5b78d6634dd737e5f44ba56396b51adea1d2ca65e079fc9a4933",
+      "bytes": 991,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/captures/overview-1600.json"
+    },
+    {
+      "path": "tasks/CC02.0/captures/overview-1600.png",
+      "oid": "8a1b2c0d7479c4ce95bd6e36589c5c50f0af8994",
+      "sha256": "ab6e4777b09e47e5212a23f87fe6d6d695bab2dcf88c30eb10f742da32afc249",
+      "bytes": 219704,
+      "published": true,
+      "recovery": "git show 8a1b2c0d7479c4ce95bd6e36589c5c50f0af8994"
+    },
+    {
+      "path": "tasks/CC02.0/captures/research-1600.json",
+      "oid": "674d273124932a7cee0cad3c7037465f7c3622c2",
+      "sha256": "2ae6cb47e9f575c84e99dd7dec208c0697a11dcc4bd1719c8dbd778c0423a83f",
+      "bytes": 958,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/captures/research-1600.json"
+    },
+    {
+      "path": "tasks/CC02.0/captures/research-1600.png",
+      "oid": "271fdf35bf830aea1906e43a0dc29950763e143e",
+      "sha256": "9e36019ec749994f8730b82c9b37d923c5a92a75d486ce74194037839b4ca4ed",
+      "bytes": 238640,
+      "published": true,
+      "recovery": "git show 271fdf35bf830aea1906e43a0dc29950763e143e"
+    },
+    {
+      "path": "tasks/CC02.0/captures/sources-1600.json",
+      "oid": "4f5ed40bd93393eed4730a1d6fc3ae18bb1635c9",
+      "sha256": "73b902f007ec0f035804037062d0b508b13447d105e29bc4cf56f089bff47ad2",
+      "bytes": 990,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/captures/sources-1600.json"
+    },
+    {
+      "path": "tasks/CC02.0/captures/sources-1600.png",
+      "oid": "481ff34909e7feafe5191318e22408c24fe565fb",
+      "sha256": "ed8f8fb4097ab3ca51b77bcd99bdf2b4dea4f242fff43878714f2586b69c159e",
+      "bytes": 243858,
+      "published": true,
+      "recovery": "git show 481ff34909e7feafe5191318e22408c24fe565fb"
+    },
+    {
+      "path": "tasks/CC02.0/captures/summary.json",
+      "oid": "1447b621f69a4355e8e77dba684c81d3e6f444a3",
+      "sha256": "b43c92f0d6520479ab234ff42a51382fa663d70f6bc4dbc32df503d9ae382f9b",
+      "bytes": 1944,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/captures/summary.json"
+    },
+    {
+      "path": "tasks/CC02.0/captures/system-1600.json",
+      "oid": "d4ed610ae9fdf2a45e46276a811f8961b8440697",
+      "sha256": "67b603cd5652d65051a43877c7230419099e9f243e7354a8204e67c73a482f20",
+      "bytes": 1201,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/captures/system-1600.json"
+    },
+    {
+      "path": "tasks/CC02.0/captures/system-1600.png",
+      "oid": "de9067945e3da89515770e1363cf792f0bd11c8e",
+      "sha256": "f0f4a7f1c2315e19d1dab2895f2205e98483211bf3c01c718e38b56effc4130d",
+      "bytes": 265416,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/captures/system-1600.png"
+    },
+    {
+      "path": "tasks/CC02.0/playwright/.last-run.json",
+      "oid": "cbcc1fbac11a74b608b2b3edc3a2ffd6ab639cb2",
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+      "bytes": 45,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/playwright/.last-run.json"
+    },
+    {
+      "path": "tasks/CC02.0/servers.log",
+      "oid": "fae7f3941399799a8a5abce5e8c4c85242342ae9",
+      "sha256": "e38d26f09ee6e9d50059e58390b688473bf07e9ed019e230ebde77c887a21302",
+      "bytes": 25,
+      "published": false,
+      "archive_path": "docs/control-center/archives/local-pre-reset-20261018/tasks/CC02.0/servers.log"
+    }
+  ]
+}

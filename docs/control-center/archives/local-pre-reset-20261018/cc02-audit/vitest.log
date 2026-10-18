@@ -1,0 +1,13 @@
+
+> control-center-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.3 /Users/root1/.codex/worktrees/ec89/memecoin-ai/apps/control-center/web
+
+
+ Test Files  10 passed (10)
+      Tests  44 passed (44)
+   Start at  01:42:30
+   Duration  1.53s (environment 58%, transform 13%, tests 10%, import 10%, setup 9%)
+

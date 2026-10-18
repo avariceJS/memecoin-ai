@@ -1,0 +1,84 @@
+{
+  "acceptance": "NOT_A_VISUAL_PASS",
+  "note": "Счётчики измеряет браузер. Overview и календарь больше не обязаны быть сломанными. Положительный count на другой странице — её дефект, не зелёный baseline.",
+  "web_sha256": "c73e2087ea606ba6734f5a92301f8b5743c9ae3496c211b3a0c67b3ae0f59435",
+  "rows": [
+    {
+      "route": "/",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "card_escape_count": 0,
+      "text_overlap_count": 0,
+      "unintended_clip_count": 0,
+      "page_overflow_px": 0
+    },
+    {
+      "route": "/calendar",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "card_escape_count": 0,
+      "text_overlap_count": 0,
+      "unintended_clip_count": 0,
+      "page_overflow_px": 0
+    },
+    {
+      "route": "/research",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "card_escape_count": 0,
+      "text_overlap_count": 0,
+      "unintended_clip_count": 0,
+      "page_overflow_px": 0
+    },
+    {
+      "route": "/models",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "card_escape_count": 0,
+      "text_overlap_count": 0,
+      "unintended_clip_count": 0,
+      "page_overflow_px": 0
+    },
+    {
+      "route": "/sources",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "card_escape_count": 0,
+      "text_overlap_count": 0,
+      "unintended_clip_count": 0,
+      "page_overflow_px": 0
+    },
+    {
+      "route": "/system",
+      "viewport": [
+        1600,
+        1000
+      ],
+      "card_escape_count": 0,
+      "text_overlap_count": 0,
+      "unintended_clip_count": 0,
+      "page_overflow_px": 0
+    },
+    {
+      "route": "/calendar",
+      "viewport": [
+        1024,
+        768
+      ],
+      "card_escape_count": 0,
+      "text_overlap_count": 0,
+      "unintended_clip_count": 0,
+      "page_overflow_px": 0
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "source": "browser-dom",
+  "route": "/sources",
+  "viewport": [
+    1600,
+    1000
+  ],
+  "web_sha256": "c73e2087ea606ba6734f5a92301f8b5743c9ae3496c211b3a0c67b3ae0f59435",
+  "snapshot_sha256": "82a6efd6066b271a6a30de36a7b2d73523d771118eab4882f267c50200cddb1c",
+  "page_overflow_px": 0,
+  "text_overlap_count": 0,
+  "card_escape_count": 0,
+  "unintended_clip_count": 0,
+  "page_overflow_hidden": false,
+  "allowed_scroll_containers": [
+    "pool-id",
+    "pool-id",
+    "pool-id"
+  ],
+  "inspected_regions": [
+    "sidebar",
+    "header",
+    "main-grid",
+    "shell-containment",
+    "source-blockers",
+    "pool-ids"
+  ],
+  "acceptance_scope": "baseline",
+  "capture_id": "v1-sources-1600x1000",
+  "screenshot_sha256": "ed8f8fb4097ab3ca51b77bcd99bdf2b4dea4f242fff43878714f2586b69c159e",
+  "page_findings": [],
+  "shell_counts": {
+    "overflow_px": 0,
+    "text_overlap_count": 0,
+    "card_escape_count": 0,
+    "unintended_clip_count": 0
+  },
+  "samples": []
+}
