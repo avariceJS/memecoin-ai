@@ -172,7 +172,7 @@ def _prepared_inventory(operator: Path) -> list[dict[str, Any]]:
     ):
         raise StorageError("handoff_operator_directory_unsafe")
     inventory = linux_attachment._runtime_inventory(operator, owner.pw_uid, owner.pw_gid)
-    expected_paths = linux_attachment.RUNTIME_DIRECTORIES | linux_attachment.RUNTIME_FILES
+    expected_paths = linux_attachment.RUNTIME_DIRECTORIES | {"config.json", "operator.sqlite"}
     if {entry["path"] for entry in inventory} != expected_paths:
         raise StorageError("handoff_prepared_inventory_mismatch")
     return inventory
