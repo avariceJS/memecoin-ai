@@ -107,7 +107,7 @@ def install(unit_text: str, unit_path: Path = UNIT_PATH) -> None:
     enabled = subprocess.run(
         ["systemctl", "is-enabled", UNIT], check=False, capture_output=True, text=True
     )
-    if enabled.returncode == 0 or enabled.stdout.strip() not in {"disabled", "static"}:
+    if enabled.stdout.strip() not in {"disabled", "static"}:
         raise RuntimeError("unit_not_inert_after_install")
 
 
