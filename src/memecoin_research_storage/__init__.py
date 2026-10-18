@@ -116,6 +116,11 @@ class LinuxExt4VolumeProbe:
             record = matches[0]
             if record["mount_root"] != "/":
                 raise StorageError("bind_or_subdirectory_mount_rejected")
+            same_device = [
+                entry for entry in records if entry["major_minor"] == record["major_minor"]
+            ]
+            if len(same_device) != 1:
+                raise StorageError("filesystem_mounted_at_multiple_paths")
             source = record["source"]
             if not source.startswith("/dev/"):
                 raise StorageError("block_source_required")
