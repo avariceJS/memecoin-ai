@@ -154,17 +154,17 @@ def install(unit_text: str, unit_path: Path | None = None, unit: str = UNIT) -> 
         raise RuntimeError("refusing_to_replace_enabled_unit")
     if load == "not-found" and (file_state or active != "inactive"):
         raise RuntimeError("refusing_to_replace_unknown_unit")
-    old_bytes = UNIT_PATH.read_bytes() if UNIT_PATH.exists() else None
-    old_mode = UNIT_PATH.stat().st_mode & 0o777 if UNIT_PATH.exists() else None
-    UNIT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    fd, temporary = tempfile.mkstemp(prefix=f".{UNIT}.", dir=UNIT_PATH.parent)
+    old_bytes = unit_path.read_bytes() if unit_path.exists() else None
+    old_mode = unit_path.stat().st_mode & 0o777 if unit_path.exists() else None
+    unit_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=f".{unit}.", dir=unit_path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(unit_text)
             handle.flush()
             os.fsync(handle.fileno())
         os.chmod(temporary, 0o644)
-        os.replace(temporary, UNIT_PATH)
+        os.replace(temporary, unit_path)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
@@ -177,10 +177,10 @@ def install(unit_text: str, unit_path: Path | None = None, unit: str = UNIT) -> 
             )
     except (OSError, subprocess.SubprocessError, RuntimeError):
         if old_bytes is None:
-            UNIT_PATH.unlink(missing_ok=True)
+            unit_path.unlink(missing_ok=True)
         else:
-            UNIT_PATH.write_bytes(old_bytes)
-            UNIT_PATH.chmod(old_mode or 0o644)
+            unit_path.write_bytes(old_bytes)
+            unit_path.chmod(old_mode or 0o644)
         try:
             subprocess.run(["systemctl", "daemon-reload"], check=False, timeout=10)
         except (OSError, subprocess.SubprocessError):

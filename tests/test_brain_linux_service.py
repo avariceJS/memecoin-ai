@@ -176,3 +176,28 @@ def test_install_rolls_back_when_post_reload_state_is_enabled(tmp_path, monkeypa
         linux_service.install("new unit", unit_path=path)
     assert path.read_text(encoding="utf-8") == "old unit\n"
     assert path.stat().st_mode & 0o777 == 0o640
+
+
+def test_versioned_install_writes_only_its_own_unit(tmp_path, monkeypatch):
+    base = tmp_path / linux_service.UNIT
+    base.write_text("existing lab unit\n", encoding="utf-8")
+    monkeypatch.setattr(linux_service, "UNIT_PATH", base)
+    monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
+    name = "memecoin-brain-" + "a" * 64 + ".service"
+    target = tmp_path / name
+    statuses = iter(
+        [
+            "LoadState=not-found\nActiveState=inactive\nUnitFileState=\nMainPID=0\n",
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=disabled\nMainPID=0\n",
+        ]
+    )
+    monkeypatch.setattr(
+        linux_service.subprocess,
+        "run",
+        lambda argv, **_kwargs: SimpleNamespace(
+            returncode=0, stdout=next(statuses) if argv[1] == "show" else "", stderr=""
+        ),
+    )
+    linux_service.install("versioned unit\n", unit_path=target, unit=name)
+    assert target.read_text(encoding="utf-8") == "versioned unit\n"
+    assert base.read_text(encoding="utf-8") == "existing lab unit\n"
