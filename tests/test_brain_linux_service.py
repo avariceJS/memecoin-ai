@@ -41,6 +41,23 @@ def test_render_can_scope_writes_to_one_release_state(tmp_path):
     assert f"ReadWritePaths={state_root}" in unit
 
 
+def test_render_can_omit_broad_state_directory_for_attached_state(tmp_path):
+    python = tmp_path / "venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    attachment_root = STATE_BASE / "attachments" / "x" / "operator"
+    unit = render_unit(
+        python,
+        attachment_root,
+        21001,
+        readwrite_path=attachment_root,
+        state_directory=False,
+    )
+    assert "StateDirectory=" not in unit
+    assert "ReadWritePaths=" + str(attachment_root) in unit
+
+
 def test_render_rejects_write_scope_outside_lab(tmp_path):
     python = tmp_path / "venv/bin/python"
     python.parent.mkdir(parents=True)

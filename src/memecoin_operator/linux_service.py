@@ -38,12 +38,15 @@ def render_unit(
     port: int,
     code_root: Path = CODE_ROOT,
     readwrite_path: Path = STATE_BASE,
+    state_directory: bool = True,
 ) -> str:
     """Return a fixed-policy unit with only validated path and port substitutions."""
     python = _absolute_safe(str(python), "python_path")
     state_root = _absolute_safe(str(state_root), "state_root")
     code_root = _absolute_safe(str(code_root), "code_root")
     readwrite_path = _absolute_safe(str(readwrite_path), "readwrite_path")
+    if type(state_directory) is not bool:
+        raise ValueError("invalid_state_directory_policy")
     if not python.is_file() or not os.access(python, os.X_OK):
         raise ValueError("python_not_executable")
     try:
@@ -56,6 +59,9 @@ def render_unit(
         readwrite_path.relative_to(STATE_BASE)
     except ValueError as exc:
         raise ValueError("readwrite_path_outside_lab") from exc
+    state_directory_config = (
+        "StateDirectory=brain-lab\nStateDirectoryMode=0700" if state_directory else ""
+    )
     return f"""[Unit]
 Description=Disposable Brain operator lab (manual activation only)
 After=local-fs.target
@@ -70,8 +76,7 @@ Environment=PYTHONNOUSERSITE=1
 UMask=0077
 ExecStart={python} -I -m memecoin_operator.runtime --root {state_root} --port {port}
 Restart=no
-StateDirectory=brain-lab
-StateDirectoryMode=0700
+{state_directory_config}
 PrivateTmp=yes
 PrivateNetwork=yes
 PrivateDevices=yes
