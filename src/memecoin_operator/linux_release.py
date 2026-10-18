@@ -795,6 +795,7 @@ def _finish_publish_locked(
     load, active, file_state, pid = linux_service._unit_status(unit_name)
     if active != "inactive" or pid != 0 or file_state not in {"", "disabled", "static"}:
         raise RuntimeError("release_publish_unit_requires_manual_review")
+    publish_pending = []
     for item in artifacts:
         spec = {
             key: item[key]
@@ -817,14 +818,16 @@ def _finish_publish_locked(
         if current is None or _artifact_identity(current, kind=str(spec["kind"])) != identity:
             raise RuntimeError("release_publish_artifact_mismatch")
         if source_exists:
-            _rename_noreplace(
-                Path(str(item["source_parent"])),
-                str(item["source_name"]),
-                Path(str(item["destination_parent"])),
-                str(item["destination_name"]),
-            )
-            if _artifact_identity(destination, kind=str(spec["kind"])) != identity:
-                raise RuntimeError("release_publish_readback_mismatch")
+            publish_pending.append((item, destination, spec["kind"], identity))
+    for item, destination, kind, identity in publish_pending:
+        _rename_noreplace(
+            Path(str(item["source_parent"])),
+            str(item["source_name"]),
+            Path(str(item["destination_parent"])),
+            str(item["destination_name"]),
+        )
+        if _artifact_identity(destination, kind=str(kind)) != identity:
+            raise RuntimeError("release_publish_readback_mismatch")
     _run(["systemctl", "daemon-reload"])
     if linux_service._unit_status(unit_name) != ("loaded", "inactive", "disabled", 0):
         raise RuntimeError("release_publish_unit_not_inert")
