@@ -8,6 +8,7 @@ and raw captures are not read here.
 import copy
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -19,6 +20,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 _OPERATOR = "ai.memecoin.brain.operator"
+_SYSTEMD_OPERATOR = "memecoin-brain-lab.service"
 _LEGACY = (
     "ai.memecoin.brain.b09.source",
     "ai.memecoin.brain.b09.audit",
@@ -128,6 +130,98 @@ def _operator_unknown() -> dict:
         "last_exit": None,
         "reason": None,
     }
+
+
+def _linux_operator(deadline: float) -> dict:
+    """Read status for the one project-owned Linux unit; never enumerate services."""
+    record = _operator_unknown()
+    record["label"] = _SYSTEMD_OPERATOR
+    record["unit_file_state"] = None
+    proc, reason = _run(
+        [
+            "systemctl",
+            "show",
+            "--no-pager",
+            "--property=LoadState,UnitFileState,ActiveState,MainPID",
+            _SYSTEMD_OPERATOR,
+        ],
+        deadline,
+    )
+    if reason == "inspection_budget":
+        record["reason"] = "inspection_budget"
+        return record
+    if reason == "timeout":
+        record["reason"] = "systemctl_timeout"
+        return record
+    if reason is not None or proc is None or proc.returncode != 0:
+        record["reason"] = "systemd_unavailable"
+        return record
+    text = proc.stdout or ""
+    if len(text) > 4096:
+        record["reason"] = "systemd_malformed"
+        return record
+    fields: dict[str, str] = {}
+    allowed = {"LoadState", "UnitFileState", "ActiveState", "MainPID"}
+    for line in text.splitlines():
+        key, separator, value = line.partition("=")
+        if not separator or key not in allowed or key in fields or "\n" in value:
+            record["reason"] = "systemd_malformed"
+            return record
+        fields[key] = value
+    if not {"LoadState", "UnitFileState", "ActiveState", "MainPID"} <= fields.keys():
+        record["reason"] = "systemd_malformed"
+        return record
+    load_state = fields["LoadState"]
+    active_state = fields["ActiveState"]
+    file_state = fields["UnitFileState"]
+    if load_state not in {"loaded", "not-found"}:
+        record["reason"] = "systemd_unrecognized_state"
+        return record
+    if active_state not in {
+        "active",
+        "activating",
+        "deactivating",
+        "failed",
+        "inactive",
+        "maintenance",
+        "reloading",
+        "refreshing",
+    }:
+        record["reason"] = "systemd_unrecognized_state"
+        return record
+    allowed_file_states = {
+        "",
+        "alias",
+        "bad",
+        "disabled",
+        "enabled",
+        "enabled-runtime",
+        "generated",
+        "indirect",
+        "linked",
+        "linked-runtime",
+        "masked",
+        "masked-runtime",
+        "static",
+        "transient",
+    }
+    if file_state not in allowed_file_states:
+        record["reason"] = "systemd_unrecognized_state"
+        return record
+    pid_text = fields["MainPID"]
+    if not pid_text.isdecimal() or int(pid_text) > 2**31 - 1:
+        record["reason"] = "systemd_malformed"
+        return record
+    loaded = load_state == "loaded"
+    record.update(
+        loaded=loaded,
+        disposition="systemd" if loaded else "not_installed",
+        state=active_state,
+        pid=int(pid_text) if int(pid_text) > 0 else None,
+        reason=None,
+        unit_file_state=file_state or None,
+    )
+    return record
 
 
 def _observe_clocks() -> None:
@@ -449,24 +543,47 @@ def _boot(deadline: float) -> tuple[float | None, str | None]:
     return now - started, None
 
 
+def _linux_boot() -> tuple[float | None, str | None]:
+    try:
+        fields = Path("/proc/uptime").read_text(encoding="ascii").split()
+        if not fields or len(fields) > 2:
+            return None, "boot_unparsed"
+        seconds = float(fields[0])
+    except FileNotFoundError:
+        return None, "boot_unavailable"
+    except (OSError, UnicodeError, ValueError):
+        return None, "boot_unparsed"
+    if not math.isfinite(seconds) or seconds < 0:
+        return None, "boot_unparsed"
+    return seconds, None
+
+
 def _inspect(root: Path) -> dict:
     deadline = time.monotonic() + _BUDGET_S
     disk = _disk(root)
     power = _power(deadline)
     labels, rejected, config_reason = _labels(root)
-    operator = _operator(_service(_OPERATOR, deadline))
+    if sys.platform == "linux":
+        operator = _linux_operator(deadline)
+    else:
+        operator = _operator(_service(_OPERATOR, deadline))
     if operator["loaded"] is True and operator["pid"] is not None:
         process_s, process_pid, process_reason = _process_uptime(operator["pid"], deadline)
     elif operator["loaded"] is True:
         process_s, process_pid, process_reason = None, None, "process_not_running"
     elif operator["disposition"] == "dev":
         process_s, process_pid, process_reason = None, None, "operator_not_launchd"
+    elif operator["disposition"] == "not_installed":
+        process_s, process_pid, process_reason = None, None, "operator_not_installed"
     elif operator["disposition"] == "not_loaded":
         process_s, process_pid, process_reason = None, None, "operator_not_loaded"
     else:
         process_s, process_pid, process_reason = None, None, "process_not_measured"
-    services = [_service(label, deadline) for label in labels]
-    boot_s, boot_reason = _boot(deadline)
+    services = [] if sys.platform == "linux" else [_service(label, deadline) for label in labels]
+    if sys.platform == "linux":
+        boot_s, boot_reason = _linux_boot()
+    else:
+        boot_s, boot_reason = _boot(deadline)
     return {
         "reason": None,
         "disk": disk,
