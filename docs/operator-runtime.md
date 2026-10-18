@@ -62,10 +62,10 @@ health/PID/pin, and rollback checks. Do not infer deployment from a code commit.
 
 ## Operating mode and host boundaries
 
-Current policy is **single-host development/research and owner runtime on Mac 1**. Mac 2 is
-corporate temporary backup storage only during the Mac 1 reset, subject to its data-custody policy.
-It is not a standby worker and receives no Brain environment, services or credentials. Recovery
-returns to Mac 1, initially inert. Completion and verified pins belong in `memory/now.md`.
+Current policy is **single-host development/research and owner runtime on Mac 1**. Migration uses
+Kingston + GitHub only; Mac 2 is not involved. The owner accepts Kingston as the sole physical data
+copy during reset. Recovery returns to Mac 1, initially inert; activation requires separate
+authorization. Completion and verified pins belong in `memory/now.md`.
 Host reset, portability, backup custody, and full recovery readiness are owned by
 [`portability-disaster-recovery.md`](portability-disaster-recovery.md); this operating-mode section
 does not make the owner Mac disposable.

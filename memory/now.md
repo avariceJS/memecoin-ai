@@ -1,25 +1,24 @@
 # Current state
 
-As of 2026-10-18, active scope is **Practical Brain Migration v1**, documentation/planning only:
-**Mac1 → Kingston → temporary backup custody on corporate Mac2 → reset Mac1 → inert restore on Mac1
-→ separately authorized return to operation**. Mac2 is storage only; no Brain environment, services,
-training or development there. The [canonical six-phase plan](../docs/portability-disaster-recovery.md)
-replaces the former Mac2 deployment gate. Hardened DR remains deferred.
+As of 2026-10-18, practical reset preparation uses **Kingston + GitHub only**. Mac2 is removed
+from the plan. The owner explicitly accepts Kingston as the sole physical data copy during reset.
+No new development or service activation is authorized.
 
-**Factory reset: NO-GO.** The pinned pair passed full capture/readback verification and 93 ordinary
-SQLite structural checks, but the final source inventory/delta, exclusions, complete BrainData
-second-copy coverage, corporate policy, Mac2 destination readback, dependency/service recovery kit,
-external account/key access and ordinary WAL/frontier comparison remain open. No full restore has
-occurred. A storage-only Mac2 needs no application deployment; full functional acceptance belongs
-on restored Mac1. The plan distinguishes pre-reset custody acceptance from post-reset functionality.
+**Factory reset: GO within that accepted risk, while Brain remains quiescent.** The final
+[readiness receipt](../docs/evidence/kingston-restore-ready-2026-10-18.json) records actual checks.
+Start restoration at `/Volumes/Kingston/BrainRestore-20261018/START-HERE.txt`; its adjacent final
+acceptance, checksums and current all-ref Git bundle complete the existing BrainData/candidate set.
+The sealed kit, state supplements and five current private configurations are now on Kingston.
+All 212,474 BrainData files were read/hashed; source membership remained stable. Both unchanged v1
+candidates passed verification, 93 ordinary SQLite/WAL families passed disposable-copy checks,
+and D43 passed an actual complete opaque inert restore. Extracted native Python/SQLite/OpenSSL,
+offline ML and synthetic source smoke passed with original Homebrew and network access denied.
 
-The unchanged [candidate-pair receipt](../docs/evidence/portability-migration-v1-candidate-pair-2026-10-16T2217Z.json)
-pins ordinary `d2fb11d73cd84c14a24ba3ed870b2ccb` and opaque D43
-`58ec529e5a134817bf179b06922ddcf7`; exact hashes, counts and historical free space are in the plan.
-The pair does not include the whole BrainData corpus. Even ordinary custody contains potentially
-protected material; employer permission is needed before any Mac2 transfer, including encrypted
-custody. If prohibited, use an approved independent destination. D43's last recorded state is disabled
-and PID-free; re-read before operations. Keep all existing candidates and BrainData unchanged.
+A full simultaneous ordinary restore did not fit current Mac1 free space. Clean-OS installation,
+account/MFA reauthentication, hardware behavior and actual service activation remain post-restore
+checks. Keep backups unchanged and all services inert until separate authorization. The preserved
+50 GiB live-writer free-space guard still exceeds available Kingston space (~20 GiB); reclaim
+redundant migration storage only after verified Mac1 recovery, before enabling guarded writers.
 
 ## Git consolidation — 2026-10-18
 
@@ -30,8 +29,9 @@ clone on `main`; use separate published task branches/worktrees for parallel dev
 Retained topic heads: Linux `65846e8`, DR v3 scratch `6554a01`, and unfinished Control Center UI
 `de4b42d`. Their implementation checkpoints remain `fb36e7e`, `4a84d5b`, and `ce8505a`.
 `research/active` stays frozen at `c157f79` for recovery of the historical Migration v1 operator
-package pinned at `6ad944c`; the new plan retires that package, but replacement execution is not yet
-qualified. Historical local commits and checkpoint objects are preserved by GitHub tag `archive/pre-reset-20261018` (`b35f8d0`). See the
+package pinned at `6ad944c`; that old Mac2 package is retired. The current Kingston entrypoint uses
+its unchanged v1 tools. Historical local commits and checkpoint objects are preserved by GitHub tag
+`archive/pre-reset-20261018` (`b35f8d0`). See the
 [branch/recovery registry](../docs/operator-runtime.md#git-integration-and-recovery-registry) for
 purpose, acceptance gaps, recovery commands and the complete inventory receipt.
 

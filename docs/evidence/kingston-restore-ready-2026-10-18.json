@@ -1,0 +1,79 @@
+{
+  "schema": "brain-kingston-practical-restore-readiness-2026-10-18",
+  "observed_at_utc": "2026-10-18T15:28:37Z",
+  "decision": "GO for factory reset under explicit acceptance of Kingston as sole physical data copy; keep Brain quiescent",
+  "scope": "Durable Brain state and Git history; not personal macOS/login-session backup",
+  "destinations": [
+    "Original Kingston",
+    "GitHub avariceJS/memecoin-ai"
+  ],
+  "kingston_uuid": "8f8f1081-9be4-4914-9111-75f1b90255bf",
+  "braindata_root_id": "9428695af6d4f46c08e1a444cdc66de8",
+  "entrypoint": "/Volumes/Kingston/BrainRestore-20261018/START-HERE.txt",
+  "entrypoint_sha256": "bb8637051e11636c6220e88373e61cc42458e593d62a7a66ebd030fc918cad48",
+  "kit_archive_sha256": "39555a88ee40ad58b4fc67644881c964b59603f745a555ff4055cf07d9e21ec2",
+  "kit_archive_bytes": 516279439,
+  "candidate_pins": {
+    "ordinary": {
+      "id": "d2fb11d73cd84c14a24ba3ed870b2ccb",
+      "manifest_sha256": "0fc78fcdf528d4cea338730a987260f6434d474766bf61c0def85ea71aced865"
+    },
+    "d43": {
+      "id": "58ec529e5a134817bf179b06922ddcf7",
+      "manifest_sha256": "ff565b9e24a8ef3b65cd3b9f8e7e3db3670003ed007e38a3fbadc2083632bfe6"
+    }
+  },
+  "migration_tool_commit": "6ad944c40938e1e25d2bddb3ea61234c69e9149d",
+  "rehearsed_code_commit": "06337bd91ef0010b4d8062a6855d8440008b86a1",
+  "owner_commit_unchanged": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+  "braindata": {
+    "regular_files": 212474,
+    "bytes_read_and_hashed": 23692267515,
+    "symlinks": 32,
+    "errors": 0,
+    "members_stable_at_cutoff": 273359,
+    "private_hash_manifest_sha256": "783f2726367556c9d53dd2ff0d39eb067f1bd0a189f1e9cc15382e95396982b3",
+    "source_modified": false
+  },
+  "verification": {
+    "sealed_kit_copied_readback_and_extracted_checksums": true,
+    "current_private_configs_copied_with_readback": 5,
+    "ordinary_candidate_verified_members": 784023,
+    "ordinary_sqlite_families_restored_and_checked": 93,
+    "ordinary_wal_members": 14,
+    "ordinary_shm_members": 14,
+    "d43_current_source_files_match_candidate": 1082,
+    "d43_actual_inert_restore_members": 1567,
+    "native_runtime_extracted_from_kingston": true,
+    "original_homebrew_access_denied_in_rehearsal": true,
+    "network_denied_in_rehearsal": true,
+    "negative_sandbox_controls_passed": true,
+    "offline_ml_install_pip_check_cpu_import": true,
+    "synthetic_source_smoke": true,
+    "prior_offline_ui_tests": 44,
+    "prior_offline_ui_build": true,
+    "full_simultaneous_ordinary_restore": false,
+    "active_brain_pids": 0,
+    "watched_write_fds": 0,
+    "services_started_or_stopped": false,
+    "protected_semantics_used": false,
+    "kingston_offline_ui_tests": 44,
+    "kingston_offline_ui_build": true,
+    "ui_network_and_original_homebrew_denied": true
+  },
+  "preserved_without_change": [
+    "Original Migration v1 candidates, manifests and historical acceptance",
+    "BrainData paths, marker and identifiers",
+    "Owner source/runtime and D43 disabled state"
+  ],
+  "limitations": [
+    "Kingston failure during reset would lose data unavailable on GitHub; owner accepts this risk",
+    "Full ordinary simultaneous restore did not fit current internal free space; per-family SQLite restore and complete candidate verification passed",
+    "Clean OS path/permissions, CLT installation, hardware ML behavior and actual service startup require post-restore checks",
+    "Apple Keychain, SSH keys, browser/Codex login sessions and MFA are not copied; reauthentication is required",
+    "Known Brain .env.local and MCP config files are privately preserved, never published",
+    "Storage writer guard remains 50 GiB while about 20 GiB is free; recover space after verified Mac1 restoration before enabling guarded writers",
+    "Historical broad-suite failures remain; migration is not full-suite green"
+  ],
+  "activation_authorized": false
+}

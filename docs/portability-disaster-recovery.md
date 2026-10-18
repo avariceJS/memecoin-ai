@@ -1,6 +1,20 @@
 # Portability, Migration, and Disaster Recovery
 
-## Active scope: practical Migration v1
+## Current operator entry — Kingston only, 2026-10-18
+
+The final user decision is **Mac1 → Kingston → reset Mac1 → inert restore on Mac1**.
+Mac2 and independent-copy requirements below are superseded; the owner accepts Kingston as the
+sole physical copy during reset. Current instructions are
+`/Volumes/Kingston/BrainRestore-20261018/START-HERE.txt`, with adjacent `FINAL-ACCEPTANCE.json`,
+checksums, private supplements and the current all-ref Git bundle. Existing BrainData and v1
+candidates stay in place with their original pins. The [final readiness receipt](evidence/kingston-restore-ready-2026-10-18.json)
+records the completed copy, source cutoff, integrity and isolated recovery checks and remaining
+post-restore limits. No services were started, stopped or enabled. Account reauthentication and
+live-writer headroom remain operator work; do not lower the preserved 50 GiB writer guard.
+
+The earlier planning text below is retained as historical context, not a current Mac2 procedure.
+
+## Superseded planning snapshot: practical Migration v1
 
 **Decision, 2026-10-18:** Mac1 → Kingston → temporary backup custody on Mac2 → factory reset
 Mac1 → full, initially inert restoration on Mac1. Mac2 is a corporate storage host only. It is
