@@ -1,3 +1,13 @@
+# Git recovery entry — 2026-10-18
+
+This published topic is retained for unfinished work: DR v3 descriptor-bound scratch prototype; physical APFS/HFS and owner-scale acceptance remain open.
+Its pre-consolidation code checkpoint is `4a84d5bd1496bbd6bb8832391edebd9bf51b845a`; this follow-up changes documentation only.
+Start general development from GitHub `main`. The current branch registry and recovery archive are
+[on main](https://github.com/avariceJS/memecoin-ai/blob/main/docs/operator-runtime.md#git-integration-and-recovery-registry).
+`research/active` is frozen only for the unchanged Migration v1 operator package. Do not develop there.
+The dated evidence below retains its original commit scope; advancing this documentation does not
+requalify a Linux release, DR capture, Migration v1 acceptance or owner runtime.
+
 # Current state
 
 As of 2026-10-17, active scope is **Practical Brain Migration v1**. Erasure remains
