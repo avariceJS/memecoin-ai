@@ -412,6 +412,14 @@ def prepare(
         os.chmod(operator, 0o700)
         os.rename(pending, generation_root)
         generation_published = True
+        os.chmod(generation_root, 0o711)
+        generation_parent_fd = os.open(
+            generation_root.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        )
+        try:
+            os.fsync(generation_parent_fd)
+        finally:
+            os.close(generation_parent_fd)
         unit_name = f"memecoin-brain-{binding_id}.service"
         code_root = linux_release.RELEASE_BASE / target_release_id
         state_root = generation_root / "operator"
@@ -426,6 +434,10 @@ def prepare(
             state_base=INSTALLATION_BASE,
             home=state_root,
             state_layout="handoff-v1",
+        )
+        unit_text = unit_text.replace(
+            "Description=Disposable Brain operator lab (manual activation only)",
+            f"Description=Brain handoff {binding_id} (manual activation only)",
         )
         linux_service.install(
             unit_text,
@@ -521,7 +533,7 @@ def verify(binding_id: str) -> dict[str, object]:
             metadata = directory.lstat()
         except OSError as exc:
             raise StorageError("handoff_generation_directory_missing") from exc
-        expected_mode = 0o700 if directory == generation_root else 0o755
+        expected_mode = 0o711 if directory == generation_root else 0o755
         if (
             not stat.S_ISDIR(metadata.st_mode)
             or metadata.st_uid != 0
