@@ -15,6 +15,7 @@ dev = ["pytest>=8", "ruff>=0.11", "mypy>=1.15", "build>=1.2", "hypothesis==6.168
 
 [project.scripts]
 mcai = "memecoin_ai.cli:main"
+brain-linux-service = "memecoin_operator.linux_service:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
