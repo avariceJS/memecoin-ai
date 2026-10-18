@@ -32,11 +32,18 @@ def _absolute_safe(value: str, label: str) -> Path:
     return path
 
 
-def render_unit(python: Path, state_root: Path, port: int, code_root: Path = CODE_ROOT) -> str:
+def render_unit(
+    python: Path,
+    state_root: Path,
+    port: int,
+    code_root: Path = CODE_ROOT,
+    readwrite_path: Path = STATE_BASE,
+) -> str:
     """Return a fixed-policy unit with only validated path and port substitutions."""
     python = _absolute_safe(str(python), "python_path")
     state_root = _absolute_safe(str(state_root), "state_root")
     code_root = _absolute_safe(str(code_root), "code_root")
+    readwrite_path = _absolute_safe(str(readwrite_path), "readwrite_path")
     if not python.is_file() or not os.access(python, os.X_OK):
         raise ValueError("python_not_executable")
     try:
@@ -45,6 +52,10 @@ def render_unit(python: Path, state_root: Path, port: int, code_root: Path = COD
         raise ValueError("state_root_outside_lab") from exc
     if state_root == STATE_BASE or not 1024 <= port <= 65535:
         raise ValueError("invalid_port_or_state_root")
+    try:
+        readwrite_path.relative_to(STATE_BASE)
+    except ValueError as exc:
+        raise ValueError("readwrite_path_outside_lab") from exc
     return f"""[Unit]
 Description=Disposable Brain operator lab (manual activation only)
 After=local-fs.target
@@ -72,7 +83,7 @@ ProtectControlGroups=yes
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-ReadWritePaths={STATE_BASE}
+ReadWritePaths={readwrite_path}
 StandardOutput=journal
 StandardError=journal
 

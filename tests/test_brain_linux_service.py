@@ -26,6 +26,35 @@ def test_render_is_manual_sandboxed_and_state_scoped(tmp_path):
     assert "systemctl start" not in unit
 
 
+def test_render_can_scope_writes_to_one_release_state(tmp_path):
+    python = tmp_path / "venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    state_root = STATE_BASE / "release-1" / "operator"
+    unit = render_unit(
+        python,
+        state_root,
+        18792,
+        readwrite_path=state_root,
+    )
+    assert f"ReadWritePaths={state_root}" in unit
+
+
+def test_render_rejects_write_scope_outside_lab(tmp_path):
+    python = tmp_path / "venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    with pytest.raises(ValueError, match="readwrite_path_outside_lab"):
+        render_unit(
+            python,
+            STATE_BASE / "operator",
+            18792,
+            readwrite_path=Path("/var/lib/brain-data"),
+        )
+
+
 @pytest.mark.parametrize(
     ("python", "state_root", "port", "reason"),
     [

@@ -179,7 +179,7 @@ def _verify_effective_unit(unit: str, root: Path, state_root: Path) -> None:
         "Group": "brain",
         "PrivateNetwork": "yes",
         "WorkingDirectory": str(root),
-        "ReadWritePaths": str(STATE_BASE),
+        "ReadWritePaths": str(state_root),
         "StateDirectory": "brain-lab",
         "ProtectSystem": "strict",
         "Restart": "no",
@@ -217,6 +217,8 @@ def _verify_lab_state(root: Path, release_id: str) -> None:
         return
     if state_root.is_symlink() or not state_root.is_dir():
         raise RuntimeError("release_lab_state_missing")
+    if not any(state_root.iterdir()):
+        return
     try:
         config = json.loads((state_root / "config.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -383,6 +385,7 @@ def stage(
             STATE_BASE / release_id / "operator",
             18792,
             code_root=release_root,
+            readwrite_path=STATE_BASE / release_id / "operator",
         )
         unit_text = unit_text.replace(
             "Description=Disposable Brain operator lab (manual activation only)",
@@ -417,10 +420,24 @@ def stage(
             handle.write(f"{manifest_sha}  release-manifest.json\n")
         pin_path.chmod(0o444)
         os.chown(pin_path, 0, 0)
+        state_parent = STATE_BASE / release_id
+        state_root = state_parent / "operator"
+        if os.path.lexists(state_parent):
+            raise RuntimeError("release_lab_state_already_exists")
+        state_parent.mkdir(mode=0o700, parents=True)
+        os.chown(state_parent, user.pw_uid, user.pw_gid)
+        state_root.mkdir(mode=0o700)
+        os.chown(state_root, user.pw_uid, user.pw_gid)
         linux_service.install(unit_text, unit_path=unit_path, unit=unit_name)
     except BaseException:
         pin_path = RELEASE_BASE / ".pins" / f"{release_id}.sha256"
         pin_path.unlink(missing_ok=True)
+        state_root = STATE_BASE / release_id / "operator"
+        try:
+            state_root.rmdir()
+            state_root.parent.rmdir()
+        except OSError:
+            pass
         if release_root.exists() and (release_root / "venv").exists():
             candidate = release_root
             if staging.exists():

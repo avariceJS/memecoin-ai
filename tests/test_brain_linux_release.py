@@ -87,7 +87,7 @@ def _verified_fixture(tmp_path, monkeypatch):
         "Group": "brain",
         "PrivateNetwork": "yes",
         "WorkingDirectory": str(root),
-        "ReadWritePaths": str(tmp_path / "state"),
+        "ReadWritePaths": str(state_root),
         "StateDirectory": "brain-lab",
         "ProtectSystem": "strict",
         "Restart": "no",
