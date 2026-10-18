@@ -119,6 +119,57 @@ def test_render_release_v2_rejects_broad_state_or_unpinned_python(tmp_path):
         )
 
 
+def test_render_handoff_v1_pins_release_and_generation_state(tmp_path):
+    release_id = "a" * 64
+    code_root = Path("/opt/brain/releases") / release_id
+    state_base = Path("/var/lib/brain-installations")
+    state_root = state_base / "night-lab" / "generations" / ("b" * 64) / "operator"
+    prepared_python = tmp_path / "prepared-python"
+    prepared_python.write_text("", encoding="utf-8")
+    prepared_python.chmod(0o755)
+    unit = render_unit(
+        code_root / "venv/bin/python",
+        state_root,
+        28792,
+        code_root=code_root,
+        readwrite_path=state_root,
+        state_directory=False,
+        state_base=state_base,
+        home=state_root,
+        state_layout="handoff-v1",
+        prepared_python=prepared_python,
+    )
+    assert f"WorkingDirectory={code_root}" in unit
+    assert f"Environment=HOME={state_root}" in unit
+    assert f"ReadWritePaths={state_root}" in unit
+    assert "PrivateNetwork=yes" in unit
+    assert "Restart=no" in unit
+    assert "StateDirectory=" not in unit
+
+
+def test_render_handoff_v1_rejects_broad_state(tmp_path):
+    release_id = "a" * 64
+    code_root = Path("/opt/brain/releases") / release_id
+    state_base = Path("/var/lib/brain-installations")
+    state_root = state_base / "night-lab" / "generations" / ("b" * 64) / "operator"
+    prepared_python = tmp_path / "prepared-python"
+    prepared_python.write_text("", encoding="utf-8")
+    prepared_python.chmod(0o755)
+    with pytest.raises(ValueError, match="invalid_handoff_v1_unit_paths"):
+        render_unit(
+            code_root / "venv/bin/python",
+            state_root,
+            28792,
+            code_root=code_root,
+            readwrite_path=state_base,
+            state_directory=False,
+            state_base=state_base,
+            home=state_root,
+            state_layout="handoff-v1",
+            prepared_python=prepared_python,
+        )
+
+
 def test_render_rejects_write_scope_outside_lab(tmp_path):
     python = tmp_path / "venv/bin/python"
     python.parent.mkdir(parents=True)

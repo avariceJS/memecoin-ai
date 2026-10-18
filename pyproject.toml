@@ -18,6 +18,7 @@ mcai = "memecoin_ai.cli:main"
 brain-linux-service = "memecoin_operator.linux_service:main"
 brain-linux-release = "memecoin_operator.linux_release:main"
 brain-linux-attachment = "memecoin_operator.linux_attachment:main"
+brain-linux-handoff = "memecoin_operator.linux_handoff:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

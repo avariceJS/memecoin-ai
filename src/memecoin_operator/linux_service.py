@@ -71,6 +71,29 @@ def render_unit(
                 raise ValueError("prepared_python_not_executable")
         elif not python.is_file() or not os.access(python, os.X_OK):
             raise ValueError("python_not_executable")
+    elif state_layout == "handoff-v1":
+        release_match = re.fullmatch(r"/opt/brain/releases/([0-9a-f]{64})", str(code_root))
+        generation_match = re.fullmatch(
+            r"/var/lib/brain-installations/([a-z0-9][a-z0-9-]{0,62})/"
+            r"generations/([0-9a-f]{64})/operator",
+            str(state_root),
+        )
+        if (
+            release_match is None
+            or generation_match is None
+            or state_base != Path("/var/lib/brain-installations")
+            or readwrite_path != state_root
+            or state_directory
+            or home != state_root
+            or python != code_root / "venv/bin/python"
+        ):
+            raise ValueError("invalid_handoff_v1_unit_paths")
+        if prepared_python is not None:
+            prepared_python = _absolute_safe(str(prepared_python), "prepared_python_path")
+            if not prepared_python.is_file() or not os.access(prepared_python, os.X_OK):
+                raise ValueError("prepared_python_not_executable")
+        elif not python.is_file() or not os.access(python, os.X_OK):
+            raise ValueError("python_not_executable")
     elif state_layout == "legacy":
         if not python.is_file() or not os.access(python, os.X_OK):
             raise ValueError("python_not_executable")
