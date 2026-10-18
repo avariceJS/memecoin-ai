@@ -399,6 +399,7 @@ def prepare(
         output_schema, output_logical = _logical_state(db_path)
         if output_schema != source_schema or output_logical != source_logical:
             raise StorageError("handoff_snapshot_logical_mismatch")
+        output_database_sha256 = linux_release._sha256(db_path)
         for name in ("config.json", "operator.sqlite"):
             path = operator / name
             os.chmod(path, 0o600)
@@ -444,7 +445,7 @@ def prepare(
             "sqlite_schema_sha256": target_schema,
             "output_logical_state_sha256": output_logical,
             "config_sha256": _sha256(config_bytes),
-            "operator_sqlite_sha256": linux_release._sha256(db_path),
+            "operator_sqlite_sha256": output_database_sha256,
             "unit_name": unit_name,
             "unit_sha256": _sha256(unit_text.encode()),
             "created_ns": time.time_ns(),
