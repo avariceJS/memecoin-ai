@@ -25,6 +25,19 @@ contain large exact payloads, so open only the named artifact needed for a speci
 - [Linux attachment start-intent crash and recovery](brain-linux-attachment-start-intent-recovery-2026-10-18.json):
   activation helper SIGKILL before the idle-probe receipt, bounded fail-closed diagnostics, exact
   unit cleanup, and successful rebuild/activation/finalization through a fresh synthetic attachment.
+- [Linux release-stage interruption](brain-linux-release-stage-interruption-2026-10-18.json) and
+  [retry failure](brain-linux-release-stage-retry-2026-10-18.json): preserve the initial crash leak
+  and blocked retry that motivated explicit attempt journaling; these are pre-fix evidence.
+- [Linux release-stage wrapper fault](brain-linux-release-stage-wrapper-fault-2026-10-18.json):
+  process cleanup and retry succeeded with an injected interpreter wrapper, while independent
+  verification correctly rejected the wrapper-based candidate. That invalid disabled candidate was
+  removed after inspection.
+- [Linux release-stage recovery](brain-linux-release-stage-recovery-2026-10-18.json): a real
+  Ubuntu/systemd cgroup freeze followed by stage-parent SIGKILL, concurrent same-release refusal,
+  exact-inode quarantine, successful same-wheel retry, inventory verification, and inert unit check.
+- [Linux release recovery windows](brain-linux-release-recovery-windows-2026-10-18.json): recovery
+  resumed after the quarantine rename, and partial publication correctly blocked cleanup while
+  preserving staging evidence.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume

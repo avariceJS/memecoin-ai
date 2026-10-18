@@ -281,11 +281,11 @@ If `findmnt` has no UUID, one unique matching udev link may supply it; conflicts
 ambiguous matching links, and unsafe directory ownership fail closed.
 Release identity binds the wheel SHA-256 to the resolved Python path, version, SOABI, and installer
 schema. Each candidate has its own version-specific disabled unit; staging never switches a pointer,
-starts, or enables it. Wheel installation and import probing run as `nobody`; promoted files are
-root-owned, readable by the service group, and not writable by the `brain` runtime account. A
-separate verify action checks the source/wheel identity recorded in the manifest, installed-file
-inventory, interpreter identity, unit bytes/path, ownership, permissions, and disabled/inactive
-systemd state before explicit activation.
+starts, or enables it. A unique attempt-scoped builder account runs each install and import probe in
+its own systemd cgroup. Promoted files are root-owned, readable by the service group, and not
+writable by the `brain` runtime account. A separate verify action checks the source/wheel identity
+recorded in the manifest, installed-file inventory, interpreter identity, unit bytes/path,
+ownership, permissions, and disabled/inactive systemd state before explicit activation.
 
 On 2026-10-18, clean Ubuntu 24.04 x86_64 VPS clones at topic HEAD
 `d12d8eb9d424e50f8b631627f9e2340ebfee5d31` completed unattended `make setup`. Repeated builds in
@@ -367,9 +367,35 @@ ARM64, Windows/WSL, macOS-to-Linux payload portability, CUDA, or NVIDIA. The imm
 artifacts, lifecycle hashes, host facts, failures, and limitations. Root attachment calls now expose
 only a versioned JSON envelope with static allowlisted error codes; sudo failure, timeout, malformed
 output, and unexpected errors remain generic. The unprivileged wrapper validates release IDs before
-constructing root executable paths. The next engineering horizon is interruption safety during
-release/attachment publication and cleanup; crash consistency, power-loss recovery, and real
-research-data use remain unqualified.
+constructing root executable paths.
+
+Release staging now writes its fsynced attempt journal under the separate root-owned
+`/var/lib/brain-release-stage-attempts` directory, outside the service-writable runtime tree. Record
+I/O is descriptor-relative and no-follow. Per-release locks live under root-only
+`/run/brain-release-stage-locks`. Recovery validates the recorded release identity, exact builder
+name, UID, cgroup, process census, and staging device/inode. `recover-stage` stops only that attempt's
+slice, removes its builder account only after confirming no processes remain, and seals the exact
+staging tree in an `.incomplete-*` quarantine. Retry refuses concurrent or unresolved attempts;
+partial release tree, unit, pin, or runtime-state publication requires manual inspection and is
+never auto-deleted. Recovery can resume after the inode rename if marker/sealing was interrupted.
+
+At exact source `a24bfa848d1aa54935780b279fddbd49b696b01a`, a 6,000-file synthetic wheel was staged
+while a second same-release stage was refused. The active builder cgroup was frozen, the stage parent
+was killed with SIGKILL, and `recover-stage` removed the builder, verified and quarantined the exact
+recorded inode. Retrying the same wheel passed independent verification with the unit disabled,
+inactive, and at zero restarts. Additional synthetic checks resumed recovery after the quarantine
+rename and refused cleanup when a partial release tree existed, preserving its staging evidence.
+These process-level tests do not simulate power loss or filesystem failure. A separate wrapper-based
+fault attempt is retained as a limited receipt: recovery and retry succeeded, but verify rejected its
+candidate because the test wrapper path did not match the venv interpreter; that invalid disabled
+candidate was removed after inspection. See the
+[`release-stage recovery receipt`](evidence/brain-linux-release-stage-recovery-2026-10-18.json),
+[`recovery-window receipt`](evidence/brain-linux-release-recovery-windows-2026-10-18.json), and
+[`wrapper fault receipt`](evidence/brain-linux-release-stage-wrapper-fault-2026-10-18.json).
+
+The current next horizon is multi-artifact release publication interruption and operator recovery.
+Power-loss recovery, arbitrary Brain state, real research data, CUDA, NVIDIA, ARM64, and Windows/WSL
+remain unqualified.
 
 ## Current readiness
 

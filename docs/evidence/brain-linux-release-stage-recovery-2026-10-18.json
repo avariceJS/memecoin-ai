@@ -1,0 +1,46 @@
+{
+  "schema": "brain-linux-release-stage-recovery-v1",
+  "date": "2026-10-18",
+  "scope": "disposable Ubuntu 24.04 x86_64 release-stage interruption, concurrency, retry, and inert verification",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "a24bfa848d1aa54935780b279fddbd49b696b01a"
+  },
+  "candidate": {
+    "wheel_sha256": "46a49fee370360305066c0697bcecbeece5812c35dc9b2f085755203d77860d5",
+    "release_id": "81f17957d416c1520fa86ddce3af4562b4ef2a266610571a2206a9662bb2f558",
+    "synthetic_installed_files": 6000
+  },
+  "interruption": {
+    "attempt_id": "81f17957d416-fe884375f930a206",
+    "method": "freeze the live per-attempt systemd cgroup while populated, then SIGKILL the stage parent",
+    "parent_exit": -9,
+    "cgroup_events_before_recovery": ["populated 1", "frozen 1"]
+  },
+  "recovery": {
+    "command": "recover-stage --attempt-id 81f17957d416-fe884375f930a206",
+    "result": "recovered",
+    "quarantine_dev_inode_matches_intent": true,
+    "builder_account_removed": true,
+    "builder_processes_remaining": false
+  },
+  "concurrency": {
+    "second_same_release_stage": "refused",
+    "diagnostic": "stage_already_in_progress"
+  },
+  "retry_and_verification": {
+    "same_artifact_retry_succeeded": true,
+    "release_id": "81f17957d416c1520fa86ddce3af4562b4ef2a266610571a2206a9662bb2f558",
+    "verify_succeeded": true,
+    "installed_inventory_sha256": "e5a7b4f501e715a9a417b78f9178b4e4a3bbdc0d3891a9824f69bec43ac00b4b",
+    "unit_active_state": "inactive",
+    "unit_file_state": "disabled",
+    "unit_restarts": 0
+  },
+  "limits": [
+    "This is a process/cgroup fault rehearsal, not abrupt host power loss or filesystem failure simulation.",
+    "Synthetic package and files only; no Brain state, protected data, credentials, or production service were used.",
+    "Qualification applies to this Ubuntu/systemd host and the tested source revision; it does not qualify other Linux distributions or platforms."
+  ]
+}

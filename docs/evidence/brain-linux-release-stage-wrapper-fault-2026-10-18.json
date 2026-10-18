@@ -1,0 +1,14 @@
+{
+  "schema": "brain-linux-release-stage-wrapper-fault-receipt-v1",
+  "source_commit": "d5cc946530d044585c589cb828fb59173abc2c35",
+  "wheel_sha256": "4ff632f00823af95d6b7026144151377651ce64e79345d7e72945cae1f12baf8",
+  "release_id": "6d15ee39887667aa5b30ee5e2cd25746070c10a9c93e0dd66f1ae1ebad4e8f6e",
+  "interrupted_attempt": "6d15ee398876-5dce572de03c9abc",
+  "retry_attempt": "6d15ee398876-f23815009ad0dd08",
+  "fault": "SIGKILL stage parent while injected Python wrapper was blocked inside a real systemd builder scope",
+  "recovery": "recover-stage stopped the attempt slice, removed the builder account, sealed the exact recorded staging inode under .incomplete-<attempt-id>, and marked the attempt recovered",
+  "retry": "stage retry completed and created a disabled/inactive release candidate",
+  "verification": "verify correctly rejected the candidate because the injected wrapper path was recorded as the interpreter and did not match the venv interpreter; this harness artifact is not a valid deployment",
+  "cleanup": "operator manually inspected exact release id, unit, pin, and disposable state before removing only this invalid disabled synthetic candidate; attempt and quarantine receipts retained",
+  "scope": "synthetic VPS state only; no project data, production runtime, protected datasets, or Kingston content"
+}

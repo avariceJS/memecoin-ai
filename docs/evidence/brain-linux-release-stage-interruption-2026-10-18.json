@@ -1,0 +1,39 @@
+{
+  "schema": "brain-linux-release-stage-interruption-v1",
+  "date": "2026-10-18",
+  "scope": "process SIGKILL immediately after isolated builder account creation during disposable release staging",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "94495e34071a6cd5a3a10343f2c2f274885ea9a7"
+  },
+  "candidate": {
+    "wheel_sha256": "ef9aec10ecdd0e9e60dc55c23c0bae0dd8ae57aa26c5358cae66fc6783bbf52f",
+    "source_date_epoch": 1792296000,
+    "release_id": "66289137d7551562cacf1998a7c76bda38d9e9c51c5c00f8181e9b77a3c1e0b7",
+    "builder_account": "brain-stage-66289137d755"
+  },
+  "injection": {
+    "method": "root staging helper SIGKILL immediately after the real useradd command returned and before the Python caller marked builder_created",
+    "helper_exit": 137,
+    "active_builder_processes_observed": 0,
+    "release_tree_published": false,
+    "systemd_unit_published": false
+  },
+  "leftovers_before_retry": {
+    "builder_account": "present; system account, /nonexistent home, nologin shell",
+    "staging_directory": ".stage-66289137d755-03qpsfsn; root:root, mode 0711",
+    "release_pin": "absent",
+    "runtime_state": "absent"
+  },
+  "evidence_sealing": "root-owned mode-0444 receipt created before retry or cleanup",
+  "interpretation": [
+    "A process crash bypasses the existing finally cleanup and leaks the per-release builder account plus a temporary staging tree.",
+    "No release or unit was exposed by this particular injection point, and no builder process remained active when inspected.",
+    "Retry behavior has not yet been exercised in this receipt; cleanup/retry results are recorded separately."
+  ],
+  "limitations": [
+    "Synthetic package build only; no Brain state, provider credentials, protected data, or production service involved.",
+    "This is process-level fault injection, not abrupt host power loss or filesystem crash simulation."
+  ]
+}

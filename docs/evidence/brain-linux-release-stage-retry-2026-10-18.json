@@ -1,0 +1,39 @@
+{
+  "schema": "brain-linux-release-stage-retry-v1",
+  "date": "2026-10-18",
+  "scope": "retry of an exact wheel after process interruption before release publication",
+  "source": {
+    "repository": "avariceJS/memecoin-ai",
+    "branch": "codex/linux-portability-20261018",
+    "commit": "94495e34071a6cd5a3a10343f2c2f274885ea9a7"
+  },
+  "candidate": {
+    "wheel_sha256": "ef9aec10ecdd0e9e60dc55c23c0bae0dd8ae57aa26c5358cae66fc6783bbf52f",
+    "release_id": "66289137d7551562cacf1998a7c76bda38d9e9c51c5c00f8181e9b77a3c1e0b7",
+    "builder_account": "brain-stage-66289137d755"
+  },
+  "retry": {
+    "exit": 2,
+    "failure": "useradd returned exit status 9 because the fixed per-release builder account remained from the interrupted attempt",
+    "release_tree_published": false,
+    "systemd_unit_published": false,
+    "release_pin": "absent",
+    "runtime_state": "absent"
+  },
+  "residual_state_before_cleanup": {
+    "original_stage_directory": ".stage-66289137d755-03qpsfsn; root:root, mode 0711",
+    "retry_incomplete_directory": ".incomplete-66289137d755-10155; root:brain, mode 0555",
+    "builder_uid_processes": 0
+  },
+  "evidence_sealing": "root-owned mode-0444 receipt created before manual cleanup",
+  "interpretation": [
+    "Retry is not idempotent after SIGKILL: the surviving builder account blocks staging the same exact wheel.",
+    "The failed retry sealed its newly created temporary directory as incomplete but left the old stage directory and builder account untouched.",
+    "This receipt intentionally preserves the pre-cleanup blocker; cleanup and recovery evidence are separate."
+  ],
+  "limitations": [
+    "No release tree or unit was published by either attempt.",
+    "Only a synthetic package build was used; no Brain state, protected data, or provider credentials were involved.",
+    "Process-level injection does not model host power loss or filesystem failure."
+  ]
+}

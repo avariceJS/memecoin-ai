@@ -1,0 +1,27 @@
+{
+  "schema": "brain-linux-release-recovery-windows-v1",
+  "date": "2026-10-18",
+  "source_commit": "a24bfa848d1aa54935780b279fddbd49b696b01a",
+  "host": "disposable Ubuntu 24.04 LTS x86_64 VPS",
+  "checks": {
+    "stage_lock_location": "/run/brain-release-stage-locks, root:root mode 0700",
+    "attempt_journal_location": "/var/lib/brain-release-stage-attempts, root:root mode 0700",
+    "service_user_journal_write": "denied",
+    "systemd_freeze_and_stop": "verified on Ubuntu cgroup v2",
+    "quarantine_resume": {
+      "attempt_id": "cb1daed09e0a-5174a08ed8e2e85c",
+      "simulated_crash_window": "after exact staging inode rename into .incomplete and before marker/seal completion",
+      "result": "recover-stage validated the recorded inode, wrote the marker, sealed the quarantine mode 0555, and persisted recovered"
+    },
+    "partial_publication_refusal": {
+      "attempt_id": "dfb91e0e0500-a806d5b6eb1e63d2",
+      "result": "stage_partial_publication_requires_manual_review",
+      "staging_evidence_mutated": false,
+      "after_exact_synthetic_fixture_removal": "recovery completed and quarantined the recorded staging inode"
+    }
+  },
+  "limits": [
+    "Crash windows were reconstructed with exact synthetic inode and journal records; abrupt power loss and filesystem failure are not qualified.",
+    "The partial publication fixture was a synthetic directory only; no service unit, database, protected data, or production state was involved."
+  ]
+}
