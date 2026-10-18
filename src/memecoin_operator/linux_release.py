@@ -335,6 +335,7 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
     elif uid_value is not None and _uid_has_processes(uid_value):
         raise RuntimeError("stage_builder_processes_remaining")
     staging = RELEASE_BASE / str(record["staging_name"])
+    incomplete = RELEASE_BASE / f".incomplete-{attempt_id}"
     try:
         metadata = staging.lstat()
     except FileNotFoundError:
@@ -346,6 +347,20 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
         or metadata.st_uid != 0
     ):
         raise RuntimeError("stage_staging_identity_mismatch")
+    try:
+        quarantined_metadata = incomplete.lstat()
+    except FileNotFoundError:
+        quarantined_metadata = None
+    if metadata is None and quarantined_metadata is None:
+        raise RuntimeError("stage_staging_evidence_missing")
+    if quarantined_metadata is not None and (
+        metadata is not None
+        or not stat.S_ISDIR(quarantined_metadata.st_mode)
+        or quarantined_metadata.st_dev != record["staging_dev"]
+        or quarantined_metadata.st_ino != record["staging_ino"]
+        or quarantined_metadata.st_uid != 0
+    ):
+        raise RuntimeError("stage_incomplete_destination_mismatch")
     if builder is not None:
         result = subprocess.run(
             ["userdel", builder_name],
@@ -358,14 +373,19 @@ def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
         if result.returncode != 0:
             raise RuntimeError("stage_builder_account_removal_failed")
     if metadata is not None:
-        incomplete = RELEASE_BASE / f".incomplete-{attempt_id}"
-        if os.path.lexists(incomplete):
-            raise RuntimeError("stage_incomplete_destination_exists")
         os.replace(staging, incomplete)
+    if metadata is not None or quarantined_metadata is not None:
         marker = incomplete / "INCOMPLETE"
-        marker.write_text(
-            "release staging interrupted; quarantined for evidence\n", encoding="utf-8"
-        )
+        expected_marker = "release staging interrupted; quarantined for evidence\n"
+        if os.path.lexists(marker):
+            if (
+                marker.is_symlink()
+                or not marker.is_file()
+                or marker.read_text(encoding="utf-8") != expected_marker
+            ):
+                raise RuntimeError("stage_incomplete_marker_mismatch")
+        else:
+            marker.write_text(expected_marker, encoding="utf-8")
         marker.chmod(0o444)
         _seal(incomplete, pwd.getpwnam("brain").pw_gid)
     _record_stage_phase(record_path, record, "recovered", seal=True)
