@@ -200,6 +200,14 @@ def test_verify_allows_uncreated_state_until_explicit_activation(tmp_path, monke
     assert result["release_id"] == release_id
 
 
+def test_verify_allows_safe_config_before_runtime_database_exists(tmp_path, monkeypatch):
+    release_id, _root = _verified_fixture(tmp_path, monkeypatch)
+    state_root = tmp_path / "state" / release_id / "operator"
+    (state_root / "operator.sqlite").unlink()
+    result = linux_release.verify(release_id)
+    assert result["release_id"] == release_id
+
+
 def test_verify_rejects_existing_job_state(tmp_path, monkeypatch):
     release_id, _root = _verified_fixture(tmp_path, monkeypatch)
     state_root = tmp_path / "state" / release_id / "operator"

@@ -231,6 +231,10 @@ def _verify_lab_state(root: Path, release_id: str) -> None:
     ):
         raise RuntimeError("release_lab_config_unsafe")
     database = state_root / "operator.sqlite"
+    if not os.path.lexists(database) and {path.name for path in state_root.iterdir()} == {
+        "config.json"
+    }:
+        return
     if database.is_symlink() or not database.is_file():
         raise RuntimeError("release_lab_database_missing")
     try:
@@ -428,6 +432,16 @@ def stage(
         os.chown(state_parent, user.pw_uid, user.pw_gid)
         state_root.mkdir(mode=0o700)
         os.chown(state_root, user.pw_uid, user.pw_gid)
+        lab_config = {
+            "mode": "operator",
+            "real_execution_enabled": False,
+            "paid_budget_usd": 0,
+            "expires_ns": 0,
+        }
+        config_path = state_root / "config.json"
+        config_path.write_text(json.dumps(lab_config, sort_keys=True) + "\n", encoding="utf-8")
+        config_path.chmod(0o600)
+        os.chown(config_path, user.pw_uid, user.pw_gid)
         linux_service.install(unit_text, unit_path=unit_path, unit=unit_name)
     except BaseException:
         pin_path = RELEASE_BASE / ".pins" / f"{release_id}.sha256"
