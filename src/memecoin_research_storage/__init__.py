@@ -355,7 +355,7 @@ class StorageConfig:
                 "platform",
                 "filesystem",
                 "root_id",
-                "volume_uuid",
+                "fs_uuid",
                 "mount_path",
                 "data_root",
                 "min_free_bytes",
@@ -366,7 +366,7 @@ class StorageConfig:
         if set(payload) != required_fields:
             raise StorageError("invalid_config_fields")
         root_id = payload.get("root_id")
-        volume_uuid = payload.get("volume_uuid")
+        volume_uuid = payload.get("fs_uuid" if version == LINUX_CONFIG_VERSION else "volume_uuid")
         mount = payload.get("mount_path")
         data_root = payload.get("data_root")
         minimum = payload.get("min_free_bytes")
@@ -405,8 +405,10 @@ class StorageConfig:
                     "version": LINUX_CONFIG_VERSION,
                     "platform": "linux",
                     "filesystem": "ext4",
+                    "fs_uuid": self.volume_uuid,
                 }
             )
+            payload.pop("volume_uuid")
         return payload
 
 
