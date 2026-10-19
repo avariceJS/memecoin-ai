@@ -1,24 +1,51 @@
 # Current state
 
-As of 2026-10-18, practical reset preparation uses **Kingston + GitHub only**. Mac2 is removed
-from the plan. The owner explicitly accepts Kingston as the sole physical data copy during reset.
-No new development or service activation is authorized.
+As of **2026-10-19**, the post-reset research checkout is usable for local development,
+read-only historical inspection, paired model evaluation, synthetic training tests, and local UI.
+The current user explicitly authorizes this work and temporary loopback services; the old
+pre-reset freeze is historical. External collectors/writers, unattended jobs, AUTO activation,
+trading, signing, promotion, and paid upgrades remain disabled pending separate authorization.
 
-**Factory reset: GO within that accepted risk, while Brain remains quiescent.** The final
-[readiness receipt](../docs/evidence/kingston-restore-ready-2026-10-18.json) records actual checks.
-Start restoration at `/Volumes/Kingston/BrainRestore-20261018/START-HERE.txt`; its adjacent final
-acceptance, checksums and current all-ref Git bundle complete the existing BrainData/candidate set.
-The sealed kit, state supplements and five current private configurations are now on Kingston.
-All 212,474 BrainData files were read/hashed; source membership remained stable. Both unchanged v1
-candidates passed verification, 93 ordinary SQLite/WAL families passed disposable-copy checks,
-and D43 passed an actual complete opaque inert restore. Extracted native Python/SQLite/OpenSSL,
-offline ML and synthetic source smoke passed with original Homebrew and network access denied.
-
-A full simultaneous ordinary restore did not fit current Mac1 free space. Clean-OS installation,
-account/MFA reauthentication, hardware behavior and actual service activation remain post-restore
-checks. Keep backups unchanged and all services inert until separate authorization. The preserved
-50 GiB live-writer free-space guard still exceeds available Kingston space (~20 GiB); reclaim
-redundant migration storage only after verified Mac1 recovery, before enabling guarded writers.
+- Open `/Users/root1/Developer/memecoin-research`, integration branch `main`. The fetched reset
+  baseline was `f9a8118`. Historical owner `/Users/root1/Desktop/memecoin-ai` remains pinned at
+  `a594474`; its five documentation-only edits from the earlier audit are preserved unchanged.
+- Both research Python environments now install this checkout **editable**. Existing pins remain;
+  the ML environment additionally has the two already-locked dev packages hypothesis/sortedcontainers.
+  Source `tools/brain_dev_env.sh` in a Cursor terminal: Python3.13.6, OpenSSL3.6.4 with the preserved
+  bundled config fallback, Node24.5.0 and zstd1.5.7. Only zstd1.5.7_1/lz4 1.10.0 were newly added;
+  existing native formula versions and package locks were not upgraded. Local Cursor interpreter
+  settings are ignored machine state.
+- The internal case-sensitive APFS development volume is `/Volumes/BrainDevelopment`; its private
+  binding is `~/.config/brain-research/development-storage-v1.json`, retaining the 50-GiB safeguard.
+  The exact historical BrainData tree is nested at `ResearchData/kingston-snapshot/BrainData`:
+  212,474 files /23,692,267,515 bytes and 273,359 members verified against the sealed source index.
+  Three research archive aliases now resolve there. Kingston, the historical root marker, canonical
+  manifests and old global `storage-v1.json` remain unchanged. New work must use the explicit new
+  binding; historical leases/writer identities must not be reused.
+- This is a **read-only working replica**, not strict migration-v3 acceptance. macOS transforms
+  `com.apple.provenance`; file/link/hardlink contents, modes, timestamps and BSD flags match after
+  destination-only symlink timestamp repair. The full exception/identity receipts are local under
+  `/Users/root1/Desktop/restore/evidence/development-readiness-20261019/`. No source release or
+  protected semantic access occurred. Storage and model evaluation passed with Kingston reads denied;
+  normal internal-volume unmount failed closed and identity-checked remount restored readiness.
+- Start actual copied-state Operator UI with the command in `docs/operator-runtime.md`.
+  It is GET-only, has no operator/Watch tickers,
+  and preserves the historical source. All seven tabs worked in a real-API jsdom check; matured
+  93,721 matched the API. The separate React Observatory remains its pinned historical projection.
+  Watch session state is explicitly omitted and never read from the original/sibling Watch lane.
+  Preview binding/link/hash guards and the paired evaluator passed 24 focused tests.
+  Native Safari inspection was not approved by Computer Use; CC02 visual acceptance is not claimed.
+- CPU and MPS forwards passed for all five model architectures. The saved B13 GRU and official
+  empirical champion reproduced registered paired loss/calibration on 249 test decisions/8 pools,
+  with no fits or promotion; champion remains better. B07 historical virtual ledger replay was exact.
+  See `docs/operator-runtime.md` for supported launch/shutdown and development commands.
+- Broad ML pytest: 4,923 passed,21 failed,5 errors,4 skipped before final environment corrections.
+  The five TLS errors were fixed by the OpenSSL config fallback (27 focused tests passed); descriptor
+  and host witness cases passed separately (the latter requires a user-group-owned temp root).
+  Eighteen remaining failures match documented old-main failures; the operator restart test remains
+  reproducibly inconsistent with its expected running/interrupted state. `make check` still stops at
+  107 pre-existing Ruff findings. `make ml-check` and its17 tests, source smokes,39 Observatory Python
+  tests and44 web tests/build passed. Do not call the entire historical suite green.
 
 ## Git consolidation — 2026-10-18
 

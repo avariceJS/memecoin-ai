@@ -9,6 +9,35 @@ small slot samples, narrow venue paths, small models, and one-host limits are ev
 not target boundaries; data contracts, provenance, recovery, and representations must extend without
 a full redesign.
 
+## Post-reset development storage (2026-10-19)
+
+The unchanged Kingston source retains root ID `9428695af6d4f46c08e1a444cdc66de8` and volume UUID
+`8f8f1081-9be4-4914-9111-75f1b90255bf`. A native internal case-sensitive APFS volume now mounts at
+`/Volumes/BrainDevelopment` (UUID `99eeb86b-8d3d-420a-b66c-e0eff3d066ab`). Its separately configured
+`ResearchData` root ID is `27ba84145d718fd8b0e7ae42161adf88`; the private supported binding is
+`~/.config/brain-research/development-storage-v1.json`, with `min_free_bytes=53687091200` (50 GiB).
+The original global Kingston binding and historical writer leases are unchanged and inactive.
+
+`ResearchData/kingston-snapshot/BrainData` contains the historical tree, including its unchanged inner
+root marker and provenance manifests. The sealed source index verified 212,474 files, 23,692,267,515
+bytes, 60,853 directories and 32 symlinks (273,359 members), with zero content/member/hardlink
+differences. Modes, timestamps and BSD flags match after destination-only symlink timestamp repair.
+Three research `work/brain-senses-live-*` archive aliases resolve to this exact internal tree;
+owner aliases were not changed. Aliases are read-only locator hints, never writer configuration.
+
+This is a **content-exact read-only working replica**, not strict migration-v3 acceptance, source
+release or live writer admission. macOS transforms `com.apple.provenance` on copy; an explicit
+local qualification receipt records that OS metadata exception. All other source attributes and
+market-data provenance file bytes match. The generic migration-v3 gate was not weakened, and
+canonical recovery evidence was not overwritten. Protected material was copied opaquely only.
+
+New derived artifacts must use new namespaces and the explicit development binding, not rewrite
+the historical replica or reuse old source UUID/leases. Kingston-denied storage/evaluation checks
+passed; normal internal-volume unmount failed closed and an identity-checked remount restored
+readiness. The native APFS container reports real free space for the unchanged writer safeguard.
+Identity, copy and qualification receipts are in the local restore evidence directory named in
+`memory/now.md`; Kingston is now a backup/recovery source for these development workflows.
+
 ## Source roles
 
 | Source | Current role | Limitation |

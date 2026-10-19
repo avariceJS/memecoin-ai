@@ -4,6 +4,16 @@
 broad prospective benchmark is not populated. This document owns model/training semantics,
 benchmark policy, current experiment conclusions, and ML evidence pointers.
 
+The 2026-10-19 restore reproduced the saved B13 GRU/champion comparison with the registered
+validation/test folds, without fitting, promotion, or authoritative artifact changes. The same
+249 test decisions / 8 pools / one UTC day still favor the empirical champion; the losses and
+coverage below remain unresolved findings. Sampling shift toward newer pools, correlated small
+samples, feature outliers, and insufficient independent/prospective coverage remain research work.
+`tools/brain_dev_evaluate.py` is a create-only, CPU paired reproduction tool, not a new benchmark.
+Its receipt records manifests, split recipe, source identity and execution settings. Five-model
+CPU/MPS synthetic forwards passed; this establishes software availability, not forecast quality
+or a hardware performance claim. See the local workflow in `docs/operator-runtime.md`.
+
 ## Current learner
 
 The production Brain target is 5m/15m log return from the origin's 5m close. Inputs are 12 causal

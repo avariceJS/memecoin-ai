@@ -27,6 +27,81 @@ Training loads isolated ML dependencies; the ordinary runtime path does not requ
 Offline/read-only reports use a consistent SQLite snapshot. Do not use SQLite `immutable=1` on a
 live WAL database; do not copy a live database independently of its WAL/SHM files.
 
+### Post-reset local development (2026-10-19)
+
+Open `/Users/root1/Developer/memecoin-research` on `main` in Cursor. Keep the detached historical
+owner checkout separate. In a terminal:
+
+```sh
+cd /Users/root1/Developer/memecoin-research
+source tools/brain_dev_env.sh
+.venv/bin/python tools/brain_dev_operator_preview.py serve --latest --port 8793
+```
+
+Open `http://127.0.0.1:8793`; Ctrl-C stops this foreground service. No LaunchAgent is needed.
+The preview snapshots the preserved owner `work/brain-b13/operator04` into ignored `work/dev-local/`.
+To create a new snapshot, stop the server, run the following, then repeat `serve --latest`:
+
+```sh
+.venv/bin/python tools/brain_dev_operator_preview.py snapshot --refresh
+```
+
+Snapshotting checks source DB/WAL/SHM family stability before using SQLite backup on a scratch
+copy; it does not initialize or query the original databases. Source config/registry, health,
+history, models and paper projections are copied through an allowlist. Dataset/model payloads,
+credentials and deployment authority are not copied. Serving requires the preview marker, binds
+loopback, rejects every POST, disables write controls, and starts neither operator nor Watch tickers.
+Production server defaults are unchanged. Never run the ordinary mutable operator against owner
+state merely to inspect it. Before binding HTTP, preview validation rejects linked files, external
+source/paper bindings, operational activation metadata and changed database hashes/nonempty WAL.
+
+All seven existing tabs (Overview, Data, Training, Models, Paper, Watch, System), including the
+System journal, loaded real copied state in actual-API jsdom checks; 93,721 matured observations
+matched the API. No missing figures were fabricated. Historical timestamps/STOPs remain visible.
+The preserved owner has no Watch session. The preview explicitly reports Watch state as omitted;
+it never follows the ordinary sibling Watch-state path. Offline Watch provider-double
+tests cover resolve/start/tick; live Watch still needs its separate release/provider acceptance.
+Native Safari access was unavailable to Computer Use, so native visual/CC02 acceptance is not claimed.
+
+The separate React Observatory is a pinned historical engineering projection, not current operator
+telemetry. For its existing development workflow, use two terminals after sourcing the helper:
+
+```sh
+.venv/bin/python apps/control-center/adapter/server.py
+npm --prefix apps/control-center/web run dev
+```
+
+Open `http://127.0.0.1:5173` (adapter `127.0.0.1:8787`); Ctrl-C in each terminal shuts them down.
+The local adapter/frontend HTTP flow, 39 Python tests, 44 web tests, typecheck and build passed.
+This does not overturn the earlier pending/rejected visual design acceptance.
+
+Read-only historical research commands (choose a **new**, nonexistent output JSON path):
+
+```sh
+work/ml-venv/bin/python tools/brain_dev_evaluate.py \
+  --model /Users/root1/Desktop/memecoin-ai/work/brain-b13/operator04/operator/jobs/job_5edd5e5ecda88338/artifact/model \
+  --dataset /Users/root1/Desktop/memecoin-ai/work/brain-b13/operator04/operator/jobs/job_f34eb5cc5889b45a/artifact/dataset \
+  --champion /Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/models/000000 \
+  --output work/dev-local/paired-evaluation-new.json
+```
+
+This reproduces the registered paired comparison without fitting or promotion. `make smoke` is
+the supported synthetic reference replay; its real-data gate remains closed. Existing B07 historical
+virtual replay was also reproduced exactly (204 market joins, 61 forecast joins, zero provider calls).
+Persisted paper intents/books remain historical evidence, not proof of real fills or profitable execution.
+
+Senses adapters, offline quality/transport tests and internal storage reads are available, but no
+external campaign is active. Before live collection: separately authorize a bounded campaign with
+source/request/time budgets and stop/rollback ownership; requalify provider access and current data
+admission; bind new derived outputs explicitly to the internal development root UUID and verify
+its 50-GiB guard; then pass the existing campaign/release admission and activation checks. Existing
+historical STOPs, leases, quarantine and protected F01/D43 boundaries must remain intact. Neither
+the read-only replica nor a new Git commit grants writer admission or authorizes credentials work.
+
+Local acceptance receipts (including source hashes, restart and no-Kingston checks) are under
+`/Users/root1/Desktop/restore/evidence/development-readiness-20261019/` and its sibling UI/research
+evidence directories. Current broad-suite limitations are summarized in `memory/now.md`.
+
 ## Paper semantics
 
 The paper engine is virtual and long-only. Current B07 assumptions: $1,000 per model book, $100
@@ -62,10 +137,11 @@ health/PID/pin, and rollback checks. Do not infer deployment from a code commit.
 
 ## Operating mode and host boundaries
 
-Current policy is **single-host development/research and owner runtime on Mac 1**. Migration uses
-Kingston + GitHub only; Mac 2 is not involved. The owner accepts Kingston as the sole physical data
-copy during reset. Recovery returns to Mac 1, initially inert; activation requires separate
-authorization. Completion and verified pins belong in `memory/now.md`.
+Current policy is **single-host development/research and owner runtime on Mac 1**. The reset used
+Kingston + GitHub only; Mac 2 was not involved. The sole-copy Kingston custody decision applied
+during reset. As of 2026-10-19, local development also has the qualified internal read-only replica
+described above; owner runtime remains inert and activation requires separate authorization.
+Completion and verified pins belong in `memory/now.md`.
 Host reset, portability, backup custody, and full recovery readiness are owned by
 [`portability-disaster-recovery.md`](portability-disaster-recovery.md); this operating-mode section
 does not make the owner Mac disposable.
