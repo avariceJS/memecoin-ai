@@ -167,6 +167,8 @@ def bootstrap(state: Path, source: Path, python: str):
     cfg = {
         "schema": "brain-engineering-deployment-v1",
         "python": python,
+        "codex_executable": str(Path(shutil.which("codex")).resolve(strict=True)),
+        "codex_sha256": native_qualification["executable_sha256"],
         "controller": str(state / "controller"),
         "base": base,
         "old_active": old_active,

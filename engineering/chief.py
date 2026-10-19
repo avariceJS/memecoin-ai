@@ -174,7 +174,8 @@ def chief(state: Path, *, trigger="owner-review"):
         native = state / f"chief-{lease['epoch']}-{os.getpid()}"
         native.mkdir()
         with Codex(
-            native, event_sink=lambda event: log_event(state, "codex", role="chief", event=event)
+            native, codex=cfg.get("codex_executable", "codex"),
+            event_sink=lambda event: log_event(state, "codex", role="chief", event=event)
         ) as client:
             thread = client.start(
                 ASTRA,

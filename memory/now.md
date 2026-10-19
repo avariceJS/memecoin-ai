@@ -58,6 +58,18 @@ The separate `engineering/` control system is under qualification: no live runti
 training, AUTO or trading activation. See `docs/engineering-organization.md` and the Russian
 `engineering/OWNER-DESK.md`. Earlier sole-main and Sol-executive policy below is historical.
 
+The final founder directive ends active Astra after executive handoff; sustained implementation
+belongs to an independent Sol6.1 High root with Luna6 High. Start with `engineering/SOL-MANDATE.md`.
+Source checkpoint: `/Users/root1/Developer/brain-org-build`; private stopped pilot:
+`/Users/root1/Developer/brain-org-state/pilot-20261019`, deployed base `fa9d625`.
+132 focused tests and 18 subtests pass. The real pilot exhausted six Sol lead attempts on adapter
+defects before any accepted worker code; no Brain task was integrated. Repairs and scoped tool
+qualification are preserved in source/evidence, not yet deployed. STOP remains, no organization
+LaunchAgent is loaded, and no independent unattended implementation root is claimed. Preserve the
+same SQLite, attempt history and usage when applying the approved bounded recovery. The frozen
+supervisor still has automatic Astra review; remove it in a reviewed release before overnight Sol
+operation. Exact evidence and limitations: `docs/evidence/brain-org-handoff-20261019.json`.
+
 ## Git consolidation — 2026-10-18
 
 `main` is the sole integration baseline on GitHub, incorporating research code/history through

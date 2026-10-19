@@ -46,12 +46,15 @@ acceptance harness is outside candidate scope, checks completion, then focused r
 separate Sol review must pass on the exact merged SHA. Candidate scope, modes, symlinks, protected
 paths, source ancestry, cleanliness and receipts are enforced by `GitGate`.
 
-Native tools/MCP/plugins/hooks/apps are disabled; native fallback additionally uses a qualified
-readonly permission profile. Empirical qualification found `:minimal` implicitly granted shared
-and per-user temp access. Explicit deny overlays now close those paths; positive task reads and
-negative sibling/home/temp/symlink/network checks must pass on the installed binary. Platform runtime
-reads remain permitted; this is not a claim that every filesystem byte outside cwd is inaccessible.
-The custom runner has separate actual read/write/link/socket/signal/publication probes.
+External MCP/plugins/hooks/apps and several native execution features are disabled; native tools
+are not literally absent. The final catalog still included readonly-denied apply_patch, clock and
+resource helpers, plus brokered org_exec through the required code host. The probe saw only internal
+node_repl and zero exposed resources. Actual unauthorized native writing was rejected. Empirical
+qualification found `:minimal` implicitly granted shared/per-user temp access; explicit deny overlays
+close those paths. Positive task reads and negative sibling/home/temp/symlink/network checks passed
+on the tested binary. Platform runtime reads remain allowed; this is not a claim that every byte
+outside cwd is inaccessible. The custom runner has separate actual read/write/link/socket/signal/
+publication probes. Full unattended Sol maintainer behavior remains unqualified.
 
 The trusted computing base includes macOS, Codex harness, interpreter, this pinned controller and
 the owner account. This protects against confined agent commands, not an administrator or an
@@ -124,3 +127,81 @@ unrelated team's progress; independently verified merged commits; unauthorized f
 attempts; and one subsequent admitted task. Unit/fault simulations and actual model/OS evidence are
 reported separately. Physical reboot, prolonged unattended endurance, external backup restore and
 cross-machine recovery remain unqualified until those particular trials occur.
+
+## Final architecture handoff — 2026-10-19
+
+The founder ended the Astra architecture sprint and delegated the next implementation horizon to
+an independent root Sol6.1 High with Luna6 High workers. The self-contained
+[Sol mandate](../engineering/SOL-MANDATE.md) owns this handoff. Astra must not remain active overnight,
+be polled by the organization, or be an automatic routine escalation target. The current frozen
+supervisor can invoke Astra when work becomes quiescent; STOP must remain until a reviewed Sol-owned
+release removes that automatic invocation. Do not represent the current subagent or a prepared
+LaunchAgent as a qualified independent Sol service.
+
+Astra retains strategic executive authority; routine queue and engineering decisions are delegated
+to Sol inside the founder's unchanged objective and capability envelope. Exceptional unresolved
+decisions may enter a durable escalation for a later deliberate Astra episode, with no automatic
+nightly invocation or requirement that the founder approve each technical judgment. Sol can repair and release the controller through isolated changes, independent
+review, tests, a pinned manifest and an explicit upgrade receipt. Routine controller work does not
+require another Astra session. A genuine capability/resource/objective expansion remains a recorded
+internal request for Astra through the Russian Founder Desk. Astra remains the executive and sole
+founder communicator; Sol holds delegated implementation/queue authority, not the executive role.
+
+The finite task catalogue is the initial qualification mechanism. The next implementation must admit
+Sol-issued structured task specifications against the immutable envelope: objective, team, exact
+scope, dependencies and contract versions, bounded attempts/resources, risk and independently owned
+acceptance references. An independent verifier fixes acceptance before implementation; a worker
+cannot change it. Admission is deterministic and rejects unsupported execution/authority. New task
+content is not permission to rewrite the controller policy. No useful admissible work means a durable
+reason and stop, not indefinite model polling.
+
+The first live pilot failed before any accepted worker implementation: commentary contaminated final
+JSON and real dynamic-tool delivery was not qualified. EXP-001/CTX-001 exhausted three attempts each.
+A controller repair and three extra attempts per task are approved only after parser and real tool
+qualification. `Store.reopen_failed` records an immutable recovery decision and preserves all failed
+attempts, events, evidence, epochs and usage in the original database. The750k admission envelope is
+unchanged. Do not bootstrap another clean database or omit the failed run from resource accounting.
+
+The next one-to-three-day horizon is qualification and useful accepted work, not a duration promise:
+repair the named adapter blockers; release with no automatic Astra; recover and independently accept
+the original tasks; qualify task-spec admission and independent Sol recovery; then extend observed
+run intervals within measured remaining capacity. Long-duration, reboot and cross-machine claims
+remain separate unmeasured acceptance. Final custody/shutdown facts are recorded in the Founder Desk
+and the final handoff receipt; do not infer them from an earlier source commit or a prepared plist.
+
+The final narrow security probe succeeded with `code_mode_host=True`, `code_mode=False`, `goals=False`:
+real Sol delivered the brokered tool, native apply_patch could not alter the readonly canary, and the
+native profile again passed21/21. The four probe turns consumed80447 tokens outside the organization
+telemetry; retain their private handoff receipt and account for them once in remaining capacity.
+This does not close the strict-parser end-to-end, deployment-upgrade/STOP-maintenance or independent
+unattended Sol qualification gaps. The failed pilot was not resumed during the handoff.
+
+### Final decisions and rejected alternatives
+
+| Decision | Selected | Rejected for this stage | Reason / revisit condition |
+|---|---|---|---|
+| Durable authority | Local SQLite transactions, journal and detached supervisor | Parent conversation tree as authority; Kafka/distributed orchestration now | Reconstructable local state already exists; cross-host coordination is unqualified and not presently required. Revisit after measured multi-host need. |
+| Code organization | One repository with explicit department/module contracts and isolated task checkouts | Brain rewrite, a second permanent baseline, repositories split merely to mimic departments | Preserve existing contracts/tests/history; boundaries and ownership provide isolation without migration churn. |
+| Integration | One trusted publisher; exact merged candidate, independent gate, CAS against expected tip | Worker push, concurrent blind merges, acceptance of an outdated merge result | One serialized integration authority and fresh checks prevent lost updates and stale acceptance. |
+| Availability | Explicit single-host failure domain; launchd only after qualification and login | Calling a detached process or plist durable multi-host/24x7 availability | Sleep, logout, reboot, disk loss and account authentication need measured recovery; no remote uptime claim. |
+| Planning | Sol-issued validated task specs inside immutable objective/capability bounds | A permanently finite demo catalogue; arbitrary generated executable tasks | Continue useful work while deterministic admission constrains authority. Catalogue remains first qualification evidence. |
+| Acceptance ownership | Independent verifier fixes acceptance before worker implementation | Workers rewriting their own checks; planners granting themselves new gates | Preserve an independent reason to reject incorrect or out-of-scope work. |
+| Capabilities and maintenance | Explicit task file/tool grants; Sol-maintained controller through reviewed pinned releases | Blanket filesystem/network/publisher access; editing active policy to bypass failure | Separate implementation from policy release. Expansion is a durable request; routine maintenance stays delegated. |
+| Executive continuity | Astra strategic authority and founder channel; Sol routine queue/implementation mandate | Overnight idle Astra, automatic Astra retries, treating a subagent as an independent root | Latest founder directive closes this sprint; exceptional escalation is durable and deliberately resumed later. |
+
+These are selected architecture decisions, not claims that every runtime path has already passed
+acceptance. The final measured state and custody are in
+[`brain-org-handoff-20261019.json`](evidence/brain-org-handoff-20261019.json).
+
+### Recovery limits retained at handoff
+
+`service.backup_snapshot` currently preserves SQLite, policy/controller and receipts but omits the
+integration Git objects/refs, intents, attempt artifacts and logs. It is a partial snapshot, not a
+restorable organization backup. A consistent checkpoint barrier, complete content manifest and actual
+restore trial are required before that claim. Do not fix this by copying a live SQLite file alone.
+
+`service.validate_deployment` checks qualification flags/manifests but does not yet bind native
+qualification to the adapter/executable hashes during restart. New source pins the executable hash;
+the existing deployed configuration lacks that field. The reviewed upgrade and restart binding remain
+open requirements. The manual independent Sol UI handoff grants ordinary delegated engineering;
+it does not qualify unattended full-maintainer execution or eliminate the STOP/startup gates.

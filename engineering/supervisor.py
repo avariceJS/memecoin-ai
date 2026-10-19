@@ -26,6 +26,37 @@ from .processes import process_identity, terminate_owned
 SOL = "gpt-6.1-sol"
 LUNA = "gpt-6-luna"
 LEASE = 45
+LEAD_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "decision": {"type": "string", "enum": ["approve", "blocked"]},
+        "worker_brief": {"type": "string"},
+        "rationale": {"type": "string"},
+        "contract_ack": {"type": "boolean"},
+    },
+    "required": ["decision", "worker_brief", "rationale", "contract_ack"],
+}
+WORKER_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "summary": {"type": "string"},
+        "tests": {"type": "array", "items": {"type": "string"}},
+        "limitations": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["summary", "tests", "limitations"],
+}
+REVIEW_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "approved": {"type": "boolean"},
+        "rationale": {"type": "string"},
+        "findings": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["approved", "rationale", "findings"],
+}
 RULES = """You are an independent Brain engineering team session. The organization
 controller, not any chief chat, owns your task and authority. Only the bounded
 task below is authorized. Do not access market data, protected datasets, owner
@@ -97,6 +128,10 @@ def config(state):
         path = state / name if name.startswith("trusted/") else state / "controller" / name
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise RuntimeError("controller_code_changed:" + name)
+    if cfg.get("codex_executable") and hashlib.sha256(
+        Path(cfg["codex_executable"]).read_bytes()
+    ).hexdigest() != cfg["codex_sha256"]:
+        raise RuntimeError("codex_binary_changed_requires_requalification")
     return cfg
 
 
@@ -257,7 +292,8 @@ def run_attempt(state: Path, attempt_id: int):
         }
         atomic(run / "packet.json", packet)
         readonly_box = runner(state, checkout, run / "lead-scratch", readonly=True)
-        with Codex(checkout, harness_cwd=native, event_sink=sink) as lead:
+        with Codex(checkout, codex=cfg.get("codex_executable", "codex"),
+                   harness_cwd=native, event_sink=sink) as lead:
             thread = lead.start(SOL, RULES + "\nYou are the Sol lead of " + task["team"] + ".")
             identity = {
                 "pid": os.getpid(),
@@ -283,7 +319,9 @@ def run_attempt(state: Path, attempt_id: int):
                 tool=tool_function(readonly_box, checkout, heartbeat),
                 heartbeat=heartbeat,
                 deadline_seconds=300,
+                output_schema=LEAD_SCHEMA,
             )
+            atomic(run / "lead-raw.json", out)
             db.record_usage(attempt_id, epoch, {"tokens": usage_tokens(out), "sol_turns": 1})
             plan = structured(out["text"])
             atomic(run / "lead.json", {**out, "plan": plan, "thread": thread})
@@ -309,7 +347,8 @@ def run_attempt(state: Path, attempt_id: int):
                             "contract_ack": True,
                         },
                     )
-        with Codex(checkout, harness_cwd=native, event_sink=sink) as worker:
+        with Codex(checkout, codex=cfg.get("codex_executable", "codex"),
+                   harness_cwd=native, event_sink=sink) as worker:
             thread = worker.start(
                 LUNA, RULES + "\nYou are the Luna implementation worker of " + task["team"] + "."
             )
@@ -330,8 +369,15 @@ def run_attempt(state: Path, attempt_id: int):
                 + json.dumps(plan)
             )
             out = worker.turn(
-                thread, prompt, model=LUNA, tool=tool, heartbeat=heartbeat, deadline_seconds=600
+                thread,
+                prompt,
+                model=LUNA,
+                tool=tool,
+                heartbeat=heartbeat,
+                deadline_seconds=600,
+                output_schema=WORKER_SCHEMA,
             )
+            atomic(run / "worker-raw.json", out)
             db.record_usage(attempt_id, epoch, {"tokens": usage_tokens(out), "luna_turns": 1})
             worker_result = structured(out["text"])
             if not isinstance(worker_result, dict) or not all(
@@ -452,6 +498,7 @@ def verify_one(state, task):
         native.mkdir(exist_ok=True)
         with Codex(
             checkout,
+            codex=cfg.get("codex_executable", "codex"),
             harness_cwd=native,
             event_sink=lambda event: log_event(state, "codex", role="verifier", event=event),
         ) as reviewer:
@@ -489,7 +536,9 @@ def verify_one(state, task):
                 model=SOL,
                 tool=lambda _: {"error": "review_tools_disabled"},
                 deadline_seconds=240,
+                output_schema=REVIEW_SCHEMA,
             )
+            atomic(verify_root / "review-raw.json", review)
             decision = structured(review["text"])
             atomic(
                 verify_root / "review.json",
@@ -631,7 +680,7 @@ def supervise(state: Path, max_seconds=1800):
         end = time.monotonic() + max_seconds
         native = state / "budget-native"
         native.mkdir(exist_ok=True)
-        with Codex(native) as account:
+        with Codex(native, codex=cfg.get("codex_executable", "codex")) as account:
             last_read, limits = 0.0, None
             while time.monotonic() < end and not (state / "STOP").exists():
                 reconcile(state, db)

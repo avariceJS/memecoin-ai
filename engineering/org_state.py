@@ -367,6 +367,87 @@ class Store:
                 {"attempt_id": attempt_id, "epoch": epoch, "reason": reason, "state": state},
             )
 
+    def reopen_failed(
+        self,
+        task_id: str,
+        recovery_id: str,
+        *,
+        reason: str,
+        evidence_refs,
+        extra_attempts: int = 3,
+    ) -> dict:
+        """Trusted reviewed recovery; preserve every failed attempt and usage record.
+
+        This API supplies no worker capability or resource budget. The caller must
+        first qualify the controller fix and authorize recovery. One immutable
+        recovery ID grants at most three fresh attempts; exact replay is a no-op.
+        """
+        _name(task_id), _name(recovery_id), _name(reason)
+        if len(recovery_id) > 200 or len(reason) > 4000:
+            raise StateError("recovery reason and ID must be bounded")
+        if type(extra_attempts) is not int or not 1 <= extra_attempts <= 3:
+            raise StateError("recovery permits one to three extra attempts")
+        if not isinstance(evidence_refs, (list, tuple)) or not 1 <= len(evidence_refs) <= 20:
+            raise StateError("recovery requires bounded evidence references")
+        for reference in evidence_refs:
+            _name(reference)
+            if len(reference) > 500:
+                raise StateError("recovery evidence reference is too long")
+        request = {
+            "task_id": task_id,
+            "recovery_id": recovery_id,
+            "reason": reason,
+            "evidence_refs": list(evidence_refs),
+            "extra_attempts": extra_attempts,
+        }
+        key = "recovery/" + recovery_id + "/" + task_id
+        with self._tx():
+            task = self._task(task_id)
+            prior = self.get_decision(key)
+            if prior is not None:
+                if prior["body"]["request"] != request:
+                    raise StateError("recovery ID cannot be reused with different content")
+                return task
+            if task["state"] != "failed":
+                raise StateError("only failed tasks can be reopened")
+            if (
+                self.db.execute(
+                    "SELECT 1 FROM attempts WHERE task_id=? AND state IN ('running','submitted')",
+                    (task_id,),
+                ).fetchone()
+                or self.db.execute(
+                    "SELECT 1 FROM acceptances WHERE task_id=?", (task_id,)
+                ).fetchone()
+                or self.db.execute(
+                    "SELECT 1 FROM integrations WHERE task_id=?", (task_id,)
+                ).fetchone()
+            ):
+                raise StateError("active or accepted task cannot be reopened")
+            new_max = task["epoch"] + extra_attempts
+            body = {
+                "request": request,
+                "previous_max_attempts": task["max_attempts"],
+                "new_max_attempts": new_max,
+                "preserved_epoch": task["epoch"],
+                "previous_attempt": task["active_attempt"],
+                "previous_candidate_sha": task["candidate_sha"],
+            }
+            self.db.execute(
+                "INSERT INTO decisions VALUES(?,?,?,?,?)", (key, 1, _json(body), None, None)
+            )
+            self._event(
+                "decision_recorded",
+                key,
+                {"version": 1, "body": body, "replaces": None, "replaces_version": None},
+            )
+            self.db.execute(
+                "UPDATE tasks SET state='pending',max_attempts=?,active_attempt=NULL,"
+                "candidate_sha=NULL WHERE id=?",
+                (new_max, task_id),
+            )
+            self._event("task_reopened", task_id, {"decision": key, **body})
+            return self._task(task_id)
+
     def submit(self, attempt_id: int, epoch: int, candidate_sha: str, evidence: Any) -> dict:
         _name(candidate_sha)
         with self._tx():

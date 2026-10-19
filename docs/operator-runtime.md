@@ -232,6 +232,14 @@ Grok remains disabled by the user's latest instruction.
 
 ## Git integration and recovery registry
 
+The 2026-10-19 founder directive supersedes the sole-main integration policy below for the new
+engineering organization. `main` remains pinned at `2f8da5f92da521b511e0d4fb20205981a000cab5` during
+its first implementation. `org/foundation-20261019` holds the separate controller and Sol handoff
+checkpoint; it is not an operational release. Remote `research/active` still remains at the old
+SHA below. Its future integration role requires exact historical archival and verified local
+publication controls first. See [engineering organization](engineering-organization.md) and the
+[handoff receipt](evidence/brain-org-handoff-20261019.json). No Brain operator activation is implied.
+
 As of 2026-10-18, GitHub `avariceJS/memecoin-ai` owns all published code/history. `main` is the
 only primary integration baseline. The consolidation advances the former `770699d` baseline through
 all 321 research commits ending at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`, followed by

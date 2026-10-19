@@ -6,6 +6,11 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [Engineering organization executive handoff](brain-org-handoff-20261019.json):
+  scoped controller tests, actual permission probes, six failed lead attempts, stopped process
+  custody and protected branch pins. Checkpoint only: no accepted Brain changes or unattended
+  organization qualification. Private evidence remains in the named engineering state directory.
+
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume
   weights, separate registered research-evaluation cohort, and finite inference. Plumbing evidence;

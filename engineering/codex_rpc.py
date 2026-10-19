@@ -40,6 +40,7 @@ class Codex:
             "features.shell_tool": False,
             "features.unified_exec": False,
             "features.multi_agent": False,
+            "features.goals": False,
             "features.apps": False,
             "features.hooks": False,
             "features.browser_use": False,
@@ -50,7 +51,7 @@ class Codex:
             "features.skill_search": False,
             "features.tool_suggest": False,
             "features.shell_snapshot": False,
-            "features.code_mode_host": False,
+            "features.code_mode_host": True,
             "features.code_mode": False,
             "plugins._default.enabled": False,
             "skills.include_instructions": False,
@@ -322,7 +323,10 @@ class Codex:
                 and p.get("turnId") == turn_id
             ):
                 item = p.get("item", {})
-                if item.get("type") == "agentMessage":
+                if item.get("type") == "agentMessage" and item.get("phase") in (
+                    None,
+                    "final_answer",
+                ):
                     outputs.append(item.get("text", ""))
             elif method == "thread/tokenUsage/updated" and p.get("threadId") == thread_id:
                 usage = p.get("tokenUsage", {})

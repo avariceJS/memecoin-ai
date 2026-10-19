@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 from engineering.org_state import StaleAttempt, StateError, Store
 
@@ -338,6 +339,96 @@ store.add_task('uncommitted', 'engineering', 'Must rollback')
             with self.assertRaises(StateError):
                 self.store.claim("a", "worker", value)
         self.assertEqual(self.store.list_attempts(), [])
+
+    def test_reviewed_reopen_preserves_failures_usage_fences_and_retry_bound(self):
+        self.task(scope=["src/example.py"], acceptance=["frozen check"], max_attempts=3)
+        old_attempts = []
+        for _ in range(3):
+            attempt = self.store.claim("a", "worker")
+            old_attempts.append(attempt)
+            self.store.record_usage(attempt["id"], attempt["epoch"], {"tokens": 10})
+            self.store.fail(attempt["id"], attempt["epoch"], "controller parsing defect")
+        before = self.store.events()
+        reopened = self.store.reopen_failed(
+            "a",
+            "parser-fix",
+            reason="Qualified parser controller patch",
+            evidence_refs=["receipt:parser", "receipt:tool-probe"],
+            extra_attempts=3,
+        )
+        self.assertEqual(
+            (reopened["state"], reopened["epoch"], reopened["max_attempts"]), ("pending", 3, 6)
+        )
+        self.assertEqual(reopened["scope"], ["src/example.py"])
+        self.assertEqual(reopened["acceptance"], ["frozen check"])
+        self.assertEqual(self.store.events()[: len(before)], before)
+        self.assertEqual(self.store.usage_summary()["total"]["tokens"], 30)
+        self.assertEqual(len(self.store.list_attempts()), 3)
+        after = self.store.events()
+        for _ in range(2):
+            self.store.reopen_failed(
+                "a",
+                "parser-fix",
+                reason="Qualified parser controller patch",
+                evidence_refs=["receipt:parser", "receipt:tool-probe"],
+            )
+        self.assertEqual(self.store.events(), after)
+        for old in old_attempts:
+            with self.assertRaises(StaleAttempt):
+                self.store.submit(old["id"], old["epoch"], "stale", {})
+        for epoch in (4, 5, 6):
+            attempt = self.store.claim("a", "worker")
+            self.assertEqual(attempt["epoch"], epoch)
+            self.store.fail(attempt["id"], epoch, "bounded failure")
+        self.assertEqual(self.store.get_task("a")["state"], "failed")
+        self.assertIsNone(self.store.claim("a", "worker"))
+        self.assertEqual(len(self.store.list_attempts()), 6)
+
+    def test_reopen_requires_failure_evidence_and_immutable_recovery_identity(self):
+        self.task(max_attempts=1)
+        valid = dict(reason="Qualified controller repair", evidence_refs=["receipt:qualified"])
+        with self.assertRaises(StateError):
+            self.store.reopen_failed("a", "repair", **valid)
+        attempt = self.store.claim("a", "worker")
+        self.store.fail(attempt["id"], attempt["epoch"], "broken controller")
+        for changes in (
+            {"reason": " "},
+            {"evidence_refs": []},
+            {"evidence_refs": "file"},
+            {"extra_attempts": 4},
+            {"extra_attempts": True},
+            {"extra_attempts": 0},
+        ):
+            with self.assertRaises(StateError):
+                self.store.reopen_failed("a", "repair", **{**valid, **changes})
+        self.store.reopen_failed("a", "repair", **valid)
+        with self.assertRaises(StateError):
+            self.store.reopen_failed("a", "repair", **{**valid, "reason": "different"})
+        self.assertEqual(self.store.get_task("a")["max_attempts"], 4)
+
+    def test_reopen_and_recovery_decision_rollback_atomically(self):
+        self.task(max_attempts=1)
+        attempt = self.store.claim("a", "worker")
+        self.store.fail(attempt["id"], attempt["epoch"], "broken controller")
+        before = self.store.get_task("a")
+        with patch.object(self.store, "_event", side_effect=RuntimeError("journal failure")):
+            with self.assertRaises(RuntimeError):
+                self.store.reopen_failed(
+                    "a", "repair", reason="Repair qualified", evidence_refs=["receipt"]
+                )
+        self.assertEqual(self.store.get_task("a"), before)
+        self.assertIsNone(self.store.get_decision("recovery/repair/a"))
+
+    def test_reopen_preserves_rejected_candidate_but_cannot_accept_it(self):
+        self.task(max_attempts=1)
+        self.submit(sha="rejected")
+        self.store.verify("a", "rejected", False, {"failure": "controller defect"})
+        self.store.reopen_failed(
+            "a", "repair", reason="Repair qualified", evidence_refs=["receipt"]
+        )
+        self.assertEqual(self.store.get_candidate("a", "rejected")["sha"], "rejected")
+        with self.assertRaises(StaleAttempt):
+            self.store.accept("a", "rejected")
 
 
 if __name__ == "__main__":
