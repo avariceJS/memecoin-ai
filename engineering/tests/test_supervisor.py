@@ -332,29 +332,73 @@ class SupervisorTests(unittest.TestCase):
         self.reconcile("merged")
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
 
-
-if __name__ == "__main__":
-    unittest.main()
-
-    def test_quiescent_capacity_rechecks_with_zero_reservations_and_one_chief_episode(self):
-        limits = {
-            "ordinaryUsageAllowed": True,
-            "rateLimitsByLimitId": {"standard": {"usedPercent": 1, "limitReached": False}},
-        }
+    def run_quiescence(self, reason, *, pending=False, slots=1):
+        if pending:
+            self.task()
+        else:
+            self.task()
+            attempt = self.db.claim("T", "worker", 100)
+            self.db.submit(attempt["id"], attempt["epoch"], "sha", {})
+            self.db.verify("T", "sha", True, {})
+            self.db.accept("T", "sha")
+        decision = {"slots": slots, "selected_tasks": [], "reason": "synthetic"}
+        events_before = len(self.db.events())
         with (
             patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call", return_value=limits),
+            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
             patch.object(supervisor, "process_identity", return_value="fake"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
             patch.object(supervisor, "render_desk"),
+            patch.object(
+                supervisor.time, "sleep", side_effect=lambda _: (self.state / "STOP").touch()
+            ),
+            patch.object(supervisor.time, "monotonic", return_value=0),
             patch("engineering.planning.plan_next", return_value=None),
+            patch("engineering.resources.choose_capacity", return_value=decision),
+            patch.object(Store, "ready_tasks", return_value=[]),
             patch("engineering.chief.chief") as executive,
+            patch.object(FakeCodex, "turn") as model_turn,
         ):
             supervisor.supervise(self.state, max_seconds=10)
+            (self.state / "STOP").unlink(missing_ok=True)
             supervisor.supervise(self.state, max_seconds=10)
-        executive.assert_called_once_with(self.state, trigger="catalogue-exhausted")
-        review_events = [
-            event for event in self.db.events() if event["entity"].startswith("executive-review/")
+        executive.assert_not_called()
+        model_turn.assert_not_called()
+        handoffs = [
+            event
+            for event in self.db.events()[events_before:]
+            if event["kind"] == "decision_recorded"
+            and event.get("entity", "").startswith("sol-handoff/")
         ]
-        self.assertEqual(len(review_events), 1)
+        self.assertEqual(len(handoffs), 1)
+        details = self.db.get_decision(handoffs[-1]["entity"])["body"]
+        self.assertEqual(details["reason"], reason)
+        (self.state / "STOP").unlink(missing_ok=True)
+
+    def test_quiescence_catalogue_exhausted_handoff_has_no_chief_call(self):
+        self.run_quiescence("catalogue-exhausted")
+
+    def test_quiescence_blocked_dependencies_handoff_has_no_chief_call(self):
+        self.run_quiescence("blocked-dependencies", pending=True)
+
+    def test_quiescence_unavailable_quota_handoff_has_no_chief_call(self):
+        self.run_quiescence("quota-unavailable", slots=0)
+
+    def test_stop_prevents_quiescence_resource_or_handoff_work(self):
+        (self.state / "STOP").touch()
+        with (
+            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(FakeCodex, "call") as account_call,
+            patch("engineering.resources.choose_capacity") as capacity,
+            patch("engineering.chief.chief") as executive,
+            patch.object(supervisor, "status", return_value={}),
+        ):
+            supervisor.supervise(self.state, max_seconds=10)
+        account_call.assert_not_called()
+        capacity.assert_not_called()
+        executive.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()

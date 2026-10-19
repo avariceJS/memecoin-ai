@@ -128,9 +128,11 @@ def config(state):
         path = state / name if name.startswith("trusted/") else state / "controller" / name
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise RuntimeError("controller_code_changed:" + name)
-    if cfg.get("codex_executable") and hashlib.sha256(
-        Path(cfg["codex_executable"]).read_bytes()
-    ).hexdigest() != cfg["codex_sha256"]:
+    if (
+        cfg.get("codex_executable")
+        and hashlib.sha256(Path(cfg["codex_executable"]).read_bytes()).hexdigest()
+        != cfg["codex_sha256"]
+    ):
         raise RuntimeError("codex_binary_changed_requires_requalification")
     return cfg
 
@@ -176,10 +178,7 @@ def tool_function(box, checkout, heartbeat):
         timeout = args.get("timeout")
         if type(timeout) is not int or not 1 <= timeout <= 90:
             raise ValueError("timeout must be integer seconds in 1..90; not milliseconds")
-        if (
-            not isinstance(argv, list)
-            or len(argv) > 100
-        ):
+        if not isinstance(argv, list) or len(argv) > 100:
             raise ValueError("tool_arguments")
         result = box.run(argv, cwd=checkout, timeout=timeout, max_output_bytes=100000)
         heartbeat()
@@ -292,8 +291,12 @@ def run_attempt(state: Path, attempt_id: int):
         }
         atomic(run / "packet.json", packet)
         readonly_box = runner(state, checkout, run / "lead-scratch", readonly=True)
-        with Codex(checkout, codex=cfg.get("codex_executable", "codex"),
-                   harness_cwd=native, event_sink=sink) as lead:
+        with Codex(
+            checkout,
+            codex=cfg.get("codex_executable", "codex"),
+            harness_cwd=native,
+            event_sink=sink,
+        ) as lead:
             thread = lead.start(SOL, RULES + "\nYou are the Sol lead of " + task["team"] + ".")
             identity = {
                 "pid": os.getpid(),
@@ -347,8 +350,12 @@ def run_attempt(state: Path, attempt_id: int):
                             "contract_ack": True,
                         },
                     )
-        with Codex(checkout, codex=cfg.get("codex_executable", "codex"),
-                   harness_cwd=native, event_sink=sink) as worker:
+        with Codex(
+            checkout,
+            codex=cfg.get("codex_executable", "codex"),
+            harness_cwd=native,
+            event_sink=sink,
+        ) as worker:
             thread = worker.start(
                 LUNA, RULES + "\nYou are the Luna implementation worker of " + task["team"] + "."
             )
@@ -729,24 +736,35 @@ def supervise(state: Path, max_seconds=1800):
                         cfg["resources"],
                         active_tokens=0,
                     )
+                    resource_reason = decision.get("reason", "unknown")
+                    if decision["slots"] == 0:
+                        reason = "quota-unavailable"
+                    elif any(t["state"] == "pending" for t in tasks):
+                        reason = "blocked-dependencies"
+                    else:
+                        reason = "catalogue-exhausted"
+                    fingerprint_data = {
+                        "tasks": sorted(
+                            (t["id"], t["state"], t.get("candidate_sha")) for t in tasks
+                        ),
+                        "resource_reason": resource_reason,
+                        "reason": reason,
+                    }
                     fingerprint = hashlib.sha256(
-                        json.dumps(
-                            [(t["id"], t["state"], t["candidate_sha"]) for t in tasks]
-                        ).encode()
+                        json.dumps(fingerprint_data, sort_keys=True, separators=(",", ":")).encode()
                     ).hexdigest()
-                    review_key = "executive-review/" + fingerprint
-                    if decision["slots"] and db.get_decision(review_key) is None:
-                        from .chief import chief
-
-                        # Record intent first; a failed episode is observable and will
-                        # not burn recurring idle turns on the same evidence boundary.
-                        db.put_decision(review_key, {"status": "requested"})
-                        trigger = (
-                            "blocked-dependencies"
-                            if any(t["state"] == "pending" for t in tasks)
-                            else "catalogue-exhausted"
+                    handoff_key = "sol-handoff/" + fingerprint
+                    if db.get_decision(handoff_key) is None:
+                        db.put_decision(
+                            handoff_key,
+                            {
+                                "owner": "Sol",
+                                "status": "requested",
+                                "reason": reason,
+                                "resource_reason": resource_reason,
+                                "fingerprint": fingerprint,
+                            },
                         )
-                        chief(state, trigger=trigger)
                     break
                 free = max(0, decision["slots"] - len(active))
                 for task in decision["selected_tasks"][:free]:

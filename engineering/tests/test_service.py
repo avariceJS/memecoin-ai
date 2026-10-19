@@ -30,17 +30,24 @@ def _canonical(value):
 
 def deployment(tmp_path):
     state = tmp_path / "state"
-    state.mkdir(mode=0o700)
+    state.mkdir(mode=0o700, parents=True)
     controller = state / "controller"
     code = controller / "engineering/__main__.py"
     trusted = state / "trusted/pilot_acceptance.py"
     _write(code, b"raise SystemExit(0)\n")
+    adapter = controller / "engineering/codex_rpc.py"
+    _write(adapter, b"def rpc(): return None\n")
+    executable = state / "synthetic-codex"
+    _write(executable, b"#!/bin/sh\nexit 0\n")
+    executable.chmod(0o700)
     _write(trusted, b"def accept(): return True\n")
     cfg = {
         "schema": "brain-engineering-deployment-v1",
         "python": sys.executable,
         "controller": str(controller),
         "remote_publication_enabled": False,
+        "codex_executable": str(executable),
+        "codex_executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
     }
     _json(state / "config.json", cfg)
     _write(
@@ -49,11 +56,19 @@ def deployment(tmp_path):
     )
     manifest = {
         "engineering/__main__.py": hashlib.sha256(code.read_bytes()).hexdigest(),
+        "engineering/codex_rpc.py": hashlib.sha256(adapter.read_bytes()).hexdigest(),
         "trusted/pilot_acceptance.py": hashlib.sha256(trusted.read_bytes()).hexdigest(),
     }
     _json(state / "controller-manifest.json", manifest)
-    for name in ("confinement.json", "native-profile.json"):
-        _json(state / name, {"qualified": True})
+    _json(state / "confinement.json", {"qualified": True})
+    _json(
+        state / "native-profile.json",
+        {
+            "qualified": True,
+            "adapter_sha256": hashlib.sha256(adapter.read_bytes()).hexdigest(),
+            "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
+        },
+    )
     with sqlite3.connect(state / "organization.sqlite") as db:
         db.execute("CREATE TABLE evidence (value TEXT)")
         db.execute("INSERT INTO evidence VALUES ('synthetic')")
@@ -150,4 +165,55 @@ def test_manifest_cannot_follow_a_symlinked_parent(tmp_path):
     manifest["vendor/module.py"] = hashlib.sha256(content.read_bytes()).hexdigest()
     _json(state / "controller-manifest.json", manifest)
     with pytest.raises(ValueError, match="manifest_file_permissions"):
+        validate_deployment(state)
+
+
+def test_native_bindings_reject_missing_and_stale_evidence(tmp_path):
+    state = deployment(tmp_path)
+    native = state / "native-profile.json"
+    report = json.loads(native.read_text())
+    report.pop("adapter_sha256")
+    _json(native, report)
+    with pytest.raises(ValueError, match="native_adapter_binding"):
+        validate_deployment(state)
+
+    state = deployment(tmp_path / "adapter")
+    adapter = state / "controller/engineering/codex_rpc.py"
+    adapter.write_bytes(b"def rpc(): return changed\n")
+    manifest_path = state / "controller-manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["engineering/codex_rpc.py"] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    _json(manifest_path, manifest)
+    with pytest.raises(ValueError, match="native_adapter_binding"):
+        validate_deployment(state)
+
+    state = deployment(tmp_path / "missing-executable")
+    executable = Path(json.loads((state / "config.json").read_text())["codex_executable"])
+    executable.unlink()
+    with pytest.raises(ValueError, match="codex_executable_binding"):
+        validate_deployment(state)
+
+    state = deployment(tmp_path / "executable")
+    executable = Path(json.loads((state / "config.json").read_text())["codex_executable"])
+    executable.write_bytes(b"#!/bin/sh\nexit 9\n")
+    with pytest.raises(ValueError, match="codex_executable_binding"):
+        validate_deployment(state)
+
+
+def test_native_bindings_reject_missing_config_pins_and_report_mismatch(tmp_path):
+    state = deployment(tmp_path)
+    cfg = json.loads((state / "config.json").read_text())
+    cfg.pop("codex_executable_sha256")
+    _json(state / "config.json", cfg)
+    (state / "config.sha256").write_text(
+        hashlib.sha256((state / "config.json").read_bytes()).hexdigest()
+    )
+    with pytest.raises(ValueError, match="codex_executable_binding"):
+        validate_deployment(state)
+
+    state = deployment(tmp_path / "report")
+    report = json.loads((state / "native-profile.json").read_text())
+    report["executable_sha256"] = "0" * 64
+    _json(state / "native-profile.json", report)
+    with pytest.raises(ValueError, match="native_executable_binding"):
         validate_deployment(state)

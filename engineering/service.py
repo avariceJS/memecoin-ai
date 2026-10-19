@@ -93,11 +93,42 @@ def validate_deployment(state: str | Path) -> dict:
     required.add((state / "trusted/pilot_acceptance.py").resolve())
     if not required or not required <= seen:
         raise ValueError("manifest_incomplete")
+    reports = {}
     for report_name in ("confinement.json", "native-profile.json"):
         report = state / report_name
-        if not _regular_file(report) or _json(report).get("qualified") is not True:
+        if not _regular_file(report):
             raise ValueError("deployment_not_qualified")
-    return {"state": state, "config": cfg, "controller": controller, "python": python}
+        reports[report_name] = _json(report)
+        if reports[report_name].get("qualified") is not True:
+            raise ValueError("deployment_not_qualified")
+
+    adapter = controller / "engineering/codex_rpc.py"
+    if not adapter.is_file() or not _regular_file(adapter):
+        raise ValueError("native_adapter_binding")
+    if reports["native-profile.json"].get("adapter_sha256") != _digest(adapter):
+        raise ValueError("native_adapter_binding")
+
+    executable_value = cfg.get("codex_executable")
+    if not isinstance(executable_value, str) or not Path(executable_value).is_absolute():
+        raise ValueError("codex_executable_binding")
+    try:
+        executable = Path(executable_value).resolve(strict=True)
+    except OSError as exc:
+        raise ValueError("codex_executable_binding") from exc
+    if not executable.is_file() or not os.access(executable, os.X_OK):
+        raise ValueError("codex_executable_binding")
+    executable_digest = _digest(executable)
+    if cfg.get("codex_executable_sha256") != executable_digest:
+        raise ValueError("codex_executable_binding")
+    if reports["native-profile.json"].get("executable_sha256") != executable_digest:
+        raise ValueError("native_executable_binding")
+    return {
+        "state": state,
+        "config": cfg,
+        "controller": controller,
+        "python": python,
+        "codex_executable": executable,
+    }
 
 
 def launch_agent_plist(state: str | Path, *, max_seconds: int = 1800) -> dict:
@@ -120,7 +151,8 @@ def launch_agent_plist(state: str | Path, *, max_seconds: int = 1800) -> dict:
         ],
         "WorkingDirectory": str(root),
         "EnvironmentVariables": {
-            "PYTHONPATH": str(root), "HOME": str(Path.home()),
+            "PYTHONPATH": str(root),
+            "HOME": str(Path.home()),
             "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
         },
         "RunAtLoad": True,
