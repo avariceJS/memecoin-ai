@@ -161,69 +161,76 @@ class UsageLedger:
         self._append_event(data)
 
     def correct(self, event_id, replacement_event_id, counters, *, reason, source):
-        c = _counters(counters)
-        if not event_id or not replacement_event_id or not reason or not source:
-            raise ValueError("correction fields are required")
-        parent = self.db.execute("SELECT * FROM events WHERE event_id=?", (event_id,)).fetchone()
-        if parent is None:
-            raise ValueError("unknown event")
-        child = self.db.execute(
-            "SELECT * FROM events WHERE parent_event_id=?", (event_id,)
-        ).fetchone()
-        if child:
-            expected = (
-                replacement_event_id,
-                parent["identity"],
-                parent["epoch"],
-                parent["sequence"],
-                _json(c),
-                source,
-                child["observed_at"],
-                parent["event_at"],
-                event_id,
-                str(reason),
-            )
-            actual = tuple(
-                child[key]
-                for key in (
-                    "event_id",
-                    "identity",
-                    "epoch",
-                    "sequence",
-                    "counters",
-                    "source",
-                    "observed_at",
-                    "event_at",
-                    "parent_event_id",
-                    "reason",
+        return self.correct_many(
+            [
+                {
+                    "event_id": event_id,
+                    "replacement_event_id": replacement_event_id,
+                    "counters": counters,
+                    "reason": reason,
+                    "source": source,
+                }
+            ]
+        )
+
+    def correct_many(self, corrections):
+        if not isinstance(corrections, list) or not corrections:
+            raise ValueError("corrections must be a nonempty list")
+        prepared = []
+        required = {"event_id", "replacement_event_id", "counters", "reason", "source"}
+        seen = set()
+        for correction in corrections:
+            if not isinstance(correction, dict) or set(correction) != required:
+                raise ValueError("correction must contain exactly the required fields")
+            event_id = correction["event_id"]
+            replacement_id = correction["replacement_event_id"]
+            reason, source = correction["reason"], correction["source"]
+            if not event_id or not replacement_id or not reason or not source:
+                raise ValueError("correction fields are required")
+            if event_id in seen:
+                raise ValueError("duplicate correction parent")
+            seen.add(event_id)
+            prepared.append(
+                (
+                    event_id,
+                    replacement_id,
+                    _json(_counters(correction["counters"])),
+                    str(reason),
+                    source,
                 )
             )
-            if actual == expected:
-                return
-            raise ValueError("event already corrected")
-        data = (
-            replacement_event_id,
-            parent["identity"],
-            parent["epoch"],
-            parent["sequence"],
-            _json(c),
-            source,
-            time.time(),
-            parent["event_at"],
-            event_id,
-            str(reason),
-        )
-        self._append_event(data)
 
-    def _append_event(self, row):
         self.db.execute("BEGIN IMMEDIATE")
         try:
-            old = self.db.execute("SELECT * FROM events WHERE event_id=?", (row[0],)).fetchone()
-            if old:
-                if (
-                    tuple(
-                        old[k]
-                        for k in (
+            rows_to_append = []
+            affected = set()
+            for event_id, replacement_id, counters_json, reason, source in prepared:
+                parent = self.db.execute(
+                    "SELECT * FROM events WHERE event_id=?", (event_id,)
+                ).fetchone()
+                if parent is None:
+                    raise ValueError("unknown event")
+                affected.add((parent["identity"], parent["epoch"]))
+                child = self.db.execute(
+                    "SELECT * FROM events WHERE parent_event_id=?", (event_id,)
+                ).fetchone()
+                row = (
+                    replacement_id,
+                    parent["identity"],
+                    parent["epoch"],
+                    parent["sequence"],
+                    counters_json,
+                    source,
+                    time.time(),
+                    parent["event_at"],
+                    event_id,
+                    str(reason),
+                )
+                if child:
+                    expected = row[:6] + (child["observed_at"],) + row[7:]
+                    actual = tuple(
+                        child[key]
+                        for key in (
                             "event_id",
                             "identity",
                             "epoch",
@@ -236,17 +243,78 @@ class UsageLedger:
                             "reason",
                         )
                     )
-                    != row
-                ):
-                    raise ValueError("event_id payload conflict")
-                self.db.execute("COMMIT")
-                return
-            self.db.execute("INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?)", row)
+                    if actual != expected:
+                        raise ValueError("event already corrected")
+                    continue
+                old = self.db.execute(
+                    "SELECT * FROM events WHERE event_id=?", (replacement_id,)
+                ).fetchone()
+                if old:
+                    if (
+                        tuple(
+                            old[key]
+                            for key in (
+                                "event_id",
+                                "identity",
+                                "epoch",
+                                "sequence",
+                                "counters",
+                                "source",
+                                "observed_at",
+                                "event_at",
+                                "parent_event_id",
+                                "reason",
+                            )
+                        )
+                        != row
+                    ):
+                        raise ValueError("event_id payload conflict")
+                    continue
+                rows_to_append.append(row)
+            for row in rows_to_append:
+                self.db.execute("INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?)", row)
+            for identity, epoch in affected:
+                self._validate_stream(identity, epoch)
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+
+    def _append_event(self, row):
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            self._append_event_in_transaction(row)
             self._validate_stream(row[1], row[2])
             self.db.execute("COMMIT")
         except Exception:
             self.db.execute("ROLLBACK")
             raise
+
+    def _append_event_in_transaction(self, row):
+        old = self.db.execute("SELECT * FROM events WHERE event_id=?", (row[0],)).fetchone()
+        if old:
+            if (
+                tuple(
+                    old[k]
+                    for k in (
+                        "event_id",
+                        "identity",
+                        "epoch",
+                        "sequence",
+                        "counters",
+                        "source",
+                        "observed_at",
+                        "event_at",
+                        "parent_event_id",
+                        "reason",
+                    )
+                )
+                != row
+            ):
+                raise ValueError("event_id payload conflict")
+            return False
+        self.db.execute("INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?)", row)
+        return True
 
     def _validate_stream(self, identity, epoch):
         rows = self.db.execute(

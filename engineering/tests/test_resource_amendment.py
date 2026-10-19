@@ -442,3 +442,73 @@ def test_independent_review_regressions_acceptance():
         )["ready"]
         is False
     )
+
+
+def test_independent_atomic_corrections():
+    import json
+    import tempfile
+    from pathlib import Path
+
+    from engineering.usage_ledger import UsageLedger
+
+    def count(i, c):
+        return dict(
+            input_tokens=i,
+            cached_input_tokens=c,
+            output_tokens=0,
+            reasoning_output_tokens=0,
+            total_tokens=i,
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "batch.sqlite"
+        x = UsageLedger(p)
+        x.register("s", "e", "gpt-6.1-sol", count(0, 0), evidence="baseline")
+        x.observe("s", "e", "A", count(100, 50), source="provider", sequence=1, observed_at=10)
+        x.observe("s", "e", "B", count(200, 100), source="provider", sequence=2, observed_at=20)
+        batch = [
+            dict(
+                event_id="A",
+                replacement_event_id="A-fixed",
+                counters=count(150, 0),
+                reason="provider correction batch",
+                source="provider",
+            ),
+            dict(
+                event_id="B",
+                replacement_event_id="B-fixed",
+                counters=count(250, 40),
+                reason="provider correction batch",
+                source="provider",
+            ),
+        ]
+        x.correct_many(batch)
+        x.correct_many(batch)
+        s = x.summary()
+        assert (
+            s["incremental"]["total_tokens"] == 250
+            and s["incremental"]["cached_input_tokens"] == 40
+        )
+        assert not s["unresolved"]
+        assert abs(s["by_model"]["gpt-6.1-sol"]["wpu"] - 0.0106) < 1e-12
+        bad = [
+            dict(
+                event_id="A-fixed",
+                replacement_event_id="A-bad",
+                counters=count(300, 0),
+                reason="invalid batch",
+                source="provider",
+            )
+        ]
+        try:
+            x.correct_many(bad)
+        except (ValueError, TypeError):
+            pass
+        else:
+            raise AssertionError("invalid batch accepted")
+        assert x.summary()["incremental"]["total_tokens"] == 250
+        x.close()
+        x = UsageLedger(p)
+        assert x.summary()["incremental"]["total_tokens"] == 250
+        x.close()
+    print(json.dumps({"atomic_corrections_acceptance": "passed"}))

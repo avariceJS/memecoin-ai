@@ -22,6 +22,7 @@ from .confinement import SandboxRunner, python_runtime_roots
 from .git_gate import GitGate, VerificationPolicy
 from .org_state import StaleAttempt, Store
 from .processes import process_identity, terminate_owned
+from .service import validate_deployment
 
 SOL = "gpt-6.1-sol"
 LUNA = "gpt-6-luna"
@@ -117,24 +118,11 @@ def git(repo, *args):
 
 
 def config(state):
-    cfg = read(state / "config.json")
-    if (
-        hashlib.sha256((state / "config.json").read_bytes()).hexdigest()
-        != (state / "config.sha256").read_text().strip()
-    ):
-        raise RuntimeError("controller_policy_changed")
-    manifest = read(state / "controller-manifest.json")
-    for name, expected in manifest.items():
-        path = state / name if name.startswith("trusted/") else state / "controller" / name
-        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
-            raise RuntimeError("controller_code_changed:" + name)
-    if (
-        cfg.get("codex_executable")
-        and hashlib.sha256(Path(cfg["codex_executable"]).read_bytes()).hexdigest()
-        != cfg["codex_sha256"]
-    ):
-        raise RuntimeError("codex_binary_changed_requires_requalification")
-    return cfg
+    deployment = validate_deployment(state)
+    expected_module = (Path(deployment["controller"]) / "engineering" / "supervisor.py").resolve()
+    if Path(__file__).resolve() != expected_module:
+        raise RuntimeError("supervisor_module_outside_frozen_controller")
+    return deployment["config"]
 
 
 def store(state):

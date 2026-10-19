@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 from engineering import supervisor
 from engineering.confinement import SandboxResult
 from engineering.org_state import Store
+from engineering.tests.test_service import deployment as deployment_fixture
 
 
 class FakeCodex:
@@ -121,6 +122,63 @@ class SupervisorTests(unittest.TestCase):
         ):
             supervisor.reconcile(self.state, self.db)
         return calls, gate
+
+    def _use_real_preflight(self):
+        self.patches[0].stop()
+
+    def _frozen_deployment(self):
+        index = getattr(self, "_deployment_index", 0) + 1
+        self._deployment_index = index
+        state = deployment_fixture(self.state / f"deployment-{index}")
+        controller = state / "controller"
+        module = controller / "engineering/supervisor.py"
+        module.parent.mkdir(parents=True, exist_ok=True)
+        source = Path(supervisor.__file__).read_bytes()
+        module.write_bytes(source)
+        manifest_path = state / "controller-manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["engineering/supervisor.py"] = hashlib.sha256(source).hexdigest()
+        manifest_path.write_text(json.dumps(manifest, sort_keys=True))
+        return state, module
+
+    def test_common_preflight_accepts_matching_frozen_module(self):
+        self._use_real_preflight()
+        state, module = self._frozen_deployment()
+        with patch.object(supervisor, "__file__", str(module)):
+            cfg = supervisor.config(state)
+        self.assertEqual(Path(cfg["controller"]).resolve(), module.parent.parent.resolve())
+        self.assertEqual(cfg, json.loads((state / "config.json").read_text()))
+
+    def test_common_preflight_rejects_source_module_outside_controller(self):
+        self._use_real_preflight()
+        state, _ = self._frozen_deployment()
+        with self.assertRaisesRegex(RuntimeError, "supervisor_module_outside_frozen_controller"):
+            supervisor.config(state)
+
+    def test_supported_entries_reject_stale_bindings_before_work(self):
+        self._use_real_preflight()
+        for entry in ("supervise", "run_attempt"):
+            for binding in ("qualified", "adapter_sha256", "executable_sha256"):
+                with self.subTest(entry=entry, binding=binding):
+                    state, module = self._frozen_deployment()
+                    report_path = state / "native-profile.json"
+                    report = json.loads(report_path.read_text())
+                    report[binding] = False if binding == "qualified" else "0" * 64
+                    report_path.write_text(json.dumps(report, sort_keys=True))
+                    with (
+                        patch.object(supervisor, "__file__", str(module)),
+                        patch.object(supervisor, "store") as open_store,
+                        patch.object(supervisor, "Codex") as codex,
+                        patch.object(supervisor.subprocess, "Popen") as spawn,
+                    ):
+                        with self.assertRaises(ValueError):
+                            if entry == "supervise":
+                                supervisor.supervise(state)
+                            else:
+                                supervisor.run_attempt(state, 1)
+                    open_store.assert_not_called()
+                    codex.assert_not_called()
+                    spawn.assert_not_called()
 
     def test_accepted_intent_before_publish_recovers_once(self):
         self.candidate()

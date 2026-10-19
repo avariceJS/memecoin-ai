@@ -261,6 +261,118 @@ class UsageLedgerTests(unittest.TestCase):
         database.execute("ROLLBACK")
         self.assertFalse(database.in_transaction)
 
+    def test_atomic_correction_batch_repairs_review4_stream(self):
+        self.observe("A", 1, c(100, 50))
+        self.observe("B", 2, c(200, 100))
+        self.l.correct_many(
+            [
+                {
+                    "event_id": "A",
+                    "replacement_event_id": "A-fixed",
+                    "counters": c(150, 0),
+                    "reason": "audit",
+                    "source": "audit",
+                },
+                {
+                    "event_id": "B",
+                    "replacement_event_id": "B-fixed",
+                    "counters": c(250, 40),
+                    "reason": "audit",
+                    "source": "audit",
+                },
+            ]
+        )
+        summary = self.l.summary()
+        self.assertEqual(summary["incremental"], c(250, 40))
+        self.assertAlmostEqual(
+            summary["by_model"]["gpt-6.1-sol"]["wpu"], (210 * 50 + 40 * 2.5) / 1_000_000
+        )
+        self.l.correct_many(
+            [
+                {
+                    "event_id": "A",
+                    "replacement_event_id": "A-fixed",
+                    "counters": c(150, 0),
+                    "reason": "audit",
+                    "source": "audit",
+                },
+                {
+                    "event_id": "B",
+                    "replacement_event_id": "B-fixed",
+                    "counters": c(250, 40),
+                    "reason": "audit",
+                    "source": "audit",
+                },
+            ]
+        )
+        self.l.close()
+        self.l = UsageLedger(self.path)
+        self.assertEqual(self.l.summary()["incremental"], c(250, 40))
+
+    def test_invalid_correction_batch_rolls_back_and_rejects_fork(self):
+        self.observe("A", 1, c(100, 50))
+        self.observe("B", 2, c(200, 100))
+        batch = [
+            {
+                "event_id": "A",
+                "replacement_event_id": "A-fixed",
+                "counters": c(150, 0),
+                "reason": "audit",
+                "source": "audit",
+            },
+            {
+                "event_id": "B",
+                "replacement_event_id": "B-bad",
+                "counters": c(50),
+                "reason": "audit",
+                "source": "audit",
+            },
+        ]
+        with self.assertRaises(ValueError):
+            self.l.correct_many(batch)
+        self.assertEqual(self.l.summary()["incremental"], c(200, 100))
+        self.assertIsNone(
+            self.l.db.execute("SELECT 1 FROM events WHERE event_id='A-fixed'").fetchone()
+        )
+        self.l.correct_many(
+            [
+                {
+                    "event_id": "A",
+                    "replacement_event_id": "A-fixed",
+                    "counters": c(150, 0),
+                    "reason": "audit",
+                    "source": "audit",
+                },
+                {
+                    "event_id": "B",
+                    "replacement_event_id": "B-fixed",
+                    "counters": c(250, 40),
+                    "reason": "audit",
+                    "source": "audit",
+                },
+            ]
+        )
+        with self.assertRaises(ValueError):
+            self.l.correct_many(
+                [
+                    {
+                        "event_id": "A",
+                        "replacement_event_id": "fork",
+                        "counters": c(150),
+                        "reason": "fork",
+                        "source": "audit",
+                    },
+                    {
+                        "event_id": "B",
+                        "replacement_event_id": "B-fixed",
+                        "counters": c(250, 40),
+                        "reason": "audit",
+                        "source": "audit",
+                    },
+                ]
+            )
+        self.assertEqual(self.l.summary()["incremental"], c(250, 40))
+
     def test_reopen_durable_and_duplicate_event_conflict(self):
         self.observe("x", 1, c(3))
         self.l.close()
