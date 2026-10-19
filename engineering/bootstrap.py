@@ -28,6 +28,7 @@ def bootstrap(state: Path, source: Path, python: str):
     atomic(state / "confinement.json", qualification)
     if not qualification["qualified"]:
         raise RuntimeError("OS_confinement_not_qualified")
+    (state / "native-qualification").mkdir(exist_ok=True)
     native_qualification = qualify_native_profile(
         state / "native-qualification", evidence_path=state / "native-profile.json"
     )
