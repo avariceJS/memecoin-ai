@@ -174,11 +174,11 @@ def tool_function(box, checkout, heartbeat):
         heartbeat()
         argv = args.get("argv")
         timeout = args.get("timeout")
+        if type(timeout) is not int or not 1 <= timeout <= 90:
+            raise ValueError("timeout must be integer seconds in 1..90; not milliseconds")
         if (
             not isinstance(argv, list)
             or len(argv) > 100
-            or type(timeout) is not int
-            or not 1 <= timeout <= 90
         ):
             raise ValueError("tool_arguments")
         result = box.run(argv, cwd=checkout, timeout=timeout, max_output_bytes=100000)
@@ -680,108 +680,110 @@ def supervise(state: Path, max_seconds=1800):
         end = time.monotonic() + max_seconds
         native = state / "budget-native"
         native.mkdir(exist_ok=True)
-        with Codex(native, codex=cfg.get("codex_executable", "codex")) as account:
-            last_read, limits = 0.0, None
-            while time.monotonic() < end and not (state / "STOP").exists():
-                reconcile(state, db)
-                reap_expired(state, db)
-                tasks = db.list_tasks()
-                # Each verifier is serial and may block dispatch briefly; active workers
-                # maintain their own leases independently and continue during verification.
-                submitted = next((t for t in tasks if t["state"] == "submitted"), None)
-                if submitted:
-                    verify_one(state, submitted)
-                    continue
-                if time.monotonic() - last_read > 60:
-                    try:
+        limits = read(state / "limits.json") if (state / "limits.json").is_file() else None
+        last_read = 0.0
+        while time.monotonic() < end and not (state / "STOP").exists():
+            reconcile(state, db)
+            reap_expired(state, db)
+            tasks = db.list_tasks()
+            submitted = next((t for t in tasks if t["state"] == "submitted"), None)
+            if submitted:
+                verify_one(state, submitted)
+                continue
+            active = [t for t in tasks if t["state"] == "running"]
+            ready = [
+                t for t in db.ready_tasks() if t["team"] not in {a["team"] for a in active}
+            ]
+            # Quota reads use a model session. Read them only while there is active or
+            # ready work; a blocked or exhausted catalogue must quiesce locally.
+            if (active or ready) and time.monotonic() - last_read > 60:
+                try:
+                    with Codex(native, codex=cfg.get("codex_executable", "codex")) as account:
                         limits = account.call("account/rateLimits/read")
-                    except Exception:
-                        limits = {"ordinaryUsageAllowed": None}
-                    # Do not persist identity or reset-credit objects.
-                    limits = {
-                        k: limits.get(k)
-                        for k in ("ordinaryUsageAllowed", "rateLimits", "rateLimitsByLimitId")
-                    }
-                    atomic(state / "limits.json", limits)
-                    last_read = time.monotonic()
-                active = [t for t in db.list_tasks() if t["state"] == "running"]
-                ready = [
-                    t for t in db.ready_tasks() if t["team"] not in {a["team"] for a in active}
-                ]
-                decision = choose_capacity(
-                    limits,
-                    measured_usage(state, db),
-                    {"available_memory_bytes": available_memory(), "cpu_count": os.cpu_count()},
-                    cfg["resources"],
-                    active_tokens=len(active) * cfg["resources"]["per_worker_tokens"],
-                    ready_tasks=ready,
-                    active_scopes=[s for t in active for s in t["scope"]],
-                )
-                if not active and not ready:
-                    from .planning import plan_next
+                except Exception:
+                    limits = {"ordinaryUsageAllowed": None}
+                # Do not persist identity or reset-credit objects.
+                limits = {
+                    k: limits.get(k)
+                    for k in ("ordinaryUsageAllowed", "rateLimits", "rateLimitsByLimitId")
+                }
+                atomic(state / "limits.json", limits)
+                last_read = time.monotonic()
+            decision = choose_capacity(
+                limits,
+                measured_usage(state, db),
+                {"available_memory_bytes": available_memory(), "cpu_count": os.cpu_count()},
+                cfg["resources"],
+                active_tokens=len(active) * cfg["resources"]["per_worker_tokens"],
+                ready_tasks=ready,
+                active_scopes=[s for t in active for s in t["scope"]],
+            )
+            if not active and not ready:
+                from .planning import plan_next
 
-                    if decision["slots"] and plan_next(state, db):
-                        continue
-                    decision = choose_capacity(
-                        limits,
-                        measured_usage(state, db),
-                        {"available_memory_bytes": available_memory(), "cpu_count": os.cpu_count()},
-                        cfg["resources"],
-                        active_tokens=0,
+                if decision["slots"] and plan_next(state, db):
+                    continue
+                fingerprint = hashlib.sha256(
+                    json.dumps(
+                        [(t["id"], t["state"], t["candidate_sha"]) for t in tasks],
+                        sort_keys=True,
+                    ).encode()
+                ).hexdigest()
+                handoff_key = "sol-handoff/" + fingerprint
+                if db.get_decision(handoff_key) is None:
+                    states = ", ".join(f"{t['id']}={t['state']}" for t in tasks) or "empty catalogue"
+                    reason = "No active or ready task remains and planning produced no task; observed task states: " + states
+                    db.put_decision(
+                        handoff_key,
+                        {
+                            "status": "handoff",
+                            "model": SOL,
+                            "fingerprint": fingerprint,
+                            "reason": reason,
+                        },
                     )
-                    fingerprint = hashlib.sha256(
-                        json.dumps(
-                            [(t["id"], t["state"], t["candidate_sha"]) for t in tasks]
-                        ).encode()
-                    ).hexdigest()
-                    review_key = "executive-review/" + fingerprint
-                    if decision["slots"] and db.get_decision(review_key) is None:
-                        from .chief import chief
-
-                        # Record intent first; a failed episode is observable and will
-                        # not burn recurring idle turns on the same evidence boundary.
-                        db.put_decision(review_key, {"status": "requested"})
-                        trigger = (
-                            "blocked-dependencies"
-                            if any(t["state"] == "pending" for t in tasks)
-                            else "catalogue-exhausted"
-                        )
-                        chief(state, trigger=trigger)
-                    break
-                free = max(0, decision["slots"] - len(active))
-                for task in decision["selected_tasks"][:free]:
-                    attempt = db.claim(task["id"], LUNA, LEASE)
-                    if not attempt:
-                        continue
-                    log = (state / "attempt-output.log").open("ab")
-                    p = subprocess.Popen(
-                        [
-                            cfg["python"],
-                            "-m",
-                            "engineering",
-                            "attempt",
-                            "--state",
-                            str(state),
-                            "--attempt",
-                            str(attempt["id"]),
-                        ],
-                        cwd=cfg["controller"],
-                        stdin=subprocess.DEVNULL,
-                        stdout=log,
-                        stderr=log,
-                        start_new_session=True,
-                    )
-                    log.close()
                     log_event(
                         state,
-                        "attempt_spawned",
-                        attempt_id=attempt["id"],
-                        task=task["id"],
-                        child_pid=p.pid,
+                        "sol_handoff_required",
+                        model=SOL,
+                        fingerprint=fingerprint,
+                        reason=reason,
                     )
-                atomic(state / "status.json", status(state, db, decision=decision))
-                render_desk(state, db, decision)
-                time.sleep(2)
+                break
+            free = max(0, decision["slots"] - len(active))
+            for task in decision["selected_tasks"][:free]:
+                attempt = db.claim(task["id"], LUNA, LEASE)
+                if not attempt:
+                    continue
+                log = (state / "attempt-output.log").open("ab")
+                p = subprocess.Popen(
+                    [
+                        cfg["python"],
+                        "-m",
+                        "engineering",
+                        "attempt",
+                        "--state",
+                        str(state),
+                        "--attempt",
+                        str(attempt["id"]),
+                    ],
+                    cwd=cfg["controller"],
+                    stdin=subprocess.DEVNULL,
+                    stdout=log,
+                    stderr=log,
+                    start_new_session=True,
+                )
+                log.close()
+                log_event(
+                    state,
+                    "attempt_spawned",
+                    attempt_id=attempt["id"],
+                    task=task["id"],
+                    child_pid=p.pid,
+                )
+            atomic(state / "status.json", status(state, db, decision=decision))
+            render_desk(state, db, decision)
+            time.sleep(2)
         atomic(state / "status.json", status(state, db))
         render_desk(state, db)
         log_event(state, "supervisor_stopped")
