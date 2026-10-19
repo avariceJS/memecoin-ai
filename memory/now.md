@@ -104,8 +104,11 @@ ceo-resource-20261020/bootstrap-sol owns exact in-flight reconciliation. Source 
 independent review; task-spec6db5866 was rejected with five validator defects, not accepted.
 Deployment STOP and CEO-20261020-02 remain. Historical active was archived remotely under
 archive/research-active-pre-org-20261019 at c157f79471c1cb330bdab01cc4b4cdd7b9a1a186;
-main/active unchanged. Transfer verification is recorded separately; do not infer identity/scheduling
-from this intended policy or an active Goal flag alone.
+main/active unchanged. Actual same-thread automatic turn01a1568f is verified gpt-6-luna/high; Goal objective/createdAt
+unchanged and counters increased. All prior workers terminal; seven dirty metering files preserved
+in a hashed private snapshot. Fresh account telemetry72%, ordinary use allowed. Verification:
+docs/evidence/brain-org-luna-first-transfer-20261020.json. This is one observed automatic Luna turn,
+not multi-day endurance or deployment qualification.
 
 ## Git consolidation — 2026-10-18
 

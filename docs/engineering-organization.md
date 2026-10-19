@@ -13,7 +13,9 @@ planning and Pursuing Goal continuation; Sol6.1/high is invoked for difficult de
 review. Astra remains director, never automatic. Transfer uses the existing implementation thread
 `01a15657-3558-79c1-86dc-6ed033c264df`, preserving Goal/history and a single code owner. The original
 coordinator owns handoff/evidence only. The existing [mandate](../engineering/SOL-MANDATE.md) remains
-the canonical entrypoint; private handoff reconciles exact source and in-flight work. No capability,
+the canonical entrypoint; private handoff reconciles exact source and in-flight work.
+[Actual transfer evidence](evidence/brain-org-luna-first-transfer-20261020.json) confirms the same
+Goal/history and an observed automatic gpt-6-luna/high turn; no multi-day endurance is implied. No capability,
 confinement, acceptance, Git or STOP gate is relaxed. Frozen runtime model routing changes require
 a reviewed release. CEO-20261020-02 remains the resource policy; Luna handles routine renewals.
 

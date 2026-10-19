@@ -1,0 +1,36 @@
+{
+  "schema": "brain-org-luna-first-transfer-proof-v1",
+  "observed_at": 1792453708.8700092,
+  "thread": "01a15657-3558-79c1-86dc-6ed033c264df",
+  "same_existing_owner": true,
+  "actual_model": "gpt-6-luna",
+  "actual_effort": "high",
+  "actual_turn": "01a1568f-08c3-7cc3-bbc9-a4f43ccdd528",
+  "context_at": "2026-10-19T23:47:44.691Z",
+  "previous_completed_at": "2026-10-19T23:46:16.897Z",
+  "automatic_turn_started_at": "2026-10-19T23:46:16.910Z",
+  "native_goal_trigger_at": "2026-10-19T23:47:44.703Z",
+  "goal_preserved": {
+    "objective_sha256": "dcfba677ee67ead8dea07a7cbb47eea84b423a2a3dc5ecca94edb8b0cccee3e1",
+    "createdAt": 1792451340,
+    "tokens_before": 215476,
+    "tokens_after": 284972,
+    "time_before": 1626,
+    "time_after": 2236,
+    "status": "active"
+  },
+  "terminal_handoff": "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/luna-root-handoff-terminal.json",
+  "pilot_STOP": true,
+  "new_team_created": false,
+  "astra_launched": false,
+  "limitations": [
+    "This proves an observed native automatic Luna/high turn and preserved Goal, not multi-day endurance or deployment qualification.",
+    "Unaccepted metering snapshot and rejected task-spec source remain implementation work."
+  ],
+  "policy": "FOUNDER-20261020-LUNA-FIRST-01",
+  "actual_account_availability": {
+    "ordinaryUsageAllowed": true,
+    "weeklyUsedPercent": 72,
+    "paid_fallback": false
+  }
+}
