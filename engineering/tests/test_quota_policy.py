@@ -8,7 +8,9 @@ NOW = datetime(2026, 10, 20, 12, tzinfo=UTC)
 def sample(pct=40, secondary=20, **extra):
     limit = {
         "primary": {"usedPercent": pct, "resetsAt": 1792874446},
-        "secondary": None if secondary is None else {
+        "secondary": None
+        if secondary is None
+        else {
             "usedPercent": secondary,
             "resetsAt": 1792874446,
         },
@@ -105,3 +107,21 @@ def test_recovery_never_infers_reset_from_flat_usage():
     assert not reset_recovery_decision(
         paused, [a, b], now=NOW.timestamp() + 60, state_reconciled=True
     )["ready"]
+
+
+def test_recovery_accepts_historical_provider_denial_and_reached_bucket():
+    denied = sample(99)
+    denied["ordinaryUsageAllowed"] = False
+    reached = sample(98)
+    reached["rateLimitsByLimitId"]["codex"]["rateLimitReachedType"] = "primary"
+    fresh_a = {"observed_at": NOW, "rate_limits": sample(30)}
+    fresh_b = {"observed_at": NOW.timestamp() + 60, "rate_limits": sample(25)}
+    for historical in (denied, reached):
+        paused = {"observed_at": NOW, "rate_limits": historical}
+        decision = reset_recovery_decision(
+            paused,
+            [fresh_a, fresh_b],
+            now=NOW.timestamp() + 60,
+            state_reconciled=True,
+        )
+        assert decision == {"ready": True, "reason": "capacity_restored"}

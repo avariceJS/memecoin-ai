@@ -39,16 +39,19 @@ def _limits(rate_limits):
     if not isinstance(raw, (Mapping, list, tuple)) or not raw:
         return None
     items = (
-        list(raw.items())
-        if isinstance(raw, Mapping)
-        else [(str(i), v) for i, v in enumerate(raw)]
+        list(raw.items()) if isinstance(raw, Mapping) else [(str(i), v) for i, v in enumerate(raw)]
     )
     buckets = []
     for limit_id, limit in items:
         if not isinstance(limit, Mapping) or limit_id is None or str(limit_id) == "":
             return None
-        if not {"primary", "secondary", "credits", "rateLimitReachedType",
-                "spendControlReached"}.issubset(limit):
+        if not {
+            "primary",
+            "secondary",
+            "credits",
+            "rateLimitReachedType",
+            "spendControlReached",
+        }.issubset(limit):
             return None
         if type(limit["spendControlReached"]) is not bool:
             return None
@@ -93,6 +96,40 @@ def _limits(rate_limits):
     return sorted(buckets)
 
 
+def _historical_limits(rate_limits):
+    """Read historical bucket identities and percentages without access eligibility."""
+    if not isinstance(rate_limits, Mapping):
+        return None
+    raw = rate_limits.get("rateLimitsByLimitId")
+    if not isinstance(raw, (Mapping, list, tuple)) or not raw:
+        return None
+    items = (
+        list(raw.items()) if isinstance(raw, Mapping) else [(str(i), v) for i, v in enumerate(raw)]
+    )
+    buckets = []
+    for limit_id, limit in items:
+        if not isinstance(limit, Mapping) or limit_id is None or str(limit_id) == "":
+            return None
+        primary = limit.get("primary")
+        if not isinstance(primary, Mapping):
+            return None
+        primary_pct = _number(primary.get("usedPercent"))
+        if primary_pct is None:
+            return None
+        buckets.append((f"{limit_id}:primary", primary_pct, primary.get("resetsAt")))
+        secondary = limit.get("secondary")
+        if secondary is not None:
+            if not isinstance(secondary, Mapping):
+                return None
+            secondary_pct = _number(secondary.get("usedPercent"))
+            if secondary_pct is None:
+                return None
+            buckets.append((f"{limit_id}:secondary", secondary_pct, secondary.get("resetsAt")))
+    if not buckets or len({identity for identity, _, _ in buckets}) != len(buckets):
+        return None
+    return sorted(buckets)
+
+
 def _decision(rate_limits, observed_at, now, active_teams, stop, reserve_points, reserve_evidence):
     if type(stop) is not bool:
         return None, "invalid_stop_evidence", 300
@@ -131,9 +168,7 @@ def _decision(rate_limits, observed_at, now, active_teams, stop, reserve_points,
     else:
         slots = 2 - active_teams
         reason = "capacity_available"
-    if reserve_points == 2 and not (
-        isinstance(reserve_evidence, str) and reserve_evidence.strip()
-    ):
+    if reserve_points == 2 and not (isinstance(reserve_evidence, str) and reserve_evidence.strip()):
         slots = 0
         reason = "reserve_not_evidenced"
     elif usage >= 100 - reserve_points:
@@ -190,7 +225,7 @@ def reset_recovery_decision(
     ):
         return denied("insufficient_readings")
     now_ts = _timestamp(now)
-    paused = _limits(paused_reading.get("rate_limits"))
+    paused = _historical_limits(paused_reading.get("rate_limits"))
     paused_at = _timestamp(paused_reading.get("observed_at"))
     if now_ts is None or paused is None or paused_at is None or paused_at > now_ts:
         return denied("invalid_paused_evidence")

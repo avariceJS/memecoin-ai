@@ -24,13 +24,18 @@ class RpcError(RuntimeError):
 
 
 COUNTER_KEYS = (
-    "inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"
+    "inputTokens",
+    "cachedInputTokens",
+    "outputTokens",
+    "reasoningOutputTokens",
+    "totalTokens",
 )
 
 
 def counter_delta(start, end):
     """Validate cumulative counters and return one same-epoch interval, or unknown."""
     keys = COUNTER_KEYS
+
     def valid(value):
         return (
             isinstance(value, dict)
@@ -39,6 +44,7 @@ def counter_delta(start, end):
             and value["reasoningOutputTokens"] <= value["outputTokens"]
             and value["totalTokens"] == value["inputTokens"] + value["outputTokens"]
         )
+
     if not valid(start) or not valid(end):
         return None
     delta = {k: end[k] - start[k] for k in keys}
@@ -224,7 +230,9 @@ class Codex:
                             "properties": {
                                 "argv": {"type": "array", "items": {"type": "string"}},
                                 "timeout": {
-                                    "type": "integer", "minimum": 1, "maximum": 90,
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 90,
                                     "description": (
                                         "Timeout in seconds, integer 1..90 (not milliseconds)."
                                     ),
@@ -240,9 +248,7 @@ class Codex:
         thread_id = result["thread"]["id"]
         if not hasattr(self, "usage_counters"):
             self.usage_counters = {}
-        self.usage_counters[thread_id] = dict.fromkeys(
-            COUNTER_KEYS, 0
-        )
+        self.usage_counters[thread_id] = dict.fromkeys(COUNTER_KEYS, 0)
         return thread_id
 
     def resume(self, thread_id, model):
@@ -273,9 +279,10 @@ class Codex:
     ):
         # Resumed threads need a persisted baseline or a counter already known
         # to this client. Never assume an unknown lifetime counter starts at zero.
-        baseline = start_usage if start_usage is not None else getattr(
-            self, "usage_counters", {}
-        ).get(thread_id)
+        cache = getattr(self, "usage_counters", {})
+        baseline = start_usage if start_usage is not None else cache.get(thread_id)
+        # A cached cumulative value cannot be carried across an unverified turn end.
+        cache.pop(thread_id, None)
         params = {
             "threadId": thread_id,
             "input": [{"type": "text", "text": prompt}],
@@ -291,8 +298,14 @@ class Codex:
         if started:
             started(turn_id)
         self.sink(
-            {"kind": "turn_started", "thread_id": thread_id, "turn_id": turn_id, "model": model,
-             "usage_start": baseline, "usage_baseline_known": baseline is not None}
+            {
+                "kind": "turn_started",
+                "thread_id": thread_id,
+                "turn_id": turn_id,
+                "model": model,
+                "usage_start": baseline,
+                "usage_baseline_known": baseline is not None,
+            }
         )
         end = time.monotonic() + deadline_seconds
         last_heartbeat = 0.0
@@ -373,13 +386,7 @@ class Codex:
             elif method == "thread/tokenUsage/updated" and p.get("threadId") == thread_id:
                 usage = p.get("tokenUsage", {})
                 self.sink({"kind": "token_usage", "thread_id": thread_id, "usage": usage})
-                total = usage.get("total")
-                if counter_delta(dict.fromkeys(
-                    COUNTER_KEYS, 0
-                ), total) is not None:
-                    if not hasattr(self, "usage_counters"):
-                        self.usage_counters = {}
-                    self.usage_counters[thread_id] = dict(total)
+                # Cache only a verified end snapshot, after the turn completes.
                 # CEO-20261020-02: cumulative raw usage is telemetry, not quota.
                 # The turn wall deadline, finite attempts and fresh account
                 # admission remain enforced by the trusted caller.
@@ -387,6 +394,11 @@ class Codex:
                 raise RpcError("model_reroute_rejected")
             elif method == "turn/completed" and p.get("turn", {}).get("id") == turn_id:
                 status = p["turn"].get("status")
+                end_usage = usage.get("total")
+                if counter_delta(dict.fromkeys(COUNTER_KEYS, 0), end_usage) is not None:
+                    if not hasattr(self, "usage_counters"):
+                        self.usage_counters = {}
+                    self.usage_counters[thread_id] = dict(end_usage)
                 self.sink(
                     {
                         "kind": "turn_completed",
@@ -402,8 +414,11 @@ class Codex:
                 if status != "completed":
                     raise RpcError("turn_" + str(status) + ":" + json.dumps(p["turn"].get("error")))
                 return {
-                    "text": "\n".join(outputs), "usage": usage, "turn_id": turn_id,
-                    "usage_start": baseline, "usage_end": usage.get("total"),
+                    "text": "\n".join(outputs),
+                    "usage": usage,
+                    "turn_id": turn_id,
+                    "usage_start": baseline,
+                    "usage_end": usage.get("total"),
                     "usage_delta": counter_delta(baseline, usage.get("total")),
                 }
         try:

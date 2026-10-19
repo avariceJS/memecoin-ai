@@ -417,6 +417,28 @@ class UsageLedger:
             ) / 1_000_000
         reservations = []
         turns = {}
+        registration_coverage = {}
+        for r in regs:
+            rows = self.db.execute(
+                "SELECT * FROM events WHERE identity=? AND epoch=? ORDER BY sequence,event_id",
+                (r["identity"], r["epoch"]),
+            ).fetchall()
+            positions = defaultdict(list)
+            for event in rows:
+                if self.db.execute(
+                    "SELECT 1 FROM events WHERE parent_event_id=?", (event["event_id"],)
+                ).fetchone():
+                    continue
+                positions[event["sequence"]].append(json.loads(event["counters"]))
+            ambiguous = any(
+                any(value != values[0] for value in values) for values in positions.values()
+            )
+            current = None
+            if r["baseline"] is not None and not ambiguous:
+                current = json.loads(r["baseline"])
+                for sequence in sorted(positions):
+                    current = positions[sequence][0]
+            registration_coverage[(r["identity"], r["epoch"])] = current
         for t in self.db.execute("SELECT * FROM turns ORDER BY turn_id"):
             finish = self.db.execute(
                 "SELECT * FROM turn_finishes WHERE turn_id=?", (t["turn_id"],)
@@ -435,6 +457,25 @@ class UsageLedger:
                 a = json.loads(t["start_counters"])
                 b = json.loads(finish["end_counters"])
                 turns[t["turn_id"]] = {k: b[k] - a[k] for k in FIELDS}
+                observed = registration_coverage.get((t["identity"], t["epoch"]))
+                covered = observed is not None and all(observed[k] >= b[k] for k in FIELDS)
+                if not covered:
+                    reservations.append(
+                        {
+                            "turn_id": t["turn_id"],
+                            "reservation_tokens": t["reservation_tokens"],
+                            "reservation_wpu": t["reservation_wpu"],
+                            "deadline_at": t["deadline_at"],
+                        }
+                    )
+                    unresolved.append(
+                        {
+                            "identity": t["identity"],
+                            "epoch": t["epoch"],
+                            "turn_id": t["turn_id"],
+                            "reason": "turn_usage_uncovered",
+                        }
+                    )
         return {
             "incremental": totals,
             "by_model": by_model,

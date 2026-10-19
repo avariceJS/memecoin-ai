@@ -135,6 +135,7 @@ class UsageLedgerTests(unittest.TestCase):
         self.assertEqual(self.l.summary()["turns"]["t1"], None)
         self.l.finish_turn("t1", c(7, 1, 2, 1), receipt="r1", failed=True)
         self.l.finish_turn("t1", c(7, 1, 2, 1), receipt="r1", failed=True)
+        self.observe("cover-t1", 1, c(7, 1, 2, 1))
         self.l.start_turn(
             "t2",
             "a",
@@ -150,6 +151,32 @@ class UsageLedgerTests(unittest.TestCase):
         self.assertEqual(len(s["reservations"]), 1)
         with self.assertRaises(ValueError):
             self.l.finish_turn("t1", c(8, 1, 2, 1), receipt="other")
+
+    def test_finished_turn_reservation_waits_for_union_coverage(self):
+        self.l.start_turn(
+            "covered-later",
+            "a",
+            "e1",
+            c(),
+            reservation_tokens=50,
+            reservation_wpu=1.0,
+            deadline_at=10,
+            evidence="dispatch",
+        )
+        self.l.finish_turn("covered-later", c(50, 10, 5), receipt="r", failed=True)
+        pending = self.l.summary()
+        self.assertEqual(pending["turns"]["covered-later"], c(50, 10, 5))
+        self.assertEqual([r["turn_id"] for r in pending["reservations"]], ["covered-later"])
+        self.assertTrue(
+            any(item.get("turn_id") == "covered-later" for item in pending["unresolved"])
+        )
+        self.observe("late-coverage", 1, c(50, 10, 5))
+        covered = self.l.summary()
+        self.assertEqual(covered["incremental"], c(50, 10, 5))
+        self.assertEqual(covered["reservations"], [])
+        self.assertFalse(
+            any(item.get("turn_id") == "covered-later" for item in covered["unresolved"])
+        )
 
     def test_reopen_durable_and_duplicate_event_conflict(self):
         self.observe("x", 1, c(3))

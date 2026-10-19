@@ -250,9 +250,19 @@ def test_independent_ledger_acceptance():
         assert x.summary()["reservations"]
         x.finish_turn("retry-1", count(250), receipt="failed receipt", failed=True)
         assert x.summary()["turns"]["retry-1"]["total_tokens"] == 44
-        assert not x.summary()["reservations"]
+        assert x.summary()["reservations"] and x.summary()["unresolved"]
         # Attribution is not an additional union charge.
         assert x.summary()["incremental"]["total_tokens"] == 176
+        x.observe(
+            "sol",
+            "e1",
+            "finished-coverage",
+            count(250),
+            source="receipt",
+            sequence=3,
+            observed_at=20,
+        )
+        assert not x.summary()["reservations"]
         x.start_turn(
             "retry-2",
             "sol",
@@ -266,7 +276,7 @@ def test_independent_ledger_acceptance():
         assert x.summary()["reservations"]
         x.close()
         x = UsageLedger(path)
-        assert x.summary()["incremental"]["total_tokens"] == 176 and x.summary()["reservations"]
+        assert x.summary()["incremental"]["total_tokens"] == 220 and x.summary()["reservations"]
         bad = count(100)
         bad["cached_input_tokens"] = True
         rejects(
@@ -278,6 +288,110 @@ def test_independent_ledger_acceptance():
             "sol", "e2", "gpt-6.1-sol", count(0), evidence="counter reset independently verified"
         )
         x.observe("sol", "e2", "new-epoch", count(10), source="rollout", sequence=1, observed_at=20)
-        assert x.summary()["incremental"]["total_tokens"] == 187
+        assert x.summary()["incremental"]["total_tokens"] == 231
         x.close()
     print(json.dumps({"frozen_ledger_acceptance": "passed"}))
+
+
+def test_independent_review_regressions_acceptance():
+    import json
+    import queue
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import Mock
+
+    from engineering.codex_rpc import Codex
+    from engineering.quota_policy import reset_recovery_decision
+    from engineering.usage_ledger import UsageLedger
+
+    def count(n):
+        return dict(
+            input_tokens=n,
+            cached_input_tokens=0,
+            output_tokens=0,
+            reasoning_output_tokens=0,
+            total_tokens=n,
+        )
+
+    def camel(n):
+        return dict(
+            inputTokens=n,
+            cachedInputTokens=0,
+            outputTokens=0,
+            reasoningOutputTokens=0,
+            totalTokens=n,
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        x = UsageLedger(Path(tmp) / "usage.sqlite")
+        x.register("s", "epoch", "gpt-6.1-sol", count(0), evidence="baseline")
+        x.start_turn(
+            "failed",
+            "s",
+            "epoch",
+            count(0),
+            reservation_tokens=100,
+            reservation_wpu=1,
+            deadline_at=1,
+            evidence="before dispatch",
+        )
+        x.finish_turn("failed", count(50), receipt="failed turn final", failed=True)
+        s = x.summary()
+        assert s["reservations"] and s["unresolved"] and s["incremental"]["total_tokens"] == 0
+        x.observe("s", "epoch", "final", count(50), source="receipt", sequence=1, observed_at=10)
+        s = x.summary()
+        assert (
+            not s["reservations"] and not s["unresolved"] and s["incremental"]["total_tokens"] == 50
+        )
+        x.close()
+    c = Codex.__new__(Codex)
+    c.call = Mock(return_value={"turn": {"id": "t1"}})
+    c.sink = Mock()
+    c.messages = queue.Queue()
+    c.usage_counters = {"s": camel(100)}
+    c.notifications = [
+        {"method": "turn/completed", "params": {"turn": {"id": "t1", "status": "completed"}}}
+    ]
+    x = c.turn("s", "bounded", model="gpt-6.1-sol", tool=Mock())
+    assert x["usage_delta"] is None and c.usage_counters.get("s") is None
+    c.call = Mock(return_value={"turn": {"id": "t2"}})
+    c.notifications = [
+        {
+            "method": "thread/tokenUsage/updated",
+            "params": {"threadId": "s", "tokenUsage": {"total": camel(150)}},
+        },
+        {"method": "turn/completed", "params": {"turn": {"id": "t2", "status": "completed"}}},
+    ]
+    x = c.turn("s", "bounded", model="gpt-6.1-sol", tool=Mock())
+    assert x["usage_delta"] is None
+
+    def limits(pct=1):
+        return {
+            "ordinaryUsageAllowed": True,
+            "rateLimitsByLimitId": {
+                "codex": {
+                    "primary": {"usedPercent": pct, "resetsAt": 2000},
+                    "secondary": None,
+                    "rateLimitReachedType": None,
+                    "spendControlReached": False,
+                    "credits": {"hasCredits": False, "unlimited": False, "balance": "0"},
+                }
+            },
+        }
+
+    readings = [
+        {"observed_at": 940, "rate_limits": limits()},
+        {"observed_at": 1000, "rate_limits": limits()},
+    ]
+    for stop_kind in ("entitlement", "provider"):
+        old = limits(100)
+        if stop_kind == "entitlement":
+            old["ordinaryUsageAllowed"] = False
+        else:
+            old["rateLimitsByLimitId"]["codex"]["rateLimitReachedType"] = "primary"
+        paused = {"observed_at": 800, "rate_limits": old}
+        assert (
+            reset_recovery_decision(paused, readings, now=1000, state_reconciled=True)["ready"]
+            is True
+        )
+    print(json.dumps({"review_regressions": "passed"}))
