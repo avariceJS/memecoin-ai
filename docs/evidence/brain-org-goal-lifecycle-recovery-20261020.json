@@ -1,0 +1,31 @@
+{
+  "schema": "brain-org-goal-lifecycle-recovery-v1",
+  "observed_at": 1792452141.850039,
+  "root_goal": "01a1563e-1a26-75e2-bdab-ca2b38c7b51f",
+  "implementation_goal": "01a15657-3558-79c1-86dc-6ed033c264df",
+  "cause": "Original visible thread remained persistently blocked after resource amendments; previous claim of active continuation referred to the different implementation root.",
+  "authorized_action": "Explicit founder-requested resume through official App Server thread/goal/set, status=active, objective omitted.",
+  "original_usage_preserved": {
+    "tokensUsed": 99670,
+    "timeUsedSeconds": 320
+  },
+  "original_objective_preserved": true,
+  "original_goal_readback": "active",
+  "proof_refs": {
+    "/Users/root1/Developer/brain-org-state/founder-quota-20261020/original-goal-resume-receipt.json": "a6d585c9e693d05ea50735c74bd1ae5c71ea334ec8470109764b6586fdbb8ec0",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/automatic-continuation-proof-1.json": "44dc46a9807f07af82d55dbc8d8311b2b3575653d1d803d95a39e579b7779d88"
+  },
+  "automatic_progress_already_observed": {
+    "goal": "01a15657-3558-79c1-86dc-6ed033c264df",
+    "continuation_turn": "01a15672-d518-7101-9088-9af3d1a6ab48",
+    "work": "Collected independent review3 and dispatched actual confined Luna summary-snapshot repair; later candidate27431b7 and parallel controller-gate work remain under review."
+  },
+  "original_next_automatic_turn_not_yet_verified": true,
+  "implementation_owner_unchanged": true,
+  "new_team_started": false,
+  "controller_STOP_unchanged": true,
+  "controller_release_claimed": false,
+  "management_process": "One-shot official app-server with goals enabled, no inference/thread resume requested, then closed; worker goal capabilities unchanged.",
+  "computer_use_limiter": "com.openai.codex app access denied for safety reasons; no UI bypass or direct Goal database mutation.",
+  "official_source": "https://learn.chatgpt.com/docs/app-server#manage-a-thread-goal"
+}

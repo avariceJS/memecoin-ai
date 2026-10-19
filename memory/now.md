@@ -78,12 +78,17 @@ with default1-point recovery reserve/productive pause99%, reduced concurrency at
 routine planning renewals and qualified recovery after actual account reset; no automatic Astra.
 Existing root `01a15657-3558-79c1-86dc-6ed033c264df` owns an actually active Pursuing Goal for the
 full organization mandate, with predecessor identity preserved; no duplicate team. Actual Luna6/high
-is repairing three findings from independent review of `0d74d69`; that candidate is not accepted.
+has advanced through additional rejected reviews; snapshot repair is now at `27431b7` with exact-SHA
+review and independent controller-gate work active. Source milestones are not pilot acceptance.
 Durable goal/worker/next-gate status is at
 `/Users/root1/Developer/brain-org-state/founder-quota-20261020/sol-live-status.json`; exact API receipt
 is adjacent `continuation-goal-receipt.json`. Pilot config/STOP and six failed attempts are preserved;
 reviewed controller upgrade and operational qualification remain required. Prior source `b37eafa` and unreviewed proposal `1546e4c` remain intact. Original full goal
-`01a1563e-1a26-75e2-bdab-ca2b38c7b51f` requires supported gated continuation, not an executive reset.
+`01a1563e-1a26-75e2-bdab-ca2b38c7b51f` was actually resumed on explicit founder instruction through
+official `thread/goal/set(status=active)` without objective/usage reset. Deployment STOP remains
+independent of offline Goal progress. Implementation root already executed an actual automatic Goal
+turn; original-root next automatic turn still needs observation. Lifecycle evidence and exact
+readback: `docs/evidence/brain-org-goal-lifecycle-recovery-20261020.json`.
 Policy: `docs/evidence/brain-org-founder-quota-amendment-20261020.json`.
 
 ## Git consolidation — 2026-10-18

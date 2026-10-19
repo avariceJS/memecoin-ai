@@ -25,8 +25,12 @@ Desk; no controller repair is implemented by this executive episode. Preserve pi
 security/science/Git/market restrictions. After genuine quota exhaustion, checkpoint and pause
 inference; qualified recovery may resume after actual account restoration without another Astra
 intervention. Never clear unrelated STOP reasons or infer reset permission from a timestamp alone.
-The full goal still requires its applicable release gates; preserve predecessor identity on supported
-continuation. `update_goal` cannot itself resume a blocked goal. No automatic Astra.
+Deployment and operational dispatch still require their release gates; deployment STOP does not
+block authorized offline Goal work. Preserve predecessor identity on continuation. `update_goal`
+cannot itself resume a blocked goal; on explicit founder resume authorization, documented App Server
+`thread/goal/set` with status=active and objective omitted preserves the same objective/usage. This
+was verified for the original root; do not mutate private Goal databases or infer scheduling from
+active status alone. Observe actual automatic turns and engineering artifacts. No automatic Astra.
 
 ## Authority and communication
 

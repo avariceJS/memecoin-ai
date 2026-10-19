@@ -81,11 +81,17 @@ ceilings of CEO-20261020-01. The founder allocates essentially all remaining wee
 to useful Sol/Luna engineering and authorizes qualified continuation after account access is restored.
 The existing Sol root `01a15657-3558-79c1-86dc-6ed033c264df` owns implementation; no competing team.
 Its supported Pursuing Goal is active for the full sustained mandate, not just the accounting repair.
-The prior blocked root remains a predecessor record, not a falsely resumed goal. The exact API receipt
+The original root was later explicitly resumed through the documented App Server `thread/goal/set`
+with only status=active, preserving its objective and usage. This fixes the visible Goal-stalled
+condition that remained after earlier resource decisions; it does not resume the deployment. The exact API receipt
 and current owner/worker/next-gate projection are private under
 `/Users/root1/Developer/brain-org-state/founder-quota-20261020/` as
 `continuation-goal-receipt.json` and `sol-live-status.json`. Independent review rejected candidate
-`0d74d69` for three accounting/recovery defects; bounded actual Luna6 High repair is active. This is
+`0d74d69` for three accounting/recovery defects, and later reviews produced further fixes. An actual
+automatic implementation-root Goal turn collected review3 and dispatched confined Luna snapshot repair.
+The source progressed to `27431b7`; exact-SHA review and separate controller-gate work remain active.
+See [lifecycle recovery evidence](evidence/brain-org-goal-lifecycle-recovery-20261020.json), which
+separates status restoration, observed automatic work and the original-root next-turn proof still pending. This is
 source work, not operational acceptance or unattended-service qualification. No automatic Astra.
 
 Actual entitlement and applicable account-limit telemetry govern availability. Productive inference
