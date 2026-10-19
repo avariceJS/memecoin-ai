@@ -49,6 +49,15 @@ trading, signing, promotion, and paid upgrades remain disabled pending separate 
   107 pre-existing Ruff findings. `make ml-check` and its17 tests, source smokes,40 Observatory Python
   tests and44 web tests/build passed. Do not call the entire historical suite green.
 
+## Engineering organization — 2026-10-19
+
+The founder now appoints episodic Astra High as CEO, Sol department leads and Luna workers.
+Implementation is isolated on `org/foundation-20261019`; `main` must remain unchanged.
+`research/active` may become the verified integration lane only after its historical SHA is archived.
+The separate `engineering/` control system is under qualification: no live runtime, acquisition,
+training, AUTO or trading activation. See `docs/engineering-organization.md` and the Russian
+`engineering/OWNER-DESK.md`. Earlier sole-main and Sol-executive policy below is historical.
+
 ## Git consolidation — 2026-10-18
 
 `main` is the sole integration baseline on GitHub, incorporating research code/history through

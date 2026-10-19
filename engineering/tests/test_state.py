@@ -1,0 +1,344 @@
+"""Adversarial, offline state-machine tests; no project/runtime data required."""
+
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import unittest
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+from engineering.org_state import StaleAttempt, StateError, Store
+
+
+class StateTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path = Path(self.temp.name) / "org.sqlite"
+        self.now = 1000.0
+        self.store = Store(self.path, clock=lambda: self.now)
+
+    def tearDown(self):
+        self.store.close()
+        self.temp.cleanup()
+
+    def task(self, task_id="a", **kwargs):
+        self.store.add_task(task_id, "engineering", f"Task {task_id}", **kwargs)
+
+    def submit(self, task_id="a", sha="candidate"):
+        attempt = self.store.claim(task_id, "worker", 10)
+        self.store.submit(attempt["id"], attempt["epoch"], sha, {"tests": ["focused"]})
+        return attempt
+
+    def finish(self, task_id="a", sha="candidate"):
+        self.submit(task_id, sha)
+        self.store.verify(task_id, sha, True, {"checked": True})
+        self.store.accept(task_id, sha)
+        self.store.integrate(task_id, sha, f"integrated-{sha}")
+
+    def test_sqlite_durability_settings(self):
+        self.assertEqual(self.store.db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
+        self.assertEqual(self.store.db.execute("PRAGMA synchronous").fetchone()[0], 2)
+        self.assertEqual(self.store.db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
+
+    def test_claim_is_atomic_across_connections(self):
+        self.task()
+        other = Store(self.path, clock=lambda: self.now)
+        try:
+            with ThreadPoolExecutor(2) as pool:
+                results = list(
+                    pool.map(lambda store: store.claim("a", "worker"), [self.store, other])
+                )
+            self.assertEqual(sum(result is not None for result in results), 1)
+            self.assertEqual(len(self.store.list_attempts()), 1)
+            self.assertEqual(
+                len([e for e in self.store.events() if e["kind"] == "attempt_claimed"]), 1
+            )
+        finally:
+            other.close()
+
+    def test_expiry_at_exact_deadline_fences_old_result(self):
+        self.task()
+        first = self.store.claim("a", "one", 10)
+        self.now += 10
+        with self.assertRaises(StaleAttempt):
+            self.store.submit(first["id"], first["epoch"], "old", {})
+        with self.assertRaises(StaleAttempt):
+            self.store.renew(first["id"], first["epoch"])
+        second = self.store.claim("a", "two", 10)
+        self.assertEqual(second["epoch"], 2)
+        for operation in (
+            lambda: self.store.fail(first["id"], first["epoch"], "late"),
+            lambda: self.store.record_usage(first["id"], first["epoch"], {"tokens": 10}),
+            lambda: self.store.record_session(first["id"], first["epoch"], "thread", "model"),
+        ):
+            with self.assertRaises(StaleAttempt):
+                operation()
+        self.assertEqual(self.store.get_task("a")["active_attempt"], second["id"])
+
+    def test_forged_epoch_and_cross_task_fences_rejected(self):
+        self.task("a")
+        self.task("b")
+        attempt = self.store.claim("a", "one")
+        self.store.claim("b", "two")
+        with self.assertRaises(StaleAttempt):
+            self.store.submit(attempt["id"], attempt["epoch"] + 1, "bad", {})
+        self.assertEqual(self.store.get_task("b")["state"], "running")
+
+    def test_recovery_is_durable_idempotent_and_bounded(self):
+        self.task(max_attempts=2)
+        first = self.store.claim("a", "worker", 1)
+        self.now += 2
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertEqual(self.store.recover_expired(), [first["id"]])
+        self.assertEqual(self.store.recover_expired(), [])
+        self.store.claim("a", "worker", 1)
+        self.now += 2
+        self.store.recover_expired()
+        self.assertEqual(self.store.get_task("a")["state"], "failed")
+        self.assertIsNone(self.store.claim("a", "worker"))
+        self.assertEqual(len(self.store.list_attempts()), 2)
+
+    def test_lease_renewal_does_not_change_fence(self):
+        self.task()
+        attempt = self.store.claim("a", "worker", 10)
+        self.now += 8
+        self.assertEqual(self.store.renew(attempt["id"], attempt["epoch"], 20), 1028)
+        self.now += 5
+        self.assertEqual(self.store.recover_expired(), [])
+        self.store.submit(attempt["id"], attempt["epoch"], "result", {})
+
+    def test_dependencies_require_integration_not_just_acceptance(self):
+        self.task("producer")
+        self.task("consumer", dependencies=["producer"])
+        self.task("independent")
+        self.assertEqual({t["id"] for t in self.store.ready_tasks()}, {"producer", "independent"})
+        self.submit("producer")
+        self.store.verify("producer", "candidate", True, {})
+        self.store.accept("producer", "candidate")
+        self.assertIsNone(self.store.claim("consumer", "worker"))
+        self.assertIsNotNone(self.store.claim("independent", "worker"))
+        self.store.integrate("producer", "candidate", "merged-sha")
+        self.assertIsNotNone(self.store.claim("consumer", "worker"))
+
+    def test_contract_requirements_block_until_exact_current_version(self):
+        self.task(contracts={"api": 2})
+        self.assertEqual(self.store.ready_tasks(), [])
+        self.store.put_contract("api", 1, {"field": "old"})
+        self.assertIsNone(self.store.claim("a", "worker"))
+        self.store.put_contract("api", 2, {"field": "current"})
+        self.assertEqual([t["id"] for t in self.store.ready_tasks()], ["a"])
+        self.store.put_contract("api", 3, {"field": "new"})
+        self.assertIsNone(self.store.claim("a", "worker"))
+        self.assertEqual(self.store.get_contract("api", 1)["body"], {"field": "old"})
+        self.assertEqual(self.store.get_contract("api")["version"], 3)
+        with self.assertRaises(StateError):
+            self.store.put_contract("api", 2, {"overwritten": True})
+
+    def test_contract_change_during_execution_rejects_submission(self):
+        self.store.put_contract("api", 1, {})
+        self.task(contracts={"api": 1})
+        attempt = self.store.claim("a", "worker")
+        self.store.put_contract("api", 2, {})
+        with self.assertRaises(StateError):
+            self.store.submit(attempt["id"], attempt["epoch"], "stale", {})
+        self.assertEqual(self.store.get_task("a")["state"], "running")
+        self.store.fail(attempt["id"], attempt["epoch"], "contract changed")
+        self.assertEqual(self.store.ready_tasks(), [])
+
+    def test_contract_change_after_verification_blocks_acceptance(self):
+        self.store.put_contract("api", 1, {})
+        self.task(contracts={"api": 1})
+        self.submit()
+        self.store.verify("a", "candidate", True, {})
+        self.store.put_contract("api", 2, {})
+        with self.assertRaises(StateError):
+            self.store.accept("a", "candidate")
+        self.assertEqual(self.store.get_task("a")["state"], "verified")
+
+    def test_accept_requires_verification_and_is_unique(self):
+        self.task()
+        self.submit()
+        with self.assertRaises(StateError):
+            self.store.accept("a", "candidate")
+        with self.assertRaises(StaleAttempt):
+            self.store.verify("a", "different-sha", True, {})
+        self.store.verify("a", "candidate", True, {"tests": "passed"})
+        self.store.accept("a", "candidate")
+        with self.assertRaises(StateError):
+            self.store.accept("a", "candidate")
+        self.assertEqual(self.store.db.execute("SELECT COUNT(*) FROM acceptances").fetchone()[0], 1)
+
+    def test_rejected_verification_retries_and_old_candidate_cannot_be_accepted(self):
+        self.task(max_attempts=2)
+        first = self.submit(sha="old")
+        self.store.verify("a", "old", False, {"reason": "test failure"})
+        second = self.submit(sha="new")
+        self.assertGreater(second["epoch"], first["epoch"])
+        with self.assertRaises(StaleAttempt):
+            self.store.accept("a", "old")
+        self.store.verify("a", "new", False, {})
+        self.assertEqual(self.store.get_task("a")["state"], "failed")
+        self.assertIsNone(self.store.claim("a", "worker"))
+
+    def test_fail_retry_and_permanent_failure(self):
+        self.task()
+        first = self.store.claim("a", "worker")
+        self.store.fail(first["id"], first["epoch"], "transient")
+        second = self.store.claim("a", "worker")
+        self.store.fail(second["id"], second["epoch"], "invalid brief", retryable=False)
+        self.assertEqual(self.store.get_task("a")["state"], "failed")
+        self.assertIsNone(self.store.claim("a", "worker"))
+
+    def test_submitted_candidate_survives_deadline_and_reopen(self):
+        self.task()
+        self.submit()
+        self.now += 1000
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertEqual(self.store.recover_expired(), [])
+        self.store.verify("a", "candidate", True, {})
+        self.store.accept("a", "candidate")
+        self.store.integrate("a", "candidate", "merge", {"smoke": "passed"})
+        self.assertEqual(self.store.get_task("a")["state"], "integrated")
+
+    def test_session_persists_and_cannot_switch_identity(self):
+        self.task()
+        attempt = self.store.claim("a", "worker")
+        self.store.record_session(attempt["id"], attempt["epoch"], "thread-1", "model", {"pid": 1})
+        with self.assertRaises(StateError):
+            self.store.record_session(attempt["id"], attempt["epoch"], "thread-2", "model")
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertEqual(self.store.list_attempts("a")[0]["session"]["thread_id"], "thread-1")
+
+    def test_stage_sessions_preserve_lead_worker_history_and_duplicate_is_noop(self):
+        self.task()
+        attempt = self.store.claim("a", "worker")
+        args = attempt["id"], attempt["epoch"]
+        self.store.record_stage_session(*args, "lead-thread", "sol", {"pid": 1}, stage="lead")
+        self.store.record_stage_session(*args, "worker-thread", "luna", {"pid": 2}, stage="worker")
+        before = self.store.events()
+        # Replaying an old stage must not move latest recovery pointer backwards.
+        self.store.record_stage_session(*args, "lead-thread", "sol", {"pid": 1}, stage="lead")
+        self.assertEqual(self.store.events(), before)
+        with self.assertRaises(StateError):
+            self.store.record_stage_session(*args, "different", "sol", stage="lead")
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        latest = self.store.list_attempts("a")[0]["session"]
+        self.assertEqual(latest["thread_id"], "worker-thread")
+        self.assertEqual(latest["stage"], "worker")
+        history = [
+            event["body"]["session"]
+            for event in self.store.events()
+            if event["kind"] == "session_stage_recorded"
+        ]
+        self.assertEqual([item["stage"] for item in history], ["lead", "worker"])
+
+    def test_decision_versions_and_replacement_persist(self):
+        self.assertEqual(self.store.put_decision("old", {"choice": "A"}), 1)
+        self.store.put_decision("new", {"choice": "B"}, replaces="old")
+        self.store.put_decision("new", {"choice": "C"})
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertEqual(self.store.get_decision("new", 1)["replaces"], "old")
+        self.assertEqual(self.store.get_decision("new", 1)["replaces_version"], 1)
+        self.assertEqual(self.store.get_decision("new")["replaces_version"], 1)
+        self.assertEqual(self.store.get_decision("new")["replaces"], "new")
+        self.store.put_decision("old", {"choice": "later"})
+        self.assertEqual(self.store.get_decision("new", 1)["replaces_version"], 1)
+        self.assertEqual(self.store.get_decision("new", 1)["body"], {"choice": "B"})
+        self.assertEqual(self.store.get_decision("new")["body"], {"choice": "C"})
+        with self.assertRaises(StateError):
+            self.store.put_decision("bad", {}, replaces="missing")
+
+    def test_usage_includes_failed_attempt_and_rejects_invalid_measurements(self):
+        self.task()
+        first = self.store.claim("a", "worker")
+        self.store.record_usage(first["id"], first["epoch"], {"tokens": 10, "seconds": 2.5})
+        self.store.fail(first["id"], first["epoch"], "crash")
+        second = self.store.claim("a", "worker")
+        self.store.record_usage(second["id"], second["epoch"], {"tokens": 5})
+        for bad in (-1, float("nan"), float("inf"), True, "unknown"):
+            with self.assertRaises(StateError):
+                self.store.record_usage(second["id"], second["epoch"], {"tokens": bad})
+        summary = self.store.usage_summary()
+        self.assertEqual(summary["total"], {"tokens": 15, "seconds": 2.5})
+        self.assertEqual(summary["teams"]["engineering"], summary["total"])
+
+    def test_mutation_and_journal_rollback_together(self):
+        self.task()
+        attempt = self.store.claim("a", "worker")
+        before = self.store.events()
+        with self.assertRaises(ValueError):
+            self.store.submit(attempt["id"], attempt["epoch"], "bad", {"nan": float("nan")})
+        self.assertEqual(self.store.events(), before)
+        self.assertEqual(self.store.get_task("a")["state"], "running")
+        self.assertEqual(self.store.db.execute("SELECT COUNT(*) FROM candidates").fetchone()[0], 0)
+        self.store.submit(attempt["id"], attempt["epoch"], "good", {})
+
+    def test_graph_and_objective_constraints_rollback_cleanly(self):
+        with self.assertRaises(StateError):
+            self.task(dependencies=["missing"])
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.task(objective_id="missing")
+        self.assertEqual(self.store.list_tasks(), [])
+        self.assertEqual(self.store.events(), [])
+        self.store.add_objective("goal", "Goal", "Scope")
+        self.task(objective_id="goal", scope=["engineering/"], acceptance=["offline checks"])
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.task()
+        self.assertEqual(len(self.store.list_tasks()), 1)
+
+    def test_event_resume_cursor_and_detached_snapshots(self):
+        self.task(scope=["one"])
+        task = self.store.get_task("a")
+        task["scope"].append("other")
+        self.assertEqual(self.store.get_task("a")["scope"], ["one"])
+        cursor = self.store.events()[-1]["seq"]
+        self.store.claim("a", "worker")
+        events = self.store.events(after=cursor)
+        self.assertEqual([event["kind"] for event in events], ["attempt_claimed"])
+        self.assertGreater(events[0]["seq"], cursor)
+
+    def test_process_crash_between_mutation_and_journal_is_rolled_back(self):
+        self.task("durable")
+        code = """
+import os, sys
+from engineering.org_state import Store
+store = Store(sys.argv[1])
+store._event = lambda *args: os._exit(19)
+store.add_task('uncommitted', 'engineering', 'Must rollback')
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", code, str(self.path)],
+            cwd=Path(__file__).resolve().parents[2],
+            check=False,
+        )
+        self.assertEqual(result.returncode, 19)
+        self.assertEqual([task["id"] for task in self.store.list_tasks()], ["durable"])
+        self.assertEqual([event["entity"] for event in self.store.events()], ["durable"])
+        self.assertIsNotNone(self.store.claim("durable", "worker"))
+
+    def test_candidate_evidence_is_immutable_and_available_for_resume(self):
+        self.task()
+        attempt = self.submit(sha="old")
+        self.assertEqual(self.store.get_candidate("a")["attempt_id"], attempt["id"])
+        self.store.verify("a", "old", False, {})
+        self.submit(sha="new")
+        self.assertEqual(self.store.get_candidate("a")["sha"], "new")
+        self.assertEqual(self.store.get_candidate("a", "old")["evidence"], {"tests": ["focused"]})
+        self.assertIsNone(self.store.get_candidate("a", "unknown"))
+
+    def test_bad_lease_lengths_cannot_mutate_state(self):
+        self.task()
+        for value in (0, -1, float("inf"), float("nan"), True):
+            with self.assertRaises(StateError):
+                self.store.claim("a", "worker", value)
+        self.assertEqual(self.store.list_attempts(), [])
+
+
+if __name__ == "__main__":
+    unittest.main()
