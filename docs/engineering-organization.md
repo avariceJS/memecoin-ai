@@ -75,34 +75,41 @@ and independent security/publication qualification are evidenced.
 
 ## Resource management and evidence
 
-Current authorization is [CEO-20261020-01](evidence/brain-org-ceo-resource-policy-20261020.json),
-a manually founder-invoked actual Astra High decision recorded in the original organization SQLite.
-It supersedes the initial raw-token resource policy only. The frozen deployed controller is unchanged;
-STOP, task recovery, security and publication gates remain. Sol implements the repair with confined
-Luna workers and independent exact-commit review; the executive episode implements no controller code.
+Current resource authority is the explicit founder amendment
+[CEO-20261020-02](evidence/brain-org-founder-quota-amendment-20261020.json), superseding the resource
+ceilings of CEO-20261020-01. The founder allocates essentially all remaining weekly subscription quota
+to useful Sol/Luna engineering and authorizes qualified continuation after account access is restored.
+The existing Sol root `01a15657-3558-79c1-86dc-6ed033c264df` owns implementation; no competing team.
 
-The new incremental horizon lasts 72 hours from recorded T0: 200 internal work-proxy units (WPU),
-160 for execution and 40 locked for bounded historical and late/missing usage uncertainty. Initial
-STOP-preserving accounting bootstrap is at most20 WPU/2 hours. After independent review, Sol may issue
-up to five28-WPU/12-hour grants inside the same72-hour/200-WPU envelope without another CEO episode.
-The authoritative JSON fixes model rates, reservations, turn limits, late-data rules and release gates.
-WPU are a planning proxy using published Standard credit-rate ratios, never actual billed credits or
-included subscription usage. No paid-credit spending is authorized.
+Actual entitlement and applicable account-limit telemetry govern availability. Productive inference
+pauses at99% with a default1-percentage-point checkpoint/recovery reserve; at97% use one productive
+team and short bounded turns. A measured in-flight/granularity requirement may justify at most2 points
+of reserve, recorded by Sol. The former68/69% controls and1-point/15-minute automatic STOP are revoked.
+Read limits before dispatch and after completion, every5 minutes while active, and at most60 seconds
+once a bucket reaches95%. Provider denial or a reached limit stops inference; optional absent buckets
+are distinguished from missing required evidence. No paid credits, upgrades or billable API fallback.
 
-Deduplicate overlapping metering by stable request/thread/run/counter-epoch identity; union disjoint
-usage and charge cumulative deltas from recorded baselines. Cached input is a subset of input;
-reasoning is a subset of output. Resumes, counter resets, late receipts and unresolved intervals retain
-provenance and reservations. Preserve historical totals rather than recharging all previous lifetime
-context to each new grant. The reproduced2,342,879 raw total includes2,047,232 cached input; arithmetic
-is valid but does not demonstrate equivalent subscription exhaustion. Historical killed-chief and
-in-flight uncertainty is still unresolved. The original raw stop and proposal remain immutable.
+WPU, raw tokens and task-duration estimates remain efficiency/accounting tools. The72-hour hard expiry,
+200-WPU cumulative cap, five-renewal cap and fixed20-WPU/2-hour repair expiry are superseded. Sol records
+routine scope/progress/quota reviews and may renew planning allocations without Astra. Bounded turns,
+finite attempts, leases, reservations and independent code/release acceptance remain mandatory.
+Review ongoing strategy at least daily; do not create work merely to consume available quota.
 
-Actual account limits govern independently: require fresh entitlement/limit reads, reduce to one team
-and half turn limits at68%, stop at69%, and pause for growth of at least1 percentage point in15 minutes.
-Observe all exposed limit buckets; stale/missing evidence prevents dispatch. Stable-rate recovery may
-be handled by Sol under the JSON conditions without automatic Astra. Neither weekly reset nor resume
-rebases this horizon. The original full Brain goal stays blocked until the applicable accounting and
-release gates pass; supported new-root continuation must retain the predecessor identity.
+Keep per-agent/task/model cumulative snapshots and incremental deltas, deduplicate overlapping sources
+and union disjoint usage. Cached input is within input; reasoning is within output. Preserve all old
+receipts, initial T0, failures and unknown/late usage. Unknown historical totals are not zero or newly
+charged debt; current in-flight uncertainty must be bounded. Fresh actual account access, rather than
+an arbitrary historical WPU reserve, establishes subscription availability.
+
+At quota pause, preserve edits, commits, attempts, leases, usage and integration intents. Qualified
+non-inference polling may await restoration; a wall-clock reset estimate alone grants no authority.
+After two fresh successful account reads at least60 seconds apart confirm access and restored capacity,
+Sol may reconcile state and resume the same objective through qualified recovery without CEO renewal.
+Reset changes the quota window, never accounting history. Keep resource pause separate from other STOP
+reasons; no safety/release STOP is cleared merely by a quota reset. No idle model polling or automatic
+Astra. Existing concurrency, security, scientific, protected-data, acquisition, training, trading, Git
+and publication restrictions remain. The frozen pilot config is unchanged by this executive decision;
+Sol must implement and independently review the appropriate release before operational resumption.
 
 The following initial policy is historical and remains in the frozen old deployment until reviewed
 replacement; it is not an alternative current resource authorization.

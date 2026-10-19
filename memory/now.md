@@ -72,17 +72,16 @@ operation. Exact evidence and limitations: `docs/evidence/brain-org-handoff-2026
 
 ## Organization resource decision — 2026-10-20
 
-Sol checkpoint `b37eafa`:142 tests/18 subtests and engineering Ruff; Luna proposal `1546e4c`
-is separate/unreviewed. Original full goal `01a1563e-1a26-75e2-bdab-ca2b38c7b51f` is blocked.
-A founder-invoked actual Astra High episode approved `CEO-20261020-01`, recorded in the original
-SQLite and Founder Desk. Raw2,342,879 includes2,047,232 cached input; it is not equivalent subscription
-spend. Fresh quota read remains67%, ordinary use allowed. Policy authorizes a new72-hour/200-WPU
-incremental horizon including40 reserve; first STOP-preserving accounting repair20 WPU/2 hours.
-Sol may conditionally renew within the envelope;68% reduces load,69% stops. No automatic Astra.
-Independent Sol root `01a15657-3558-79c1-86dc-6ed033c264df` (actualSol6.1/high verified)
-received the bounded implementation handoff; completion is not claimed. Pilot STOP/deployment/config,
-six failed attempts, protected resources and main/active remain. No pilot retry reopening or service.
-Exact policy/gates: `docs/evidence/brain-org-ceo-resource-policy-20261020.json`.
+Founder amendment `CEO-20261020-02` supersedes68/69% controls and72h/200-WPU/five-renewal limits.
+Fresh account read:68%, ordinary use allowed. Productive work may use the available weekly quota,
+with default1-point recovery reserve/productive pause99%, reduced concurrency at97%. Sol manages
+routine planning renewals and qualified recovery after actual account reset; no automatic Astra.
+Existing root `01a15657-3558-79c1-86dc-6ed033c264df` retains Sol/Luna implementation ownership;
+no duplicate team. Decision is in original SQLite/Founder Desk. Pilot config/STOP and six failed
+attempts are preserved; accounting/release implementation and operational qualification remain Sol's
+work. Prior source `b37eafa` and unreviewed proposal `1546e4c` remain intact. Original full goal
+`01a1563e-1a26-75e2-bdab-ca2b38c7b51f` requires supported gated continuation, not an executive reset.
+Policy: `docs/evidence/brain-org-founder-quota-amendment-20261020.json`.
 
 ## Git consolidation — 2026-10-18
 

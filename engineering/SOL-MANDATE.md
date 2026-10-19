@@ -7,17 +7,26 @@ is not the independent root required here.
 
 ## Current resource authorization — 2026-10-20
 
-[CEO-20261020-01](../docs/evidence/brain-org-ceo-resource-policy-20261020.json) supersedes only the
-initial750k raw-token budget and resource-block requirement below. Preserve all old usage/failures;
-no debt is fabricated by treating cached lifetime context as fresh subscription consumption.
-The founder-invoked actual Astra episode is complete. Independent Sol6.1 High owns implementation
-with confined Luna6 High; no future automatic Astra. Start with20 WPU/2 hours under STOP, record T0
-and per-identity baselines before implementation, and reserve unknown/missing usage. The full policy
-allows only conditional, independently reviewed renewals within72 hours/200 WPU including40 reserve.
-Account limits and all existing capability/security/release gates remain independently binding.
-Do not resume the full company goal or pilot merely because the resource decision is approved.
-A supported independent Sol continuation may preserve the blocked predecessor goal by reference;
-`update_goal` cannot resume a blocked goal. See the exact JSON for gates and mandatory accounting cases.
+The explicit founder amendment [CEO-20261020-02](../docs/evidence/brain-org-founder-quota-amendment-20261020.json)
+supersedes the resource ceilings in CEO-20261020-01 and the original750k policy below. Productive work
+may use essentially all available weekly subscription quota, retaining a small checkpoint/recovery
+reserve. Actual account telemetry governs: default productive pause99%, reserve1 percentage point,
+one productive team/short turns at97%; the former68/69% controls are revoked. See JSON for fresh-read,
+measured reserve adjustment and actual provider-limit rules. No paid credits or billable fallback.
+
+Sol owns ordinary planning renewals: no fixed72-hour/200-WPU/five-grant or20-WPU/2-hour repair cutoff.
+Preserve per-agent/task incremental/cached usage, history and uncertainty; WPU is only an internal
+planning metric. Preserve bounded turns, finite attempts, reservations and independently reviewed
+acceptance/releases. Daily strategy review and useful work evidence replace idle CEO/model polling.
+
+Continue in the existing root `01a15657-3558-79c1-86dc-6ed033c264df` with confined Luna6 High workers.
+Do not create a duplicate team. The founder amendment is recorded in the original SQLite and Founder
+Desk; no controller repair is implemented by this executive episode. Preserve pilot STOP and all
+security/science/Git/market restrictions. After genuine quota exhaustion, checkpoint and pause
+inference; qualified recovery may resume after actual account restoration without another Astra
+intervention. Never clear unrelated STOP reasons or infer reset permission from a timestamp alone.
+The full goal still requires its applicable release gates; preserve predecessor identity on supported
+continuation. `update_goal` cannot itself resume a blocked goal. No automatic Astra.
 
 ## Authority and communication
 
