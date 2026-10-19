@@ -86,8 +86,11 @@ is adjacent `continuation-goal-receipt.json`. Pilot config/STOP and six failed a
 reviewed controller upgrade and operational qualification remain required. Prior source `b37eafa` and unreviewed proposal `1546e4c` remain intact. Original full goal
 `01a1563e-1a26-75e2-bdab-ca2b38c7b51f` was actually resumed on explicit founder instruction through
 official `thread/goal/set(status=active)` without objective/usage reset. Deployment STOP remains
-independent of offline Goal progress. Implementation root already executed an actual automatic Goal
-turn; original-root next automatic turn still needs observation. Lifecycle evidence and exact
+independent of offline Goal progress. Both roots have now executed observed native automatic turns.
+Original-root automatic progress proof is private adjacent `original-goal-automatic-proof-1.json`.
+That turn independently reproduced a stale-native binding bypass through direct supervisor.config;
+Sol/Luna received the confined regression evidence under `release-audit/`. The service validator alone
+is insufficient; common runtime preflight remains a release gate. Lifecycle recovery and exact
 readback: `docs/evidence/brain-org-goal-lifecycle-recovery-20261020.json`.
 Policy: `docs/evidence/brain-org-founder-quota-amendment-20261020.json`.
 

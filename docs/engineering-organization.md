@@ -91,7 +91,13 @@ and current owner/worker/next-gate projection are private under
 automatic implementation-root Goal turn collected review3 and dispatched confined Luna snapshot repair.
 The source progressed to `27431b7`; exact-SHA review and separate controller-gate work remain active.
 See [lifecycle recovery evidence](evidence/brain-org-goal-lifecycle-recovery-20261020.json), which
-separates status restoration, observed automatic work and the original-root next-turn proof still pending. This is
+separates the initial status restoration from scheduling verification. A subsequent native automatic
+original-root turn is now observed; private `original-goal-automatic-proof-1.json` records the trigger
+and new engineering work. That turn reproduced a real release gap: stale native evidence is rejected
+by the service validator but accepted through direct `supervisor.config`. The confined synthetic
+regression is preserved under private `release-audit/` and handed to the existing implementation team.
+Every supported runtime entry needs the same trusted qualification preflight before release. One
+observed automatic turn per root is evidence of continuation, not overnight/endurance qualification. This is
 source work, not operational acceptance or unattended-service qualification. No automatic Astra.
 
 Actual entitlement and applicable account-limit telemetry govern availability. Productive inference
