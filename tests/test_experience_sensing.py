@@ -6,6 +6,8 @@ import tracemalloc
 
 import pytest
 
+pytest.importorskip("numpy", reason="optional ML dependency required by experience imports")
+
 from memecoin_experience import evaluation, learning, observations, qualification, sensing, storage
 from memecoin_experience.predict import Predictor
 from memecoin_population import catalog

@@ -10,11 +10,11 @@ check:
 	$(VENV)/ruff check src tests tools
 	$(VENV)/ruff format --check src tests tools
 	$(VENV)/mypy src/memecoin_ai src/memecoin_registry src/memecoin_research src/memecoin_runner/contracts.py src/memecoin_runner/ledger.py src/memecoin_runner/scoring.py src/memecoin_sampling src/memecoin_collector src/memecoin_operational
-	$(VENV)/pytest -q
+	$(VENV)/python -m pytest -q
 	$(MAKE) cc-python-check
 
 test:
-	$(VENV)/pytest -q
+	$(VENV)/python -m pytest -q
 
 smoke:
 	$(VENV)/python tools/smoke.py
@@ -24,21 +24,24 @@ build:
 
 # Optional ML environment: Python 3.13, isolated from the frozen D43 collector.
 MLVENV := work/ml-venv/bin
-.PHONY: ml-setup ml-check
+.PHONY: ml-setup ml-check test-ml
 ml-setup:
 	$(PYTHON) -m venv work/ml-venv
 	$(MLVENV)/python -m pip install -r requirements-dev.lock -r requirements-ml.lock -e .
+
+test-ml:
+	$(MLVENV)/python -m pytest -q
 
 ml-check:
 	$(MLVENV)/ruff check src/memecoin_ml tests/ml tools/ml.py tools/ml_smoke.py
 	$(MLVENV)/ruff format --check src/memecoin_ml tests/ml tools/ml.py tools/ml_smoke.py
 	$(MLVENV)/mypy --python-version 3.13 src/memecoin_ml
-	$(MLVENV)/pytest tests/ml -q
+	$(MLVENV)/python -m pytest tests/ml -q
 
 .PHONY: runner-check
 runner-check:
 	$(MLVENV)/mypy --python-version 3.13 src/memecoin_runner
-	$(MLVENV)/pytest tests/runner -q
+	$(MLVENV)/python -m pytest tests/runner -q
 
 # Read-only Observatory checks; frontend dependencies stay separate from the stdlib runtime.
 .PHONY: cc-python-check cc-web-check

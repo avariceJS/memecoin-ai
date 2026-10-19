@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import secrets
 import threading
@@ -21,6 +22,7 @@ from memecoin_operator.control import (
     status,
     tick,
 )
+from memecoin_operator.preview import validate_preview
 
 PAGE = r"""<!doctype html>
 <html lang="ru">
@@ -158,7 +160,8 @@ footer { margin-top: 14px; color: var(--faint); font-size: 12px; }
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 </style>
-<body>
+<body data-dev-readonly="__DEV_READONLY__">
+__DEV_PREVIEW__
 <a class="skip" href="#panel-overview">К обзору</a>
 <div class="shell">
 <div class="layout">
@@ -342,6 +345,7 @@ const STAGE = {intent: "intent · намерение", fill: "fill · испол
 const labelReason = code => REASONS[code] || (code ? String(code) : "—");
 const say = code => esc(labelReason(code));
 const $ = id => document.getElementById(id);
+const DEV_READ_ONLY = document.body.dataset.devReadonly === "true";
 const miss = text => '<span class="muted">' + esc(text) + "</span>";
 let last = null;
 let commandNote = "";
@@ -915,6 +919,10 @@ function legacyActive(item) {
   return /active/i.test(name) && item.stopped !== true && item.port != null;
 }
 function renderLegacyLinks(d) {
+  if (DEV_READ_ONLY) {
+    $("legacy-links").innerHTML = '<span class="pill">историческая копия · живые ссылки отключены</span>';
+    return;
+  }
   const items = Array.isArray(d.legacy) ? d.legacy.filter(legacyActive) : [];
   if (!items.length) {
     $("legacy-links").innerHTML = '<span class="pill">активный порт не в legacy[]</span>';
@@ -952,7 +960,7 @@ function serviceRows(d) {
     const note = active ? "активный из legacy[]" : (item.stopped === true ? "история, не живая ссылка шапки" : "в списке legacy[]");
     rows.push([
       esc(item.id || item.label || "legacy"),
-      item.port == null ? miss("порт не в проекции") : '<a href="' + esc(item.url || ("http://127.0.0.1:" + item.port)) + '">' + esc(item.port) + "</a>",
+      DEV_READ_ONLY ? miss("историческая копия") : item.port == null ? miss("порт не в проекции") : '<a href="' + esc(item.url || ("http://127.0.0.1:" + item.port)) + '">' + esc(item.port) + "</a>",
       triState(item.healthy, "да", "нет"),
       triState(item.stopped, "да", "нет"),
       esc(note)
@@ -1154,7 +1162,7 @@ function paintActions(d) {
   $("gate-line").textContent = compressNotes(notes);
   ["act-collect", "act-snapshot", "act-train", "act-paper", "act-auto"].forEach(id => {
     const el = $(id);
-    const blocked = Boolean(el.dataset.block);
+    const blocked = DEV_READ_ONLY || Boolean(el.dataset.block);
     el.disabled = blocked;
     if (blocked) el.setAttribute("aria-disabled", "true");
     else el.removeAttribute("aria-disabled");
@@ -1331,8 +1339,8 @@ function watchChart(rows) {
 function renderWatch(view) {
   watchView = view;
   const running = view.status === "running";
-  $("watch-start").disabled = running || !watchResolution || !view || view.status === "running";
-  $("watch-stop").disabled = !running;
+  $("watch-start").disabled = DEV_READ_ONLY || running || !watchResolution || !view || view.status === "running";
+  $("watch-stop").disabled = DEV_READ_ONLY || !running;
   if (running) {
     const age = view.last_success_ns ? Math.max(0, Date.now() - Number(view.last_success_ns) / 1e6) / 1000 : null;
     $("watch-status").textContent = "Наблюдение · " + esc(view.pool_name || view.pool || "рынок") +
@@ -1340,7 +1348,7 @@ function renderWatch(view) {
       (view.last_error ? " · " + esc(view.last_error) : "");
     $("watch-status").className = "watch-status " + (view.last_error ? "warn" : "live");
   } else {
-    $("watch-status").textContent = view.status === "stopped" ? "Наблюдение остановлено." : "Watch Market остановлен.";
+    $("watch-status").textContent = DEV_READ_ONLY ? "Историческая копия: состояние Watch не включено." : view.status === "stopped" ? "Наблюдение остановлено." : "Watch Market остановлен.";
     $("watch-status").className = "watch-status";
   }
   const market = view.market || {};
@@ -1395,6 +1403,7 @@ function renderWatch(view) {
   }));
 }
 async function watchPost(action, params) {
+  if (DEV_READ_ONLY) throw new Error("developer_read_only");
   const response = await fetch("/api/watch/" + action, {
     method: "POST",
     headers: {"Content-Type": "application/json", "X-Operator-Token": document.querySelector('meta[name="operator-token"]').content},
@@ -1411,19 +1420,19 @@ function renderPoolChoices() {
       (pool.dex ? " · " + esc(pool.dex) : "") +
       (pool.reserve_usd ? " · $" + esc(pool.reserve_usd) : "") + '</option>').join("")
     : '<option value="">Пулы не найдены</option>';
-  $("watch-pool").disabled = !pools.length;
+  $("watch-pool").disabled = DEV_READ_ONLY || !pools.length;
   const selected = pools.find(pool => pool.address === $("watch-pool").value) || pools[0];
   const tokens = selected ? [selected.base, selected.quote].filter(Boolean) : [];
   if (watchResolution && watchResolution.target_mint) {
     $("watch-mint").innerHTML = '<option value="' + esc(watchResolution.target_mint) + '">' + esc(watchResolution.target_mint) + '</option>';
-    $("watch-mint").disabled = false;
+    $("watch-mint").disabled = DEV_READ_ONLY;
   } else {
     $("watch-mint").innerHTML = tokens.length
       ? tokens.map(token => '<option value="' + esc(token.mint) + '">' + esc(token.symbol || token.name || token.mint) + " · " + esc(token.mint) + '</option>').join("")
       : '<option value="">Mint пары не вернулся</option>';
-    $("watch-mint").disabled = !tokens.length;
+    $("watch-mint").disabled = DEV_READ_ONLY || !tokens.length;
   }
-  $("watch-start").disabled = !pools.length || !tokens.length && !watchResolution?.target_mint || watchView?.status === "running";
+  $("watch-start").disabled = DEV_READ_ONLY || !pools.length || !tokens.length && !watchResolution?.target_mint || watchView?.status === "running";
 }
 async function refreshWatch() {
   try {
@@ -1442,6 +1451,7 @@ function rid() {
 }
 const ACTION_BUTTON = {collect: "act-collect", snapshot: "act-snapshot", train: "act-train", paper: "act-paper", auto: "act-auto"};
 async function send(action, params) {
+  if (DEV_READ_ONLY) { noteText("developer_read_only"); return; }
   const button = ACTION_BUTTON[action];
   if (button && $(button).dataset.block) { noteText($(button).dataset.block); return; }
   $("toast").textContent = "Отправка " + action + "…";
@@ -1580,6 +1590,15 @@ document.querySelector('[role="tablist"]').addEventListener("keydown", event => 
   next.focus();
   next.click();
 });
+if (DEV_READ_ONLY) {
+  ["profile", "act-collect", "act-snapshot", "snap", "act-train", "cand", "act-paper",
+    "act-auto", "act-pause", "act-resume", "act-stop", "act-stop-all", "watch-address",
+    "watch-resolve", "watch-pool", "watch-mint", "watch-start", "watch-stop"].forEach(id => {
+    const control = $(id);
+    if (control) control.disabled = true;
+  });
+  document.querySelectorAll('[name="watch-kind"]').forEach(control => { control.disabled = true; });
+}
 refresh();
 refreshWatch();
 setInterval(refresh, 5000);
@@ -1593,17 +1612,30 @@ class OperatorServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, root: Path, port: int) -> None:
+    def __init__(self, root: Path, port: int, *, read_only: bool = False) -> None:
         self.root = Path(root)
+        self.read_only = read_only
         self.token = secrets.token_urlsafe(32)
+        self.preview_banner = ""
+        if read_only:
+            preview = validate_preview(self.root)
+            captured = html.escape(preview["source_snapshot_at"][:80])
+            self.preview_banner = (
+                '<div class="banner" role="alert"><strong>Developer read-only preview.</strong> '
+                "Historical copied state; source snapshot at "
+                f"<code>{captured}</code>. All write requests are disabled.</div>"
+            )
         super().__init__(("127.0.0.1", port), OperatorHandler)
         self._halt = threading.Event()
-        self._ticker = threading.Thread(target=self._loop, name="operator-tick", daemon=True)
-        self._ticker.start()
-        self._watch_ticker = threading.Thread(
-            target=self._watch_loop, name="watch-market-worker", daemon=True
-        )
-        self._watch_ticker.start()
+        self._ticker: threading.Thread | None = None
+        self._watch_ticker: threading.Thread | None = None
+        if not read_only:
+            self._ticker = threading.Thread(target=self._loop, name="operator-tick", daemon=True)
+            self._ticker.start()
+            self._watch_ticker = threading.Thread(
+                target=self._watch_loop, name="watch-market-worker", daemon=True
+            )
+            self._watch_ticker.start()
 
     def _loop(self) -> None:
         while not self._halt.wait(1.0):
@@ -1629,8 +1661,10 @@ class OperatorServer(ThreadingHTTPServer):
         self._halt.set()
         self.shutdown()
         self.server_close()
-        self._ticker.join(timeout=2)
-        self._watch_ticker.join(timeout=20)
+        if self._ticker is not None:
+            self._ticker.join(timeout=2)
+        if self._watch_ticker is not None:
+            self._watch_ticker.join(timeout=20)
 
 
 class OperatorHandler(BaseHTTPRequestHandler):
@@ -1693,7 +1727,12 @@ class OperatorHandler(BaseHTTPRequestHandler):
             return
         parsed = urlparse(self.path)
         if parsed.path == "/":
-            page = PAGE.replace("__TOKEN__", self.server.token).encode()
+            page = (
+                PAGE.replace("__TOKEN__", self.server.token)
+                .replace("__DEV_PREVIEW__", self.server.preview_banner)
+                .replace("__DEV_READONLY__", "true" if self.server.read_only else "false")
+                .encode()
+            )
             self._send(200, page, "text/html; charset=utf-8")
             return
         if parsed.path == "/api/bootstrap":
@@ -1714,6 +1753,17 @@ class OperatorHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/watch/status":
             if parsed.query:
                 self._error(404, "bad_request", "not_found")
+                return
+            if self.server.read_only:
+                self._json(
+                    200,
+                    {
+                        "schema": "watch-market-v1",
+                        "status": "unavailable",
+                        "reason": "developer_preview_watch_not_copied",
+                        "auto_untouched": True,
+                    },
+                )
                 return
             try:
                 self._json(200, watch_market.status(self.server.root))
@@ -1739,6 +1789,9 @@ class OperatorHandler(BaseHTTPRequestHandler):
         self._error(404, "bad_request", "not_found")
 
     def do_POST(self) -> None:
+        if self.server.read_only:
+            self._error(405, "read_only", "developer_read_only")
+            return
         if not self._authorized_read():
             return
         parsed = urlparse(self.path)
@@ -1842,13 +1895,18 @@ class OperatorHandler(BaseHTTPRequestHandler):
         self._error(405, "bad_request", "method")
 
 
-def make_server(root: Path, port: int) -> OperatorServer:
-    initialize(Path(root))
-    return OperatorServer(Path(root), port)
+def make_server(root: Path, port: int, *, read_only: bool = False) -> OperatorServer:
+    root = Path(root)
+    if read_only:
+        if root.is_symlink() or not root.is_dir() or not (root / "operator.sqlite").is_file():
+            raise ValueError("developer_preview_root_invalid")
+    else:
+        initialize(root)
+    return OperatorServer(root, port, read_only=read_only)
 
 
-def serve(root: Path, port: int) -> None:
-    server = make_server(root, port)
+def serve(root: Path, port: int, *, read_only: bool = False) -> None:
+    server = make_server(root, port, read_only=read_only)
     try:
         server.serve_forever()
     finally:

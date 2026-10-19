@@ -1,5 +1,6 @@
 """Localhost write API: host, origin, CSRF, replay, and no GET side effects."""
 
+import hashlib
 import importlib.util
 import json
 import threading
@@ -189,6 +190,68 @@ def test_projection_and_write_guards(adapter, tmp_path, monkeypatch):
         assert code == 200 and "events" in json.loads(raw)
         code, raw = request(port, "PUT", "/api/command", payload, headers)
         assert code == 405
+    finally:
+        server.shutdown_background()
+        thread.join(timeout=3)
+
+
+def test_developer_read_only_preview_has_no_workers_and_rejects_posts(
+    adapter, tmp_path, monkeypatch
+):
+    root = make_root(tmp_path)
+    source = root / "source"
+    source.mkdir()
+    (source / "index.sqlite").write_bytes(b"unused fixture database")
+    config = json.loads((root / "config.json").read_text())
+    config.update(source_root=str(source), champion_model_path=str(root / "models/not-copied"))
+    (root / "config.json").write_text(json.dumps(config))
+    (root / "dev-preview.json").write_text(
+        json.dumps(
+            {
+                "schema": "brain-dev-operator-preview-v1",
+                "source_snapshot_at": "2026-10-19T12:00:00Z",
+                "operator_database_sha256": hashlib.sha256(
+                    (root / "operator.sqlite").read_bytes()
+                ).hexdigest(),
+                "source_index_sha256": hashlib.sha256(
+                    (source / "index.sqlite").read_bytes()
+                ).hexdigest(),
+            }
+        )
+    )
+    monkeypatch.setattr(
+        "memecoin_operator.web.initialize",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("initialize called")),
+    )
+    monkeypatch.setattr(
+        watch_market,
+        "status",
+        lambda *_: (_ for _ in ()).throw(AssertionError("foreign Watch state read")),
+    )
+    server = make_server(root, 0, read_only=True)
+    assert server._ticker is None and server._watch_ticker is None
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    port = server.server_address[1]
+    headers = {
+        "Host": f"127.0.0.1:{port}",
+        "Origin": f"http://127.0.0.1:{port}",
+        "Content-Type": "application/json",
+        "X-Operator-Token": server.token,
+    }
+    try:
+        code, page = request(port, "GET", "/")
+        assert code == 200
+        assert b"Developer read-only preview" in page
+        assert b"2026-10-19T12:00:00Z" in page
+        code, body = request(port, "GET", "/api/watch/status")
+        assert code == 200 and json.loads(body)["status"] == "unavailable"
+        assert json.loads(body)["reason"] == "developer_preview_watch_not_copied"
+        code, body = request(port, "POST", "/api/watch/start", b"{}", headers)
+        assert code == 405 and json.loads(body)["reason"] == "developer_read_only"
+        code, body = request(port, "POST", "/api/command", b"{}", headers)
+        assert code == 405 and json.loads(body)["reason"] == "developer_read_only"
+        assert status(root)["jobs"] == []
     finally:
         server.shutdown_background()
         thread.join(timeout=3)

@@ -2,6 +2,10 @@
 
 from collections import Counter
 
+import pytest
+
+pytest.importorskip("numpy", reason="optional ML dependency required by experience imports")
+
 from tools.lagged_context_retrieval import ROLE_COUNTS, roster
 
 
