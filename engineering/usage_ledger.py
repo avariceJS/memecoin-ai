@@ -365,9 +365,23 @@ class UsageLedger:
             raise
 
     def summary(self):
+        owns_transaction = not self.db.in_transaction
+        if owns_transaction:
+            self.db.execute("BEGIN")
+        succeeded = False
+        try:
+            result = self._summary_snapshot()
+            succeeded = True
+            return result
+        finally:
+            if owns_transaction and self.db.in_transaction:
+                self.db.execute("COMMIT" if succeeded else "ROLLBACK")
+
+    def _summary_snapshot(self):
         totals = dict(ZERO)
         by_model = {}
         unresolved = []
+        registration_coverage = {}
         regs = self.db.execute("SELECT * FROM registrations ORDER BY identity,epoch").fetchall()
         for r in regs:
             rows = self.db.execute(
@@ -402,6 +416,7 @@ class UsageLedger:
                     {"identity": r["identity"], "epoch": r["epoch"], "reason": "counter_decrease"}
                 )
                 continue
+            registration_coverage[(r["identity"], r["epoch"])] = current
             for k in FIELDS:
                 totals[k] += delta[k]
             model = r["model"]
@@ -417,28 +432,8 @@ class UsageLedger:
             ) / 1_000_000
         reservations = []
         turns = {}
-        registration_coverage = {}
         for r in regs:
-            rows = self.db.execute(
-                "SELECT * FROM events WHERE identity=? AND epoch=? ORDER BY sequence,event_id",
-                (r["identity"], r["epoch"]),
-            ).fetchall()
-            positions = defaultdict(list)
-            for event in rows:
-                if self.db.execute(
-                    "SELECT 1 FROM events WHERE parent_event_id=?", (event["event_id"],)
-                ).fetchone():
-                    continue
-                positions[event["sequence"]].append(json.loads(event["counters"]))
-            ambiguous = any(
-                any(value != values[0] for value in values) for values in positions.values()
-            )
-            current = None
-            if r["baseline"] is not None and not ambiguous:
-                current = json.loads(r["baseline"])
-                for sequence in sorted(positions):
-                    current = positions[sequence][0]
-            registration_coverage[(r["identity"], r["epoch"])] = current
+            registration_coverage.setdefault((r["identity"], r["epoch"]), None)
         for t in self.db.execute("SELECT * FROM turns ORDER BY turn_id"):
             finish = self.db.execute(
                 "SELECT * FROM turn_finishes WHERE turn_id=?", (t["turn_id"],)

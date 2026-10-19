@@ -15,6 +15,31 @@ def c(i=0, ci=0, o=0, r=0):
     )
 
 
+class _DatabaseProxy:
+    def __init__(self, database, after_first_event_read=None, fail_query=None):
+        self._database = database
+        self._after_first_event_read = after_first_event_read
+        self._fail_query = fail_query
+        self._event_read_seen = False
+
+    def __getattr__(self, name):
+        return getattr(self._database, name)
+
+    def execute(self, query, parameters=()):
+        if self._fail_query and self._fail_query in query:
+            self._fail_query = None
+            raise RuntimeError("injected summary read failure")
+        cursor = self._database.execute(query, parameters)
+        if (
+            not self._event_read_seen
+            and self._after_first_event_read
+            and "SELECT * FROM events WHERE identity=?" in query
+        ):
+            self._event_read_seen = True
+            self._after_first_event_read()
+        return cursor
+
+
 class UsageLedgerTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -177,6 +202,64 @@ class UsageLedgerTests(unittest.TestCase):
         self.assertFalse(
             any(item.get("turn_id") == "covered-later" for item in covered["unresolved"])
         )
+
+    def test_summary_uses_one_wal_snapshot_for_totals_and_turn_coverage(self):
+        writer = UsageLedger(self.path)
+        self.l.start_turn(
+            "race-turn",
+            "a",
+            "e1",
+            c(),
+            reservation_tokens=50,
+            reservation_wpu=1.0,
+            deadline_at=10,
+            evidence="dispatch",
+        )
+        self.l.finish_turn("race-turn", c(50), receipt="failed-receipt", failed=True)
+        self.l.db.execute("PRAGMA journal_mode=WAL")
+
+        def observe_after_reader_event_query():
+            writer.observe(
+                "a", "e1", "late-50", c(50), source="provider", sequence=1, observed_at=1
+            )
+
+        database = self.l.db
+        self.l.db = _DatabaseProxy(
+            database, after_first_event_read=observe_after_reader_event_query
+        )
+        try:
+            first = self.l.summary()
+            self.assertEqual(first["incremental"], c())
+            self.assertEqual([item["turn_id"] for item in first["reservations"]], ["race-turn"])
+            self.assertTrue(any(item.get("turn_id") == "race-turn" for item in first["unresolved"]))
+            self.assertFalse(database.in_transaction)
+
+            self.l.db = database
+            second = self.l.summary()
+            self.assertEqual(second["incremental"], c(50))
+            self.assertEqual(second["reservations"], [])
+            self.assertFalse(
+                any(item.get("turn_id") == "race-turn" for item in second["unresolved"])
+            )
+        finally:
+            self.l.db = database
+            writer.close()
+
+    def test_summary_transaction_cleanup_and_caller_transaction(self):
+        database = self.l.db
+        self.l.db = _DatabaseProxy(database, fail_query="SELECT * FROM turns ORDER BY turn_id")
+        try:
+            with self.assertRaisesRegex(RuntimeError, "injected summary read failure"):
+                self.l.summary()
+            self.assertFalse(database.in_transaction)
+        finally:
+            self.l.db = database
+
+        database.execute("BEGIN")
+        self.l.summary()
+        self.assertTrue(database.in_transaction)
+        database.execute("ROLLBACK")
+        self.assertFalse(database.in_transaction)
 
     def test_reopen_durable_and_duplicate_event_conflict(self):
         self.observe("x", 1, c(3))
