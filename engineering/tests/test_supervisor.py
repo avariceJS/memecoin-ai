@@ -335,3 +335,26 @@ class SupervisorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_quiescent_capacity_rechecks_with_zero_reservations_and_one_chief_episode(self):
+        limits = {
+            "ordinaryUsageAllowed": True,
+            "rateLimitsByLimitId": {"standard": {"usedPercent": 1, "limitReached": False}},
+        }
+        with (
+            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(FakeCodex, "call", return_value=limits),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+            patch.object(supervisor, "available_memory", return_value=10**10),
+            patch.object(supervisor, "status", return_value={}),
+            patch.object(supervisor, "render_desk"),
+            patch("engineering.planning.plan_next", return_value=None),
+            patch("engineering.chief.chief") as executive,
+        ):
+            supervisor.supervise(self.state, max_seconds=10)
+            supervisor.supervise(self.state, max_seconds=10)
+        executive.assert_called_once_with(self.state, trigger="catalogue-exhausted")
+        review_events = [
+            event for event in self.db.events() if event["entity"].startswith("executive-review/")
+        ]
+        self.assertEqual(len(review_events), 1)

@@ -678,6 +678,7 @@ def supervise(state: Path, max_seconds=1800):
                         measured_usage(state, db),
                         {"available_memory_bytes": available_memory(), "cpu_count": os.cpu_count()},
                         cfg["resources"],
+                        active_tokens=0,
                     )
                     fingerprint = hashlib.sha256(
                         json.dumps(

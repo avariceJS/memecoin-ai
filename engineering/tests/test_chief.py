@@ -129,6 +129,19 @@ class ChiefTests(unittest.TestCase):
         self.assertEqual(self.executive.get_obligation("next-policy-horizon"), obligation)
         self.assertIn("next-policy-horizon", (self.path / "OWNER-DESK.md").read_text())
 
+    def test_blocked_dependency_boundary_preserves_specific_owned_obligation(self):
+        self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
+        chief.chief(self.path, trigger="blocked-dependencies")
+        rows = [
+            row
+            for row in self.executive.snapshot()["obligations"]
+            if row["id"].startswith("blocked-dependencies/")
+        ]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["status"], "blocked")
+        self.assertIn("task:consumer", rows[0]["blocked_by"])
+        self.assertEqual(self.db.get_task("consumer")["state"], "pending")
+
     def test_dossier_bound_preserves_authority_and_total_counts(self):
         packet = {
             "authority": {"main": "unchanged"},

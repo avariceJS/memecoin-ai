@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -139,6 +140,25 @@ def chief(state: Path, *, trigger="owner-review"):
                 ),
                 evidence_refs=["deployment:catalogue-exhausted"],
             )
+        if trigger == "blocked-dependencies":
+            pending = [task for task in db.list_tasks() if task["state"] == "pending"]
+            blockers = [
+                {key: task[key] for key in ("id", "dependencies", "contracts")} for task in pending
+            ]
+            fingerprint = hashlib.sha256(json.dumps(blockers, sort_keys=True).encode()).hexdigest()
+            obligation_id = "blocked-dependencies/" + fingerprint
+            if executive.get_obligation(obligation_id) is None:
+                executive.obligation(
+                    lease,
+                    obligation_id,
+                    "Разрешить зависимости остановившейся очереди без расширения полномочий.",
+                    owner_role="CEO",
+                    rationale="Свободных исполнимых задач нет; pending-задачи остаются в реестре.",
+                    evidence_refs=[
+                        "organization.sqlite:tasks:" + task["id"] for task in pending[:20]
+                    ],
+                    blocked_by=["task:" + task["id"] for task in pending[:20]],
+                )
         dossier = {
             "trigger": trigger,
             "authority": db.get_decision("owner-authority"),
