@@ -76,10 +76,13 @@ Founder amendment `CEO-20261020-02` supersedes68/69% controls and72h/200-WPU/fiv
 Fresh account read:68%, ordinary use allowed. Productive work may use the available weekly quota,
 with default1-point recovery reserve/productive pause99%, reduced concurrency at97%. Sol manages
 routine planning renewals and qualified recovery after actual account reset; no automatic Astra.
-Existing root `01a15657-3558-79c1-86dc-6ed033c264df` retains Sol/Luna implementation ownership;
-no duplicate team. Decision is in original SQLite/Founder Desk. Pilot config/STOP and six failed
-attempts are preserved; accounting/release implementation and operational qualification remain Sol's
-work. Prior source `b37eafa` and unreviewed proposal `1546e4c` remain intact. Original full goal
+Existing root `01a15657-3558-79c1-86dc-6ed033c264df` owns an actually active Pursuing Goal for the
+full organization mandate, with predecessor identity preserved; no duplicate team. Actual Luna6/high
+is repairing three findings from independent review of `0d74d69`; that candidate is not accepted.
+Durable goal/worker/next-gate status is at
+`/Users/root1/Developer/brain-org-state/founder-quota-20261020/sol-live-status.json`; exact API receipt
+is adjacent `continuation-goal-receipt.json`. Pilot config/STOP and six failed attempts are preserved;
+reviewed controller upgrade and operational qualification remain required. Prior source `b37eafa` and unreviewed proposal `1546e4c` remain intact. Original full goal
 `01a1563e-1a26-75e2-bdab-ca2b38c7b51f` requires supported gated continuation, not an executive reset.
 Policy: `docs/evidence/brain-org-founder-quota-amendment-20261020.json`.
 

@@ -80,6 +80,13 @@ Current resource authority is the explicit founder amendment
 ceilings of CEO-20261020-01. The founder allocates essentially all remaining weekly subscription quota
 to useful Sol/Luna engineering and authorizes qualified continuation after account access is restored.
 The existing Sol root `01a15657-3558-79c1-86dc-6ed033c264df` owns implementation; no competing team.
+Its supported Pursuing Goal is active for the full sustained mandate, not just the accounting repair.
+The prior blocked root remains a predecessor record, not a falsely resumed goal. The exact API receipt
+and current owner/worker/next-gate projection are private under
+`/Users/root1/Developer/brain-org-state/founder-quota-20261020/` as
+`continuation-goal-receipt.json` and `sol-live-status.json`. Independent review rejected candidate
+`0d74d69` for three accounting/recovery defects; bounded actual Luna6 High repair is active. This is
+source work, not operational acceptance or unattended-service qualification. No automatic Astra.
 
 Actual entitlement and applicable account-limit telemetry govern availability. Productive inference
 pauses at99% with a default1-percentage-point checkpoint/recovery reserve; at97% use one productive
