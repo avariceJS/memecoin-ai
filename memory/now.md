@@ -35,6 +35,8 @@ trading, signing, promotion, and paid upgrades remain disabled pending separate 
   Watch session state is explicitly omitted and never read from the original/sibling Watch lane.
   Preview binding/link/hash guards and the paired evaluator passed 24 focused tests.
   Native Safari inspection was not approved by Computer Use; CC02 visual acceptance is not claimed.
+  Preview/Observatory startup bypasses unnecessary loopback reverse DNS after an observed resolver
+  stall; restart/real API/shutdown passed, and all three temporary development listeners were stopped.
 - CPU and MPS forwards passed for all five model architectures. The saved B13 GRU and official
   empirical champion reproduced registered paired loss/calibration on 249 test decisions/8 pools,
   with no fits or promotion; champion remains better. B07 historical virtual ledger replay was exact.
@@ -44,7 +46,7 @@ trading, signing, promotion, and paid upgrades remain disabled pending separate 
   and host witness cases passed separately (the latter requires a user-group-owned temp root).
   Eighteen remaining failures match documented old-main failures; the operator restart test remains
   reproducibly inconsistent with its expected running/interrupted state. `make check` still stops at
-  107 pre-existing Ruff findings. `make ml-check` and its17 tests, source smokes,39 Observatory Python
+  107 pre-existing Ruff findings. `make ml-check` and its17 tests, source smokes,40 Observatory Python
   tests and44 web tests/build passed. Do not call the entire historical suite green.
 
 ## Git consolidation — 2026-10-18

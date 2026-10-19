@@ -72,8 +72,11 @@ npm --prefix apps/control-center/web run dev
 ```
 
 Open `http://127.0.0.1:5173` (adapter `127.0.0.1:8787`); Ctrl-C in each terminal shuts them down.
-The local adapter/frontend HTTP flow, 39 Python tests, 44 web tests, typecheck and build passed.
+The local adapter/frontend HTTP flow, 40 Python tests, 44 web tests, typecheck and build passed.
 This does not overturn the earlier pending/rejected visual design acceptance.
+Preview and Observatory listeners bypass reverse DNS for their explicit loopback bind: the restored
+host resolver stalled during the final restart drill. Both then passed startup/restart/shutdown with
+no DNS dependency; the ordinary mutable operator server keeps its existing bind behavior.
 
 Read-only historical research commands (choose a **new**, nonexistent output JSON path):
 

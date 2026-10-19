@@ -6,6 +6,7 @@ import json
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from socketserver import TCPServer
 
 from safe_io import Refused, json_bytes, read_bytes
 
@@ -99,6 +100,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 class LocalServer(HTTPServer):
+    def server_bind(self):
+        # This adapter is explicitly loopback-only; reverse DNS is unnecessary
+        # and can block startup while the host resolver is unavailable.
+        TCPServer.server_bind(self)
+        self.server_name = "localhost"
+        self.server_port = self.server_address[1]
+
     def get_request(self):
         sock, address = super().get_request()
         sock.settimeout(3)

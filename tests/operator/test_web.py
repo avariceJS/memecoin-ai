@@ -228,6 +228,10 @@ def test_developer_read_only_preview_has_no_workers_and_rejects_posts(
         "status",
         lambda *_: (_ for _ in ()).throw(AssertionError("foreign Watch state read")),
     )
+    monkeypatch.setattr(
+        "socket.getfqdn",
+        lambda *_: (_ for _ in ()).throw(AssertionError("loopback preview attempted DNS")),
+    )
     server = make_server(root, 0, read_only=True)
     assert server._ticker is None and server._watch_ticker is None
     thread = threading.Thread(target=server.serve_forever, daemon=True)

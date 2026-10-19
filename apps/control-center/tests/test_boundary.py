@@ -16,6 +16,12 @@ from safe_io import Refused, json_bytes, read_bytes
 
 
 class BoundaryTests(unittest.TestCase):
+    def test_loopback_bind_does_not_resolve_dns(self):
+        with patch.object(socket, "getfqdn", side_effect=AssertionError("DNS unavailable")):
+            with server.LocalServer(("127.0.0.1", 0), server.Handler) as httpd:
+                self.assertEqual(httpd.server_name, "localhost")
+                self.assertGreater(httpd.server_port, 0)
+
     def test_source_allowlist_denied_before_source_open(self):
         pins = json_bytes(read_bytes(export_snapshot.APP, "contracts/source-pins.json"))
         pins["sources"]["d43"]["path"] = "work/calendar-execution-01/windows/004/seal.json"

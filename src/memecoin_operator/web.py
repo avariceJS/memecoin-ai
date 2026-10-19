@@ -9,6 +9,7 @@ import secrets
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from socketserver import TCPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -1611,6 +1612,16 @@ setInterval(refreshWatch, 5000);
 class OperatorServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+
+    def server_bind(self) -> None:
+        if not self.read_only:
+            super().server_bind()
+            return
+        # HTTPServer performs reverse DNS even for loopback. A copied-state
+        # development service must start without any external resolver.
+        TCPServer.server_bind(self)
+        self.server_name = "localhost"
+        self.server_port = int(self.server_address[1])
 
     def __init__(self, root: Path, port: int, *, read_only: bool = False) -> None:
         self.root = Path(root)
