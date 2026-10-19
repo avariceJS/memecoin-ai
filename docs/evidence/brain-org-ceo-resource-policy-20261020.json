@@ -1,0 +1,144 @@
+{
+  "schema": "brain-org-executive-resource-decision-v1",
+  "decision_id": "CEO-20261020-01",
+  "approved_at": 1792449849.428,
+  "manual_founder_invocation": true,
+  "executive": {
+    "thread": "01a15653-f4d9-7f51-b451-21b3668b33b1",
+    "model": "gpt-6-astra",
+    "effort": "high",
+    "manual_founder_invocation": true,
+    "started_at": 1792449705.905056,
+    "identity_verified_in_rollout": true
+  },
+  "recorded_by": "Trusted Sol secretary for the actual independent Astra decision; not a model substitution",
+  "policy": {
+    "id": "CEO-20261020-01",
+    "status": "approved_for_STOP_preserving_bootstrap_and_conditional_reviewed_release",
+    "horizon": {
+      "start": "recorded T0 before first authorized implementation turn",
+      "hours": 72,
+      "reset_on_resume": false
+    },
+    "accounting": {
+      "preserve": "all historical totals, six failures, receipts, source and proposal pins; old 750k is not new debt",
+      "scope": "every root, worker, reviewer, probe, model and resume",
+      "identity": "provider request ID where available; otherwise stable thread/run/counter-epoch plus event identity; resumes retain identity unless counter reset is proven",
+      "method": "deduplicate overlapping sources per identity, union disjoint usage, derive cumulative deltas within each epoch; retain corrections and provenance; never max aggregate DB and telemetry sums",
+      "baseline": "snapshot all known cumulative counters at T0; retain pre-T0 history separately; unknown history is unresolved, never zero",
+      "subsets": "uncached_input=input-cached_input; cached_input is within input; reasoning is within output; reject inconsistent counters",
+      "turn": "persist start and end counters and charge their delta, including retries; use request receipts where concurrent usage prevents attribution",
+      "late": "append corrections and attribute by event interval; pre-T0 usage stays historical; ambiguous intervals retain reservations until resolved",
+      "missing": "reserve the full authorized turn ceiling before dispatch; retain it for missing or in-flight receipts; inadequate bounds or exhausted reserve pause dispatch"
+    },
+    "planning": {
+      "unit": "WPU: internal work proxy only, neither billed credits nor subscription allowance",
+      "rates_per_million_uncached_cached_output": {
+        "Astra": [
+          250,
+          25,
+          1250
+        ],
+        "Sol6.1": [
+          50,
+          2.5,
+          250
+        ],
+        "Luna6": [
+          2.5,
+          0.25,
+          12.5
+        ]
+      },
+      "formula": "sum(rate times corresponding token count divided by 1000000)",
+      "total_wpu": 200,
+      "execution_wpu": 160,
+      "locked_reserve_wpu": 40,
+      "reserve_split": {
+        "unresolved_historical_tail": 20,
+        "late_or_missing_incremental_usage": 20
+      },
+      "reserve_rule": "unavailable for discretionary work; unknown usage exceeding or lacking a defensible bound within its reservation pauses work; historical reservation is uncertainty protection, not a new charge",
+      "bootstrap": {
+        "wpu": 20,
+        "hours": 2,
+        "pilot_STOP": true
+      },
+      "renewal": {
+        "authority": "ordinary Sol coordinator after independent review",
+        "max_grants": 5,
+        "wpu_per_grant": 28,
+        "hours_per_grant": 12,
+        "requires": "reconciled ledger, remaining envelope, current quota and approved pinned scope",
+        "no_new_horizon": true
+      },
+      "turn_limits": {
+        "Sol6.1": {
+          "wpu": 6,
+          "input_plus_output_tokens": 200000,
+          "minutes": 20
+        },
+        "Luna6": {
+          "wpu": 1,
+          "input_plus_output_tokens": 100000,
+          "minutes": 10
+        }
+      },
+      "enforcement": "reserve before dispatch and check during execution; stop at the first applicable ceiling; overflow consumes reserve and pauses dispatch; all execution, review and controller inference counts"
+    },
+    "quota": {
+      "primary_stop": true,
+      "observed_baseline_percent": 67,
+      "reduce_at_percent": 68,
+      "reduced_mode": "one team; halve WPU and token turn ceilings",
+      "stop_at_percent": 69,
+      "growth_pause": "increase of at least 1 percentage point within 15 minutes",
+      "growth_resume": "Sol may resume only below 69 after 30 minutes paused and two stable readings at least 5 minutes apart, in reduced mode",
+      "poll": "before dispatch, after completion, and every 5 minutes while active",
+      "stale_or_unavailable": "no dispatch without a reading within 5 minutes; pause active work if entitlement cannot be verified",
+      "other_stops": "ordinaryUsageAllowed=false, explicit provider limit, or inability to enforce no-paid-credit use",
+      "reset": "no automatic budget or quota-threshold rebasing, including at the reported weekly reset",
+      "paid_credits": false,
+      "unknown_bucket": "unknown, not zero",
+      "no_idle": "no idle model turns, heartbeat inference or standing workers; sleeping infrastructure may read quota without inference"
+    },
+    "concurrency": {
+      "teams_max": 2,
+      "Sol_agents_max": 2,
+      "Luna_agents_max": 2,
+      "team": "one Sol and at most one confined Luna; coordinator and reviewers count toward these limits"
+    },
+    "release": {
+      "bootstrap_only": "accounting repair, deterministic local verification and release evidence in candidate under STOP",
+      "requires": "independent Sol review of exact candidate commit; bounded actual Luna confined work; counter-reset/resume/dedup/late-data and turn-delta verification; enforced budget, quota and STOP behavior; closure of applicable security and qualification gaps",
+      "approval": "record exact reviewed pins and permitted scope before lifting STOP through its supported mechanism",
+      "broader_resume": "goal, worker and supervisor resume require their own covered release gates; no inferred approval from bootstrap",
+      "unattended_maintainer": "not qualified by the interactive handoff"
+    },
+    "governance": {
+      "automatic_Astra": false,
+      "exhaustion": "stop and record evidence; no automatic CEO escalation or renewal beyond this envelope",
+      "restrictions": "all existing protected-data, acquisition, training, trading, main and remote restrictions remain"
+    }
+  },
+  "verdict": "Yes: the reported arithmetic reconciles: 1,874,998 + 254,590 + 132,844 + 80,447 = 2,342,879; 2,047,232 cached + 295,647 other tokens matches. This does not establish subscription consumption or newly incurred debt against the old 750k threshold. No blanket cumulative-notification duplication is demonstrated. The supervisor nevertheless has accounting defects: aggregate max reconciliation misses disjoint usage, external roots/probes are omitted, and lifetime counters are unsuitable as turn deltas. STOP remains justified by six failed attempts, zero accepted tasks and unresolved release gates.",
+  "authorization": "Approve the bounded repair bootstrap and conditional Sol renewals above. Implementation may begin only after this decision episode hands off and the decision is durably recorded. Authorize a separate native gpt-6.1-sol task only after verifying High reasoning and an independent root identity; it must use confined Luna6 High work and independent pinned-release review. This authorizes the downstream handoff, not an execution or delegation performed here. No controller implementation, pilot STOP bypass, paid credits or future automatic Astra.",
+  "limitations": "Decision uses the supplied verified dossier and official pricing excerpt; no tools, persistence, implementation or dispatch occurred. Root counter movement is 3,118,431, but its interval is not established as comparable to the stop snapshot. Historical 213,291 must not be added again without provenance proving exclusion from the supplied totals. Model-specific input/output attribution is insufficient to reconstruct historical WPU. Killed-chief usage, late arrivals and post-stop root context remain unresolved. Coarse quota percentages cannot prove zero usage or guarantee a maximum overshoot; internal reservations cannot enforce provider billing limits. Missing enforceable bounds require a pause.",
+  "private_evidence_root": "/Users/root1/Developer/brain-org-state/ceo-resource-20261020",
+  "evidence_sha256": {
+    "audit.json": "bfcc38f7dcefe69e58c82d113813ec7c9f458d21003f81db63740aee3d1cc40c",
+    "dossier.json": "4d532a3680a875f85dc6d0d65eeb2b917828d2839b1fddb8fffbd2c1e6fbcc97",
+    "result.json": "8f0d1fd44f96bcb144f0908401428f0d83715caa142e5c32108edc7783ac85f9",
+    "decision.json": "99ed19cd840336916be2c12926f3ebaeb3046759468dfab4f675c3e76de29695",
+    "identity.json": "cf38b02be88cb9211ced9c3aaf44ba83d5d2fab849182866e05c704410a12363"
+  },
+  "predecessors": {
+    "source": "b37eafac71e8a62d387f2b8ccc58a63d0104d266",
+    "unreviewed_proposal": "1546e4c70d079167a91180c1b00b0af9a88b503a",
+    "goal": "01a1563e-1a26-75e2-bdab-ca2b38c7b51f"
+  },
+  "official_sources": [
+    "https://learn.chatgpt.com/docs/pricing",
+    "https://developers.openai.com/api/docs/guides/prompt-caching"
+  ]
+}

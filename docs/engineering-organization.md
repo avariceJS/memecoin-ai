@@ -75,6 +75,39 @@ and independent security/publication qualification are evidenced.
 
 ## Resource management and evidence
 
+Current authorization is [CEO-20261020-01](evidence/brain-org-ceo-resource-policy-20261020.json),
+a manually founder-invoked actual Astra High decision recorded in the original organization SQLite.
+It supersedes the initial raw-token resource policy only. The frozen deployed controller is unchanged;
+STOP, task recovery, security and publication gates remain. Sol implements the repair with confined
+Luna workers and independent exact-commit review; the executive episode implements no controller code.
+
+The new incremental horizon lasts 72 hours from recorded T0: 200 internal work-proxy units (WPU),
+160 for execution and 40 locked for bounded historical and late/missing usage uncertainty. Initial
+STOP-preserving accounting bootstrap is at most20 WPU/2 hours. After independent review, Sol may issue
+up to five28-WPU/12-hour grants inside the same72-hour/200-WPU envelope without another CEO episode.
+The authoritative JSON fixes model rates, reservations, turn limits, late-data rules and release gates.
+WPU are a planning proxy using published Standard credit-rate ratios, never actual billed credits or
+included subscription usage. No paid-credit spending is authorized.
+
+Deduplicate overlapping metering by stable request/thread/run/counter-epoch identity; union disjoint
+usage and charge cumulative deltas from recorded baselines. Cached input is a subset of input;
+reasoning is a subset of output. Resumes, counter resets, late receipts and unresolved intervals retain
+provenance and reservations. Preserve historical totals rather than recharging all previous lifetime
+context to each new grant. The reproduced2,342,879 raw total includes2,047,232 cached input; arithmetic
+is valid but does not demonstrate equivalent subscription exhaustion. Historical killed-chief and
+in-flight uncertainty is still unresolved. The original raw stop and proposal remain immutable.
+
+Actual account limits govern independently: require fresh entitlement/limit reads, reduce to one team
+and half turn limits at68%, stop at69%, and pause for growth of at least1 percentage point in15 minutes.
+Observe all exposed limit buckets; stale/missing evidence prevents dispatch. Stable-rate recovery may
+be handled by Sol under the JSON conditions without automatic Astra. Neither weekly reset nor resume
+rebases this horizon. The original full Brain goal stays blocked until the applicable accounting and
+release gates pass; supported new-root continuation must retain the predecessor identity.
+
+The following initial policy is historical and remains in the frozen old deployment until reviewed
+replacement; it is not an alternative current resource authorization.
+
+
 The initial envelope permits at most two concurrent teams, measured token admission budget750k,
 60k reserve, known ordinary quota permission and all exposed buckets below90% utilization. Near the
 ceiling, parallelism reduces. Memory/CPU and overlapping file scopes further constrain dispatch.

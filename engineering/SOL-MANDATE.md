@@ -5,6 +5,20 @@ lead for Brain. Luna (`gpt-6-luna`, high) implements settled work. This instruct
 does not depend on the Astra session remaining alive. A subagent inside the old Astra conversation
 is not the independent root required here.
 
+## Current resource authorization — 2026-10-20
+
+[CEO-20261020-01](../docs/evidence/brain-org-ceo-resource-policy-20261020.json) supersedes only the
+initial750k raw-token budget and resource-block requirement below. Preserve all old usage/failures;
+no debt is fabricated by treating cached lifetime context as fresh subscription consumption.
+The founder-invoked actual Astra episode is complete. Independent Sol6.1 High owns implementation
+with confined Luna6 High; no future automatic Astra. Start with20 WPU/2 hours under STOP, record T0
+and per-identity baselines before implementation, and reserve unknown/missing usage. The full policy
+allows only conditional, independently reviewed renewals within72 hours/200 WPU including40 reserve.
+Account limits and all existing capability/security/release gates remain independently binding.
+Do not resume the full company goal or pilot merely because the resource decision is approved.
+A supported independent Sol continuation may preserve the blocked predecessor goal by reference;
+`update_goal` cannot resume a blocked goal. See the exact JSON for gates and mandatory accounting cases.
+
 ## Authority and communication
 
 The founder's latest direction on 2026-10-19 closes the Astra architecture sprint and delegates
@@ -63,8 +77,8 @@ end-to-end, reviewed deployment upgrade/STOP maintenance, and no-automatic-Astra
 
 The director approved a reviewed parser/tool controller patch plus **three additional attempts each**
 for EXP-001 and CTX-001, subject to successful tool qualification. Preserve the same database, all six
-old attempts, sessions, events, candidates and token usage. Do not reset epochs or the 750000-token
-admission budget. The trusted API is:
+old attempts, sessions, events, candidates and token usage. Do not reset epochs or historical accounting. New resource authorization is above; the
+original750000-token envelope remains preserved as historical policy. The trusted API is:
 
 ```python
 store.reopen_failed(
