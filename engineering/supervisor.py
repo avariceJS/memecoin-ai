@@ -174,11 +174,11 @@ def tool_function(box, checkout, heartbeat):
         heartbeat()
         argv = args.get("argv")
         timeout = args.get("timeout")
+        if type(timeout) is not int or not 1 <= timeout <= 90:
+            raise ValueError("timeout must be integer seconds in 1..90; not milliseconds")
         if (
             not isinstance(argv, list)
             or len(argv) > 100
-            or type(timeout) is not int
-            or not 1 <= timeout <= 90
         ):
             raise ValueError("tool_arguments")
         result = box.run(argv, cwd=checkout, timeout=timeout, max_output_bytes=100000)

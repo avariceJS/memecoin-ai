@@ -1,0 +1,34 @@
+{
+  "schema": "brain-org-sol-checkpoint-v1",
+  "observed_at": 1792448924.534035,
+  "status": "source_checkpoint_not_operational_release",
+  "source_base": "c63f46f90b6059d33e7a2ac753f7eb4f644496ae",
+  "branch": "org/sol-recovery-20261020",
+  "private_resource_stop": "/Users/root1/Developer/brain-org-state/sol-recovery-20261020/RESOURCE-STOP.json",
+  "private_resource_stop_sha256": "d2a2e7bca46309c2763fb6435ecf99078af524c9a0d89f14e4ee1d1ed00bd8a9",
+  "known_usage_lower_bound_at_resource_stop": 2342879,
+  "admission_budget": 750000,
+  "usage_after_stop_and_historical_chief_unknown": true,
+  "luna_proposal_sha": "1546e4c",
+  "luna_proposal_branch": "org/proposal-no-auto-astra-20261020",
+  "proposal_accepted": false,
+  "pilot_stop": true,
+  "pilot_tasks_reopened": false,
+  "pilot_database_modified": false,
+  "remote_main_and_active_unchanged": true,
+  "main_pin": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+  "historical_active_pin": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+  "tests": {
+    "engineering_pytest_passed": 142,
+    "subtests_passed": 18,
+    "ruff": "passed",
+    "whole_repo_green": false
+  },
+  "limitations": [
+    "No accepted Brain task or controller upgrade",
+    "No automatic-Astra removal adopted; source and deployed old supervisor must stay stopped",
+    "No independent review or live acceptance",
+    "Resource accounting omission found after maintenance admission; no more model dispatch",
+    "No restorable organization backup or unattended qualification"
+  ]
+}

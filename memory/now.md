@@ -70,6 +70,19 @@ same SQLite, attempt history and usage when applying the approved bounded recove
 supervisor still has automatic Astra review; remove it in a reviewed release before overnight Sol
 operation. Exact evidence and limitations: `docs/evidence/brain-org-handoff-20261019.json`.
 
+## Sol checkpoint — 2026-10-20
+
+`org/sol-recovery-20261020` has an adapter timeout-units repair and focused regressions:
+142 tests /18 subtests and engineering Ruff pass. No independent release acceptance.
+Real Luna proposal `1546e4c` is preserved separately and unreviewed; do not deploy it.
+Persistent goal is active, but new model dispatch stopped after discovering outer-root accounting
+was omitted at initial maintenance admission: known usage lower bound2,342,879 exceeds750k.
+The67% weekly account reading is a separate metric. Pilot STOP/old deployment/database, six failed
+attempts and main/active are preserved; no retry reopening or unattended service. See the canonical
+engineering document and `docs/evidence/brain-org-sol-checkpoint-20261020.json` for exact next gates
+and private resource-stop evidence. Further work requires an internal resource-horizon decision;
+Astra is not invoked automatically.
+
 ## Git consolidation — 2026-10-18
 
 `main` is the sole integration baseline on GitHub, incorporating research code/history through

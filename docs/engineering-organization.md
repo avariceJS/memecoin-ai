@@ -205,3 +205,29 @@ qualification to the adapter/executable hashes during restart. New source pins t
 the existing deployed configuration lacks that field. The reviewed upgrade and restart binding remain
 open requirements. The manual independent Sol UI handoff grants ordinary delegated engineering;
 it does not qualify unattended full-maintainer execution or eliminate the STOP/startup gates.
+
+### Sol implementation checkpoint — 2026-10-20
+
+Persistent goal continuation was actually activated in root `01a1563e-1a26-75e2-bdab-ca2b38c7b51f`.
+Rollout metadata confirms the independent root is `gpt-6.1-sol` high and maintenance workers are
+`gpt-6-luna` high. Work is on `org/sol-recovery-20261020`; the pilot remains STOPped at its old
+release, with all six failures and the original database preserved. Main and historical active
+remote pins were read and remain unchanged. No Astra episode or unattended service was started.
+
+A real Luna run exposed missing timeout units in the dynamic tool interface: milliseconds were
+rejected by the unchanged 1..90-second boundary. Source now explains seconds and gives an actionable
+broker error. Adapter phase filtering and timeout regressions pass: 142 engineering tests and
+18 subtests, plus engineering Ruff. These are source checks, not independent release acceptance.
+The second confined Luna run produced an unreviewed supervisor proposal at `1546e4c` on
+`org/proposal-no-auto-astra-20261020`; it crossed the measured turn ceiling before completion.
+Do not adopt it without independent review and collected quiescence/STOP/quota regression tests.
+
+Maintenance admission initially counted historical known usage without incorporating the measurable
+outer-root cumulative counter. This is an accounting failure, not permission to expand the envelope.
+At resource stop, the known aggregate lower bound was 2,342,879 tokens including repeated cached input,
+above the 750,000 admission budget; later shutdown context and historical killed-chief usage remain
+additional/unknown. The separate account weekly window read 67% before maintenance. New model dispatch
+is stopped; a further resource horizon needs a durable internal Astra decision, never automatic Astra.
+Next engineering requirements remain executable/adapter restart binding, reviewed STOP-preserving
+upgrade, bounded original-task recovery, independent acceptance and complete backup/restore.
+Exact custody and private evidence locator: [checkpoint receipt](evidence/brain-org-sol-checkpoint-20261020.json).

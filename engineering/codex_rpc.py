@@ -193,13 +193,20 @@ class Codex:
                             "Run bounded argv in the assigned OS sandbox. cwd is the task "
                             "checkout; no network, owner files, credentials, publisher, "
                             "other tasks or control state. Use Python for file edits. "
-                            "All paths outside assigned roots are denied."
+                            "All paths outside assigned roots are denied. "
+                            "timeout is an integer number of SECONDS from 1 to 90, "
+                            "not milliseconds; use timeout: 30 for a normal command."
                         ),
                         "inputSchema": {
                             "type": "object",
                             "properties": {
                                 "argv": {"type": "array", "items": {"type": "string"}},
-                                "timeout": {"type": "integer", "minimum": 1, "maximum": 90},
+                                "timeout": {
+                                    "type": "integer", "minimum": 1, "maximum": 90,
+                                    "description": (
+                                        "Timeout in seconds, integer 1..90 (not milliseconds)."
+                                    ),
+                                },
                             },
                             "required": ["argv", "timeout"],
                             "additionalProperties": False,
