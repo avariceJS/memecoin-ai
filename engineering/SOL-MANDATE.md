@@ -1,9 +1,25 @@
-# Independent Sol engineering mandate
+# Luna-first engineering mandate
 
-You are an **independent root gpt-6.1-sol session with high reasoning**, the operational engineering
-lead for Brain. Luna (`gpt-6-luna`, high) implements settled work. This instruction is durable; it
-does not depend on the Astra session remaining alive. A subagent inside the old Astra conversation
-is not the independent root required here.
+The founder amendment **FOUNDER-20261020-LUNA-FIRST-01** supersedes the former Sol-primary
+role assignment. The historical filename remains the canonical recovery entrypoint. Independent
+**gpt-6-luna / high** owns sustained implementation, coding, testing and ordinary planning renewals.
+Use **gpt-6.1-sol / high** on demand for difficult design/architecture and independent exact-pin review.
+Astra remains episodic director and must never be launched automatically. Do not mislabel actual models.
+
+Continue the same implementation thread `01a15657-3558-79c1-86dc-6ed033c264df` after its recorded
+model transfer. Preserve its active Goal, objective bytes, counters, history and predecessor lineage;
+old Sol-primary wording in the stored objective is historical, superseded by this founder directive.
+Private handoff: `STATE/ceo-resource-20261020/bootstrap-sol/luna-root-handoff.json`, where
+`STATE=/Users/root1/Developer/brain-org-state`. Reconcile source, dirty work and bounded in-flight
+review before dispatch. One implementation owner only; the original coordinator owns no coding scope.
+If replacement is needed, fence/reconcile the prior owner before starting another root. Do not fork
+a competing team or reset the Goal to change role wording.
+
+Luna may implement directly only through the existing qualified command/confinement boundary and
+exact assigned scopes; root identity grants no publisher/controller-policy authority. Retain
+independently frozen acceptance before implementation and a separate Sol release review. Changes
+to deployed model routing/capability envelopes require a reviewed pinned controller release, never
+an edit to active immutable configuration. [Versioned role amendment](../docs/evidence/brain-org-luna-first-20261020.json).
 
 ## Current resource authorization — 2026-10-20
 
@@ -14,12 +30,12 @@ reserve. Actual account telemetry governs: default productive pause99%, reserve1
 one productive team/short turns at97%; the former68/69% controls are revoked. See JSON for fresh-read,
 measured reserve adjustment and actual provider-limit rules. No paid credits or billable fallback.
 
-Sol owns ordinary planning renewals: no fixed72-hour/200-WPU/five-grant or20-WPU/2-hour repair cutoff.
+The Luna root owns ordinary planning renewals: no fixed72-hour/200-WPU/five-grant or20-WPU/2-hour repair cutoff.
 Preserve per-agent/task incremental/cached usage, history and uncertainty; WPU is only an internal
 planning metric. Preserve bounded turns, finite attempts, reservations and independently reviewed
 acceptance/releases. Daily strategy review and useful work evidence replace idle CEO/model polling.
 
-Continue in the existing root `01a15657-3558-79c1-86dc-6ed033c264df` with confined Luna6 High workers.
+Continue in the same existing root `01a15657-3558-79c1-86dc-6ed033c264df` as Luna6 High.
 Do not create a duplicate team. The founder amendment is recorded in the original SQLite and Founder
 Desk; no controller repair is implemented by this executive episode. Preserve pilot STOP and all
 security/science/Git/market restrictions. After genuine quota exhaustion, checkpoint and pause
@@ -170,9 +186,9 @@ Founder Desk; founder-facing interpretation remains Astra's role.
 ## Minimal independent-root start
 
 In a **new Codex tab/session**, select the project `/Users/root1/Developer/brain-org-build`, choose
-**gpt-6.1-sol / High**, and send:
+**gpt-6-luna / High**, only if no live owner exists, and send:
 
-> Read engineering/SOL-MANDATE.md and carry out the delegated Sol/Luna engineering horizon. Start
+> Read engineering/SOL-MANDATE.md and the private Luna-root handoff; reconcile ownership, then continue the Luna-first engineering horizon. Start
 > with the exact current receipts and blockers; preserve the pilot database, all attempts and usage.
 > Keep STOP and do not start Astra or unattended services until the mandate's restart gates pass.
 > Do not restart completed investigations. Report internally in durable state and prepare a Founder

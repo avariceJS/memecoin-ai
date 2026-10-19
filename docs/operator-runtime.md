@@ -237,7 +237,11 @@ engineering organization. `main` remains pinned at `2f8da5f92da521b511e0d4fb2020
 its first implementation. `org/foundation-20261019` holds the separate controller and Sol handoff
 checkpoint; it is not an operational release. Remote `research/active` still remains at the old
 SHA below. Its future integration role requires exact historical archival and verified local
-publication controls first. See [engineering organization](engineering-organization.md) and the
+publication controls first. On2026-10-20 the trusted coordinator created and verified remote tag
+`archive/research-active-pre-org-20261019` at the exact historical `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`;
+main and active stayed unchanged. Archive retarget/deletion is prohibited by policy; hosted-admin
+immutability is not claimed. Private receipt: `brain-org-state/founder-quota-20261020/historical-active-archive-receipt.json`.
+Publication qualification remains open. See [engineering organization](engineering-organization.md) and the
 [handoff receipt](evidence/brain-org-handoff-20261019.json). No Brain operator activation is implied.
 
 As of 2026-10-18, GitHub `avariceJS/memecoin-ai` owns all published code/history. `main` is the

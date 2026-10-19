@@ -94,6 +94,19 @@ is insufficient; common runtime preflight remains a release gate. Lifecycle reco
 readback: `docs/evidence/brain-org-goal-lifecycle-recovery-20261020.json`.
 Policy: `docs/evidence/brain-org-founder-quota-amendment-20261020.json`.
 
+## Luna-first transfer — 2026-10-20
+
+Founder role amendment FOUNDER-20261020-LUNA-FIRST-01 makes existing implementation root
+`01a15657-3558-79c1-86dc-6ed033c264df` Luna6/high; Sol6.1/high is on demand for design/review.
+Same-thread transfer must preserve active Goal/history/counters; do not create a competing root.
+Canonical recovery entry remains engineering/SOL-MANDATE.md; private luna-root-handoff.json in
+ceo-resource-20261020/bootstrap-sol owns exact in-flight reconciliation. Source core1d6d44f passed
+independent review; task-spec6db5866 was rejected with five validator defects, not accepted.
+Deployment STOP and CEO-20261020-02 remain. Historical active was archived remotely under
+archive/research-active-pre-org-20261019 at c157f79471c1cb330bdab01cc4b4cdd7b9a1a186;
+main/active unchanged. Transfer verification is recorded separately; do not infer identity/scheduling
+from this intended policy or an active Goal flag alone.
+
 ## Git consolidation — 2026-10-18
 
 `main` is the sole integration baseline on GitHub, incorporating research code/history through

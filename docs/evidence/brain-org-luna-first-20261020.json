@@ -1,0 +1,24 @@
+{
+  "schema": "brain-org-founder-role-amendment-v1",
+  "id": "FOUNDER-20261020-LUNA-FIRST-01",
+  "authority": "explicit founder instruction in original root; not an Astra episode",
+  "recorded_at": 1792453110.03288,
+  "implementation_owner_thread": "01a15657-3558-79c1-86dc-6ed033c264df",
+  "primary_root": {
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "responsibility": "bounded coding, testing, planning renewals and sustained Goal continuation"
+  },
+  "sol": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "responsibility": "on-demand difficult design, architecture and independent exact-pin review; no idle lead loop"
+  },
+  "astra": "episodic director, never automatic",
+  "transfer": "same-thread model switch only after durable handoff and reconciliation; otherwise separate root only after exclusive owner transfer",
+  "original_goal_and_usage": "preserve objective bytes, creation time, counters and predecessor lineage; old Sol role wording is historical and superseded by this founder amendment",
+  "coordination_root": "01a1563e-1a26-75e2-bdab-ca2b38c7b51f is handoff/independent evidence coordination only, not a second implementation owner",
+  "resource_policy": "CEO-20261020-02 unchanged; ordinary renewals delegated to Luna root within approved envelope",
+  "gates": "All security, confinement, frozen independent acceptance, publisher, scientific, protected-data, acquisition, training, trading and Git restrictions preserved. Pilot STOP unchanged until reviewed technical release gates pass. No frozen deployed policy edits by this decision.",
+  "recovery": "Reconstruct same owner/leases/source/inflight attempts before any replacement; no duplicate dispatch, no unsafe legacy supervisor. Native Goal scheduling must be evidenced, not inferred from active status."
+}

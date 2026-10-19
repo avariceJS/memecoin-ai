@@ -5,6 +5,18 @@ The founder directive of 2026-10-19 appoints Astra High CEO / Engineering Direct
 leads departments and Luna High implements bounded tasks. The [Founder Desk](../engineering/OWNER-DESK.md)
 is Russian by explicit request. Research contracts remain in `docs/contracts.md`.
 
+## Current founder role amendment — 2026-10-20
+
+[FOUNDER-20261020-LUNA-FIRST-01](evidence/brain-org-luna-first-20261020.json) supersedes earlier
+Sol-primary implementation wording: independent Luna6/high owns sustained root coding, testing,
+planning and Pursuing Goal continuation; Sol6.1/high is invoked for difficult design and independent
+review. Astra remains director, never automatic. Transfer uses the existing implementation thread
+`01a15657-3558-79c1-86dc-6ed033c264df`, preserving Goal/history and a single code owner. The original
+coordinator owns handoff/evidence only. The existing [mandate](../engineering/SOL-MANDATE.md) remains
+the canonical entrypoint; private handoff reconciles exact source and in-flight work. No capability,
+confinement, acceptance, Git or STOP gate is relaxed. Frozen runtime model routing changes require
+a reviewed release. CEO-20261020-02 remains the resource policy; Luna handles routine renewals.
+
 ## Authority and implementation
 
 `engineering/` is a stdlib controller, not a trading runtime. Independent Codex app-server root
