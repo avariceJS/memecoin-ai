@@ -138,7 +138,7 @@ def test_independent_adapter_acceptance():
     c.notifications = [
         {
             "method": "thread/tokenUsage/updated",
-            "params": {"threadId": "s", "tokenUsage": {"total": count(220000)}},
+            "params": {"threadId": "s", "turnId": "t", "tokenUsage": {"total": count(220000)}},
         },
         {"method": "turn/completed", "params": {"turn": {"id": "t", "status": "completed"}}},
     ]
@@ -358,7 +358,7 @@ def test_independent_review_regressions_acceptance():
     c.notifications = [
         {
             "method": "thread/tokenUsage/updated",
-            "params": {"threadId": "s", "tokenUsage": {"total": camel(150)}},
+            "params": {"threadId": "s", "turnId": "t2", "tokenUsage": {"total": camel(150)}},
         },
         {"method": "turn/completed", "params": {"turn": {"id": "t2", "status": "completed"}}},
     ]
@@ -395,3 +395,50 @@ def test_independent_review_regressions_acceptance():
             is True
         )
     print(json.dumps({"review_regressions": "passed"}))
+
+    # Further review: subset coverage, late wrong-turn telemetry and latest quota denial.
+    with tempfile.TemporaryDirectory() as tmp:
+        x = UsageLedger(Path(tmp) / "subset.sqlite")
+        x.register("s", "e", "gpt-6.1-sol", count(0), evidence="baseline")
+        x.start_turn(
+            "f",
+            "s",
+            "e",
+            count(0),
+            reservation_tokens=100,
+            reservation_wpu=1,
+            deadline_at=1,
+            evidence="dispatch",
+        )
+        x.finish_turn("f", count(50), receipt="failed receipt", failed=True)
+        cached = count(50)
+        cached["cached_input_tokens"] = 50
+        x.observe("s", "e", "conflict", cached, source="late", sequence=1, observed_at=10)
+        assert x.summary()["reservations"] and x.summary()["unresolved"]
+        x.close()
+    c = Codex.__new__(Codex)
+    c.call = Mock(return_value={"turn": {"id": "current"}})
+    c.sink = Mock()
+    c.messages = queue.Queue()
+    c.usage_counters = {"s": camel(100)}
+    c.notifications = [
+        {
+            "method": "thread/tokenUsage/updated",
+            "params": {"threadId": "s", "turnId": "previous", "tokenUsage": {"total": camel(100)}},
+        },
+        {"method": "turn/completed", "params": {"turn": {"id": "current", "status": "completed"}}},
+    ]
+    x = c.turn("s", "bounded", model="gpt-6.1-sol", tool=Mock())
+    assert x["usage_delta"] is None and c.usage_counters.get("s") is None
+    old = limits(99)
+    latest_denial = {"observed_at": 1001, "rate_limits": limits()}
+    latest_denial["rate_limits"]["ordinaryUsageAllowed"] = False
+    assert (
+        reset_recovery_decision(
+            {"observed_at": 800, "rate_limits": old},
+            readings + [latest_denial],
+            now=1001,
+            state_reconciled=True,
+        )["ready"]
+        is False
+    )

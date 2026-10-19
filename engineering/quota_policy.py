@@ -221,7 +221,7 @@ def reset_recovery_decision(
         not isinstance(paused_reading, Mapping)
         or not isinstance(readings, Sequence)
         or isinstance(readings, (str, bytes))
-        or len(readings) < 2
+        or len(readings) != 2
     ):
         return denied("insufficient_readings")
     now_ts = _timestamp(now)

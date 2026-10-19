@@ -384,8 +384,16 @@ class Codex:
                 ):
                     outputs.append(item.get("text", ""))
             elif method == "thread/tokenUsage/updated" and p.get("threadId") == thread_id:
-                usage = p.get("tokenUsage", {})
-                self.sink({"kind": "token_usage", "thread_id": thread_id, "usage": usage})
+                snapshot = p.get("tokenUsage", {})
+                belongs = p.get("turnId") == turn_id
+                self.sink({
+                    "kind": "token_usage", "thread_id": thread_id,
+                    "turn_id": p.get("turnId"), "usage": snapshot,
+                    "accepted_for_current_turn": belongs,
+                })
+                if not belongs:
+                    continue  # Late/unknown-turn receipts remain evidence, never current end usage.
+                usage = snapshot
                 # Cache only a verified end snapshot, after the turn completes.
                 # CEO-20261020-02: cumulative raw usage is telemetry, not quota.
                 # The turn wall deadline, finite attempts and fresh account

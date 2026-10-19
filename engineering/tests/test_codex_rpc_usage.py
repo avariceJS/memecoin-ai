@@ -41,7 +41,11 @@ def test_missing_end_usage_invalidates_cached_baseline_for_next_turn():
     client.messages.put(
         {
             "method": "thread/tokenUsage/updated",
-            "params": {"threadId": "thread", "tokenUsage": {"total": counters(150)}},
+            "params": {
+                "threadId": "thread",
+                "turnId": "turn",
+                "tokenUsage": {"total": counters(150)},
+            },
         }
     )
     client.messages.put(completed())
@@ -58,7 +62,7 @@ def test_invalid_end_usage_does_not_seed_cached_baseline():
         [
             {
                 "method": "thread/tokenUsage/updated",
-                "params": {"threadId": "thread", "tokenUsage": {"total": bad}},
+                "params": {"threadId": "thread", "turnId": "turn", "tokenUsage": {"total": bad}},
             },
             completed(),
         ]

@@ -458,7 +458,14 @@ class UsageLedger:
                 b = json.loads(finish["end_counters"])
                 turns[t["turn_id"]] = {k: b[k] - a[k] for k in FIELDS}
                 observed = registration_coverage.get((t["identity"], t["epoch"]))
-                covered = observed is not None and all(observed[k] >= b[k] for k in FIELDS)
+                covered = False
+                if observed is not None:
+                    try:
+                        self._validate_interval(b, observed)
+                    except ValueError:
+                        pass  # Conflicting subsets retain the coverage obligation.
+                    else:
+                        covered = True
                 if not covered:
                     reservations.append(
                         {
