@@ -23,6 +23,28 @@ class RpcError(RuntimeError):
     pass
 
 
+COUNTER_KEYS = (
+    "inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"
+)
+
+
+def counter_delta(start, end):
+    """Validate cumulative counters and return one same-epoch interval, or unknown."""
+    keys = COUNTER_KEYS
+    def valid(value):
+        return (
+            isinstance(value, dict)
+            and all(type(value.get(k)) is int and value[k] >= 0 for k in keys)
+            and value["cachedInputTokens"] <= value["inputTokens"]
+            and value["reasoningOutputTokens"] <= value["outputTokens"]
+            and value["totalTokens"] == value["inputTokens"] + value["outputTokens"]
+        )
+    if not valid(start) or not valid(end):
+        return None
+    delta = {k: end[k] - start[k] for k in keys}
+    return delta if valid(delta) else None
+
+
 class Codex:
     def __init__(
         self, cwd: Path, *, codex: str = "codex", event_sink=None, harness_cwd: Path | None = None
@@ -215,7 +237,13 @@ class Codex:
                 ],
             },
         )
-        return result["thread"]["id"]
+        thread_id = result["thread"]["id"]
+        if not hasattr(self, "usage_counters"):
+            self.usage_counters = {}
+        self.usage_counters[thread_id] = dict.fromkeys(
+            COUNTER_KEYS, 0
+        )
+        return thread_id
 
     def resume(self, thread_id, model):
         return self.call(
@@ -241,7 +269,13 @@ class Codex:
         heartbeat=None,
         output_schema=None,
         started=None,
+        start_usage=None,
     ):
+        # Resumed threads need a persisted baseline or a counter already known
+        # to this client. Never assume an unknown lifetime counter starts at zero.
+        baseline = start_usage if start_usage is not None else getattr(
+            self, "usage_counters", {}
+        ).get(thread_id)
         params = {
             "threadId": thread_id,
             "input": [{"type": "text", "text": prompt}],
@@ -257,7 +291,8 @@ class Codex:
         if started:
             started(turn_id)
         self.sink(
-            {"kind": "turn_started", "thread_id": thread_id, "turn_id": turn_id, "model": model}
+            {"kind": "turn_started", "thread_id": thread_id, "turn_id": turn_id, "model": model,
+             "usage_start": baseline, "usage_baseline_known": baseline is not None}
         )
         end = time.monotonic() + deadline_seconds
         last_heartbeat = 0.0
@@ -338,8 +373,16 @@ class Codex:
             elif method == "thread/tokenUsage/updated" and p.get("threadId") == thread_id:
                 usage = p.get("tokenUsage", {})
                 self.sink({"kind": "token_usage", "thread_id": thread_id, "usage": usage})
-                if usage.get("total", {}).get("totalTokens", 0) > 180000:
-                    raise RpcError("turn_token_ceiling")
+                total = usage.get("total")
+                if counter_delta(dict.fromkeys(
+                    COUNTER_KEYS, 0
+                ), total) is not None:
+                    if not hasattr(self, "usage_counters"):
+                        self.usage_counters = {}
+                    self.usage_counters[thread_id] = dict(total)
+                # CEO-20261020-02: cumulative raw usage is telemetry, not quota.
+                # The turn wall deadline, finite attempts and fresh account
+                # admission remain enforced by the trusted caller.
             elif method == "model/rerouted":
                 raise RpcError("model_reroute_rejected")
             elif method == "turn/completed" and p.get("turn", {}).get("id") == turn_id:
@@ -351,11 +394,18 @@ class Codex:
                         "turn_id": turn_id,
                         "status": status,
                         "usage": usage,
+                        "usage_start": baseline,
+                        "usage_end": usage.get("total"),
+                        "usage_delta": counter_delta(baseline, usage.get("total")),
                     }
                 )
                 if status != "completed":
                     raise RpcError("turn_" + str(status) + ":" + json.dumps(p["turn"].get("error")))
-                return {"text": "\n".join(outputs), "usage": usage, "turn_id": turn_id}
+                return {
+                    "text": "\n".join(outputs), "usage": usage, "turn_id": turn_id,
+                    "usage_start": baseline, "usage_end": usage.get("total"),
+                    "usage_delta": counter_delta(baseline, usage.get("total")),
+                }
         try:
             self.call("turn/interrupt", {"threadId": thread_id, "turnId": turn_id}, timeout=10)
         finally:
