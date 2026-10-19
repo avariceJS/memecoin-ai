@@ -79,7 +79,8 @@ SQLite and Founder Desk. Raw2,342,879 includes2,047,232 cached input; it is not 
 spend. Fresh quota read remains67%, ordinary use allowed. Policy authorizes a new72-hour/200-WPU
 incremental horizon including40 reserve; first STOP-preserving accounting repair20 WPU/2 hours.
 Sol may conditionally renew within the envelope;68% reduces load,69% stops. No automatic Astra.
-Independent Sol/Luna implementation and reviewed release are next; pilot STOP/deployment/config,
+Independent Sol root `01a15657-3558-79c1-86dc-6ed033c264df` (actualSol6.1/high verified)
+received the bounded implementation handoff; completion is not claimed. Pilot STOP/deployment/config,
 six failed attempts, protected resources and main/active remain. No pilot retry reopening or service.
 Exact policy/gates: `docs/evidence/brain-org-ceo-resource-policy-20261020.json`.
 
