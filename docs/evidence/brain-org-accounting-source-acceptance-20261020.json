@@ -1,0 +1,79 @@
+{
+  "schema": "brain-org-accounting-source-acceptance-v1",
+  "observed_at": 1792452886.472449,
+  "authority": "CEO-20261020-02",
+  "approved_source_sha": "1d6d44f90aa4fd338d3eb2cce7b19d96e7425c99",
+  "independent_review": {
+    "thread": "01a15680-438b-7f02-a852-8d26d4e753c5",
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "approved": true,
+    "raw_receipt_sha256": "bace607859d4ce708bb44bcfae9aadafa8453067dc8e875fb79b581563f46bd2",
+    "manifest_files": 13
+  },
+  "verified": {
+    "focused_tests": 82,
+    "subtests": 6,
+    "frozen_checks": 6,
+    "engineering_ruff": "passed",
+    "actual_confined_Luna_work": true,
+    "same_snapshot_summary_and_atomic_corrections": true,
+    "no_automatic_Astra_supervisor": true,
+    "common_supported_runtime_preflight": true,
+    "fresh_independent_parent_probe_result": {
+      "direct_config": {
+        "accepted_stale_native": false,
+        "error": "native_adapter_binding"
+      },
+      "service_validator": {
+        "accepted_stale_native": false,
+        "error": "native_adapter_binding"
+      },
+      "STOP_preserved": true,
+      "candidate_hashes": {
+        "engineering/supervisor.py": "6d8d842e2614559f9aa1c105a0ed479f2cdc3b6de29b2150181e5fa8702c13c2",
+        "engineering/service.py": "9adb85bb63ae0a2ae6cef0eb1f6499b780d7a365009731b1bfd6045ca05fe546"
+      }
+    }
+  },
+  "task_spec_candidate": {
+    "sha": "56bd17fb59b81980c383f4c11b1fa3e7b2d71e4a",
+    "scope": [
+      "engineering/task_specs.py",
+      "engineering/tests/test_task_specs.py"
+    ],
+    "frozen_checks": 37,
+    "focused_tests": 5,
+    "subtests": 9,
+    "independent_review": "pending; not live admission"
+  },
+  "private_evidence_root": "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol",
+  "goal": {
+    "owner": "01a15657-3558-79c1-86dc-6ed033c264df",
+    "predecessor": "01a1563e-1a26-75e2-bdab-ca2b38c7b51f",
+    "status": "active",
+    "automatic_continuation_proof": "automatic-continuation-proof-1.json",
+    "full_mandate_complete": false
+  },
+  "operational_acceptance": false,
+  "pilot_STOP": true,
+  "pilot_changed_by_implementation": false,
+  "historical_failed_attempts": 6,
+  "pilot_acceptances": 0,
+  "pilot_integrations": 0,
+  "remote_main_and_active_moved": false,
+  "archive_prerequisite_owner": "separate founder coordinator; no duplicate archive action",
+  "remaining": [
+    "Metered dispatch bridge and every inference call-site wiring",
+    "Actual account quota admission replacing legacy cumulative raw stop in runtime path",
+    "Pinned reviewed controller/config/native evidence and complete restorable checkpoint",
+    "STOP-preserving controlled upgrade plus bounded actual tool/parser qualification",
+    "Authorized original-DB recovery with six failures preserved",
+    "Full useful-task/contract/GitGate/fault/replacement/subsequent-task/sustained-progress mandate"
+  ],
+  "limits": [
+    "Source acceptance only, no deployment/resume authorization.",
+    "Historical and in-flight usage uncertainty retained; WPU is not subscription consumption.",
+    "Whole repository and unattended maintainer qualification are not claimed."
+  ]
+}

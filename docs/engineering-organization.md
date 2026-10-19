@@ -278,3 +278,20 @@ is stopped; a further resource horizon needs a durable internal Astra decision, 
 Next engineering requirements remain executable/adapter restart binding, reviewed STOP-preserving
 upgrade, bounded original-task recovery, independent acceptance and complete backup/restore.
 Exact custody and private evidence locator: [checkpoint receipt](evidence/brain-org-sol-checkpoint-20261020.json).
+
+
+### Reviewed source repair — 2026-10-20
+
+Independent Sol accepted exact source `1d6d44f`: cumulative usage primitives, atomic late
+corrections, consistent SQLite summaries, quota decisions, no automatic Astra in the supervisor,
+and shared frozen-controller/native/executable preflight for direct runtime entries. Six frozen
+checks, 82 focused tests and six subtests passed inside the OS boundary. Scope, pins and the
+independent direct-entry probe are in the [source receipt](evidence/brain-org-accounting-source-acceptance-20261020.json).
+
+This is source acceptance, not an operational release. Dispatch metering and every inference
+call site still need wiring and independent review before controlled upgrade. The original pilot
+remains STOPped with six failures and no accepted tasks. The full independent-root Goal is active;
+its observed automatic continuation, live process custody and next actions are private durable state.
+The source-only structured task validator has separately passed its frozen 37-check acceptance;
+independent source review and transactional scheduler integration remain pending. Full recovery,
+useful tasks and every organization acceptance gate remain in scope.

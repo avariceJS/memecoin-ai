@@ -86,6 +86,13 @@ reviewed controller upgrade and operational qualification remain required. Prior
 `01a1563e-1a26-75e2-bdab-ca2b38c7b51f` requires supported gated continuation, not an executive reset.
 Policy: `docs/evidence/brain-org-founder-quota-amendment-20261020.json`.
 
+Source repair `1d6d44f` has independent exact-pin Sol acceptance: 82 tests/six subtests,
+six frozen checks, no-auto-Astra and shared direct-entry native/hash preflight. See
+`docs/evidence/brain-org-accounting-source-acceptance-20261020.json`. Full owner Goal
+`01a15657-3558-79c1-86dc-6ed033c264df` is active and an automatic continuation performed real
+source repair. Pilot STOP/six failures/config remain; dispatch metering wiring, controlled upgrade,
+same-DB recovery and the full mandate remain open. Task-spec validator is source-only/pending review.
+
 ## Git consolidation — 2026-10-18
 
 `main` is the sole integration baseline on GitHub, incorporating research code/history through
