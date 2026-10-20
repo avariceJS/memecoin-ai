@@ -270,6 +270,283 @@ class ExecutiveTests(unittest.TestCase):
         self.assertEqual(self.store.events(), before)
         self.executive.decision(lease, "D1", "Can retry after rollback")
 
+    def test_department_lease_is_exclusive_fenced_and_survives_owner_replacement(self):
+        first = self.executive.claim_department("Senses", "sol-episode-1", lease_seconds=10)
+        self.assertEqual(first["epoch"], 1)
+        self.assertIsNone(self.executive.claim_department("Senses", "sol-episode-2"))
+        self.now += 10
+        second = self.executive.claim_department("Senses", "sol-episode-2")
+        self.assertEqual(second["epoch"], 2)
+        self.assertEqual(self.executive.get_department_lease("Senses"), second)
+        self.store.add_objective("offline", "Offline engineering")
+        with self.assertRaises(StaleExecutive):
+            self.executive.renew_department(first)
+        with self.assertRaises(StaleExecutive):
+            self.executive.release_department(first)
+        with self.assertRaises(StaleExecutive):
+            self.executive.record_department_plan(
+                first,
+                1,
+                "offline",
+                "Stale owner cannot replace a plan",
+                ["Preserve the current fence"],
+                self.now + 100,
+                evidence_refs=["test:synthetic"],
+            )
+        self.executive.release_department(second, "Planning episode complete")
+        self.assertEqual(self.executive.get_department_lease("Senses")["status"], "released")
+
+    def test_department_leases_preserve_the_two_team_concurrency_envelope(self):
+        one = self.executive.claim_department("Experience", "sol-experience")
+        two = self.executive.claim_department("Platform", "sol-platform")
+        self.assertIsNotNone(one)
+        self.assertIsNotNone(two)
+        self.assertIsNone(self.executive.claim_department("Evaluation", "sol-evaluation"))
+        self.executive.release_department(one)
+        self.assertIsNotNone(self.executive.claim_department("Evaluation", "sol-evaluation"))
+
+    def test_department_plan_revisions_are_immutable_owned_and_visible(self):
+        self.store.add_objective("offline", "Offline engineering")
+        lease = self.executive.claim_department("Platform", "sol-platform-1")
+        first = self.executive.record_department_plan(
+            lease,
+            1,
+            "offline",
+            "Close task admission gaps",
+            ["Resolve frozen verifier binding", "Preserve task history"],
+            self.now + 100,
+            rationale="Current code has bounded admission but no complete execution binding.",
+            evidence_refs=["commit:synthetic"],
+        )
+        self.assertEqual(first["owner"], "sol-platform-1")
+        self.assertEqual(first["owner_epoch"], 1)
+        self.assertEqual(first["status"], "current")
+        self.assertEqual(
+            self.executive.record_department_plan(
+                lease,
+                1,
+                "offline",
+                "Close task admission gaps",
+                ["Resolve frozen verifier binding", "Preserve task history"],
+                self.now + 100,
+                rationale="Current code has bounded admission but no complete execution binding.",
+                evidence_refs=["commit:synthetic"],
+            ),
+            first,
+        )
+        with self.assertRaisesRegex(ExecutiveError, "revision is immutable"):
+            self.executive.record_department_plan(
+                lease,
+                1,
+                "offline",
+                "Different plan",
+                ["Resolve frozen verifier binding"],
+                self.now + 100,
+                evidence_refs=["commit:synthetic"],
+            )
+        second = self.executive.record_department_plan(
+            lease,
+            2,
+            "offline",
+            "Verify merged source safely",
+            ["Run pinned engineering gate"],
+            self.now + 200,
+            evidence_refs=["gate:synthetic"],
+        )
+        self.assertEqual(second["revision"], 2)
+        self.assertEqual(self.executive.get_department_plan("Platform", 1)["status"], "superseded")
+        self.assertEqual(self.executive.get_department_plan("Platform")["revision"], 2)
+        self.now += 201
+        view = self.executive.snapshot()
+        self.assertEqual(view["schema"], "brain-executive-snapshot-v2")
+        self.assertEqual(view["counts"]["department_plans"], 1)
+        self.assertEqual(view["counts"]["department_plan_reviews_due"], 1)
+        self.assertEqual(view["department_plans"][0]["review_state"], "due")
+        self.assertIn(
+            "Планы команд: 1; срок пересмотра наступил: 1.", self.executive.render_report()
+        )
+
+    def test_department_plan_reader_uses_one_snapshot_across_connections(self):
+        self.store.add_objective("offline", "Offline engineering")
+        lease = self.executive.claim_department("Platform", "sol-platform")
+        first = {
+            "lease": lease,
+            "revision": 1,
+            "objective_id": "offline",
+            "summary": "Record first plan",
+            "priorities": ["Preserve coherent reads"],
+            "review_at": self.now + 100,
+            "evidence_refs": ["commit:first"],
+        }
+        self.executive.record_department_plan(**first)
+
+        other_store = Store(self.path, clock=lambda: self.now)
+        try:
+            other = Executive(other_store)
+            original_record = self.executive._department_plan_record
+            inserted = False
+
+            def insert_next_revision(*args):
+                nonlocal inserted
+                if not inserted:
+                    inserted = True
+                    other.record_department_plan(
+                        lease,
+                        2,
+                        "offline",
+                        "Record second plan",
+                        ["Keep snapshot classification stable"],
+                        self.now + 200,
+                        evidence_refs=["commit:second"],
+                    )
+                return original_record(*args)
+
+            with patch.object(
+                self.executive, "_department_plan_record", side_effect=insert_next_revision
+            ):
+                observed = self.executive.get_department_plan("Platform", 1)
+
+            self.assertEqual(observed["status"], "current")
+            self.assertEqual(other.get_department_plan("Platform")["revision"], 2)
+        finally:
+            other_store.close()
+
+    def test_department_plan_rejects_bad_dates_revisions_and_authority_expansion(self):
+        self.store.add_objective("offline", "Offline engineering")
+        lease = self.executive.claim_department("Research", "sol-research-1")
+        kwargs = {
+            "lease": lease,
+            "revision": 1,
+            "objective_id": "offline",
+            "summary": "Plan a synthetic bounded check",
+            "priorities": ["Inspect synthetic fixture"],
+            "review_at": self.now + 100,
+            "evidence_refs": ["fixture:synthetic"],
+        }
+        for values in (
+            {"review_at": True},
+            {"review_at": float("inf")},
+            {"review_at": self.now},
+            {"revision": True},
+            {"priorities": []},
+            {"priorities": ["same", "same"]},
+            {"priorities": ["x" * 301]},
+            {"evidence_refs": []},
+            {"objective_id": "missing"},
+        ):
+            with self.subTest(values=values), self.assertRaises(ExecutiveError):
+                self.executive.record_department_plan(**{**kwargs, **values})
+        before = self.store.events()
+        with self.assertRaises(ExecutiveError):
+            self.executive.claim_department("Research", "worker", model="gpt-6-luna")
+        self.assertEqual(self.store.events(), before)
+        self.assertEqual(self.executive.get_department_plan("Research"), None)
+
+    def test_department_plan_duplicate_race_is_idempotent_across_connections(self):
+        from concurrent.futures import ThreadPoolExecutor
+
+        self.store.add_objective("offline", "Offline engineering")
+        lease = self.executive.claim_department("Evaluation", "sol-eval-1")
+        other_store = Store(self.path, clock=lambda: self.now)
+        other_executive = Executive(other_store)
+        plan = {
+            "lease": lease,
+            "revision": 1,
+            "objective_id": "offline",
+            "summary": "Track synthetic validation gaps",
+            "priorities": ["Retain negative results"],
+            "review_at": self.now + 100,
+            "evidence_refs": ["protocol:synthetic"],
+        }
+        try:
+            with ThreadPoolExecutor(2) as pool:
+                results = list(
+                    pool.map(
+                        lambda executive: executive.record_department_plan(**plan),
+                        (self.executive, other_executive),
+                    )
+                )
+            self.assertEqual(results[0], results[1])
+            count = self.store.db.execute(
+                "SELECT COUNT(*) FROM executive_department_plans WHERE team='Evaluation'"
+            ).fetchone()[0]
+            self.assertEqual(count, 1)
+        finally:
+            other_store.close()
+
+    def test_department_projection_is_bounded_and_reports_full_counts(self):
+        self.store.add_objective("offline", "Offline engineering")
+        for team in ("Cortex", "Experience"):
+            lease = self.executive.claim_department(team, "sol-" + team.lower())
+            self.executive.record_department_plan(
+                lease,
+                1,
+                "offline",
+                "Maintain bounded " + team + " work",
+                ["Keep current gates intact"],
+                self.now + 100,
+                evidence_refs=["status:synthetic"],
+            )
+        view = self.executive.snapshot(open_limit=1)
+        self.assertEqual(view["counts"]["department_plans"], 2)
+        self.assertEqual(view["counts"]["department_leases"], 2)
+        self.assertEqual(view["counts"]["department_leases_active"], 2)
+        self.assertEqual(len(view["department_plans"]), 1)
+        self.assertEqual(len(view["department_leases"]), 1)
+
+    def test_department_plan_snapshots_lease_before_sqlite_lock_wait(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import TimeoutError as FutureTimeout
+
+        self.store.add_objective("offline", "Offline engineering")
+        lease = self.executive.claim_department("Cortex", "sol-cortex-1")
+        priorities = ["Bind plan to the claimed department owner"]
+        blocker = Store(self.path, clock=lambda: self.now)
+        waiting_for_write_lock = threading.Event()
+        self.store.db.set_trace_callback(
+            lambda statement: (
+                waiting_for_write_lock.set()
+                if statement.strip().upper() == "BEGIN IMMEDIATE"
+                else None
+            )
+        )
+        blocker.db.execute("BEGIN IMMEDIATE")
+        try:
+            with ThreadPoolExecutor(1) as pool:
+                future = pool.submit(
+                    self.executive.record_department_plan,
+                    lease,
+                    1,
+                    "offline",
+                    "Retain the lease input snapshot",
+                    priorities,
+                    self.now + 100,
+                    evidence_refs=["test:synthetic"],
+                )
+                try:
+                    self.assertTrue(waiting_for_write_lock.wait(2))
+                    with self.assertRaises(FutureTimeout):
+                        future.result(timeout=0.05)
+                    lease["owner"] = "mutated-during-lock-wait"
+                    priorities[0] = "replace plan after transaction began"
+                    blocker.db.execute("COMMIT")
+                    result = future.result(timeout=2)
+                    self.assertEqual(result["owner"], "sol-cortex-1")
+                    self.assertEqual(
+                        result["priorities"], ["Bind plan to the claimed department owner"]
+                    )
+                finally:
+                    if blocker.db.in_transaction:
+                        blocker.db.execute("ROLLBACK")
+                    if not future.done():
+                        future.result(timeout=2)
+        finally:
+            self.store.db.set_trace_callback(None)
+            if blocker.db.in_transaction:
+                blocker.db.execute("ROLLBACK")
+            blocker.close()
+
 
 if __name__ == "__main__":
     unittest.main()

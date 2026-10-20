@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 
 from .org_state import StateError, Store, _json, _name, _positive
 
 MODEL = "gpt-6-astra"
 REASONING = "high"
+DEPARTMENT_MODEL = "gpt-6.1-sol"
+DEPARTMENT_REASONING = "high"
+MAX_ACTIVE_DEPARTMENT_LEASES = 2
 
 
 class ExecutiveError(StateError):
@@ -60,6 +64,13 @@ class Executive:
                 "(id TEXT PRIMARY KEY, body TEXT NOT NULL)",
                 "CREATE TABLE IF NOT EXISTS executive_requests "
                 "(id TEXT PRIMARY KEY, body TEXT NOT NULL)",
+                "CREATE TABLE IF NOT EXISTS executive_department_leases "
+                "(team TEXT PRIMARY KEY, epoch INTEGER NOT NULL, lease_until REAL NOT NULL, "
+                "status TEXT NOT NULL, body TEXT NOT NULL)",
+                "CREATE TABLE IF NOT EXISTS executive_department_plans "
+                "(team TEXT NOT NULL, revision INTEGER NOT NULL, review_at REAL NOT NULL, "
+                "body TEXT NOT NULL, "
+                "PRIMARY KEY(team, revision))",
             ):
                 self.db.execute(sql)
 
@@ -138,6 +149,400 @@ class Executive:
                 "executive_released", "CEO", {"summary": summary}, role
             )
             self._save_role(role)
+
+    @staticmethod
+    def _department_actor(team, lease):
+        return {
+            "role": "department:" + team,
+            "epoch": lease["epoch"],
+            "owner": lease["owner"],
+            "model": lease["model"],
+            "reasoning": lease["reasoning"],
+        }
+
+    def _department_lease(self, team):
+        row = self.db.execute(
+            "SELECT epoch,lease_until,status,body FROM executive_department_leases WHERE team=?",
+            (team,),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            lease = json.loads(row[3])
+        except (TypeError, ValueError, RecursionError):
+            raise ExecutiveError("department lease record is malformed") from None
+        expected = {"team", "epoch", "owner", "model", "reasoning", "lease_until", "status"}
+        if (
+            type(lease) is not dict
+            or set(lease) != expected
+            or lease["team"] != team
+            or type(lease["team"]) is not str
+            or type(lease["epoch"]) is not int
+            or lease["epoch"] <= 0
+            or lease["epoch"] != row[0]
+            or type(lease["owner"]) is not str
+            or not lease["owner"].strip()
+            or lease["model"] != DEPARTMENT_MODEL
+            or lease["reasoning"] != DEPARTMENT_REASONING
+            or isinstance(lease["lease_until"], bool)
+            or not isinstance(lease["lease_until"], (int, float))
+            or not math.isfinite(lease["lease_until"])
+            or lease["lease_until"] != row[1]
+            or lease["status"] not in ("active", "released")
+            or lease["status"] != row[2]
+        ):
+            raise ExecutiveError("department lease record is malformed")
+        return lease
+
+    @staticmethod
+    def _department_plan_record(team, revision, review_at, body):
+        try:
+            plan = json.loads(body)
+        except (TypeError, ValueError, RecursionError):
+            raise ExecutiveError("department plan record is malformed") from None
+        expected = {
+            "team",
+            "revision",
+            "supersedes_revision",
+            "objective_id",
+            "summary",
+            "priorities",
+            "rationale",
+            "evidence_refs",
+            "blocked_by",
+            "review_at",
+            "owner",
+            "owner_epoch",
+            "created_seq",
+        }
+        supersedes_revision = revision - 1 if revision > 1 else None
+        if (
+            type(plan) is not dict
+            or set(plan) != expected
+            or plan["team"] != team
+            or type(plan["team"]) is not str
+            or type(plan["revision"]) is not int
+            or plan["revision"] != revision
+            or type(plan["supersedes_revision"]) is not type(supersedes_revision)
+            or plan["supersedes_revision"] != supersedes_revision
+            or type(plan["objective_id"]) is not str
+            or type(plan["summary"]) is not str
+            or type(plan["priorities"]) is not list
+            or type(plan["rationale"]) is not str
+            or type(plan["evidence_refs"]) is not list
+            or type(plan["blocked_by"]) is not list
+            or isinstance(plan["review_at"], bool)
+            or not isinstance(plan["review_at"], (int, float))
+            or not math.isfinite(plan["review_at"])
+            or float(plan["review_at"]) != review_at
+            or type(plan["owner"]) is not str
+            or type(plan["owner_epoch"]) is not int
+            or plan["owner_epoch"] <= 0
+            or type(plan["created_seq"]) is not int
+            or plan["created_seq"] <= 0
+        ):
+            raise ExecutiveError("department plan record is malformed")
+        try:
+            _text(plan["objective_id"], required=True, limit=200)
+            _text(plan["summary"], required=True, limit=2000)
+            _text(plan["rationale"], limit=2000)
+            _text(plan["owner"], required=True, limit=200)
+            if not 0 < len(plan["priorities"]) <= 20:
+                raise ExecutiveError("department plan record is malformed")
+            priorities = [_text(item, required=True, limit=300) for item in plan["priorities"]]
+            if len(set(priorities)) != len(priorities):
+                raise ExecutiveError("department plan record is malformed")
+            if not _refs(plan["evidence_refs"]):
+                raise ExecutiveError("department plan record is malformed")
+            _refs(plan["blocked_by"])
+        except ExecutiveError:
+            raise ExecutiveError("department plan record is malformed") from None
+        return plan
+
+    @staticmethod
+    def _department_lease_snapshot(lease):
+        try:
+            detached = json.loads(_json(lease))
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StaleExecutive("department lease is no longer current") from None
+        expected = {"team", "epoch", "owner", "model", "reasoning", "lease_until", "status"}
+        if (
+            type(detached) is not dict
+            or set(detached) != expected
+            or type(detached["team"]) is not str
+            or type(detached["epoch"]) is not int
+            or detached["epoch"] <= 0
+            or type(detached["owner"]) is not str
+            or type(detached["model"]) is not str
+            or type(detached["reasoning"]) is not str
+            or isinstance(detached["lease_until"], bool)
+            or not isinstance(detached["lease_until"], (int, float))
+            or not math.isfinite(detached["lease_until"])
+            or detached["status"] != "active"
+        ):
+            raise StaleExecutive("department lease is no longer current")
+        return detached
+
+    def get_department_lease(self, team):
+        _name(team)
+        with self.store._lock:
+            lease = self._department_lease(team)
+            if lease and lease["status"] == "active" and lease["lease_until"] <= self.store.clock():
+                return {**lease, "status": "expired"}
+            return lease
+
+    def claim_department(
+        self,
+        team: str,
+        owner: str,
+        *,
+        model=DEPARTMENT_MODEL,
+        reasoning=DEPARTMENT_REASONING,
+        lease_seconds=300,
+    ):
+        """Claim a bookkeeping lease for one department; it grants no execution authority."""
+        _text(team, required=True, limit=200)
+        _text(owner, required=True, limit=200)
+        _positive(lease_seconds)
+        if lease_seconds > 3600:
+            raise ExecutiveError("department lease cannot exceed one hour")
+        if model != DEPARTMENT_MODEL or reasoning != DEPARTMENT_REASONING:
+            raise ExecutiveError("department lead requires gpt-6.1-sol with high reasoning")
+        with self.store._tx():
+            old = self._department_lease(team)
+            now = self.store.clock()
+            if old and old["status"] == "active" and old["lease_until"] > now:
+                return None
+            active_others = self.db.execute(
+                "SELECT COUNT(*) FROM executive_department_leases "
+                "WHERE team<>? AND status='active' AND lease_until>?",
+                (team, now),
+            ).fetchone()[0]
+            if active_others >= MAX_ACTIVE_DEPARTMENT_LEASES:
+                return None
+            if old and old["status"] == "active":
+                self.store._event(
+                    "department_lease_expired",
+                    team,
+                    {
+                        "actor": self._department_actor(team, old),
+                        "expired_epoch": old["epoch"],
+                    },
+                )
+            lease = {
+                "team": team,
+                "epoch": old["epoch"] + 1 if old else 1,
+                "owner": owner,
+                "model": model,
+                "reasoning": reasoning,
+                "lease_until": now + lease_seconds,
+                "status": "active",
+            }
+            body = {"actor": self._department_actor(team, lease)}
+            self.store._event("department_lease_claimed", team, body)
+            self.db.execute(
+                "INSERT INTO executive_department_leases VALUES(?,?,?,?,?) "
+                "ON CONFLICT(team) DO UPDATE SET epoch=excluded.epoch, "
+                "lease_until=excluded.lease_until, status=excluded.status, body=excluded.body",
+                (team, lease["epoch"], lease["lease_until"], lease["status"], _json(lease)),
+            )
+            return lease
+
+    def _department_fence(self, lease):
+        if (
+            not isinstance(lease, dict)
+            or type(lease.get("team")) is not str
+            or type(lease.get("epoch")) is not int
+            or type(lease.get("owner")) is not str
+            or type(lease.get("model")) is not str
+            or type(lease.get("reasoning")) is not str
+        ):
+            raise StaleExecutive("department lease is no longer current")
+        current = self._department_lease(lease["team"])
+        now = self.store.clock()
+        if (
+            not current
+            or any(
+                lease.get(key) != current.get(key)
+                for key in ("team", "epoch", "owner", "model", "reasoning")
+            )
+            or current["status"] != "active"
+            or current["lease_until"] <= now
+        ):
+            raise StaleExecutive("department lease is no longer current")
+        return current
+
+    def renew_department(self, lease, lease_seconds=300):
+        lease = self._department_lease_snapshot(lease)
+        _positive(lease_seconds)
+        if lease_seconds > 3600:
+            raise ExecutiveError("department lease cannot exceed one hour")
+        with self.store._tx():
+            current = self._department_fence(lease)
+            current["lease_until"] = self.store.clock() + lease_seconds
+            self.store._event(
+                "department_lease_renewed",
+                current["team"],
+                {"actor": self._department_actor(current["team"], current)},
+            )
+            self.db.execute(
+                "UPDATE executive_department_leases SET epoch=?,lease_until=?,status=?,body=? "
+                "WHERE team=?",
+                (
+                    current["epoch"],
+                    current["lease_until"],
+                    current["status"],
+                    _json(current),
+                    current["team"],
+                ),
+            )
+            return current
+
+    def release_department(self, lease, summary=""):
+        lease = self._department_lease_snapshot(lease)
+        _text(summary, limit=1000)
+        with self.store._tx():
+            current = self._department_fence(lease)
+            current.update(status="released", lease_until=self.store.clock())
+            self.store._event(
+                "department_lease_released",
+                current["team"],
+                {"actor": self._department_actor(current["team"], current), "summary": summary},
+            )
+            self.db.execute(
+                "UPDATE executive_department_leases SET epoch=?,lease_until=?,status=?,body=? "
+                "WHERE team=?",
+                (
+                    current["epoch"],
+                    current["lease_until"],
+                    current["status"],
+                    _json(current),
+                    current["team"],
+                ),
+            )
+
+    def record_department_plan(
+        self,
+        lease,
+        revision: int,
+        objective_id: str,
+        summary: str,
+        priorities,
+        review_at: float,
+        *,
+        rationale="",
+        evidence_refs=(),
+        blocked_by=(),
+    ):
+        """Append one bounded, non-executable department plan under its current lease."""
+        lease = self._department_lease_snapshot(lease)
+        if type(revision) is not int or revision <= 0:
+            raise ExecutiveError("department plan revision must be a positive integer")
+        _text(objective_id, required=True, limit=200)
+        _text(summary, required=True, limit=2000)
+        _text(rationale, limit=2000)
+        if not isinstance(priorities, (list, tuple)) or len(priorities) > 20:
+            raise ExecutiveError("department priorities must be a bounded list")
+        priorities = [_text(item, required=True, limit=300) for item in priorities]
+        if not priorities or len(set(priorities)) != len(priorities):
+            raise ExecutiveError("department priorities must be nonempty and unique")
+        evidence = _refs(evidence_refs)
+        if not evidence:
+            raise ExecutiveError("department plan requires evidence references")
+        blockers = _refs(blocked_by)
+        if (
+            isinstance(review_at, bool)
+            or not isinstance(review_at, (int, float))
+            or not math.isfinite(review_at)
+        ):
+            raise ExecutiveError("department review time must be finite")
+        review_at = float(review_at)
+        team = lease.get("team") if isinstance(lease, dict) else None
+        if not isinstance(team, str):
+            raise StaleExecutive("department lease is no longer current")
+        plan = {
+            "team": team,
+            "revision": revision,
+            "supersedes_revision": revision - 1 if revision > 1 else None,
+            "objective_id": objective_id,
+            "summary": summary,
+            "priorities": priorities,
+            "rationale": rationale,
+            "evidence_refs": evidence,
+            "blocked_by": blockers,
+            "review_at": review_at,
+        }
+        if len(_json(plan).encode("utf-8")) > 65_536:
+            raise ExecutiveError("department plan exceeds byte limit")
+        with self.store._tx():
+            current = self._department_fence(lease)
+            if not self.db.execute(
+                "SELECT 1 FROM objectives WHERE id=?", (objective_id,)
+            ).fetchone():
+                raise ExecutiveError("department objective does not exist")
+            latest = self.db.execute(
+                "SELECT revision,review_at,body FROM executive_department_plans "
+                "WHERE team=? ORDER BY revision DESC LIMIT 1",
+                (team,),
+            ).fetchone()
+            if latest is not None and latest[0] == revision:
+                previous = self._department_plan_record(team, latest[0], latest[1], latest[2])
+                if all(previous.get(key) == value for key, value in plan.items()):
+                    state = "due" if review_at <= self.store.clock() else "scheduled"
+                    return {**previous, "status": "current", "review_state": state}
+                raise ExecutiveError("department plan revision is immutable")
+            expected_revision = latest[0] + 1 if latest is not None else 1
+            if revision != expected_revision:
+                raise ExecutiveError("department plan revision is not the next revision")
+            if review_at <= self.store.clock():
+                raise ExecutiveError("department review time must be in the future")
+            record = {
+                **plan,
+                "owner": current["owner"],
+                "owner_epoch": current["epoch"],
+            }
+            self.store._event(
+                "department_plan_recorded",
+                f"{team}/{revision}",
+                {"actor": self._department_actor(team, current), "plan": record},
+            )
+            event = self.db.execute("SELECT last_insert_rowid()").fetchone()[0]
+            record["created_seq"] = event
+            self.db.execute(
+                "INSERT INTO executive_department_plans(team,revision,review_at,body) "
+                "VALUES(?,?,?,?)",
+                (team, revision, review_at, _json(record)),
+            )
+            return {**record, "status": "current", "review_state": "scheduled"}
+
+    def get_department_plan(self, team: str, revision=None):
+        _name(team)
+        if revision is not None and (type(revision) is not int or revision <= 0):
+            raise ExecutiveError("department plan revision must be a positive integer")
+        with self.store._read_snapshot():
+            if revision is None:
+                row = self.db.execute(
+                    "SELECT revision,review_at,body FROM executive_department_plans WHERE team=? "
+                    "ORDER BY revision DESC LIMIT 1",
+                    (team,),
+                ).fetchone()
+            else:
+                row = self.db.execute(
+                    "SELECT revision,review_at,body FROM executive_department_plans "
+                    "WHERE team=? AND revision=?",
+                    (team, revision),
+                ).fetchone()
+            if row is None:
+                return None
+            record = self._department_plan_record(team, row[0], row[1], row[2])
+            latest = self.db.execute(
+                "SELECT MAX(revision) FROM executive_department_plans WHERE team=?", (team,)
+            ).fetchone()[0]
+            record["status"] = "current" if record["revision"] == latest else "superseded"
+            record["review_state"] = (
+                "due" if record["review_at"] <= self.store.clock() else "scheduled"
+            )
+            return record
 
     def _get(self, table, record_id):
         row = self.db.execute(
@@ -495,7 +900,8 @@ class Executive:
             raise ExecutiveError("open_limit must be between zero and one hundred")
         with self.store._tx():
             role = self._role()
-            if role and role["status"] == "active" and role["lease_until"] <= self.store.clock():
+            now = self.store.clock()
+            if role and role["status"] == "active" and role["lease_until"] <= now:
                 role["status"] = "expired"
             rows = {}
             counts = {}
@@ -538,8 +944,50 @@ class Executive:
                     "ORDER BY rowid DESC LIMIT 20"
                 )
             ]
+            department_plan_rows = self.db.execute(
+                "SELECT p.team,p.revision,p.review_at,p.body "
+                "FROM executive_department_plans p "
+                "JOIN (SELECT team,MAX(revision) AS revision "
+                "FROM executive_department_plans GROUP BY team) latest "
+                "ON latest.team=p.team AND latest.revision=p.revision "
+                "ORDER BY p.team LIMIT ?",
+                (open_limit,),
+            ).fetchall()
+            department_plan_count, department_plan_review_due_count = self.db.execute(
+                "SELECT COUNT(*),COALESCE(SUM(CASE WHEN p.review_at <= ? "
+                "THEN 1 ELSE 0 END),0) FROM executive_department_plans p "
+                "WHERE p.revision=(SELECT MAX(current.revision) "
+                "FROM executive_department_plans current WHERE current.team=p.team)",
+                (now,),
+            ).fetchone()
+            department_plans = []
+            for row in department_plan_rows:
+                plan = self._department_plan_record(*row)
+                plan["status"] = "current"
+                plan["review_state"] = "due" if plan["review_at"] <= now else "scheduled"
+                department_plans.append(plan)
+            department_lease_count = self.db.execute(
+                "SELECT COUNT(*) FROM executive_department_leases"
+            ).fetchone()[0]
+            department_lease_active_count = self.db.execute(
+                "SELECT COUNT(*) FROM executive_department_leases "
+                "WHERE status='active' AND lease_until > ?",
+                (now,),
+            ).fetchone()[0]
+            department_leases = []
+            for row in self.db.execute(
+                "SELECT body FROM executive_department_leases ORDER BY team LIMIT ?",
+                (open_limit,),
+            ):
+                department_lease = json.loads(row[0])
+                if (
+                    department_lease["status"] == "active"
+                    and department_lease["lease_until"] <= now
+                ):
+                    department_lease["status"] = "expired"
+                department_leases.append(department_lease)
             return {
-                "schema": "brain-executive-snapshot-v1",
+                "schema": "brain-executive-snapshot-v2",
                 "role": role,
                 "objectives": objectives,
                 "tasks": [
@@ -547,6 +995,8 @@ class Executive:
                     for task in task_projection["tasks"]
                 ],
                 **rows,
+                "department_plans": department_plans,
+                "department_leases": department_leases,
                 "events": list(reversed(events)),
                 "accepted_evidence": accepted,
                 "counts": {
@@ -555,6 +1005,10 @@ class Executive:
                     "active_tasks": task_projection["active_count"],
                     "omitted_active_tasks": task_projection["omitted_active_count"],
                     "task_states": task_projection["state_counts"],
+                    "department_plans": department_plan_count,
+                    "department_plan_reviews_due": department_plan_review_due_count,
+                    "department_leases": department_lease_count,
+                    "department_leases_active": department_lease_active_count,
                 },
                 "known_unmeasured_acceptance": (
                     "Полная автономная работа организации ещё не подтверждена."
@@ -585,8 +1039,27 @@ class Executive:
                 "остальные сохранены в журнале."
             )
         lines.append(f"Открытые обязательства: {view['counts']['obligations']}.")
+        lines.append(
+            "Планы команд: "
+            f"{view['counts']['department_plans']}; срок пересмотра наступил: "
+            f"{view['counts']['department_plan_reviews_due']}."
+        )
+        lines.append(
+            "Активные team leases: "
+            f"{view['counts']['department_leases_active']} из "
+            f"{view['counts']['department_leases']}."
+        )
         lines.extend(
             f"- {row['id']}: {row['title']} ({row['status']})" for row in view["obligations"]
+        )
+        lines.extend(
+            f"- {row['team']} v{row['revision']}: {row['summary']} "
+            f"(owner {row['owner']}; review {row['review_state']})"
+            for row in view["department_plans"]
+        )
+        lines.extend(
+            f"- {row['team']}: {row['owner']} epoch {row['epoch']} ({row['status']})"
+            for row in view["department_leases"]
         )
         lines.append(f"Ожидающие запросы: {view['counts']['requests']}.")
         lines.extend(f"- {row['id']}: {row['requested_change']}" for row in view["requests"])
