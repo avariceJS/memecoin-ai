@@ -71,6 +71,12 @@ automatically.
   bounded source; merged gate passed 312 tests/45 subtests and Ruff. Generic contract migration,
   dependency obligations, department plans/leases and broad A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-durable-contract-transition-review-20261021.json`.
+- A04 source-only verifier-manifest custody resolver merged at `9487fc70057bc8ff5a467394fe7b70b06391e7b3`;
+  Sol accepted the exact source. It verifies canonical manifest/binding digests, release/policy
+  identities, exact verifier metadata and trusted harness bytes. The shared plan does not call this
+  helper; interpreter/sandbox/result qualification and execution remain fail-closed. Full gate passed
+  320 tests/55 subtests and Ruff (54 files). Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-manifest-review-20261021.json`.
 - A12 bounded active-task projection merged at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`; Sol
   accepted the exact source and the gate passed 278 tests/42 subtests with Ruff. SQL limits active
   rows to 100, full state counts remain, omitted rows are disclosed, and history is retained. Full
@@ -79,8 +85,8 @@ automatically.
 - Original worktree `/Users/root1/Developer/brain-org-build` stays on `org/development`; `main` and
   protected state remain untouched. Pilot, supervisor runtime, services, market collection, training,
   AUTO, trading, protected datasets and STOP remain untouched.
-- Same Goal ID/counters and prior history are preserved. Last native `get_goal` still showed
-  `blocked`, 2,399,405 tokens; no API exists here to edit its objective or transition it back to active.
+- Same successor Goal ID and prior history are preserved. The latest native read showed the successor
+  active; synchronize exact counters into the durable handoff at this checkpoint.
 
 Canonical program, acceptance criteria and limits: `docs/engineering-organization.md`. Founder-facing
 external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receipts remain under

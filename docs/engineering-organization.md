@@ -190,6 +190,16 @@ with its identity key removed still follows the compatibility path; full A04 rem
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-attempt-plan-evidence-review-20261020.json`
 (SHA-256 `7b773556fbe46f7aad7875c34ad2f53312c476660bf1203f097b3d1b31669ee8`).
 
+At `9487fc70057bc8ff5a467394fe7b70b06391e7b3`, a source-only verifier-manifest resolver checks
+canonical manifest bytes and digest, release/policy identities, the immutable binding digest, exact
+verifier metadata, contained trusted harness paths, regular-file reads and harness bytes. Sol
+accepted the exact two-file candidate for this bounded custody/identity scaffold; the engineering
+release gate passed 320 tests and 55 subtests with Ruff on 54 files. This helper is not wired into
+the shared plan and does not qualify interpreter, sandbox or result execution: bound plans still
+fail closed. Off-catalog execution, production admission gates and full A04 remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-manifest-review-20261021.json`
+(SHA-256 `723d22cc639e466e9beb1e5277b44200d3aef26fe5995a82faf32d97349e08a8`).
+
 The source candidate, merged-system acceptance, operational release, and founder authority to resume
 the original pilot are distinct gates. A03 currently blocks full operational release, not independent
 engineering progress. Passing synthetic tests or the local release command alone does not pass them.

@@ -361,3 +361,12 @@ the exact updated source; gate passed 286 tests/42 subtests and Ruff (50 files).
 legacy evidence still uses compatibility behavior; full A04 remains open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-attempt-plan-evidence-review-20261020.json`
 (SHA-256 `7b773556fbe46f7aad7875c34ad2f53312c476660bf1203f097b3d1b31669ee8`). Supervisor stayed off.
+
+`9487fc70057bc8ff5a467394fe7b70b06391e7b3` добавляет source-only resolver manifest для A04:
+он проверяет canonical manifest hash, release/policy identity, digest immutable binding, exact
+verifier metadata и содержимое trusted harness. Sol принял exact двухфайловый source scaffold;
+engineering gate прошёл: 320 тестов, 55 subtests, Ruff (54 файла). Resolver ещё не подключён к
+shared plan и не подтверждает interpreter, sandbox или result execution; связанные планы остаются
+fail-closed, Supervisor не запускался. Полный A04 и operational acceptance открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-manifest-review-20261021.json`
+(SHA-256 `723d22cc639e466e9beb1e5277b44200d3aef26fe5995a82faf32d97349e08a8`).
