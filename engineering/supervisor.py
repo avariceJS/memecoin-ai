@@ -23,6 +23,7 @@ from .git_gate import GitGate, VerificationPolicy
 from .metered_codex import metered_client
 from .org_state import StaleAttempt, Store
 from .processes import process_identity, terminate_owned
+from .review_packet import build_review_packet
 from .service import validate_deployment
 
 SOL = "gpt-6.1-sol"
@@ -90,7 +91,7 @@ def read(path):
     return json.loads(Path(path).read_text())
 
 
-def git(repo, *args):
+def _git_output(repo, *args, raw=False):
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     env.update(
         GIT_CONFIG_NOSYSTEM="1",
@@ -111,11 +112,27 @@ def git(repo, *args):
         ],
         env=env,
         capture_output=True,
-        text=True,
+        text=not raw,
     )
     if p.returncode:
-        raise RuntimeError(p.stderr[-1500:])
-    return p.stdout.strip()
+        stderr = p.stderr[-1500:]
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        raise RuntimeError(stderr)
+    return p.stdout
+
+
+def git(repo, *args):
+    return _git_output(repo, *args).strip()
+
+
+def git_raw(repo, *args):
+    """Return exact text output for NUL-delimited Git records without normalization."""
+    output = _git_output(repo, *args, raw=True)
+    try:
+        return output.decode("utf-8", errors="strict")
+    except UnicodeDecodeError:
+        raise RuntimeError("git_path_not_utf8") from None
 
 
 def config(state):
@@ -623,6 +640,25 @@ def verify_one(state, task):
             candidate.integration_tip,
             sha,
         )
+        merged_path_output = git_raw(
+            state / "integration",
+            "diff",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--no-renames",
+            "--name-only",
+            "-z",
+            candidate.integration_tip,
+            sha,
+        )
+        path_fields = merged_path_output.split("\0")
+        if not path_fields or path_fields[-1] != "":
+            raise RuntimeError("invalid_merged_path_output")
+        merged_changed_paths = tuple(path_fields[:-1])
+        review_packet = build_review_packet(
+            task, candidate, fixed_policy, results, diff, merged_changed_paths
+        )
+        atomic(verify_root / "review-packet.json", review_packet)
         native = verify_root / "native"
         native.mkdir(exist_ok=True)
         with metered_client(
@@ -656,21 +692,7 @@ def verify_one(state, task):
                     "concrete defects, "
                     "not hypothetical unrelated improvements.\n"
                 )
-                + json.dumps(
-                    {
-                        "task": task,
-                        "sha": sha,
-                        "diff": diff[:50000],
-                        "checks": [
-                            {
-                                "argv": r["argv"],
-                                "returncode": r["returncode"],
-                                "stdout": r["stdout"][-2000:],
-                            }
-                            for r in results
-                        ],
-                    }
-                ),
+                + json.dumps(review_packet, sort_keys=True, separators=(",", ":")),
                 dispatch_id=f"verify:{task['id']}:{sha}",
                 estimate={"tokens": 3500, "wpu": 1.0},
                 model=SOL,
@@ -698,6 +720,7 @@ def verify_one(state, task):
                 (verify_root / "commands.json").read_bytes()
             ).hexdigest(),
             "review_sha256": hashlib.sha256((verify_root / "review.json").read_bytes()).hexdigest(),
+            "review_packet_sha256": review_packet["packet_sha256"],
             "review_thread": thread,
         }
 

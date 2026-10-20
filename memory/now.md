@@ -12,7 +12,9 @@ and is not to be started automatically.
   dispatch/model/epoch-bound settlement. No more identical probes without an upstream interface or
   source change. Unknown/late/ambiguous usage stays reserved. Full release remains blocked; bounded
   dispatch/duration/concurrency limits are not provider spend caps. Founder Desk records the upstream
-  interface request and safe limits.
+  interface request and safe limits. Live dispatch remains prohibited; a future separately authorized
+  mode would permit at most one active and one unresolved dispatch, retain reservations, and stop on
+  unknown settlement. This bounds exposure count, not the cost of one request.
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
@@ -24,6 +26,12 @@ and is not to be started automatically.
   Sol rejected its first draft; drift and snapshot gaps were corrected and Sol accepted the bounded
   persistence/resolver scaffold. Exact receipt is in the resumption directory. Full engineering gate:
   255 passed, 42 subtests passed; Ruff lint/format passed (45 files).
+- A11 review packet is in isolated worktree
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a11-review-packet-checkout`, branch
+  `org/a11-review-packet`, based on `6974f941aa6c58b64d1fa6dcce26f48faa3428a2`. Silent diff
+  truncation is replaced by a content-addressed complete text packet and explicit pre-review blocks
+  for binary summaries, path encoding, oversized diff and final packet. Sol accepted exact bounded
+  source repair; full gate passed 265 tests/42 subtests and Ruff (47 files). Broad A11 remains open.
 - Original worktree `/Users/root1/Developer/brain-org-build` stays on `org/development`; `main` and
   protected state remain untouched. Pilot, supervisor runtime, services, market collection, training,
   AUTO, trading, protected datasets and STOP remain untouched.

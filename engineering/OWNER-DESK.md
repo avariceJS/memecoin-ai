@@ -263,10 +263,11 @@ Founder явно возобновил работу того же Luna Goal по�
 Запрос к upstream: поддерживаемый версионированный settlement интерфейс с полным набором terminal,
 incomplete, failed и cancelled исходов, уникальными response IDs, привязкой dispatch/thread/turn/model/
 attempt epoch, явной полнотой/потерями/поздними коррекциями и проверяемым полным denominator. Абсолютный
-лимит расходов требует enforcement со стороны провайдера. До появления интерфейса допустим только
-локальный bounded режим по числу dispatch, длительности, concurrency и числу неразрешённых dispatch;
-эти пределы не являются лимитом выставляемого счёта. Не использовать internal или paid fallback и
-не включать auto-resume.
+лимит расходов требует enforcement со стороны провайдера. Сейчас live-dispatch остаётся запрещён.
+В будущем отдельно разрешённом bounded режиме: reservation до отправки, максимум один активный
+dispatch и один слот неразрешённого расхода, reservation сохраняется при завершении/рестарте, а
+неизвестный исход закрывает дальнейшие dispatch. Это ограничивает число расходов, но не цену одного
+запроса. Не использовать internal или paid fallback и не включать auto-resume.
 
 Luna параллельно продолжает A04 trusted execution binding, затем A11 verification/recovery packet,
 A05 пассивный lifecycle, A10 durable contract/dependency flow и A12 bounded history projection.
@@ -275,3 +276,14 @@ AUTO или торговлю. Для supervisor, pilot и полного экс�
 независимые release gates. Native Goal пока отображается как `blocked`: доступный Goal API позволяет
 читать и менять статус, но не менять objective и не возобновляет blocked Goal. Существующий ID,
 счётчики и история сохранены; новый Goal не создавался.
+
+Source-продолжение уже дало отдельный прогресс: A04 persistence/resolver scaffold принят Sol в
+ограниченной области; supervisor/recovery wiring и A04 operational acceptance остаются открыты.
+В bounded A11 source repair убрано молчаливое усечение diff: пакет фиксирует brief,
+submitted/base/integration-tip/merged SHA, submitted и точные merged paths, acceptance, verifier
+policy, результаты проверок и полный diff. Binary summary, неверная кодировка Git path, diff свыше
+50 KB и final packet свыше 256 KB блокируют вызов reviewer. Sol принял точные bytes; полный pinned
+gate прошёл: 265 тестов, 42 subtests и Ruff (47 files). Git CAS по-прежнему блокирует устаревший
+integration tip и требует нового candidate/review. Это bounded repair, не broad A11; reviewer file
+inspection, routing, A04 wiring и полное operational acceptance остаются открыты. Supervisor и pilot
+не включались.

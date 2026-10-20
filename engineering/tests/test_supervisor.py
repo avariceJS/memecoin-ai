@@ -255,12 +255,25 @@ class SupervisorTests(unittest.TestCase):
         second = self.db.claim("T", "worker")
         self.assertEqual(second["epoch"], 2)
 
-    def verification_failure(self, stdout, reviewer_text="{malformed"):
+    def verification_failure(
+        self,
+        stdout,
+        reviewer_text="{malformed",
+        diff="synthetic diff",
+        raw_path_output="src/example.py\0",
+    ):
         """Drive the actual verifier callback with pure fake tool/model responses."""
         self.candidate(target_state="submitted")
         checkout = self.state / "candidate-checkout"
         checkout.mkdir()
-        candidate = SimpleNamespace(sha="merged", integration_tip="base", checkout=checkout)
+        candidate = SimpleNamespace(
+            submitted_sha="submitted",
+            base_sha="base",
+            integration_tip="base",
+            sha="merged",
+            changed_paths=("src/example.py",),
+            checkout=checkout,
+        )
         gate = MagicMock()
         gate.submit.return_value = candidate
         policy = supervisor.VerificationPolicy(((sys.executable, "fixed-acceptance"),))
@@ -277,7 +290,8 @@ class SupervisorTests(unittest.TestCase):
             patch.object(
                 supervisor, "metered_client", side_effect=lambda *args, **kwargs: reviewer
             ) as model,
-            patch.object(supervisor, "git", return_value="synthetic diff"),
+            patch.object(supervisor, "git", return_value=diff),
+            patch.object(supervisor, "git_raw", return_value=raw_path_output),
         ):
             supervisor.verify_one(self.state, self.db.get_task("T"))
         self.assertEqual(self.db.get_task("T")["state"], "pending")
@@ -300,6 +314,41 @@ class SupervisorTests(unittest.TestCase):
             json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True})
         )
         model.assert_called_once()
+        packet = json.loads(
+            (self.state / "verification" / "merged" / "review-packet.json").read_text()
+        )
+        self.assertEqual(packet["diff"], "synthetic diff")
+        self.assertEqual(packet["candidate"]["submitted_sha"], "submitted")
+        self.assertEqual(packet["candidate"]["merged_candidate_sha"], "merged")
+        self.assertEqual(packet["candidate"]["submitted_changed_paths"], ["src/example.py"])
+        self.assertEqual(packet["candidate"]["merged_changed_paths"], ["src/example.py"])
+        self.assertEqual(packet["task"]["brief"], "")
+
+    def test_oversized_diff_blocks_before_independent_review_call(self):
+        model = self.verification_failure(
+            json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
+            diff="x" * 50001,
+        )
+        model.assert_not_called()
+        self.assertFalse((self.state / "verification" / "merged" / "review-packet.json").exists())
+
+    def test_leading_whitespace_in_git_path_is_not_trimmed_into_scope(self):
+        model = self.verification_failure(
+            json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
+            raw_path_output=" src/example.py\0",
+        )
+        model.assert_not_called()
+        self.assertFalse((self.state / "verification" / "merged" / "review-packet.json").exists())
+
+    def test_git_raw_preserves_nul_delimited_path_identity(self):
+        process = SimpleNamespace(returncode=0, stdout=b" src/example.py\0", stderr=b"")
+        with patch.object(supervisor.subprocess, "run", return_value=process):
+            self.assertEqual(supervisor.git_raw(self.state, "diff", "-z"), " src/example.py\0")
+
+    def test_git_raw_does_not_normalize_crlf_in_path_identity(self):
+        process = SimpleNamespace(returncode=0, stdout=b"src/a\rb\0", stderr=b"")
+        with patch.object(supervisor.subprocess, "run", return_value=process):
+            self.assertEqual(supervisor.git_raw(self.state, "diff", "-z"), "src/a\rb\0")
 
     def test_restart_does_not_reissue_running_unexpired_attempt(self):
         self.task()
