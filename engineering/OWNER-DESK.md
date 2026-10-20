@@ -482,6 +482,16 @@ Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-quiescence-lockwait-review-20261021.json`
 (SHA-256 `e8f16bbb23dcc955185586c72148de3a7bf18633500d8ee001547fb86ef5d254`).
 
+A10 теперь сверяет все configured contract transitions независимо по имени, версии, producer
+identity и consumer set; один ещё не готовый переход не мешает другим. Store сохраняет требования к
+интегрированному producer, точным immutable acknowledgements и повторной проверке activation
+history. Исходная config и hash `schema-validation v2` сохранены; для этой legacy схемы применяется
+узкая связь `EXP-001`, а новые generic transitions должны явно назвать producer task. Sol принял exact
+diff `259867174de4f18c7a0f36bbc66c7301e175cde6e388e599564d13286903f518`; gate: 351 тест, 83 subtests,
+Ruff. Proposal/lead-ack routing пока привязан к schema-validation; generic routing, department
+plans/leases, conflict adjudication и полный A10 остаются открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-generic-contract-activation-review-20261021.json`.
+
 A05 consumer пока не реализован: Store имеет owner epoch как lease fence, но не имеет отдельного
 controller-owned authorization generation; `launch_authorized` приходит как caller observation.
 Consumer не должен создавать или повышать launch authority. Нужен отдельный владелец generation;

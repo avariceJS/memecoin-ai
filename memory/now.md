@@ -113,6 +113,13 @@ automatically.
   Generic contracts, plans/leases,
   conflict adjudication and full A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-trigger-freshness-review-20261021.json`.
+- A10 configured-contract activation is generalized at source commit
+  `4fbf196a562f409a966a5f7f5a9135f07bd9d6dc`. Each configured transition now reconciles
+  independently while preserving exact producer/consumer acknowledgements, integrated-producer
+  checks, activation-history revalidation and legacy `schema-validation` config/hash. Sol accepted
+  exact diff `259867174de4f18c7a0f36bbc66c7301e175cde6e388e599564d13286903f518`; gate passed 351
+  tests, 83 subtests and Ruff. Generic proposal/lead-ack routing and broad A10 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-generic-contract-activation-review-20261021.json`.
 - A04 source-only verifier-manifest custody resolver merged at `9487fc70057bc8ff5a467394fe7b70b06391e7b3`;
   Sol accepted the exact source. It verifies canonical manifest/binding digests, release/policy
   identities, exact verifier metadata and trusted harness bytes. The shared plan does not call this
