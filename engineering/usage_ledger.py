@@ -976,11 +976,20 @@ class UsageLedger:
             return
         self.db.execute("INSERT INTO receipts VALUES(?,?,?,?,?,?,?,?)", row)
 
-    def attribute_dispatch(self, dispatch_id, identity, epoch, model, start, end, *, evidence):
+    def attribute_dispatch(
+        self, dispatch_id, identity, epoch, model, start, end, *, evidence, sequence=None
+    ):
         if not dispatch_id or model not in MODELS or not isinstance(evidence, dict):
             raise ValueError("external attribution identity invalid")
         before, after = _counters(start), _counters(end)
         self._validate_interval(before, after)
+        event_sequence = after["total_tokens"] if sequence is None else sequence
+        if (
+            isinstance(event_sequence, bool)
+            or not isinstance(event_sequence, int)
+            or event_sequence < 0
+        ):
+            raise ValueError("invalid attribution sequence")
         self._require_registration(identity, epoch)
         event_id = evidence.get("event_id")
         if not event_id:
@@ -1013,15 +1022,27 @@ class UsageLedger:
             if actual != expected:
                 raise ValueError("interval_attribution_conflict")
             return dispatch_id
-        self.observe(
-            identity,
-            epoch,
-            event_id,
-            after,
-            source="external:" + model,
-            sequence=after["total_tokens"],
-            observed_at=time.time(),
-        )
+        existing_event = self.db.execute(
+            "SELECT identity,epoch,sequence,counters FROM events WHERE event_id=?", (event_id,)
+        ).fetchone()
+        if existing_event:
+            if (
+                existing_event["identity"],
+                existing_event["epoch"],
+                existing_event["sequence"],
+                json.loads(existing_event["counters"]),
+            ) != (identity, epoch, event_sequence, after):
+                raise ValueError("interval_attribution_event_conflict")
+        else:
+            self.observe(
+                identity,
+                epoch,
+                event_id,
+                after,
+                source="external:" + model,
+                sequence=event_sequence,
+                observed_at=time.time(),
+            )
         row = (
             event_id,
             dispatch_id,
@@ -1246,6 +1267,22 @@ class UsageLedger:
             (identity, epoch),
         ).fetchone()
         if registration is None:
+            return None
+        last_terminal_dispatch = self.db.execute(
+            "SELECT MAX(d.created_at) FROM terminal_receipts t JOIN dispatches d "
+            "ON d.dispatch_id=t.dispatch_id WHERE d.identity=? AND d.epoch=?",
+            (identity, epoch),
+        ).fetchone()[0]
+        pending = self.db.execute(
+            "SELECT MAX(d.created_at) FROM dispatches d WHERE d.identity=? AND d.epoch=? "
+            "AND d.status IN ('dispatched','bound','completed','unknown','failed','timeout') "
+            "AND NOT EXISTS (SELECT 1 FROM terminal_receipts t "
+            "WHERE t.dispatch_id=d.dispatch_id)",
+            (identity, epoch),
+        ).fetchone()[0]
+        if pending is not None and (
+            last_terminal_dispatch is None or pending > last_terminal_dispatch
+        ):
             return None
         terminals = self.db.execute(
             "SELECT t.evidence FROM terminal_receipts t JOIN dispatches d "

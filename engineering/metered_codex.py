@@ -253,13 +253,21 @@ class Controller:
             raise ValueError("terminal_epoch_unknown")
         if not stream_observations:
             raise ValueError("terminal_interval_uncovered")
-        covered = False
+        positions = {}
+        prepared_observations = []
         for item in stream_observations:
             counters = _counters(item.get("counters"))
             event_id = item.get("event_id")
             sequence = item.get("sequence")
             if not event_id or isinstance(sequence, bool) or not isinstance(sequence, int):
                 raise ValueError("invalid_stream_observation")
+            self.ledger._validate_interval(baseline, counters)
+            self.ledger._validate_interval(counters, end)
+            prior_at_position = positions.get(sequence)
+            if prior_at_position is not None and prior_at_position != counters:
+                raise ValueError("ambiguous_stream_position")
+            positions[sequence] = counters
+            prepared_observations.append((event_id, sequence, counters))
             existing = self.ledger.db.execute(
                 "SELECT identity,epoch,sequence,counters FROM events WHERE event_id=?", (event_id,)
             ).fetchone()
@@ -271,7 +279,27 @@ class Controller:
                     json.loads(existing["counters"]),
                 ) != (identity, epoch, sequence, counters):
                     raise ValueError("stream_event_conflict")
-            else:
+        if not any(point == end for point in positions.values()):
+            raise ValueError("terminal_interval_uncovered")
+        previous = baseline
+        attributed_points = []
+        for sequence in sorted(positions):
+            counters = positions[sequence]
+            self.ledger._validate_interval(previous, counters)
+            event_ids = [
+                event_id
+                for event_id, point_sequence, point in prepared_observations
+                if point_sequence == sequence and point == counters
+            ]
+            attributed_points.extend(
+                (event_id, previous, counters, sequence) for event_id in event_ids
+            )
+            previous = counters
+        for event_id, sequence, counters in prepared_observations:
+            existing = self.ledger.db.execute(
+                "SELECT 1 FROM events WHERE event_id=?", (event_id,)
+            ).fetchone()
+            if not existing:
                 self.ledger.observe(
                     identity,
                     epoch,
@@ -281,25 +309,24 @@ class Controller:
                     sequence=sequence,
                     observed_at=self.clock(),
                 )
-            if counters == end:
-                covered = True
-        if not covered:
-            raise ValueError("terminal_interval_uncovered")
         encoded_receipt = json.dumps(terminal_receipt, sort_keys=True, separators=(",", ":"))
         receipt_hash = hashlib.sha256(encoded_receipt.encode()).hexdigest()
-        self.ledger.attribute_dispatch(
-            dispatch_id,
-            identity,
-            epoch,
-            row["model"],
-            baseline,
-            end,
-            evidence={
-                "event_id": "qualified-terminal:" + dispatch_id,
-                "receipt_sha256": receipt_hash,
-                "turn_id": row["provider_turn_id"],
-            },
-        )
+        for event_id, interval_start, interval_end, sequence in attributed_points:
+            self.ledger.attribute_dispatch(
+                dispatch_id,
+                identity,
+                epoch,
+                row["model"],
+                interval_start,
+                interval_end,
+                evidence={
+                    "event_id": event_id,
+                    "receipt_sha256": receipt_hash,
+                    "sequence": sequence,
+                    "turn_id": row["provider_turn_id"],
+                },
+                sequence=sequence,
+            )
         self.ledger.db.execute("BEGIN IMMEDIATE")
         try:
             existing = self.ledger.db.execute(
@@ -308,7 +335,10 @@ class Controller:
             ).fetchone()
             receipt_row = (dispatch_id, receipt_hash, encoded_receipt, self.clock())
             if existing:
-                if (existing["evidence_sha256"], existing["evidence"]) != receipt_row[:3]:
+                if (existing["evidence_sha256"], existing["evidence"]) != (
+                    receipt_row[1],
+                    receipt_row[2],
+                ):
                     raise ValueError("terminal_receipt_conflict")
             else:
                 self.ledger.db.execute("INSERT INTO terminal_receipts VALUES(?,?,?,?)", receipt_row)

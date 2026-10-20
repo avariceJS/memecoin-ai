@@ -283,21 +283,22 @@ def test_qualified_terminal_reconciliation_attributes_only_certified_interval(tm
         def turn(self, thread, prompt, **kwargs):
             kwargs["permit"].consume(thread, kwargs["model"])
             kwargs["started"]("qualified-turn")
-            self.sink(
-                {
-                    "kind": "token_usage",
-                    "turn_id": "qualified-turn",
-                    "usage": {
-                        "total": {
-                            "inputTokens": 100,
-                            "cachedInputTokens": 0,
-                            "outputTokens": 0,
-                            "reasoningOutputTokens": 0,
-                            "totalTokens": 100,
-                        }
-                    },
-                }
-            )
+            for total in (40, 70, 100):
+                self.sink(
+                    {
+                        "kind": "token_usage",
+                        "turn_id": "qualified-turn",
+                        "usage": {
+                            "total": {
+                                "inputTokens": total,
+                                "cachedInputTokens": 0,
+                                "outputTokens": 0,
+                                "reasoningOutputTokens": 0,
+                                "totalTokens": total,
+                            }
+                        },
+                    }
+                )
             return {
                 "text": "{}",
                 "turn_id": "qualified-turn",
@@ -341,44 +342,89 @@ def test_qualified_terminal_reconciliation_attributes_only_certified_interval(tm
         "total_tokens": 0,
     }
     progress = ledger.db.execute(
-        "SELECT event_id,sequence,counters FROM events WHERE source='codex-rpc-unattributed'"
-    ).fetchone()
+        "SELECT event_id,sequence,counters FROM events "
+        "WHERE source='codex-rpc-unattributed' ORDER BY sequence"
+    ).fetchall()
     controller.preflight = lambda: {
         "resources": {"policy_id": "CEO-20261020-02"},
         "terminal_usage_qualified": True,
     }
+    terminal_receipt = {
+        "thread_id": thread,
+        "turn_id": "qualified-turn",
+        "epoch": "initial",
+        "baseline": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 0,
+        },
+        "end": {
+            "input_tokens": 100,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 100,
+        },
+    }
+    stream_observations = [
+        {
+            "event_id": item["event_id"],
+            "sequence": item["sequence"],
+            "counters": json.loads(item["counters"]),
+        }
+        for item in progress
+    ]
     controller.reconcile_dispatch(
         "qualified-dispatch",
-        terminal_receipt={
-            "thread_id": thread,
-            "turn_id": "qualified-turn",
-            "epoch": "initial",
-            "baseline": {
-                "input_tokens": 0,
-                "cached_input_tokens": 0,
-                "output_tokens": 0,
-                "reasoning_output_tokens": 0,
-                "total_tokens": 0,
-            },
-            "end": {
-                "input_tokens": 100,
-                "cached_input_tokens": 0,
-                "output_tokens": 0,
-                "reasoning_output_tokens": 0,
-                "total_tokens": 100,
-            },
-        },
-        stream_observations=[
-            {
-                "event_id": progress["event_id"],
-                "sequence": progress["sequence"],
-                "counters": json.loads(progress["counters"]),
-            }
-        ],
+        terminal_receipt=terminal_receipt,
+        stream_observations=stream_observations,
+    )
+    # Exact terminal evidence is idempotent after the dispatch is settled.
+    controller.reconcile_dispatch(
+        "qualified-dispatch",
+        terminal_receipt=terminal_receipt,
+        stream_observations=stream_observations,
     )
     after = ledger.summary()
     assert after["by_model"]["gpt-6-luna"]["input_tokens"] == 100
     assert after["unresolved"] == []
     assert after["reservations"] == []
+    assert ledger.trusted_terminal_baseline(thread, "initial")["total_tokens"] == 100
+    controller.close()
+    ledger.close()
+
+
+def test_completed_turn_without_usage_keeps_next_baseline_unknown(tmp_path):
+    ledger = UsageLedger(tmp_path / "no-usage.sqlite")
+
+    class NoUsageRPC(FakeRPC):
+        def __init__(self, ledger):
+            super().__init__(ledger)
+            self.sink = lambda _event: None
+
+    rpc = NoUsageRPC(ledger)
+    controller = Controller(
+        ledger,
+        lambda: quota(),
+        state=tmp_path,
+        clock=lambda: 1000,
+        preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
+    )
+    client = MeteredCodex(
+        rpc, controller, {"role": "worker", "team": "Experience", "task": "no-usage"}
+    )
+    thread = client.start("gpt-6-luna", "start")
+    kwargs = {
+        "model": "gpt-6-luna",
+        "estimate": {"tokens": 100, "wpu": 1},
+        "tool": lambda _: None,
+        "deadline_seconds": 10,
+    }
+    client.turn(thread, "first", dispatch_id="no-usage-first", **kwargs)
+    assert json.loads(ledger.dispatch("no-usage-first")["baseline"])["total_tokens"] == 0
+    client.turn(thread, "second", dispatch_id="no-usage-second", **kwargs)
+    assert ledger.dispatch("no-usage-second")["baseline"] is None
     controller.close()
     ledger.close()
