@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sqlite3
 import threading
 import time
@@ -20,6 +21,8 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+
+from .task_specs import validate_task_spec
 
 
 class StateError(ValueError):
@@ -104,10 +107,167 @@ class Store:
           CREATE TABLE IF NOT EXISTS usage(
             id INTEGER PRIMARY KEY, attempt_id INTEGER NOT NULL REFERENCES attempts(id),
             epoch INTEGER NOT NULL, body TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS task_specs(
+            task_id TEXT PRIMARY KEY REFERENCES tasks(id), body TEXT NOT NULL,
+            policy_sha256 TEXT NOT NULL, admission TEXT NOT NULL,
+            decision_name TEXT NOT NULL, decision_version INTEGER NOT NULL);
           CREATE TABLE IF NOT EXISTS events(
             seq INTEGER PRIMARY KEY, at REAL NOT NULL, kind TEXT NOT NULL,
             entity TEXT NOT NULL, body TEXT NOT NULL);
         """)
+
+    def admit_task_spec(
+        self,
+        spec: Any,
+        *,
+        envelope: Any,
+        acceptance_registry: Any,
+        policy_sha256: str,
+        admission: Any,
+    ) -> str:
+        if (
+            type(policy_sha256) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", policy_sha256) is None
+        ):
+            raise StateError("invalid_task_spec_policy_hash")
+        if type(admission) is not dict:
+            raise StateError("invalid_task_spec_admission")
+        try:
+            admission_snapshot = json.loads(_json(admission))
+        except (TypeError, ValueError, OverflowError, RuntimeError):
+            raise StateError("invalid_task_spec_admission") from None
+        if type(admission_snapshot) is not dict or set(admission_snapshot) != {
+            "rationale",
+            "evidence",
+        }:
+            raise StateError("invalid_task_spec_admission")
+        for key in ("rationale", "evidence"):
+            value = admission_snapshot[key]
+            if type(value) is not str or not value.strip() or not 10 <= len(value) <= 4000:
+                raise StateError("invalid_task_spec_admission")
+        proposed_id = spec.get("id") if type(spec) is dict else None
+        if type(proposed_id) is not str:
+            # Let the canonical validator provide its stable rejection code.
+            proposed_id = None
+        decision_name = "admission/task-spec/" + proposed_id if proposed_id else None
+        with self._tx():
+            if proposed_id and self.db.execute(
+                "SELECT 1 FROM tasks WHERE id=?", (proposed_id,)
+            ).fetchone():
+                raise StateError("task_spec_duplicate")
+            if decision_name and self.db.execute(
+                "SELECT 1 FROM decisions WHERE name=?", (decision_name,)
+            ).fetchone():
+                raise StateError("task_spec_duplicate")
+            if (
+                type(spec) is dict
+                and type(spec.get("objective_id")) is str
+                and not self.db.execute(
+                    "SELECT 1 FROM objectives WHERE id=?", (spec["objective_id"],)
+                ).fetchone()
+            ):
+                raise StateError("task_spec_objective_missing")
+            existing = self.list_tasks()
+            try:
+                canonical = validate_task_spec(
+                    spec,
+                    envelope=envelope,
+                    acceptance_registry=acceptance_registry,
+                    existing_tasks=existing,
+                )
+            except StateError as exc:
+                if str(exc) == "duplicate_task_id":
+                    raise StateError("task_spec_duplicate") from None
+                raise
+            task_id = canonical["id"]
+            decision_name = "admission/task-spec/" + task_id
+            collision = self.db.execute(
+                "SELECT 1 FROM tasks WHERE id=?", (task_id,)
+            ).fetchone() or self.db.execute(
+                "SELECT 1 FROM decisions WHERE name=?", (decision_name,)
+            ).fetchone()
+            if collision:
+                raise StateError("task_spec_duplicate")
+            if not self.db.execute(
+                "SELECT 1 FROM objectives WHERE id=?", (canonical["objective_id"],)
+            ).fetchone():
+                raise StateError("task_spec_objective_missing")
+            task_contracts = {}
+            for name, requirement in canonical["contracts"].items():
+                row = self.db.execute(
+                    "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
+                ).fetchone()
+                if row[0] != requirement["version"]:
+                    raise StateError("task_spec_contract_not_current")
+                task_contracts[name] = requirement["version"]
+            body = _json(canonical)
+            admission_body = _json(admission_snapshot)
+            fields = (
+                canonical["id"],
+                canonical["team"],
+                canonical["title"],
+                canonical["brief"],
+                _json(canonical["scope"]),
+                _json([f"{a['id']}:{a['sha256']}" for a in canonical["acceptance"]]),
+                _json(canonical["dependencies"]),
+                _json(task_contracts),
+                canonical["base_sha"],
+                canonical["objective_id"],
+                canonical["resources"]["max_attempts"],
+            )
+            self.db.execute(
+                """INSERT INTO tasks(
+                  id,team,title,brief,scope,acceptance,dependencies,contracts,
+                  base_sha,objective_id,max_attempts
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                fields,
+            )
+            self._event("task_added", task_id, self._task(task_id))
+            decision_body = {
+                "spec": canonical,
+                "policy_sha256": policy_sha256,
+                "admission": admission_snapshot,
+            }
+            self.db.execute(
+                """INSERT INTO decisions(
+                  name,version,body,replaces,replaces_version
+                ) VALUES(?,?,?,?,?)""",
+                (decision_name, 1, _json(decision_body), None, None),
+            )
+            self._event(
+                "decision_recorded",
+                decision_name,
+                {
+                    "version": 1,
+                    "body": decision_body,
+                    "replaces": None,
+                    "replaces_version": None,
+                },
+            )
+            self.db.execute(
+                """INSERT INTO task_specs(
+                  task_id,body,policy_sha256,admission,decision_name,decision_version
+                ) VALUES(?,?,?,?,?,1)""",
+                (task_id, body, policy_sha256, admission_body, decision_name),
+            )
+            self._event(
+                "task_spec_admitted",
+                task_id,
+                {"decision": decision_name, "version": 1, "policy_sha256": policy_sha256},
+            )
+            return task_id
+
+    def get_task_spec(self, task_id: str) -> dict | None:
+        with self._lock:
+            row = self.db.execute("SELECT * FROM task_specs WHERE task_id=?", (task_id,)).fetchone()
+            if row is None:
+                return None
+            return {
+                "spec": json.loads(row["body"]),
+                "policy_sha256": row["policy_sha256"],
+                "admission": json.loads(row["admission"]),
+                "decision": {"name": row["decision_name"], "version": row["decision_version"]},
+            }
 
     def close(self) -> None:
         with self._lock:

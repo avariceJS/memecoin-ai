@@ -1,0 +1,83 @@
+{
+  "schema": "brain-org-task-spec-store-source-acceptance-v1",
+  "task": "CEO-20261020-02 task-spec Store persistence",
+  "source_base": "fa873e34d4118a0177c2b208ddd004a43f91cdf0",
+  "candidate_sha": "a16d8b8a958feec0cdf697d9a5d72d9823b5338c",
+  "implementation_parent": "3c9ec2ade5b07f635cdb8f474a1226347fac69b2",
+  "branch": "org/task-spec-store-20261020",
+  "changed_paths": [
+    "engineering/org_state.py",
+    "engineering/tests/test_task_spec_store.py"
+  ],
+  "candidate_file_sha256": {
+    "engineering/org_state.py": "c53024e46bd768b6f078b0b69fb1097c752dc1a44d7ccf6a327c47927b7e7027",
+    "engineering/tests/test_task_spec_store.py": "8759288cdb9b44cd1de24c50ce8e93667be985c7991bfc7f61b3f7fcdb86d250"
+  },
+  "frozen_preimplementation_pins": {
+    "contract_sha256": "7627ff4b423677c378713789f9b414dfc5090077fbf02eb9cb2d302a53a5e8ce",
+    "acceptance_sha256": "7785fbeb2b0d3bbf79dbd29d856e0358a883d61d8a5d0ee940d06c0cf0ea66fc",
+    "pins_sha256": "62a4a6ab7dd088af328cfa51b33a30c2def6e615c74cb20c865ecccb97a7c27b",
+    "acceptance_result": "passed",
+    "scenario_groups": 10,
+    "data": "synthetic SQLite only"
+  },
+  "independent_review": {
+    "reviewer": "Sol",
+    "approved": true,
+    "findings": [],
+    "review_thread": "01a15758-a3a5-75c1-b3bb-b126c22f8a64",
+    "review_result_path": "/Users/root1/Developer/brain-org-state/founder-quota-20261020/task-spec-store-implementation-review-v2-scratch/result.json",
+    "dossier_manifest_path": "/Users/root1/Developer/brain-org-state/founder-quota-20261020/task-spec-store-implementation-review-v2-input/manifest.json",
+    "patch_sha256": "6c487daff1df8ee2b77ca936625ec57d4ab1dde6a8cbd0024373d7f3cb99fb9a",
+    "scope_limit": "approval covers this Store source SHA only; not scheduler, release, or pilot"
+  },
+  "verification": [
+    {
+      "command": "pytest -q engineering/tests/test_state.py engineering/tests/test_task_specs.py engineering/tests/test_task_spec_store.py",
+      "result": "42 passed, 27 subtests passed"
+    },
+    {
+      "command": "ruff check engineering/org_state.py engineering/tests/test_task_spec_store.py",
+      "result": "passed"
+    },
+    {
+      "command": "make smoke",
+      "result": "passed; synthetic engineering smoke only"
+    },
+    {
+      "command": "make check",
+      "result": "blocked before task tests by 107 existing Ruff findings in unrelated paths"
+    },
+    {
+      "command": "make test",
+      "result": "collection blocked by missing historical capture_manifest.json fixture; 19 optional-dependency tests skipped"
+    }
+  ],
+  "pilot_read_only_snapshot": {
+    "observed_at": "2026-10-20",
+    "database": "/Users/root1/Developer/brain-org-state/pilot-20261019/organization.sqlite",
+    "read_mode": "SQLite mode=ro&immutable=1",
+    "tasks_by_state": {
+      "failed": 2,
+      "pending": 1
+    },
+    "task_ids_and_states": [
+      ["CTX-001", "failed"],
+      ["EXP-001", "failed"],
+      ["PLAT-001", "pending"]
+    ],
+    "attempts_by_state": {
+      "failed": 6
+    },
+    "integration_rows": 0,
+    "stop_file_bytes": 0,
+    "runtime_process": "no separate organization runtime process matched the read-only process filter"
+  },
+  "scope_and_remaining_gates": [
+    "This is source acceptance for additive Store persistence, not operational deployment acceptance.",
+    "Planner/scheduler dispatch integration is not implemented.",
+    "Durable task-to-independent-verifier binding is not implemented.",
+    "Controlled release qualification and pilot activation remain open; STOP remains in place.",
+    "No main change or remote publication was made."
+  ]
+}

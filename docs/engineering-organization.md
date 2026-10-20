@@ -115,8 +115,9 @@ Sol may reconcile state and resume the same objective through qualified recovery
 Reset changes the quota window, never accounting history. Keep resource pause separate from other STOP
 reasons; no safety/release STOP is cleared merely by a quota reset. No idle model polling or automatic
 Astra. Existing concurrency, security, scientific, protected-data, acquisition, training, trading, Git
-and publication restrictions remain. The frozen pilot config is unchanged by this executive decision;
-Sol must implement and independently review the appropriate release before operational resumption.
+and publication restrictions remain. The frozen pilot config remains unchanged. Source work in an
+isolated candidate does not authorize operational resumption; preserve STOP until an independently
+accepted, controlled release passes its gates.
 
 The following initial policy is historical and remains in the frozen old deployment until reviewed
 replacement; it is not an alternative current resource authorization.
@@ -194,13 +195,19 @@ require another Astra session. A genuine capability/resource/objective expansion
 internal request for Astra through the Russian Founder Desk. Astra remains the executive and sole
 founder communicator; Sol holds delegated implementation/queue authority, not the executive role.
 
-The finite task catalogue is the initial qualification mechanism. The next implementation must admit
-Sol-issued structured task specifications against the immutable envelope: objective, team, exact
-scope, dependencies and contract versions, bounded attempts/resources, risk and independently owned
+The finite task catalogue is the initial qualification mechanism. Sol-issued structured task
+specifications are validated against the immutable envelope: objective, team, exact scope,
+dependencies and contract versions, bounded attempts/resources, risk and independently owned
 acceptance references. An independent verifier fixes acceptance before implementation; a worker
-cannot change it. Admission is deterministic and rejects unsupported execution/authority. New task
-content is not permission to rewrite the controller policy. No useful admissible work means a durable
-reason and stop, not indefinite model polling.
+cannot change it. The validator and a separate additive `Store` persistence path are accepted in
+source. `Store.admit_task_spec` validates a detached metadata snapshot and atomically records the
+specification and its v1 decision; the pinned SQLite acceptance and focused store tests cover the
+transaction and metadata-mutation race. See the
+[task-spec Store source acceptance](evidence/brain-org-task-spec-store-source-acceptance-2026-10-20.json).
+This does not yet wire task specs into planner/scheduler dispatch, bind durable tasks to independent
+verifiers, qualify a controlled release, or activate the pilot. Admission remains deterministic and
+rejects unsupported execution/authority. New task content is not permission to rewrite controller
+policy. No useful admissible work means a durable reason and stop, not indefinite model polling.
 
 The first live pilot failed before any accepted worker implementation: commentary contaminated final
 JSON and real dynamic-tool delivery was not qualified. EXP-001/CTX-001 exhausted three attempts each.
@@ -288,10 +295,30 @@ and shared frozen-controller/native/executable preflight for direct runtime entr
 checks, 82 focused tests and six subtests passed inside the OS boundary. Scope, pins and the
 independent direct-entry probe are in the [source receipt](evidence/brain-org-accounting-source-acceptance-20261020.json).
 
-This is source acceptance, not an operational release. Dispatch metering and every inference
-call site still need wiring and independent review before controlled upgrade. The original pilot
-remains STOPped with six failures and no accepted tasks. The full independent-root Goal is active;
-its observed automatic continuation, live process custody and next actions are private durable state.
-The source-only structured task validator has separately passed its frozen 37-check acceptance;
-independent source review and transactional scheduler integration remain pending. Full recovery,
-useful tasks and every organization acceptance gate remain in scope.
+Independent Sol accepted exact content pins for source commit
+a94983a5e6de4b7c1ceb99df92cdc811e9b02109 with no findings. The five changed-file hashes,
+reviewer decision, test counts, usage and limitations are recorded in the unique
+[source acceptance receipt](evidence/brain-org-metering-source-acceptance-20261020.json).
+Independent checks passed 76 tests and six subtests, Ruff, and four frozen ledger/quota/atomic/
+controller gates. Owner checks passed 115 tests and 18 subtests, Ruff, five frozen checks and
+the 114-interval usage reproduction. Legacy raw-RPC frozen scripts using pre-Permit/episode
+interfaces still fail and remain unchanged. The reviewer verified content hashes, not the
+Git object, because the read-only broker denied its external Git directory.
+This is source acceptance, not an operational release. The original pilot remains STOPped with
+six failures and no accepted tasks.
+The full independent-root Goal remains active; its observed automatic continuation, live
+process custody and next actions are private durable state.
+The standalone structured task validator is source-accepted at commit
+`9b5c6c97720eda6b1eba482983ebbe3d25d3f3bf`. Independent Sol matched both file hashes and found no
+remaining source findings after 37 frozen checks, 10 focused tests/27 subtests, Ruff and 624
+state/scope/input probes. The reviewer could not read the Git object through its broker. This does
+not accept transactional scheduler integration or trusted verifier mapping. Full recovery, useful
+tasks and every organization acceptance gate remain in scope; see the unique
+[task-spec source receipt](evidence/brain-org-task-spec-validator-source-acceptance-20261020.json).
+The validator is currently a pure function with synthetic test fixtures. `planning.py` still
+admits only fixed catalogue cards, `Store` has no durable task-spec record, and worker/verification
+resolve grants and commands from `config["tasks"][id]`. The validator’s independent acceptance
+references are IDs and hashes; they do not themselves bind a runnable trusted verifier. Scheduler
+integration therefore requires a reviewed immutable policy mapping each accepted reference to its
+frozen verifier/checks, plus atomic persistence of the canonical spec and recovery/verification paths
+that consume that same record. A proposal must never select commands or acceptance policy.
