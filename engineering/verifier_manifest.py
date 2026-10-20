@@ -1,7 +1,7 @@
 """Resolve controller-owned verifier manifests against immutable task bindings.
 
-This module validates manifest custody and harness identity only. It does not qualify an
-interpreter, sandbox, result parser, or authorize execution.
+This module validates manifest custody, harness identity and interpreter file identity. It does
+not qualify interpreter invocation semantics, the sandbox, result execution, or authorize use.
 """
 
 from __future__ import annotations
@@ -25,6 +25,8 @@ _MANIFEST_FIELDS = {
     "schema",
     "controller_release_sha256",
     "integration_policy_sha256",
+    "interpreter_path",
+    "interpreter_sha256",
     "verifiers",
 }
 _VERIFIER_FIELDS = {
@@ -56,6 +58,56 @@ def _canonical(value: Any) -> bytes:
 
 def _hash(value: Any) -> bool:
     return type(value) is str and _HASH.fullmatch(value) is not None
+
+
+def _interpreter_identity(
+    path_value: Any, expected_sha256: Any, *, configured_interpreter: str | Path
+) -> Path:
+    if type(path_value) is not str or not path_value or not Path(path_value).is_absolute():
+        raise VerifierManifestError("verifier_interpreter_path_invalid")
+    if not _hash(expected_sha256):
+        raise VerifierManifestError("verifier_interpreter_hash_invalid")
+    path = Path(path_value)
+    if str(path) != path_value:
+        raise VerifierManifestError("verifier_interpreter_path_not_canonical")
+    try:
+        resolved = path.resolve(strict=True)
+        if resolved != path:
+            raise VerifierManifestError("verifier_interpreter_path_not_canonical")
+        configured = Path(configured_interpreter).resolve(strict=True)
+        if configured != path:
+            raise VerifierManifestError("verifier_interpreter_config_mismatch")
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except VerifierManifestError:
+        raise
+    except (OSError, ValueError, RuntimeError) as exc:
+        code = (
+            "verifier_interpreter_symlink"
+            if isinstance(exc, OSError) and exc.errno == errno.ELOOP
+            else "verifier_interpreter_unavailable"
+        )
+        raise VerifierManifestError(code) from None
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or not info.st_mode & 0o111:
+            raise VerifierManifestError("verifier_interpreter_not_executable")
+        digest = hashlib.sha256()
+        total = 0
+        while True:
+            chunk = os.read(fd, 1_048_576)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > 512_000_000:
+                raise VerifierManifestError("verifier_interpreter_too_large")
+            digest.update(chunk)
+        if digest.hexdigest() != expected_sha256:
+            raise VerifierManifestError("verifier_interpreter_hash_mismatch")
+        return path
+    except OSError:
+        raise VerifierManifestError("verifier_interpreter_unavailable") from None
+    finally:
+        os.close(fd)
 
 
 def _read_regular(
@@ -141,6 +193,7 @@ def resolve_verifier_manifest(
     manifest: Any,
     *,
     trusted_root: str | Path,
+    configured_interpreter: str | Path,
 ) -> tuple[dict, ...]:
     """Require exact verifier metadata and harness bytes for each immutable binding entry."""
     if type(binding) is not dict or type(manifest) is not dict:
@@ -159,7 +212,7 @@ def resolve_verifier_manifest(
         raise VerifierManifestError("verifier_manifest_binding_invalid")
     if (
         set(manifest) != _MANIFEST_FIELDS
-        or manifest.get("schema") != "brain-verifier-manifest-v1"
+        or manifest.get("schema") != "brain-verifier-manifest-v2"
         or manifest.get("controller_release_sha256") != binding.get("controller_release_sha256")
         or manifest.get("integration_policy_sha256") != binding.get("integration_policy_sha256")
     ):
@@ -182,6 +235,11 @@ def resolve_verifier_manifest(
         raise VerifierManifestError("verifier_trusted_root_unavailable") from None
     if not root.is_dir():
         raise VerifierManifestError("verifier_trusted_root_unavailable")
+    interpreter_path = _interpreter_identity(
+        manifest.get("interpreter_path"),
+        manifest.get("interpreter_sha256"),
+        configured_interpreter=configured_interpreter,
+    )
 
     resolved = []
     for expected, record in zip(bound, records, strict=True):
@@ -213,9 +271,12 @@ def resolve_verifier_manifest(
             type(commands) is not list
             or not commands
             or any(type(command) is not list for command in commands)
-            or sum(arg == "{harness}" for command in commands for arg in command) != 1
+            or not commands[0]
+            or commands[0][0] != "{interpreter}"
             or len(commands[0]) < 2
             or commands[0][1] != "{harness}"
+            or sum(arg == "{harness}" for command in commands for arg in command) != 1
+            or sum(arg == "{interpreter}" for command in commands for arg in command) != 1
         ):
             raise VerifierManifestError("verifier_harness_command_unbound")
         if not _hash(record.get("harness_sha256")):
@@ -231,5 +292,12 @@ def resolve_verifier_manifest(
         )
         if _digest(content) != record["harness_sha256"]:
             raise VerifierManifestError("verifier_harness_hash_mismatch")
-        resolved.append({**json.loads(_canonical(actual)), "harness_path": record["harness_path"]})
+        resolved.append(
+            {
+                **json.loads(_canonical(actual)),
+                "harness_path": record["harness_path"],
+                "interpreter_path": str(interpreter_path),
+                "interpreter_sha256": manifest["interpreter_sha256"],
+            }
+        )
     return tuple(resolved)

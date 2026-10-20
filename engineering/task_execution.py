@@ -94,7 +94,8 @@ def build_execution_binding(
             if any(type(arg) is not str or not arg or "\x00" in arg for arg in argv):
                 raise ExecutionBindingError("invalid_verifier_commands")
             if any(
-                ("{" in arg or "}" in arg) and arg not in {"{checkout}", "{task_id}", "{harness}"}
+                ("{" in arg or "}" in arg)
+                and arg not in {"{checkout}", "{task_id}", "{harness}", "{interpreter}"}
                 for arg in argv
             ):
                 raise ExecutionBindingError("invalid_verifier_placeholder")

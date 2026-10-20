@@ -31,6 +31,8 @@ class BoundVerifier:
     acceptance_id: str
     commands: tuple[tuple[str, ...], ...]
     harness_path: Path
+    interpreter_path: Path
+    interpreter_sha256: str
     result_schema: str
     case_field: str
     passed_field: str
@@ -48,6 +50,8 @@ class VerificationPlan:
     plan_sha256: str
     verifier_manifest_sha256: str | None = None
     bound_verifiers: tuple[BoundVerifier, ...] = ()
+    interpreter_path: str | None = None
+    interpreter_sha256: str | None = None
 
     def identity(self) -> dict[str, Any]:
         """Return the JSON-safe identity that must travel with an admitted attempt."""
@@ -61,6 +65,8 @@ class VerificationPlan:
         }
         if self.verifier_manifest_sha256 is not None:
             identity["verifier_manifest_sha256"] = self.verifier_manifest_sha256
+            identity["interpreter_path"] = self.interpreter_path
+            identity["interpreter_sha256"] = self.interpreter_sha256
         return identity
 
 
@@ -100,7 +106,12 @@ def _digest(body: Any) -> str:
 
 
 def expand_bound_verifier_command(
-    command: tuple[str, ...], *, checkout: Path, task_id: str, harness_path: Path
+    command: tuple[str, ...],
+    *,
+    checkout: Path,
+    task_id: str,
+    harness_path: Path,
+    interpreter_path: Path,
 ) -> tuple[str, ...]:
     """Expand only controller-approved placeholders in a manifest-bound command."""
     if type(command) is not tuple or any(type(arg) is not str for arg in command):
@@ -109,6 +120,7 @@ def expand_bound_verifier_command(
         "{checkout}": str(checkout),
         "{task_id}": task_id,
         "{harness}": str(harness_path),
+        "{interpreter}": str(interpreter_path),
     }
     return tuple(substitutions.get(arg, arg) for arg in command)
 
@@ -126,6 +138,8 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
         raise VerificationPlanError("invalid_verification_task")
     saved_spec = db.get_task_spec(task_id)
     bound_verifiers: tuple[BoundVerifier, ...] = ()
+    interpreter_path: str | None = None
+    interpreter_sha256: str | None = None
     if saved_spec is None:
         try:
             commands = [
@@ -163,22 +177,42 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
                 or re.fullmatch(r"[0-9a-f]{64}", configured_manifest_sha256) is None
             ):
                 raise VerificationPlanError("bound_verifier_manifest_hash_invalid")
+            configured_python = cfg.get("python")
+            if (
+                type(configured_python) is not str
+                or not configured_python
+                or not Path(configured_python).is_absolute()
+            ):
+                raise VerificationPlanError("bound_verifier_interpreter_config_missing")
+            try:
+                configured_interpreter_path = Path(configured_python).resolve(strict=True)
+            except (OSError, ValueError, RuntimeError):
+                raise VerificationPlanError(
+                    "bound_verifier_interpreter_config_unavailable"
+                ) from None
             manifest_path = state / "controller" / "verifier-manifest.json"
             try:
                 manifest = load_verifier_manifest(
                     manifest_path, expected_sha256=configured_manifest_sha256
                 )
                 resolved = resolve_verifier_manifest(
-                    binding, manifest, trusted_root=state / "trusted"
+                    binding,
+                    manifest,
+                    trusted_root=state / "trusted",
+                    configured_interpreter=configured_interpreter_path,
                 )
             except VerifierManifestError as exc:
                 raise VerificationPlanError(str(exc)) from None
             verifier_manifest_sha256 = configured_manifest_sha256
+            interpreter_path = resolved[0]["interpreter_path"]
+            interpreter_sha256 = resolved[0]["interpreter_sha256"]
             bound_verifiers = tuple(
                 BoundVerifier(
                     item["acceptance_id"],
                     tuple(tuple(command) for command in item["commands"]),
                     (state / "trusted" / item["harness_path"]).resolve(strict=True),
+                    Path(item["interpreter_path"]),
+                    item["interpreter_sha256"],
                     item["result_schema"],
                     item["case_field"],
                     item["passed_field"],
@@ -258,6 +292,8 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
     }
     if verifier_manifest_sha256 is not None:
         plan_body["verifier_manifest_sha256"] = verifier_manifest_sha256
+        plan_body["interpreter_path"] = interpreter_path
+        plan_body["interpreter_sha256"] = interpreter_sha256
     return VerificationPlan(
         policy,
         qualified,
@@ -269,4 +305,6 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
         _digest(plan_body),
         verifier_manifest_sha256,
         bound_verifiers,
+        interpreter_path,
+        interpreter_sha256,
     )

@@ -738,6 +738,7 @@ def verify_one(state, task):
                     checkout=checkout,
                     task_id=task["id"],
                     harness_path=verifier.harness_path,
+                    interpreter_path=verifier.interpreter_path,
                 )
             result = box.run(
                 argv,

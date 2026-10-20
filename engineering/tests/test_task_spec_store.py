@@ -14,6 +14,7 @@ from engineering.org_state import StateError, Store
 from engineering.verification_plan import (
     VerificationPlanError,
     attempt_plan_matches,
+    expand_bound_verifier_command,
     prepare_verification_plan,
 )
 
@@ -69,7 +70,7 @@ VERIFIER_REGISTRY = {
     "atomic-spec-store": {
         "acceptance_sha256": H,
         "policy_id": "atomic-store-v1",
-        "commands": [["/trusted/python", "{harness}", "{task_id}", "{checkout}"]],
+        "commands": [["{interpreter}", "{harness}", "{task_id}", "{checkout}"]],
         "env": {"LANG": "C"},
         "harness_sha256": "d" * 64,
         "result_schema": "org-acceptance-v1",
@@ -178,6 +179,9 @@ class TaskSpecStoreTests(unittest.TestCase):
             trusted.mkdir()
             harness = trusted / "acceptance.py"
             harness.write_bytes(b"synthetic trusted acceptance harness\n")
+            interpreter = state / "python"
+            interpreter.write_bytes(b"synthetic pinned interpreter\n")
+            interpreter.chmod(0o755)
             registry = copy.deepcopy(VERIFIER_REGISTRY)
             registry["atomic-spec-store"]["harness_sha256"] = hashlib.sha256(
                 harness.read_bytes()
@@ -191,9 +195,11 @@ class TaskSpecStoreTests(unittest.TestCase):
                 SPEC["id"], controller_release_sha256="e" * 64
             )
             manifest = {
-                "schema": "brain-verifier-manifest-v1",
+                "schema": "brain-verifier-manifest-v2",
                 "controller_release_sha256": "e" * 64,
                 "integration_policy_sha256": "f" * 64,
+                "interpreter_path": str(interpreter.resolve()),
+                "interpreter_sha256": hashlib.sha256(interpreter.read_bytes()).hexdigest(),
                 "verifiers": [{**binding["verifiers"][0], "harness_path": "acceptance.py"}],
             }
             raw = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
@@ -203,6 +209,7 @@ class TaskSpecStoreTests(unittest.TestCase):
                 "controller_release_sha256": "e" * 64,
                 "integration_policy_sha256": "f" * 64,
                 "verifier_manifest_sha256": manifest_sha256,
+                "python": str(interpreter),
             }
             plan = prepare_verification_plan(
                 state, self.store, self.store.get_task(SPEC["id"]), cfg
@@ -211,12 +218,45 @@ class TaskSpecStoreTests(unittest.TestCase):
             self.assertEqual(plan.reason, "interpreter_or_sandbox_not_qualified")
             self.assertEqual(plan.verifier_manifest_sha256, manifest_sha256)
             self.assertEqual(plan.identity()["verifier_manifest_sha256"], manifest_sha256)
+            self.assertEqual(plan.interpreter_path, str(interpreter.resolve()))
+            self.assertEqual(
+                plan.interpreter_sha256, hashlib.sha256(interpreter.read_bytes()).hexdigest()
+            )
+            self.assertEqual(plan.identity()["interpreter_path"], str(interpreter.resolve()))
+            self.assertEqual(plan.bound_verifiers[0].interpreter_path, interpreter.resolve())
             self.assertEqual(len(plan.bound_verifiers), 1)
             self.assertEqual(plan.bound_verifiers[0].acceptance_id, "atomic-spec-store")
             self.assertEqual(plan.bound_verifiers[0].result_schema, "org-acceptance-v1")
             self.assertEqual(
+                expand_bound_verifier_command(
+                    plan.bound_verifiers[0].commands[0],
+                    checkout=Path("/synthetic/candidate"),
+                    task_id=SPEC["id"],
+                    harness_path=plan.bound_verifiers[0].harness_path,
+                    interpreter_path=plan.bound_verifiers[0].interpreter_path,
+                ),
+                (
+                    str(interpreter.resolve()),
+                    str((trusted / "acceptance.py").resolve()),
+                    SPEC["id"],
+                    "/synthetic/candidate",
+                ),
+            )
+            self.assertEqual(
                 plan.bound_verifiers[0].harness_path, (trusted / "acceptance.py").resolve()
             )
+            mismatched_interpreter = state / "other-python"
+            mismatched_interpreter.write_bytes(b"different executable")
+            mismatched_interpreter.chmod(0o755)
+            with self.assertRaisesRegex(
+                VerificationPlanError, "verifier_interpreter_config_mismatch"
+            ):
+                prepare_verification_plan(
+                    state,
+                    self.store,
+                    self.store.get_task(SPEC["id"]),
+                    {**cfg, "python": str(mismatched_interpreter)},
+                )
             self.assertEqual(
                 attempt_plan_matches(plan, {"verification_plan": plan.identity()}),
                 (True, None),
