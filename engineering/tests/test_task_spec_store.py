@@ -1,15 +1,21 @@
 import copy
 import hashlib
 import json
+import platform
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import threading
+import time
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
+from engineering.confinement import SANDBOX_EXEC, SandboxRunner, python_runtime_roots
 from engineering.git_gate import VerificationPolicy
+from engineering.mac_code_identity import running_code_identity
 from engineering.org_state import StateError, Store
 from engineering.verification_plan import (
     VerificationPlanError,
@@ -17,6 +23,7 @@ from engineering.verification_plan import (
     expand_bound_verifier_command,
     prepare_verification_plan,
 )
+from engineering.verifier_result import validate_verifier_result
 
 H = "a" * 64
 BASE = "b" * 40
@@ -283,6 +290,137 @@ class TaskSpecStoreTests(unittest.TestCase):
                     self.store.get_task(SPEC["id"]),
                     {**cfg, "verifier_manifest_sha256": "0" * 64},
                 )
+
+    @unittest.skipUnless(platform.system() == "Darwin", "requires real macOS Seatbelt")
+    def test_bound_plan_command_runs_through_sandbox_and_strict_result_parser(self):
+        state = self.path.parent
+        controller, trusted = state / "controller", state / "trusted"
+        candidate, scratch = state / "candidate", state / "scratch"
+        for root in (controller, trusted, candidate, scratch):
+            root.mkdir()
+        interpreter = Path(sys.executable).resolve(strict=True)
+        # sandbox-exec may exec Python.app's main binary rather than the `bin/python` launcher.
+        box = SandboxRunner(
+            writable_roots=[scratch],
+            home=scratch,
+            read_roots=[candidate, trusted, *python_runtime_roots(interpreter)],
+            protected_roots=[self.path],
+        )
+
+        harness = trusted / "acceptance.py"
+        harness.write_text(
+            "import json,sys,time\n"
+            "assert sys.flags.isolated and sys.flags.no_site and sys.flags.dont_write_bytecode\n"
+            "assert 'site' not in sys.modules\n"
+            "time.sleep(0.5)\n"
+            "print(json.dumps({'schema':'org-acceptance-v1','acceptance_id':'atomic-spec-store',"
+            "'case':'atomic-spec-store','passed':True}))\n",
+            encoding="utf-8",
+        )
+        interpreter_sha256 = hashlib.sha256(interpreter.read_bytes()).hexdigest()
+        probe = subprocess.Popen(
+            [
+                str(SANDBOX_EXEC),
+                "-p",
+                box.profile,
+                str(interpreter),
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                "import time; time.sleep(1)",
+            ],
+            cwd=candidate,
+            env=box.environment({"LANG": "C"}),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            start_new_session=True,
+        )
+        runtime_identity = None
+        try:
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline and probe.poll() is None:
+                try:
+                    observed = running_code_identity(probe.pid)
+                    if observed[1] != str(SANDBOX_EXEC):
+                        runtime_identity = observed
+                        break
+                except ValueError:
+                    time.sleep(0.01)
+                else:
+                    time.sleep(0.01)
+        finally:
+            SandboxRunner._kill_process_group(probe)
+        self.assertIsNotNone(runtime_identity)
+        interpreter_cdhash, interpreter_runtime_path = runtime_identity
+        registry = copy.deepcopy(VERIFIER_REGISTRY)
+        registry["atomic-spec-store"]["harness_sha256"] = hashlib.sha256(
+            harness.read_bytes()
+        ).hexdigest()
+        self.admit(
+            verifier_registry=registry,
+            controller_release_sha256="e" * 64,
+            integration_policy_sha256="f" * 64,
+        )
+        binding = self.store.resolve_task_execution_binding(
+            SPEC["id"], controller_release_sha256="e" * 64
+        )
+        manifest = {
+            "schema": "brain-verifier-manifest-v4",
+            "controller_release_sha256": "e" * 64,
+            "integration_policy_sha256": "f" * 64,
+            "interpreter_path": str(interpreter),
+            "interpreter_sha256": interpreter_sha256,
+            "interpreter_runtime_path": interpreter_runtime_path,
+            "interpreter_runtime_cdhash": interpreter_cdhash,
+            "verifiers": [{**binding["verifiers"][0], "harness_path": "acceptance.py"}],
+        }
+        manifest_bytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
+        (controller / "verifier-manifest.json").write_bytes(manifest_bytes)
+        cfg = {
+            "controller_release_sha256": "e" * 64,
+            "integration_policy_sha256": "f" * 64,
+            "verifier_manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+            "python": str(interpreter),
+        }
+        plan = prepare_verification_plan(state, self.store, self.store.get_task(SPEC["id"]), cfg)
+        self.assertFalse(plan.execution_qualified)
+        self.assertEqual(len(plan.bound_verifiers), 1)
+        verifier = plan.bound_verifiers[0]
+        argv = expand_bound_verifier_command(
+            verifier.commands[0],
+            checkout=candidate,
+            task_id=SPEC["id"],
+            harness_path=verifier.harness_path,
+            interpreter_path=verifier.interpreter_path,
+        )
+        result = box.run(
+            argv,
+            cwd=candidate,
+            env_overrides=dict(plan.policy.env),
+            expected_executable_sha256=verifier.interpreter_sha256,
+            expected_executable_cdhash=verifier.interpreter_runtime_cdhash,
+            expected_executable_main_path=verifier.interpreter_runtime_path,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(result.timed_out)
+        self.assertFalse(result.output_truncated)
+        self.assertEqual(result.prelaunch_executable_sha256, interpreter_sha256)
+        self.assertEqual(result.process_code_directory_hash, interpreter_cdhash)
+        self.assertEqual(result.process_executable_path, interpreter_runtime_path)
+        self.assertGreaterEqual(result.process_identity_observations, 1)
+        validate_verifier_result(
+            result.stdout,
+            {
+                "acceptance_id": verifier.acceptance_id,
+                "result_schema": verifier.result_schema,
+                "case_field": verifier.case_field,
+                "passed_field": verifier.passed_field,
+            },
+        )
+        self.assertFalse((candidate / "__pycache__").exists())
 
     def test_bound_plan_rejects_explicit_null_manifest_pin(self):
         self.admit(
