@@ -15,6 +15,7 @@ import platform
 import selectors
 import signal
 import socket
+import stat
 import subprocess
 import tempfile
 import time
@@ -26,6 +27,7 @@ SANDBOX_EXEC = Path("/usr/bin/sandbox-exec")
 DYLD_SUPPORT = Path("/System/Library/Sandbox/Profiles/dyld-support.sb")
 SYSTEM_READ_ROOTS = ("/System/Library", "/usr/lib", "/usr/share", "/usr/bin", "/bin")
 VERIFIER_ENV_KEYS = frozenset({"LANG", "LC_ALL", "TZ", "PYTHONHASHSEED", "PYTHONUTF8"})
+MAX_PINNED_EXECUTABLE_BYTES = 512_000_000
 
 
 class ConfinementError(RuntimeError):
@@ -42,6 +44,76 @@ class SandboxResult:
     profile_sha256: str
     elapsed_seconds: float
     output_truncated: bool = False
+    prelaunch_executable_sha256: str | None = None
+
+
+def _prelaunch_executable_sha256(path: str | Path, expected_sha256: str) -> str:
+    """Recheck a pinned canonical executable immediately before sandbox launch.
+
+    This hashes the inode opened through a no-follow descriptor. Darwin's
+    subprocess API later receives a path, so a trusted host process able to
+    replace its resolution after open (including after this function returns)
+    remains in the TCB; this is evidence of a prelaunch path check, not proof
+    that sandbox-exec executed the hashed inode.
+    """
+    if (
+        not isinstance(expected_sha256, str)
+        or len(expected_sha256) != 64
+        or any(char not in "0123456789abcdef" for char in expected_sha256)
+    ):
+        raise ConfinementError("Expected executable digest must be lowercase SHA-256")
+    executable = Path(path)
+    if not executable.is_absolute():
+        raise ConfinementError("Pinned executable must be an absolute canonical path")
+    try:
+        if executable.resolve(strict=True) != executable:
+            raise ConfinementError("Pinned executable path is not canonical")
+        descriptor = os.open(
+            executable,
+            os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+        )
+    except ConfinementError:
+        raise
+    except OSError as exc:
+        raise ConfinementError("Pinned executable is unavailable or follows a symlink") from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or not before.st_mode & 0o111:
+            raise ConfinementError("Pinned executable must be a regular executable file")
+        if before.st_size > MAX_PINNED_EXECUTABLE_BYTES:
+            raise ConfinementError("Pinned executable exceeds the verification size limit")
+        digest = hashlib.sha256()
+        total = 0
+        while chunk := os.read(descriptor, 1024 * 1024):
+            total += len(chunk)
+            if total > MAX_PINNED_EXECUTABLE_BYTES:
+                raise ConfinementError("Pinned executable exceeds the verification size limit")
+            digest.update(chunk)
+        after = os.fstat(descriptor)
+        identity_before = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        identity_after = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if identity_before != identity_after:
+            raise ConfinementError("Pinned executable changed while it was being verified")
+        actual_sha256 = digest.hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise ConfinementError("Pinned executable digest changed before sandbox launch")
+        return actual_sha256
+    except OSError as exc:
+        raise ConfinementError("Pinned executable could not be verified") from exc
+    finally:
+        os.close(descriptor)
 
 
 def _inside(path: Path, roots: Sequence[Path]) -> bool:
@@ -206,11 +278,17 @@ class SandboxRunner:
         timeout: float = 30.0,
         max_output_bytes: int = 1_000_000,
         env_overrides: dict[str, str] | None = None,
+        expected_executable_sha256: str | None = None,
     ) -> SandboxResult:
         if not argv or not all(isinstance(arg, str) and "\0" not in arg for arg in argv):
             raise ConfinementError("argv must contain non-NUL strings")
         if not Path(argv[0]).is_absolute():
             raise ConfinementError("Executable must be absolute; shell resolution is forbidden")
+        prelaunch_executable_sha256 = None
+        if expected_executable_sha256 is not None:
+            prelaunch_executable_sha256 = _prelaunch_executable_sha256(
+                argv[0], expected_executable_sha256
+            )
         directory = Path(cwd).resolve(strict=True)
         if not directory.is_dir() or not _inside(directory, self.writable_roots + self.read_roots):
             raise ConfinementError("cwd must be within a granted task read or writable root")
@@ -284,6 +362,7 @@ class SandboxRunner:
             self.profile_sha256,
             time.monotonic() - started,
             output_truncated,
+            prelaunch_executable_sha256,
         )
 
 

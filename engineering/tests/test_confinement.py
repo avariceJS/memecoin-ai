@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import platform
 import sys
@@ -85,6 +86,54 @@ class ConfinementTests(unittest.TestCase):
         for executable, cwd in (("python3", self.task), (str(PYTHON), self.outside)):
             with self.subTest(executable=executable, cwd=cwd), self.assertRaises(ConfinementError):
                 self.runner.run([executable, "-c", "print('bad')"], cwd=cwd)
+
+    def test_pinned_executable_is_rechecked_immediately_before_launch(self):
+        pinned_python = PYTHON.resolve(strict=True)
+        expected = hashlib.sha256(pinned_python.read_bytes()).hexdigest()
+        result = self.runner.run(
+            [str(pinned_python), "-I", "-c", "print('pinned')"],
+            cwd=self.task,
+            expected_executable_sha256=expected,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "pinned")
+        self.assertEqual(result.prelaunch_executable_sha256, expected)
+
+        with patch("engineering.confinement.subprocess.Popen") as launch:
+            with self.assertRaisesRegex(ConfinementError, "digest changed"):
+                self.runner.run(
+                    [str(pinned_python), "-I", "-c", "print('must not launch')"],
+                    cwd=self.task,
+                    expected_executable_sha256="0" * 64,
+                )
+        launch.assert_not_called()
+
+    def test_pinned_executable_rejects_noncanonical_and_nonexecutable_paths(self):
+        from engineering.confinement import _prelaunch_executable_sha256
+
+        pinned_python = PYTHON.resolve(strict=True)
+        expected = hashlib.sha256(pinned_python.read_bytes()).hexdigest()
+        alias = self.task / "python-alias"
+        alias.symlink_to(PYTHON)
+        with self.assertRaisesRegex(ConfinementError, "canonical"):
+            _prelaunch_executable_sha256(alias, expected)
+        nonexecutable = self.task / "not-executable"
+        nonexecutable.write_text("content")
+        with self.assertRaisesRegex(ConfinementError, "regular executable"):
+            _prelaunch_executable_sha256(nonexecutable, hashlib.sha256(b"content").hexdigest())
+
+    def test_pinned_executable_hashing_has_a_cumulative_size_limit(self):
+        import engineering.confinement as confinement
+
+        executable = self.task / "growing-executable"
+        executable.write_bytes(b"x")
+        executable.chmod(0o700)
+        with (
+            patch.object(confinement, "MAX_PINNED_EXECUTABLE_BYTES", 3),
+            patch.object(confinement.os, "read", side_effect=[b"ab", b"cd"]),
+            self.assertRaisesRegex(ConfinementError, "size limit"),
+        ):
+            confinement._prelaunch_executable_sha256(executable, "0" * 64)
 
     def test_verifier_environment_overrides_are_allowlisted(self):
         environment = self.runner.environment({"LANG": "C", "PYTHONHASHSEED": "0"})

@@ -746,6 +746,11 @@ def verify_one(state, task):
                 timeout=90,
                 max_output_bytes=200000,
                 env_overrides=dict(fixed_policy.env),
+                expected_executable_sha256=(
+                    verifier.interpreter_sha256
+                    if verifier is not None and verifier_command_index == 0
+                    else None
+                ),
             )
             results.append(dataclasses.asdict(result))
             atomic(verify_root / "commands.json", results)
