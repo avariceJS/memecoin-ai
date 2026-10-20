@@ -6,6 +6,29 @@ from engineering.org_state import StateError, Store
 from engineering.planning import admit, eligible
 
 
+def advance_contract(db, name, from_version, to_version, body):
+    producer_id = f"contract-producer-{name}-{to_version}"
+    db.add_task(producer_id, "Producer", "Contract producer", scope=["contract"])
+    attempt = db.claim(producer_id, "synthetic")
+    db.submit(attempt["id"], attempt["epoch"], f"candidate-{to_version}", {})
+    db.verify(producer_id, f"candidate-{to_version}", True, {})
+    db.accept(producer_id, f"candidate-{to_version}")
+    db.integrate(producer_id, f"candidate-{to_version}", f"merge-{to_version}")
+    transition = db.propose_contract_transition(
+        name,
+        from_version,
+        to_version,
+        body,
+        producer_task_id=producer_id,
+        producer_team="Producer",
+        consumer_teams=["Consumer"],
+    )
+    digest = transition["body"]["contract_hash"]
+    db.acknowledge_contract_transition(name, to_version, "Producer", digest)
+    db.acknowledge_contract_transition(name, to_version, "Consumer", digest)
+    db.activate_contract_transition(name, to_version)
+
+
 class PlanningTests(unittest.TestCase):
     def test_fixed_envelope_and_duplicate_admission(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -174,9 +197,9 @@ class PlanningAdmissionTests(unittest.TestCase):
         self.assertEqual(eligible(self.cfg, self.db), [])
         self.db.put_contract("api", 1, {})
         self.assertEqual(eligible(self.cfg, self.db), [])
-        self.db.put_contract("api", 2, {})
+        advance_contract(self.db, "api", 1, 2, {})
         self.assertEqual(eligible(self.cfg, self.db), ["PLAT-002"])
-        self.db.put_contract("api", 3, {})
+        advance_contract(self.db, "api", 2, 3, {})
         self.assertEqual(eligible(self.cfg, self.db), [])
         with self.assertRaises(StateError):
             admit(self.cfg, self.db, self.proposal, "base")
