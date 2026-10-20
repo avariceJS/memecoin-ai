@@ -938,6 +938,8 @@ class Store:
             return None if row is None else {**dict(row), "body": json.loads(row["body"])}
 
     def put_decision(self, name: str, body: Any, replaces: str | None = None) -> int:
+        if type(name) is not str:
+            raise StateError("decision name must be a plain string")
         _name(name)
         if name == "lifecycle/owner" or name.startswith("lifecycle/request/"):
             raise StateError("decision_namespace_reserved")
@@ -1015,8 +1017,22 @@ class Store:
             raise StateError("lifecycle_clock_invalid")
         return float(now)
 
+    def _lifecycle_decision_versions(self, name: str) -> list[int]:
+        rows = self.db.execute(
+            "SELECT version FROM decisions WHERE name=? ORDER BY version", (name,)
+        ).fetchall()
+        versions = [row[0] for row in rows]
+        if versions != list(range(1, len(versions) + 1)):
+            raise StateError("lifecycle_decision_history_invalid")
+        return versions
+
     def _lifecycle_fence(self, lease: Any) -> dict:
         current = self.get_decision("lifecycle/owner")
+        versions = self._lifecycle_decision_versions("lifecycle/owner")
+        if (current is None) != (not versions) or (
+            current is not None and current["version"] != versions[-1]
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
         body = self._lifecycle_fence_state(current["body"]) if current is not None else None
         now = self._lifecycle_now()
         if (
@@ -1044,6 +1060,11 @@ class Store:
         lease_seconds = _positive(lease_seconds)
         with self._tx():
             current = self.get_decision("lifecycle/owner")
+            versions = self._lifecycle_decision_versions("lifecycle/owner")
+            if (current is None) != (not versions) or (
+                current is not None and current["version"] != versions[-1]
+            ):
+                raise StateError("lifecycle_decision_history_invalid")
             now = self._lifecycle_now()
             if current is not None:
                 old = self._lifecycle_fence_state(current["body"])
@@ -1174,13 +1195,16 @@ class Store:
             ).hexdigest()
             name = "lifecycle/request/" + request_id
             body = {"owner": owner["owner"], "epoch": owner["epoch"], "plan": plan}
+            versions = self._lifecycle_decision_versions(name)
             old = self.get_decision(name)
             if old is not None:
-                if old["version"] != 1:
+                if versions != [1] or old["version"] != 1:
                     raise StateError("lifecycle_request_history_invalid")
-                if old["body"] != body:
+                if _json(old["body"]) != _json(body):
                     raise StateError("lifecycle_request_identity_conflict")
                 return {"id": name, "version": old["version"], "body": old["body"]}
+            if versions:
+                raise StateError("lifecycle_request_history_invalid")
             version = self._put_decision_in_transaction(name, body)
             return {"id": name, "version": version, "body": body}
 

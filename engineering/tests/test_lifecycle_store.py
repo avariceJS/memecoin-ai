@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import threading
 import unittest
@@ -142,9 +143,22 @@ class LifecycleStoreTests(unittest.TestCase):
 
     def test_generic_decision_writer_cannot_bypass_lifecycle_fencing_or_idempotency(self):
         lease = self.store.claim_lifecycle_owner("owner")
+
+        class AliasedName(str):
+            def __eq__(self, other):
+                return False
+
+            def startswith(self, *args, **kwargs):
+                return False
+
         with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
             self.store.put_decision(
                 "lifecycle/owner",
+                {"status": "active", "owner": "forged", "epoch": 99, "lease_until": 2000},
+            )
+        with self.assertRaisesRegex(StateError, "plain string"):
+            self.store.put_decision(
+                AliasedName("lifecycle/owner"),
                 {"status": "active", "owner": "forged", "epoch": 99, "lease_until": 2000},
             )
 
@@ -152,6 +166,8 @@ class LifecycleStoreTests(unittest.TestCase):
         first = self.store.record_lifecycle_plan(lease, plan)
         with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
             self.store.put_decision(first["id"], {"forged": True})
+        with self.assertRaisesRegex(StateError, "plain string"):
+            self.store.put_decision(AliasedName(first["id"]), {"forged": True})
         second = self.store.record_lifecycle_plan(lease, plan)
         self.assertEqual(first, second)
 
@@ -170,6 +186,38 @@ class LifecycleStoreTests(unittest.TestCase):
             ),
         )
         with self.assertRaisesRegex(StateError, "lifecycle_request_history_invalid"):
+            self.store.record_lifecycle_plan(lease, plan)
+
+    def test_nonpositive_request_history_fails_closed(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        plan = launch_plan("owner", lease["epoch"])
+        first = self.store.record_lifecycle_plan(lease, plan)
+        body = self.store.db.execute(
+            "SELECT body FROM decisions WHERE name=? AND version=1", (first["id"],)
+        ).fetchone()[0]
+        self.store.db.execute(
+            "INSERT INTO decisions(name,version,body,replaces,replaces_version) "
+            "VALUES(?,0,?,NULL,NULL)",
+            (first["id"], body),
+        )
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.record_lifecycle_plan(lease, plan)
+
+    def test_request_retry_detects_json_type_corruption(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        plan = launch_plan("owner", lease["epoch"])
+        first = self.store.record_lifecycle_plan(lease, plan)
+        body = json.loads(
+            self.store.db.execute(
+                "SELECT body FROM decisions WHERE name=? AND version=1", (first["id"],)
+            ).fetchone()[0]
+        )
+        body["epoch"] = True
+        encoded = json.dumps(body, sort_keys=True, separators=(",", ":"))
+        self.store.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=1", (encoded, first["id"])
+        )
+        with self.assertRaisesRegex(StateError, "lifecycle_request_identity_conflict"):
             self.store.record_lifecycle_plan(lease, plan)
 
     def test_claim_race_across_store_connections_has_one_owner(self):
