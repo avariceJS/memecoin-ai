@@ -132,6 +132,14 @@ automatically.
   A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-department-plan-leases-review-20261021.json`
   (SHA-256 `7ea47eacb174c8c2723c385b00d84977453554ac7f14fbbd71f19912b3fdb84b`).
+- A10 conflict adjudication source increment `49c311c9300596ca719e1301ef9d1ec2046c49a3` adds
+  current-plan-bound pair escalations, CEO-fenced append-only decisions, changed-plan-only
+  supersession, and bounded snapshot v3 with separate open/stale counts. Sol accepted exact diff
+  `15d7a553edf4c0627181af0928ee991a26c24c186a0b5c55d57f0d82d1f73de3`; engineering-release-check
+  passed 365 tests/96 subtests and Ruff. Conflict records grant no readiness, admission or execution
+  authority; remaining trigger freshness and broad A10 stay open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-conflict-adjudication-review-20261021.json`
+  (SHA-256 `cbb8a0f9eeeea6e0716b46332361cfcf93655bc066e9df03ac25592a84f75925`).
 - A04 source-only verifier-manifest custody resolver merged at `9487fc70057bc8ff5a467394fe7b70b06391e7b3`;
   Sol accepted the exact source. It verifies canonical manifest/binding digests, release/policy
   identities, exact verifier metadata and trusted harness bytes. The shared plan does not call this

@@ -214,10 +214,21 @@ the engineering gate passed 351 tests, 83 subtests and Ruff. A follow-on at `886
 name/version/hash acknowledgements for any configured contract only to its producer/consumer teams,
 preserves the legacy schema-validation config/hash and rejects stale source versions. Sol accepted the
 exact diff `41b2b8f182a739bdbabb674dc2a7ba7428f59bb24431b551ed83ced8c4629dcc`; the gate passed 354
-tests, 87 subtests and Ruff. Generic proposal/ack routing is now covered. Department plans/leases,
-conflict adjudication and full A10 remain open. Receipt:
+tests, 87 subtests and Ruff. Generic proposal/ack routing is now covered. The then-open department
+plans/leases and conflict adjudication are covered by the subsequent bounded increments below;
+full A10 remains open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-generic-contract-ack-routing-review-20261021.json`
 (SHA-256 `472a67f60b6669393416a3adb02a1fad69da2d4bfe9fbd40d8c70e72ff735cb5`).
+
+The A10 conflict-adjudication increment at `49c311c9300596ca719e1301ef9d1ec2046c49a3` adds
+current-plan-bound pair escalations, CEO-fenced append-only adjudications and explicit successor
+records that require a changed plan revision. Bounded snapshot v3 reports open and stale conflicts
+separately. Sol accepted exact diff `15d7a553edf4c0627181af0928ee991a26c24c186a0b5c55d57f0d82d1f73de3`;
+the engineering gate passed 365 tests/96 subtests and Ruff. These records provide conflict evidence
+only; no readiness, admission, execution, scheduling or runtime authority is added. Remaining trigger
+freshness and broad A10 remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-conflict-adjudication-review-20261021.json`
+(SHA-256 `cbb8a0f9eeeea6e0716b46332361cfcf93655bc066e9df03ac25592a84f75925`).
 
 A12 now has a bounded active-task projection at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`.
 SQLite selects at most 100 active rows through an indexed state/id query; full state counts are

@@ -88,6 +88,16 @@ Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-department-plan-leases-review-20261021.json`
 (SHA-256 `7ea47eacb174c8c2723c385b00d84977453554ac7f14fbbd71f19912b3fdb84b`).
 
+At `49c311c9300596ca719e1301ef9d1ec2046c49a3`, A10 adds current-plan-bound pair conflict
+escalations, CEO-fenced append-only adjudications, and supersession only after at least one bound
+plan revision changes. Bounded snapshot v3 reports open and stale conflicts separately. Sol accepted
+exact diff `15d7a553edf4c0627181af0928ee991a26c24c186a0b5c55d57f0d82d1f73de3`; engineering gate:
+365 tests/96 subtests and Ruff. This is conflict evidence only and adds no readiness, admission,
+execution, scheduling or runtime authority. Remaining trigger freshness and broad A10 stay open.
+Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-conflict-adjudication-review-20261021.json`
+(SHA-256 `cbb8a0f9eeeea6e0716b46332361cfcf93655bc066e9df03ac25592a84f75925`).
+
 ## Historical founder audit hold — 2026-10-20
 
 The founder paused autonomous development for Git consolidation and an independent architecture

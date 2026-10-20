@@ -504,7 +504,14 @@ A10 остаются открыты. Receipt:
 snapshot/report projections. `get_department_plan` читает обе выборки в одной SQLite snapshot;
 cross-connection regression коммитит следующую revision между запросами и подтверждает coherent
 status. Gate: 362 tests/96 subtests, Ruff. Это coordination bookkeeping: admission, execution,
-scheduling, runtime и services не добавлены; conflict adjudication и полный A10 открыты. Receipt:
+scheduling, runtime и services не добавлены. Новый A10 conflict increment принят Sol на exact diff
+`15d7a553edf4c0627181af0928ee991a26c24c186a0b5c55d57f0d82d1f73de3`, source `49c311c`. Эскалации
+привязаны к текущим версиям планов обеих команд; CEO-fenced adjudications и решения append-only;
+supersession требует изменения хотя бы одного плана. Snapshot v3 разделяет bounded open/stale
+counts. Gate: 365 tests, 96 subtests, Ruff. Это conflict evidence, без readiness/admission/execution
+authority; оставшаяся trigger freshness и полный A10 открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-conflict-adjudication-review-20261021.json`
+(SHA-256 `cbb8a0f9eeeea6e0716b46332361cfcf93655bc066e9df03ac25592a84f75925`). Previous receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-department-plan-leases-review-20261021.json`
 (SHA-256 `7ea47eacb174c8c2723c385b00d84977453554ac7f14fbbd71f19912b3fdb84b`).
 
