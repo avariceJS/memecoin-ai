@@ -123,15 +123,54 @@ class LifecycleStoreTests(unittest.TestCase):
             with self.subTest(plan=plan["action"]):
                 with self.assertRaisesRegex(StateError, "invalid_lifecycle_(?:input|plan)"):
                     self.store.record_lifecycle_plan(lease, plan)
-        self.assertEqual(self.store.get_decision("lifecycle/request/" + "a" * 64), None)
+        request_count = self.store.db.execute(
+            "SELECT COUNT(*) FROM decisions WHERE name LIKE 'lifecycle/request/%'"
+        ).fetchone()[0]
+        self.assertEqual(request_count, 0)
 
     def test_corrupt_persisted_owner_state_fails_closed(self):
-        self.store.put_decision(
-            "lifecycle/owner",
-            {"status": "active", "owner": "owner", "epoch": True, "lease_until": 1100.0},
+        self.store.db.execute(
+            "INSERT INTO decisions(name,version,body,replaces,replaces_version) "
+            "VALUES(?,1,?,NULL,NULL)",
+            (
+                "lifecycle/owner",
+                '{"status":"active","owner":"owner","epoch":true,"lease_until":1100.0}',
+            ),
         )
         with self.assertRaisesRegex(StateError, "lifecycle_owner_state_invalid"):
             self.store.claim_lifecycle_owner("replacement")
+
+    def test_generic_decision_writer_cannot_bypass_lifecycle_fencing_or_idempotency(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
+            self.store.put_decision(
+                "lifecycle/owner",
+                {"status": "active", "owner": "forged", "epoch": 99, "lease_until": 2000},
+            )
+
+        plan = launch_plan("owner", lease["epoch"])
+        first = self.store.record_lifecycle_plan(lease, plan)
+        with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
+            self.store.put_decision(first["id"], {"forged": True})
+        second = self.store.record_lifecycle_plan(lease, plan)
+        self.assertEqual(first, second)
+
+    def test_unexpected_request_history_fails_closed(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        plan = launch_plan("owner", lease["epoch"])
+        first = self.store.record_lifecycle_plan(lease, plan)
+        self.store.db.execute(
+            "INSERT INTO decisions(name,version,body,replaces,replaces_version) "
+            "VALUES(?,2,?,NULL,NULL)",
+            (
+                first["id"],
+                self.store.db.execute(
+                    "SELECT body FROM decisions WHERE name=? AND version=1", (first["id"],)
+                ).fetchone()[0],
+            ),
+        )
+        with self.assertRaisesRegex(StateError, "lifecycle_request_history_invalid"):
+            self.store.record_lifecycle_plan(lease, plan)
 
     def test_claim_race_across_store_connections_has_one_owner(self):
         other = Store(self.path, clock=lambda: self.now)

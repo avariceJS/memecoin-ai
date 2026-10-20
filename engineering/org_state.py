@@ -939,6 +939,8 @@ class Store:
 
     def put_decision(self, name: str, body: Any, replaces: str | None = None) -> int:
         _name(name)
+        if name == "lifecycle/owner" or name.startswith("lifecycle/request/"):
+            raise StateError("decision_namespace_reserved")
         with self._tx():
             old = (
                 self.db.execute(
@@ -1174,6 +1176,8 @@ class Store:
             body = {"owner": owner["owner"], "epoch": owner["epoch"], "plan": plan}
             old = self.get_decision(name)
             if old is not None:
+                if old["version"] != 1:
+                    raise StateError("lifecycle_request_history_invalid")
                 if old["body"] != body:
                     raise StateError("lifecycle_request_identity_conflict")
                 return {"id": name, "version": old["version"], "body": old["body"]}
