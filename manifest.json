@@ -1,0 +1,442 @@
+{
+  "schema": "brain-git-custody-v1",
+  "date": "2026-10-20",
+  "purpose": "Archive only; parents are custody, never an integration or release.",
+  "repositories": [
+    {
+      "id": 0,
+      "path": "/Users/root1/Developer/brain-org-build",
+      "common": "/Users/root1/Developer/memecoin-research/.git"
+    },
+    {
+      "id": 1,
+      "path": "/Users/root1/Developer/brain-org-state/pilot-20261019/integration",
+      "common": "/Users/root1/Developer/brain-org-state/pilot-20261019/integration/.git"
+    },
+    {
+      "id": 2,
+      "path": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/6/checkout",
+      "common": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/6/checkout/.git"
+    },
+    {
+      "id": 3,
+      "path": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/1/checkout",
+      "common": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/1/checkout/.git"
+    },
+    {
+      "id": 4,
+      "path": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/4/checkout",
+      "common": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/4/checkout/.git"
+    },
+    {
+      "id": 5,
+      "path": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/3/checkout",
+      "common": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/3/checkout/.git"
+    },
+    {
+      "id": 6,
+      "path": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/2/checkout",
+      "common": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/2/checkout/.git"
+    },
+    {
+      "id": 7,
+      "path": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/5/checkout",
+      "common": "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/5/checkout/.git"
+    },
+    {
+      "id": 8,
+      "path": "/Users/root1/Developer/brain-org-state/sol-recovery-20261020/candidate",
+      "common": "/Users/root1/Developer/brain-org-state/sol-recovery-20261020/candidate/.git"
+    },
+    {
+      "id": 9,
+      "path": "/Users/root1/Developer/brain-org-state/bootstrap-v1-20261019/integration",
+      "common": "/Users/root1/Developer/brain-org-state/bootstrap-v1-20261019/integration/.git"
+    },
+    {
+      "id": 10,
+      "path": "/Users/root1/Desktop/memecoin-ai",
+      "common": "/Users/root1/Desktop/memecoin-ai/.git"
+    }
+  ],
+  "refs": {
+    "0": [
+      "04b25c6006dd4609b1d2b8697f4a3c585db62251 refs/heads/codex/development-readiness-20261019",
+      "2f8da5f92da521b511e0d4fb20205981a000cab5 refs/heads/main",
+      "8eab3c535819988fe678b15c6012f8bf091d82e9 refs/heads/org/ceo-resource-policy-20261020",
+      "60fd1ba037a2532b559990bb1980248e12405025 refs/heads/org/continuation-custody-20261020",
+      "c63f46f90b6059d33e7a2ac753f7eb4f644496ae refs/heads/org/foundation-20261019",
+      "f22f610dd60c7fdf195d182c1b18d35a0d2e811e refs/heads/org/founder-quota-amendment-20261020",
+      "65c0c85d079f768a4746979313c9d7d6cf274c0b refs/heads/org/goal-lifecycle-recovery-20261020",
+      "28f7b70848a1d2283248a0d5b8540d37cbf7abbf refs/heads/org/goal-scheduling-proof-20261020",
+      "afc6beaa7596066f6b3399dcee721914ea742d34 refs/heads/org/luna-first-handoff-20261020",
+      "4dd6662a5a170cf8846280d427ebaf50c4be7513 refs/heads/org/metering-bridge-20261020",
+      "3733ce43f9606a738bbc07e5ebb0321f2a7f17bd refs/heads/org/metering-remediation-luna-20261020",
+      "1546e4c70d079167a91180c1b00b0af9a88b503a refs/heads/org/proposal-no-auto-astra-20261020",
+      "fa873e34d4118a0177c2b208ddd004a43f91cdf0 refs/heads/org/resource-bootstrap-20261020",
+      "613c5e9e6dd6fe00d6ebf4b072a31885826ac7a4 refs/heads/org/restorable-backup-luna-20261020",
+      "b37eafac71e8a62d387f2b8ccc58a63d0104d266 refs/heads/org/sol-recovery-20261020",
+      "963a8306395025e475d19c671871d9d265cf2074 refs/heads/org/task-spec-store-20261020",
+      "2b81ebbc67c175e3d7255988dee527cbb1d3afd8 refs/heads/org/task-specs-repair-luna-20261020",
+      "2f8da5f92da521b511e0d4fb20205981a000cab5 refs/remotes/origin/HEAD",
+      "04b25c6006dd4609b1d2b8697f4a3c585db62251 refs/remotes/origin/codex/development-readiness-20261019",
+      "65846e8ed472b1f61af6afdeb77499c94f068313 refs/remotes/origin/codex/linux-portability-20261018",
+      "6554a0180cb887fb20fd2cca3eb097f38b28489f refs/remotes/origin/codex/v3-scratch-20261017",
+      "de4b42d1600e085cbd128476bb9044db92c3cef5 refs/remotes/origin/control-center/observatory-handoff",
+      "2f8da5f92da521b511e0d4fb20205981a000cab5 refs/remotes/origin/main",
+      "8eab3c535819988fe678b15c6012f8bf091d82e9 refs/remotes/origin/org/ceo-resource-policy-20261020",
+      "60fd1ba037a2532b559990bb1980248e12405025 refs/remotes/origin/org/continuation-custody-20261020",
+      "c63f46f90b6059d33e7a2ac753f7eb4f644496ae refs/remotes/origin/org/foundation-20261019",
+      "f22f610dd60c7fdf195d182c1b18d35a0d2e811e refs/remotes/origin/org/founder-quota-amendment-20261020",
+      "65c0c85d079f768a4746979313c9d7d6cf274c0b refs/remotes/origin/org/goal-lifecycle-recovery-20261020",
+      "28f7b70848a1d2283248a0d5b8540d37cbf7abbf refs/remotes/origin/org/goal-scheduling-proof-20261020",
+      "afc6beaa7596066f6b3399dcee721914ea742d34 refs/remotes/origin/org/luna-first-handoff-20261020",
+      "1546e4c70d079167a91180c1b00b0af9a88b503a refs/remotes/origin/org/proposal-no-auto-astra-20261020",
+      "6db5866991772a35b7e0788c50a812b805193541 refs/remotes/origin/org/resource-bootstrap-20261020",
+      "b37eafac71e8a62d387f2b8ccc58a63d0104d266 refs/remotes/origin/org/sol-recovery-20261020",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/remotes/origin/research/active",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/tags/archive/research-active-pre-org-20261019",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "1": [
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/heads/org/foundation-20261019",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/heads/research/active",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/HEAD",
+      "04b25c6006dd4609b1d2b8697f4a3c585db62251 refs/remotes/origin/codex/development-readiness-20261019",
+      "2f8da5f92da521b511e0d4fb20205981a000cab5 refs/remotes/origin/main",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/org/foundation-20261019",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/tags/archive/research-active-pre-org-20261019",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "2": [
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/heads/research/active",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/HEAD",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/org/foundation-20261019",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/research/active",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/tags/archive/research-active-pre-org-20261019",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "3": [
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/heads/research/active",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/HEAD",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/org/foundation-20261019",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/research/active",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/tags/archive/research-active-pre-org-20261019",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "4": [
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/heads/research/active",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/HEAD",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/org/foundation-20261019",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/research/active",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/tags/archive/research-active-pre-org-20261019",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "5": [
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/heads/research/active",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/HEAD",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/org/foundation-20261019",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/research/active",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/tags/archive/research-active-pre-org-20261019",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "6": [
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/heads/research/active",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/HEAD",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/org/foundation-20261019",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/research/active",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/tags/archive/research-active-pre-org-20261019",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "7": [
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/heads/research/active",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/HEAD",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/org/foundation-20261019",
+      "fa9d625dfd3499dc1b916a7df477401075c8363d refs/remotes/origin/research/active",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/tags/archive/research-active-pre-org-20261019",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "8": [
+      "1546e4c70d079167a91180c1b00b0af9a88b503a refs/heads/org/proposal-no-auto-astra-20261020",
+      "c63f46f90b6059d33e7a2ac753f7eb4f644496ae refs/heads/org/sol-recovery-20261020",
+      "c63f46f90b6059d33e7a2ac753f7eb4f644496ae refs/remotes/origin/HEAD",
+      "04b25c6006dd4609b1d2b8697f4a3c585db62251 refs/remotes/origin/codex/development-readiness-20261019",
+      "2f8da5f92da521b511e0d4fb20205981a000cab5 refs/remotes/origin/main",
+      "c63f46f90b6059d33e7a2ac753f7eb4f644496ae refs/remotes/origin/org/foundation-20261019",
+      "1546e4c70d079167a91180c1b00b0af9a88b503a refs/remotes/origin/org/proposal-no-auto-astra-20261020",
+      "c63f46f90b6059d33e7a2ac753f7eb4f644496ae refs/remotes/origin/org/sol-recovery-20261020",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "9": [
+      "379539ab54679e9e69246d1f3026f3f708da8b81 refs/heads/org/foundation-20261019",
+      "379539ab54679e9e69246d1f3026f3f708da8b81 refs/heads/research/active",
+      "379539ab54679e9e69246d1f3026f3f708da8b81 refs/remotes/origin/HEAD",
+      "04b25c6006dd4609b1d2b8697f4a3c585db62251 refs/remotes/origin/codex/development-readiness-20261019",
+      "2f8da5f92da521b511e0d4fb20205981a000cab5 refs/remotes/origin/main",
+      "379539ab54679e9e69246d1f3026f3f708da8b81 refs/remotes/origin/org/foundation-20261019",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/tags/archive/research-active-pre-org-20261019",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ],
+    "10": [
+      "f9a81183a9cfb432c07f1681c8c45d02b831eecf refs/heads/main",
+      "f9a81183a9cfb432c07f1681c8c45d02b831eecf refs/remotes/origin/HEAD",
+      "65846e8ed472b1f61af6afdeb77499c94f068313 refs/remotes/origin/codex/linux-portability-20261018",
+      "6554a0180cb887fb20fd2cca3eb097f38b28489f refs/remotes/origin/codex/v3-scratch-20261017",
+      "de4b42d1600e085cbd128476bb9044db92c3cef5 refs/remotes/origin/control-center/observatory-handoff",
+      "f9a81183a9cfb432c07f1681c8c45d02b831eecf refs/remotes/origin/main",
+      "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186 refs/remotes/origin/research/active",
+      "c6b3885dd2bfec146467cab8d61d56851ec816bb refs/tags/archive/bootstrap-fixtures-20261018",
+      "777579daa9d84f4f496122d741aa059786c33a6f refs/tags/archive/pre-reset-20261018",
+      "1f7b24340a7e78cc106ac9dc24b5d3d3bf9029cc refs/tags/brain-dr-handoff-v1",
+      "6e83941ea3d3d7e8fe37483872cb52b3507ff938 refs/tags/brain-dr-handoff-v2",
+      "aaafd81a4c396cec9d5ffdb50066911cf84e35e0 refs/tags/brain-dr-handoff-v3",
+      "3af219193f45e03dc0fa6e336df5b329a86c4cfb refs/tags/brain-dr-handoff-v4",
+      "0f90e09307075364d50b6fd68a7f139faa13ff3f refs/tags/brain-dr-handoff-v5",
+      "55d655d0ecf580265442372ca98fe4ad3a6f693e refs/tags/brain-git-consolidated-20261018"
+    ]
+  },
+  "heads": {
+    "/Users/root1/Developer/brain-org-build": "afc6beaa7596066f6b3399dcee721914ea742d34",
+    "/Users/root1/Developer/memecoin-research": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+    "/Users/root1/Developer/brain-org-state/pilot-20261019/integration": "fa9d625dfd3499dc1b916a7df477401075c8363d",
+    "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/6/checkout": "fa9d625dfd3499dc1b916a7df477401075c8363d",
+    "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/1/checkout": "fa9d625dfd3499dc1b916a7df477401075c8363d",
+    "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/4/checkout": "fa9d625dfd3499dc1b916a7df477401075c8363d",
+    "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/3/checkout": "fa9d625dfd3499dc1b916a7df477401075c8363d",
+    "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/2/checkout": "fa9d625dfd3499dc1b916a7df477401075c8363d",
+    "/Users/root1/Developer/brain-org-state/pilot-20261019/attempts/5/checkout": "fa9d625dfd3499dc1b916a7df477401075c8363d",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/candidate": "fa873e34d4118a0177c2b208ddd004a43f91cdf0",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/metering-remediation-luna": "3733ce43f9606a738bbc07e5ebb0321f2a7f17bd",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/task-specs-review-checkout": "6db5866991772a35b7e0788c50a812b805193541",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/task-specs-repair-luna": "2b81ebbc67c175e3d7255988dee527cbb1d3afd8",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/review4-checkout": "27431b7cdd81f22c61d284234f041e5858c92a5a",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/review5-checkout": "1d6d44f90aa4fd338d3eb2cce7b19d96e7425c99",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/restorable-backup-luna": "613c5e9e6dd6fe00d6ebf4b072a31885826ac7a4",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/task-spec-store-checkout": "963a8306395025e475d19c671871d9d265cf2074",
+    "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/metering-bridge-checkout": "4dd6662a5a170cf8846280d427ebaf50c4be7513",
+    "/Users/root1/Developer/brain-org-state/sol-recovery-20261020/candidate": "1546e4c70d079167a91180c1b00b0af9a88b503a",
+    "/Users/root1/Developer/brain-org-state/bootstrap-v1-20261019/integration": "379539ab54679e9e69246d1f3026f3f708da8b81",
+    "/Users/root1/Desktop/memecoin-ai": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31"
+  },
+  "dirty": [
+    {
+      "checkout": "/Users/root1/Developer/brain-org-build",
+      "path": "docs/BRAIN-ENGINEERING-ORGANIZATION.md",
+      "base": "afc6beaa7596066f6b3399dcee721914ea742d34",
+      "private_archive": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-0-dirty.tar.gz",
+      "sha256": "9879c21b974dbfab86d92921707e282d5bf5c0a03c8eb5a52b1aab115dfb7468",
+      "archive_path": "snapshots/checkout-0/docs/BRAIN-ENGINEERING-ORGANIZATION.md"
+    },
+    {
+      "checkout": "/Users/root1/Developer/brain-org-build",
+      "path": "engineering/OWNER-DESK.md",
+      "base": "afc6beaa7596066f6b3399dcee721914ea742d34",
+      "private_archive": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-0-dirty.tar.gz",
+      "sha256": "dc281a126c28e9165f9e9ade7b834c75eda4484a72a51aab7903e97b0024eb45",
+      "archive_path": "snapshots/checkout-0/engineering/OWNER-DESK.md"
+    },
+    {
+      "checkout": "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/restorable-backup-luna",
+      "path": "engineering/service.py",
+      "base": "613c5e9e6dd6fe00d6ebf4b072a31885826ac7a4",
+      "private_archive": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-15-dirty.tar.gz",
+      "sha256": "04fdea193b65e2f73dc72c9425bb2562bd888ab45e2b6e0c117053365c1a7291",
+      "archive_path": "snapshots/checkout-15/engineering/service.py"
+    },
+    {
+      "checkout": "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/restorable-backup-luna",
+      "path": "engineering/tests/test_service.py",
+      "base": "613c5e9e6dd6fe00d6ebf4b072a31885826ac7a4",
+      "private_archive": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-15-dirty.tar.gz",
+      "sha256": "2e12946749c26518217c8fd133fb7ad6620e8eb99e57c56a34d344eb43597f32",
+      "archive_path": "snapshots/checkout-15/engineering/tests/test_service.py"
+    },
+    {
+      "checkout": "/Users/root1/Desktop/memecoin-ai",
+      "path": "docs/brain-operator-manual.md",
+      "base": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "private_archive": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-20-dirty.tar.gz",
+      "sha256": "dc628d7c88f40660e3ea5e7e068c6c7da493e1700f03510cb1cf5cc319221f1e"
+    },
+    {
+      "checkout": "/Users/root1/Desktop/memecoin-ai",
+      "path": "memory/changes.md",
+      "base": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "private_archive": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-20-dirty.tar.gz",
+      "sha256": "a338df54ecf86ab027869f0a33176dcfb3dfc60fad38a315ecf2c3e779dff56b"
+    },
+    {
+      "checkout": "/Users/root1/Desktop/memecoin-ai",
+      "path": "memory/decisions.md",
+      "base": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "private_archive": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-20-dirty.tar.gz",
+      "sha256": "b2d86640383705355bbd508ac6523963832c2f0c1bc110b8b770b4a2997671bb"
+    },
+    {
+      "checkout": "/Users/root1/Desktop/memecoin-ai",
+      "path": "memory/now.md",
+      "base": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "private_archive": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-20-dirty.tar.gz",
+      "sha256": "538830b939723d09d3493b0dcc50bed4e89c2234d4f4709f781109ae881c4f19"
+    },
+    {
+      "checkout": "/Users/root1/Desktop/memecoin-ai",
+      "path": "memory/state.md",
+      "base": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+      "private_archive": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-20-dirty.tar.gz",
+      "sha256": "ee5a8225a99db80bba2eb26b5786cf2aba92efa7b5d2e97e821f844ad47c6d4a"
+    }
+  ],
+  "private_custody": [
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-0-before.bundle",
+      "sha256": "289232f3895f14ef79cc20a8f804f4a3b9f331b0fc89b74ba1c4439eb42adca6",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-1-before.bundle",
+      "sha256": "772bda0ab6115e77cd18c98299329dba5781b56ef6da604e047b205451e741fd",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-2-before.bundle",
+      "sha256": "6395ceb6b0ee0693c987b8617022021f04754240218a71b398f2ad9c8a5bbe63",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-3-before.bundle",
+      "sha256": "6395ceb6b0ee0693c987b8617022021f04754240218a71b398f2ad9c8a5bbe63",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-4-before.bundle",
+      "sha256": "6395ceb6b0ee0693c987b8617022021f04754240218a71b398f2ad9c8a5bbe63",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-5-before.bundle",
+      "sha256": "6395ceb6b0ee0693c987b8617022021f04754240218a71b398f2ad9c8a5bbe63",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-6-before.bundle",
+      "sha256": "6395ceb6b0ee0693c987b8617022021f04754240218a71b398f2ad9c8a5bbe63",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-7-before.bundle",
+      "sha256": "6395ceb6b0ee0693c987b8617022021f04754240218a71b398f2ad9c8a5bbe63",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-8-before.bundle",
+      "sha256": "389bddbb6e157aba43de8241df015e09ba932682ce33d925eb451352f67e9ef2",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-9-before.bundle",
+      "sha256": "4e4a8e295bb670956f5699e64a2e4a12126fe4f5a48cd469e0bb98119095f014",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/repo-10-before.bundle",
+      "sha256": "5f3d177be0cd94a543a18df0b739c0a0ddb70f5a35b5b60c8a2938429926a774",
+      "kind": "git bundle"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-0-dirty.tar.gz",
+      "sha256": "9753118946313e0fbbe9ac5242819a1ebcc86a484390e41682efa52917b020bf",
+      "kind": "dirty files"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-15-dirty.tar.gz",
+      "sha256": "c2193f4adb21b8ce753c2540196fffa413da3953be72f3273672a2d40c59c04f",
+      "kind": "dirty files"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-org-state/consolidation-20261020/checkout-20-dirty.tar.gz",
+      "sha256": "1680f726a51685b60fe2793d1d0d116817909ab12213958024b0a7bdd94ad6d5",
+      "kind": "dirty files"
+    }
+  ],
+  "custody_parent_commits": [
+    "1546e4c70d079167a91180c1b00b0af9a88b503a",
+    "2f28fcc4b37bf8d54fb5a0fef9d2b7b8c3240293",
+    "613c5e9e6dd6fe00d6ebf4b072a31885826ac7a4",
+    "6554a0180cb887fb20fd2cca3eb097f38b28489f",
+    "65846e8ed472b1f61af6afdeb77499c94f068313",
+    "963a8306395025e475d19c671871d9d265cf2074",
+    "afc6beaa7596066f6b3399dcee721914ea742d34",
+    "de4b42d1600e085cbd128476bb9044db92c3cef5"
+  ]
+}
