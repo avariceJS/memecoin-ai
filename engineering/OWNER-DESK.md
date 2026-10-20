@@ -175,7 +175,8 @@ Sol принял receipt только как static correlation и отклон�
 Условную потерю canonical progress snapshot исправил: пятифилдовый формат и optional шестое
 `cacheWriteInputTokens` сохраняют те же пять канонических счётчиков; raw шестое поле остаётся в
 receipt, некорректные значения отвергаются, terminal settlement не включался. Добавленные focused
-cases прошли прямой запуск и компиляцию; `pytest`/Ruff отсутствуют в среде.
+на момент первичной правки прошли прямой запуск и компиляцию; позже точный кандидат `3c16388`
+прошёл pinned pytest/Ruff release gate, что зафиксировано ниже.
 
 Sol отклонил release qualification source candidate `8a28908`, затем проверил `f73e030`:
 подтвердил A01, семантику A07, порядок bootstrap и атомарность миграции A02, но отклонил
@@ -191,13 +192,16 @@ behind requalification; canonical containment; safe cleanup; and barrier before 
 квота читается на первом цикле независимо от system uptime. Snapshot требует STOP/lock и сохраняет
 `runtime_ready=false`; host requalification остаётся обязательной.
 
-Sol проверил точный кандидат `d4d6590` и принял его для bounded source repair, включая guard,
+Sol проверил точный кандидат `3c16388` и принял его для bounded source repair, включая guard,
 требующий `restore_requires_host_requalification=true` при relaxed structural validation.
-Release qualification остаётся незавершённой: `ORG-A03` fail-closed, unknown/late usage сохраняет
-резервы, pinned pytest/Ruff release target недоступен, а operational restore и host requalification
-остаются отдельными проверками. Focused проверки: 62 unittest случая ledger/state/bootstrap, все
-26 supervisor unittest тестов и 12 функций snapshot/restore/deployment через минимальную
-import-only заглушку `pytest` (это не запуск pytest runner). Пилот, STOP, runtime и protected data
-не трогались.
+Полный source gate `make VENV=/Users/root1/Developer/memecoin-research/.venv/bin
+engineering-release-check` прошёл на Python 3.13.6 с точными версиями из
+`requirements-dev.lock`: Ruff lint, Ruff format (44 файла), pytest — 251 тест и 42 subtests.
+Внешняя pinned-среда не изменялась. Sol принял точный `3c16388` как bounded source repair;
+отдельная новая проверка выполнена `gpt-6.1-sol/high`, без приписывания ей native thread ID.
+Это не полная release qualification: `ORG-A03` fail-closed, unknown/late usage сохраняет
+резервы, а operational restore и host requalification остаются отдельными проверками. Полный
+синтетический checkpoint/fresh-path restore по-прежнему не является восстановлением owner runtime
+или pilot. Пилот, STOP, runtime и protected data не трогались.
 
 Дополнительно напрямую прошёл полный синтетический сценарий `test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts`: checkpoint → перемещение источника → restore в новый путь; проверены SQLite backup, inventory/файлы, integration Git ref, сохранение STOP, persisted host-requalification barrier и `runtime_ready=false`. Тест использовал временное состояние и синтетический Git repo; owner runtime и pilot не копировались и не восстанавливались.

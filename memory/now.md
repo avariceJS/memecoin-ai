@@ -23,8 +23,9 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   completeness remain unqualified; A03 stays fail-closed. Receipt:
   `terminal-usage-raw-response-source-probe-20261020.json` in the external resumption handoff.
 - The parser now preserves that optional field in raw evidence and normalizes only the five canonical
-  counters. Five/six-field cases and malformed optional values passed direct invocation; checkout
-  has no pytest/Ruff and only Python 3.9, so standard focused test tooling remains unverified.
+  counters. Exact candidate `3c16388` passed the pinned engineering release target using Python
+  3.13.6 and the already-installed external venv: Ruff lint/format and pytest (251 tests, 42 subtests).
+  The external environment was not modified.
 - Sol reviewed `f73e030`: A01, A07 and A02 bootstrap ordering/atomic migration were accepted, while
   A02 schema compatibility, A09 wrong-shaped output validation and complete release qualification
   were rejected. Sol also rejected `47d0770`: it found split-FK acceptance, missing Git object closure
@@ -36,14 +37,15 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   first quota read regardless of uptime. Restore retains STOP and remains `runtime_ready=false`;
   host qualification is required. Sol reviewed `81aa8eb`, found that `allow_requalification=True`
   could be called without a persisted barrier, and the `d4d6590` candidate now requires that barrier.
-  Sol accepted exact commit `d4d6590` for bounded source repair. This is not full release
-  qualification: ORG-A03 remains fail-closed, pytest/Ruff checks remain unavailable, and operational
-  restore/host qualification remain open.
+  Sol accepted exact commit `3c16388` for bounded source repair; independent `gpt-6.1-sol/high`
+  review confirmed the permit/thread fixture contract and no settlement from progress plus
+  `turn/completed`. The pinned source gate passed. This is not full release qualification: ORG-A03
+  remains fail-closed, and operational restore/host qualification remain open.
   A03 remains fail-closed; unknown/late usage keeps reservations.
 - Current focused check: 62 unittest cases across ledger/state/bootstrap and all 26 supervisor
   unittest cases passed; 12 snapshot/restore/deployment functions passed via a minimal import-only
   `pytest` shim.
-  This is not a pytest runner execution. Ruff/pytest remain unavailable.
+  These earlier shim checks are superseded for source-gate status by the pinned pytest/Ruff run above.
 - Exact `d4d6590` source passed a direct complete synthetic checkpoint/move/fresh-path restore
   scenario: online SQLite backups, copied inventory/receipts/integration Git ref, STOP retained,
   persisted host-requalification barrier, `runtime_ready=false`. Owner deployment and pilot were not
