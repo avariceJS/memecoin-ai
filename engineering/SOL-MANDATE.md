@@ -77,6 +77,17 @@ open. Sol's bounded-source receipt is
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-durable-contract-transition-review-20261021.json`
 (SHA-256 `d94296b79abae78b7d22cce4348b750a2123046dbb860250ff13407490e9424e`).
 
+Subsequent A10 increments cover dependency obligations, quiescence-trigger freshness, generic
+contract acknowledgement routing and bounded department plans/leases. At source `9b18609`, the
+department scaffold adds two-team epoch-fenced coordination leases, immutable owner-attributed plan
+revisions, review deadlines and bounded projections. A coherent SQLite read snapshot now classifies
+plan revisions; the cross-connection race regression and engineering gate passed (362 tests/96
+subtests, Ruff), and Sol accepted the exact diff. No admission, execution, scheduling or runtime
+authority is added. Conflict adjudication, remaining trigger freshness and broad A10 remain open.
+Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-department-plan-leases-review-20261021.json`
+(SHA-256 `7ea47eacb174c8c2723c385b00d84977453554ac7f14fbbd71f19912b3fdb84b`).
+
 ## Historical founder audit hold — 2026-10-20
 
 The founder paused autonomous development for Git consolidation and an independent architecture

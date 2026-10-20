@@ -497,6 +497,17 @@ A10 остаются открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-generic-contract-ack-routing-review-20261021.json`
 (SHA-256 `472a67f60b6669393416a3adb02a1fad69da2d4bfe9fbd40d8c70e72ff735cb5`).
 
+Следующий A10 increment принят Sol на точном diff
+`ec616e1ece9e8f6eedc226d2d7a1cff8e8f057c338eb6555b142704dfb2d45e5`, source commit
+`9b18609b6a658594fd2846bf9d2c78902170d4b4`. Добавлены epoch-fenced department leases максимум
+для двух команд, immutable owner-attributed plan revisions, review deadlines и ограниченные
+snapshot/report projections. `get_department_plan` читает обе выборки в одной SQLite snapshot;
+cross-connection regression коммитит следующую revision между запросами и подтверждает coherent
+status. Gate: 362 tests/96 subtests, Ruff. Это coordination bookkeeping: admission, execution,
+scheduling, runtime и services не добавлены; conflict adjudication и полный A10 открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-department-plan-leases-review-20261021.json`
+(SHA-256 `7ea47eacb174c8c2723c385b00d84977453554ac7f14fbbd71f19912b3fdb84b`).
+
 A05 consumer пока не реализован: Store имеет owner epoch как lease fence, но не имеет отдельного
 controller-owned authorization generation; `launch_authorized` приходит как caller observation.
 Consumer не должен создавать или повышать launch authority. Нужен отдельный владелец generation;

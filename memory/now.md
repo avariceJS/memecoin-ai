@@ -122,6 +122,16 @@ automatically.
   open. Latest receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-generic-contract-ack-routing-review-20261021.json`
   (SHA-256 `472a67f60b6669393416a3adb02a1fad69da2d4bfe9fbd40d8c70e72ff735cb5`).
+- A10 department coordination now has epoch-fenced leases (maximum two active teams), immutable
+  owner-attributed plan revisions, review deadlines, and bounded snapshot/report projections. Plan
+  reads use one SQLite snapshot; a cross-connection interleaving regression confirms coherent
+  current/superseded status. Sol accepted exact diff
+  `ec616e1ece9e8f6eedc226d2d7a1cff8e8f057c338eb6555b142704dfb2d45e5`; source commit is
+  `9b18609b6a658594fd2846bf9d2c78902170d4b4`. Gate passed 362 tests/96 subtests and Ruff.
+  This is coordination bookkeeping only; task admission/execution, conflict adjudication and broad
+  A10 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-department-plan-leases-review-20261021.json`
+  (SHA-256 `7ea47eacb174c8c2723c385b00d84977453554ac7f14fbbd71f19912b3fdb84b`).
 - A04 source-only verifier-manifest custody resolver merged at `9487fc70057bc8ff5a467394fe7b70b06391e7b3`;
   Sol accepted the exact source. It verifies canonical manifest/binding digests, release/policy
   identities, exact verifier metadata and trusted harness bytes. The shared plan does not call this
