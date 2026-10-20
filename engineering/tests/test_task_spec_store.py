@@ -10,7 +10,11 @@ from unittest.mock import patch
 
 from engineering.git_gate import VerificationPolicy
 from engineering.org_state import StateError, Store
-from engineering.verification_plan import VerificationPlanError, prepare_verification_plan
+from engineering.verification_plan import (
+    VerificationPlanError,
+    attempt_plan_matches,
+    prepare_verification_plan,
+)
 
 H = "a" * 64
 BASE = "b" * 40
@@ -149,6 +153,17 @@ class TaskSpecStoreTests(unittest.TestCase):
         self.assertEqual(plan.acceptance_identities, (f"atomic-spec-store:{H}",))
         self.assertEqual(self.store.get_task(SPEC["id"])["state"], "pending")
         self.assertEqual(self.store.events(), before_events)
+        self.assertEqual(
+            attempt_plan_matches(plan, {"verification_plan": plan.identity()}), (True, None)
+        )
+        self.assertEqual(
+            attempt_plan_matches(plan, {}), (False, "attempt_verification_plan_missing")
+        )
+        changed = {**plan.identity(), "decision_version": True}
+        self.assertEqual(
+            attempt_plan_matches(plan, {"verification_plan": changed}),
+            (False, "attempt_verification_plan_mismatch"),
+        )
 
     def test_bound_verification_plan_rejects_missing_binding_without_legacy_fallback(self):
         self.admit()

@@ -32,6 +32,42 @@ class VerificationPlan:
     acceptance_identities: tuple[str, ...]
     plan_sha256: str
 
+    def identity(self) -> dict[str, Any]:
+        """Return the JSON-safe identity that must travel with an admitted attempt."""
+        return {
+            "plan_sha256": self.plan_sha256,
+            "policy_sha256": self.policy.digest,
+            "binding_sha256": self.binding_sha256,
+            "decision_name": self.decision_name,
+            "decision_version": self.decision_version,
+            "acceptance_identities": list(self.acceptance_identities),
+        }
+
+
+def attempt_plan_matches(plan: VerificationPlan, evidence: Any) -> tuple[bool, str | None]:
+    """Require attempt-to-verifier identity equality, allowing old legacy evidence only."""
+    if type(evidence) is not dict:
+        return False, "attempt_evidence_invalid"
+    recorded = evidence.get("verification_plan")
+    if recorded is None:
+        if plan.binding_sha256 is None:
+            return True, None
+        return False, "attempt_verification_plan_missing"
+    if type(recorded) is not dict:
+        return False, "attempt_verification_plan_invalid"
+    try:
+        expected_bytes = json.dumps(
+            plan.identity(), sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+        recorded_bytes = json.dumps(
+            recorded, sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+    except (TypeError, ValueError, OverflowError, RecursionError):
+        return False, "attempt_verification_plan_invalid"
+    if recorded_bytes != expected_bytes:
+        return False, "attempt_verification_plan_mismatch"
+    return True, None
+
 
 def _digest(body: Any) -> str:
     try:
