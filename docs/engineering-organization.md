@@ -380,6 +380,18 @@ references: [`SecCodeCopyGuestWithAttributes`](https://developer.apple.com/docum
 [`kSecGuestAttributePid`](https://developer.apple.com/documentation/security/ksecguestattributepid), and
 [signing information keys](https://developer.apple.com/documentation/security/signing-information-dictionary-keys).
 
+A synthetic macOS integration test now joins persisted task admission and verifier binding, manifest
+v4 resolution, bound-command expansion, `SandboxRunner`, and strict result parsing in one disposable
+path. It discovers the runtime image identity as observed under Seatbelt, distinct from the Python
+launcher file path and digest. Sol accepted the exact one-file diff
+`5e03ada485c56a4635da07d89c7cdb6679c21b3ac4cecf790b87af09ca6316cd`; Ruff and the engineering
+release gate passed (370 tests, 96 subtests). The test invokes the low-level runner only to establish
+synthetic plumbing; the plan remains `execution_qualified=False` and the production supervisor still
+fails closed. This does not qualify deployment roots, loader/import closure, same-inode invocation,
+continuous identity, descendants, output provenance, or sandbox policy. Fixed probe/harness sleeps
+can fail on a heavily stalled host, and synchronous Security API calls remain uninterruptible.
+Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-sandbox-integration-review-20261021.json`.
+
 Before any future A05 request consumer is designed, its inputs must come from one coherent,
 source-identified gate snapshot with capture time or sequence. Consumption must reject unknown or
 stale observations and re-evaluate database gates under the current owner fence using the Store

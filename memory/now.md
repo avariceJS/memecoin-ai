@@ -22,6 +22,12 @@ automatically.
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable
   authorization-generation deduplication. Both remain open; see `docs/engineering-organization.md`.
+- A04 source `62ab4ce` adds a Sol-accepted synthetic macOS joined-path test from persisted admission
+  through manifest v4, bound Seatbelt execution and strict result parsing; engineering gate passed
+  370 tests/96 subtests with Ruff. It is plumbing evidence only: bound plans remain
+  `execution_qualified=False`; same-inode, loader, deployment, continuous identity and output
+  provenance remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-sandbox-integration-review-20261021.json`.
 - Source-only A04 review of tracked `pilot_acceptance.py` found stdlib imports and sandboxed dynamic
   candidate loading; interpreter hash plus `-I -S -B` does not pin stdlib/native loader closure.
   Deployed manifest/runtime were not inspected or executed.

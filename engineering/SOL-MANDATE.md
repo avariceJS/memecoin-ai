@@ -112,6 +112,12 @@ launch, loader closure, deployment qualification and full A04 remain open. Bound
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-process-code-monitor-review-20261021.json`
 (SHA-256 `5e65765997a18e9b75881156ef30c50aaf3b5ccbf78e9f9e8b1f101323aab342`).
 
+At source `62ab4ce0e90a9cc75fa2716c5a3e2dea51f44819`, a synthetic macOS test joins persisted
+admission/binding, manifest v4 resolution, bound-command expansion, Seatbelt execution and strict
+result parsing. Sol accepted the exact test diff `5e03ada485c56a4635da07d89c7cdb6679c21b3ac4cecf790b87af09ca6316cd`; Ruff and the engineering gate passed (370 tests/96 subtests). This low-level test leaves `execution_qualified=False` and does not qualify deployment, loader closure, same-inode invocation, continuous identity, descendants or output provenance. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-sandbox-integration-review-20261021.json`
+(SHA-256 `8f2472b36d9285a0184acdb531a6c74fd4b27faef2fa9b70804e48cc1bf5dacb`).
+
 ## Historical founder audit hold — 2026-10-20
 
 The founder paused autonomous development for Git consolidation and an independent architecture

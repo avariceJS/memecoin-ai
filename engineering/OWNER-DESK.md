@@ -534,3 +534,12 @@ A05 consumer пока не реализован: Store имеет owner epoch к
 controller-owned authorization generation; `launch_authorized` приходит как caller observation.
 Consumer не должен создавать или повышать launch authority. Нужен отдельный владелец generation;
 пассивный disposition и любые process/service actions остаются разными границами.
+
+A04 synthetic integration increment принят Sol на exact diff
+`5e03ada485c56a4635da07d89c7cdb6679c21b3ac4cecf790b87af09ca6316cd`, source `62ab4ce`. Один
+macOS test связывает persisted admission/binding, manifest v4, command expansion, Seatbelt и строгий
+result parser. Полный gate прошёл: 370 tests, 96 subtests, Ruff. Это ограниченное plumbing evidence:
+план остаётся `execution_qualified=False`; same-inode, loader/import closure, deployment, continuous
+identity, descendants и provenance результата не квалифицированы. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-sandbox-integration-review-20261021.json`
+(SHA-256 `8f2472b36d9285a0184acdb531a6c74fd4b27faef2fa9b70804e48cc1bf5dacb`).
