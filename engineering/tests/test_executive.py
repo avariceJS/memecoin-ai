@@ -358,13 +358,292 @@ class ExecutiveTests(unittest.TestCase):
         self.assertEqual(self.executive.get_department_plan("Platform")["revision"], 2)
         self.now += 201
         view = self.executive.snapshot()
-        self.assertEqual(view["schema"], "brain-executive-snapshot-v2")
+        self.assertEqual(view["schema"], "brain-executive-snapshot-v3")
         self.assertEqual(view["counts"]["department_plans"], 1)
         self.assertEqual(view["counts"]["department_plan_reviews_due"], 1)
         self.assertEqual(view["department_plans"][0]["review_state"], "due")
         self.assertIn(
             "Планы команд: 1; срок пересмотра наступил: 1.", self.executive.render_report()
         )
+
+    def test_department_conflicts_are_plan_bound_fenced_and_superseded(self):
+        self.store.add_objective("offline", "Offline engineering")
+        platform = self.executive.claim_department("Platform", "sol-platform")
+        experience = self.executive.claim_department("Experience", "sol-experience")
+        for lease, summary, evidence in (
+            (platform, "Pin verifier admission", "commit:platform-v1"),
+            (experience, "Preserve schema compatibility", "commit:experience-v1"),
+        ):
+            self.executive.record_department_plan(
+                lease,
+                1,
+                "offline",
+                summary,
+                ["Resolve the shared contract boundary"],
+                self.now + 100,
+                evidence_refs=[evidence],
+            )
+
+        first = self.executive.escalate_department_conflict(
+            platform,
+            "C-1",
+            "Experience",
+            "The contract change requires incompatible release order.",
+            own_plan_revision=1,
+            other_plan_revision=1,
+            rationale="Both teams identify conflicting immutable contract constraints.",
+            evidence_refs=["plan:Platform/1", "plan:Experience/1"],
+        )
+        self.assertEqual(
+            (first["status"], first["team_a"], first["team_b"]), ("open", "Experience", "Platform")
+        )
+        self.assertEqual(
+            self.executive.escalate_department_conflict(
+                platform,
+                "C-1",
+                "Experience",
+                "The contract change requires incompatible release order.",
+                own_plan_revision=1,
+                other_plan_revision=1,
+                rationale="Both teams identify conflicting immutable contract constraints.",
+                evidence_refs=["plan:Platform/1", "plan:Experience/1"],
+            ),
+            first,
+        )
+
+        ceo = self.lease("ceo-episode")
+        resolved = self.executive.adjudicate_department_conflict(
+            ceo,
+            "C-1",
+            1,
+            "select_team_a",
+            "The Experience plan preserves the existing consumer contract.",
+            ["review:contract-compatibility"],
+        )
+        self.assertEqual(resolved["adjudicator_epoch"], ceo["epoch"])
+        self.assertEqual(self.executive.get_department_conflict("C-1")["status"], "resolved")
+        with self.assertRaisesRegex(ExecutiveError, "changed plan revisions"):
+            self.executive.escalate_department_conflict(
+                platform,
+                "C-UNCHANGED",
+                "Experience",
+                "Attempt to reopen the resolved conflict without new plans.",
+                own_plan_revision=1,
+                other_plan_revision=1,
+                evidence_refs=["plan:Platform/1", "plan:Experience/1"],
+                supersedes="C-1",
+            )
+        self.assertEqual(
+            self.executive.adjudicate_department_conflict(
+                ceo,
+                "C-1",
+                1,
+                "select_team_a",
+                "The Experience plan preserves the existing consumer contract.",
+                ["review:contract-compatibility"],
+            ),
+            resolved,
+        )
+        with self.assertRaisesRegex(ExecutiveError, "immutable"):
+            self.executive.adjudicate_department_conflict(
+                ceo,
+                "C-1",
+                1,
+                "select_team_b",
+                "Changed decision",
+                ["review:changed"],
+            )
+
+        deferred = self.executive.adjudicate_department_conflict(
+            ceo,
+            "C-1",
+            2,
+            "defer",
+            "Wait for both owners to reconcile the plan pins.",
+            ["review:defer"],
+            supersedes_revision=1,
+        )
+        self.assertEqual(deferred["supersedes_revision"], 1)
+        self.assertEqual(self.executive.get_department_conflict("C-1")["status"], "open")
+
+        self.executive.record_department_plan(
+            platform,
+            2,
+            "offline",
+            "Reconcile verifier and schema pins",
+            ["Publish a compatible shared contract"],
+            self.now + 200,
+            evidence_refs=["plan:platform-v2"],
+        )
+        with self.assertRaisesRegex(ExecutiveError, "plan revisions are stale"):
+            self.executive.adjudicate_department_conflict(
+                ceo,
+                "C-1",
+                3,
+                "select_team_b",
+                "The old plan pair no longer matches.",
+                ["review:stale"],
+                supersedes_revision=2,
+            )
+        stale_view = self.executive.snapshot(open_limit=10)
+        self.assertEqual(stale_view["counts"]["department_conflicts_open"], 0)
+        self.assertEqual(stale_view["counts"]["department_conflicts_stale"], 1)
+        self.assertEqual(
+            next(row for row in stale_view["department_conflicts"] if row["id"] == "C-1")["status"],
+            "stale",
+        )
+        second = self.executive.escalate_department_conflict(
+            experience,
+            "C-2",
+            "Platform",
+            "The revised Platform plan needs a fresh decision.",
+            own_plan_revision=1,
+            other_plan_revision=2,
+            rationale="The earlier source plan has been superseded.",
+            evidence_refs=["plan:Experience/1", "plan:Platform/2"],
+            supersedes="C-1",
+        )
+        self.assertEqual(second["status"], "open")
+        self.assertEqual(self.executive.get_department_conflict("C-1")["status"], "superseded")
+        self.executive.adjudicate_department_conflict(
+            ceo,
+            "C-2",
+            1,
+            "select_team_a",
+            "The Experience plan remains compatible with the revised pin.",
+            ["review:fresh"],
+        )
+        view = self.executive.snapshot(open_limit=1)
+        self.assertEqual(view["schema"], "brain-executive-snapshot-v3")
+        self.assertEqual(view["counts"]["department_conflicts"], 2)
+        self.assertEqual(view["counts"]["department_conflicts_open"], 0)
+        self.assertEqual(view["counts"]["department_conflicts_stale"], 0)
+        self.assertEqual(len(view["department_conflicts"]), 1)
+        self.assertEqual(view["department_conflicts"][0]["id"], "C-2")
+        self.assertIn("Открытые конфликты отделов: 0 из 2.", self.executive.render_report())
+
+    def test_conflict_adjudication_rejects_stale_ceo_fence_and_conflict_reuse(self):
+        self.store.add_objective("offline", "Offline engineering")
+        platform = self.executive.claim_department("Platform", "sol-platform")
+        experience = self.executive.claim_department("Experience", "sol-experience")
+        for team_lease in (platform, experience):
+            team = team_lease["team"]
+            self.executive.record_department_plan(
+                team_lease,
+                1,
+                "offline",
+                "Resolve shared boundary",
+                ["Preserve current contract"],
+                self.now + 100,
+                evidence_refs=["plan:" + team],
+            )
+        self.executive.escalate_department_conflict(
+            platform,
+            "C-STALE",
+            "Experience",
+            "Conflicting contract plans.",
+            own_plan_revision=1,
+            other_plan_revision=1,
+            evidence_refs=["plan:Platform/1", "plan:Experience/1"],
+        )
+        ceo = self.lease("ceo-old")
+        self.executive.release(ceo, "Episode complete")
+        replacement = self.lease("ceo-new")
+        with self.assertRaises(StaleExecutive):
+            self.executive.adjudicate_department_conflict(
+                ceo,
+                "C-STALE",
+                1,
+                "defer",
+                "Old episode cannot decide.",
+                ["review:stale-epoch"],
+            )
+        with self.assertRaisesRegex(ExecutiveError, "ID reused"):
+            self.executive.escalate_department_conflict(
+                platform,
+                "C-STALE",
+                "Experience",
+                "Different conflicting plans.",
+                own_plan_revision=1,
+                other_plan_revision=1,
+                evidence_refs=["plan:Platform/1", "plan:Experience/1"],
+            )
+        self.executive.adjudicate_department_conflict(
+            replacement,
+            "C-STALE",
+            1,
+            "defer",
+            "Current episode records this unresolved conflict.",
+            ["review:current-epoch"],
+        )
+
+    def test_conflict_adjudication_snapshots_ceo_token_before_lock_wait(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import TimeoutError as FutureTimeout
+
+        self.store.add_objective("offline", "Offline engineering")
+        platform = self.executive.claim_department("Platform", "sol-platform")
+        experience = self.executive.claim_department("Experience", "sol-experience")
+        for team_lease in (platform, experience):
+            self.executive.record_department_plan(
+                team_lease,
+                1,
+                "offline",
+                "Maintain the shared contract boundary",
+                ["Keep proposal revisions explicit"],
+                self.now + 100,
+                evidence_refs=["plan:" + team_lease["team"]],
+            )
+        self.executive.escalate_department_conflict(
+            platform,
+            "C-LOCK",
+            "Experience",
+            "Record an immutable source-plan conflict.",
+            own_plan_revision=1,
+            other_plan_revision=1,
+            evidence_refs=["plan:Platform/1", "plan:Experience/1"],
+        )
+        ceo = self.lease("ceo-lock")
+        blocker = Store(self.path, clock=lambda: self.now)
+        waiting_for_write_lock = threading.Event()
+        self.store.db.set_trace_callback(
+            lambda statement: (
+                waiting_for_write_lock.set()
+                if statement.strip().upper() == "BEGIN IMMEDIATE"
+                else None
+            )
+        )
+        blocker.db.execute("BEGIN IMMEDIATE")
+        try:
+            with ThreadPoolExecutor(1) as pool:
+                future = pool.submit(
+                    self.executive.adjudicate_department_conflict,
+                    ceo,
+                    "C-LOCK",
+                    1,
+                    "defer",
+                    "Keep the exact decision token captured before waiting.",
+                    ["review:lock-wait"],
+                )
+                try:
+                    self.assertTrue(waiting_for_write_lock.wait(2))
+                    with self.assertRaises(FutureTimeout):
+                        future.result(timeout=0.05)
+                    ceo["owner"] = "mutated-during-lock-wait"
+                    blocker.db.execute("COMMIT")
+                    result = future.result(timeout=2)
+                    self.assertEqual(result["adjudicator"], "ceo-lock")
+                finally:
+                    if blocker.db.in_transaction:
+                        blocker.db.execute("ROLLBACK")
+                    if not future.done():
+                        future.result(timeout=2)
+        finally:
+            self.store.db.set_trace_callback(None)
+            if blocker.db.in_transaction:
+                blocker.db.execute("ROLLBACK")
+            blocker.close()
 
     def test_department_plan_reader_uses_one_snapshot_across_connections(self):
         self.store.add_objective("offline", "Offline engineering")

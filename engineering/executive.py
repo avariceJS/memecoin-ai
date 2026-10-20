@@ -19,6 +19,7 @@ REASONING = "high"
 DEPARTMENT_MODEL = "gpt-6.1-sol"
 DEPARTMENT_REASONING = "high"
 MAX_ACTIVE_DEPARTMENT_LEASES = 2
+MAX_CONFLICT_ADJUDICATION_REVISIONS = 32
 
 
 class ExecutiveError(StateError):
@@ -71,6 +72,15 @@ class Executive:
                 "(team TEXT NOT NULL, revision INTEGER NOT NULL, review_at REAL NOT NULL, "
                 "body TEXT NOT NULL, "
                 "PRIMARY KEY(team, revision))",
+                "CREATE TABLE IF NOT EXISTS executive_department_conflicts "
+                "(id TEXT PRIMARY KEY, team_a TEXT NOT NULL, team_a_revision INTEGER NOT NULL, "
+                "team_b TEXT NOT NULL, team_b_revision INTEGER NOT NULL, "
+                "supersedes_id TEXT UNIQUE REFERENCES executive_department_conflicts(id), "
+                "body TEXT NOT NULL, CHECK(team_a < team_b))",
+                "CREATE TABLE IF NOT EXISTS executive_conflict_adjudications "
+                "(conflict_id TEXT NOT NULL REFERENCES executive_department_conflicts(id), "
+                "revision INTEGER NOT NULL, disposition TEXT NOT NULL, body TEXT NOT NULL, "
+                "PRIMARY KEY(conflict_id, revision))",
             ):
                 self.db.execute(sql)
 
@@ -130,6 +140,23 @@ class Executive:
         ):
             raise StaleExecutive("executive lease is no longer current")
         return role
+
+    @staticmethod
+    def _executive_lease_snapshot(lease):
+        try:
+            detached = json.loads(_json({key: lease[key] for key in ("role", "epoch", "owner")}))
+        except (TypeError, KeyError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StaleExecutive("executive lease is no longer current") from None
+        if (
+            type(detached) is not dict
+            or detached["role"] != "CEO"
+            or type(detached["epoch"]) is not int
+            or detached["epoch"] <= 0
+            or type(detached["owner"]) is not str
+            or not detached["owner"].strip()
+        ):
+            raise StaleExecutive("executive lease is no longer current")
+        return detached
 
     def renew(self, lease, lease_seconds=300):
         _positive(lease_seconds)
@@ -543,6 +570,414 @@ class Executive:
                 "due" if record["review_at"] <= self.store.clock() else "scheduled"
             )
             return record
+
+    @staticmethod
+    def _department_conflict_record(body):
+        try:
+            conflict = json.loads(body)
+        except (TypeError, ValueError, RecursionError):
+            raise ExecutiveError("department conflict record is malformed") from None
+        expected = {
+            "id",
+            "team_a",
+            "team_a_revision",
+            "team_b",
+            "team_b_revision",
+            "summary",
+            "rationale",
+            "evidence_refs",
+            "raised_by",
+            "raised_epoch",
+            "raised_model",
+            "supersedes_id",
+            "created_seq",
+        }
+        if (
+            type(conflict) is not dict
+            or set(conflict) != expected
+            or type(conflict["id"]) is not str
+            or type(conflict["team_a"]) is not str
+            or type(conflict["team_b"]) is not str
+            or conflict["team_a"] >= conflict["team_b"]
+            or type(conflict["team_a_revision"]) is not int
+            or conflict["team_a_revision"] <= 0
+            or type(conflict["team_b_revision"]) is not int
+            or conflict["team_b_revision"] <= 0
+            or type(conflict["summary"]) is not str
+            or type(conflict["rationale"]) is not str
+            or type(conflict["evidence_refs"]) is not list
+            or type(conflict["raised_by"]) is not str
+            or type(conflict["raised_epoch"]) is not int
+            or conflict["raised_epoch"] <= 0
+            or conflict["raised_model"] != DEPARTMENT_MODEL
+            or (
+                conflict["supersedes_id"] is not None and type(conflict["supersedes_id"]) is not str
+            )
+            or type(conflict["created_seq"]) is not int
+            or conflict["created_seq"] <= 0
+        ):
+            raise ExecutiveError("department conflict record is malformed")
+        try:
+            _text(conflict["id"], required=True, limit=200)
+            _text(conflict["team_a"], required=True, limit=200)
+            _text(conflict["team_b"], required=True, limit=200)
+            _text(conflict["summary"], required=True, limit=2000)
+            _text(conflict["rationale"], limit=2000)
+            _text(conflict["raised_by"], required=True, limit=200)
+            if conflict["supersedes_id"] is not None:
+                _text(conflict["supersedes_id"], required=True, limit=200)
+            if not _refs(conflict["evidence_refs"]):
+                raise ExecutiveError("department conflict record is malformed")
+        except ExecutiveError:
+            raise ExecutiveError("department conflict record is malformed") from None
+        return conflict
+
+    @staticmethod
+    def _conflict_adjudication_record(body):
+        try:
+            adjudication = json.loads(body)
+        except (TypeError, ValueError, RecursionError):
+            raise ExecutiveError("conflict adjudication record is malformed") from None
+        expected = {
+            "conflict_id",
+            "revision",
+            "supersedes_revision",
+            "disposition",
+            "rationale",
+            "evidence_refs",
+            "conflict_sha256",
+            "adjudicator",
+            "adjudicator_epoch",
+            "adjudicator_model",
+            "created_seq",
+        }
+        supersedes = (
+            adjudication.get("revision", 0) - 1
+            if type(adjudication) is dict and type(adjudication.get("revision")) is int
+            else -1
+        )
+        if (
+            type(adjudication) is not dict
+            or set(adjudication) != expected
+            or type(adjudication["conflict_id"]) is not str
+            or type(adjudication["revision"]) is not int
+            or adjudication["revision"] <= 0
+            or type(adjudication["supersedes_revision"])
+            is not type(None if supersedes == 0 else supersedes)
+            or adjudication["supersedes_revision"] != (None if supersedes == 0 else supersedes)
+            or adjudication["disposition"]
+            not in (
+                "select_team_a",
+                "select_team_b",
+                "request_replan",
+                "defer",
+            )
+            or type(adjudication["rationale"]) is not str
+            or type(adjudication["evidence_refs"]) is not list
+            or type(adjudication["conflict_sha256"]) is not str
+            or len(adjudication["conflict_sha256"]) != 64
+            or type(adjudication["adjudicator"]) is not str
+            or type(adjudication["adjudicator_epoch"]) is not int
+            or adjudication["adjudicator_epoch"] <= 0
+            or adjudication["adjudicator_model"] != MODEL
+            or type(adjudication["created_seq"]) is not int
+            or adjudication["created_seq"] <= 0
+        ):
+            raise ExecutiveError("conflict adjudication record is malformed")
+        try:
+            _text(adjudication["conflict_id"], required=True, limit=200)
+            _text(adjudication["rationale"], required=True, limit=2000)
+            _text(adjudication["adjudicator"], required=True, limit=200)
+            _refs(adjudication["evidence_refs"])
+            if any(c not in "0123456789abcdef" for c in adjudication["conflict_sha256"]):
+                raise ExecutiveError("conflict adjudication record is malformed")
+        except ExecutiveError:
+            raise ExecutiveError("conflict adjudication record is malformed") from None
+        return adjudication
+
+    def _department_conflict_adjudication_history(self, conflict):
+        conflict_hash = hashlib.sha256(_json(conflict).encode("utf-8")).hexdigest()
+        rows = self.db.execute(
+            "SELECT revision,disposition,body FROM executive_conflict_adjudications "
+            "WHERE conflict_id=? ORDER BY revision LIMIT ?",
+            (conflict["id"], MAX_CONFLICT_ADJUDICATION_REVISIONS + 1),
+        ).fetchall()
+        if len(rows) > MAX_CONFLICT_ADJUDICATION_REVISIONS:
+            raise ExecutiveError("conflict adjudication history exceeds revision limit")
+        history = []
+        for expected_revision, row in enumerate(rows, start=1):
+            record = self._conflict_adjudication_record(row[2])
+            if (
+                row[0] != expected_revision
+                or row[1] != record["disposition"]
+                or record["conflict_id"] != conflict["id"]
+                or record["revision"] != expected_revision
+                or record["conflict_sha256"] != conflict_hash
+            ):
+                raise ExecutiveError("conflict adjudication history is malformed")
+            history.append(record)
+        return history
+
+    def _current_department_plan_revision(self, team):
+        row = self.db.execute(
+            "SELECT revision,review_at,body FROM executive_department_plans "
+            "WHERE team=? ORDER BY revision DESC LIMIT 1",
+            (team,),
+        ).fetchone()
+        if row is None:
+            return None
+        self._department_plan_record(team, row[0], row[1], row[2])
+        return row[0]
+
+    def escalate_department_conflict(
+        self,
+        lease,
+        conflict_id: str,
+        other_team: str,
+        summary: str,
+        *,
+        own_plan_revision: int,
+        other_plan_revision: int,
+        rationale="",
+        evidence_refs=(),
+        supersedes=None,
+    ):
+        """Record a conflict tied to two exact current plan revisions; no work is admitted."""
+        lease = self._department_lease_snapshot(lease)
+        _text(conflict_id, required=True, limit=200)
+        _text(other_team, required=True, limit=200)
+        _text(summary, required=True, limit=2000)
+        _text(rationale, limit=2000)
+        evidence = _refs(evidence_refs)
+        if not evidence:
+            raise ExecutiveError("department conflict requires evidence references")
+        if other_team == lease["team"]:
+            raise ExecutiveError("department conflict requires two distinct teams")
+        if any(
+            type(value) is not int or value <= 0
+            for value in (own_plan_revision, other_plan_revision)
+        ):
+            raise ExecutiveError("department conflict plan revisions must be positive integers")
+        if supersedes is not None:
+            _text(supersedes, required=True, limit=200)
+        team_revisions = {
+            lease["team"]: own_plan_revision,
+            other_team: other_plan_revision,
+        }
+        team_a, team_b = sorted(team_revisions)
+        intent = {
+            "id": conflict_id,
+            "team_a": team_a,
+            "team_a_revision": team_revisions[team_a],
+            "team_b": team_b,
+            "team_b_revision": team_revisions[team_b],
+            "summary": summary,
+            "rationale": rationale,
+            "evidence_refs": evidence,
+            "raised_by": lease["owner"],
+            "raised_epoch": lease["epoch"],
+            "raised_model": lease["model"],
+            "supersedes_id": supersedes,
+        }
+        if len(_json(intent).encode("utf-8")) > 16_384:
+            raise ExecutiveError("department conflict exceeds byte limit")
+        with self.store._tx():
+            self._department_fence(lease)
+            existing = self.db.execute(
+                "SELECT body FROM executive_department_conflicts WHERE id=?", (conflict_id,)
+            ).fetchone()
+            if existing is not None:
+                previous = self._department_conflict_record(existing[0])
+                if all(previous.get(key) == value for key, value in intent.items()):
+                    return self._department_conflict_view_in_snapshot(conflict_id)
+                raise ExecutiveError("department conflict ID reused with different content")
+            for team, revision in team_revisions.items():
+                if self._current_department_plan_revision(team) != revision:
+                    raise ExecutiveError("department conflict plan revision is stale")
+            if supersedes is not None:
+                prior_conflict = self._department_conflict_view_in_snapshot(supersedes)
+                if prior_conflict is None:
+                    raise ExecutiveError("superseded department conflict does not exist")
+                if (prior_conflict["team_a"], prior_conflict["team_b"]) != (team_a, team_b):
+                    raise ExecutiveError("superseding conflict participants do not match")
+                if (
+                    prior_conflict["team_a_revision"] == team_revisions[team_a]
+                    and prior_conflict["team_b_revision"] == team_revisions[team_b]
+                ):
+                    raise ExecutiveError("superseding conflict requires changed plan revisions")
+                if self.db.execute(
+                    "SELECT 1 FROM executive_department_conflicts WHERE supersedes_id=?",
+                    (supersedes,),
+                ).fetchone():
+                    raise ExecutiveError("department conflict already has a successor")
+            self.store._event(
+                "department_conflict_escalated",
+                conflict_id,
+                {"actor": self._department_actor(lease["team"], lease), "conflict": intent},
+            )
+            created_seq = self.db.execute("SELECT last_insert_rowid()").fetchone()[0]
+            record = {**intent, "created_seq": created_seq}
+            self.db.execute(
+                "INSERT INTO executive_department_conflicts "
+                "(id,team_a,team_a_revision,team_b,team_b_revision,supersedes_id,body) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (
+                    conflict_id,
+                    team_a,
+                    team_revisions[team_a],
+                    team_b,
+                    team_revisions[team_b],
+                    supersedes,
+                    _json(record),
+                ),
+            )
+            return self._department_conflict_view_in_snapshot(conflict_id)
+
+    def adjudicate_department_conflict(
+        self,
+        lease,
+        conflict_id: str,
+        revision: int,
+        disposition: str,
+        rationale: str,
+        evidence_refs,
+        *,
+        supersedes_revision=None,
+    ):
+        """Append a CEO-fenced disposition without mutating plans or task readiness."""
+        _text(conflict_id, required=True, limit=200)
+        if type(revision) is not int or revision <= 0:
+            raise ExecutiveError("conflict adjudication revision must be positive")
+        if disposition not in ("select_team_a", "select_team_b", "request_replan", "defer"):
+            raise ExecutiveError("unknown conflict disposition")
+        rationale = _text(rationale, required=True, limit=2000)
+        evidence = _refs(evidence_refs)
+        if not evidence:
+            raise ExecutiveError("conflict adjudication requires evidence references")
+        if supersedes_revision is not None and (
+            type(supersedes_revision) is not int or supersedes_revision <= 0
+        ):
+            raise ExecutiveError("superseded adjudication revision must be positive")
+        lease = self._executive_lease_snapshot(lease)
+        with self.store._tx():
+            role = self._fence(lease)
+            conflict_row = self.db.execute(
+                "SELECT team_a,team_a_revision,team_b,team_b_revision,supersedes_id,body "
+                "FROM executive_department_conflicts WHERE id=?",
+                (conflict_id,),
+            ).fetchone()
+            if conflict_row is None:
+                raise ExecutiveError("unknown department conflict")
+            conflict = self._department_conflict_record(conflict_row[5])
+            table_identity = tuple(conflict_row[index] for index in range(5))
+            body_identity = (
+                conflict["team_a"],
+                conflict["team_a_revision"],
+                conflict["team_b"],
+                conflict["team_b_revision"],
+                conflict["supersedes_id"],
+            )
+            if table_identity != body_identity:
+                raise ExecutiveError("department conflict record is malformed")
+            conflict_hash = hashlib.sha256(_json(conflict).encode("utf-8")).hexdigest()
+            history = self._department_conflict_adjudication_history(conflict)
+            intent = {
+                "conflict_id": conflict_id,
+                "revision": revision,
+                "supersedes_revision": supersedes_revision,
+                "disposition": disposition,
+                "rationale": rationale,
+                "evidence_refs": evidence,
+                "conflict_sha256": conflict_hash,
+            }
+            if revision <= len(history):
+                previous = history[revision - 1]
+                if all(previous.get(key) == value for key, value in intent.items()):
+                    return previous
+                raise ExecutiveError("conflict adjudication revision is immutable")
+            if self.db.execute(
+                "SELECT 1 FROM executive_department_conflicts WHERE supersedes_id=?",
+                (conflict_id,),
+            ).fetchone():
+                raise ExecutiveError("superseded department conflicts cannot be adjudicated")
+            if (
+                self._current_department_plan_revision(conflict["team_a"])
+                != conflict["team_a_revision"]
+                or self._current_department_plan_revision(conflict["team_b"])
+                != conflict["team_b_revision"]
+            ):
+                raise ExecutiveError("department conflict plan revisions are stale")
+            latest = history[-1]["revision"] if history else None
+            expected_revision = latest + 1 if latest is not None else 1
+            expected_supersedes = latest
+            if revision != expected_revision or supersedes_revision != expected_supersedes:
+                raise ExecutiveError("conflict adjudication revision is not the next revision")
+            if revision > MAX_CONFLICT_ADJUDICATION_REVISIONS:
+                raise ExecutiveError("conflict adjudication history reached its revision limit")
+            if len(_json(intent).encode("utf-8")) > 16_384:
+                raise ExecutiveError("conflict adjudication exceeds byte limit")
+            record = {
+                **intent,
+                "adjudicator": role["owner"],
+                "adjudicator_epoch": role["epoch"],
+                "adjudicator_model": role["model"],
+            }
+            self.store._event(
+                "department_conflict_adjudicated",
+                f"{conflict_id}/{revision}",
+                {"actor": {k: role[k] for k in ("role", "epoch", "owner")}, "adjudication": record},
+            )
+            record["created_seq"] = self.db.execute("SELECT last_insert_rowid()").fetchone()[0]
+            self.db.execute(
+                "INSERT INTO executive_conflict_adjudications VALUES(?,?,?,?)",
+                (conflict_id, revision, disposition, _json(record)),
+            )
+            role["last_event_seq"] = record["created_seq"]
+            self._save_role(role)
+            return record
+
+    def _department_conflict_view_in_snapshot(self, conflict_id):
+        row = self.db.execute(
+            "SELECT team_a,team_a_revision,team_b,team_b_revision,supersedes_id,body "
+            "FROM executive_department_conflicts WHERE id=?",
+            (conflict_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        conflict = self._department_conflict_record(row[5])
+        if (row[0], row[1], row[2], row[3], row[4]) != (
+            conflict["team_a"],
+            conflict["team_a_revision"],
+            conflict["team_b"],
+            conflict["team_b_revision"],
+            conflict["supersedes_id"],
+        ):
+            raise ExecutiveError("department conflict record is malformed")
+        history = self._department_conflict_adjudication_history(conflict)
+        adjudication = history[-1] if history else None
+        successor = self.db.execute(
+            "SELECT id FROM executive_department_conflicts WHERE supersedes_id=?", (conflict_id,)
+        ).fetchone()
+        source_stale = (
+            self._current_department_plan_revision(conflict["team_a"])
+            != conflict["team_a_revision"]
+            or self._current_department_plan_revision(conflict["team_b"])
+            != conflict["team_b_revision"]
+        )
+        if successor:
+            status = "superseded"
+        elif source_stale:
+            status = "stale"
+        elif adjudication and adjudication["disposition"] in ("select_team_a", "select_team_b"):
+            status = "resolved"
+        else:
+            status = "open"
+        return {**conflict, "status": status, "latest_adjudication": adjudication}
+
+    def get_department_conflict(self, conflict_id: str):
+        _text(conflict_id, required=True, limit=200)
+        with self.store._read_snapshot():
+            return self._department_conflict_view_in_snapshot(conflict_id)
 
     def _get(self, table, record_id):
         row = self.db.execute(
@@ -986,8 +1421,40 @@ class Executive:
                 ):
                     department_lease["status"] = "expired"
                 department_leases.append(department_lease)
+            department_conflict_count = self.db.execute(
+                "SELECT COUNT(*) FROM executive_department_conflicts"
+            ).fetchone()[0]
+            department_conflict_open_count = self.db.execute(
+                "SELECT COUNT(*) FROM executive_department_conflicts c "
+                "LEFT JOIN executive_conflict_adjudications a ON "
+                "a.conflict_id=c.id AND a.revision=(SELECT MAX(x.revision) "
+                "FROM executive_conflict_adjudications x WHERE x.conflict_id=c.id) "
+                "WHERE NOT EXISTS (SELECT 1 FROM executive_department_conflicts newer "
+                "WHERE newer.supersedes_id=c.id) AND (a.conflict_id IS NULL "
+                "OR a.disposition IN ('request_replan','defer') "
+                ") AND c.team_a_revision=(SELECT COALESCE(MAX(p.revision),0) "
+                "FROM executive_department_plans p WHERE p.team=c.team_a) "
+                "AND c.team_b_revision=(SELECT COALESCE(MAX(p.revision),0) "
+                "FROM executive_department_plans p WHERE p.team=c.team_b)"
+            ).fetchone()[0]
+            department_conflict_stale_count = self.db.execute(
+                "SELECT COUNT(*) FROM executive_department_conflicts c "
+                "WHERE NOT EXISTS (SELECT 1 FROM executive_department_conflicts newer "
+                "WHERE newer.supersedes_id=c.id) AND (c.team_a_revision<>(SELECT "
+                "COALESCE(MAX(p.revision),0) "
+                "FROM executive_department_plans p WHERE p.team=c.team_a) "
+                "OR c.team_b_revision<>(SELECT COALESCE(MAX(p.revision),0) "
+                "FROM executive_department_plans p WHERE p.team=c.team_b))"
+            ).fetchone()[0]
+            department_conflicts = [
+                self._department_conflict_view_in_snapshot(row[0])
+                for row in self.db.execute(
+                    "SELECT id FROM executive_department_conflicts ORDER BY rowid DESC LIMIT ?",
+                    (open_limit,),
+                )
+            ]
             return {
-                "schema": "brain-executive-snapshot-v2",
+                "schema": "brain-executive-snapshot-v3",
                 "role": role,
                 "objectives": objectives,
                 "tasks": [
@@ -997,6 +1464,7 @@ class Executive:
                 **rows,
                 "department_plans": department_plans,
                 "department_leases": department_leases,
+                "department_conflicts": department_conflicts,
                 "events": list(reversed(events)),
                 "accepted_evidence": accepted,
                 "counts": {
@@ -1009,6 +1477,9 @@ class Executive:
                     "department_plan_reviews_due": department_plan_review_due_count,
                     "department_leases": department_lease_count,
                     "department_leases_active": department_lease_active_count,
+                    "department_conflicts": department_conflict_count,
+                    "department_conflicts_open": department_conflict_open_count,
+                    "department_conflicts_stale": department_conflict_stale_count,
                 },
                 "known_unmeasured_acceptance": (
                     "Полная автономная работа организации ещё не подтверждена."
@@ -1049,6 +1520,14 @@ class Executive:
             f"{view['counts']['department_leases_active']} из "
             f"{view['counts']['department_leases']}."
         )
+        lines.append(
+            "Открытые конфликты отделов: "
+            f"{view['counts']['department_conflicts_open']} из "
+            f"{view['counts']['department_conflicts']}."
+        )
+        lines.append(
+            f"Конфликты с устаревшими планами: {view['counts']['department_conflicts_stale']}."
+        )
         lines.extend(
             f"- {row['id']}: {row['title']} ({row['status']})" for row in view["obligations"]
         )
@@ -1060,6 +1539,10 @@ class Executive:
         lines.extend(
             f"- {row['team']}: {row['owner']} epoch {row['epoch']} ({row['status']})"
             for row in view["department_leases"]
+        )
+        lines.extend(
+            f"- {row['id']}: {row['status']} ({row['team_a']} vs {row['team_b']})"
+            for row in view["department_conflicts"]
         )
         lines.append(f"Ожидающие запросы: {view['counts']['requests']}.")
         lines.extend(f"- {row['id']}: {row['requested_change']}" for row in view["requests"])
