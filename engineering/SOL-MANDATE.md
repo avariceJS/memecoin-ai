@@ -47,11 +47,22 @@ Unknown usage remains reserved. `turn/completed` alone is not qualified settleme
 interface lacks sufficient evidence, record that limitation and keep the release blocked rather than
 inventing usage or weakening accounting.
 
-The existing implementation owner is native thread `01a15657-3558-79c1-86dc-6ed033c264df`,
-verified as `gpt-6-luna/high`; the current former-Astra audit thread has no Goal. Resume only this
-existing Luna owner after the durable handoff is updated. The first finite candidate must leave
-dynamic admission and unattended continuation disabled. Source acceptance, integrated release and
-permission to restart the original pilot remain distinct decisions.
+The existing implementation owner was native thread `01a15657-3558-79c1-86dc-6ed033c264df`,
+verified as `gpt-6-luna/high`; the current former-Astra audit thread had no Goal. The first finite
+candidate must leave dynamic admission and unattended continuation disabled. Source acceptance,
+integrated release and permission to restart the original pilot remain distinct decisions.
+
+### Successor ownership checkpoint — 2026-10-20
+
+The prepared transfer is now held by successor thread `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f`.
+The predecessor Luna thread `01a15657-3558-79c1-86dc-6ed033c264df` remains idle with its Goal
+paused and history preserved. Native `state_5.sqlite` metadata confirms both predecessor and
+successor are `gpt-6-luna/high`. Current pilot inspection found six failed attempts, zero live
+attempts, zero acceptances and zero integrations; STOP remains present and the organization
+LaunchAgent is not loaded. The successor may pursue only the engineering sequence above, with no
+pilot replay, runtime activation, STOP removal or expanded authority. One active Pursuing Goal now
+covers usage-evidence qualification, the finite candidate, independent Sol review and complete
+checkpoint/restore proof.
 
 ## Historical founder audit hold — 2026-10-20
 
