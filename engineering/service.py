@@ -336,6 +336,8 @@ def validate_deployment(state: str | Path, *, allow_requalification: bool = Fals
         raise ValueError("remote_publication_must_remain_disabled")
     if cfg.get("restore_requires_host_requalification") is True and not allow_requalification:
         raise ValueError("deployment_requalification_required")
+    if allow_requalification and cfg.get("restore_requires_host_requalification") is not True:
+        raise ValueError("deployment_requalification_barrier_missing")
     controller = (state / "controller").resolve(strict=True)
     if controller != state / "controller" or cfg.get("controller") != str(controller):
         raise ValueError("controller_path")

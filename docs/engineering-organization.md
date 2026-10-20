@@ -168,11 +168,12 @@ full private snapshot/restore path, and an explicit engineering check target. So
 wrong-shaped output validation, and full release qualification. A follow-up found and repaired split
 foreign-key acceptance, source-path executable dependency, backup destination containment, unowned
 destination cleanup, delayed restore barrier, missing Git object validation, and insufficient
-synthetic organization database schema. Focused tests now cover those cases. The current exact
-follow-up is not yet independently reviewed or release-qualified. It also forces an initial quota
-read regardless of system uptime. ORG-A03 settlement remains fail-closed; unknown and late usage
-still retain reservations. Restore remains structurally verified only and requires host
-requalification.
+synthetic organization database schema. The exact `81aa8eb` review accepted the covered schema,
+Git, restore and quota fixes, but found that the structural-validation API could be called without
+the persisted requalification flag. The uncommitted follow-up now requires that flag whenever
+relaxed host validation is requested. This exact follow-up remains unreviewed and is not
+release-qualified. ORG-A03 settlement remains fail-closed; unknown and late usage still retain
+reservations. Restore remains structurally verified only and requires host requalification.
 
 ## Architecture retained
 

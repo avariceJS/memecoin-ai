@@ -186,6 +186,10 @@ behind requalification; canonical containment; safe cleanup; and barrier before 
 Sol review; release не квалифицирован. `ORG-A03` остаётся fail-closed, usage reservations
 сохраняются. Пилот, STOP, runtime и protected data не трогались.
 
-Последняя focused проверка прошла: 62 unittest случая ledger/state/bootstrap, 6 целевых supervisor
-регрессий и 11 функций snapshot/restore через минимальную import-only заглушку `pytest` (без запуска
-pytest runner). Ruff/pytest отсутствуют, поэтому полный release target недоступен.
+Sol проверил точный кандидат `81aa8eb`: подтвердил предыдущие исправления, но обнаружил, что
+`allow_requalification=True` обходил проверку executable без обязательного persisted barrier.
+Guard теперь требует `restore_requires_host_requalification=true`; добавлен regression case. Эта
+правка ещё не прошла независимый review. Последняя focused проверка прошла: 62 unittest случая
+ledger/state/bootstrap, все 26 supervisor unittest тестов и 12 функций snapshot/restore/deployment
+через минимальную import-only заглушку `pytest` (без запуска pytest runner). Ruff/pytest отсутствуют,
+поэтому полный release target недоступен.

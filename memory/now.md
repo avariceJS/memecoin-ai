@@ -29,10 +29,14 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   config and promisor rejection, bundled path rebinding, unavailable host tool handling behind the
   barrier, canonical containment and prepublication requalification. The supervisor now performs
   its first quota read regardless of uptime. Restore retains STOP and remains `runtime_ready=false`;
-  host qualification is required. Exact follow-up review remains pending.
+  host qualification is required. Sol reviewed `81aa8eb` and confirmed these boundaries but found
+  `allow_requalification=True` could be called without a persisted barrier. The current uncommitted
+  fix requires the config barrier for that API mode and adds a rejection test; exact re-review is
+  pending.
   A03 remains fail-closed; unknown/late usage keeps reservations.
-- Current focused check: 62 unittest cases across ledger/state/bootstrap and 6 targeted supervisor
-  regressions passed; 11 snapshot/restore functions passed via a minimal import-only `pytest` shim.
+- Current focused check: 62 unittest cases across ledger/state/bootstrap and all 26 supervisor
+  unittest cases passed; 12 snapshot/restore/deployment functions passed via a minimal import-only
+  `pytest` shim.
   This is not a pytest runner execution. Ruff/pytest remain unavailable.
   Pilot STOP, original SQLite and six failures remain frozen. Reopening original tasks requires
   release acceptance and separate founder authorization. Market collection, training, AUTO, trading,

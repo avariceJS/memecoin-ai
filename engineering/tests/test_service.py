@@ -157,6 +157,19 @@ def test_deployment_evidence_fails_closed(tmp_path, mutation, code):
         validate_deployment(state)
 
 
+def test_requalification_bypass_requires_persisted_barrier(tmp_path):
+    state = deployment(tmp_path)
+    cfg_path = state / "config.json"
+    cfg = json.loads(cfg_path.read_text())
+    cfg["python"] = str(tmp_path / "missing-python")
+    cfg["codex_executable"] = str(tmp_path / "missing-codex")
+    cfg_bytes = json.dumps(cfg, sort_keys=True, indent=2).encode()
+    cfg_path.write_bytes(cfg_bytes)
+    (state / "config.sha256").write_text(hashlib.sha256(cfg_bytes).hexdigest())
+    with pytest.raises(ValueError, match="deployment_requalification_barrier_missing"):
+        validate_deployment(state, allow_requalification=True)
+
+
 def _json_update(path, key, value):
     data = json.loads(path.read_text())
     data[key] = value
