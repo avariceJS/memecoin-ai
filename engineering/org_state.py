@@ -130,14 +130,19 @@ class Store:
             or re.fullmatch(r"[0-9a-f]{64}", policy_sha256) is None
         ):
             raise StateError("invalid_task_spec_policy_hash")
-        if type(admission) is not dict or set(admission) != {"rationale", "evidence"}:
+        if type(admission) is not dict:
             raise StateError("invalid_task_spec_admission")
         try:
-            _json(admission)
-        except (TypeError, ValueError, OverflowError):
+            admission_snapshot = json.loads(_json(admission))
+        except (TypeError, ValueError, OverflowError, RuntimeError):
             raise StateError("invalid_task_spec_admission") from None
+        if type(admission_snapshot) is not dict or set(admission_snapshot) != {
+            "rationale",
+            "evidence",
+        }:
+            raise StateError("invalid_task_spec_admission")
         for key in ("rationale", "evidence"):
-            value = admission[key]
+            value = admission_snapshot[key]
             if type(value) is not str or not value.strip() or not 10 <= len(value) <= 4000:
                 raise StateError("invalid_task_spec_admission")
         proposed_id = spec.get("id") if type(spec) is dict else None
@@ -196,7 +201,7 @@ class Store:
                     raise StateError("task_spec_contract_not_current")
                 task_contracts[name] = requirement["version"]
             body = _json(canonical)
-            admission_body = _json(admission)
+            admission_body = _json(admission_snapshot)
             fields = (
                 canonical["id"],
                 canonical["team"],
@@ -221,7 +226,7 @@ class Store:
             decision_body = {
                 "spec": canonical,
                 "policy_sha256": policy_sha256,
-                "admission": admission,
+                "admission": admission_snapshot,
             }
             self.db.execute(
                 """INSERT INTO decisions(
