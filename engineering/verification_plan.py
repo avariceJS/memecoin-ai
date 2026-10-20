@@ -45,14 +45,14 @@ class VerificationPlan:
 
 
 def attempt_plan_matches(plan: VerificationPlan, evidence: Any) -> tuple[bool, str | None]:
-    """Require attempt-to-verifier identity equality, allowing old legacy evidence only."""
+    """Require attempt-to-verifier identity equality, allowing absent legacy evidence only."""
     if type(evidence) is not dict:
         return False, "attempt_evidence_invalid"
-    recorded = evidence.get("verification_plan")
-    if recorded is None:
+    if "verification_plan" not in evidence:
         if plan.binding_sha256 is None:
             return True, None
         return False, "attempt_verification_plan_missing"
+    recorded = evidence["verification_plan"]
     if type(recorded) is not dict:
         return False, "attempt_verification_plan_invalid"
     try:

@@ -159,6 +159,10 @@ class TaskSpecStoreTests(unittest.TestCase):
         self.assertEqual(
             attempt_plan_matches(plan, {}), (False, "attempt_verification_plan_missing")
         )
+        self.assertEqual(
+            attempt_plan_matches(plan, {"verification_plan": None}),
+            (False, "attempt_verification_plan_invalid"),
+        )
         changed = {**plan.identity(), "decision_version": True}
         self.assertEqual(
             attempt_plan_matches(plan, {"verification_plan": changed}),
