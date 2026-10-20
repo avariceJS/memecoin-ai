@@ -74,6 +74,22 @@ The source candidate, merged-system acceptance, operational release, and founder
 the original pilot are distinct gates. Passing synthetic tests or the local release command alone
 does not pass them.
 
+### Terminal usage evidence source qualification — 2026-10-20
+
+Read-only generation of the app-server JSON schema from pinned Codex CLI `0.163.0` confirms that
+`thread/tokenUsage/updated` carries `threadId`, `turnId`, and `last`/`total` token counters. The
+notification schema has no terminal/finality field. In the current RPC adapter, matching updates are
+persisted as evidence but treated as progress; `turn/completed` returns `usage_terminal=false` and no
+usage delta. `account/usage/read` can report estimated account or thread usage, but the response does
+not bind counters to a dispatch, turn, or attempt epoch. No live model turn or account usage request
+was made. Therefore the source supports per-turn snapshot attribution, but terminal usage settlement
+is not qualified and the release remains blocked until stronger finality evidence and semantics are
+independently established. Unknown usage remains reserved.
+
+The immutable read-only schema/source receipt is stored outside Git at
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-qualification-20261020.json`
+(SHA-256 `a29a219a65650aaee8f048dbbd54e142fd5cc4d32a1dd3544ed8b54a17298422`).
+
 ### Evidence established in this audit
 
 - Current read-only `thread/goal/get` returned `paused` for both former roots. The implementation

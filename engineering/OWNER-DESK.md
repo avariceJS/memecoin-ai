@@ -152,3 +152,9 @@ read-only проверка пилота: 6 неудачных попыток, 0 
 STOP сохранён, LaunchAgent не загружен. Один Pursuing Goal запущен для квалификации источника
 terminal usage, конечного STOP-preserving кандидата, независимой проверки Sol и доказательства
 полного checkpoint/restore. Повторный запуск пилота остаётся отдельным разрешением.
+
+Первичная read-only квалификация источника usage завершена на закреплённом Codex CLI `0.163.0`:
+уведомление содержит счётчики `threadId`/`turnId`, но не признак terminal/finality; RPC адаптер
+считает его progress. `account/usage/read` возвращает estimated агрегат без привязки к dispatch/turn.
+Финальное списание пока не квалифицировано; Goal сохраняет резервирование неизвестного usage и
+ждёт независимого заключения Sol. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-qualification-20261020.json`.
