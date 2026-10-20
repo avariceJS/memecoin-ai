@@ -6,8 +6,10 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -109,6 +111,95 @@ class StateTests(unittest.TestCase):
         self.assertEqual(len(self.store.events()), events)
         with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
             self.store.put_decision("sol-handoff/" + digest, exact_body)
+
+    def test_quiescence_handoff_rechecks_snapshot_after_second_connection_lock_wait(self):
+        snapshot = self.store.quiescence_snapshot()
+        body = {
+            "owner": "Sol",
+            "status": "requested",
+            "reason": "catalogue-exhausted",
+            "resource_reason": "synthetic",
+        }
+
+        def fingerprint(current_snapshot):
+            identity = {
+                "snapshot": current_snapshot,
+                "resource_reason": body["resource_reason"],
+                "reason": body["reason"],
+            }
+            return hashlib.sha256(
+                json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+
+        stale_digest = fingerprint(snapshot)
+        other = type(self.store)(self.path, clock=lambda: self.now)
+        waiting_for_write_lock = threading.Event()
+        self.store.db.set_trace_callback(
+            lambda statement: (
+                waiting_for_write_lock.set()
+                if statement.strip().upper() == "BEGIN IMMEDIATE"
+                else None
+            )
+        )
+        other.db.execute("BEGIN IMMEDIATE")
+        try:
+            with ThreadPoolExecutor(1) as pool:
+                future = pool.submit(
+                    self.store.record_quiescence_handoff_if_current,
+                    stale_digest,
+                    snapshot,
+                    {**body, "fingerprint": stale_digest},
+                )
+                try:
+                    self.assertTrue(waiting_for_write_lock.wait(2))
+                    with self.assertRaises(FutureTimeout):
+                        future.result(timeout=0.05)
+
+                    # The second connection changes readiness while the Store call is
+                    # waiting for this transaction's write lock.
+                    other.db.execute(
+                        """INSERT INTO tasks(
+                          id,team,title,brief,scope,acceptance,dependencies,contracts,
+                          base_sha,max_attempts
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                        (
+                            "arrived-during-lock-wait",
+                            "engineering",
+                            "New ready work",
+                            "Synthetic task",
+                            "[]",
+                            "[]",
+                            "[]",
+                            "{}",
+                            "",
+                            3,
+                        ),
+                    )
+                    other.db.execute("COMMIT")
+                    self.assertFalse(future.result(timeout=2))
+                finally:
+                    # Unblock a waiting Store call before executor shutdown on every
+                    # assertion or SQLite error path.
+                    if other.db.in_transaction:
+                        other.db.execute("ROLLBACK")
+                    if not future.done():
+                        future.result(timeout=2)
+
+            self.assertIsNone(self.store.get_decision("sol-handoff/" + stale_digest))
+            fresh_snapshot = self.store.quiescence_snapshot()
+            fresh_digest = fingerprint(fresh_snapshot)
+            exact_body = {**body, "fingerprint": fresh_digest}
+            self.assertTrue(
+                self.store.record_quiescence_handoff_if_current(
+                    fresh_digest, fresh_snapshot, exact_body
+                )
+            )
+            self.assertIsNotNone(self.store.get_decision("sol-handoff/" + fresh_digest))
+        finally:
+            self.store.db.set_trace_callback(None)
+            if other.db.in_transaction:
+                other.db.execute("ROLLBACK")
+            other.close()
 
     def test_active_task_projection_is_bounded_and_preserves_total_state_counts(self):
         self.task("completed")
