@@ -77,6 +77,11 @@ automatically.
   helper; interpreter/sandbox/result qualification and execution remain fail-closed. Full gate passed
   320 tests/55 subtests and Ruff (54 files). Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-manifest-review-20261021.json`.
+- A04 plan integration merged at `e96dbd2ee4af7b0f2496730c97a1815b1f69a411`: configured manifest
+  pins and harness identity enter plan/attempt identity; missing pins keep bound plans unqualified,
+  and all bound execution remains blocked pending interpreter, sandbox and result qualification.
+  Sol accepted exact source; gate passed 322 tests/55 subtests and Ruff (54 files). Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-manifest-review-20261021.json`.
 - A12 bounded active-task projection merged at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`; Sol
   accepted the exact source and the gate passed 278 tests/42 subtests with Ruff. SQL limits active
   rows to 100, full state counts remain, omitted rows are disclosed, and history is retained. Full

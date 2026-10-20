@@ -370,3 +370,12 @@ shared plan и не подтверждает interpreter, sandbox или result 
 fail-closed, Supervisor не запускался. Полный A04 и operational acceptance открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-manifest-review-20261021.json`
 (SHA-256 `723d22cc639e466e9beb1e5277b44200d3aef26fe5995a82faf32d97349e08a8`).
+
+At `e96dbd2ee4af7b0f2496730c97a1815b1f69a411` manifest resolver включён в shared A04 plan.
+Config pin `verifier_manifest_sha256` приводит к проверке `controller/verifier-manifest.json`,
+immutable binding и trusted harness; hash входит в plan и attempt identity. Без pin plan остаётся
+unqualified; invalid pin блокирует его. Даже с валидным manifest выполнение пока запрещено до
+interpreter, sandbox и result qualification. Sol принял exact source; gate: 322 теста, 55 subtests,
+Ruff (54 файла). Full A04 и operational acceptance открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-manifest-review-20261021.json`
+(SHA-256 `ae63abe99124eb4bfad6fe68b02b1b2177e1162037fdc2e347e9d747b9fc9e61`). Supervisor stayed off.

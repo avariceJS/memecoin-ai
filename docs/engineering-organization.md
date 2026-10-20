@@ -200,6 +200,16 @@ fail closed. Off-catalog execution, production admission gates and full A04 rema
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-manifest-review-20261021.json`
 (SHA-256 `723d22cc639e466e9beb1e5277b44200d3aef26fe5995a82faf32d97349e08a8`).
 
+At `e96dbd2ee4af7b0f2496730c97a1815b1f69a411`, `prepare_verification_plan` resolves the pinned
+`controller/verifier-manifest.json` against the immutable binding and trusted harness, then adds the
+manifest hash to the plan and attempt identity. Missing pins preserve the previous unqualified
+behavior; malformed explicit pins fail closed. Even with a valid manifest, every spec-backed plan
+remains unqualified until interpreter, sandbox and result execution are verified. Sol accepted the
+exact two-file source diff; the full gate passed 322 tests and 55 subtests with Ruff on 54 files.
+Off-catalog end-to-end execution, default-off production admission and full A04 remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-manifest-review-20261021.json`
+(SHA-256 `ae63abe99124eb4bfad6fe68b02b1b2177e1162037fdc2e347e9d747b9fc9e61`).
+
 The source candidate, merged-system acceptance, operational release, and founder authority to resume
 the original pilot are distinct gates. A03 currently blocks full operational release, not independent
 engineering progress. Passing synthetic tests or the local release command alone does not pass them.
