@@ -20,6 +20,7 @@ from pathlib import Path
 from .codex_rpc import Codex
 from .confinement import SandboxRunner, python_runtime_roots
 from .git_gate import GitGate, VerificationPolicy
+from .metered_codex import metered_client
 from .org_state import StaleAttempt, Store
 from .processes import process_identity, terminate_owned
 from .service import validate_deployment
@@ -185,7 +186,11 @@ def structured(text):
 
 
 def usage_tokens(result):
-    return result.get("usage", {}).get("total", {}).get("totalTokens", 0)
+    return (
+        result.get("usage_delta", {}).get("totalTokens")
+        if result.get("usage_terminal") is True
+        else None
+    )
 
 
 def reap_expired(state, db):
@@ -279,9 +284,17 @@ def run_attempt(state: Path, attempt_id: int):
         }
         atomic(run / "packet.json", packet)
         readonly_box = runner(state, checkout, run / "lead-scratch", readonly=True)
-        with Codex(
+        with metered_client(
+            state,
             checkout,
-            codex=cfg.get("codex_executable", "codex"),
+            cfg=cfg,
+            context={
+                "role": "lead",
+                "team": task["team"],
+                "task": task["id"],
+                "attempt": attempt_id,
+                "authority": "CEO-20261020-02",
+            },
             harness_cwd=native,
             event_sink=sink,
         ) as lead:
@@ -306,6 +319,8 @@ def run_attempt(state: Path, attempt_id: int):
                     "contract_ack: boolean}. Do not implement.\n"
                 )
                 + json.dumps(packet),
+                dispatch_id=f"attempt:{attempt_id}:lead",
+                estimate={"tokens": 12000, "wpu": 1.0},
                 model=SOL,
                 tool=tool_function(readonly_box, checkout, heartbeat),
                 heartbeat=heartbeat,
@@ -313,8 +328,26 @@ def run_attempt(state: Path, attempt_id: int):
                 output_schema=LEAD_SCHEMA,
             )
             atomic(run / "lead-raw.json", out)
-            db.record_usage(attempt_id, epoch, {"tokens": usage_tokens(out), "sol_turns": 1})
-            plan = structured(out["text"])
+            used_tokens = usage_tokens(out)
+            db.record_usage(
+                attempt_id,
+                epoch,
+                {**({"tokens": used_tokens} if used_tokens is not None else {}), "sol_turns": 1},
+            )
+            if used_tokens is None:
+                log_event(
+                    state,
+                    "usage_unknown",
+                    attempt_id=attempt_id,
+                    dispatch_id=f"attempt:{attempt_id}:lead",
+                )
+            try:
+                plan = structured(out["text"])
+            except Exception as exc:
+                lead.record_outcome(
+                    f"attempt:{attempt_id}:lead", "failed", {"parser_error": type(exc).__name__}
+                )
+                raise
             atomic(run / "lead.json", {**out, "plan": plan, "thread": thread})
             db.put_decision(
                 "lead-" + task["id"],
@@ -338,9 +371,17 @@ def run_attempt(state: Path, attempt_id: int):
                             "contract_ack": True,
                         },
                     )
-        with Codex(
+        with metered_client(
+            state,
             checkout,
-            codex=cfg.get("codex_executable", "codex"),
+            cfg=cfg,
+            context={
+                "role": "worker",
+                "team": task["team"],
+                "task": task["id"],
+                "attempt": attempt_id,
+                "authority": "CEO-20261020-02",
+            },
             harness_cwd=native,
             event_sink=sink,
         ) as worker:
@@ -366,6 +407,11 @@ def run_attempt(state: Path, attempt_id: int):
             out = worker.turn(
                 thread,
                 prompt,
+                dispatch_id=f"attempt:{attempt_id}:worker",
+                estimate={
+                    "tokens": cfg.get("resources", {}).get("per_worker_tokens", 12000),
+                    "wpu": 1.0,
+                },
                 model=LUNA,
                 tool=tool,
                 heartbeat=heartbeat,
@@ -373,8 +419,26 @@ def run_attempt(state: Path, attempt_id: int):
                 output_schema=WORKER_SCHEMA,
             )
             atomic(run / "worker-raw.json", out)
-            db.record_usage(attempt_id, epoch, {"tokens": usage_tokens(out), "luna_turns": 1})
-            worker_result = structured(out["text"])
+            used_tokens = usage_tokens(out)
+            db.record_usage(
+                attempt_id,
+                epoch,
+                {**({"tokens": used_tokens} if used_tokens is not None else {}), "luna_turns": 1},
+            )
+            if used_tokens is None:
+                log_event(
+                    state,
+                    "usage_unknown",
+                    attempt_id=attempt_id,
+                    dispatch_id=f"attempt:{attempt_id}:worker",
+                )
+            try:
+                worker_result = structured(out["text"])
+            except Exception as exc:
+                worker.record_outcome(
+                    f"attempt:{attempt_id}:worker", "failed", {"parser_error": type(exc).__name__}
+                )
+                raise
             if not isinstance(worker_result, dict) or not all(
                 k in worker_result for k in ("summary", "tests", "limitations")
             ):
@@ -491,9 +555,18 @@ def verify_one(state, task):
         )
         native = verify_root / "native"
         native.mkdir(exist_ok=True)
-        with Codex(
+        with metered_client(
+            state,
             checkout,
-            codex=cfg.get("codex_executable", "codex"),
+            cfg=cfg,
+            context={
+                "role": "verifier",
+                "team": task["team"],
+                "task": task["id"],
+                "attempt": data["attempt_id"],
+                "candidate": sha,
+                "authority": "CEO-20261020-02",
+            },
             harness_cwd=native,
             event_sink=lambda event: log_event(state, "codex", role="verifier", event=event),
         ) as reviewer:
@@ -528,13 +601,21 @@ def verify_one(state, task):
                         ],
                     }
                 ),
+                dispatch_id=f"verify:{task['id']}:{sha}",
+                estimate={"tokens": 12000, "wpu": 1.0},
                 model=SOL,
                 tool=lambda _: {"error": "review_tools_disabled"},
                 deadline_seconds=240,
                 output_schema=REVIEW_SCHEMA,
             )
             atomic(verify_root / "review-raw.json", review)
-            decision = structured(review["text"])
+            try:
+                decision = structured(review["text"])
+            except Exception as exc:
+                reviewer.record_outcome(
+                    f"verify:{task['id']}:{sha}", "failed", {"parser_error": type(exc).__name__}
+                )
+                raise
             atomic(
                 verify_root / "review.json",
                 {**review, "decision": decision, "thread": thread, "model": SOL},
@@ -857,7 +938,7 @@ def render_desk(state, db=None, resource_decision=None):
         "",
         "## Измерения и границы",
         "",
-        f"Учтённые токены: {measured_usage(state, db)['total']['tokens']}.",
+        f"Учтённые токены: {measured_usage(state, db)['total'].get('tokens', 'unknown')}.",
         "Непрерывная многодневная работа и восстановление после физической перезагрузки "
         "ещё не квалифицированы. Сбор рынка, обучение и торговля выключены.",
     ]
@@ -884,19 +965,25 @@ def render_desk(state, db=None, resource_decision=None):
 
 
 def measured_usage(state, db):
+    # organization.sqlite remains historical evidence. Current usage and active
+    # obligations come only from the sidecar ledger when it already exists.
     result = db.usage_summary()
-    threads = {}
-    path = state / "operations.jsonl"
-    if path.exists():
-        for line in path.read_text().splitlines():
-            try:
-                event = json.loads(line).get("event", {})
-                if event.get("kind") in ("token_usage", "turn_completed"):
-                    key = event["thread_id"]
-                    count = event.get("usage", {}).get("total", {}).get("totalTokens", 0)
-                    threads[key] = max(threads.get(key, 0), count)
-            except (ValueError, KeyError):
-                continue
-    result["total"]["tokens"] = max(result["total"].get("tokens", 0), sum(threads.values()))
-    result["metered_threads"] = len(threads)
+    ledger_path = state / "usage-ledger.sqlite"
+    if ledger_path.exists():
+        from .usage_ledger import UsageLedger
+
+        ledger = UsageLedger(ledger_path)
+        try:
+            projection = ledger.summary()
+        finally:
+            ledger.close()
+        result["current_usage"] = projection["incremental"]
+        result["reservations"] = projection["reservations"]
+        result["usage_unresolved"] = projection["unresolved"]
+        result["current_by_model"] = projection["by_model"]
+    else:
+        result["current_usage"] = None
+        result["reservations"] = []
+        result["usage_unresolved"] = [{"reason": "ledger_missing"}]
+        result["current_by_model"] = {}
     return result

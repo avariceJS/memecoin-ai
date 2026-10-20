@@ -101,6 +101,21 @@ class UsageLedger:
                 receipt TEXT NOT NULL,
                 failed INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS dispatches (
+                dispatch_id TEXT PRIMARY KEY, payload TEXT NOT NULL, identity TEXT NOT NULL,
+                model TEXT NOT NULL, estimate_tokens REAL NOT NULL, estimate_wpu REAL NOT NULL,
+                deadline_at REAL NOT NULL, baseline TEXT, provider_turn_id TEXT,
+                status TEXT NOT NULL, outcome TEXT, created_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS receipts (
+                event_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
+                provider_turn_id TEXT, source TEXT NOT NULL, receipt TEXT,
+                event_at REAL, observed_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS outcomes (
+                event_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
+                status TEXT NOT NULL, receipt TEXT, observed_at REAL NOT NULL
+            );
             """
         )
 
@@ -546,6 +561,20 @@ class UsageLedger:
                             "reason": "turn_usage_uncovered",
                         }
                     )
+        for d in self.db.execute(
+            "SELECT * FROM dispatches WHERE status NOT IN "
+            "('covered','settled') ORDER BY dispatch_id"
+        ):
+            reservations.append(
+                {
+                    "dispatch_id": d["dispatch_id"],
+                    "reservation_tokens": d["estimate_tokens"],
+                    "reservation_wpu": d["estimate_wpu"],
+                    "deadline_at": d["deadline_at"],
+                    "status": d["status"],
+                    "baseline": json.loads(d["baseline"]) if d["baseline"] else None,
+                }
+            )
         return {
             "incremental": totals,
             "by_model": by_model,
@@ -553,6 +582,181 @@ class UsageLedger:
             "reservations": reservations,
             "turns": turns,
         }
+
+    def reserve(
+        self,
+        dispatch_id,
+        identity,
+        model,
+        estimate,
+        deadline_at,
+        *,
+        context,
+        baseline=None,
+        admission_percent=0,
+    ):
+        if not dispatch_id or not identity or model not in MODELS:
+            raise ValueError("invalid dispatch")
+        tokens = _finite_positive(estimate["tokens"], "tokens")
+        wpu = _finite_positive(estimate["wpu"], "wpu")
+        deadline = _timestamp(deadline_at, "deadline_at")
+        base = None if baseline is None else _json(_counters(baseline))
+        payload = _json(
+            {
+                "identity": identity,
+                "model": model,
+                "estimate": {"tokens": tokens, "wpu": wpu},
+                "deadline_at": deadline,
+                "context": context,
+                "baseline": base,
+            }
+        )
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            row = self.db.execute(
+                "SELECT payload FROM dispatches WHERE dispatch_id=?", (dispatch_id,)
+            ).fetchone()
+            if row:
+                if row["payload"] != payload:
+                    raise ValueError("dispatch_id_payload_conflict")
+            else:
+                if (
+                    self.db.execute(
+                        "SELECT 1 FROM dispatches "
+                        "WHERE status IN ('reserved','dispatched','bound') AND model=? LIMIT 1",
+                        (model,),
+                    ).fetchone()
+                    and self.db.execute(
+                        "SELECT count(*) FROM dispatches "
+                        "WHERE status IN ('reserved','dispatched','bound') AND model=?",
+                        (model,),
+                    ).fetchone()[0]
+                    >= 2
+                ):
+                    raise RuntimeError("model_dispatch_slots_full")
+                active_teams = {
+                    item[0]
+                    for item in self.db.execute(
+                        "SELECT DISTINCT json_extract(payload,'$.context.team') FROM dispatches "
+                        "WHERE status IN ('reserved','dispatched','bound')"
+                    )
+                    if item[0]
+                }
+                team = context.get("team") if isinstance(context, dict) else None
+                if team and team not in active_teams and len(active_teams) >= 2:
+                    raise RuntimeError("team_dispatch_slots_full")
+                if admission_percent >= 97 and active_teams and team not in active_teams:
+                    raise RuntimeError("quota_97_single_team_only")
+                self.db.execute(
+                    "INSERT INTO dispatches VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        dispatch_id,
+                        payload,
+                        identity,
+                        model,
+                        tokens,
+                        wpu,
+                        deadline,
+                        base,
+                        None,
+                        "reserved",
+                        None,
+                        time.time(),
+                    ),
+                )
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+        return self.db.execute(
+            "SELECT * FROM dispatches WHERE dispatch_id=?", (dispatch_id,)
+        ).fetchone()
+
+    def bind(self, dispatch_id, identity, provider_turn_id, receipt=None):
+        if not provider_turn_id:
+            raise ValueError("provider turn id required")
+        cur = self.db.execute(
+            "UPDATE dispatches SET provider_turn_id=?,status='bound' "
+            "WHERE dispatch_id=? AND identity=? "
+            "AND (provider_turn_id IS NULL OR provider_turn_id=?)",
+            (provider_turn_id, dispatch_id, identity, provider_turn_id),
+        )
+        if cur.rowcount != 1:
+            raise ValueError("dispatch binding conflict")
+        self.observe_receipt(
+            dispatch_id + ":bind",
+            dispatch_id,
+            receipt,
+            provider_turn_id,
+            "started",
+            None,
+            time.time(),
+            {},
+        )
+
+    def record_outcome(self, dispatch_id, status, receipt=None):
+        if status not in ("completed", "failed", "timeout", "unknown"):
+            raise ValueError("invalid outcome")
+        encoded = _json(receipt) if receipt is not None else None
+        observed = time.time()
+        event_id = dispatch_id + ":" + status
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            prior = self.db.execute(
+                "SELECT * FROM outcomes WHERE event_id=?", (event_id,)
+            ).fetchone()
+            row = (event_id, dispatch_id, status, encoded, observed)
+            if prior:
+                if tuple(prior)[:4] != row[:4]:
+                    raise ValueError("outcome event payload conflict")
+                observed = prior["observed_at"]
+            else:
+                self.db.execute("INSERT INTO outcomes VALUES(?,?,?,?,?)", row)
+            self.db.execute(
+                "UPDATE dispatches SET status=?,outcome=? WHERE dispatch_id=?",
+                (status, encoded, dispatch_id),
+            )
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+        self.observe_receipt(event_id, dispatch_id, receipt, None, status, None, observed, {})
+
+    def observe_receipt(
+        self,
+        event_id,
+        dispatch_id,
+        counters,
+        provider_turn_id,
+        source,
+        event_at,
+        observed_at,
+        evidence,
+    ):
+        value = None if counters is None else _json(counters)
+        if not event_id or not dispatch_id or not source:
+            raise ValueError("receipt identity and source are required")
+        _json(evidence)
+        row = (event_id, dispatch_id, provider_turn_id, source, value, event_at, observed_at)
+        prior = self.db.execute("SELECT * FROM receipts WHERE event_id=?", (event_id,)).fetchone()
+        if prior:
+            if tuple(prior) != row:
+                raise ValueError("receipt event payload conflict")
+            return
+        self.db.execute("INSERT INTO receipts VALUES(?,?,?,?,?,?,?)", row)
+
+    def consume_dispatch(self, dispatch_id):
+        cur = self.db.execute(
+            "UPDATE dispatches SET status='dispatched' WHERE dispatch_id=? AND status='reserved'",
+            (dispatch_id,),
+        )
+        return cur.rowcount == 1
+
+    def dispatch(self, dispatch_id):
+        row = self.db.execute(
+            "SELECT * FROM dispatches WHERE dispatch_id=?", (dispatch_id,)
+        ).fetchone()
+        return dict(row) if row else None
 
     def close(self):
         self.db.close()

@@ -40,6 +40,9 @@ class FakeCodex:
     def call(self, *args, **kwargs):
         return {"ordinaryUsageAllowed": False}
 
+    def record_outcome(self, *args, **kwargs):
+        pass
+
 
 class SupervisorTests(unittest.TestCase):
     def setUp(self):
@@ -264,7 +267,9 @@ class SupervisorTests(unittest.TestCase):
             patch.object(supervisor, "GitGate", return_value=gate),
             patch.object(supervisor, "runner", return_value=MagicMock()),
             patch.object(supervisor, "SandboxRunner", return_value=box),
-            patch.object(supervisor, "Codex", return_value=reviewer) as model,
+            patch.object(
+                supervisor, "metered_client", side_effect=lambda *args, **kwargs: reviewer
+            ) as model,
             patch.object(supervisor, "git", return_value="synthetic diff"),
         ):
             supervisor.verify_one(self.state, self.db.get_task("T"))
@@ -317,7 +322,9 @@ class SupervisorTests(unittest.TestCase):
             return "base"
 
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(
+                supervisor, "metered_client", side_effect=lambda *args, **kwargs: FakeCodex()
+            ),
             patch.object(supervisor, "runner", return_value=MagicMock()),
             patch.object(supervisor, "git", side_effect=fake_git),
             patch.object(supervisor, "process_identity", return_value="fake"),
@@ -326,7 +333,8 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(self.db.get_task("T")["state"], "pending")
         self.assertEqual(self.db.list_attempts()[0]["state"], "failed")
         self.assertFalse(any("commit" in args for args in calls))
-        self.assertEqual(self.db.usage_summary()["total"]["tokens"], 3)
+        self.assertNotIn("tokens", self.db.usage_summary()["total"])
+        self.assertEqual(self.db.usage_summary()["total"].get("sol_turns"), 1)
 
     def test_malformed_worker_output_retries_before_commit(self):
         self.task()
@@ -347,8 +355,15 @@ class SupervisorTests(unittest.TestCase):
             calls.append(args)
             return " M src/example.py" if args[0] == "status" else "candidate"
 
+        from contextlib import contextmanager
+
+        @contextmanager
+        def fake_metered_client(*args, **kwargs):
+            client = lead if kwargs["context"]["role"] == "lead" else worker
+            yield client
+
         with (
-            patch.object(supervisor, "Codex", side_effect=[lead, worker]),
+            patch.object(supervisor, "metered_client", side_effect=fake_metered_client),
             patch.object(supervisor, "runner", return_value=MagicMock()),
             patch.object(supervisor, "git", side_effect=fake_git),
             patch.object(supervisor, "process_identity", return_value="fake"),
