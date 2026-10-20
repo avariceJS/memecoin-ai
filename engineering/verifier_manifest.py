@@ -1,7 +1,8 @@
 """Resolve controller-owned verifier manifests against immutable task bindings.
 
-This module validates manifest custody, harness identity and interpreter file identity. It does
-not qualify interpreter invocation semantics, the sandbox, result execution, or authorize use.
+This module validates manifest custody, harness identity, interpreter file identity, and the
+required isolated CPython command prefix. It does not qualify the full interpreter/loader chain,
+the sandbox, result execution, or authorize use.
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ import re
 import stat
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+from .task_execution import VERIFIER_COMMAND_PREFIX
 
 
 class VerifierManifestError(ValueError):
@@ -212,7 +215,7 @@ def resolve_verifier_manifest(
         raise VerifierManifestError("verifier_manifest_binding_invalid")
     if (
         set(manifest) != _MANIFEST_FIELDS
-        or manifest.get("schema") != "brain-verifier-manifest-v2"
+        or manifest.get("schema") != "brain-verifier-manifest-v3"
         or manifest.get("controller_release_sha256") != binding.get("controller_release_sha256")
         or manifest.get("integration_policy_sha256") != binding.get("integration_policy_sha256")
     ):
@@ -271,10 +274,9 @@ def resolve_verifier_manifest(
             type(commands) is not list
             or not commands
             or any(type(command) is not list for command in commands)
-            or not commands[0]
+            or len(commands[0]) < 5
             or commands[0][0] != "{interpreter}"
-            or len(commands[0]) < 2
-            or commands[0][1] != "{harness}"
+            or commands[0][: len(VERIFIER_COMMAND_PREFIX)] != list(VERIFIER_COMMAND_PREFIX)
             or sum(arg == "{harness}" for command in commands for arg in command) != 1
             or sum(arg == "{interpreter}" for command in commands for arg in command) != 1
         ):

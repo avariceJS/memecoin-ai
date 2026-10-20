@@ -20,6 +20,7 @@ class ExecutionBindingError(ValueError):
 
 
 _HASH = re.compile(r"^[0-9a-f]{64}$")
+VERIFIER_COMMAND_PREFIX = ("{interpreter}", "-I", "-S", "-B", "{harness}")
 
 
 def _canonical(value: Any) -> bytes:
@@ -100,6 +101,12 @@ def build_execution_binding(
             ):
                 raise ExecutionBindingError("invalid_verifier_placeholder")
             canonical_commands.append(list(argv))
+        if (
+            canonical_commands[0][: len(VERIFIER_COMMAND_PREFIX)] != list(VERIFIER_COMMAND_PREFIX)
+            or sum(arg == "{interpreter}" for argv in canonical_commands for arg in argv) != 1
+            or sum(arg == "{harness}" for argv in canonical_commands for arg in argv) != 1
+        ):
+            raise ExecutionBindingError("invalid_verifier_invocation")
         env = record["env"]
         if type(env) is not dict or any(
             type(key) is not str or not key or type(value) is not str or "\x00" in key + value

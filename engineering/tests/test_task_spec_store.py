@@ -70,7 +70,7 @@ VERIFIER_REGISTRY = {
     "atomic-spec-store": {
         "acceptance_sha256": H,
         "policy_id": "atomic-store-v1",
-        "commands": [["{interpreter}", "{harness}", "{task_id}", "{checkout}"]],
+        "commands": [["{interpreter}", "-I", "-S", "-B", "{harness}", "{task_id}", "{checkout}"]],
         "env": {"LANG": "C"},
         "harness_sha256": "d" * 64,
         "result_schema": "org-acceptance-v1",
@@ -195,7 +195,7 @@ class TaskSpecStoreTests(unittest.TestCase):
                 SPEC["id"], controller_release_sha256="e" * 64
             )
             manifest = {
-                "schema": "brain-verifier-manifest-v2",
+                "schema": "brain-verifier-manifest-v3",
                 "controller_release_sha256": "e" * 64,
                 "integration_policy_sha256": "f" * 64,
                 "interpreter_path": str(interpreter.resolve()),
@@ -237,6 +237,9 @@ class TaskSpecStoreTests(unittest.TestCase):
                 ),
                 (
                     str(interpreter.resolve()),
+                    "-I",
+                    "-S",
+                    "-B",
                     str((trusted / "acceptance.py").resolve()),
                     SPEC["id"],
                     "/synthetic/candidate",
@@ -349,6 +352,23 @@ class TaskSpecStoreTests(unittest.TestCase):
         self.assertIsNone(plan.binding_sha256)
 
     def test_execution_binding_rejects_untrusted_command_and_controller_drift(self):
+        for commands in (
+            [["{interpreter}", "{harness}", "{task_id}", "{checkout}"]],
+            [["{interpreter}", "-S", "-B", "{harness}", "{task_id}", "{checkout}"]],
+            [["{interpreter}", "-I", "-B", "-S", "{harness}", "{task_id}", "{checkout}"]],
+            [["{interpreter}", "-I", "-S", "-B", "-c", "pass", "{harness}"]],
+        ):
+            registry = copy.deepcopy(VERIFIER_REGISTRY)
+            registry["atomic-spec-store"]["commands"] = commands
+            with (
+                self.subTest(commands=commands),
+                self.assertRaisesRegex(StateError, "invalid_verifier_invocation"),
+            ):
+                self.admit(
+                    verifier_registry=registry,
+                    controller_release_sha256="e" * 64,
+                    integration_policy_sha256="f" * 64,
+                )
         registry = copy.deepcopy(VERIFIER_REGISTRY)
         registry["atomic-spec-store"]["commands"] = [["{checkout};touch /tmp/pwned"]]
         with self.assertRaisesRegex(StateError, "invalid_verifier_placeholder"):

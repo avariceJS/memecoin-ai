@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import platform
 import sys
@@ -17,6 +18,7 @@ from engineering.confinement import (
     python_runtime_roots,
     qualify_sandbox,
 )
+from engineering.verifier_result import validate_verifier_result
 
 PYTHON = Path(
     os.environ.get("BRAIN_SANDBOX_TEST_PYTHON", "/opt/homebrew/opt/python@3.13/bin/python3.13")
@@ -107,6 +109,79 @@ class ConfinementTests(unittest.TestCase):
                     expected_executable_sha256="0" * 64,
                 )
         launch.assert_not_called()
+
+    def test_isolated_no_site_interpreter_flags_under_disposable_sandbox(self):
+        pinned_python = PYTHON.resolve(strict=True)
+        expected = hashlib.sha256(pinned_python.read_bytes()).hexdigest()
+        source = (
+            "import json,sys; "
+            "assert sys.flags.isolated and sys.flags.no_site and sys.flags.dont_write_bytecode; "
+            "assert 'site' not in sys.modules; "
+            "print(json.dumps({'isolated':sys.flags.isolated,'no_site':sys.flags.no_site,"
+            "'dont_write_bytecode':sys.flags.dont_write_bytecode,'safe_path':sys.flags.safe_path}))"
+        )
+        result = self.runner.run(
+            [str(pinned_python), "-I", "-S", "-B", "-c", source],
+            cwd=self.task,
+            expected_executable_sha256=expected,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout),
+            {"isolated": 1, "no_site": 1, "dont_write_bytecode": 1, "safe_path": True},
+        )
+        self.assertEqual(result.prelaunch_executable_sha256, expected)
+
+    def test_bound_command_shape_runs_trusted_harness_in_exact_disposable_profile(self):
+        pinned_python = PYTHON.resolve(strict=True)
+        expected = hashlib.sha256(pinned_python.read_bytes()).hexdigest()
+        checkout = self.base / "candidate-checkout"
+        trusted = self.base / "trusted"
+        scratch = self.base / "verification-scratch"
+        for root in (checkout, trusted, scratch):
+            root.mkdir()
+        harness = trusted / "acceptance.py"
+        harness.write_text(
+            "import json,sys\n"
+            "assert sys.flags.isolated and sys.flags.no_site and sys.flags.dont_write_bytecode\n"
+            "assert 'site' not in sys.modules\n"
+            "assert sys.argv[1] == 'synthetic-acceptance'\n"
+            "print(json.dumps({'schema':'synthetic-result-v1',"
+            "'acceptance_id':'synthetic-acceptance','passed':True}))\n"
+        )
+        box = SandboxRunner(
+            writable_roots=[scratch],
+            home=scratch,
+            read_roots=[checkout, trusted, *python_runtime_roots(pinned_python)],
+            protected_roots=[self.outside],
+        )
+        result = box.run(
+            [
+                str(pinned_python),
+                "-I",
+                "-S",
+                "-B",
+                str(harness),
+                "synthetic-acceptance",
+                str(checkout),
+            ],
+            cwd=checkout,
+            env_overrides={"LANG": "C"},
+            expected_executable_sha256=expected,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        validate_verifier_result(
+            result.stdout,
+            {
+                "acceptance_id": "synthetic-acceptance",
+                "result_schema": "synthetic-result-v1",
+                "case_field": "acceptance_id",
+                "passed_field": "passed",
+            },
+        )
+        self.assertEqual(result.prelaunch_executable_sha256, expected)
+        self.assertEqual(len(result.profile_sha256), 64)
+        self.assertFalse((checkout / "__pycache__").exists())
 
     def test_pinned_executable_rejects_noncanonical_and_nonexecutable_paths(self):
         from engineering.confinement import _prelaunch_executable_sha256

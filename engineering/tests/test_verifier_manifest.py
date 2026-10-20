@@ -45,7 +45,9 @@ class VerifierManifestTests(unittest.TestCase):
                     "acceptance_id": "synthetic-acceptance",
                     "acceptance_sha256": H,
                     "policy_id": "synthetic-policy-v1",
-                    "commands": [["{interpreter}", "{harness}", "{task_id}", "{checkout}"]],
+                    "commands": [
+                        ["{interpreter}", "-I", "-S", "-B", "{harness}", "{task_id}", "{checkout}"]
+                    ],
                     "env": {"LANG": "C"},
                     "harness_sha256": self.harness_sha,
                     "result_schema": "synthetic-result-v1",
@@ -58,7 +60,7 @@ class VerifierManifestTests(unittest.TestCase):
             json.dumps(self.binding, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
         self.manifest = {
-            "schema": "brain-verifier-manifest-v2",
+            "schema": "brain-verifier-manifest-v3",
             "controller_release_sha256": RELEASE,
             "integration_policy_sha256": POLICY,
             "interpreter_path": str(self.interpreter.resolve()),
@@ -158,7 +160,10 @@ class VerifierManifestTests(unittest.TestCase):
     def test_manifest_command_must_reference_harness_in_result_command(self):
         candidate = json.loads(json.dumps(self.manifest))
         binding = json.loads(json.dumps(self.binding))
-        commands = [["{interpreter}", "{task_id}"], ["{interpreter}", "{harness}"]]
+        commands = [
+            ["{interpreter}", "-I", "-S", "-B", "{task_id}"],
+            ["{interpreter}", "-I", "-S", "-B", "{harness}"],
+        ]
         candidate["verifiers"][0]["commands"] = commands
         binding["verifiers"][0]["commands"] = commands
         unsigned = {key: value for key, value in binding.items() if key != "binding_sha256"}
@@ -171,7 +176,7 @@ class VerifierManifestTests(unittest.TestCase):
     def test_manifest_result_command_must_execute_harness_as_script(self):
         candidate = json.loads(json.dumps(self.manifest))
         binding = json.loads(json.dumps(self.binding))
-        commands = [["{interpreter}", "-c", "print('{}')", "{harness}"]]
+        commands = [["{interpreter}", "-I", "-S", "-B", "-c", "print('{}')", "{harness}"]]
         candidate["verifiers"][0]["commands"] = commands
         binding["verifiers"][0]["commands"] = commands
         unsigned = {key: value for key, value in binding.items() if key != "binding_sha256"}
@@ -180,6 +185,31 @@ class VerifierManifestTests(unittest.TestCase):
         ).hexdigest()
         with self.assertRaisesRegex(VerifierManifestError, "harness_command_unbound"):
             self.resolve(binding, candidate)
+
+    def test_manifest_v3_requires_isolated_no_site_startup(self):
+        for prefix in (
+            ["{interpreter}", "{harness}"],
+            ["{interpreter}", "-S", "-B", "{harness}"],
+            ["{interpreter}", "-I", "-B", "-S", "{harness}"],
+            ["{interpreter}", "-I", "-S", "-B", "-c", "pass", "{harness}"],
+        ):
+            candidate = json.loads(json.dumps(self.manifest))
+            binding = json.loads(json.dumps(self.binding))
+            commands = [prefix + ["{task_id}", "{checkout}"]]
+            candidate["verifiers"][0]["commands"] = commands
+            binding["verifiers"][0]["commands"] = commands
+            reseal(binding)
+            with (
+                self.subTest(prefix=prefix),
+                self.assertRaisesRegex(VerifierManifestError, "harness_command_unbound"),
+            ):
+                self.resolve(binding, candidate)
+
+    def test_manifest_v2_is_not_accepted_as_v3(self):
+        candidate = json.loads(json.dumps(self.manifest))
+        candidate["schema"] = "brain-verifier-manifest-v2"
+        with self.assertRaisesRegex(VerifierManifestError, "binding_mismatch"):
+            self.resolve(self.binding, candidate)
 
     def test_load_requires_exact_canonical_manifest_hash(self):
         path = self.root / "manifest.json"
@@ -218,7 +248,7 @@ class VerifierManifestTests(unittest.TestCase):
     def test_loader_rejects_deep_noncanonical_and_oversized_json(self):
         path = self.root / "manifest.json"
         for raw in (
-            b' {"schema": "brain-verifier-manifest-v2"} ',
+            b' {"schema": "brain-verifier-manifest-v3"} ',
             b"[" * 1100 + b"0" + b"]" * 1100,
             b"{" + b'"x":' + b"1" * 5000 + b"}",
         ):
