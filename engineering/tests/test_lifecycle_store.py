@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
+from engineering.lifecycle import plan_lifecycle
 from engineering.org_state import StateError, Store
 
 
@@ -21,6 +22,39 @@ def launch_plan(owner: str, epoch: int, digest="a" * 64):
         "request_owner": owner,
         "request_epoch": epoch,
         "decision_sha256": digest,
+    }
+
+
+def launch_observations(**overrides):
+    values = {
+        "desired_state": "enabled",
+        "stop_reasons": [],
+        "runtime_ready": True,
+        "accounting_ready": True,
+        "quota_ready": True,
+        "process_state": "stopped",
+        "process_owner": None,
+        "lease_owner": None,
+        "active_attempt_id": None,
+        "recovery_open": False,
+        "backoff_until": None,
+        "now": 1000.0,
+        "launch_authorized": True,
+    }
+    values.update(overrides)
+    return values
+
+
+def hold_plan(**overrides):
+    return {
+        "action": "hold",
+        "reason": "launch_not_authorized",
+        "retry_at": None,
+        "attempt_id": None,
+        "request_owner": None,
+        "request_epoch": None,
+        "decision_sha256": "b" * 64,
+        **overrides,
     }
 
 
@@ -44,7 +78,7 @@ class LifecycleStoreTests(unittest.TestCase):
         replacement = self.store.claim_lifecycle_owner("other", lease_seconds=10)
         self.assertEqual(replacement["epoch"], 2)
         with self.assertRaisesRegex(StateError, "stale_lifecycle_owner"):
-            self.store.record_lifecycle_plan(lease, launch_plan("luna", 1))
+            self.store.record_lifecycle_evaluation(lease, launch_observations())
 
         self.store.close()
         self.store = Store(self.path, clock=lambda: self.now)
@@ -70,55 +104,104 @@ class LifecycleStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(StateError, "stale_lifecycle_owner"):
             self.store.renew_lifecycle_owner(lease)
 
-    def test_launch_request_is_persisted_once_and_exact_retry_is_idempotent(self):
+    def test_evaluation_persists_exact_observations_and_computed_plan_idempotently(self):
         lease = self.store.claim_lifecycle_owner("owner")
-        plan = launch_plan("owner", lease["epoch"])
-        first = self.store.record_lifecycle_plan(lease, plan)
-        second = self.store.record_lifecycle_plan(lease, dict(plan))
+        observations = launch_observations()
+        first = self.store.record_lifecycle_evaluation(lease, observations)
+        second = self.store.record_lifecycle_evaluation(lease, dict(observations))
         self.assertEqual(first, second)
-        self.assertEqual(first["body"]["plan"], plan)
+        self.assertEqual(
+            first["body"]["observations"],
+            {
+                **observations,
+                "request_owner": "owner",
+                "request_epoch": lease["epoch"],
+            },
+        )
+        self.assertEqual(first["body"]["plan"]["action"], "launch_request")
+        self.assertEqual(first["body"]["plan"]["request_owner"], "owner")
+        self.assertEqual(first["body"]["plan"]["request_epoch"], lease["epoch"])
+        expected = plan_lifecycle(
+            **{
+                **observations,
+                "request_owner": "owner",
+                "request_epoch": lease["epoch"],
+            }
+        )
+        self.assertEqual(first["body"]["plan"]["decision_sha256"], expected.decision_sha256)
         self.assertEqual(
             self.store.get_decision(first["id"])["body"],
-            {"owner": "owner", "epoch": lease["epoch"], "plan": plan},
+            first["body"],
         )
 
-    def test_request_epoch_mismatch_and_conflicting_plan_reuse_fail_closed(self):
+    def test_launch_plan_cannot_bypass_observation_evaluation(self):
         lease = self.store.claim_lifecycle_owner("owner")
-        with self.assertRaisesRegex(StateError, "lifecycle_request_fence_mismatch"):
-            self.store.record_lifecycle_plan(lease, launch_plan("owner", lease["epoch"] + 1))
+        with self.assertRaisesRegex(StateError, "lifecycle_launch_requires_observation"):
+            self.store.record_lifecycle_plan(lease, launch_plan("owner", lease["epoch"]))
         with self.assertRaisesRegex(StateError, "stale_lifecycle_owner"):
-            self.store.record_lifecycle_plan(
-                {"owner": "owner", "epoch": True}, launch_plan("owner", lease["epoch"])
+            self.store.record_lifecycle_evaluation(
+                {"owner": "owner", "epoch": True}, launch_observations()
             )
 
-        plan = launch_plan("owner", lease["epoch"])
-        self.store.record_lifecycle_plan(lease, plan)
-        conflict = {**plan, "reason": "rewritten"}
-        with self.assertRaisesRegex(StateError, "lifecycle_request_identity_conflict"):
-            self.store.record_lifecycle_plan(lease, conflict)
+    def test_failed_gate_is_recomputed_and_observation_shape_is_closed(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        observations = launch_observations(stop_reasons=["founder_stop"])
+        receipt = self.store.record_lifecycle_evaluation(lease, observations)
+        self.assertEqual(receipt["body"]["plan"]["action"], "hold")
+        self.assertEqual(receipt["body"]["plan"]["reason"], "stop_reason_active")
+        self.assertEqual(receipt["body"]["observations"]["stop_reasons"], ["founder_stop"])
+
+        before = self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0]
+        with self.assertRaisesRegex(StateError, "invalid_lifecycle_observation"):
+            self.store.record_lifecycle_evaluation(
+                lease, {**launch_observations(), "unreviewed": True}
+            )
+        after = self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0]
+        self.assertEqual(after, before)
+
+    def test_observation_snapshot_is_detached_before_sqlite_lock_wait(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        other = Store(self.path, clock=lambda: self.now)
+        entered_transaction = threading.Event()
+        observations = launch_observations()
+        other.db.execute("BEGIN IMMEDIATE")
+        original_tx = self.store._tx
+
+        @contextmanager
+        def signal_transaction_entry():
+            entered_transaction.set()
+            with original_tx():
+                yield
+
+        try:
+            with patch.object(self.store, "_tx", signal_transaction_entry):
+                with ThreadPoolExecutor(1) as pool:
+                    future = pool.submit(
+                        self.store.record_lifecycle_evaluation, lease, observations
+                    )
+                    self.assertTrue(entered_transaction.wait(2))
+                    observations["launch_authorized"] = False
+                    other.db.execute("COMMIT")
+                    receipt = future.result(timeout=2)
+            self.assertTrue(receipt["body"]["observations"]["launch_authorized"])
+            self.assertEqual(receipt["body"]["plan"]["action"], "launch_request")
+        finally:
+            if other.db.in_transaction:
+                other.db.execute("ROLLBACK")
+            other.close()
 
     def test_malformed_plan_rejected_before_journal_mutation(self):
         lease = self.store.claim_lifecycle_owner("owner")
         malformed = (
             {
+                **hold_plan(),
                 "action": [],
-                "reason": "x",
-                "retry_at": None,
-                "attempt_id": None,
-                "request_owner": None,
-                "request_epoch": None,
-                "decision_sha256": "a" * 64,
             },
             {
-                "action": "launch_request",
-                "reason": "x",
+                **hold_plan(action="wait"),
                 "retry_at": 10**10000,
-                "attempt_id": None,
-                "request_owner": "owner",
-                "request_epoch": lease["epoch"],
-                "decision_sha256": "a" * 64,
             },
-            {**launch_plan("owner", lease["epoch"]), "extra": True},
+            {**hold_plan(), "extra": True},
         )
         for plan in malformed:
             with self.subTest(plan=plan["action"]):
@@ -162,19 +245,19 @@ class LifecycleStoreTests(unittest.TestCase):
                 {"status": "active", "owner": "forged", "epoch": 99, "lease_until": 2000},
             )
 
-        plan = launch_plan("owner", lease["epoch"])
-        first = self.store.record_lifecycle_plan(lease, plan)
+        observations = launch_observations()
+        first = self.store.record_lifecycle_evaluation(lease, observations)
         with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
             self.store.put_decision(first["id"], {"forged": True})
         with self.assertRaisesRegex(StateError, "plain string"):
             self.store.put_decision(AliasedName(first["id"]), {"forged": True})
-        second = self.store.record_lifecycle_plan(lease, plan)
+        second = self.store.record_lifecycle_evaluation(lease, observations)
         self.assertEqual(first, second)
 
     def test_unexpected_request_history_fails_closed(self):
         lease = self.store.claim_lifecycle_owner("owner")
-        plan = launch_plan("owner", lease["epoch"])
-        first = self.store.record_lifecycle_plan(lease, plan)
+        observations = launch_observations()
+        first = self.store.record_lifecycle_evaluation(lease, observations)
         self.store.db.execute(
             "INSERT INTO decisions(name,version,body,replaces,replaces_version) "
             "VALUES(?,2,?,NULL,NULL)",
@@ -186,12 +269,12 @@ class LifecycleStoreTests(unittest.TestCase):
             ),
         )
         with self.assertRaisesRegex(StateError, "lifecycle_request_history_invalid"):
-            self.store.record_lifecycle_plan(lease, plan)
+            self.store.record_lifecycle_evaluation(lease, observations)
 
     def test_nonpositive_request_history_fails_closed(self):
         lease = self.store.claim_lifecycle_owner("owner")
-        plan = launch_plan("owner", lease["epoch"])
-        first = self.store.record_lifecycle_plan(lease, plan)
+        observations = launch_observations()
+        first = self.store.record_lifecycle_evaluation(lease, observations)
         body = self.store.db.execute(
             "SELECT body FROM decisions WHERE name=? AND version=1", (first["id"],)
         ).fetchone()[0]
@@ -201,12 +284,12 @@ class LifecycleStoreTests(unittest.TestCase):
             (first["id"], body),
         )
         with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
-            self.store.record_lifecycle_plan(lease, plan)
+            self.store.record_lifecycle_evaluation(lease, observations)
 
     def test_request_retry_detects_json_type_corruption(self):
         lease = self.store.claim_lifecycle_owner("owner")
-        plan = launch_plan("owner", lease["epoch"])
-        first = self.store.record_lifecycle_plan(lease, plan)
+        observations = launch_observations()
+        first = self.store.record_lifecycle_evaluation(lease, observations)
         body = json.loads(
             self.store.db.execute(
                 "SELECT body FROM decisions WHERE name=? AND version=1", (first["id"],)
@@ -218,7 +301,7 @@ class LifecycleStoreTests(unittest.TestCase):
             "UPDATE decisions SET body=? WHERE name=? AND version=1", (encoded, first["id"])
         )
         with self.assertRaisesRegex(StateError, "lifecycle_request_identity_conflict"):
-            self.store.record_lifecycle_plan(lease, plan)
+            self.store.record_lifecycle_evaluation(lease, observations)
 
     def test_claim_race_across_store_connections_has_one_owner(self):
         other = Store(self.path, clock=lambda: self.now)
@@ -234,34 +317,6 @@ class LifecycleStoreTests(unittest.TestCase):
             persisted = self.store.get_decision("lifecycle/owner")["body"]
             self.assertIn(persisted["owner"], {"one", "two"})
         finally:
-            other.close()
-
-    def test_plan_input_is_snapshotted_before_waiting_for_sqlite_lock(self):
-        lease = self.store.claim_lifecycle_owner("owner")
-        other = Store(self.path, clock=lambda: self.now)
-        entered_transaction = threading.Event()
-        plan = launch_plan("owner", lease["epoch"])
-        other.db.execute("BEGIN IMMEDIATE")
-        original_tx = self.store._tx
-
-        @contextmanager
-        def signal_transaction_entry():
-            entered_transaction.set()
-            with original_tx():
-                yield
-
-        try:
-            with patch.object(self.store, "_tx", signal_transaction_entry):
-                with ThreadPoolExecutor(1) as pool:
-                    future = pool.submit(self.store.record_lifecycle_plan, lease, plan)
-                    self.assertTrue(entered_transaction.wait(2))
-                    plan["reason"] = "mutated while waiting"
-                    other.db.execute("COMMIT")
-                    receipt = future.result(timeout=2)
-            self.assertEqual(receipt["body"]["plan"]["reason"], "all_gates_clear")
-        finally:
-            if other.db.in_transaction:
-                other.db.execute("ROLLBACK")
             other.close()
 
 

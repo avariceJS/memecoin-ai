@@ -37,6 +37,23 @@ class StaleAttempt(StateError):
 
 _ACTIVE_TASK_STATES = ("pending", "running", "submitted", "verified", "accepted")
 _TASK_STATES = (*_ACTIVE_TASK_STATES, "integrated", "failed")
+_LIFECYCLE_OBSERVATION_FIELDS = frozenset(
+    {
+        "desired_state",
+        "stop_reasons",
+        "runtime_ready",
+        "accounting_ready",
+        "quota_ready",
+        "process_state",
+        "process_owner",
+        "lease_owner",
+        "active_attempt_id",
+        "recovery_open",
+        "backoff_until",
+        "now",
+        "launch_authorized",
+    }
+)
 
 
 def _json(value: Any) -> str:
@@ -1475,10 +1492,11 @@ class Store:
             self._put_decision_in_transaction("lifecycle/owner", body)
 
     def record_lifecycle_plan(self, lease: Any, plan: Any) -> dict:
-        """Persist one immutable lifecycle decision/request under the current owner fence.
+        """Persist a non-launch lifecycle decision under the current owner fence.
 
-        A `launch_request` stays inert data. This API has no process, service, scheduler,
-        or dispatch side effects. Exact retries return the original journal identity.
+        Launch requests require `record_lifecycle_evaluation` so their claimed gate inputs
+        are stored beside the deterministic plan. This API has no process, service,
+        scheduler, or dispatch side effects. Exact retries return the original journal identity.
         """
         lease = _lifecycle_snapshot(lease)
         plan = _lifecycle_snapshot(plan)
@@ -1501,6 +1519,8 @@ class Store:
             "launch_request",
         }:
             raise StateError("invalid_lifecycle_plan")
+        if plan["action"] == "launch_request":
+            raise StateError("lifecycle_launch_requires_observation")
         if (
             type(plan["reason"]) is not str
             or not plan["reason"].strip()
@@ -1536,27 +1556,65 @@ class Store:
 
         with self._tx():
             owner = self._lifecycle_fence(lease)
-            if plan["action"] == "launch_request" and (
-                plan["request_owner"] != owner["owner"] or plan["request_epoch"] != owner["epoch"]
-            ):
-                raise StateError("lifecycle_request_fence_mismatch")
-            request_id = hashlib.sha256(
-                f"{owner['owner']}\0{owner['epoch']}\0{digest}".encode()
-            ).hexdigest()
-            name = "lifecycle/request/" + request_id
-            body = {"owner": owner["owner"], "epoch": owner["epoch"], "plan": plan}
-            versions = self._lifecycle_decision_versions(name)
-            old = self.get_decision(name)
-            if old is not None:
-                if versions != [1] or old["version"] != 1:
-                    raise StateError("lifecycle_request_history_invalid")
-                if _json(old["body"]) != _json(body):
-                    raise StateError("lifecycle_request_identity_conflict")
-                return {"id": name, "version": old["version"], "body": old["body"]}
-            if versions:
+            return self._persist_lifecycle_evaluation(owner, plan)
+
+    def record_lifecycle_evaluation(self, lease: Any, observations: Any) -> dict:
+        """Compute and persist a plan together with the exact caller-supplied observations.
+
+        The observation object is detached before a possible SQLite lock wait. The planner
+        runs under the current durable owner fence, and launch requests can only be emitted
+        from that computed plan. Stored observations are provenance for the decision inputs,
+        not proof that an external sensor measured them correctly.
+        """
+        lease = _lifecycle_snapshot(lease)
+        observations = _lifecycle_snapshot(observations)
+        if type(observations) is not dict or set(observations) != _LIFECYCLE_OBSERVATION_FIELDS:
+            raise StateError("invalid_lifecycle_observation")
+
+        with self._tx():
+            owner = self._lifecycle_fence(lease)
+            bound_observations = {
+                **observations,
+                "request_owner": owner["owner"],
+                "request_epoch": owner["epoch"],
+            }
+            from .lifecycle import plan_lifecycle
+
+            computed = plan_lifecycle(**bound_observations)
+            plan = {
+                "action": computed.action,
+                "reason": computed.reason,
+                "retry_at": computed.retry_at,
+                "attempt_id": computed.attempt_id,
+                "request_owner": computed.request_owner,
+                "request_epoch": computed.request_epoch,
+                "decision_sha256": computed.decision_sha256,
+            }
+            return self._persist_lifecycle_evaluation(owner, plan, bound_observations)
+
+    def _persist_lifecycle_evaluation(
+        self, owner: dict, plan: dict, observations: dict | None = None
+    ) -> dict:
+        digest = plan["decision_sha256"]
+        request_id = hashlib.sha256(
+            f"{owner['owner']}\0{owner['epoch']}\0{digest}".encode()
+        ).hexdigest()
+        name = "lifecycle/request/" + request_id
+        body = {"owner": owner["owner"], "epoch": owner["epoch"], "plan": plan}
+        if observations is not None:
+            body["observations"] = observations
+        versions = self._lifecycle_decision_versions(name)
+        old = self.get_decision(name)
+        if old is not None:
+            if versions != [1] or old["version"] != 1:
                 raise StateError("lifecycle_request_history_invalid")
-            version = self._put_decision_in_transaction(name, body)
-            return {"id": name, "version": version, "body": body}
+            if _json(old["body"]) != _json(body):
+                raise StateError("lifecycle_request_identity_conflict")
+            return {"id": name, "version": old["version"], "body": old["body"]}
+        if versions:
+            raise StateError("lifecycle_request_history_invalid")
+        version = self._put_decision_in_transaction(name, body)
+        return {"id": name, "version": version, "body": body}
 
     def open_controller_parse_fault(
         self,
