@@ -235,6 +235,24 @@ class Controller:
             or terminal_receipt.get("turn_id") != row["provider_turn_id"]
         ):
             raise ValueError("terminal_identity_mismatch")
+        encoded_receipt = json.dumps(terminal_receipt, sort_keys=True, separators=(",", ":"))
+        receipt_hash = hashlib.sha256(encoded_receipt.encode()).hexdigest()
+        stored_receipt = self.ledger.db.execute(
+            "SELECT evidence_sha256,evidence FROM terminal_receipts WHERE dispatch_id=?",
+            (dispatch_id,),
+        ).fetchone()
+        if stored_receipt and (stored_receipt["evidence_sha256"], stored_receipt["evidence"]) != (
+            receipt_hash,
+            encoded_receipt,
+        ):
+            conflict_id = hashlib.sha256(
+                (dispatch_id + ":" + receipt_hash).encode("utf-8")
+            ).hexdigest()
+            self.ledger.db.execute(
+                "INSERT OR IGNORE INTO terminal_receipt_conflicts VALUES(?,?,?,?,?)",
+                (conflict_id, dispatch_id, receipt_hash, encoded_receipt, self.clock()),
+            )
+            raise ValueError("terminal_receipt_conflict")
         baseline = json.loads(row["baseline"]) if row["baseline"] else None
         if baseline is None or terminal_receipt.get("baseline") != baseline:
             raise ValueError("terminal_baseline_unknown_or_mismatch")
@@ -309,8 +327,6 @@ class Controller:
                     sequence=sequence,
                     observed_at=self.clock(),
                 )
-        encoded_receipt = json.dumps(terminal_receipt, sort_keys=True, separators=(",", ":"))
-        receipt_hash = hashlib.sha256(encoded_receipt.encode()).hexdigest()
         for event_id, interval_start, interval_end, sequence in attributed_points:
             self.ledger.attribute_dispatch(
                 dispatch_id,

@@ -392,6 +392,23 @@ def test_qualified_terminal_reconciliation_attributes_only_certified_interval(tm
     assert after["unresolved"] == []
     assert after["reservations"] == []
     assert ledger.trusted_terminal_baseline(thread, "initial")["total_tokens"] == 100
+    before_conflicting_replay = after["incremental"]
+    conflicting_receipt = {
+        **terminal_receipt,
+        "end": {**terminal_receipt["end"], "input_tokens": 200, "total_tokens": 200},
+    }
+    try:
+        controller.reconcile_dispatch(
+            "qualified-dispatch",
+            terminal_receipt=conflicting_receipt,
+            stream_observations=stream_observations,
+        )
+    except ValueError as exc:
+        assert str(exc) == "terminal_receipt_conflict"
+    else:
+        raise AssertionError("conflicting terminal replay was accepted")
+    assert ledger.summary()["incremental"] == before_conflicting_replay
+    assert ledger.db.execute("SELECT COUNT(*) FROM terminal_receipt_conflicts").fetchone()[0] == 1
     controller.close()
     ledger.close()
 
@@ -426,5 +443,69 @@ def test_completed_turn_without_usage_keeps_next_baseline_unknown(tmp_path):
     assert json.loads(ledger.dispatch("no-usage-first")["baseline"])["total_tokens"] == 0
     client.turn(thread, "second", dispatch_id="no-usage-second", **kwargs)
     assert ledger.dispatch("no-usage-second")["baseline"] is None
+    controller.close()
+    ledger.close()
+
+
+def test_lost_provider_binding_prevents_zero_baseline_reuse(tmp_path):
+    ledger = UsageLedger(tmp_path / "lost-bind.sqlite")
+
+    class LostBindingRPC(FakeRPC):
+        def __init__(self, ledger):
+            super().__init__(ledger)
+            self.sink = lambda _event: None
+            self.lose_first = True
+
+        def turn(self, thread, prompt, **kwargs):
+            kwargs["permit"].consume(thread, kwargs["model"])
+            if self.lose_first:
+                self.lose_first = False
+                raise TimeoutError("lost before started notification")
+            kwargs["started"]("bound-second-turn")
+            return {
+                "text": "{}",
+                "turn_id": "bound-second-turn",
+                "usage": {"total": {"totalTokens": 0}},
+                "usage_start": None,
+                "usage_end": None,
+                "usage_delta": None,
+                "usage_terminal": False,
+            }
+
+    rpc = LostBindingRPC(ledger)
+    controller = Controller(
+        ledger,
+        lambda: quota(),
+        state=tmp_path,
+        clock=lambda: 1000,
+        preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
+    )
+    client = MeteredCodex(
+        rpc, controller, {"role": "worker", "team": "Experience", "task": "lost-bind"}
+    )
+    thread = client.start("gpt-6-luna", "start")
+    with pytest.raises(TimeoutError):
+        client.turn(
+            thread,
+            "first",
+            dispatch_id="lost-before-bind",
+            model="gpt-6-luna",
+            estimate={"tokens": 100, "wpu": 1},
+            tool=lambda _: None,
+            deadline_seconds=10,
+        )
+    first = ledger.dispatch("lost-before-bind")
+    assert first["status"] == "unknown"
+    assert first["epoch"] is None
+    client.turn(
+        thread,
+        "second",
+        dispatch_id="after-lost-bind",
+        model="gpt-6-luna",
+        estimate={"tokens": 100, "wpu": 1},
+        tool=lambda _: None,
+        deadline_seconds=10,
+    )
+    assert ledger.dispatch("after-lost-bind")["baseline"] is None
     controller.close()
     ledger.close()

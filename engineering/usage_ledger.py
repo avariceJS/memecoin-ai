@@ -132,6 +132,11 @@ class UsageLedger:
                 dispatch_id TEXT PRIMARY KEY, evidence_sha256 TEXT NOT NULL,
                 evidence TEXT NOT NULL, observed_at REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS terminal_receipt_conflicts (
+                conflict_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
+                evidence_sha256 TEXT NOT NULL, evidence TEXT NOT NULL,
+                observed_at REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS interval_attributions (
                 event_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
                 identity TEXT NOT NULL, epoch TEXT NOT NULL, model TEXT NOT NULL,
@@ -1268,21 +1273,14 @@ class UsageLedger:
         ).fetchone()
         if registration is None:
             return None
-        last_terminal_dispatch = self.db.execute(
-            "SELECT MAX(d.created_at) FROM terminal_receipts t JOIN dispatches d "
-            "ON d.dispatch_id=t.dispatch_id WHERE d.identity=? AND d.epoch=?",
-            (identity, epoch),
-        ).fetchone()[0]
         pending = self.db.execute(
-            "SELECT MAX(d.created_at) FROM dispatches d WHERE d.identity=? AND d.epoch=? "
+            "SELECT 1 FROM dispatches d WHERE d.identity=? AND (d.epoch=? OR d.epoch IS NULL) "
             "AND d.status IN ('dispatched','bound','completed','unknown','failed','timeout') "
             "AND NOT EXISTS (SELECT 1 FROM terminal_receipts t "
-            "WHERE t.dispatch_id=d.dispatch_id)",
+            "WHERE t.dispatch_id=d.dispatch_id) LIMIT 1",
             (identity, epoch),
-        ).fetchone()[0]
-        if pending is not None and (
-            last_terminal_dispatch is None or pending > last_terminal_dispatch
-        ):
+        ).fetchone()
+        if pending is not None:
             return None
         terminals = self.db.execute(
             "SELECT t.evidence FROM terminal_receipts t JOIN dispatches d "
