@@ -24,15 +24,16 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   A02 schema compatibility, A09 wrong-shaped output validation and complete release qualification
   were rejected. Sol also rejected `47d0770`: it found split-FK acceptance, missing Git object closure
   and organization schema validation, old executable-path dependence, symlink containment bypass,
-  unowned destination cleanup and a late restore barrier. The uncommitted follow-up repairs these
+  unowned destination cleanup and a late restore barrier. Candidate `d4d6590` repairs these
   cases with grouped FK validation, full organization column/constraint signatures, offline Git
   config and promisor rejection, bundled path rebinding, unavailable host tool handling behind the
-  barrier, canonical containment and prepublication requalification. The supervisor now performs
-  its first quota read regardless of uptime. Restore retains STOP and remains `runtime_ready=false`;
-  host qualification is required. Sol reviewed `81aa8eb` and confirmed these boundaries but found
-  `allow_requalification=True` could be called without a persisted barrier. The current uncommitted
-  fix requires the config barrier for that API mode and adds a rejection test; exact re-review is
-  pending.
+  barrier, canonical containment and prepublication requalification. The supervisor performs its
+  first quota read regardless of uptime. Restore retains STOP and remains `runtime_ready=false`;
+  host qualification is required. Sol reviewed `81aa8eb`, found that `allow_requalification=True`
+  could be called without a persisted barrier, and the `d4d6590` candidate now requires that barrier.
+  Sol accepted exact commit `d4d6590` for bounded source repair. This is not full release
+  qualification: ORG-A03 remains fail-closed, pytest/Ruff checks remain unavailable, and operational
+  restore/host qualification remain open.
   A03 remains fail-closed; unknown/late usage keeps reservations.
 - Current focused check: 62 unittest cases across ledger/state/bootstrap and all 26 supervisor
   unittest cases passed; 12 snapshot/restore/deployment functions passed via a minimal import-only

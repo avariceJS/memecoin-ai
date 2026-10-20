@@ -92,8 +92,8 @@ Sol also identified a conditional parser compatibility gap in `metered_codex.cap
 schema permits an optional `cacheWriteInputTokens` counter, but canonicalization currently requires
 the counter object to contain exactly the five other known keys. When the optional sixth key is
 present, the raw receipt is retained while the canonical progressive observation is dropped. Live
-payload frequency and cache-write pricing semantics were not established. The current unreviewed
-source checkpoint accepts the optional field only as a nonnegative integer, keeps it in raw evidence,
+payload frequency and cache-write pricing semantics were not established. The `d4d6590` source
+checkpoint accepts the optional field only as a nonnegative integer, keeps it in raw evidence,
 and does not add it to or subtract it from the five canonical counters. The existing invariant
 `totalTokens = inputTokens + outputTokens` remains required. Focused synthetic five- and six-field
 cases were added; pytest/Ruff are unavailable in this checkout, while syntax compilation and direct
@@ -143,15 +143,15 @@ production corruption or a successful sandbox escape.
 
 | ID | Priority | Evidence and consequence |
 |---|---|---|
-| ORG-A01 | P1 | **Candidate fix, unreviewed:** bootstrap now writes `codex_executable_sha256`, matching `service.validate_deployment`. Prior synthetic bootstrap evidence reproduced the rejection as `codex_executable_binding`; the exact candidate still needs release checks and Sol review. |
-| ORG-A02 | P1 | **Candidate fix, unreviewed:** bootstrap initializes the ledger only after both qualification steps, before creating organization state. Schema creation, legacy column additions and `user_version=1` commit together. Existing version-1 ledgers must match exact ordered columns, types, nullability, primary keys, grouped composite foreign keys and unique indexes; newer, partial, extra-table and unknown schemas fail closed. A split-FK regression test rejects two single-column constraints in place of the required composite key. |
+| ORG-A01 | P1 | **Bounded source repair accepted by Sol at `d4d6590`:** bootstrap writes `codex_executable_sha256`, matching `service.validate_deployment`. Prior synthetic bootstrap evidence reproduced the rejection as `codex_executable_binding`. The pinned engineering release gate remains unrun because pytest/Ruff are unavailable. |
+| ORG-A02 | P1 | **Bounded source repair accepted by Sol at `d4d6590`:** bootstrap initializes the ledger only after both qualification steps, before creating organization state. Schema creation, legacy column additions and `user_version=1` commit together. Existing version-1 ledgers must match exact ordered columns, types, nullability, primary keys, grouped composite foreign keys and unique indexes; newer, partial, extra-table and unknown schemas fail closed. A split-FK regression test rejects two single-column constraints in place of the required composite key. The pinned engineering release gate remains unrun. |
 | ORG-A03 | P1 | The operational adapter always returns `usage_terminal=False`; progress counters are deliberately unattributed. `metered_client` sets `terminal_usage_qualified=False`, and there is no operational caller of `reconcile_dispatch`. A completed synthetic turn retained its reservation and `model_attribution_unverified`; scheduler capacity became zero. Correct conservative accounting has no qualified operational settlement path. Do not fix this by assuming unknown usage is zero. |
 | ORG-A04 | P1 | `Store.admit_task_spec` atomically persists a valid spec, but planner uses fixed cards and verifier resolves `cfg['tasks'][id]['checks']` plus pilot-only acceptance. A Store-admitted PLAT-010 reaches submitted state and `verify_one` raises `KeyError` before its guarded verifier block. Spec capabilities, deadline and acceptance references are not an executable trusted task binding. |
 | ORG-A05 | P1 | Successful supervisor exit after its bounded episode is not restarted by the generated `KeepAlive={'SuccessfulExit': False}` plist. Quiescence writes a Sol handoff and exits; no qualified consumer of that handoff exists. `reset_recovery_decision` has no operational caller. Chat Goal continuation and the frozen pilot are separate control paths, not one qualified lifetime service. |
-| ORG-A06 | P1 | **Candidate implementation, unreviewed:** snapshot v2 copies the private state tree, backs up both SQLite databases, requires exact organization column/type/nullability/default/PK/FK/unique signatures, checks FK data integrity and no live attempts, and verifies the integration repository offline with sanitized Git configuration while rejecting alternates, shallow repositories and promisor remotes. It retains STOP, intents, attempts, logs and Git objects/refs; holds the supervisor lock; canonicalizes destination containment; and restores only to a fresh path. Synthetic restore after moving the source copy rebinds bundled executables and permits unavailable host executables only behind the barrier. Restore receipts say `runtime_ready=false`. Host qualification and operational/pilot restore remain open. |
-| ORG-A07 | P1 | **Candidate fix, unreviewed:** the quota watchdog now cancels active work for explicit `stop`, `quota_critical`, or `reserve_threshold` decisions. A zero count of additional admission slots alone does not cancel a permitted active team. Synthetic threshold and high-quota continuation probes passed. Drain timing, bounded overshoot and provider billing remain unqualified. |
-| ORG-A08 | P1 | **Candidate fix, unreviewed:** `make engineering-release-check` explicitly runs Ruff lint/format and pytest over `engineering/`. The command was not runnable in this checkout because its pinned development tools are absent. Hosted workflows and native controller acceptance remain separate. |
-| ORG-A09 | P2 | **Candidate fix, unreviewed:** malformed or wrong-shaped lead/worker output opens a durable circuit and recovery obligation in one lease-fenced SQLite transaction that also fails the active attempt. Queued attempts read the decision body and stop while the circuit is open. Recovery uses one transaction bound to both current decision versions and requires a qualified fix, independent release review and separate bounded authorization. Output object fields, enums and list element types are checked before submit. The old six-attempt pilot history is unchanged. |
+| ORG-A06 | P1 | **Bounded source repair accepted by Sol at `d4d6590`:** snapshot v2 copies the private state tree, backs up both SQLite databases, requires exact organization column/type/nullability/default/PK/FK/unique signatures, checks FK data integrity and no live attempts, and verifies the integration repository offline with sanitized Git configuration while rejecting alternates, shallow repositories and promisor remotes. It retains STOP, intents, attempts, logs and Git objects/refs; holds the supervisor lock; canonicalizes destination containment; and restores only to a fresh path. Synthetic restore after moving the source copy rebinds bundled executables and permits unavailable host executables only behind the persisted barrier. Relaxed structural validation requires `restore_requires_host_requalification=true`; restore receipts say `runtime_ready=false`. Fresh-path structural checks passed. Host qualification and operational/pilot restore remain open. |
+| ORG-A07 | P1 | **Bounded source repair accepted by Sol at `d4d6590`:** the quota watchdog cancels active work for explicit `stop`, `quota_critical`, or `reserve_threshold` decisions. A zero count of additional admission slots alone does not cancel a permitted active team. Synthetic threshold and high-quota continuation probes passed. Drain timing, bounded overshoot and provider billing remain unqualified. |
+| ORG-A08 | P1 | **Source target accepted by Sol at `d4d6590`; execution unverified:** `make engineering-release-check` explicitly runs Ruff lint/format and pytest over `engineering/`. The command was not runnable in this checkout because its pinned development tools are absent. Hosted workflows and native controller acceptance remain separate. |
+| ORG-A09 | P2 | **Bounded source repair accepted by Sol at `d4d6590`:** malformed or wrong-shaped lead/worker output opens a durable circuit and recovery obligation in one lease-fenced SQLite transaction that also fails the active attempt. Queued attempts read the decision body and stop while the circuit is open. Recovery uses one transaction bound to both current decision versions and requires a qualified fix, independent release review and separate bounded authorization. Output object fields, enums and list element types are checked before submit. The old six-attempt pilot history is unchanged. |
 | ORG-A10 | P2 | Runtime contracts remain special-cased to EXP-001, schema-validation v2, Experience and Platform. Department names are task labels, not durable department plans/leases, generic contract migration, conflict adjudication or a research experiment service. |
 | ORG-A11 | P2 | Every attempt creates a Sol lead and Luna worker; every candidate gets a Sol review. The reviewer receives at most 50,000 diff characters and cannot inspect files. Fixed catalogue selection can spend a Sol episode to choose one eligible card. General risk-aware routing, reusable contract decisions and complete review packets are missing. Independent verification must remain mandatory. |
 | ORG-A12 | P2 | Store passes all historical tasks to a validator with a 1,024-element JSON list bound; 1,025 rows fail before semantic validation. No completed-history projection exists. Full event/usage scans, raw-RPC persistence and accumulating candidate checkouts also need retention/capacity policy. Multi-month scale is unmeasured. |
@@ -161,19 +161,17 @@ validator/metering lineage. Sol preserved source custody accurately; that does n
 interfaces between independently approved components. `org/development` is a valid development
 baseline and an unsuitable operational release.
 
-The current source candidate also adds optional cache-write counter retention (see the terminal
+The bounded source candidate also adds optional cache-write counter retention (see the terminal
 usage review above), bootstrap/ledger wiring, quota cancellation, a controller parser circuit, a
-full private snapshot/restore path, and an explicit engineering check target. Sol accepted the
-`f73e030` A01/A07 findings and A02 bootstrap ordering, but rejected A02 schema compatibility, A09
-wrong-shaped output validation, and full release qualification. A follow-up found and repaired split
-foreign-key acceptance, source-path executable dependency, backup destination containment, unowned
-destination cleanup, delayed restore barrier, missing Git object validation, and insufficient
-synthetic organization database schema. The exact `81aa8eb` review accepted the covered schema,
-Git, restore and quota fixes, but found that the structural-validation API could be called without
-the persisted requalification flag. The uncommitted follow-up now requires that flag whenever
-relaxed host validation is requested. This exact follow-up remains unreviewed and is not
-release-qualified. ORG-A03 settlement remains fail-closed; unknown and late usage still retain
-reservations. Restore remains structurally verified only and requires host requalification.
+full private snapshot/restore path, and an explicit engineering check target. Earlier Sol reviews
+accepted A01/A07 and A02 bootstrap ordering, then found and drove repairs for schema, output typing,
+split foreign-key acceptance, source-path executable dependency, backup destination containment,
+unowned destination cleanup, delayed restore barrier, missing Git object validation, and incomplete
+synthetic organization schema. Sol reviewed the exact `d4d6590` candidate and accepted it for
+bounded source repair, including the persisted requalification barrier required by relaxed structural
+validation. That verdict is not full release qualification: the pinned pytest/Ruff gate could not run
+in this checkout, ORG-A03 settlement remains fail-closed, and operational restore/host qualification
+remain separate. Unknown and late usage still retain reservations. No pilot restore or replay occurred.
 
 ## Architecture retained
 

@@ -176,20 +176,19 @@ Sol отклонил release qualification source candidate `8a28908`, зате�
 `47d0770` также отклонён: review обнаружил, что валидатор ledger терял группировку composite FK,
 а snapshot принимал повреждённый Git object graph и неполную SQLite schema; restore зависел от
 старого executable path, мог удалить не принадлежащую ему destination, обходил containment через
-symlink parent и публиковал копию до установки requalification barrier. Текущий незакоммиченный
-follow-up исправляет эти случаи: exact grouped FK checks; organization column/type/null/default/
+symlink parent и публиковал копию до установки requalification barrier. Кандидат `d4d6590`
+исправил эти случаи: exact grouped FK checks; organization column/type/null/default/
 PK/FK/unique signatures and data integrity; Git fsck with sanitized config and rejection of
 promisor remotes; source-path rebinding for bundled tools; missing host Python/Codex accepted only
 behind requalification; canonical containment; safe cleanup; and barrier before publication. Также
 квота читается на первом цикле независимо от system uptime. Snapshot требует STOP/lock и сохраняет
-`runtime_ready=false`; host requalification остаётся обязательной. Exact follow-up ещё не прошёл
-Sol review; release не квалифицирован. `ORG-A03` остаётся fail-closed, usage reservations
-сохраняются. Пилот, STOP, runtime и protected data не трогались.
+`runtime_ready=false`; host requalification остаётся обязательной.
 
-Sol проверил точный кандидат `81aa8eb`: подтвердил предыдущие исправления, но обнаружил, что
-`allow_requalification=True` обходил проверку executable без обязательного persisted barrier.
-Guard теперь требует `restore_requires_host_requalification=true`; добавлен regression case. Эта
-правка ещё не прошла независимый review. Последняя focused проверка прошла: 62 unittest случая
-ledger/state/bootstrap, все 26 supervisor unittest тестов и 12 функций snapshot/restore/deployment
-через минимальную import-only заглушку `pytest` (без запуска pytest runner). Ruff/pytest отсутствуют,
-поэтому полный release target недоступен.
+Sol проверил точный кандидат `d4d6590` и принял его для bounded source repair, включая guard,
+требующий `restore_requires_host_requalification=true` при relaxed structural validation.
+Release qualification остаётся незавершённой: `ORG-A03` fail-closed, unknown/late usage сохраняет
+резервы, pinned pytest/Ruff release target недоступен, а operational restore и host requalification
+остаются отдельными проверками. Focused проверки: 62 unittest случая ledger/state/bootstrap, все
+26 supervisor unittest тестов и 12 функций snapshot/restore/deployment через минимальную
+import-only заглушку `pytest` (это не запуск pytest runner). Пилот, STOP, runtime и protected data
+не трогались.
