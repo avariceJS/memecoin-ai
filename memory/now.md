@@ -34,6 +34,11 @@ and is not to be started automatically.
   284 tests/42 subtests and Ruff (50 files). `run_attempt`, manifest/interpreter/sandbox/result
   qualification, production admission gates and full A04 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-shared-verification-plan-review-20261020.json`.
+- `run_attempt` now resolves that plan after lease/circuit checks and before checkout or model
+  dispatch at `838ff0882758a311334c0c67057a5796b8a617bb`; unqualified or unavailable plans fail
+  closed. Sol accepted this bounded gate; full gate passed 285 tests/42 subtests and Ruff (50 files).
+  Candidate evidence does not yet compare the saved plan hash with verifier re-resolution. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-run-attempt-verifier-gate-review-20261020.json`.
 - A11 review packet is in isolated worktree
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a11-review-packet-checkout`, branch
   `org/a11-review-packet`, based on `6974f941aa6c58b64d1fa6dcce26f48faa3428a2`. Silent diff

@@ -326,3 +326,10 @@ bytes; full gate passed: 284 tests, 42 subtests, Ruff (50 files). `run_attempt`,
 production gates and full A04 remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-shared-verification-plan-review-20261020.json`
 (SHA-256 `0d2383df79740ae3dff73acfa6967de4788a424db8a24ad9cebca011d25a8a7d`). Supervisor stayed off.
+
+At `838ff0882758a311334c0c67057a5796b8a617bb`, `run_attempt` also resolves the plan before checkout
+or model dispatch and stops unqualified work. Sol accepted this bounded source increment; the exact
+gate passed 285 tests/42 subtests and Ruff (50 files). Attempt evidence still needs a verifier-side
+plan hash comparison. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-run-attempt-verifier-gate-review-20261020.json`
+(SHA-256 `7f8483c832e5bd14cdbf08da7b2e53f09edda9ba1e4549a326f2ca0f21df8ffb`). Supervisor stayed off.
