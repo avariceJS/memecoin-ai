@@ -1359,3 +1359,5 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   retained topic purposes, unchanged Migration v1 pins, checks and explicit scan/test limitations.
   Historical source objects live under immutable GitHub tags `archive/pre-reset-20261018` and
   `archive/bootstrap-fixtures-20261018`; UI local review artifacts live on its retained topic branch.
+
+- `git-consolidation-2026-10-20.json`: current branch consolidation, source composition, verified recovery, cleanup and test limitations; organization remains paused for founder audit.

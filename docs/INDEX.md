@@ -3,6 +3,13 @@
 Read this page first. Current documentation is English and intentionally small. Open one canonical
 source for the task; do not scan `docs/` or `docs/evidence/` wholesale.
 
+## Consolidated audit entry — 2026-10-20
+
+Current organization branch: `org/development`; Brain: `brain/development`; Linux: `brain/linux`.
+Organization development is paused for the founder's independent Astra High audit. Read
+`engineering/SOL-MANDATE.md` and the current Git registry in `operator-runtime.md`.
+The exact consolidation result is `evidence/git-consolidation-2026-10-20.json`.
+
 ## Session entry
 
 1. [`memory/now.md`](../memory/now.md): dated volatile state; verify live status before acting.

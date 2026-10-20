@@ -38,6 +38,19 @@ is available from historical Git commits.
 - Keep `memory/now.md` short and dated. Do not recreate the old append-only narrative memory bank;
   Git history and immutable evidence hold the detailed chronology.
 
+## Consolidated branch ownership and audit hold — 2026-10-20
+
+The founder paused autonomous organization development pending an independent Astra High audit.
+Do not resume Goals, workers, services or development, or invoke Astra automatically. Use
+`org/development` for audit and later explicitly resumed Luna work; `brain/development` owns Brain
+research development. `brain/linux` remains isolated and unqualified. `main` stays unchanged.
+`research/active` is now a frozen compatibility alias for existing bootstrap/recovery callers,
+not the development lane. The old publisher's private ref remains unchanged until a reviewed
+controller release. The registry in `docs/operator-runtime.md` and the audit handoff in
+`engineering/SOL-MANDATE.md` supersede older active-continuation and branch instructions below.
+Preserve `archive/consolidation-20261020` and all older archive/handoff tags; never merge its custody
+commit as source. Do not delete frozen pilot/historical owner checkouts during worktree cleanup.
+
 ## Organization authority and Git policy — 2026-10-19
 
 The current founder directive supersedes the earlier main-integration and Sol-led executive policy.

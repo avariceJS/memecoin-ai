@@ -1,0 +1,313 @@
+{
+  "schema": "brain-git-consolidation-v1",
+  "date": "2026-10-20",
+  "authority": "Explicit founder consolidation request; autonomous development paused for separately invited Astra High audit",
+  "status": "source consolidation and branch cleanup complete; development remains paused",
+  "stable_main": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+  "primary_local_branches": [
+    "main",
+    "brain/development",
+    "org/development",
+    "brain/linux"
+  ],
+  "github_branches": [
+    "main",
+    "brain/development",
+    "org/development",
+    "brain/linux",
+    "research/active"
+  ],
+  "compatibility_alias": {
+    "branch": "research/active",
+    "sha": "c157f79471c1cb330bdab01cc4b4cdd7b9a1a186",
+    "frozen": true,
+    "why_retained": "Current engineering/bootstrap.py resolves refs/remotes/origin/research/active; historical recovery packages also name this ref. Removing it requires a separately reviewed and qualified controller/recovery change."
+  },
+  "source_composition": {
+    "tested_merged_commit": "7a2df9b90767b77943aab498c874d3a520450879",
+    "merges": [
+      "3db228927b68765e6b677d9c811ec1d6508fe67e",
+      "7a2df9b90767b77943aab498c874d3a520450879"
+    ],
+    "metering": "3733ce43f9606a738bbc07e5ebb0321f2a7f17bd",
+    "validator": "2b81ebbc67c175e3d7255988dee527cbb1d3afd8",
+    "store": "a16d8b8a958feec0cdf697d9a5d72d9823b5338c",
+    "store_receipt_commit": "963a8306395025e475d19c671871d9d265cf2074",
+    "founder_and_Luna_custody": "afc6beaa7596066f6b3399dcee721914ea742d34",
+    "selection": {
+      "base_exact_files": [
+        "engineering/__init__.py",
+        "engineering/__main__.py",
+        "engineering/bootstrap.py",
+        "engineering/chief.py",
+        "engineering/codex_rpc.py",
+        "engineering/confinement.py",
+        "engineering/executive.py",
+        "engineering/fault_trial.py",
+        "engineering/git_gate.py",
+        "engineering/metered_codex.py",
+        "engineering/pilot_acceptance.py",
+        "engineering/planning.py",
+        "engineering/processes.py",
+        "engineering/qualification.py",
+        "engineering/quota_policy.py",
+        "engineering/resources.py",
+        "engineering/service.py",
+        "engineering/supervisor.py",
+        "engineering/task_specs.py",
+        "engineering/tests/test_chief.py",
+        "engineering/tests/test_codex_rpc.py",
+        "engineering/tests/test_codex_rpc_usage.py",
+        "engineering/tests/test_confinement.py",
+        "engineering/tests/test_executive.py",
+        "engineering/tests/test_fault_trial.py",
+        "engineering/tests/test_git_gate.py",
+        "engineering/tests/test_metered_codex.py",
+        "engineering/tests/test_planning.py",
+        "engineering/tests/test_processes.py",
+        "engineering/tests/test_qualification.py",
+        "engineering/tests/test_quota_policy.py",
+        "engineering/tests/test_resource_amendment.py",
+        "engineering/tests/test_resources.py",
+        "engineering/tests/test_service.py",
+        "engineering/tests/test_state.py",
+        "engineering/tests/test_supervisor.py",
+        "engineering/tests/test_task_specs.py",
+        "engineering/tests/test_usage_ledger.py",
+        "engineering/usage_ledger.py"
+      ],
+      "store_exact_files": [
+        "engineering/org_state.py",
+        "engineering/tests/test_task_spec_store.py"
+      ],
+      "independent_merged_acceptance": false
+    },
+    "conflict_resolution": "Engineering bytes exactly from 2b81ebb except the two additive Store files, exactly from a16d8b8a. Older parallel metering/validator code is superseded, not recombined. Founder custody merge changes documents only.",
+    "merged_system_independently_approved": false,
+    "operational_release": false
+  },
+  "brain": {
+    "base": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+    "changes": "Consolidation documentation only; no experimental Brain source merged"
+  },
+  "linux": {
+    "base": "65846e8ed472b1f61af6afdeb77499c94f068313",
+    "changes": "Renamed candidate; consolidation documentation only",
+    "current_Brain_baseline_merged": false,
+    "why_separate": "Large shared storage/operator/host changes and Linux release/provisioning/systemd semantics lack clean-host and exact-head lifecycle qualification. Keeping the candidate separate avoids treating it as accepted cross-platform Brain."
+  },
+  "archived_not_integrated": [
+    {
+      "topic": "UI reconstruction",
+      "sha": "de4b42d1600e085cbd128476bb9044db92c3cef5",
+      "open": "CC02 integrated visual acceptance"
+    },
+    {
+      "topic": "DR v3 prototype",
+      "sha": "6554a0180cb887fb20fd2cca3eb097f38b28489f",
+      "open": "Physical APFS/HFS and owner-scale qualification; not production capture"
+    },
+    {
+      "topic": "Unreviewed supervisor maintenance proposal",
+      "sha": "1546e4c70d079167a91180c1b00b0af9a88b503a",
+      "open": "Superseded unaccepted proposal; custody only"
+    },
+    {
+      "topic": "Complete organization backup/restore",
+      "sha": "613c5e9e6dd6fe00d6ebf4b072a31885826ac7a4",
+      "open": "Exact review rejected unpublished staging cleanup. Final dirty repair has reported 13 focused tests and Ruff; frozen acceptance and independent review after that edit are missing. Not integrated.",
+      "dirty_paths": [
+        "snapshots/checkout-15/engineering/service.py",
+        "snapshots/checkout-15/engineering/tests/test_service.py"
+      ]
+    }
+  ],
+  "custody": {
+    "tag": "archive/consolidation-20261020",
+    "commit": "3a163fad824fa9f74c160a4244eba2bdbfb512b7",
+    "manifest_sha256": "e0e323b4e31b1a1694e2fa6c6dae1bb72caec4c232c1a9868d45def1f63e9dcb",
+    "original_commit_pins": 69,
+    "custody_parents": 8,
+    "remote_tag_recovery": {
+      "archive": "3a163fad824fa9f74c160a4244eba2bdbfb512b7",
+      "checks": 73,
+      "fsck_exit": 0,
+      "restored_from": "GitHub tag only"
+    },
+    "repository_checkouts_inspected": 21,
+    "distinct_git_databases_inspected": 11,
+    "all_advertised_remote_refs_checked": true,
+    "remote_pull_refs_advertised": 0,
+    "stashes_found": 0,
+    "unreachable_unique_development_commits_found": 0,
+    "dangling_clone_commits": {
+      "count": 3,
+      "all_already_present_centrally": true,
+      "topics": [
+        "Linux",
+        "DR v3",
+        "UI"
+      ]
+    },
+    "dirty_organization_files_in_tag": 4,
+    "dirty_historical_owner_docs": {
+      "count": 5,
+      "unchanged_in_original_checkout": true,
+      "private_tar_verified": true
+    },
+    "private_recovery_root": "/Users/root1/Developer/brain-org-state/consolidation-20261020",
+    "private_bundles": 11,
+    "private_ignored_artifact_archives_verified": 9,
+    "prior_tag_entries_unchanged": 17,
+    "no_history_rewrite_or_force_push": true,
+    "archive_tree_is_not_source": true
+  },
+  "cleanup": {
+    "local_branches_deleted": [
+      "codex/development-readiness-20261019",
+      "org/ceo-resource-policy-20261020",
+      "org/continuation-custody-20261020",
+      "org/foundation-20261019",
+      "org/founder-quota-amendment-20261020",
+      "org/goal-lifecycle-recovery-20261020",
+      "org/goal-scheduling-proof-20261020",
+      "org/luna-first-handoff-20261020",
+      "org/metering-bridge-20261020",
+      "org/metering-remediation-luna-20261020",
+      "org/proposal-no-auto-astra-20261020",
+      "org/resource-bootstrap-20261020",
+      "org/restorable-backup-luna-20261020",
+      "org/sol-recovery-20261020",
+      "org/task-spec-store-20261020",
+      "org/task-specs-repair-luna-20261020"
+    ],
+    "remote_branches_deleted": [
+      "codex/development-readiness-20261019",
+      "codex/linux-portability-20261018",
+      "codex/v3-scratch-20261017",
+      "control-center/observatory-handoff",
+      "org/ceo-resource-policy-20261020",
+      "org/continuation-custody-20261020",
+      "org/foundation-20261019",
+      "org/founder-quota-amendment-20261020",
+      "org/goal-lifecycle-recovery-20261020",
+      "org/goal-scheduling-proof-20261020",
+      "org/luna-first-handoff-20261020",
+      "org/proposal-no-auto-astra-20261020",
+      "org/resource-bootstrap-20261020",
+      "org/sol-recovery-20261020"
+    ],
+    "original_redundant_worktrees_removed": [
+      "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/candidate",
+      "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/metering-remediation-luna",
+      "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/task-specs-review-checkout",
+      "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/task-specs-repair-luna",
+      "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/review4-checkout",
+      "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/review5-checkout",
+      "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/restorable-backup-luna",
+      "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/task-spec-store-checkout",
+      "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/metering-bridge-checkout"
+    ],
+    "retained_development_checkouts": [
+      "/Users/root1/Developer/memecoin-research",
+      "/Users/root1/Developer/brain-org-build"
+    ],
+    "temporary_linux_documentation_worktree": "Removed after documentation commit; its final commit remains on brain/linux",
+    "frozen_private_pilot_bootstrap_and_owner_snapshots": "Preserved, not relabeled as development branches"
+  },
+  "verification": {
+    "engineering_suite": {
+      "passed": 194,
+      "subtests_passed": 36,
+      "failed": 4,
+      "setup_errors": 10,
+      "excluded": [
+        "test_confinement.py",
+        "test_qualification.py"
+      ],
+      "interpretation": "Two failures are external sandbox signal denial; two are legacy permit_required failures. Initial GitGate setup errors are the /usr/bin/git xcode-select shim boundary, resolved by using direct Command Line Tools Git."
+    },
+    "GitGate_rerun": {
+      "passed": 10,
+      "environment": "Same source, direct CLT Git; synthetic temporary repositories only"
+    },
+    "legacy_baseline_reproduction": {
+      "source": "2b81ebbc67c175e3d7255988dee527cbb1d3afd8",
+      "failed": 2,
+      "cases": [
+        "test_independent_adapter_acceptance",
+        "test_independent_review_regressions_acceptance"
+      ],
+      "error": "RpcError: permit_required",
+      "implementation_not_changed_to_make_tests_pass": true
+    },
+    "metering_frozen_regressions": {
+      "passed": 49,
+      "frozen_input_unchanged": true,
+      "full_original_scoped_launcher_not_used_on_merged_tree": "Its change-scope constraint intentionally excludes validator/Store/doc changes; component review at 3733ce4 remains separate historical evidence."
+    },
+    "validator_frozen": {
+      "passed": true,
+      "checks": 37
+    },
+    "engineering_Ruff": "passed",
+    "synthetic_smoke": "passed under confinement with selected source/src on PYTHONPATH",
+    "make_check": "Stops at 107 existing unrelated Ruff findings before formatting/type/test stages",
+    "fresh_GitHub_development_restoration": {
+      "remote_source_commit": "7a2df9b90767b77943aab498c874d3a520450879",
+      "source_files_equal": true,
+      "fresh_GitHub_bare_clone_fsck": true,
+      "focused_tests": "...........................................            [100%]\n43 passed, 18 subtests passed in 0.32s",
+      "no_runtime_or_data_used": true
+    },
+    "whole_repository_green": false,
+    "new_native_Seatbelt_qualification": false,
+    "Linux_host_execution": false,
+    "test_harness_limits": "Initial collection, Ruff cache, system-make shim, source package resolution failures are preserved in private attempt logs. Harness corrected without changing project code. Signal-specific cases were not widened or claimed passed.",
+    "private_raw_results": "/Users/root1/Developer/brain-org-state/consolidation-20261020"
+  },
+  "CI": {
+    "source_commit": "7a2df9b90767b77943aab498c874d3a520450879",
+    "run": "https://github.com/avariceJS/memecoin-ai/actions/runs/39422461141",
+    "status": "failure before job steps",
+    "jobs_have_no_steps": true,
+    "annotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased.",
+    "code_execution_result": null,
+    "account_settings_changed": false
+  },
+  "protected_state": {
+    "pilot_path": "/Users/root1/Developer/brain-org-state/pilot-20261019",
+    "hashes_before_equal_after": true,
+    "file_sha256": {
+      "organization.sqlite": "a617f5f4fef928a3d46ba31316b0649bf2b3c8bd537883125c4ae23137267053",
+      "STOP": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "config.json": "130d8802b23352a72d4b9d0a9144a9c313984d126aeed17fb4e60607578ccdc1",
+      "controller-manifest.json": "6b67c10f0027607edd596d31d03c9082b05c6675c23c3ee1c690586f7d3de075"
+    },
+    "tasks": 3,
+    "failed_attempts": 6,
+    "acceptances": 0,
+    "integrations": 0,
+    "events": 106,
+    "STOP_preserved": true,
+    "private_frozen_repositories_changed": false,
+    "historical_owner_head": "a5944742b6b8ed0466c50bdeb72370ed3e3f2a31",
+    "protected_datasets_runtime_credentials_models_champion_AUTO_trading": "No Brain runtime credentials or protected datasets read; runtime, models, champion and AUTO unchanged; no operational activation. Authorized GitHub authentication used only for Git/CI custody."
+  },
+  "audit_handoff": {
+    "founder_will_invite": "Astra High for independent architecture audit",
+    "development_resumed": false,
+    "new_team_created": false,
+    "Luna_branch_after_explicit_resumption": "org/development",
+    "entry": "engineering/SOL-MANDATE.md",
+    "private_handoff": "/Users/root1/Developer/brain-org-state/consolidation-20261020/handoff.json",
+    "remaining": [
+      "Merged-source independent architectural/integration acceptance",
+      "Planner/scheduler task-spec admission and verifier binding",
+      "Complete backup/restore source acceptance and real recovery qualification",
+      "Reviewed STOP-preserving controller release and branch/config/native preflight binding",
+      "Actual parser/tool and fenced original-task recovery in same pilot database",
+      "No external-media, cross-machine, reboot or endurance acceptance claim"
+    ]
+  }
+}

@@ -5,6 +5,34 @@ The founder directive of 2026-10-19 appoints Astra High CEO / Engineering Direct
 leads departments and Luna High implements bounded tasks. The [Founder Desk](../engineering/OWNER-DESK.md)
 is Russian by explicit request. Research contracts remain in `docs/contracts.md`.
 
+## Current founder audit hold — 2026-10-20
+
+Organization development is paused by the founder. Do not resume Goals, dispatch workers, invoke
+Astra automatically, deploy the controller, or clear STOP. Astra High will be invited separately for
+an independent architecture audit. The registry in [operator-runtime.md](operator-runtime.md#git-integration-and-recovery-registry)
+and [Sol mandate](../engineering/SOL-MANDATE.md) supersede all active-continuation statements below;
+those statements describe prior authority and historical episodes.
+
+`org/development` combines exact metering source `3733ce43`, validator `2b81ebbc`, Store source
+`a16d8b8a` (recorded at `963a830`), and founder/Luna custody `afc6bea`. Conflict resolution preserves
+all metering files and validator bytes from `2b81ebbc`; only `org_state.py` and
+`test_task_spec_store.py` come from the Store line. Older receipt-bound variants remain historical.
+This source composition requires its own integration and release review; predecessor approvals do
+not approve the merged system. Planner/scheduler admission and verifier binding remain incomplete.
+
+Backup/restore commits through `613c5e9`, followed by the final dirty cleanup repair, are preserved
+in `archive/consolidation-20261020`, excluded from the unified source. The last exact review rejected
+unpublished staging cleanup; the dirty repair has reported focused checks but lacks a fresh frozen
+acceptance and independent review. The integrated `service.backup_snapshot` is still partial.
+Physical reboot, external-media/cross-machine recovery, long-running unattended operation, a
+STOP-preserving release and original-task recovery remain unqualified. No useful Brain task has
+been accepted or integrated by the pilot. Source custody is not system acceptance.
+
+Read [the consolidation receipt](evidence/git-consolidation-2026-10-20.json) and private
+`brain-org-state/consolidation-20261020/handoff.json` before audit. Preserve the original SQLite,
+attempts, events, leases, usage and configuration. Do not follow stale checkout pointers from older
+handoffs; removed topic worktrees are recoverable by the archive manifest.
+
 ## Current founder role amendment — 2026-10-20
 
 [FOUNDER-20261020-LUNA-FIRST-01](evidence/brain-org-luna-first-20261020.json) supersedes earlier
