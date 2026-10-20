@@ -90,11 +90,16 @@ read-only probe of the same pinned CLI found `rawResponse/completed`, whose sche
 experimental-field filter. A corrected read-only export with `--experimental` confirms that exact
 pinned v0.163.0 includes the boolean opt-in, but its schema description says it is for internal use
 only; the `RawResponseCompletedNotification` schema is itself described as internal-only. The raw
-payload has no dispatch/model/epoch binding, and no runtime emission or completeness/order behavior
-was exercised. This is not an authorized owner-adapter source. Exact default and experimental schema
-hashes are in the correction receipt below. Until a reviewed supported interface establishes the
-full binding/completeness contract, ORG-A03 stays fail-closed. Unknown usage remains reserved;
-`turn/completed` remains lifecycle-only.
+payload has no dispatch/model/epoch binding. Pinned source inspection shows core emits the
+per-response event after completed upstream Responses API results (including foreground compaction);
+core tests reject incomplete streams as completed. The app-server adds thread/turn identifiers and
+forwards this event before its turn-completion notification, but gates it behind the internal-only
+opt-in. These are source semantics only: no runtime delivery, reconnect, completeness, duplicate, or
+late-correction behavior was exercised. This is not an authorized owner-adapter source. Exact default
+and experimental schema hashes are in the correction receipt below; source hashes and URLs for this
+follow-up are in `terminal-usage-raw-response-source-semantics-20261020.json`. Until a reviewed
+supported interface establishes full dispatch/model/epoch binding and delivery completeness, ORG-A03
+stays fail-closed. Unknown usage remains reserved; `turn/completed` remains lifecycle-only.
 
 Sol also identified a conditional parser compatibility gap in `metered_codex.capture`: the generated
 schema permits an optional `cacheWriteInputTokens` counter, but canonicalization currently requires
