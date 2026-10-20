@@ -80,8 +80,12 @@ acceptance for metered admission, durable quota recovery and lifecycle gates. Th
 all five file hashes but could not read the Git object through its broker. Candidate work remains
 separate from deployment: pilot /Users/root1/Developer/brain-org-state/pilot-20261019 retains
 zero-byte STOP, six failed attempts, no accepted tasks and no running controller process. The
-local owner status was read-only; main stays unchanged. Controlled release, same-state recovery,
-transactional scheduler integration and full organization qualification remain open. See
+local owner status was read-only; main stays unchanged. The reviewed task-spec validator remains
+standalone: planning admits fixed cards, no canonical spec is persisted, and acceptance IDs/hashes
+do not bind trusted runnable checks. Integration must pin that mapping in reviewed controller
+policy and use it consistently for dispatch, verification and recovery. Controlled release,
+same-state recovery, transactional scheduler integration and full organization qualification
+remain open. See
 docs/engineering-organization.md and the unique source receipt in docs/evidence/README.md.
 Policy: docs/evidence/brain-org-founder-quota-amendment-20261020.json.
 

@@ -305,3 +305,10 @@ process custody and next actions are private durable state.
 The source-only structured task validator has separately passed its frozen 37-check acceptance;
 independent source review and transactional scheduler integration remain pending. Full recovery,
 useful tasks and every organization acceptance gate remain in scope.
+The validator is currently a pure function with synthetic test fixtures. `planning.py` still
+admits only fixed catalogue cards, `Store` has no durable task-spec record, and worker/verification
+resolve grants and commands from `config["tasks"][id]`. The validator’s independent acceptance
+references are IDs and hashes; they do not themselves bind a runnable trusted verifier. Scheduler
+integration therefore requires a reviewed immutable policy mapping each accepted reference to its
+frozen verifier/checks, plus atomic persistence of the canonical spec and recovery/verification paths
+that consume that same record. A proposal must never select commands or acceptance policy.
