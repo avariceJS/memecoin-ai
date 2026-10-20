@@ -276,6 +276,25 @@ Apple's [`execve(2)` reference](https://developer.apple.com/library/archive/docu
 [XNU `kern_exec.c`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_exec.c).
 This does not address Python loader/import dependency closure.
 
+Apple's launch environment/library constraints are a separate code-signing policy, not a way for
+the current `sandbox-exec` path to execute the already hashed descriptor. Apple documents
+`SpawnConstraint` for launchd agents/daemons and launch environment constraints embedded in the
+target executable's signature; neither establishes descriptor-to-invocation inode identity for
+this A04 command. We therefore do not treat them as a substitute for the missing same-inode binding.
+See Apple's [applying constraints](https://developer.apple.com/documentation/Security/applying-launch-environment-and-library-constraints)
+and [defining constraints](https://developer.apple.com/documentation/security/defining-launch-environment-and-library-constraints)
+documentation. This is a bounded applicability finding, not a claim that code-signing constraints
+are ineffective for their documented use cases.
+
+Before any future A05 request consumer is designed, its inputs must come from one coherent,
+source-identified gate snapshot with capture time or sequence. Consumption must reject unknown or
+stale observations and re-evaluate database gates under the current owner fence using the Store
+clock, including after lock waits. Deduplication must use a stable controller-owned authorization
+generation distinct from the replaceable owner epoch, with at most one terminal passive disposition
+per generation. A consumer may persist that disposition only; process/service action requires a
+separately qualified path. Current observation binding does not provide these guarantees, so no
+consumer is implemented and A05 remains open.
+
 The source candidate, merged-system acceptance, operational release, and founder authority to resume
 the original pilot are distinct gates. A03 currently blocks full operational release, not independent
 engineering progress. Passing synthetic tests or the local release command alone does not pass them.

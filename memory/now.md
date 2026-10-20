@@ -18,6 +18,10 @@ automatically.
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
+- A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
+  constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
+  must require coherent fresh source-identified gates, current-fence revalidation and stable
+  authorization-generation deduplication. Both remain open; see `docs/engineering-organization.md`.
 - A04 scaffold is in isolated worktree
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-execution-binding-checkout`, branch
   `org/a04-execution-binding`, based on `d8b5d5350725564ac2771ed2d67cc97fac6db12b`. It atomically

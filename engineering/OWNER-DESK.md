@@ -318,6 +318,21 @@ scheduler/process/service wiring, operational recovery и полный A05 ос�
 повторная проверка gate при потреблении, cross-epoch deduplication, recovery и полный A05 открыты.
 Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-observation-binding-review-20261021.json`.
 
+Для будущего A05 consumer сначала нужны единый согласованный снимок gate с идентификатором источника
+и временем/sequence capture, отказ при unknown/stale и повторная проверка database gates внутри
+текущего owner fence по часам Store после возможных ожиданий блокировки. Deduplication должна
+опираться на стабильный controller-owned authorization generation, отличный от заменяемого owner
+epoch, и разрешать не более одного terminal passive disposition на generation. Consumer может
+сохранять только disposition; process/service action требует отдельной квалификации. Нынешняя
+привязка наблюдений этого не обеспечивает; consumer не реализован, полный A05 открыт.
+
+A04: на macOS 26.7.1 не найден поддержанный public descriptor-to-exec путь для проверенного
+интерпретатора; вывод ограничен этим хостом. Apple `SpawnConstraint` относится к запуску launchd,
+а остальные описанные launch constraints являются требованиями в code signature target. Они не
+доказывают, что `sandbox-exec` запустил тот же inode, который ранее был проверен. Не использовать
+их как замену отсутствующей связи path-to-invocation; A04 остаётся fail-closed. Проба:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-darwin-fd-exec-probe-20261021.json`.
+
 A10 получил read-only readiness report в `57f496f5f74258d00a09dc37b5818e409495dffc`: единый SQLite
 snapshot показывает non-integrated/missing dependencies и несовпадающие версии contracts. Blocked
 задача не скрывает независимую ready работу; transactional `claim` остаётся авторитетным и повторно
