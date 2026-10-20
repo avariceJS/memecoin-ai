@@ -307,7 +307,7 @@ def test_zero_slot_quota_cancels_active_monitor(tmp_path):
     cancelled = threading.Event()
 
     def no_capacity(_source):
-        controller.quota_decision = {"slots": 0}
+        controller.quota_decision = {"slots": 0, "reason": "reserve_threshold"}
         return quota(99)
 
     controller.refresh = no_capacity
@@ -315,6 +315,26 @@ def test_zero_slot_quota_cancels_active_monitor(tmp_path):
     assert cancelled.wait(2)
     watcher.join(2)
     assert not watcher.is_alive()
+    controller.close()
+    ledger.close()
+
+
+def test_zero_admission_slots_at_high_quota_do_not_cancel_active_team(tmp_path):
+    ledger, _rpc, controller, _client = make(tmp_path)
+    controller.quota_decision = {"slots": 0, "reason": "quota_high"}
+    refresh_complete = threading.Event()
+
+    def high_quota(_source):
+        controller.quota_decision = {"slots": 0, "reason": "quota_high"}
+        refresh_complete.set()
+        return quota(97)
+
+    controller.refresh = high_quota
+    cancelled = threading.Event()
+    watcher = controller.monitor(time.monotonic() + 30, cancelled.set)
+    assert refresh_complete.wait(2)
+    assert not cancelled.wait(0.05)
+    controller.stop_monitor(watcher)
     controller.close()
     ledger.close()
 

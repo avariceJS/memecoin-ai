@@ -224,7 +224,11 @@ class Controller:
                 except Exception:
                     cancel()
                     return
-                if self.quota_decision["slots"] <= 0:
+                if self.quota_decision["reason"] in (
+                    "stop",
+                    "quota_critical",
+                    "reserve_threshold",
+                ):
                     cancel()
                     return
                 remaining = max(0.0, deadline - self.monotonic())

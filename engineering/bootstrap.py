@@ -26,8 +26,6 @@ def bootstrap(state: Path, source: Path, python: str):
     os.chmod(state, 0o700)
     for name in ("trusted", "intents", "attempts", "receipts", "verification", "controller"):
         (state / name).mkdir(exist_ok=True)
-    ledger = UsageLedger(state / "usage-ledger.sqlite")
-    ledger.close()
     qualification = qualify_sandbox(
         state, python_executable=python, read_roots=["/opt/homebrew/opt/sqlite"]
     )
@@ -198,6 +196,8 @@ def bootstrap(state: Path, source: Path, python: str):
         (state / "trusted/pilot_acceptance.py").read_bytes()
     ).hexdigest()
     atomic(state / "controller-manifest.json", manifest)
+    ledger = UsageLedger(state / "usage-ledger.sqlite")
+    ledger.close()
     db = Store(state / "organization.sqlite")
     db.add_objective(
         "offline-brain-engineering",

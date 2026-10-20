@@ -86,6 +86,70 @@ class StateTests(unittest.TestCase):
             self.store.submit(attempt["id"], attempt["epoch"] + 1, "bad", {})
         self.assertEqual(self.store.get_task("b")["state"], "running")
 
+    def test_controller_fault_circuit_is_fenced_atomic_and_version_bound(self):
+        self.task(max_attempts=2)
+        attempt = self.store.claim("a", "worker")
+        other = Store(self.path, clock=lambda: self.now)
+        try:
+            with self.assertRaises(StaleAttempt):
+                other.open_controller_parse_fault(
+                    attempt["id"] + 100,
+                    attempt["epoch"],
+                    stage="lead",
+                    exception_type="ValueError",
+                )
+            self.assertIsNone(self.store.get_decision("circuit/controller-parse"))
+        finally:
+            other.close()
+
+        self.store.db.execute(
+            """CREATE TRIGGER fail_recovery_obligation BEFORE INSERT ON decisions
+               WHEN NEW.name='recovery-obligation/controller-parse'
+               BEGIN SELECT RAISE(ABORT, 'injected obligation failure'); END"""
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store.open_controller_parse_fault(
+                attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+            )
+        self.assertIsNone(self.store.get_decision("circuit/controller-parse"))
+        self.assertEqual(self.store.get_task("a")["state"], "running")
+        self.store.db.execute("DROP TRIGGER fail_recovery_obligation")
+
+        self.store.open_controller_parse_fault(
+            attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+        )
+        circuit = self.store.get_decision("circuit/controller-parse")
+        obligation = self.store.get_decision("recovery-obligation/controller-parse")
+        self.assertEqual(circuit["body"]["status"], "open")
+        self.assertEqual(obligation["body"]["status"], "open")
+        self.assertEqual(self.store.get_task("a")["state"], "failed")
+        self.assertEqual(self.store.list_attempts()[0]["state"], "failed")
+
+        with self.assertRaises(StateError):
+            self.store.resolve_controller_parse_fault(
+                expected_circuit_version=circuit["version"] + 1,
+                expected_obligation_version=obligation["version"],
+                recovery_id="recovery-1",
+                fix_sha256="a" * 64,
+                review_ref="sol-review",
+                authorization_ref="founder-auth",
+            )
+        self.store.resolve_controller_parse_fault(
+            expected_circuit_version=circuit["version"],
+            expected_obligation_version=obligation["version"],
+            recovery_id="recovery-1",
+            fix_sha256="a" * 64,
+            review_ref="sol-review",
+            authorization_ref="founder-auth",
+        )
+        self.assertEqual(
+            self.store.get_decision("circuit/controller-parse")["body"]["status"], "resolved"
+        )
+        self.assertEqual(
+            self.store.get_decision("recovery-obligation/controller-parse")["body"]["status"],
+            "resolved",
+        )
+
     def test_recovery_is_durable_idempotent_and_bounded(self):
         self.task(max_attempts=2)
         first = self.store.claim("a", "worker", 1)

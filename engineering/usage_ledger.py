@@ -65,10 +65,143 @@ class UsageLedger:
         if version > 1:
             self.db.close()
             raise ValueError("usage_ledger_schema_newer_than_controller")
+        known_tables = {
+            "registrations",
+            "events",
+            "turns",
+            "turn_finishes",
+            "dispatches",
+            "receipts",
+            "receipt_conflicts",
+            "outcomes",
+            "rpc_ingress",
+            "terminal_receipts",
+            "terminal_receipt_conflicts",
+            "interval_attributions",
+            "external_historical_unknown",
+            "external_imports",
+        }
+        tables = {
+            row[0]
+            for row in self.db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        }
+        if (version == 1 and not tables) or (tables and (
+            tables - known_tables
+            or not {
+                "registrations",
+                "events",
+                "turns",
+                "turn_finishes",
+                "dispatches",
+                "receipts",
+            }
+            <= tables
+        )):
+            self.db.close()
+            raise ValueError("usage_ledger_schema_unrecognized")
+        required_columns = {
+            "registrations": {"identity", "epoch", "model", "baseline", "evidence", "started"},
+            "events": {
+                "event_id",
+                "identity",
+                "epoch",
+                "sequence",
+                "counters",
+                "source",
+                "observed_at",
+                "event_at",
+                "parent_event_id",
+                "reason",
+            },
+            "turns": {
+                "turn_id",
+                "identity",
+                "epoch",
+                "start_counters",
+                "reservation_tokens",
+                "reservation_wpu",
+                "deadline_at",
+                "evidence",
+            },
+            "turn_finishes": {"turn_id", "end_counters", "receipt", "failed"},
+            "dispatches": {
+                "dispatch_id",
+                "payload",
+                "identity",
+                "model",
+                "estimate_tokens",
+                "estimate_wpu",
+                "deadline_at",
+                "baseline",
+                "provider_turn_id",
+                "status",
+                "outcome",
+                "created_at",
+            },
+            "receipts": {
+                "event_id",
+                "dispatch_id",
+                "provider_turn_id",
+                "source",
+                "receipt",
+                "event_at",
+                "observed_at",
+            },
+            "receipt_conflicts": {"conflict_id", "event_id", "payload", "observed_at"},
+            "outcomes": {"event_id", "dispatch_id", "status", "receipt", "observed_at"},
+            "rpc_ingress": {"ingress_id", "raw_bytes", "received_at"},
+            "terminal_receipts": {
+                "dispatch_id",
+                "evidence_sha256",
+                "evidence",
+                "observed_at",
+            },
+            "terminal_receipt_conflicts": {
+                "conflict_id",
+                "dispatch_id",
+                "evidence_sha256",
+                "evidence",
+                "observed_at",
+            },
+            "interval_attributions": {
+                "event_id",
+                "dispatch_id",
+                "identity",
+                "epoch",
+                "model",
+                "start_counters",
+                "end_counters",
+                "evidence",
+                "created_at",
+            },
+            "external_historical_unknown": {
+                "event_id",
+                "counters",
+                "collector_id",
+                "evidence_sha256",
+                "created_at",
+            },
+            "external_imports": {
+                "collector_id",
+                "evidence_sha256",
+                "evidence_bytes",
+                "imported_at",
+            },
+        }
+        for table, required in required_columns.items():
+            if table in tables:
+                actual = {row[1] for row in self.db.execute(f"PRAGMA table_info({table})")}
+                if not required <= actual:
+                    self.db.close()
+                    raise ValueError("usage_ledger_schema_unrecognized")
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA journal_mode=WAL")
-        self.db.executescript(
-            """
+        try:
+            self.db.executescript(
+                "BEGIN IMMEDIATE;\n"
+                + """
             CREATE TABLE IF NOT EXISTS registrations (
                 identity TEXT NOT NULL,
                 epoch TEXT NOT NULL,
@@ -158,15 +291,28 @@ class UsageLedger:
                 evidence_bytes BLOB NOT NULL, imported_at REAL NOT NULL,
                 PRIMARY KEY (collector_id,evidence_sha256)
             );
-            """
-        )
-        dispatch_columns = {row[1] for row in self.db.execute("PRAGMA table_info(dispatches)")}
-        if "epoch" not in dispatch_columns:
-            self.db.execute("ALTER TABLE dispatches ADD COLUMN epoch TEXT")
-        columns = {row[1] for row in self.db.execute("PRAGMA table_info(receipts)")}
-        if "evidence" not in columns:
-            self.db.execute("ALTER TABLE receipts ADD COLUMN evidence TEXT NOT NULL DEFAULT '{}'")
-        self.db.execute("PRAGMA user_version=1")
+                """
+            )
+        except BaseException:
+            if self.db.in_transaction:
+                self.db.execute("ROLLBACK")
+            self.db.close()
+            raise
+        try:
+            dispatch_columns = {row[1] for row in self.db.execute("PRAGMA table_info(dispatches)")}
+            if "epoch" not in dispatch_columns:
+                self.db.execute("ALTER TABLE dispatches ADD COLUMN epoch TEXT")
+            columns = {row[1] for row in self.db.execute("PRAGMA table_info(receipts)")}
+            if "evidence" not in columns:
+                self.db.execute(
+                    "ALTER TABLE receipts ADD COLUMN evidence TEXT NOT NULL DEFAULT '{}'"
+                )
+            self.db.execute("PRAGMA user_version=1")
+            self.db.execute("COMMIT")
+        except BaseException:
+            self.db.execute("ROLLBACK")
+            self.db.close()
+            raise
 
     def persist_raw_rpc(self, raw_bytes):
         if not isinstance(raw_bytes, bytes):

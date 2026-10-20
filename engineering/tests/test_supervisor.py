@@ -315,7 +315,7 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(self.db.get_task("T")["active_attempt"], first["id"])
         self.assertEqual(len(self.db.list_attempts()), 1)
 
-    def test_malformed_lead_output_retries_without_running_worker(self):
+    def test_malformed_lead_output_opens_circuit_without_running_worker(self):
         self.task()
         attempt = self.db.claim("T", "worker", 100)
         calls = []
@@ -333,13 +333,20 @@ class SupervisorTests(unittest.TestCase):
             patch.object(supervisor, "process_identity", return_value="fake"),
         ):
             supervisor.run_attempt(self.state, attempt["id"])
-        self.assertEqual(self.db.get_task("T")["state"], "pending")
+        self.assertEqual(self.db.get_task("T")["state"], "failed")
         self.assertEqual(self.db.list_attempts()[0]["state"], "failed")
+        self.assertEqual(
+            self.db.get_decision("circuit/controller-parse")["body"]["status"], "open"
+        )
+        self.assertEqual(
+            self.db.get_decision("recovery-obligation/controller-parse")["body"]["status"],
+            "open",
+        )
         self.assertFalse(any("commit" in args for args in calls))
         self.assertNotIn("tokens", self.db.usage_summary()["total"])
         self.assertEqual(self.db.usage_summary()["total"].get("sol_turns"), 1)
 
-    def test_malformed_worker_output_retries_before_commit(self):
+    def test_malformed_worker_output_opens_circuit_before_commit(self):
         self.task()
         attempt = self.db.claim("T", "worker", 100)
         lead, worker = FakeCodex(), FakeCodex()
@@ -372,7 +379,10 @@ class SupervisorTests(unittest.TestCase):
             patch.object(supervisor, "process_identity", return_value="fake"),
         ):
             supervisor.run_attempt(self.state, attempt["id"])
-        self.assertEqual(self.db.get_task("T")["state"], "pending")
+        self.assertEqual(self.db.get_task("T")["state"], "failed")
+        self.assertEqual(
+            self.db.get_decision("circuit/controller-parse")["body"]["status"], "open"
+        )
         self.assertFalse(any("commit" in args for args in calls))
         self.assertEqual(len(FakeCodex.turn_estimates), 2)
         self.assertTrue(all(0 < estimate <= 4000 for estimate in FakeCodex.turn_estimates))

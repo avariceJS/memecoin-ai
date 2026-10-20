@@ -20,11 +20,12 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
 - The parser now preserves that optional field in raw evidence and normalizes only the five canonical
   counters. Five/six-field cases and malformed optional values passed direct invocation; checkout
   has no pytest/Ruff and only Python 3.9, so standard focused test tooling remains unverified.
-- Unreviewed source candidate at `5962fe2` plus current edits addresses A01/A02/A07/A08/A09. A01
-  aligns the executable hash key; A02 initializes a `user_version=1` ledger; A07 cancels on fresh
-  zero-slot quota; A08 adds `make engineering-release-check`; A09 opens durable parser circuit and
-  recovery decisions. `ORG-A03` remains unqualified and fail-closed; `ORG-A06`/fresh-path restore
-  remains open. Review and exact pinned checks are still required.
+- Exact candidate `8a28908` was rejected by Sol review: decision body lookup and circuit transitions
+  were incorrect, A07 confused additional slots with permission to continue active work, and three
+  tests had deterministic failures. Follow-up fixes now use atomic lease-fenced circuit opening,
+  version-bound resolution, valid active quota thresholds, and corrected assertions. This repair is
+  uncommitted and needs direct probes plus exact Sol re-review. A03 remains fail-closed; A06 restore
+  remains open; pinned Ruff/pytest are unavailable.
 - Prove complete checkpoint and fresh-path restore before any original pilot mutation. Pilot STOP,
   original SQLite and six failures remain frozen. Reopening original tasks requires release acceptance
   and separate founder authorization. Market collection, training, AUTO, trading, protected data,

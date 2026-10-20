@@ -63,8 +63,35 @@ class UsageLedgerTests(unittest.TestCase):
             db.execute("PRAGMA user_version=2")
         with self.assertRaisesRegex(ValueError, "usage_ledger_schema_newer_than_controller"):
             UsageLedger(self.path)
+        with sqlite3.connect(self.path) as db:
+            db.execute("PRAGMA user_version=1")
         self.l = UsageLedger(self.path)
-        self.l.db.execute("PRAGMA user_version=1")
+
+    def test_unrecognized_existing_schema_is_not_adopted(self):
+        self.l.close()
+        with sqlite3.connect(self.path) as db:
+            db.execute("CREATE TABLE unrelated(value TEXT)")
+        with self.assertRaisesRegex(ValueError, "usage_ledger_schema_unrecognized"):
+            UsageLedger(self.path)
+        self.l = UsageLedger(self.tmp.name + "/fresh.sqlite")
+
+    def test_incompatible_known_table_schema_is_not_stamped(self):
+        self.l.close()
+        incompatible = Path(self.tmp.name) / "incompatible.sqlite"
+        with sqlite3.connect(incompatible) as db:
+            db.executescript(
+                """
+                CREATE TABLE registrations(identity TEXT);
+                CREATE TABLE events(event_id TEXT);
+                CREATE TABLE turns(turn_id TEXT);
+                CREATE TABLE turn_finishes(turn_id TEXT);
+                CREATE TABLE dispatches(dispatch_id TEXT);
+                CREATE TABLE receipts(event_id TEXT);
+                """
+            )
+        with self.assertRaisesRegex(ValueError, "usage_ledger_schema_unrecognized"):
+            UsageLedger(incompatible)
+        self.l = UsageLedger(self.tmp.name + "/fresh.sqlite")
 
     def observe(self, eid, seq, counters, source="provider", epoch="e1"):
         self.l.observe("a", epoch, eid, counters, source=source, sequence=seq, observed_at=seq)

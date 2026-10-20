@@ -36,14 +36,14 @@ publisher. Они образуют пригодный фундамент. Сле
 | Проблема | Практическое следствие |
 |---|---|
 | A01: ключ хэша CLI не совпадал | Кандидат исправляет имя ключа; требуется точная проверка выпуска и review Sol |
-| A02: bootstrap не создавал usage ledger | Кандидат создаёт версионированный ledger и отвергает неожиданный pre-existing ledger; restore/migration ещё не приняты |
+| A02: bootstrap не создавал usage ledger | Кандидат создаёт ledger после qualification и в одной транзакции проверяет схему/миграцию; restore/migration ещё не приняты |
 | Нет квалифицированного завершения учёта реального модельного хода | После успешного хода остаются резерв и неопределённая атрибуция; следующая выдача работы блокируется |
 | Task spec сохраняется, но verifier привязан к старому каталогу | Новая допустимая задача доходит до `submitted`, затем получает `KeyError` |
 | Нет общего владельца жизненного цикла | Успешно завершившийся bounded supervisor не перезапускается этим plist; handoff Sol и quota recovery не имеют законченного исполняющего пути |
 | Backup неполон | Не сохраняет STOP, новый ledger, Git, intents и попытки; перенос в другой путь не является восстановлением компании |
-| A07: watchdog игнорировал валидные нулевые slots | Кандидат отменяет активный permit и добавляет синтетическую проверку; drain и overshoot не квалифицированы |
+| A07: watchdog игнорировал критический quota stop | Кандидат отменяет работу по явному `stop`/critical/reserve reason; отсутствие новых admission slots само по себе активную работу не останавливает |
 | A08: обычный `make check` не включает engineering | Добавлена отдельная цель `engineering-release-check`; локальные Ruff/pytest не установлены |
-| A09: ошибка парсера тратила retry задач | Кандидат открывает durable circuit и recovery obligation; пилотная история не менялась |
+| A09: ошибка парсера тратила retry задач | Кандидат атомарно и под lease fence сохраняет circuit/obligation/failed attempt; recovery привязан к версиям решений |
 
 Дополнительно: инфраструктурные ошибки расходуют попытки задач; контракты отделов пока привязаны
 к одному примеру; каждый retry заново требует Sol lead; reviewer видит максимум 50 тысяч символов
@@ -170,8 +170,10 @@ Sol принял receipt только как static correlation и отклон�
 receipt, некорректные значения отвергаются, terminal settlement не включался. Добавленные focused
 cases прошли прямой запуск и компиляцию; `pytest`/Ruff отсутствуют в среде.
 
-Текущий unreviewed кандидат также исправляет binding executable hash в bootstrap, инициализирует
-schema-versioned usage ledger, отменяет активный permit при свежем нулевом quota slot, добавляет
-явную цель `make engineering-release-check` и circuit/recovery obligation для структурного parser
-fault. `ORG-A03` остаётся fail-closed, `ORG-A06` и полный fresh-path restore не закрыты. Пилот,
-STOP и runtime не трогались. Стандартные проверки недоступны: в checkout нет pinned Ruff/pytest.
+Sol отклонил release qualification точного source candidate `8a28908`: нашёл неверные проверки
+decision envelope, неатомарный circuit, чрезмерную отмену при нулевых admission slots и три
+детерминированные ошибки тестов. Исправления уже в рабочем diff, включая lease-fenced transaction
+и version-bound recovery, но ещё не закреплены и не прошли повторный Sol review. `ORG-A03`
+остаётся fail-closed, `ORG-A06` и полный fresh-path restore не закрыты. Пилот, STOP и runtime не
+трогались. Стандартные проверки недоступны: в checkout нет pinned Ruff/pytest; узкие проверки
+запущены напрямую.

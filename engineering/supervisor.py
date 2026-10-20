@@ -225,7 +225,7 @@ def run_attempt(state: Path, attempt_id: int):
     # A queued OS child may start after its lease was already replaced.
     db.renew(attempt_id, epoch, LEASE)
     circuit = db.get_decision("circuit/controller-parse")
-    if circuit is not None and circuit.get("status") == "open":
+    if circuit is not None and circuit["body"].get("status") == "open":
         db.fail(attempt_id, epoch, "controller_circuit_open:structured_parse", retryable=False)
         db.close()
         return
@@ -245,6 +245,15 @@ def run_attempt(state: Path, attempt_id: int):
             processes.append({"pid": event["pid"], "birth": process_identity(event["pid"])})
             atomic(run / "processes.json", processes)
         log_event(state, "codex", attempt_id=attempt_id, event=event)
+
+    def controller_parse_fault(stage: str, exc: Exception):
+        db.open_controller_parse_fault(
+            attempt_id,
+            epoch,
+            stage=stage,
+            exception_type=type(exc).__name__,
+        )
+        raise RuntimeError("controller_fault:structured_response") from exc
 
     stopped = threading.Event()
 
@@ -348,37 +357,16 @@ def run_attempt(state: Path, attempt_id: int):
                 )
             try:
                 plan = structured(out["text"])
+                if not isinstance(plan, dict) or not all(
+                    key in plan
+                    for key in ("decision", "worker_brief", "rationale", "contract_ack")
+                ):
+                    raise ValueError("lead_result_shape")
             except Exception as exc:
                 lead.record_outcome(
                     f"attempt:{attempt_id}:lead", "failed", {"parser_error": type(exc).__name__}
                 )
-                db.put_decision(
-                    "circuit/controller-parse",
-                    {
-                        "status": "open",
-                        "fault": "structured_parse",
-                        "first_attempt_id": attempt_id,
-                        "task_id": task["id"],
-                        "stage": "lead",
-                        "exception_type": type(exc).__name__,
-                    },
-                )
-                db.put_decision(
-                    "recovery-obligation/controller-parse",
-                    {
-                        "status": "open",
-                        "fault": "structured_parse",
-                        "first_attempt_id": attempt_id,
-                        "task_id": task["id"],
-                        "stage": "lead",
-                        "required_evidence": [
-                            "qualified parser/controller fix",
-                            "independent release review",
-                            "separate bounded recovery authorization",
-                        ],
-                    },
-                )
-                raise RuntimeError("controller_fault:structured_parse") from exc
+                controller_parse_fault("lead", exc)
             atomic(run / "lead.json", {**out, "plan": plan, "thread": thread})
             db.put_decision(
                 "lead-" + task["id"],
@@ -465,41 +453,15 @@ def run_attempt(state: Path, attempt_id: int):
                 )
             try:
                 worker_result = structured(out["text"])
+                if not isinstance(worker_result, dict) or not all(
+                    key in worker_result for key in ("summary", "tests", "limitations")
+                ):
+                    raise ValueError("worker_result_shape")
             except Exception as exc:
                 worker.record_outcome(
                     f"attempt:{attempt_id}:worker", "failed", {"parser_error": type(exc).__name__}
                 )
-                db.put_decision(
-                    "circuit/controller-parse",
-                    {
-                        "status": "open",
-                        "fault": "structured_parse",
-                        "first_attempt_id": attempt_id,
-                        "task_id": task["id"],
-                        "stage": "worker",
-                        "exception_type": type(exc).__name__,
-                    },
-                )
-                db.put_decision(
-                    "recovery-obligation/controller-parse",
-                    {
-                        "status": "open",
-                        "fault": "structured_parse",
-                        "first_attempt_id": attempt_id,
-                        "task_id": task["id"],
-                        "stage": "worker",
-                        "required_evidence": [
-                            "qualified parser/controller fix",
-                            "independent release review",
-                            "separate bounded recovery authorization",
-                        ],
-                    },
-                )
-                raise RuntimeError("controller_fault:structured_parse") from exc
-            if not isinstance(worker_result, dict) or not all(
-                k in worker_result for k in ("summary", "tests", "limitations")
-            ):
-                raise ValueError("worker_result_shape")
+                controller_parse_fault("worker", exc)
             atomic(run / "worker.json", {**out, "thread": thread})
         heartbeat()
         changed = git(checkout, "status", "--porcelain", "--untracked-files=all")
@@ -572,28 +534,20 @@ def resolve_controller_parse_fault(
     try:
         circuit = db.get_decision("circuit/controller-parse")
         obligation = db.get_decision("recovery-obligation/controller-parse")
-        if circuit is None or circuit.get("status") != "open" or obligation is None:
+        if (
+            circuit is None
+            or circuit["body"].get("status") != "open"
+            or obligation is None
+            or obligation["body"].get("status") != "open"
+        ):
             raise ValueError("controller_recovery_obligation_missing")
-        db.put_decision(
-            "circuit/controller-parse",
-            {
-                "status": "closed",
-                "fault": "structured_parse",
-                "recovery_id": recovery_id,
-                "fix_sha256": fix_sha256,
-                "review_ref": review_ref,
-                "authorization_ref": authorization_ref,
-            },
-        )
-        db.put_decision(
-            "recovery-obligation/controller-parse",
-            {
-                "status": "resolved",
-                "recovery_id": recovery_id,
-                "fix_sha256": fix_sha256,
-                "review_ref": review_ref,
-                "authorization_ref": authorization_ref,
-            },
+        db.resolve_controller_parse_fault(
+            expected_circuit_version=circuit["version"],
+            expected_obligation_version=obligation["version"],
+            recovery_id=recovery_id,
+            fix_sha256=fix_sha256,
+            review_ref=review_ref,
+            authorization_ref=authorization_ref,
         )
     finally:
         db.close()

@@ -789,6 +789,121 @@ class Store:
             )
             return old + 1
 
+    def _put_decision_in_transaction(self, name: str, body: Any) -> int:
+        old = (
+            self.db.execute("SELECT MAX(version) FROM decisions WHERE name=?", (name,)).fetchone()[
+                0
+            ]
+            or 0
+        )
+        replaced = self.get_decision(name)
+        version = old + 1
+        self.db.execute(
+            "INSERT INTO decisions VALUES(?,?,?,?,?)",
+            (
+                name,
+                version,
+                _json(body),
+                name if replaced else None,
+                replaced["version"] if replaced else None,
+            ),
+        )
+        self._event(
+            "decision_recorded",
+            name,
+            {
+                "version": version,
+                "body": body,
+                "replaces": name if replaced else None,
+                "replaces_version": replaced["version"] if replaced else None,
+            },
+        )
+        return version
+
+    def open_controller_parse_fault(
+        self,
+        attempt_id: int,
+        epoch: int,
+        *,
+        stage: str,
+        exception_type: str,
+    ) -> None:
+        _name(stage), _name(exception_type)
+        with self._tx():
+            task, _attempt = self._fence(attempt_id, epoch)
+            current = self.get_decision("circuit/controller-parse")
+            if current is not None and current["body"].get("status") == "open":
+                return
+            circuit = {
+                "status": "open",
+                "fault": "structured_response",
+                "first_attempt_id": attempt_id,
+                "task_id": task["id"],
+                "stage": stage,
+                "exception_type": exception_type,
+            }
+            obligation = {
+                "status": "open",
+                "fault": "structured_response",
+                "first_attempt_id": attempt_id,
+                "task_id": task["id"],
+                "stage": stage,
+                "required_evidence": [
+                    "qualified parser/controller fix",
+                    "independent release review",
+                    "separate bounded recovery authorization",
+                ],
+            }
+            self._put_decision_in_transaction("circuit/controller-parse", circuit)
+            self._put_decision_in_transaction("recovery-obligation/controller-parse", obligation)
+            state = self._retry_state(task, False)
+            self.db.execute("UPDATE attempts SET state='failed' WHERE id=?", (attempt_id,))
+            self.db.execute("UPDATE tasks SET state=? WHERE id=?", (state, task["id"]))
+            self._event(
+                "attempt_failed",
+                task["id"],
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "reason": "controller_fault:structured_response",
+                    "state": state,
+                },
+            )
+
+    def resolve_controller_parse_fault(
+        self,
+        *,
+        expected_circuit_version: int,
+        expected_obligation_version: int,
+        recovery_id: str,
+        fix_sha256: str,
+        review_ref: str,
+        authorization_ref: str,
+    ) -> None:
+        with self._tx():
+            circuit = self.get_decision("circuit/controller-parse")
+            obligation = self.get_decision("recovery-obligation/controller-parse")
+            if (
+                circuit is None
+                or obligation is None
+                or circuit["version"] != expected_circuit_version
+                or obligation["version"] != expected_obligation_version
+                or circuit["body"].get("status") != "open"
+                or obligation["body"].get("status") != "open"
+            ):
+                raise StateError("controller_recovery_obligation_changed")
+            resolved = {
+                "status": "resolved",
+                "recovery_id": recovery_id,
+                "fix_sha256": fix_sha256,
+                "review_ref": review_ref,
+                "authorization_ref": authorization_ref,
+            }
+            self._put_decision_in_transaction(
+                "circuit/controller-parse", {**resolved, "fault": "structured_response"}
+            )
+            self._put_decision_in_transaction("recovery-obligation/controller-parse", resolved)
+
     def get_decision(self, name: str, version: int | None = None) -> dict | None:
         with self._lock:
             row = self.db.execute(
