@@ -65,6 +65,14 @@ automatically.
   Pinned gate passed 298 tests/45 subtests and Ruff (51 files). Request consumption, cross-epoch
   deduplication, retry policy, scheduler/process wiring and operational A05 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-fencing-review-20261021.json`.
+- A05 observation-binding source increment `db04f23468744f736622ad5ea33f13d0166c4446` makes Store
+  recompute launch plans under the owner fence and persist the exact detached caller-supplied gate
+  observations with each plan.
+  The plan-only API rejects launch requests. Sol accepted; gate passed 337 tests/73 subtests and Ruff
+  on 56 files. This binds claimed inputs to planner output, not sensor truth/freshness/completeness or
+  current launch authority. Consumer, revalidation at consumption, cross-epoch deduplication,
+  recovery and operational A05 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-observation-binding-review-20261021.json`.
 - A10 transition increment merged at `ef953d5d95e0fb9bef50477957fcbd8f9fc90ed6` (exact source
   `0879b5efed1cf0942d080e02624da13fd5a9aede`): content-hashed one-version proposals, immutable
   producer/consumer acknowledgements and atomic activation after producer integration. Sol accepted

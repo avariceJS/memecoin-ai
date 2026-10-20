@@ -128,6 +128,18 @@ or operational recovery. Full A05 remains open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-fencing-review-20261021.json`
 (SHA-256 `2052d58cf12bbc3a37d56b7804e8e42e26e6cd7b7fb34b685cf02e318d1f2af4`).
 
+An A05 observation-binding increment merged at
+`db04f23468744f736622ad5ea33f13d0166c4446`. Launch-request persistence now recomputes the
+deterministic lifecycle plan inside the active owner-fenced transaction from an exact, detached
+caller-supplied observation object and stores those observations beside the plan.
+The legacy plan-only API rejects `launch_request`; non-launch legacy plans remain accepted. Sol
+accepted this bounded source increment; Ruff passed on 56 files and the engineering gate passed
+337 tests and 73 subtests. The receipt makes the claimed decision inputs reproducible, but does not
+prove observation truth, freshness, completeness, trusted sensor origin, or current launch authority.
+No request consumer, current-gate reconciliation, cross-epoch deduplication, retry policy,
+scheduler/process/service wiring, or operational recovery was added. Full A05 remains open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-observation-binding-review-20261021.json`.
+
 A10 now also has a bounded readiness-report scaffold at
 `57f496f5f74258d00a09dc37b5818e409495dffc`. Its read-only SQLite snapshot exposes each task's
 non-integrated or missing dependency and mismatched contract version without hiding unrelated ready

@@ -308,6 +308,16 @@ scheduler/process/service wiring, operational recovery и полный A05 ос�
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-fencing-review-20261021.json`
 (SHA-256 `2052d58cf12bbc3a37d56b7804e8e42e26e6cd7b7fb34b685cf02e318d1f2af4`).
 
+В A05 добавлен bounded source increment
+`db04f23468744f736622ad5ea33f13d0166c4446`: Store теперь сам пересчитывает launch plan внутри
+транзакции текущего owner fence и сохраняет точные detached observations рядом с plan.
+Старый API с одним plan больше не принимает `launch_request`; для hold/wait/observe остаётся
+совместимым. Sol принял точный source diff; gate прошёл 337 тестов, 73 subtests, Ruff на 56 файлах.
+Это связывает заявленные входы с детерминированным решением, но не доказывает истинность, свежесть,
+полноту или trusted origin наблюдений и не подтверждает текущую launch authority. Consumer,
+повторная проверка gate при потреблении, cross-epoch deduplication, recovery и полный A05 открыты.
+Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-observation-binding-review-20261021.json`.
+
 A10 получил read-only readiness report в `57f496f5f74258d00a09dc37b5818e409495dffc`: единый SQLite
 snapshot показывает non-integrated/missing dependencies и несовпадающие версии contracts. Blocked
 задача не скрывает независимую ready работу; transactional `claim` остаётся авторитетным и повторно
