@@ -306,6 +306,27 @@ and [defining constraints](https://developer.apple.com/documentation/security/de
 documentation. This is a bounded applicability finding, not a claim that code-signing constraints
 are ineffective for their documented use cases.
 
+A subsequent A04 source increment raises the verifier manifest to v4 and pins both the canonical
+runtime executable path and its 20-byte code-directory hash. The resolver checks that signed-code
+identity against the controller manifest. For the first bound verifier command only,
+`SandboxRunner` observes the launched PID through Apple's public Security API and requires the
+reported code-directory hash and main executable path to match before accepting the command result;
+a mismatch or failed observation kills the process group. A disposable macOS test confirms that the
+reported signed-code identity follows the originally launched image across replacement of its path,
+and that a mismatching hash or path is rejected. The engineering gate passed 348 tests and 83
+subtests; Ruff check and formatting passed. Sol accepted the exact candidate diff in bounded
+source-only review. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-process-code-identity-review-20261021.json`
+(SHA-256 `dfbed547202fe6ec40cbc09c8612681264319d637e273944e2e6a91cfe783ec5`).
+
+This is one post-launch process-image observation. It does not prove a literal inode binding, prevent
+an image from executing another program before or after the observation, bind result bytes to that
+image for the full command lifetime, or close Python imports, native extensions, or dynamic-loader
+dependencies. It covers only the first verifier command and does not qualify the sandbox or
+production deployment. Plans remain `execution_qualified=False`; full A04 remains open. Apple
+references: [`SecCodeCopyGuestWithAttributes`](https://developer.apple.com/documentation/security/seccodecopyguestwithattributes%28_%3A_%3A_%3A_%3A%29),
+[`kSecGuestAttributePid`](https://developer.apple.com/documentation/security/ksecguestattributepid), and
+[signing information keys](https://developer.apple.com/documentation/security/signing-information-dictionary-keys).
+
 Before any future A05 request consumer is designed, its inputs must come from one coherent,
 source-identified gate snapshot with capture time or sequence. Consumption must reject unknown or
 stale observations and re-evaluate database gates under the current owner fence using the Store

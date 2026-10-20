@@ -337,6 +337,22 @@ subprocess для candidate кода внутри sandbox. Hash harness и фл�
 содержимое stdlib/native extensions и зависимости macOS loader. Deployed manifest и runtime closure
 не исследовались; исполнения не было, A04 остаётся неквалифицированным.
 
+A04 получил следующий bounded source increment в отдельной ветке: manifest v4 привязывает
+canonical runtime path и code-directory hash подписанного executable. Перед принятием результата
+первой bound verifier-команды `SandboxRunner` один раз наблюдает PID через публичный Security API;
+ожидаются совпадающие hash и main executable path, иначе process group завершается. Disposable
+macOS-тест подтвердил сохранение identity исходного подписанного образа при замене pathname и
+отказы при несовпадении hash/path. Engineering gate прошёл: 348 тестов, 83 subtests; Ruff check и
+format прошли. Sol принял exact candidate в ограниченном source-only review. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-process-code-identity-review-20261021.json`
+(SHA-256 `dfbed547202fe6ec40cbc09c8612681264319d637e273944e2e6a91cfe783ec5`).
+
+Это только одно post-launch наблюдение: оно не доказывает literal inode, не исключает `exec` в другую
+программу до/после проверки и не связывает output со стартовым образом на всей длительности.
+Проверяется только первая verifier-команда; Python imports, native extensions и macOS loader closure
+не закреплены, production и sandbox не квалифицированы. Планы остаются `execution_qualified=False`,
+полный A04 открыт. Supervisor/runtime не запускался.
+
 A10 получил read-only readiness report в `57f496f5f74258d00a09dc37b5818e409495dffc`: единый SQLite
 snapshot показывает non-integrated/missing dependencies и несовпадающие версии contracts. Blocked
 задача не скрывает независимую ready работу; transactional `claim` остаётся авторитетным и повторно
