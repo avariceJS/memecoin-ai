@@ -637,6 +637,27 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(len(FakeCodex.turn_estimates), turns_before)
         self.assertEqual(self.db.get_task("T2")["state"], "failed")
 
+    def test_unqualified_verifier_plan_stops_attempt_before_dispatch_or_checkout(self):
+        self.task()
+        attempt = self.db.claim("T", "worker", 100)
+        plan = SimpleNamespace(
+            execution_qualified=False,
+            reason="verifier_manifest_not_qualified",
+            plan_sha256="a" * 64,
+        )
+        with (
+            patch.object(supervisor, "prepare_verification_plan", return_value=plan),
+            patch.object(supervisor, "metered_client") as dispatch,
+            patch.object(supervisor, "runner") as sandbox,
+            patch.object(supervisor, "git") as git,
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+        self.assertEqual(self.db.get_task("T")["state"], "failed")
+        self.assertEqual(self.db.list_attempts()[0]["state"], "failed")
+        dispatch.assert_not_called()
+        sandbox.assert_not_called()
+        git.assert_not_called()
+
     def test_contract_activation_requires_both_matching_hash_ack_and_is_idempotent(self):
         self.candidate("EXP-001", target_state="integrated")
         digest = hashlib.sha256(

@@ -247,6 +247,39 @@ def run_attempt(state: Path, attempt_id: int):
         db.fail(attempt_id, epoch, "controller_circuit_open:structured_parse", retryable=False)
         db.close()
         return
+    try:
+        verification_plan = prepare_verification_plan(state, db, task, cfg)
+    except ValueError as exc:
+        reason = str(exc)
+        log_event(
+            state,
+            "attempt_blocked",
+            task=task["id"],
+            attempt_id=attempt_id,
+            epoch=epoch,
+            reason=reason,
+        )
+        db.fail(attempt_id, epoch, "verifier_plan_unavailable:" + reason, retryable=False)
+        db.close()
+        return
+    if not verification_plan.execution_qualified:
+        log_event(
+            state,
+            "attempt_blocked",
+            task=task["id"],
+            attempt_id=attempt_id,
+            epoch=epoch,
+            reason=verification_plan.reason,
+            plan_sha256=verification_plan.plan_sha256,
+        )
+        db.fail(
+            attempt_id,
+            epoch,
+            "verifier_plan_unqualified:" + str(verification_plan.reason),
+            retryable=False,
+        )
+        db.close()
+        return
     run = state / "attempts" / str(attempt_id)
     run.mkdir(parents=True, exist_ok=True)
     checkout, scratch = run / "checkout", run / "scratch"
@@ -299,6 +332,13 @@ def run_attempt(state: Path, attempt_id: int):
         tool = tool_function(box, checkout, heartbeat)
         packet = {
             "task": task,
+            "verification_plan": {
+                "plan_sha256": verification_plan.plan_sha256,
+                "binding_sha256": verification_plan.binding_sha256,
+                "decision_name": verification_plan.decision_name,
+                "decision_version": verification_plan.decision_version,
+                "acceptance_identities": verification_plan.acceptance_identities,
+            },
             "effective_base": base,
             "python": cfg["python"],
             "contracts": {k: db.get_contract(k) for k in cfg["contracts"]},
