@@ -224,6 +224,20 @@ class ExecutiveTests(unittest.TestCase):
         with self.assertRaises(ExecutiveError):
             self.executive.snapshot(history_limit=21)
 
+    def test_founder_snapshot_uses_bounded_active_task_projection(self):
+        for index in range(105):
+            self.store.add_task(f"TASK-{index:03d}", "Engineering", f"Task {index}")
+        view = self.executive.snapshot()
+        self.assertEqual(len(view["tasks"]), 100)
+        self.assertEqual(view["counts"]["tasks"], 105)
+        self.assertEqual(view["counts"]["active_tasks"], 105)
+        self.assertEqual(view["counts"]["omitted_active_tasks"], 5)
+        self.assertEqual(view["counts"]["task_states"], {"pending": 105})
+        self.assertEqual(len(self.store.list_tasks()), 105)
+        report = self.executive.render_report()
+        self.assertIn("pending: 105", report)
+        self.assertIn("100 из 105", report)
+
     def test_journal_and_projection_rollback_together(self):
         lease = self.lease()
         before = self.store.events()

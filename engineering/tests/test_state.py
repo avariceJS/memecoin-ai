@@ -42,6 +42,31 @@ class StateTests(unittest.TestCase):
         self.assertEqual(self.store.db.execute("PRAGMA synchronous").fetchone()[0], 2)
         self.assertEqual(self.store.db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
 
+    def test_active_task_projection_is_bounded_and_preserves_total_state_counts(self):
+        self.task("completed")
+        self.finish("completed")
+        for index in range(105):
+            self.task(f"pending-{index:03d}")
+
+        projection = self.store.active_task_projection(limit=100)
+        self.assertEqual(len(projection["tasks"]), 100)
+        self.assertEqual(projection["total_count"], 106)
+        self.assertEqual(projection["active_count"], 105)
+        self.assertEqual(projection["omitted_active_count"], 5)
+        self.assertEqual(projection["state_counts"], {"integrated": 1, "pending": 105})
+        self.assertEqual(len(self.store.list_tasks()), 106)
+        with self.assertRaises(StateError):
+            self.store.active_task_projection(True)
+
+    def test_active_task_projection_keeps_unknown_state_visible_as_unclassified(self):
+        self.task("corrupt")
+        self.store.db.execute("UPDATE tasks SET state='unknown-state' WHERE id='corrupt'")
+        projection = self.store.active_task_projection()
+        self.assertEqual(projection["tasks"], [])
+        self.assertEqual(projection["active_count"], 0)
+        self.assertEqual(projection["unclassified_count"], 1)
+        self.assertEqual(projection["state_counts"], {"unclassified": 1})
+
     def test_claim_is_atomic_across_connections(self):
         self.task()
         other = Store(self.path, clock=lambda: self.now)

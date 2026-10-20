@@ -365,7 +365,7 @@ class Executive:
             for event in events:
                 body = json.loads(event.pop("body"))
                 event["actor"] = body.get("actor")
-            tasks = self.store.list_tasks()
+            task_projection = self.store.active_task_projection(limit=100)
             objectives = [
                 dict(row)
                 for row in self.db.execute("SELECT * FROM objectives ORDER BY id LIMIT 20")
@@ -383,12 +383,18 @@ class Executive:
                 "objectives": objectives,
                 "tasks": [
                     {k: task[k] for k in ("id", "team", "title", "state", "epoch", "candidate_sha")}
-                    for task in tasks[:100]
+                    for task in task_projection["tasks"]
                 ],
                 **rows,
                 "events": list(reversed(events)),
                 "accepted_evidence": accepted,
-                "counts": {**counts, "tasks": len(tasks)},
+                "counts": {
+                    **counts,
+                    "tasks": task_projection["total_count"],
+                    "active_tasks": task_projection["active_count"],
+                    "omitted_active_tasks": task_projection["omitted_active_count"],
+                    "task_states": task_projection["state_counts"],
+                },
                 "known_unmeasured_acceptance": (
                     "Полная автономная работа организации ещё не подтверждена."
                 ),
@@ -406,13 +412,17 @@ class Executive:
             )
         else:
             lines.append("CEO: эпизод ещё не назначен.")
-        states = {}
-        for task in view["tasks"]:
-            states[task["state"]] = states.get(task["state"], 0) + 1
+        states = view["counts"]["task_states"]
         lines.append(
             "Задачи: "
             + (", ".join(f"{key}: {value}" for key, value in sorted(states.items())) or "нет")
         )
+        if view["counts"]["omitted_active_tasks"]:
+            lines.append(
+                "Показана ограниченная активная выборка: "
+                f"{len(view['tasks'])} из {view['counts']['active_tasks']}; "
+                "остальные сохранены в журнале."
+            )
         lines.append(f"Открытые обязательства: {view['counts']['obligations']}.")
         lines.extend(
             f"- {row['id']}: {row['title']} ({row['status']})" for row in view["obligations"]

@@ -34,6 +34,10 @@ class StaleAttempt(StateError):
     """An expired, superseded, or otherwise inactive execution fence."""
 
 
+_ACTIVE_TASK_STATES = ("pending", "running", "submitted", "verified", "accepted")
+_TASK_STATES = (*_ACTIVE_TASK_STATES, "integrated", "failed")
+
+
 def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
@@ -115,6 +119,7 @@ class Store:
           CREATE TABLE IF NOT EXISTS events(
             seq INTEGER PRIMARY KEY, at REAL NOT NULL, kind TEXT NOT NULL,
             entity TEXT NOT NULL, body TEXT NOT NULL);
+          CREATE INDEX IF NOT EXISTS idx_tasks_state_id ON tasks(state,id);
         """)
 
     def admit_task_spec(
@@ -384,6 +389,48 @@ class Store:
     def list_tasks(self) -> list[dict]:
         with self._lock:
             return [self._task(r[0]) for r in self.db.execute("SELECT id FROM tasks ORDER BY id")]
+
+    def active_task_projection(self, limit: int = 100) -> dict:
+        """Return a bounded active-task view while retaining full state counts and history."""
+        if type(limit) is not int or not 0 <= limit <= 1000:
+            raise StateError("active task projection limit must be between zero and one thousand")
+        with self._lock:
+            if self.db.in_transaction:
+                return self._active_task_projection(limit)
+            with self._read_snapshot():
+                return self._active_task_projection(limit)
+
+    def _active_task_projection(self, limit: int) -> dict:
+        count_row = self.db.execute(
+            """SELECT COUNT(*) AS total_count,
+              SUM(state='pending') AS pending,
+              SUM(state='running') AS running,
+              SUM(state='submitted') AS submitted,
+              SUM(state='verified') AS verified,
+              SUM(state='accepted') AS accepted,
+              SUM(state='integrated') AS integrated,
+              SUM(state='failed') AS failed,
+              SUM(state NOT IN ('pending','running','submitted','verified','accepted',
+                                'integrated','failed')) AS unclassified
+              FROM tasks"""
+        ).fetchone()
+        state_counts = {state: count_row[state] for state in _TASK_STATES if count_row[state]}
+        unclassified_count = count_row["unclassified"] or 0
+        active_count = sum(state_counts.get(state, 0) for state in _ACTIVE_TASK_STATES)
+        rows = self.db.execute(
+            "SELECT id FROM tasks WHERE state IN (?,?,?,?,?) ORDER BY state,id LIMIT ?",
+            (*_ACTIVE_TASK_STATES, limit),
+        )
+        if unclassified_count:
+            state_counts["unclassified"] = unclassified_count
+        return {
+            "tasks": [self._task(row[0]) for row in rows],
+            "total_count": count_row["total_count"],
+            "active_count": active_count,
+            "omitted_active_count": active_count - min(active_count, limit),
+            "unclassified_count": unclassified_count,
+            "state_counts": state_counts,
+        }
 
     def add_objective(self, objective_id: str, title: str, brief: str = "") -> None:
         with self._tx():
