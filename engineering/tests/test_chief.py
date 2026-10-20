@@ -37,6 +37,8 @@ class EpisodeClient:
     def turn(self, thread, prompt, **kwargs):
         assert kwargs["model"] == "gpt-6-astra"
         assert kwargs["deadline_seconds"] == 120
+        assert kwargs["dispatch_id"].startswith("chief:")
+        assert kwargs["estimate"] == {"tokens": 24000, "wpu": 1.0}
         assert kwargs["tool"]({}) == {"error": "chief_has_no_execution_capability"}
         kwargs["heartbeat"]()
         self.prompts.append(prompt)
@@ -57,8 +59,18 @@ class ChiefTests(unittest.TestCase):
         self.executive.obligation(prior, "O", "Keep responsibility", objective_id="offline")
         self.executive.release(prior)
         self.patches = [
-            patch.object(chief, "config", return_value={"schema": "test", "resources": {}}),
-            patch.object(chief, "Codex", EpisodeClient),
+            patch.object(
+                chief,
+                "config",
+                return_value={
+                    "schema": "test",
+                    "resources": {},
+                    "controller": str(self.path / "controller"),
+                },
+            ),
+            patch.object(
+                chief, "metered_client", side_effect=lambda *args, **kwargs: EpisodeClient()
+            ),
             patch.object(chief, "process_identity", return_value="test-process"),
             patch.object(
                 chief,

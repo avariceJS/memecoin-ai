@@ -8,8 +8,8 @@ import os
 import time
 from pathlib import Path
 
-from .codex_rpc import Codex
 from .executive import Executive, StaleExecutive
+from .metered_codex import metered_client
 from .supervisor import (
     RULES,
     atomic,
@@ -173,9 +173,19 @@ def chief(state: Path, *, trigger="owner-review"):
         dossier = bounded_dossier(dossier)
         native = state / f"chief-{lease['epoch']}-{os.getpid()}"
         native.mkdir()
-        with Codex(
-            native, codex=cfg.get("codex_executable", "codex"),
-            event_sink=lambda event: log_event(state, "codex", role="chief", event=event)
+        with metered_client(
+            state,
+            cfg["controller"],
+            cfg=cfg,
+            context={
+                "role": "manual-chief",
+                "team": "CEO",
+                "task": trigger,
+                "episode_id": f"chief:{lease['epoch']}",
+                "authority": "CEO-20261020-02",
+            },
+            harness_cwd=native,
+            event_sink=lambda event: log_event(state, "codex", role="chief", event=event),
         ) as client:
             thread = client.start(
                 ASTRA,
@@ -213,6 +223,8 @@ def chief(state: Path, *, trigger="owner-review"):
                 tool=lambda _: {"error": "chief_has_no_execution_capability"},
                 deadline_seconds=EPISODE_SECONDS,
                 heartbeat=lambda: executive.renew(lease, lease_seconds=180),
+                dispatch_id=f"chief:{lease['epoch']}:turn",
+                estimate={"tokens": 24000, "wpu": 1.0},
                 output_schema=OUTPUT_SCHEMA,
             )
             response = validate_response(result["text"])

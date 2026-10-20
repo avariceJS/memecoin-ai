@@ -11,7 +11,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
-from .quota_policy import choose_quota_capacity
+from .quota_policy import choose_quota_capacity, reset_recovery_decision
 from .usage_ledger import EXTERNAL_COLLECTORS, UsageLedger
 
 
@@ -62,9 +62,91 @@ class Controller:
             raise ValueError("external_collector_not_allowed")
         return self.ledger.import_external(batch, collector_id, evidence_hash)
 
+    @staticmethod
+    def _quota_evidence(quota):
+        if not isinstance(quota, dict):
+            return None
+        keys = (
+            "ordinaryUsageAllowed",
+            "rateLimitsByLimitId",
+            "spendControlReached",
+            "providerReached",
+        )
+        return {key: quota[key] for key in keys if key in quota}
+
+    def _pause_resources(self, quota, observed_at, reason):
+        safe = self._quota_evidence(quota)
+        pause = {
+            "schema": "brain-resource-pause-v1",
+            "status": "paused",
+            "paused_at": self.clock(),
+            "reason": str(reason)[:200],
+            "paused_reading": {"rate_limits": safe, "observed_at": observed_at},
+            "recovery_readings": [],
+        }
+        state_ledger = UsageLedger(self.ledger.path)
+        try:
+            state_ledger.set_controller_state("resource_pause", pause)
+        finally:
+            state_ledger.close()
+
+    def _require_resource_recovery(self, quota, observed_at):
+        state_ledger = UsageLedger(self.ledger.path)
+        try:
+            return self._require_resource_recovery_with_ledger(state_ledger, quota, observed_at)
+        finally:
+            state_ledger.close()
+
+    def _require_resource_recovery_with_ledger(self, state_ledger, quota, observed_at):
+        pause = state_ledger.get_controller_state("resource_pause")
+        if pause is None:
+            return
+        safe = self._quota_evidence(quota)
+        sample = {"rate_limits": safe, "observed_at": observed_at}
+        readings = list(pause.get("recovery_readings", []))
+        if observed_at >= pause.get("paused_at", float("inf")):
+            if not readings:
+                readings = [sample]
+            elif observed_at >= readings[0].get("observed_at", float("inf")):
+                readings = [readings[0], sample]
+        pause["recovery_readings"] = readings
+        reason = "insufficient_readings"
+        ready = False
+        if len(readings) == 2:
+            paused_reading = pause.get("paused_reading")
+            if (
+                not isinstance(paused_reading, dict)
+                or not isinstance(paused_reading.get("rate_limits"), dict)
+                or not paused_reading["rate_limits"].get("rateLimitsByLimitId")
+            ):
+                paused_reading = {
+                    "observed_at": pause.get("paused_at"),
+                    "rate_limits": readings[0]["rate_limits"],
+                }
+            decision = reset_recovery_decision(
+                paused_reading,
+                readings,
+                now=self.clock(),
+                state_reconciled=state_ledger.state_reconciled(self.clock()),
+            )
+            ready = decision["ready"] is True
+            reason = decision["reason"]
+        if not ready:
+            state_ledger.set_controller_state("resource_pause", pause)
+            raise RuntimeError("resource_recovery_required:" + reason)
+        state_ledger.set_controller_state(
+            "resource_pause_last",
+            {**pause, "status": "recovered", "recovery_decision": decision},
+        )
+        state_ledger.clear_controller_state("resource_pause")
+
     def refresh(self, reason="admission"):
         with self._account_lock:
-            data = self.account_read()
+            try:
+                data = self.account_read()
+            except Exception as exc:
+                self._pause_resources(None, self.clock(), "quota_read_failed:" + type(exc).__name__)
+                raise
         if isinstance(data, dict) and "rate_limits" in data:
             quota = data["rate_limits"]
             observed_at = data.get("observed_at")
@@ -79,9 +161,11 @@ class Controller:
             stop=False,
             reserve_points=1,
         )
-        if decision["slots"] == 0:
-            raise RuntimeError("quota_unavailable:" + decision["reason"])
         self._poll_seconds = decision["poll_seconds"]
+        if decision["slots"] == 0:
+            self._pause_resources(quota, observed_at, decision["reason"])
+            raise RuntimeError("quota_unavailable:" + decision["reason"])
+        self._require_resource_recovery(quota, observed_at)
         self._last_quota = quota
         self._last_quota_observed_at = observed_at
         self._last_preflight = {}
@@ -116,6 +200,7 @@ class Controller:
                 baseline=baseline_or_none,
                 max_active_teams=1 if use >= 97 else 2,
                 max_model_dispatches=2,
+                now=self.clock(),
             )
             if row["status"] != "reserved":
                 raise RuntimeError("dispatch_already_sent")
@@ -174,10 +259,13 @@ class MeteredCodex:
         return getattr(self.rpc, name)
 
     def start(self, model, instructions):
+        episode_id = self.context.get("episode_id")
+        if type(episode_id) is not str or not episode_id.strip():
+            raise RuntimeError("dispatch_episode_required")
         did = (
             "start:"
             + hashlib.sha256(
-                json.dumps([self.context, model, instructions], sort_keys=True).encode()
+                json.dumps([episode_id, self.context, model, instructions], sort_keys=True).encode()
             ).hexdigest()
         )
         permit = self.controller.admit(
@@ -234,8 +322,16 @@ class MeteredCodex:
             or deadline_seconds <= 0
         ):
             raise ValueError("invalid_turn_deadline")
-        max_seconds = 1200 if model == "gpt-6.1-sol" else 600
-        if model not in ("gpt-6.1-sol", "gpt-6-luna") or deadline_seconds > max_seconds:
+        max_seconds = {
+            "gpt-6.1-sol": 1200,
+            "gpt-6-luna": 600,
+            "gpt-6-astra": 120,
+        }.get(model)
+        if (
+            max_seconds is None
+            or deadline_seconds > max_seconds
+            or (model == "gpt-6-astra" and self.context.get("role") != "manual-chief")
+        ):
             raise ValueError("model_or_turn_limit_forbidden")
         deadline = self.controller.clock() + deadline_seconds
         snapshot = self.controller.ledger.current_snapshot(thread_id)
@@ -270,14 +366,41 @@ class MeteredCodex:
                     [target_dispatch, event], sort_keys=True, separators=(",", ":"), default=str
                 ).encode()
             ).hexdigest()
+            observed_at = self.controller.clock()
+            counters = None
+            snapshot = None
+            if event.get("kind") == "token_usage":
+                try:
+                    counters = _canonical_counters(event["usage"]["total"])
+                    snapshot = self.controller.ledger.current_snapshot(thread_id)
+                except (KeyError, TypeError, ValueError):
+                    counters = None
+                    snapshot = None
+                if counters is not None and snapshot is not None:
+                    event_key = hashlib.sha256(
+                        json.dumps(
+                            [thread_id, counters, event.get("turn_id"), observed_at],
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ).encode()
+                    ).hexdigest()
+                    self.controller.ledger.observe(
+                        thread_id,
+                        snapshot["epoch"],
+                        "provider-usage:" + event_key,
+                        counters,
+                        source="provider_usage_lower_bound",
+                        sequence=counters["total_tokens"],
+                        observed_at=observed_at,
+                    )
             self.controller.ledger.observe_receipt(
                 event_id,
                 target_dispatch,
-                None,
+                counters,
                 turn_id,
                 event["kind"],
                 None,
-                self.controller.clock(),
+                observed_at,
                 event,
             )
 

@@ -115,8 +115,9 @@ Sol may reconcile state and resume the same objective through qualified recovery
 Reset changes the quota window, never accounting history. Keep resource pause separate from other STOP
 reasons; no safety/release STOP is cleared merely by a quota reset. No idle model polling or automatic
 Astra. Existing concurrency, security, scientific, protected-data, acquisition, training, trading, Git
-and publication restrictions remain. The frozen pilot config is unchanged by this executive decision;
-Sol must implement and independently review the appropriate release before operational resumption.
+and publication restrictions remain. The frozen pilot config remains unchanged. Source work in an
+isolated candidate does not authorize operational resumption; preserve STOP until an independently
+accepted, controlled release passes its gates.
 
 The following initial policy is historical and remains in the frozen old deployment until reviewed
 replacement; it is not an alternative current resource authorization.
@@ -288,10 +289,17 @@ and shared frozen-controller/native/executable preflight for direct runtime entr
 checks, 82 focused tests and six subtests passed inside the OS boundary. Scope, pins and the
 independent direct-entry probe are in the [source receipt](evidence/brain-org-accounting-source-acceptance-20261020.json).
 
-This is source acceptance, not an operational release. Dispatch metering and every inference
-call site still need wiring and independent review before controlled upgrade. The original pilot
-remains STOPped with six failures and no accepted tasks. The full independent-root Goal is active;
-its observed automatic continuation, live process custody and next actions are private durable state.
+This was source acceptance, not an operational release. A later local source checkpoint
+3b5c1cff8868733dbc219c34368a44e7751f99b0 wired metered dispatch into planner and manual-chief
+episodes, but exact Sol review rejected it for seven accounting/admission issues. A dirty,
+uncommitted follow-up in the isolated candidate addresses those findings; 99 focused tests,
+18 subtests, Ruff, frozen ledger/quota/controller-gate checks, and the real usage-interval
+reproduction pass. Independent review of the follow-up is pending. Two older frozen raw-RPC
+checks still call without the now-required Permit/episode identity and fail; frozen files remain
+unchanged. This is not release acceptance. The original pilot remains STOPped with six failures
+and no accepted tasks.
+The full independent-root Goal remains active; its observed automatic continuation, live
+process custody and next actions are private durable state.
 The source-only structured task validator has separately passed its frozen 37-check acceptance;
 independent source review and transactional scheduler integration remain pending. Full recovery,
 useful tasks and every organization acceptance gate remain in scope.

@@ -23,10 +23,12 @@ class FakeRPC:
     def __init__(self, ledger):
         self.ledger = ledger
         self.calls = 0
+        self.start_calls = 0
 
     def start(self, model, instructions, *, permit):
         permit.consume("new-thread", model)
-        return "thread"
+        self.start_calls += 1
+        return f"thread-{self.start_calls}"
 
     def turn(self, thread, prompt, **kwargs):
         self.calls += 1
@@ -58,6 +60,7 @@ def make(tmp_path, percent=68):
         "role": "worker",
         "team": "Experience",
         "task": "T",
+        "episode_id": "test-episode",
         "authority": "CEO-20261020-02",
     }
     return ledger, rpc, controller, MeteredCodex(rpc, controller, context)
@@ -88,6 +91,43 @@ def test_pre_send_reservation_and_replay_and_stop(tmp_path):
     ledger.close()
 
 
+def test_start_replay_is_blocked_but_new_attempt_gets_a_distinct_dispatch(tmp_path):
+    ledger = UsageLedger(tmp_path / "start-replay.sqlite")
+    rpc = FakeRPC(ledger)
+    controller = Controller(ledger, lambda: quota(), state=tmp_path, clock=lambda: 1000)
+    first = MeteredCodex(
+        rpc,
+        controller,
+        {
+            "role": "worker",
+            "team": "Experience",
+            "task": "T",
+            "attempt_id": 1,
+            "episode_id": "attempt:1:worker",
+            "authority": "CEO-20261020-02",
+        },
+    )
+    thread1 = first.start("gpt-6-luna", "bounded")
+    with pytest.raises(RuntimeError, match="dispatch_already_sent"):
+        first.start("gpt-6-luna", "bounded")
+    second = MeteredCodex(
+        rpc,
+        controller,
+        {
+            "role": "worker",
+            "team": "Experience",
+            "task": "T",
+            "attempt_id": 2,
+            "episode_id": "attempt:2:worker",
+            "authority": "CEO-20261020-02",
+        },
+    )
+    thread2 = second.start("gpt-6-luna", "bounded")
+    assert (thread1, thread2, rpc.start_calls) == ("thread-1", "thread-2", 2)
+    controller.close()
+    ledger.close()
+
+
 def test_quota_99_blocks_before_reservation(tmp_path):
     ledger, _, controller, client = make(tmp_path, 99)
     with pytest.raises(RuntimeError):
@@ -102,6 +142,46 @@ def test_quota_99_blocks_before_reservation(tmp_path):
         )
     assert not ledger.summary()["reservations"]
     controller.close()
+    ledger.close()
+
+
+def test_resource_pause_survives_restart_until_two_spaced_reads_and_reconciliation(tmp_path):
+    ledger = UsageLedger(tmp_path / "pause.sqlite")
+    current = {"time": 1000, "percent": 99}
+    controller = Controller(
+        ledger,
+        lambda: quota(current["percent"]),
+        state=tmp_path,
+        clock=lambda: current["time"],
+    )
+    with pytest.raises(RuntimeError, match="quota_unavailable:reserve_threshold"):
+        controller.refresh()
+    controller.close()
+
+    current["percent"] = 68
+    resumed = Controller(
+        ledger,
+        lambda: quota(current["percent"]),
+        state=tmp_path,
+        clock=lambda: current["time"],
+    )
+    with pytest.raises(RuntimeError, match="resource_recovery_required:insufficient_readings"):
+        resumed.refresh()
+    assert len(ledger.get_controller_state("resource_pause")["recovery_readings"]) == 1
+    current["time"] = 1060
+    permit = resumed.admit(
+        "after-restoration",
+        "fresh-thread",
+        None,
+        "gpt-6-luna",
+        {"tokens": 20, "wpu": 1},
+        1100,
+        {"role": "worker", "team": "Experience"},
+    )
+    assert permit.dispatch_id == "after-restoration"
+    assert ledger.get_controller_state("resource_pause") is None
+    assert ledger.get_controller_state("resource_pause_last")["status"] == "recovered"
+    resumed.close()
     ledger.close()
 
 
@@ -215,7 +295,13 @@ def test_qualified_terminal_receipt_covers_only_its_dispatch(tmp_path):
     client = MeteredCodex(
         rpc,
         controller,
-        {"role": "worker", "team": "Experience", "task": "T", "authority": "CEO-20261020-02"},
+        {
+            "role": "worker",
+            "team": "Experience",
+            "task": "T",
+            "episode_id": "terminal-episode",
+            "authority": "CEO-20261020-02",
+        },
     )
     thread = client.start("gpt-6-luna", "bounded")
     result = client.turn(
@@ -231,6 +317,65 @@ def test_qualified_terminal_receipt_covers_only_its_dispatch(tmp_path):
     assert ledger.dispatch("terminal-1")["status"] == "covered"
     assert ledger.summary()["reservations"] == []
     assert ledger.summary()["incremental"]["total_tokens"] == 10
+    controller.close()
+    ledger.close()
+
+
+def test_progress_usage_remains_a_measured_lower_bound_after_turn_failure(tmp_path):
+    class ProgressFailRPC(FakeRPC):
+        def __init__(self, ledger):
+            super().__init__(ledger)
+            self.sink = lambda event: None
+
+        def turn(self, thread, prompt, **kwargs):
+            kwargs["permit"].consume(thread, kwargs["model"])
+            kwargs["started"]("provider-turn")
+            snapshot = {
+                "inputTokens": 8,
+                "cachedInputTokens": 2,
+                "outputTokens": 2,
+                "reasoningOutputTokens": 1,
+                "totalTokens": 10,
+            }
+            event = {
+                "kind": "token_usage",
+                "thread_id": thread,
+                "turn_id": "provider-turn",
+                "usage": {"total": snapshot},
+            }
+            self.sink(event)
+            self.sink(event)
+            raise RuntimeError("provider_failed_after_usage")
+
+    ledger = UsageLedger(tmp_path / "progress.sqlite")
+    rpc = ProgressFailRPC(ledger)
+    controller = Controller(ledger, lambda: quota(), state=tmp_path, clock=lambda: 1000)
+    client = MeteredCodex(
+        rpc,
+        controller,
+        {
+            "role": "worker",
+            "team": "Experience",
+            "task": "T",
+            "episode_id": "progress-episode",
+            "authority": "CEO-20261020-02",
+        },
+    )
+    thread = client.start("gpt-6-luna", "bounded")
+    with pytest.raises(RuntimeError, match="provider_failed_after_usage"):
+        client.turn(
+            thread,
+            "bounded",
+            dispatch_id="progress-failure",
+            model="gpt-6-luna",
+            estimate={"tokens": 20, "wpu": 1},
+            tool=lambda _: None,
+            deadline_seconds=30,
+        )
+    summary = ledger.summary()
+    assert summary["incremental"]["total_tokens"] == 10
+    assert summary["by_model"]["unclassified"]["total_tokens"] == 10
+    assert any(row.get("dispatch_id") == "progress-failure" for row in summary["reservations"])
     controller.close()
     ledger.close()
 

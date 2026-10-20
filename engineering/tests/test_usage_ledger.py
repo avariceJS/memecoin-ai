@@ -1,4 +1,5 @@
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -54,6 +55,71 @@ class UsageLedgerTests(unittest.TestCase):
     def observe(self, eid, seq, counters, source="provider", epoch="e1"):
         self.l.observe("a", epoch, eid, counters, source=source, sequence=seq, observed_at=seq)
 
+    def test_receipt_redelivery_preserves_first_observed_at(self):
+        evidence = {"thread_id": "a", "turn_id": "turn", "value": 3}
+        self.l.observe_receipt("receipt-1", "d1", None, "turn", "token_usage", None, 1.0, evidence)
+        self.l.observe_receipt("receipt-1", "d1", None, "turn", "token_usage", None, 2.0, evidence)
+        receipt = next(r for r in self.l.summary()["receipts"] if r["event_id"] == "receipt-1")
+        self.assertEqual(receipt["observed_at"], 1.0)
+        with self.assertRaisesRegex(ValueError, "receipt_id_payload_conflict"):
+            self.l.observe_receipt(
+                "receipt-1",
+                "d1",
+                None,
+                "turn",
+                "token_usage",
+                None,
+                3.0,
+                {"thread_id": "a", "turn_id": "turn", "value": 4},
+            )
+
+    def test_compatible_overlapping_model_intervals_are_unioned(self):
+        base, mid, end = c(), c(10), c(20)
+
+        def interval(identity, start, finish, at):
+            return {
+                "id": identity,
+                "model": "gpt-6-luna",
+                "start": start,
+                "end": finish,
+                "event_at": float(at),
+                "source": "independent-rollout",
+                "evidence": {"id": identity},
+            }
+
+        first = {
+            "schema": "brain-org-usage-import-v1",
+            "streams": [
+                {
+                    "identity": "overlap-thread",
+                    "epoch": "e",
+                    "baseline": base,
+                    "intervals": [interval("left", base, mid, 1), interval("right", mid, end, 2)],
+                }
+            ],
+            "unresolved": [],
+        }
+        second = {
+            "schema": "brain-org-usage-import-v1",
+            "streams": [
+                {
+                    "identity": "overlap-thread",
+                    "epoch": "e",
+                    "baseline": base,
+                    "intervals": [interval("whole", base, end, 3)],
+                }
+            ],
+            "unresolved": [],
+        }
+        for batch in (first, second):
+            self.l.import_external(
+                batch, "codex-rollout-intervals-v1", self.l.external_batch_hash(batch)
+            )
+        summary = self.l.summary()
+        self.assertEqual(summary["incremental"]["total_tokens"], 20)
+        self.assertEqual(summary["by_model"]["gpt-6-luna"]["total_tokens"], 20)
+        self.assertNotIn("model_interval_conflict", [r["reason"] for r in summary["unresolved"]])
+
     def test_dispatch_receipts_are_immutable_and_readonly_summary_is_noncreating(self):
         summary_path = Path(self.tmp.name) / "missing.sqlite"
         self.assertIsNone(UsageLedger.readonly_summary(summary_path))
@@ -105,7 +171,7 @@ class UsageLedgerTests(unittest.TestCase):
             "a",
             "gpt-6-luna",
             {"tokens": 20, "wpu": 1},
-            2000,
+            time.time() + 2000,
             context={"role": "worker", "team": "Experience"},
             baseline=baseline,
         )
@@ -178,7 +244,7 @@ class UsageLedgerTests(unittest.TestCase):
             "a",
             "gpt-6-luna",
             {"tokens": 20, "wpu": 1},
-            2000,
+            time.time() + 2000,
             context={"role": "worker", "team": "Experience"},
             baseline=c(),
         )
@@ -694,6 +760,42 @@ class UsageLedgerTests(unittest.TestCase):
                 ]
             )
         self.assertEqual(self.l.summary()["incremental"], c(250, 40))
+
+    def test_expired_unknown_releases_global_slot_but_locks_same_stream(self):
+        now = time.time()
+        self.l.reserve(
+            "unknown-1",
+            "a",
+            "gpt-6-luna",
+            {"tokens": 20, "wpu": 1},
+            now + 1,
+            context={"role": "worker", "team": "Experience"},
+            baseline=c(),
+            now=now,
+        )
+        self.l.consume_dispatch("unknown-1")
+        self.l.record_outcome("unknown-1", "unknown", {"error": "lost receipt"})
+        with self.assertRaisesRegex(ValueError, "unresolved_stream_dispatch"):
+            self.l.reserve(
+                "same-stream-retry",
+                "a",
+                "gpt-6-luna",
+                {"tokens": 20, "wpu": 1},
+                now + 100,
+                context={"role": "worker", "team": "Experience"},
+                baseline=c(),
+                now=now + 2,
+            )
+        row = self.l.reserve(
+            "other-stream",
+            "b",
+            "gpt-6-luna",
+            {"tokens": 20, "wpu": 1},
+            now + 100,
+            context={"role": "worker", "team": "Experience"},
+            now=now + 2,
+        )
+        self.assertEqual(row["status"], "reserved")
 
     def test_reopen_durable_and_duplicate_event_conflict(self):
         self.observe("x", 1, c(3))

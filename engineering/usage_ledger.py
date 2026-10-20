@@ -68,7 +68,10 @@ def _json(v):
 
 class UsageLedger:
     def __init__(self, path):
-        self.db = sqlite3.connect(str(path), isolation_level=None)
+        from pathlib import Path
+
+        self.path = Path(path).resolve()
+        self.db = sqlite3.connect(str(self.path), isolation_level=None)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA journal_mode=WAL")
@@ -141,6 +144,9 @@ class UsageLedger:
                 evidence_hash TEXT NOT NULL, ordinal INTEGER NOT NULL, identity TEXT NOT NULL,
                 reason TEXT NOT NULL, evidence TEXT NOT NULL,
                 PRIMARY KEY(evidence_hash,ordinal)
+            );
+            CREATE TABLE IF NOT EXISTS controller_state (
+                key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at REAL NOT NULL
             );
             """
         )
@@ -289,8 +295,10 @@ class UsageLedger:
             if registration["epoch"] == "" or not registration["baseline"]:
                 raise ValueError("terminal_attribution_epoch_unknown")
             current = self._current_snapshot_in_transaction(registration)
-            if current is None or current != baseline:
+            if current is None:
                 raise ValueError("terminal_attribution_baseline_conflict")
+            self._validate_interval(baseline, current)
+            self._validate_interval(current, end)
             self._validate_interval(baseline, end)
             event_id = (
                 "terminal:"
@@ -1016,34 +1024,54 @@ class UsageLedger:
                 (r["identity"], r["epoch"]),
             ).fetchall()
             attributed = []
-            cursor = baseline
             conflict = False
+            points = {baseline["total_tokens"]: baseline, current["total_tokens"]: current}
+            prepared = []
             for interval in intervals:
                 start = json.loads(interval["start_counters"])
                 end = json.loads(interval["end_counters"])
                 try:
                     self._validate_interval(start, end)
                     if interval["model"] not in MODELS or any(
-                        start[key] < cursor[key] or end[key] > current[key] for key in FIELDS
+                        start[key] < baseline[key] or end[key] > current[key] for key in FIELDS
                     ):
                         raise ValueError("model interval outside observed stream")
-                    gap = {key: start[key] - cursor[key] for key in FIELDS}
-                    self._validate_interval(cursor, start)
+                    for point in (start, end):
+                        old_point = points.get(point["total_tokens"])
+                        if old_point is not None and old_point != point:
+                            raise ValueError("model interval point conflict")
+                        points[point["total_tokens"]] = point
+                    prepared.append((interval["model"], start, end))
                 except ValueError:
                     conflict = True
                     break
-                if any(gap.values()):
-                    attributed.append((UNCLASSIFIED_MODEL, gap))
-                attributed.append((interval["model"], self._delta(start, end)))
-                cursor = end
-            if not conflict:
-                try:
-                    tail = self._delta(cursor, current)
-                except ValueError:
-                    conflict = True
-                else:
-                    if any(tail.values()):
-                        attributed.append((UNCLASSIFIED_MODEL, tail))
+            if not conflict and intervals:
+                ordered = sorted(points)
+                for left_total, right_total in zip(ordered, ordered[1:], strict=False):
+                    left, right = points[left_total], points[right_total]
+                    try:
+                        self._validate_interval(left, right)
+                    except ValueError:
+                        conflict = True
+                        break
+                    covering = {
+                        model
+                        for model, start, end in prepared
+                        if start["total_tokens"] <= left_total
+                        and end["total_tokens"] >= right_total
+                    }
+                    model = next(iter(covering)) if len(covering) == 1 else UNCLASSIFIED_MODEL
+                    if len(covering) > 1:
+                        unresolved.append(
+                            {
+                                "identity": r["identity"],
+                                "epoch": r["epoch"],
+                                "reason": "model_interval_conflict",
+                            }
+                        )
+                    segment = self._delta(left, right)
+                    if any(segment.values()):
+                        attributed.append((model, segment))
             if conflict:
                 attributed = [(UNCLASSIFIED_MODEL, delta)]
                 unresolved.append(
@@ -1204,7 +1232,9 @@ class UsageLedger:
         baseline=None,
         max_active_teams=2,
         max_model_dispatches=2,
+        now=None,
     ):
+        now = time.time() if now is None else _timestamp(now, "now")
         if not dispatch_id or not identity or model not in MODELS or type(context) is not dict:
             raise ValueError("invalid dispatch")
         if (
@@ -1239,12 +1269,22 @@ class UsageLedger:
                 if row["payload"] != payload:
                     raise ValueError("dispatch_id_payload_conflict")
             else:
+                self.db.execute(
+                    "UPDATE dispatches SET status='settled',outcome=? "
+                    "WHERE status='reserved' AND deadline_at<=?",
+                    (_json({"provider_call": "not_sent", "reason": "reservation_expired"}), now),
+                )
+                unresolved = self.db.execute(
+                    "SELECT identity FROM dispatches WHERE status NOT IN ('covered','settled')"
+                ).fetchall()
+                if any(active_row["identity"] == identity for active_row in unresolved):
+                    raise ValueError("unresolved_stream_dispatch")
                 active = self.db.execute(
                     "SELECT model,payload,identity FROM dispatches "
-                    "WHERE status NOT IN ('covered','settled')"
+                    "WHERE status IN ('reserved','dispatched','bound','unknown') "
+                    "AND deadline_at>?",
+                    (now,),
                 ).fetchall()
-                if any(active_row["identity"] == identity for active_row in active):
-                    raise ValueError("unresolved_stream_dispatch")
                 active_teams = set()
                 model_count = 0
                 for active_row in active:
@@ -1330,7 +1370,14 @@ class UsageLedger:
             ).fetchone()
             if existing:
                 raise ValueError("new stream identity already registered")
-            registration = (thread_id, "initial", row["model"], _json(ZERO), str(evidence), 1)
+            registration = (
+                thread_id,
+                "initial",
+                UNCLASSIFIED_MODEL,
+                _json(ZERO),
+                str(evidence),
+                1,
+            )
             self.db.execute("INSERT INTO registrations VALUES(?,?,?,?,?,?)", registration)
             self.db.execute(
                 "UPDATE dispatches SET status='settled',outcome=? WHERE dispatch_id=?",
@@ -1409,8 +1456,10 @@ class UsageLedger:
             ).fetchone()
             if existing:
                 current = tuple(existing)
-                if current != payload:
+                if current[:5] + current[6:] != payload[:5] + payload[6:]:
                     raise ValueError("receipt_id_payload_conflict")
+                # Re-delivery preserves the first receipt time; observation time is
+                # transport metadata, not part of provider event identity.
             else:
                 self.db.execute(
                     "INSERT INTO receipts "
@@ -1430,6 +1479,64 @@ class UsageLedger:
             (dispatch_id,),
         )
         return cur.rowcount == 1
+
+    def get_controller_state(self, key):
+        row = self.db.execute("SELECT value FROM controller_state WHERE key=?", (key,)).fetchone()
+        return json.loads(row["value"]) if row else None
+
+    def set_controller_state(self, key, value):
+        encoded = _json(value)
+        now = time.time()
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            self.db.execute(
+                "INSERT INTO controller_state(key,value,updated_at) VALUES(?,?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value,"
+                "updated_at=excluded.updated_at",
+                (key, encoded, now),
+            )
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+
+    def clear_controller_state(self, key):
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            self.db.execute("DELETE FROM controller_state WHERE key=?", (key,))
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+
+    def state_reconciled(self, now):
+        now = _timestamp(now, "now")
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            expired = self.db.execute(
+                "SELECT dispatch_id FROM dispatches WHERE status='reserved' AND deadline_at<=?",
+                (now,),
+            ).fetchall()
+            for row in expired:
+                self.db.execute(
+                    "UPDATE dispatches SET status='settled',outcome=? "
+                    "WHERE dispatch_id=? AND status='reserved'",
+                    (
+                        _json({"provider_call": "not_sent", "reason": "reservation_expired"}),
+                        row["dispatch_id"],
+                    ),
+                )
+            active = self.db.execute(
+                "SELECT 1 FROM dispatches WHERE status IN "
+                "('reserved','dispatched','bound','unknown') "
+                "AND deadline_at>? LIMIT 1",
+                (now,),
+            ).fetchone()
+            self.db.execute("COMMIT")
+            return active is None
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
 
     def dispatch(self, dispatch_id):
         row = self.db.execute(

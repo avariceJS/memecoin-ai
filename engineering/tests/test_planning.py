@@ -206,7 +206,7 @@ class PlanningAdmissionTests(unittest.TestCase):
         return (
             fake,
             patch.object(planning, "config", return_value=self.cfg),
-            patch.object(planning, "Codex", return_value=fake),
+            patch.object(planning, "metered_client", return_value=fake),
             patch.object(planning, "git", return_value="base"),
             patch.object(planning, "log_event"),
         )
@@ -221,6 +221,8 @@ class PlanningAdmissionTests(unittest.TestCase):
             self.assertEqual(plan_next(self.root, self.db), "PLAT-002")
             self.assertIsNone(plan_next(self.root, self.db))
         fake.turn.assert_called_once()
+        self.assertIn("dispatch_id", fake.turn.call_args.kwargs)
+        self.assertEqual(fake.turn.call_args.kwargs["estimate"], {"tokens": 12000, "wpu": 1.0})
         self.assertEqual(len(self.db.list_tasks()), 1)
 
     def test_rejected_generated_policy_is_persisted_and_not_retried_for_same_dossier(self):
