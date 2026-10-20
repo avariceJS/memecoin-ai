@@ -32,6 +32,7 @@ _SPEC_FIELDS = {
     "evidence_refs",
 }
 _RESOURCE_FIELDS = {"max_attempts", "max_turn_seconds", "estimated_wpu"}
+_MAX_INT_BITS = 256
 
 
 def _fail(code: str) -> None:
@@ -41,8 +42,12 @@ def _fail(code: str) -> None:
 def _json_value(value: Any, depth: int = 0) -> None:
     if depth > 32:
         _fail("invalid_json_value")
-    if value is None or type(value) in (str, bool, int):
+    if value is None or type(value) in (str, bool):
         if isinstance(value, str) and len(value) > 4096:
+            _fail("invalid_json_value")
+        return
+    if type(value) is int:
+        if value.bit_length() > _MAX_INT_BITS:
             _fail("invalid_json_value")
         return
     if type(value) is float:
@@ -89,6 +94,41 @@ def _exact_dict(value: Any, fields: set[str], code: str) -> dict[str, Any]:
     return value
 
 
+def _contract_map(value: Any, code: str) -> dict[str, dict[str, Any]]:
+    if type(value) is not dict or not 1 <= len(value) <= 32:
+        _fail(code)
+    for name, contract in value.items():
+        if (
+            type(name) is not str
+            or not _NAME.fullmatch(name)
+            or type(contract) is not dict
+            or set(contract) != {"version", "proposal_sha256"}
+        ):
+            _fail(code)
+        version = contract["version"]
+        digest = contract["proposal_sha256"]
+        if (
+            type(version) is not int
+            or version < 1
+            or type(digest) is not str
+            or not _SHA256.fullmatch(digest)
+        ):
+            _fail(code)
+    return value
+
+
+def _envelope_list(value: Any) -> list[str]:
+    if (
+        type(value) is not list
+        or not value
+        or len(value) > 256
+        or any(type(item) is not str for item in value)
+        or len(set(value)) != len(value)
+    ):
+        _fail("invalid_envelope")
+    return value
+
+
 def validate_task_spec(
     spec: Any, *, envelope: Any, acceptance_registry: Any, existing_tasks: Any
 ) -> dict[str, Any]:
@@ -128,6 +168,23 @@ def validate_task_spec(
         },
         "invalid_envelope",
     )
+    for key in ("schema", "objective_id", "base_sha"):
+        if type(e[key]) is not str:
+            _fail("invalid_envelope")
+    for key in ("teams", "allowed_paths", "capabilities", "risk_levels"):
+        _envelope_list(e[key])
+    allowed_contracts = e["allowed_contracts"]
+    if type(allowed_contracts) is not dict:
+        _fail("invalid_envelope")
+    max_attempts = e["max_attempts"]
+    max_seconds = e["max_turn_seconds"]
+    if (
+        type(max_attempts) is not int
+        or max_attempts < 1
+        or type(max_seconds) is not int
+        or max_seconds < 1
+    ):
+        _fail("invalid_envelope")
     if (
         e["schema"] != _ENVELOPE_SCHEMA
         or e["objective_id"] != objective
@@ -136,15 +193,6 @@ def validate_task_spec(
         or risk not in e["risk_levels"]
     ):
         _fail("outside_envelope")
-    for key in ("teams", "allowed_paths", "capabilities", "risk_levels"):
-        if (
-            type(e[key]) is not list
-            or not e[key]
-            or len(e[key]) > 256
-            or any(type(v) is not str for v in e[key])
-            or len(set(e[key])) != len(e[key])
-        ):
-            _fail("invalid_envelope")
     scope = s["scope"]
     if type(scope) is not list or not 1 <= len(scope) <= 64:
         _fail("invalid_scope")
@@ -165,17 +213,8 @@ def validate_task_spec(
     contracts = s["contracts"]
     if type(contracts) is not dict or not 1 <= len(contracts) <= 32:
         _fail("invalid_contracts")
-    allowed_contracts = e["allowed_contracts"]
-    if type(allowed_contracts) is not dict:
-        _fail("invalid_envelope")
+    _contract_map(contracts, "invalid_contracts")
     for name, contract in contracts.items():
-        if (
-            type(name) is not str
-            or not _NAME.fullmatch(name)
-            or type(contract) is not dict
-            or set(contract) != {"version", "proposal_sha256"}
-        ):
-            _fail("invalid_contracts")
         version = contract["version"]
         digest = contract["proposal_sha256"]
         if (
@@ -190,15 +229,6 @@ def validate_task_spec(
             _fail("contract_outside_envelope")
 
     resources = _exact_dict(s["resources"], _RESOURCE_FIELDS, "invalid_resources")
-    max_attempts = e["max_attempts"]
-    max_seconds = e["max_turn_seconds"]
-    if (
-        type(max_attempts) is not int
-        or max_attempts < 1
-        or type(max_seconds) is not int
-        or max_seconds < 1
-    ):
-        _fail("invalid_envelope")
     attempts, seconds, wpu = (
         resources["max_attempts"],
         resources["max_turn_seconds"],
@@ -208,7 +238,11 @@ def validate_task_spec(
         _fail("invalid_resources")
     if type(seconds) is not int or not 1 <= seconds <= max_seconds:
         _fail("invalid_resources")
-    if type(wpu) not in (int, float) or not math.isfinite(wpu) or not 0 <= wpu <= 100000:
+    if (
+        type(wpu) not in (int, float)
+        or (type(wpu) is float and not math.isfinite(wpu))
+        or not 0 <= wpu <= 100000
+    ):
         _fail("invalid_resources")
 
     acceptance = s["acceptance"]
@@ -244,13 +278,20 @@ def validate_task_spec(
             "risk",
         }:
             _fail("untrusted_acceptance")
+        record_contracts = _contract_map(record["contracts"], "untrusted_acceptance")
         if (
-            record["independent"] is not True
+            type(record["sha256"]) is not str
+            or not _SHA256.fullmatch(record["sha256"])
+            or type(record["objective_id"]) is not str
+            or type(record["risk"]) is not str
+            or type(record["independent"]) is not bool
+            or type(record["frozen"]) is not bool
+            or record["independent"] is not True
             or record["frozen"] is not True
             or record["sha256"] != digest
             or record["objective_id"] != objective
             or record["risk"] != risk
-            or record["contracts"] != contracts
+            or record_contracts != contracts
         ):
             _fail("acceptance_mismatch")
         record_scope = record["scope"]
@@ -292,6 +333,8 @@ def validate_task_spec(
         ):
             _fail("invalid_existing_tasks")
         rid = row["id"]
+        if not _ID.fullmatch(rid):
+            _fail("invalid_existing_tasks")
         if rid in by_id:
             _fail("duplicate_existing_id")
         by_id[rid] = row
@@ -304,25 +347,38 @@ def validate_task_spec(
     for dep in deps:
         if dep not in by_id:
             _fail("unknown_dependency")
-    graph = {rid: row.get("dependencies", []) for rid, row in by_id.items()}
+    graph: dict[str, list[str]] = {}
+    for rid, row in by_id.items():
+        row_deps = row.get("dependencies", [])
+        if (
+            type(row_deps) is not list
+            or len(row_deps) > 64
+            or any(type(dep) is not str or not _ID.fullmatch(dep) for dep in row_deps)
+            or len(set(row_deps)) != len(row_deps)
+        ):
+            _fail("invalid_existing_tasks")
+        graph[rid] = row_deps
     graph[task_id] = deps
-    visiting: set[str] = set()
     visited: set[str] = set()
-
-    def visit(node: str) -> None:
-        if node in visiting:
-            _fail("dependency_cycle")
-        if node in visited:
-            return
-        visiting.add(node)
-        for child in graph.get(node, []):
-            if type(child) is not str:
-                _fail("invalid_existing_tasks")
-            if child in graph:
-                visit(child)
-        visiting.remove(node)
-        visited.add(node)
-
-    for node in graph:
-        visit(node)
+    active: set[str] = set()
+    for start in graph:
+        if start in visited:
+            continue
+        active.add(start)
+        stack = [(start, iter(graph[start]))]
+        while stack:
+            node, children = stack[-1]
+            child = next(children, None)
+            if child is None:
+                stack.pop()
+                active.remove(node)
+                visited.add(node)
+                continue
+            if child not in graph:
+                _fail("unknown_dependency")
+            if child in active:
+                _fail("dependency_cycle")
+            if child not in visited:
+                active.add(child)
+                stack.append((child, iter(graph[child])))
     return copy.deepcopy(s)

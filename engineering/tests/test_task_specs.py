@@ -98,6 +98,65 @@ class TaskSpecTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             invoke({**SPEC, "resources": {**SPEC["resources"], "max_turn_seconds": 1201}})
 
+    def test_rejects_oversized_integers_with_stable_code(self):
+        cases = (
+            {"resources": {**SPEC["resources"], "estimated_wpu": 10**400}},
+            {"contracts": {"schema-validation": {"version": 10**5000, "proposal_sha256": H}}},
+        )
+        for update in cases:
+            with self.subTest(update=update.keys()), self.assertRaisesRegex(
+                ValueError, "^invalid_json_value$"
+            ):
+                invoke({**SPEC, **update})
+
+    def test_envelope_containers_are_checked_before_membership(self):
+        for key, value in (("teams", None), ("risk_levels", 2)):
+            envelope = {**ENVELOPE, key: value}
+            with self.subTest(key=key), self.assertRaisesRegex(
+                ValueError, "^invalid_envelope$"
+            ):
+                invoke(envelope=envelope)
+
+    def test_existing_dependency_lists_and_targets_are_validated(self):
+        good = {
+            "id": "CTX-001",
+            "state": "pending",
+            "scope": [],
+            "dependencies": [],
+        }
+        for value in ("CTX-002", {"target": "CTX-002"}, None):
+            with self.subTest(dependencies=value), self.assertRaisesRegex(
+                ValueError, "^invalid_existing_tasks$"
+            ):
+                invoke(tasks=[{**good, "dependencies": value}])
+        with self.assertRaisesRegex(ValueError, "^unknown_dependency$"):
+            invoke(tasks=[{**good, "dependencies": ["MISSING-001"]}])
+
+    def test_long_valid_dependency_chain_is_iterative(self):
+        tasks = []
+        for number in range(1, 1001):
+            tasks.append(
+                {
+                    "id": f"CTX-{number:03d}",
+                    "state": "pending",
+                    "scope": [],
+                    "dependencies": [] if number == 1 else [f"CTX-{number - 1:03d}"],
+                }
+            )
+        proposal = {**SPEC, "dependencies": ["CTX-1000"]}
+        self.assertEqual(invoke(proposal, tasks=tasks), proposal)
+
+    def test_registry_contract_versions_reject_bool_and_float(self):
+        for version in (True, 2.0):
+            registry = copy.deepcopy(REGISTRY)
+            registry["schema-shape-v2"]["contracts"]["schema-validation"][
+                "version"
+            ] = version
+            with self.subTest(version=version), self.assertRaisesRegex(
+                ValueError, "^untrusted_acceptance$"
+            ):
+                invoke(registry=registry)
+
     def test_dependencies_and_owned_scope(self):
         dependency = {
             "id": "CTX-001",
