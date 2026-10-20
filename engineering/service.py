@@ -6,6 +6,7 @@ starting or loading a LaunchAgent remains an operator action.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -14,7 +15,7 @@ import shutil
 import sqlite3
 import stat
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 LABEL = "com.brain.engineering.organization"
 MAX_EPISODE_SECONDS = 14_400
@@ -189,78 +190,613 @@ def install_launch_agent(
     return destination
 
 
+_SNAPSHOT_SCHEMA = "brain-organization-snapshot-v2"
+_EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
+_SQLITE_SIDECARS = {"organization.sqlite-wal", "organization.sqlite-shm"}
+
+
+def _snapshot_manifest_bytes(value: dict) -> bytes:
+    return (json.dumps(value, sort_keys=True, indent=2) + "\n").encode()
+
+
+def _snapshot_error(code: str, exc: BaseException | None = None) -> None:
+    if exc is None:
+        raise ValueError(code)
+    raise ValueError(code) from exc
+
+
+def _safe_relative(value: str) -> bool:
+    if not value or "\\" in value or "\x00" in value:
+        return False
+    parts = value.split("/")
+    return (
+        not value.startswith("/")
+        and all(part not in ("", ".", "..") for part in parts)
+        and PurePosixPath(value).as_posix() == value
+    )
+
+
+def _inside(path: Path, root: Path) -> bool:
+    return path == root or root in path.parents
+
+
+def _paths_overlap(left: Path, right: Path) -> bool:
+    return _inside(left, right) or _inside(right, left)
+
+
+def _file_digest(path: Path, error_code: str) -> tuple[int, str]:
+    digest = hashlib.sha256()
+    size = 0
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(path, flags)
+        with os.fdopen(fd, "rb") as stream:
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+                _snapshot_error(error_code)
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
+                size += len(chunk)
+            after = os.fstat(stream.fileno())
+            if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
+                after.st_dev,
+                after.st_ino,
+                after.st_size,
+                after.st_mtime_ns,
+            ) or size != after.st_size:
+                _snapshot_error(error_code)
+    except OSError as exc:
+        _snapshot_error(error_code, exc)
+    return size, digest.hexdigest()
+
+
+def _source_inventory(state: Path) -> dict[str, dict]:
+    owner = os.getuid()
+    inventory: dict[str, dict] = {}
+
+    def walk(directory: Path, prefix: str = "") -> None:
+        try:
+            children = sorted(os.scandir(directory), key=lambda item: item.name)
+        except OSError as exc:
+            _snapshot_error("snapshot_unsafe_entry", exc)
+        for child in children:
+            relative = f"{prefix}/{child.name}" if prefix else child.name
+            path = state / relative
+            if not _safe_relative(relative) or relative == "snapshot.json":
+                _snapshot_error("snapshot_unsafe_entry")
+            try:
+                info = child.stat(follow_symlinks=False)
+            except OSError as exc:
+                _snapshot_error("snapshot_unsafe_entry", exc)
+            if info.st_uid != owner:
+                _snapshot_error("snapshot_unsafe_entry")
+            mode = stat.S_IMODE(info.st_mode)
+            if stat.S_ISDIR(info.st_mode):
+                inventory[relative] = {"type": "directory", "mode": mode}
+                walk(path, relative)
+                continue
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+                _snapshot_error("snapshot_unsafe_entry")
+            if relative in _SQLITE_SIDECARS:
+                continue
+            if relative == "organization.sqlite":
+                inventory[relative] = {"type": "file", "mode": mode}
+            elif relative == "supervisor.lock":
+                inventory[relative] = {
+                    "type": "file",
+                    "mode": mode,
+                    "size": 0,
+                    "sha256": _EMPTY_SHA256,
+                }
+            else:
+                size, digest = _file_digest(path, "snapshot_unsafe_entry")
+                inventory[relative] = {
+                    "type": "file",
+                    "mode": mode,
+                    "size": size,
+                    "sha256": digest,
+                }
+
+    walk(state)
+    if "organization.sqlite" not in inventory:
+        _snapshot_error("snapshot_database")
+    if not {"STOP", "supervisor.lock"} <= set(inventory):
+        _snapshot_error("snapshot_unsafe_entry")
+    return inventory
+
+
+def _copy_file(
+    source: Path,
+    destination: Path,
+    *,
+    mode: int,
+    expected_size: int,
+    expected_sha256: str,
+    error_code: str,
+    snapshot_private: bool = False,
+) -> None:
+    source_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    destination_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
+    digest = hashlib.sha256()
+    size = 0
+    try:
+        source_fd = os.open(source, source_flags)
+        with os.fdopen(source_fd, "rb") as src:
+            before = os.fstat(src.fileno())
+            if (
+                not stat.S_ISREG(before.st_mode)
+                or before.st_nlink != 1
+                or before.st_uid != os.getuid()
+                or (snapshot_private and stat.S_IMODE(before.st_mode) & 0o077)
+            ):
+                _snapshot_error(error_code)
+            destination_fd = os.open(destination, destination_flags, 0o600)
+            with os.fdopen(destination_fd, "wb") as dst:
+                while chunk := src.read(1024 * 1024):
+                    dst.write(chunk)
+                    digest.update(chunk)
+                    size += len(chunk)
+                dst.flush()
+                os.fsync(dst.fileno())
+                os.fchmod(dst.fileno(), mode)
+            after = os.fstat(src.fileno())
+            if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
+                after.st_dev,
+                after.st_ino,
+                after.st_size,
+                after.st_mtime_ns,
+            ):
+                _snapshot_error(error_code)
+    except OSError as exc:
+        destination.unlink(missing_ok=True)
+        _snapshot_error(error_code, exc)
+    if size != expected_size or digest.hexdigest() != expected_sha256:
+        destination.unlink(missing_ok=True)
+        _snapshot_error(error_code)
+
+
+def _create_empty_file(path: Path, mode: int) -> None:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
+    fd = os.open(path, flags, 0o600)
+    with os.fdopen(fd, "wb") as stream:
+        stream.flush()
+        os.fsync(stream.fileno())
+        os.fchmod(stream.fileno(), mode)
+
+
+def _snapshot_file_mode(source_mode: int) -> int:
+    return 0o600 | (source_mode & 0o100)
+
+
+def _fsync_directory(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_CLOEXEC", 0))
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _supervisor_barrier(state: Path) -> int:
+    path = state / "supervisor.lock"
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(path, flags)
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1:
+            os.close(fd)
+            _snapshot_error("snapshot_unsafe_entry")
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as exc:
+        _snapshot_error("snapshot_busy", exc)
+    except OSError as exc:
+        _snapshot_error("snapshot_busy", exc)
+    return fd
+
+
+def _backup_database(source_path: Path, target_path: Path, mode: int) -> None:
+    source = None
+    target = None
+    try:
+        source_uri = source_path.as_uri() + "?mode=ro"
+        source = sqlite3.connect(source_uri, uri=True)
+        source.execute("PRAGMA query_only=ON")
+        if source.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+            _snapshot_error("snapshot_database")
+        columns = {row[1] for row in source.execute("PRAGMA table_info(tasks)").fetchall()}
+        if not {"id", "state"} <= columns:
+            _snapshot_error("snapshot_schema")
+        try:
+            active = source.execute("SELECT 1 FROM tasks WHERE state='running' LIMIT 1").fetchone()
+        except sqlite3.Error as exc:
+            _snapshot_error("snapshot_schema", exc)
+        if active:
+            _snapshot_error("snapshot_active_attempts")
+        target = sqlite3.connect(target_path)
+        source.backup(target)
+        result = target.execute("PRAGMA integrity_check").fetchone()
+        if result != ("ok",):
+            _snapshot_error("snapshot_database")
+        journal_mode = target.execute("PRAGMA journal_mode").fetchone()[0].lower()
+        if journal_mode == "wal":
+            checkpoint = target.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            if checkpoint is None or checkpoint[0] != 0:
+                _snapshot_error("snapshot_database")
+            journal_mode = target.execute("PRAGMA journal_mode=DELETE").fetchone()[0].lower()
+            if journal_mode != "delete":
+                _snapshot_error("snapshot_database")
+        target.close()
+        target = None
+        source.close()
+        source = None
+        sidecars = (target_path.with_name(target_path.name + suffix) for suffix in ("-wal", "-shm"))
+        if any(path.exists() for path in sidecars):
+            _snapshot_error("snapshot_database")
+        with sqlite3.connect(f"{target_path.as_uri()}?mode=ro", uri=True) as verify:
+            if verify.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+                _snapshot_error("snapshot_database")
+        os.chmod(target_path, mode)
+    except ValueError:
+        raise
+    except (sqlite3.Error, OSError) as exc:
+        _snapshot_error("snapshot_database", exc)
+    finally:
+        if target is not None:
+            target.close()
+        if source is not None:
+            source.close()
+
+
 def backup_snapshot(state: str | Path, destination: str | Path) -> Path:
-    """Create a private point-in-time SQLite + policy + receipt snapshot."""
+    """Create a complete private snapshot while holding the supervisor barrier."""
     deployment = validate_deployment(state)
-    state, destination = deployment["state"], Path(destination).absolute()
-    if destination == state or state in destination.parents or destination.exists():
-        raise ValueError("snapshot_destination")
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    state = deployment["state"]
+    destination = Path(os.path.abspath(destination))
+    if os.path.lexists(destination) or _paths_overlap(state, destination):
+        _snapshot_error("snapshot_destination")
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        parent = destination.parent.resolve(strict=True)
+        destination = parent / destination.name
+    except OSError as exc:
+        _snapshot_error("snapshot_destination", exc)
+    if os.path.lexists(destination) or _paths_overlap(state, destination):
+        _snapshot_error("snapshot_destination")
     temp = Path(tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
     os.chmod(temp, 0o700)
+    lock_fd = None
     try:
-        source_db = state / "organization.sqlite"
-        if not _regular_file(source_db):
-            raise ValueError("database_permissions")
-        target_db = temp / "organization.sqlite"
-        with sqlite3.connect(f"file:{source_db}?mode=ro", uri=True) as source:
-            with sqlite3.connect(target_db) as target:
-                source.backup(target)
-                if target.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                    raise ValueError("snapshot_database_integrity")
-        os.chmod(target_db, 0o400)
-        files = [
-            "config.json",
-            "config.sha256",
-            "controller-manifest.json",
-            "confinement.json",
-            "native-profile.json",
-        ]
-        for name in files:
-            shutil.copyfile(state / name, temp / name)
-        manifest = _json(state / "controller-manifest.json")
-        for name in manifest:
-            rel = Path(name)
-            root = state / "trusted" if name.startswith("trusted/") else state / "controller"
-            tail = Path(*rel.parts[1:]) if name.startswith("trusted/") else rel
-            source = root / tail
-            target_root = temp / ("trusted" if name.startswith("trusted/") else "controller")
-            target = target_root / tail
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
-        for directory in ("receipts",):
-            src = state / directory
-            if src.exists():
-                (temp / directory).mkdir(mode=0o700)
-                for item in src.iterdir():
-                    if item.is_symlink() or not item.is_file() or not _regular_file(item):
-                        raise ValueError("snapshot_receipt_permissions")
-                    try:
-                        receipt = json.loads(item.read_bytes())
-                    except (OSError, ValueError) as exc:
-                        raise ValueError("snapshot_receipt_invalid") from exc
-                    receipt_hash = hashlib.sha256(_canonical(receipt)).hexdigest()
-                    if item.name != receipt_hash + ".json" or item.read_bytes() != _canonical(
-                        receipt
-                    ):
-                        raise ValueError("snapshot_receipt_hash")
-                    shutil.copyfile(item, temp / directory / item.name)
-        inventory = {}
-        for path in sorted(p for p in temp.rglob("*") if p.is_file()):
-            if path.name != "snapshot.json":
-                inventory[str(path.relative_to(temp))] = _digest(path)
-                os.chmod(path, 0o400)
-        (temp / "snapshot.json").write_text(
-            json.dumps(
-                {"schema": "brain-organization-snapshot-v1", "files": inventory},
-                sort_keys=True,
-                indent=2,
-            )
-            + "\n"
+        stop = state / "STOP"
+        try:
+            stop_info = stop.lstat()
+        except OSError as exc:
+            _snapshot_error("snapshot_requires_stop", exc)
+        if not stat.S_ISREG(stop_info.st_mode) or stop_info.st_uid != os.getuid():
+            _snapshot_error("snapshot_requires_stop")
+        lock_fd = _supervisor_barrier(state)
+        source_entries = _source_inventory(state)
+        inventory_before = {relative: dict(entry) for relative, entry in source_entries.items()}
+        source_root_mode = stat.S_IMODE(state.stat().st_mode)
+        for relative, entry in source_entries.items():
+            target = temp / relative
+            if entry["type"] == "directory":
+                target.mkdir(mode=0o700, parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            if relative == "organization.sqlite":
+                _backup_database(state / relative, target, _snapshot_file_mode(entry["mode"]))
+                size, digest = _file_digest(target, "snapshot_database")
+                entry["size"], entry["sha256"] = size, digest
+            elif relative == "supervisor.lock":
+                _create_empty_file(target, _snapshot_file_mode(entry["mode"]))
+            else:
+                _copy_file(
+                    state / relative,
+                    target,
+                    mode=_snapshot_file_mode(entry["mode"]),
+                    expected_size=entry["size"],
+                    expected_sha256=entry["sha256"],
+                    error_code="snapshot_inventory",
+                )
+        inventory_after = _source_inventory(state)
+        if inventory_after != inventory_before:
+            _snapshot_error("snapshot_inventory")
+        if stat.S_IMODE(state.stat().st_mode) != source_root_mode:
+            _snapshot_error("snapshot_inventory")
+        for relative, entry in source_entries.items():
+            if entry["type"] == "directory":
+                os.chmod(temp / relative, 0o700)
+        manifest = {
+            "schema": _SNAPSHOT_SCHEMA,
+            "source_state": str(state),
+            "source_state_mode": source_root_mode,
+            "entries": source_entries,
+        }
+        manifest_path = temp / "snapshot.json"
+        fd = os.open(
+            manifest_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0),
+            0o600,
         )
-        os.chmod(temp / "snapshot.json", 0o400)
-        os.replace(temp, destination)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(_snapshot_manifest_bytes(manifest))
+            stream.flush()
+            os.fsync(stream.fileno())
+            os.fchmod(stream.fileno(), 0o400)
+        os.chmod(temp, 0o700)
+        _fsync_directory(temp)
+        if os.path.lexists(destination):
+            _snapshot_error("snapshot_destination")
+        os.rename(temp, destination)
+        try:
+            _fsync_directory(destination.parent)
+        except OSError:
+            shutil.rmtree(destination, ignore_errors=True)
+            raise
         return destination
     except Exception:
         shutil.rmtree(temp, ignore_errors=True)
+        raise
+    finally:
+        if lock_fd is not None:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            finally:
+                os.close(lock_fd)
+
+
+def _read_snapshot_manifest(snapshot: Path, expected_sha256: str) -> tuple[dict, bytes]:
+    if (
+        snapshot.is_symlink()
+        or not snapshot.is_dir()
+        or snapshot.stat().st_uid != os.getuid()
+        or stat.S_IMODE(snapshot.stat().st_mode) != 0o700
+    ):
+        _snapshot_error("snapshot_permissions")
+    manifest_path = snapshot / "snapshot.json"
+    try:
+        info = manifest_path.lstat()
+    except OSError as exc:
+        _snapshot_error("snapshot_manifest_entry", exc)
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_nlink != 1
+        or stat.S_IMODE(info.st_mode) != 0o400
+    ):
+        _snapshot_error("snapshot_permissions")
+    try:
+        raw = manifest_path.read_bytes()
+    except OSError as exc:
+        _snapshot_error("snapshot_manifest_entry", exc)
+    if (
+        type(expected_sha256) is not str
+        or len(expected_sha256) != 64
+        or hashlib.sha256(raw).hexdigest() != expected_sha256
+    ):
+        _snapshot_error("snapshot_manifest_hash")
+    try:
+        manifest = json.loads(raw)
+    except (UnicodeDecodeError, ValueError) as exc:
+        _snapshot_error("snapshot_manifest_entry", exc)
+    if (
+        type(manifest) is not dict
+        or set(manifest) != {"schema", "source_state", "source_state_mode", "entries"}
+        or manifest.get("schema") != _SNAPSHOT_SCHEMA
+        or type(manifest.get("source_state")) is not str
+        or not Path(manifest["source_state"]).is_absolute()
+        or type(manifest.get("source_state_mode")) is not int
+        or not 0 <= manifest["source_state_mode"] <= 0o7777
+        or type(manifest.get("entries")) is not dict
+        or raw != _snapshot_manifest_bytes(manifest)
+    ):
+        _snapshot_error("snapshot_manifest_entry")
+    return manifest, raw
+
+
+def _validate_manifest_entries(entries: dict) -> None:
+    if not {"STOP", "supervisor.lock", "organization.sqlite"} <= set(entries):
+        _snapshot_error("snapshot_manifest_entry")
+    for relative, entry in entries.items():
+        if type(relative) is not str or not _safe_relative(relative):
+            _snapshot_error("snapshot_manifest_path")
+        if relative == "snapshot.json" or relative in _SQLITE_SIDECARS:
+            _snapshot_error("snapshot_manifest_path")
+        if (
+            type(entry) is not dict
+            or type(entry.get("type")) is not str
+            or entry["type"] not in {"file", "directory"}
+        ):
+            _snapshot_error("snapshot_manifest_entry")
+        expected_keys = {"type", "mode"}
+        if entry["type"] == "file":
+            expected_keys |= {"size", "sha256"}
+        if set(entry) != expected_keys:
+            _snapshot_error("snapshot_manifest_entry")
+        if type(entry.get("mode")) is not int or not 0 <= entry["mode"] <= 0o7777:
+            _snapshot_error("snapshot_manifest_entry")
+        if entry["type"] == "file" and (
+            type(entry.get("size")) is not int
+            or entry["size"] < 0
+            or type(entry.get("sha256")) is not str
+            or len(entry["sha256"]) != 64
+            or any(char not in "0123456789abcdef" for char in entry["sha256"])
+        ):
+            _snapshot_error("snapshot_manifest_entry")
+    for relative in entries:
+        parts = PurePosixPath(relative).parts
+        for index in range(1, len(parts)):
+            parent = "/".join(parts[:index])
+            if parent not in entries or entries[parent]["type"] != "directory":
+                _snapshot_error("snapshot_manifest_path")
+    lock = entries["supervisor.lock"]
+    if lock.get("type") != "file" or lock.get("size") != 0 or lock.get("sha256") != _EMPTY_SHA256:
+        _snapshot_error("snapshot_manifest_entry")
+
+
+def _snapshot_inventory(snapshot: Path, entries: dict) -> None:
+    owner = os.getuid()
+    observed: dict[str, dict] = {}
+
+    def walk(directory: Path, prefix: str = "") -> None:
+        try:
+            children = sorted(os.scandir(directory), key=lambda item: item.name)
+        except OSError as exc:
+            _snapshot_error("snapshot_unsafe_entry", exc)
+        for child in children:
+            relative = f"{prefix}/{child.name}" if prefix else child.name
+            if relative == "snapshot.json":
+                continue
+            if not _safe_relative(relative):
+                _snapshot_error("snapshot_manifest_path")
+            try:
+                info = child.stat(follow_symlinks=False)
+            except OSError as exc:
+                _snapshot_error("snapshot_unsafe_entry", exc)
+            if info.st_uid != owner:
+                _snapshot_error("snapshot_permissions")
+            if stat.S_ISDIR(info.st_mode):
+                if stat.S_IMODE(info.st_mode) != 0o700:
+                    _snapshot_error("snapshot_permissions")
+                observed[relative] = {"type": "directory"}
+                walk(snapshot / relative, relative)
+            elif stat.S_ISREG(info.st_mode):
+                if info.st_nlink != 1 or stat.S_IMODE(info.st_mode) & 0o077:
+                    _snapshot_error("snapshot_unsafe_entry")
+                size, digest = _file_digest(snapshot / relative, "snapshot_unsafe_entry")
+                observed[relative] = {"type": "file", "size": size, "sha256": digest}
+            else:
+                _snapshot_error("snapshot_unsafe_entry")
+
+    walk(snapshot)
+    if set(observed) != set(entries):
+        _snapshot_error("snapshot_inventory")
+    for relative, item in entries.items():
+        seen = observed[relative]
+        if seen["type"] != item["type"]:
+            _snapshot_error("snapshot_inventory")
+        if item["type"] == "file" and (
+            seen["size"] != item["size"] or seen["sha256"] != item["sha256"]
+        ):
+            _snapshot_error("snapshot_hash")
+
+
+def _verify_restored_tree(state: Path, entries: dict, root_mode: int) -> None:
+    if stat.S_IMODE(state.stat().st_mode) != root_mode:
+        _snapshot_error("snapshot_inventory")
+    observed = _source_inventory(state)
+    if set(observed) != set(entries):
+        _snapshot_error("snapshot_inventory")
+    for relative, expected in entries.items():
+        actual = observed[relative]
+        if actual.get("type") != expected["type"] or actual.get("mode") != expected["mode"]:
+            _snapshot_error("snapshot_inventory")
+        if expected["type"] == "file":
+            if relative == "organization.sqlite":
+                size, digest = _file_digest(state / relative, "snapshot_database")
+            else:
+                size, digest = actual.get("size"), actual.get("sha256")
+            if size != expected["size"] or digest != expected["sha256"]:
+                _snapshot_error("snapshot_hash")
+    _check_database(state / "organization.sqlite", check_running=False)
+
+
+def _check_database(path: Path, *, check_running: bool) -> None:
+    try:
+        with sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True) as db:
+            if db.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+                _snapshot_error("snapshot_database")
+            columns = {row[1] for row in db.execute("PRAGMA table_info(tasks)").fetchall()}
+            if not {"id", "state"} <= columns:
+                _snapshot_error("snapshot_schema")
+            if (
+                check_running
+                and db.execute("SELECT 1 FROM tasks WHERE state='running' LIMIT 1").fetchone()
+            ):
+                _snapshot_error("snapshot_active_attempts")
+    except ValueError:
+        raise
+    except sqlite3.Error as exc:
+        _snapshot_error("snapshot_database", exc)
+
+
+def restore_snapshot(
+    snapshot: str | Path,
+    destination: str | Path,
+    *,
+    expected_manifest_sha256: str,
+) -> Path:
+    """Verify a snapshot completely, then publish it with one sibling rename."""
+    snapshot = Path(os.path.abspath(snapshot))
+    manifest, _ = _read_snapshot_manifest(snapshot, expected_manifest_sha256)
+    entries = manifest["entries"]
+    _validate_manifest_entries(entries)
+    expected_destination = Path(manifest["source_state"])
+    destination = Path(os.path.abspath(destination))
+    if destination != expected_destination:
+        _snapshot_error("snapshot_restore_destination")
+    if os.path.lexists(destination):
+        _snapshot_error("snapshot_destination")
+    try:
+        parent = destination.parent.resolve(strict=True)
+        parent_info = parent.stat()
+    except OSError as exc:
+        _snapshot_error("snapshot_restore_destination", exc)
+    if (
+        parent != destination.parent
+        or not stat.S_ISDIR(parent_info.st_mode)
+        or parent_info.st_uid != os.getuid()
+    ):
+        _snapshot_error("snapshot_restore_destination")
+    if _paths_overlap(snapshot, destination) or _paths_overlap(snapshot.resolve(), destination):
+        _snapshot_error("snapshot_restore_destination")
+    _snapshot_inventory(snapshot, entries)
+    temp = Path(tempfile.mkdtemp(prefix=f".{destination.name}.restore.", dir=parent))
+    os.chmod(temp, 0o700)
+    published = False
+    try:
+        directories = [
+            relative for relative, item in entries.items() if item["type"] == "directory"
+        ]
+        for relative in sorted(directories, key=lambda value: (value.count("/"), value)):
+            (temp / relative).mkdir(mode=0o700, parents=True, exist_ok=True)
+        files = [relative for relative, item in entries.items() if item["type"] == "file"]
+        for relative in files:
+            item = entries[relative]
+            target = temp / relative
+            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            if relative == "supervisor.lock":
+                _create_empty_file(target, item["mode"])
+            else:
+                _copy_file(
+                    snapshot / relative,
+                    target,
+                    mode=item["mode"],
+                    expected_size=item["size"],
+                    expected_sha256=item["sha256"],
+                    error_code="snapshot_hash",
+                    snapshot_private=True,
+                )
+        for relative in sorted(
+            directories, key=lambda value: (value.count("/"), value), reverse=True
+        ):
+            os.chmod(temp / relative, entries[relative]["mode"])
+        os.chmod(temp, manifest["source_state_mode"])
+        _verify_restored_tree(temp, entries, manifest["source_state_mode"])
+        if os.path.lexists(destination):
+            _snapshot_error("snapshot_destination")
+        os.rename(temp, destination)
+        published = True
+        _fsync_directory(parent)
+        try:
+            validate_deployment(destination)
+        except Exception:
+            shutil.rmtree(destination, ignore_errors=True)
+            published = False
+            raise
+        return destination
+    except Exception:
+        if published:
+            shutil.rmtree(destination, ignore_errors=True)
+        else:
+            shutil.rmtree(temp, ignore_errors=True)
         raise

@@ -11,6 +11,7 @@ from engineering.service import (
     LABEL,
     backup_snapshot,
     launch_agent_plist,
+    restore_snapshot,
     validate_deployment,
 )
 
@@ -70,8 +71,12 @@ def deployment(tmp_path):
         },
     )
     with sqlite3.connect(state / "organization.sqlite") as db:
+        db.execute("CREATE TABLE tasks (id TEXT, state TEXT)")
+        db.execute("INSERT INTO tasks VALUES ('EXP-001', 'submitted')")
         db.execute("CREATE TABLE evidence (value TEXT)")
         db.execute("INSERT INTO evidence VALUES ('synthetic')")
+    _write(state / "STOP", b"")
+    _write(state / "supervisor.lock", b"")
     return state
 
 
@@ -126,7 +131,7 @@ def _json_update(path, key, value):
     _json(path, data)
 
 
-def test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts(tmp_path):
+def test_snapshot_round_trip_uses_sqlite_backup_and_copies_durable_state(tmp_path):
     state = deployment(tmp_path)
     receipt_body = {"digest": "trusted-record"}
     receipt = state / "receipts" / (hashlib.sha256(_canonical(receipt_body)).hexdigest() + ".json")
@@ -137,14 +142,21 @@ def test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts(tmp_path):
     assert (destination / "config.json").read_bytes() == (state / "config.json").read_bytes()
     assert (destination / "receipts" / receipt.name).read_bytes() == receipt.read_bytes()
     snapshot = json.loads((destination / "snapshot.json").read_text())
-    assert snapshot["schema"] == "brain-organization-snapshot-v1"
+    assert snapshot["schema"] == "brain-organization-snapshot-v2"
+    assert "receipts" in snapshot["entries"]
     with sqlite3.connect(destination / "organization.sqlite") as db:
         assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert db.execute("SELECT value FROM evidence").fetchone()[0] == "synthetic"
+        assert db.execute("SELECT state FROM tasks").fetchone()[0] == "submitted"
     assert destination.stat().st_mode & 0o077 == 0
-    assert (destination / "organization.sqlite").stat().st_mode & 0o222 == 0
+    assert (destination / "organization.sqlite").stat().st_mode & 0o077 == 0
     with pytest.raises(ValueError, match="snapshot_destination"):
         backup_snapshot(state, destination)
+    digest = hashlib.sha256((destination / "snapshot.json").read_bytes()).hexdigest()
+    state.rename(tmp_path / "detached-state")
+    restored = restore_snapshot(destination, state, expected_manifest_sha256=digest)
+    assert restored == state
+    assert (restored / "supervisor.lock").read_bytes() == b""
 
 
 def test_plist_round_trip_has_no_extra_launch_services(tmp_path):
