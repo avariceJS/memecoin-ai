@@ -154,6 +154,25 @@ class TaskSpecTests(unittest.TestCase):
         proposal = {**SPEC, "dependencies": ["CTX-000"]}
         self.assertEqual(invoke(proposal, tasks=rows), proposal)
 
+    def test_existing_task_state_and_scope_are_validated_for_every_state(self):
+        base = {"id": "CTX-001", "state": "pending", "scope": [], "dependencies": []}
+        self.assertEqual(invoke(tasks=[base]), SPEC)
+        malformed = [
+            {**base, "state": "runing"},
+            {**base, "state": "RUNNING"},
+            {**base, "state": ""},
+            {**base, "scope": [None]},
+            {**base, "scope": [42]},
+            {**base, "scope": ["../escape.py"]},
+            {**base, "scope": [".git/config"]},
+            {**base, "scope": ["tools/a.py", "tools/a.py"]},
+            {**base, "scope": [f"tools/{index}.py" for index in range(65)]},
+        ]
+        for row in malformed:
+            with self.subTest(row=row):
+                with self.assertRaisesRegex(ValueError, "^invalid_existing_tasks$"):
+                    invoke(tasks=[row])
+
     def test_registry_contracts_require_strict_integer_versions(self):
         for version in (True, 2.0):
             with self.subTest(version=version):

@@ -13,6 +13,7 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _BASE = re.compile(r"^[0-9a-f]{40}$")
 _ID = re.compile(r"^[A-Z][A-Z0-9]{1,15}-[0-9]{3,8}$")
 _NAME = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
+_TASK_STATES = {"pending", "running", "submitted", "verified", "accepted", "integrated", "failed"}
 _PATH_PART = re.compile(r"^[A-Za-z0-9_.-]+$")
 _SPEC_FIELDS = {
     "schema",
@@ -321,10 +322,20 @@ def validate_task_spec(
             or type(row.get("id")) is not str
             or not _ID.fullmatch(row["id"])
             or type(row.get("state")) is not str
+            or row.get("state") not in _TASK_STATES
             or type(row.get("scope")) is not list
+            or len(row["scope"]) > 64
         ):
             _fail("invalid_existing_tasks")
         rid = row["id"]
+        try:
+            row_scope = [_path(path) for path in row["scope"]]
+        except ValueError as exc:
+            if str(exc) == "invalid_scope":
+                _fail("invalid_existing_tasks")
+            raise
+        if len(set(row_scope)) != len(row_scope):
+            _fail("invalid_existing_tasks")
         row_dependencies = row.get("dependencies", [])
         if (
             type(row_dependencies) is not list
@@ -339,8 +350,7 @@ def validate_task_spec(
         if rid == task_id:
             _fail("duplicate_task_id")
         if row["state"] in {"running", "submitted", "verified", "accepted"}:
-            other_scope = {_path(p) for p in row["scope"]}
-            if set(scope) & other_scope:
+            if set(scope) & set(row_scope):
                 _fail("owned_scope_overlap")
     for dep in deps:
         if dep not in by_id:
