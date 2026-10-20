@@ -222,6 +222,21 @@ qualification, executable integration acceptance, production admission defaults,
 remain open. Plans remain `execution_qualified=False`. The updated engineering gate passed 332 tests
 and 65 subtests; Ruff check/format passed on 56 files. Sol accepted this bounded source increment.
 
+The next bounded A04 increment introduces manifest schema v3 and requires new verifier bindings to
+start exactly with the pinned interpreter, `-I -S -B`, then the trusted harness. Admission rejects
+other interpreter command prefixes and the manifest resolver keeps v2 manifests fail-closed. In
+CPython these options ignore `PYTHON*` environment variables and unsafe path injection (`-I`), skip
+automatic `site` initialization and its `.pth` processing (`-S`), and suppress bytecode writes
+(`-B`); see the [Python 3.13 command-line reference](https://docs.python.org/3.13/using/cmdline.html)
+and [`site` reference](https://docs.python.org/3.13/library/site.html). A synthetic run under a
+disposable per-task Seatbelt profile exercised the manifest-shaped command with the pinned
+interpreter and trusted harness, validated the strict result contract, and confirmed startup flags,
+the prelaunch hash, profile identity and absence of checkout bytecode. The full engineering gate
+passed 336 tests and 73 subtests; Ruff check/format passed on 56 files. This qualifies that
+synthetic host/profile/command tuple only. Exact deployment roots, complete loader dependencies,
+path-to-invocation identity, production default-off admission and full A04 remain open; bound plans
+still have `execution_qualified=False`.
+
 The source candidate, merged-system acceptance, operational release, and founder authority to resume
 the original pilot are distinct gates. A03 currently blocks full operational release, not independent
 engineering progress. Passing synthetic tests or the local release command alone does not pass them.
