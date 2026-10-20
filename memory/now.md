@@ -32,6 +32,22 @@ and is not to be started automatically.
   truncation is replaced by a content-addressed complete text packet and explicit pre-review blocks
   for binary summaries, path encoding, oversized diff and final packet. Sol accepted exact bounded
   source repair; full gate passed 265 tests/42 subtests and Ruff (47 files). Broad A11 remains open.
+- A05 pure deterministic lifecycle planner is merged at
+  `91c6cfaf85aaebf62f6bd36290d7fcaf27a1d2b6`; Sol accepted the exact scaffold and the full gate
+  passed 274 tests/42 subtests with Ruff (49 files). It only emits an inert owner/epoch request after
+  fail-closed observations; durable fencing, persistence, deduplication, scheduler/process recovery
+  and operational A05 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-passive-lifecycle-scaffold-review-20261020.json`.
+- A10 read-only readiness report is merged at `57f496f5f74258d00a09dc37b5818e409495dffc`; Sol
+  accepted the exact scaffold and the gate passed 275 tests/42 subtests with Ruff. It exposes
+  dependency/contract blockers without hiding independent ready work; claim stays authoritative.
+  Contract transitions, acknowledgements and durable obligations remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-readiness-report-scaffold-review-20261020.json`.
+- A12 bounded active-task projection merged at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`; Sol
+  accepted the exact source and the gate passed 278 tests/42 subtests with Ruff. SQL limits active
+  rows to 100, full state counts remain, omitted rows are disclosed, and history is retained. Full
+  row counting still scans tasks; full A12 remains open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a12-active-task-projection-scaffold-review-20261020.json`.
 - Original worktree `/Users/root1/Developer/brain-org-build` stays on `org/development`; `main` and
   protected state remain untouched. Pilot, supervisor runtime, services, market collection, training,
   AUTO, trading, protected datasets and STOP remain untouched.

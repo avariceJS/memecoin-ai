@@ -287,3 +287,33 @@ gate прошёл: 265 тестов, 42 subtests и Ruff (47 files). Git CAS п�
 integration tip и требует нового candidate/review. Это bounded repair, не broad A11; reviewer file
 inspection, routing, A04 wiring и полное operational acceptance остаются открыты. Supervisor и pilot
 не включались.
+
+A05 получил ограниченный source scaffold в `91c6cfaf85aaebf62f6bd36290d7fcaf27a1d2b6`: чистая
+детерминированная функция проверяет STOP, runtime/accounting/quota gates, process/lease observations,
+recovery и backoff; start представлен только inert request с owner и epoch. Sol принял точные
+исходники. Полный `engineering-release-check` прошёл: 274 теста, 42 subtests, Ruff lint/format
+(49 файлов). Это не durable fencing и не интегрированный lifecycle: persistence, request
+deduplication/consumption, retry policy, scheduler, recovery operation и service/process launch
+остаются открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-passive-lifecycle-scaffold-review-20261020.json`
+(SHA-256 `87596c56a7e60b86a9ab85a70a2e03b15ab9ac613f2e9b8539a7fa2eafc88d97`). Продолжаются A04
+supervisor/recovery wiring, A10 dependencies and department contracts, A12 history projection и
+ограниченные source checks. Operational STOP и все пользовательские запреты сохранены.
+
+A10 получил read-only readiness report в `57f496f5f74258d00a09dc37b5818e409495dffc`: единый SQLite
+snapshot показывает non-integrated/missing dependencies и несовпадающие версии contracts. Blocked
+задача не скрывает независимую ready работу; transactional `claim` остаётся авторитетным и повторно
+проверяет готовность. Sol принял exact source; полный gate прошёл: 275 тестов, 42 subtests и Ruff
+(49 файлов). Durable producer/consumer acknowledgements, transitions, dependency obligations и
+broad A10 остаются открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-readiness-report-scaffold-review-20261020.json`
+(SHA-256 `22037f53771b100bc1694f5f9133eec59ceeef519888389ff98f42d03af62176`).
+
+A12 ограничил активную task projection на уровне SQLite (`e7e8f1d039cce909d91782c1cf51f4587ccbc016`):
+выбирается максимум 100 active rows через индекс, полный state count сообщается отдельно, unknown
+states сведены в `unclassified`, а report показывает omitted active rows. Интегрированная и failed
+история не удаляется. Sol принял exact source; gate прошёл: 278 тестов, 42 subtests, Ruff (49
+файлов). Подсчёт всё ещё сканирует task rows; dependency index, рост event/usage/receipt/checkout и
+полный A12 остаются открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a12-active-task-projection-scaffold-review-20261020.json`
+(SHA-256 `3e921d550fc67c2d295f6024a4fe24ebfcbe0e1572bb73e260607cf70961ba77`).
