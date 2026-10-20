@@ -11,6 +11,7 @@ Use one Store per process (multiple instances safely contend through SQLite).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -54,6 +55,14 @@ def _positive(value: float) -> float:
     if not math.isfinite(value) or value <= 0:
         raise StateError("positive finite number required")
     return value
+
+
+def _lifecycle_snapshot(value: Any) -> Any:
+    """Detach caller-owned JSON data before a lifecycle transaction can wait on SQLite."""
+    try:
+        return json.loads(_json(value))
+    except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+        raise StateError("invalid_lifecycle_input") from None
 
 
 class Store:
@@ -991,6 +1000,185 @@ class Store:
             },
         )
         return version
+
+    def _lifecycle_now(self) -> float:
+        now = self.clock()
+        if isinstance(now, bool) or not isinstance(now, (int, float)):
+            raise StateError("lifecycle_clock_invalid")
+        try:
+            finite_now = math.isfinite(now)
+        except OverflowError:
+            finite_now = False
+        if not finite_now:
+            raise StateError("lifecycle_clock_invalid")
+        return float(now)
+
+    def _lifecycle_fence(self, lease: Any) -> dict:
+        current = self.get_decision("lifecycle/owner")
+        body = self._lifecycle_fence_state(current["body"]) if current is not None else None
+        now = self._lifecycle_now()
+        if (
+            type(lease) is not dict
+            or current is None
+            or type(lease.get("owner")) is not str
+            or type(lease.get("epoch")) is not int
+            or body["status"] != "active"
+            or body["owner"] != lease.get("owner")
+            or body["epoch"] != lease.get("epoch")
+            or body["lease_until"] <= now
+        ):
+            raise StateError("stale_lifecycle_owner")
+        return body
+
+    def claim_lifecycle_owner(self, owner: str, lease_seconds: float = 30) -> dict | None:
+        """Claim the passive lifecycle journal using a durable, monotonically fenced epoch.
+
+        This does not schedule work or start a process. A live owner cannot be displaced;
+        an expired or released owner can be replaced only by a strictly newer epoch.
+        """
+        _name(owner)
+        if len(owner) > 200:
+            raise StateError("lifecycle_owner_invalid")
+        lease_seconds = _positive(lease_seconds)
+        with self._tx():
+            current = self.get_decision("lifecycle/owner")
+            now = self._lifecycle_now()
+            if current is not None:
+                old = self._lifecycle_fence_state(current["body"])
+            else:
+                old = None
+            if old and old["status"] == "active" and old["lease_until"] > now:
+                return None
+            epoch = (old["epoch"] if old else 0) + 1
+            body = {
+                "status": "active",
+                "owner": owner,
+                "epoch": epoch,
+                "lease_until": now + lease_seconds,
+            }
+            version = self._put_decision_in_transaction("lifecycle/owner", body)
+            return {**body, "version": version}
+
+    @staticmethod
+    def _lifecycle_fence_state(body: Any) -> dict:
+        if (
+            type(body) is not dict
+            or set(body) != {"status", "owner", "epoch", "lease_until"}
+            or type(body["status"]) is not str
+            or (body["status"] != "active" and body["status"] != "released")
+            or type(body["owner"]) is not str
+            or not body["owner"].strip()
+            or len(body["owner"]) > 200
+            or type(body["epoch"]) is not int
+            or body["epoch"] <= 0
+            or isinstance(body["lease_until"], bool)
+            or not isinstance(body["lease_until"], (int, float))
+        ):
+            raise StateError("lifecycle_owner_state_invalid")
+        try:
+            finite_lease = math.isfinite(body["lease_until"])
+        except OverflowError:
+            finite_lease = False
+        if not finite_lease:
+            raise StateError("lifecycle_owner_state_invalid")
+        return body
+
+    def renew_lifecycle_owner(self, lease: Any, lease_seconds: float = 30) -> dict:
+        """Extend a current lifecycle owner lease without changing its fencing epoch."""
+        lease = _lifecycle_snapshot(lease)
+        lease_seconds = _positive(lease_seconds)
+        with self._tx():
+            current = self._lifecycle_fence(lease)
+            body = {**current, "lease_until": self._lifecycle_now() + lease_seconds}
+            version = self._put_decision_in_transaction("lifecycle/owner", body)
+            return {**body, "version": version}
+
+    def release_lifecycle_owner(self, lease: Any) -> None:
+        """Persist owner release; a later claim receives a higher epoch."""
+        lease = _lifecycle_snapshot(lease)
+        with self._tx():
+            current = self._lifecycle_fence(lease)
+            body = {**current, "status": "released", "lease_until": self._lifecycle_now()}
+            self._put_decision_in_transaction("lifecycle/owner", body)
+
+    def record_lifecycle_plan(self, lease: Any, plan: Any) -> dict:
+        """Persist one immutable lifecycle decision/request under the current owner fence.
+
+        A `launch_request` stays inert data. This API has no process, service, scheduler,
+        or dispatch side effects. Exact retries return the original journal identity.
+        """
+        lease = _lifecycle_snapshot(lease)
+        plan = _lifecycle_snapshot(plan)
+        required = {
+            "action",
+            "reason",
+            "retry_at",
+            "attempt_id",
+            "request_owner",
+            "request_epoch",
+            "decision_sha256",
+        }
+        if type(plan) is not dict or set(plan) != required:
+            raise StateError("invalid_lifecycle_plan")
+        if type(plan["action"]) is not str or plan["action"] not in {
+            "hold",
+            "wait",
+            "observe",
+            "recovery_required",
+            "launch_request",
+        }:
+            raise StateError("invalid_lifecycle_plan")
+        if (
+            type(plan["reason"]) is not str
+            or not plan["reason"].strip()
+            or len(plan["reason"]) > 500
+        ):
+            raise StateError("invalid_lifecycle_plan")
+        if plan["retry_at"] is not None:
+            if isinstance(plan["retry_at"], bool) or not isinstance(plan["retry_at"], (int, float)):
+                raise StateError("invalid_lifecycle_plan")
+            try:
+                finite_retry_at = math.isfinite(plan["retry_at"])
+            except OverflowError:
+                finite_retry_at = False
+            if not finite_retry_at:
+                raise StateError("invalid_lifecycle_plan")
+        if plan["attempt_id"] is not None and (
+            type(plan["attempt_id"]) is not int or plan["attempt_id"] <= 0
+        ):
+            raise StateError("invalid_lifecycle_plan")
+        if plan["request_owner"] is not None:
+            _name(plan["request_owner"])
+        if plan["request_epoch"] is not None and (
+            type(plan["request_epoch"]) is not int or plan["request_epoch"] <= 0
+        ):
+            raise StateError("invalid_lifecycle_plan")
+        if plan["action"] != "launch_request" and (
+            plan["request_owner"] is not None or plan["request_epoch"] is not None
+        ):
+            raise StateError("invalid_lifecycle_plan")
+        digest = plan["decision_sha256"]
+        if type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise StateError("invalid_lifecycle_plan")
+
+        with self._tx():
+            owner = self._lifecycle_fence(lease)
+            if plan["action"] == "launch_request" and (
+                plan["request_owner"] != owner["owner"] or plan["request_epoch"] != owner["epoch"]
+            ):
+                raise StateError("lifecycle_request_fence_mismatch")
+            request_id = hashlib.sha256(
+                f"{owner['owner']}\0{owner['epoch']}\0{digest}".encode()
+            ).hexdigest()
+            name = "lifecycle/request/" + request_id
+            body = {"owner": owner["owner"], "epoch": owner["epoch"], "plan": plan}
+            old = self.get_decision(name)
+            if old is not None:
+                if old["body"] != body:
+                    raise StateError("lifecycle_request_identity_conflict")
+                return {"id": name, "version": old["version"], "body": old["body"]}
+            version = self._put_decision_in_transaction(name, body)
+            return {"id": name, "version": version, "body": body}
 
     def open_controller_parse_fault(
         self,
