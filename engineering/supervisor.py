@@ -25,7 +25,7 @@ from .org_state import StaleAttempt, Store
 from .processes import process_identity, terminate_owned
 from .review_packet import build_review_packet
 from .service import validate_deployment
-from .verification_plan import prepare_verification_plan
+from .verification_plan import attempt_plan_matches, prepare_verification_plan
 
 SOL = "gpt-6.1-sol"
 LUNA = "gpt-6-luna"
@@ -332,13 +332,7 @@ def run_attempt(state: Path, attempt_id: int):
         tool = tool_function(box, checkout, heartbeat)
         packet = {
             "task": task,
-            "verification_plan": {
-                "plan_sha256": verification_plan.plan_sha256,
-                "binding_sha256": verification_plan.binding_sha256,
-                "decision_name": verification_plan.decision_name,
-                "decision_version": verification_plan.decision_version,
-                "acceptance_identities": verification_plan.acceptance_identities,
-            },
+            "verification_plan": verification_plan.identity(),
             "effective_base": base,
             "python": cfg["python"],
             "contracts": {k: db.get_contract(k) for k in cfg["contracts"]},
@@ -555,7 +549,13 @@ def run_attempt(state: Path, attempt_id: int):
             attempt_id,
             epoch,
             sha,
-            {"base": base, "checkout": str(checkout), "run": str(run), "worker_thread": thread},
+            {
+                "base": base,
+                "checkout": str(checkout),
+                "run": str(run),
+                "worker_thread": thread,
+                "verification_plan": verification_plan.identity(),
+            },
         )
         log_event(state, "submitted", task=task["id"], sha=sha, attempt_id=attempt_id)
     except Exception as exc:
@@ -645,6 +645,18 @@ def verify_one(state, task):
             task=task["id"],
             candidate=task["candidate_sha"],
             reason=plan.reason,
+            plan_sha256=plan.plan_sha256,
+        )
+        db.close()
+        return False
+    matches, reason = attempt_plan_matches(plan, evidence)
+    if not matches:
+        log_event(
+            state,
+            "verification_blocked",
+            task=task["id"],
+            candidate=task["candidate_sha"],
+            reason=reason,
             plan_sha256=plan.plan_sha256,
         )
         db.close()
@@ -839,6 +851,17 @@ def reconcile(state, db):
                     "reconciliation_blocked",
                     task=task["id"],
                     reason=plan.reason,
+                    plan_sha256=plan.plan_sha256,
+                )
+                continue
+            candidate = db.get_candidate(task["id"])
+            matches, reason = attempt_plan_matches(plan, candidate["evidence"])
+            if not matches:
+                log_event(
+                    state,
+                    "reconciliation_blocked",
+                    task=task["id"],
+                    reason=reason,
                     plan_sha256=plan.plan_sha256,
                 )
                 continue

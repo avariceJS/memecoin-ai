@@ -16,6 +16,7 @@ from engineering.confinement import SandboxResult
 from engineering.git_gate import VerificationPolicy
 from engineering.org_state import Store
 from engineering.tests.test_service import deployment as deployment_fixture
+from engineering.verification_plan import prepare_verification_plan
 
 
 class FakeCodex:
@@ -657,6 +658,22 @@ class SupervisorTests(unittest.TestCase):
         dispatch.assert_not_called()
         sandbox.assert_not_called()
         git.assert_not_called()
+
+    def test_verifier_blocks_candidate_when_attempt_plan_identity_changed(self):
+        self.task()
+        attempt = self.db.claim("T", "worker", 100)
+        task = self.db.get_task("T")
+        plan = prepare_verification_plan(self.state, self.db, task, self.cfg)
+        evidence = {
+            "checkout": str(self.state / "checkout"),
+            "base": "base",
+            "verification_plan": {**plan.identity(), "plan_sha256": "0" * 64},
+        }
+        self.db.submit(attempt["id"], attempt["epoch"], "candidate", evidence)
+        with patch.object(supervisor, "git") as git:
+            self.assertFalse(supervisor.verify_one(self.state, self.db.get_task("T")))
+        git.assert_not_called()
+        self.assertEqual(self.db.get_task("T")["state"], "submitted")
 
     def test_contract_activation_requires_both_matching_hash_ack_and_is_idempotent(self):
         self.candidate("EXP-001", target_state="integrated")
