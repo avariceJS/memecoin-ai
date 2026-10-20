@@ -333,3 +333,11 @@ gate passed 285 tests/42 subtests and Ruff (50 files). Attempt evidence still ne
 plan hash comparison. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-run-attempt-verifier-gate-review-20261020.json`
 (SHA-256 `7f8483c832e5bd14cdbf08da7b2e53f09edda9ba1e4549a326f2ca0f21df8ffb`). Supervisor stayed off.
+
+At `b0e47312d496417c92efb5716babbd5713dce068`, exact verifier-plan identity travels in controller
+candidate evidence and must match at verification and recovery before state transitions. Bound
+missing identity and explicit `null` block; absent legacy evidence remains compatible. Sol accepted
+the exact updated source; gate passed 286 tests/42 subtests and Ruff (50 files). Removing the key from
+legacy evidence still uses compatibility behavior; full A04 remains open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-attempt-plan-evidence-review-20261020.json`
+(SHA-256 `7b773556fbe46f7aad7875c34ad2f53312c476660bf1203f097b3d1b31669ee8`). Supervisor stayed off.

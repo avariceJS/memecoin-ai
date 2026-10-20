@@ -39,6 +39,11 @@ and is not to be started automatically.
   closed. Sol accepted this bounded gate; full gate passed 285 tests/42 subtests and Ruff (50 files).
   Candidate evidence does not yet compare the saved plan hash with verifier re-resolution. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-run-attempt-verifier-gate-review-20261020.json`.
+- At `b0e47312d496417c92efb5716babbd5713dce068`, candidate evidence stores the full plan identity;
+  verification and every reconciliation transition require exact equality. Bound missing identity
+  and explicit `null` block; absent legacy identity stays compatible. Sol accepted exact source and
+  full gate passed 286 tests/42 subtests, Ruff (50 files). Full A04 remains open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-attempt-plan-evidence-review-20261020.json`.
 - A11 review packet is in isolated worktree
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a11-review-packet-checkout`, branch
   `org/a11-review-packet`, based on `6974f941aa6c58b64d1fa6dcce26f48faa3428a2`. Silent diff
