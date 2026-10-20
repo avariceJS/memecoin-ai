@@ -29,6 +29,10 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   `terminal-usage-raw-response-incomplete-gap-20261020.json`. Stable `codex exec --json` re-exports
   progress snapshot totals on successful completion and is not an independent terminal source. A03
   remains fail-closed. Correction receipt: `terminal-usage-schema-filter-correction-20261020.json`.
+- Current-host native profile (21 checks) and OS confinement (27 checks) passed on Python 3.13.6 and
+  pinned Codex CLI 0.163.0; adapter digest matches exact candidate `3c16388`. Receipts are
+  `native-profile-qualification-20261020.json` and `confinement-qualification-20261020.json`. This
+  does not requalify a specific restored deployment or clear its barrier; restore remains `runtime_ready=false`.
 - The parser now preserves that optional field in raw evidence and normalizes only the five canonical
   counters. Exact candidate `3c16388` passed the pinned engineering release target using Python
   3.13.6 and the already-installed external venv: Ruff lint/format and pytest (251 tests, 42 subtests).

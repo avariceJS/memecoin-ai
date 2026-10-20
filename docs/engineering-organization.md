@@ -151,6 +151,17 @@ copied private files and integration Git ref, persisted host-requalification bar
 `runtime_ready=false`. The fixture and Git repository were temporary and synthetic. This does not
 qualify a restore of the owner deployment or pilot; those were not accessed or restored.
 
+On 2026-10-20, the current Mac passed the candidate's no-inference native permission-profile
+qualification (21 checks) using pinned Codex CLI 0.163.0 and the adapter hash from exact candidate
+`3c16388`, plus the OS confinement qualification (27 checks) with Python 3.13.6. Receipts are
+`/Users/root1/Developer/brain-org-state/resumption-20261020/native-profile-qualification-20261020.json`
+(SHA-256 `dfbdddeb79533198f27c63c35e85026d641b2d3c45cc281dea73a4b33d821889`) and
+`/Users/root1/Developer/brain-org-state/resumption-20261020/confinement-qualification-20261020.json`
+(SHA-256 `d17acddff1ea8f8521b80bee4b9508906d9dce1adcdfcdb64908e56691bf546f`). No model, account,
+thread, or turn request was made. These receipts qualify the current host controls and pin; they do
+not bind a particular restored deployment or clear its persisted requalification barrier. The exact
+candidate's restore receipt remains `runtime_ready=false`.
+
 ### Evidence established in this audit
 
 - Current read-only `thread/goal/get` returned `paused` for both former roots. The implementation

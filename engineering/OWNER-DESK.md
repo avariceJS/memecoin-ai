@@ -226,3 +226,7 @@ engineering-release-check` прошёл на Python 3.13.6 с точными в�
 или pilot. Пилот, STOP, runtime и protected data не трогались.
 
 Дополнительно напрямую прошёл полный синтетический сценарий `test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts`: checkpoint → перемещение источника → restore в новый путь; проверены SQLite backup, inventory/файлы, integration Git ref, сохранение STOP, persisted host-requalification barrier и `runtime_ready=false`. Тест использовал временное состояние и синтетический Git repo; owner runtime и pilot не копировались и не восстанавливались.
+
+Текущий Mac отдельно прошёл no-inference host checks: native permission profile — 21/21, OS confinement — 27/27, Python 3.13.6 и pinned Codex CLI 0.163.0. Native receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/native-profile-qualification-20261020.json` (SHA-256 `dfbdddeb79533198f27c63c35e85026d641b2d3c45cc281dea73a4b33d821889`). Confinement receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/confinement-qualification-20261020.json` (SHA-256 `d17acddff1ea8f8521b80bee4b9508906d9dce1adcdfcdb64908e56691bf546f`).
+
+Adapter hash совпадает с exact `3c16388`; Codex executable hash — `8813367285524ac798dd96d1b071aea30d58708c7226fd236cd275cf1cfdee31`. Эти receipts квалифицируют текущие host controls/pin, но не requalification конкретного restored deployment и не снимают persisted barrier; он остаётся `runtime_ready=false`. Model/account/thread/turn requests не выполнялись.
