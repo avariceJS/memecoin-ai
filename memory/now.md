@@ -113,15 +113,15 @@ automatically.
   Generic contracts, plans/leases,
   conflict adjudication and full A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-trigger-freshness-review-20261021.json`.
-- A10 configured-contract activation is generalized at source commit
-  `4fbf196a562f409a966a5f7f5a9135f07bd9d6dc`. Each configured transition now reconciles
-  independently while preserving exact producer/consumer acknowledgements, integrated-producer
-  checks, activation-history revalidation and legacy `schema-validation` config/hash. Sol accepted
-  exact diff `259867174de4f18c7a0f36bbc66c7301e175cde6e388e599564d13286903f518`; gate passed 351
-  tests, 83 subtests and Ruff. Source and owner docs are fast-forwarded into `org/development` at
-  `6b9b18a33c7b043610546111fc815b9a7e9a971e`; `main` is unchanged. Generic proposal/lead-ack routing
-  and broad A10 remain open. Receipt:
-  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-generic-contract-activation-review-20261021.json`.
+- A10 generic contract activation and lead-ack routing are covered by source commits
+  `4fbf196a562f409a966a5f7f5a9135f07bd9d6dc` and `886a2e2842a329210ddb4e9444fbb0506315b4c6`.
+  Configured proposals reach only participant leads; acks bind exact name/version/hash, stale source
+  versions fail closed, and legacy schema-validation config/hash remains compatible. Sol accepted the
+  latest exact diff `41b2b8f182a739bdbabb674dc2a7ba7428f59bb24431b551ed83ced8c4629dcc`; gate passed 354
+  tests, 87 subtests and Ruff. Department plans/leases, conflict adjudication and broad A10 remain
+  open. Latest receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-generic-contract-ack-routing-review-20261021.json`
+  (SHA-256 `472a67f60b6669393416a3adb02a1fad69da2d4bfe9fbd40d8c70e72ff735cb5`).
 - A04 source-only verifier-manifest custody resolver merged at `9487fc70057bc8ff5a467394fe7b70b06391e7b3`;
   Sol accepted the exact source. It verifies canonical manifest/binding digests, release/policy
   identities, exact verifier metadata and trusted harness bytes. The shared plan does not call this
