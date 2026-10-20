@@ -326,7 +326,7 @@ def test_snapshot_rejects_promisor_remote_without_running_helper(tmp_path):
         check=True,
     )
     subprocess.run(
-        ["git", "-C", str(state / "integration"), "config", "remote.origin.promisor", "true"],
+        ["git", "-C", str(state / "integration"), "config", "remote.origin.promisor", "yes"],
         check=True,
     )
     helper_dir = tmp_path / "helpers"

@@ -252,6 +252,7 @@ def _validate_integration_repository(repository: Path) -> None:
         raise ValueError("snapshot_integration_repository_missing")
     forbidden = (
         git / "objects/info/alternates",
+        git / "objects/info/http-alternates",
         git / "shallow",
         git / "info/grafts",
     )
@@ -287,7 +288,11 @@ def _validate_integration_repository(repository: Path) -> None:
             local_settings.append((key.lower(), value.lower()))
     if any(
         key == "extensions.partialclone"
-        or (key.startswith("remote.") and key.endswith(".promisor") and value == "true")
+        or (
+            key.startswith("remote.")
+            and key.endswith(".promisor")
+            and value in {"true", "yes", "on", "1"}
+        )
         for key, value in local_settings
     ) or any((repository / ".git/objects").rglob("*.promisor")):
         raise ValueError("snapshot_integration_repository_external_objects")
