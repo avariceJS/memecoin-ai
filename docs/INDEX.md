@@ -1,5 +1,8 @@
 # Documentation Index
 
+Current branch `brain/linux` is an isolated unqualified candidate. Use `brain/development` for Brain
+and `org/development` for organization audit. See the Git registry in `operator-runtime.md`.
+
 Read this page first. Current documentation is English and intentionally small. Open one canonical
 source for the task; do not scan `docs/` or `docs/evidence/` wholesale.
 

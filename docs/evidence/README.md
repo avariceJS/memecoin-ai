@@ -1431,3 +1431,5 @@ are not in Git; consult the receipt's pinned local root and manifest when author
   signed plan-specific Helius charge units, historical-only claim checks and owner-local
   predecessor claim uniqueness. Fake cryptographic fixtures only; no real trust root, provider
   request, scheduler or live activation.
+
+- `git-consolidation-2026-10-20.json`: current branch consolidation, source composition, verified recovery, cleanup and test limitations; organization remains paused for founder audit.

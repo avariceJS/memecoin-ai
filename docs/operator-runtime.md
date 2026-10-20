@@ -151,3 +151,67 @@ is selective at provenance, recovery, concurrency, temporal and integrity bounda
 mandatory pass after every edit. Treat findings as hypotheses. Architecture, complex implementation,
 integration, ML/data semantics and the final quality judgment remain the integrator's responsibility.
 Grok remains disabled by the user's latest instruction.
+
+## Git integration and recovery registry
+
+### Consolidation and founder audit hold — 2026-10-20
+
+The founder paused organization development and authorized repository consolidation. This registry
+supersedes older branch instructions. `main` stays exactly at
+`2f8da5f92da521b511e0d4fb20205981a000cab5`; no experimental source was promoted.
+
+| Branch | Role | Status |
+|---|---|---|
+| `main` | Stable existing baseline | Unchanged; existing repository failures remain documented |
+| `brain/development` | Current Brain development entry | Based on main; consolidation documentation only |
+| `org/development` | Unified organization source and audit entry | Reviewed metering and validator plus additive reviewed Store; merged candidate is not an independently accepted release |
+| `brain/linux` | Isolated Linux portability candidate | Original `65846e8` source retained; clean-host provisioning, lifecycle and inert-service qualification remain open |
+| `research/active` | Frozen remote compatibility alias at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` | Not a development lane; current `engineering/bootstrap.py` still resolves `origin/research/active`, and historical recovery packages name it |
+
+The compatibility alias cannot be removed without changing and qualifying current bootstrap/recovery
+callers. That is a separate controller release, outside this consolidation. Frozen private pilot
+repositories also retain their exact historical refs; they are not development checkouts. Linux
+changes overlap operator host/control and shared storage behavior; merging this unqualified platform
+release into Brain solely to reduce branch count would overstate acceptance. Linux was renamed,
+not updated to the current Brain baseline; reconcile that dependency during its future review.
+
+The obsolete development-readiness and organization topic branches are consolidated. UI reconstruction
+`de4b42d` and DR v3 prototype `6554a01` are archived, not accepted or silently merged. UI visual
+acceptance and physical/owner-scale v3 qualification remain open. Unreviewed supervisor proposal
+`1546e4c` and backup/restore `613c5e9` plus its last dirty repair are also custody only.
+
+`archive/consolidation-20261020` is an annotated, never-retargeted custody tag. Its commit has an
+archive tree, not a runnable project. `manifest.json` maps every original ref/checkpoint and dirty
+organization source file. Its parents preserve all 69 original commit pins. A separate bare clone
+from this GitHub tag verified all pins, four dirty organization files, and `git fsck --full` before
+branch deletion. Five historical owner documentation edits remain untouched at
+`/Users/root1/Desktop/memecoin-ai` and in a verified private dirty-file archive. Private bundles,
+ignored worktree artifacts and raw reviewer logs remain outside Git under
+`/Users/root1/Developer/brain-org-state/consolidation-20261020/`.
+
+Recover an archived source without merging the custody tree:
+
+```sh
+git fetch origin --tags
+git show archive/consolidation-20261020:manifest.json
+git switch -c recovery/<topic> <original-commit-from-manifest>
+```
+
+The archive stores the final uncommitted service repair under
+`snapshots/checkout-15/engineering/service.py` and the matching test path. Reconstruct it on
+`613c5e9e6dd6fe00d6ebf4b072a31885826ac7a4` only in an isolated recovery checkout, then obtain frozen
+acceptance and independent review. Existing `archive/pre-reset-20261018`,
+`archive/bootstrap-fixtures-20261018`, `archive/research-active-pre-org-20261019`, DR handoff tags and
+`brain-git-consolidated-20261018` remain unchanged. Historical protocol hashes require their exact
+source commit, never current archival pointer text.
+
+New ordinary Brain work starts from `brain/development`; organization audit and any later explicitly
+resumed Luna work start from `org/development`. The founder will invite Astra High for independent
+architecture review. No Goal, team, service, inference, collector, training, AUTO or trading is resumed
+by consolidation. Pilot SQLite, its six failures and zero acceptances/integrations, STOP, protected
+datasets and historical owner runtime stay unchanged. The current publisher still targets private
+`research/active`; no new publication authority or runtime branch rebinding is implied.
+
+See the machine-readable [consolidation receipt](evidence/git-consolidation-2026-10-20.json) for exact
+source selection, tests, failures, custody and cleanup. Historical acceptance from the earlier
+[2026-10-18 consolidation](evidence/git-consolidation-2026-10-18.json) is not new verification.

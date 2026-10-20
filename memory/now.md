@@ -1,3 +1,16 @@
+# Consolidated Linux candidate — 2026-10-20
+
+Current branch: **`brain/linux`**, renamed from `codex/linux-portability-20261018`.
+Implementation is unchanged from `65846e8ed472b1f61af6afdeb77499c94f068313`.
+This branch remains behind current Brain development; it is retained separately because shared
+storage/operator changes and clean-host Linux provisioning/lifecycle remain unqualified.
+No Linux host, provisioning, package installation or systemd service was started by consolidation.
+Brain entry: `brain/development`; organization audit: `org/development`; stable main unchanged.
+Organization development remains paused for the founder's separately invited Astra High audit.
+Read the current Git registry in `docs/operator-runtime.md` and the consolidation receipt.
+
+## Historical Linux qualification state
+
 # Git recovery entry — 2026-10-18
 
 This published topic is retained for unfinished work: Linux portability; unmasked clean-host provisioning and inert-service qualification remain open.

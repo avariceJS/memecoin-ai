@@ -1,3 +1,15 @@
+# Current consolidation entry — 2026-10-20
+
+This is `brain/linux`, the renamed isolated Linux candidate from `65846e8`.
+It has not incorporated the current Brain baseline and is not a qualified platform release.
+Use `brain/development` for Brain and `org/development` for the organization audit.
+Stable `main` is unchanged. `research/active` remains a frozen compatibility alias, not a work lane.
+The founder paused organization development pending an independent Astra High audit; do not resume
+Goals, workers, services or invoke Astra automatically. Preserve STOP and historical pilot/runtime.
+`archive/consolidation-20261020` preserves the original refs and incomplete work; never merge its
+custody tree as code. See `docs/operator-runtime.md` for current branch/recovery ownership.
+The dated Linux instructions below remain applicable only within those current restrictions.
+
 # Project Agent Rules
 
 ## Entry and source of truth
