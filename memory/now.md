@@ -52,10 +52,19 @@ automatically.
   source repair; full gate passed 265 tests/42 subtests and Ruff (47 files). Broad A11 remains open.
 - A05 pure deterministic lifecycle planner is merged at
   `91c6cfaf85aaebf62f6bd36290d7fcaf27a1d2b6`; Sol accepted the exact scaffold and the full gate
-  passed 274 tests/42 subtests with Ruff (49 files). It only emits an inert owner/epoch request after
-  fail-closed observations; durable fencing, persistence, deduplication, scheduler/process recovery
-  and operational A05 remain open. Receipt:
+  passed 274 tests/42 subtests with Ruff (49 files). This initial increment emits only an inert
+  owner/epoch request after fail-closed observations. Its persistence/fencing gaps were addressed by
+  the later increment below; request consumption, retry policy, scheduler/process recovery and
+  operational A05 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-passive-lifecycle-scaffold-review-20261020.json`.
+- A05 durable owner fencing and inert request persistence merged at
+  `55fa10b354317c2bbb6c304cc3602fbf83688497`; exact Sol-reviewed source tip is
+  `10e127aae103a07dbb9f89dca35631f72f7d7a73`. Lifecycle owner epochs/leases and requests use the
+  existing append-only decision journal; public generic writes cannot alter reserved entries; owner
+  histories are contiguous and retries require exactly version 1 with canonical JSON equality.
+  Pinned gate passed 298 tests/45 subtests and Ruff (51 files). Request consumption, cross-epoch
+  deduplication, retry policy, scheduler/process wiring and operational A05 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-fencing-review-20261021.json`.
 - A10 read-only readiness report is merged at `57f496f5f74258d00a09dc37b5818e409495dffc`; Sol
   accepted the exact scaffold and the gate passed 275 tests/42 subtests with Ruff. It exposes
   dependency/contract blockers without hiding independent ready work; claim stays authoritative.

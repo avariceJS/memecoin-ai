@@ -293,13 +293,20 @@ A05 получил ограниченный source scaffold в `91c6cfaf85aaebf6
 детерминированная функция проверяет STOP, runtime/accounting/quota gates, process/lease observations,
 recovery и backoff; start представлен только inert request с owner и epoch. Sol принял точные
 исходники. Полный `engineering-release-check` прошёл: 274 теста, 42 subtests, Ruff lint/format
-(49 файлов). Это не durable fencing и не интегрированный lifecycle: persistence, request
-deduplication/consumption, retry policy, scheduler, recovery operation и service/process launch
-остаются открыты. Receipt:
+(49 файлов). На этом scaffold checkpoint durable fencing и persistence оставались открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-passive-lifecycle-scaffold-review-20261020.json`
 (SHA-256 `87596c56a7e60b86a9ab85a70a2e03b15ab9ac613f2e9b8539a7fa2eafc88d97`). Продолжаются A04
 supervisor/recovery wiring, A10 dependencies and department contracts, A12 history projection и
 ограниченные source checks. Operational STOP и все пользовательские запреты сохранены.
+
+Отдельный A05 increment принят Sol только в bounded source scope и включён в `org/development`:
+`55fa10b` (проверенный source tip `10e127a`). Store теперь durable сохраняет эксклюзивный owner,
+монотонный epoch/lease и inert lifecycle request; generic decision writer закрыт для reserved
+namespace, повтор запроса сверяется с исходной версией и canonical JSON. Pinned gate прошёл
+298 тестов, 45 subtests и Ruff (51 файл). Consumer, cross-epoch deduplication, retry policy,
+scheduler/process/service wiring, operational recovery и полный A05 остаются открыты. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-fencing-review-20261021.json`
+(SHA-256 `2052d58cf12bbc3a37d56b7804e8e42e26e6cd7b7fb34b685cf02e318d1f2af4`).
 
 A10 получил read-only readiness report в `57f496f5f74258d00a09dc37b5818e409495dffc`: единый SQLite
 snapshot показывает non-integrated/missing dependencies и несовпадающие версии contracts. Blocked

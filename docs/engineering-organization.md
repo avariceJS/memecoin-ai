@@ -110,11 +110,23 @@ The first A05 source increment is now in `org/development` at
 runtime, usage settlement, quota, process, lease, recovery and backoff observations fail closed; its
 only start outcome is an inert owner/epoch-bound request. Stale owner metadata blocks launch. Sol
 accepted these exact source bytes and the local engineering gate passed 274 tests and 42 subtests
-with Ruff on 49 files. This does not provide durable fencing, persistence, request
-consumption/deduplication, retry budgets, scheduler or process integration, or operational lifecycle
-recovery. A05 remains open. Receipt:
+with Ruff on 49 files. At that checkpoint durable fencing, persistence, request
+consumption/deduplication, retry budgets, scheduler/process integration, and operational lifecycle
+recovery remained open. A05 remains open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-passive-lifecycle-scaffold-review-20261020.json`
 (SHA-256 `87596c56a7e60b86a9ab85a70a2e03b15ab9ac613f2e9b8539a7fa2eafc88d97`).
+
+On 2026-10-21 a bounded durable-fencing increment merged into `org/development` at
+`55fa10b354317c2bbb6c304cc3602fbf83688497` (exact reviewed source tip
+`10e127aae103a07dbb9f89dca35631f72f7d7a73`). Store now persists one exclusive lifecycle owner with
+a monotonic epoch and lease, and records inert plans/requests as append-only decisions. Owner history
+must be contiguous; request identity is immutable, retries are type-sensitive and idempotent, and
+the generic decision writer cannot mutate lifecycle namespaces. Sol accepted this exact source for
+bounded scope; the pinned engineering gate passed 298 tests, 45 subtests, and Ruff on 51 files. This
+adds no request consumer, cross-epoch deduplication, retry policy, scheduler/process/service wiring,
+or operational recovery. Full A05 remains open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-fencing-review-20261021.json`
+(SHA-256 `2052d58cf12bbc3a37d56b7804e8e42e26e6cd7b7fb34b685cf02e318d1f2af4`).
 
 A10 now also has a bounded readiness-report scaffold at
 `57f496f5f74258d00a09dc37b5818e409495dffc`. Its read-only SQLite snapshot exposes each task's
