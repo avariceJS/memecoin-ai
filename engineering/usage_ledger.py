@@ -144,6 +144,11 @@ class UsageLedger:
                 collector_id TEXT NOT NULL, evidence_sha256 TEXT NOT NULL,
                 created_at REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS external_imports (
+                collector_id TEXT NOT NULL, evidence_sha256 TEXT NOT NULL,
+                evidence_bytes BLOB NOT NULL, imported_at REAL NOT NULL,
+                PRIMARY KEY (collector_id,evidence_sha256)
+            );
             """
         )
         dispatch_columns = {row[1] for row in self.db.execute("PRAGMA table_info(dispatches)")}
@@ -723,13 +728,14 @@ class UsageLedger:
                     "baseline": json.loads(d["baseline"]) if d["baseline"] else None,
                 }
             )
+        historical_unknown = []
         for item in self.db.execute(
             "SELECT event_id,counters FROM external_historical_unknown ORDER BY event_id"
         ):
-            unresolved.append(
+            historical_unknown.append(
                 {
                     "event_id": item["event_id"],
-                    "reason": "historical_usage_unknown",
+                    "status": "unattributed_historical_usage",
                     "counters": json.loads(item["counters"]),
                 }
             )
@@ -737,6 +743,7 @@ class UsageLedger:
             "incremental": totals,
             "by_model": by_model,
             "unresolved": unresolved,
+            "historical_unknown": historical_unknown,
             "reservations": reservations,
             "turns": turns,
         }
@@ -1073,9 +1080,17 @@ class UsageLedger:
         starts = {}
         intervals = []
         historical_unknown = []
+        event_payloads = {}
         for item in batch:
             if not isinstance(item, dict):
                 raise ValueError("external_event_invalid")
+            event_id = item.get("event_id")
+            if event_id:
+                encoded_item = _json(item)
+                prior_payload = event_payloads.get(event_id)
+                if prior_payload is not None and prior_payload != encoded_item:
+                    raise ValueError("external_event_id_conflict")
+                event_payloads[event_id] = encoded_item
             kind = item.get("kind")
             if kind == "thread_start":
                 if not item.get("event_id") or not item.get("thread_id") or not item.get("epoch"):
@@ -1125,14 +1140,20 @@ class UsageLedger:
         # Reject endpoint-only or malformed batches before writing any rows.
         for _event_id, start in starts.items():
             _counters(start.get("counters"))
-        evidence = {"collector_id": collector_id, "sha256": digest}
         for start in starts.values():
+            start_sha256 = hashlib.sha256(_json(start).encode("utf-8")).hexdigest()
             self.register(
                 start["thread_id"],
                 start["epoch"],
                 start.get("model"),
                 _counters(start["counters"]),
-                evidence=_json(evidence),
+                evidence=_json(
+                    {
+                        "collector_id": collector_id,
+                        "event_id": start["event_id"],
+                        "event_sha256": start_sha256,
+                    }
+                ),
                 started_after_T0=True,
             )
             self.observe(
@@ -1145,6 +1166,7 @@ class UsageLedger:
                 observed_at=time.time(),
             )
         for item, before, after in prepared:
+            event_sha256 = hashlib.sha256(_json(item).encode("utf-8")).hexdigest()
             self.attribute_dispatch(
                 "external:" + item["turn_id"],
                 item["thread_id"],
@@ -1156,7 +1178,7 @@ class UsageLedger:
                     "event_id": item["event_id"],
                     "turn_id": item["turn_id"],
                     "collector_id": collector_id,
-                    "sha256": digest,
+                    "event_sha256": event_sha256,
                 },
             )
         for item in batch:
@@ -1170,7 +1192,13 @@ class UsageLedger:
                     context={"team": item["team"], "external": True},
                 )
         for event_id, counters in historical_unknown:
-            row = (event_id, _json(counters), collector_id, digest)
+            source_item = next(
+                item
+                for item in batch
+                if item.get("kind") == "historical_unknown" and item["event_id"] == event_id
+            )
+            event_sha256 = hashlib.sha256(_json(source_item).encode("utf-8")).hexdigest()
+            row = (event_id, _json(counters), collector_id, event_sha256)
             prior = self.db.execute(
                 "SELECT event_id,counters,collector_id,evidence_sha256 "
                 "FROM external_historical_unknown WHERE event_id=?",
@@ -1184,6 +1212,19 @@ class UsageLedger:
                     "INSERT INTO external_historical_unknown VALUES(?,?,?,?,?)",
                     (*row, time.time()),
                 )
+        imported = self.db.execute(
+            "SELECT evidence_bytes FROM external_imports "
+            "WHERE collector_id=? AND evidence_sha256=?",
+            (collector_id, digest),
+        ).fetchone()
+        if imported:
+            if bytes(imported["evidence_bytes"]) != evidence_bytes:
+                raise ValueError("external_batch_digest_conflict")
+        else:
+            self.db.execute(
+                "INSERT INTO external_imports VALUES(?,?,?,?)",
+                (collector_id, digest, evidence_bytes, time.time()),
+            )
         return {"collector_id": collector_id, "sha256": digest, "intervals": len(prepared)}
 
     def consume_dispatch(self, dispatch_id):

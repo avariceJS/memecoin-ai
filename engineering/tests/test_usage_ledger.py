@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from engineering.metered_codex import Controller
+from engineering.resources import choose_capacity
 from engineering.usage_ledger import UsageLedger
 
 
@@ -391,6 +392,99 @@ class UsageLedgerTests(unittest.TestCase):
         self.assertEqual(summary["by_model"]["gpt-6-luna"]["input_tokens"], 200)
         self.assertEqual(summary["by_model"]["gpt-6.1-sol"]["input_tokens"], 100)
 
+    def test_external_import_can_append_next_batch_to_existing_epoch(self):
+        start = {
+            "kind": "thread_start",
+            "event_id": "append-start",
+            "thread_id": "append-thread",
+            "epoch": "append-epoch",
+            "model": "gpt-6-luna",
+            "counters": c(),
+            "started_after_T0": True,
+        }
+        luna = {
+            "kind": "turn_interval",
+            "event_id": "append-luna-100",
+            "turn_id": "append-turn-1",
+            "start_event_id": "append-start",
+            "thread_id": "append-thread",
+            "epoch": "append-epoch",
+            "model": "gpt-6-luna",
+            "start": c(),
+            "end": c(100),
+        }
+        sol = {
+            "kind": "turn_interval",
+            "event_id": "append-sol-200",
+            "turn_id": "append-turn-2",
+            "start_event_id": "append-start",
+            "thread_id": "append-thread",
+            "epoch": "append-epoch",
+            "model": "gpt-6.1-sol",
+            "start": c(100),
+            "end": c(200),
+        }
+
+        def import_batch(batch):
+            encoded = json.dumps(batch, sort_keys=True, separators=(",", ":")).encode()
+            return self.l.import_external(
+                batch,
+                "trusted-fixture",
+                encoded,
+                hashlib.sha256(encoded).hexdigest(),
+                external_allowlist={"trusted-fixture"},
+            )
+
+        import_batch([start, luna])
+        self.assertEqual(import_batch([start, luna, sol])["intervals"], 2)
+        summary = self.l.summary()
+        self.assertEqual(summary["incremental"], c(200))
+        self.assertEqual(summary["by_model"]["gpt-6-luna"]["input_tokens"], 100)
+        self.assertEqual(summary["by_model"]["gpt-6.1-sol"]["input_tokens"], 100)
+
+    def test_conflicting_duplicate_external_start_event_is_rejected(self):
+        batch = [
+            {
+                "kind": "thread_start",
+                "event_id": "duplicate-start",
+                "thread_id": "duplicate-thread",
+                "epoch": "duplicate-epoch",
+                "model": "gpt-6-luna",
+                "counters": c(),
+                "started_after_T0": True,
+            },
+            {
+                "kind": "thread_start",
+                "event_id": "duplicate-start",
+                "thread_id": "duplicate-thread",
+                "epoch": "duplicate-epoch",
+                "model": "gpt-6-luna",
+                "counters": c(100),
+                "started_after_T0": True,
+            },
+            {
+                "kind": "turn_interval",
+                "event_id": "duplicate-turn",
+                "turn_id": "duplicate-turn-id",
+                "start_event_id": "duplicate-start",
+                "thread_id": "duplicate-thread",
+                "epoch": "duplicate-epoch",
+                "model": "gpt-6-luna",
+                "start": c(),
+                "end": c(100),
+            },
+        ]
+        encoded = json.dumps(batch, sort_keys=True, separators=(",", ":")).encode()
+        with self.assertRaisesRegex(ValueError, "external_event_id_conflict"):
+            self.l.import_external(
+                batch,
+                "trusted-fixture",
+                encoded,
+                hashlib.sha256(encoded).hexdigest(),
+                external_allowlist={"trusted-fixture"},
+            )
+        self.assertEqual(self.l.summary()["incremental"], c())
+
     def test_external_active_reservation_occupies_model_and_team_slots(self):
         batch = [
             {
@@ -457,10 +551,37 @@ class UsageLedgerTests(unittest.TestCase):
         self.assertEqual(after["reservations"], before["reservations"])
         self.assertTrue(
             any(
-                row["reason"] == "historical_usage_unknown" and row["counters"] == c(120)
-                for row in after["unresolved"]
+                row["status"] == "unattributed_historical_usage" and row["counters"] == c(120)
+                for row in after["historical_unknown"]
             )
         )
+        rate = {
+            "ordinaryUsageAllowed": True,
+            "observed_at": 1_000,
+            "evaluated_at": 1_000,
+            "rateLimitsByLimitId": {
+                "codex": {
+                    "primary": {"usedPercent": 68, "resetsAt": 2_000},
+                    "secondary": None,
+                    "credits": {"hasCredits": False, "unlimited": False, "balance": 0},
+                    "rateLimitReachedType": None,
+                    "spendControlReached": False,
+                },
+                "weekly": {
+                    "primary": {"usedPercent": 50, "resetsAt": 8_000},
+                    "secondary": None,
+                    "credits": {"hasCredits": False, "unlimited": False, "balance": 0},
+                    "rateLimitReachedType": None,
+                    "spendControlReached": False,
+                },
+            },
+        }
+        resources = {
+            "available_memory_bytes": 2_000_000_000,
+            "cpu_count": 8,
+            "active_tokens": 0,
+        }
+        self.assertEqual(choose_capacity(rate, after, resources)["slots"], 2)
 
     def test_raw_rpc_ingress_is_byte_exact_and_persists_on_separate_connection(self):
         raw = b'{"method":"turn/started"}\r\n'
