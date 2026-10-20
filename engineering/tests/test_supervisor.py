@@ -499,6 +499,68 @@ class SupervisorTests(unittest.TestCase):
         self.assertIsNone(measured["current_metering"])
         self.assertFalse(path.exists())
 
+    def test_recovery_gate_requires_coherent_owner_state_and_no_stop(self):
+        ledger = UsageLedger(self.state / "usage-ledger.sqlite")
+        self.assertTrue(supervisor.organization_state_reconciled(self.state, ledger, 1000, self.db))
+        (self.state / "STOP").touch()
+        self.assertFalse(
+            supervisor.organization_state_reconciled(self.state, ledger, 1000, self.db)
+        )
+        (self.state / "STOP").unlink()
+        self.task()
+        attempt = self.db.claim("T", "worker", 100)
+        self.db.submit(
+            attempt["id"],
+            attempt["epoch"],
+            "submitted",
+            {"checkout": str(self.state / "worker"), "base": "base"},
+        )
+        self.assertFalse(
+            supervisor.organization_state_reconciled(self.state, ledger, 1000, self.db)
+        )
+        ledger.close()
+
+    def test_supervisor_quota_reads_share_durable_pause(self):
+        from engineering.metered_codex import Controller
+        from engineering.supervisor import supervisor_quota_sample
+
+        current = {"time": 1000}
+
+        def sample(percent):
+            return {
+                "ordinaryUsageAllowed": True,
+                "rateLimitsByLimitId": {
+                    "codex": {
+                        "primary": {"usedPercent": percent, "resetsAt": 9999},
+                        "secondary": None,
+                        "rateLimitReachedType": None,
+                        "spendControlReached": False,
+                        "credits": {"hasCredits": False, "unlimited": False, "balance": "0"},
+                    }
+                },
+            }
+
+        ledger = UsageLedger(self.state / "usage-ledger.sqlite")
+        controller = Controller(
+            ledger,
+            lambda: {"rate_limits": sample(99), "observed_at": current["time"]},
+            state=self.state,
+            clock=lambda: current["time"],
+            state_reconciler=lambda now: True,
+        )
+        limits = supervisor_quota_sample(controller, sample(99), current["time"])
+        self.assertIs(limits["ordinaryUsageAllowed"], False)
+        self.assertIsNotNone(ledger.get_controller_state("resource_pause"))
+        current["time"] = 1001
+        limits = supervisor_quota_sample(controller, sample(68), current["time"])
+        self.assertIs(limits["ordinaryUsageAllowed"], False)
+        current["time"] = 1061
+        limits = supervisor_quota_sample(controller, sample(68), current["time"])
+        self.assertIs(limits["ordinaryUsageAllowed"], True)
+        self.assertIsNone(ledger.get_controller_state("resource_pause"))
+        controller.close()
+        ledger.close()
+
     def test_stop_prevents_quiescence_resource_or_handoff_work(self):
         (self.state / "STOP").touch()
         with (

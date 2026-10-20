@@ -36,13 +36,23 @@ class Permit:
 
 
 class Controller:
-    def __init__(self, ledger, account_read, *, state, clock=time.time, preflight=None):
+    def __init__(
+        self,
+        ledger,
+        account_read,
+        *,
+        state,
+        clock=time.time,
+        preflight=None,
+        state_reconciler=None,
+    ):
         self.ledger, self.account_read, self.state, self.clock = (
             ledger,
             account_read,
             Path(state),
             clock,
         )
+        self.state_reconciler = state_reconciler
         self.preflight, self.lock, self.closed = preflight, threading.RLock(), False
         self._account_lock = threading.Lock()
         self._monitors = set()
@@ -81,6 +91,11 @@ class Controller:
             "status": "paused",
             "paused_at": self.clock(),
             "reason": str(reason)[:200],
+            "recovery_basis": (
+                "unknown_access"
+                if str(reason).startswith("quota_read_failed:")
+                else "compare_to_pause"
+            ),
             "paused_reading": {"rate_limits": safe, "observed_at": observed_at},
             "recovery_readings": [],
         }
@@ -101,44 +116,44 @@ class Controller:
         pause = state_ledger.get_controller_state("resource_pause")
         if pause is None:
             return
+        expected_pause = json.loads(json.dumps(pause, sort_keys=True))
         safe = self._quota_evidence(quota)
         sample = {"rate_limits": safe, "observed_at": observed_at}
         readings = list(pause.get("recovery_readings", []))
         if observed_at >= pause.get("paused_at", float("inf")):
+            previous_at = (
+                readings[-1].get("observed_at", float("inf")) if readings else float("inf")
+            )
             if not readings:
                 readings = [sample]
-            elif observed_at >= readings[0].get("observed_at", float("inf")):
-                readings = [readings[0], sample]
+            elif observed_at > previous_at:
+                readings = (readings + [sample])[-2:]
         pause["recovery_readings"] = readings
         reason = "insufficient_readings"
         ready = False
         if len(readings) == 2:
             paused_reading = pause.get("paused_reading")
-            if (
-                not isinstance(paused_reading, dict)
-                or not isinstance(paused_reading.get("rate_limits"), dict)
-                or not paused_reading["rate_limits"].get("rateLimitsByLimitId")
-            ):
-                paused_reading = {
-                    "observed_at": pause.get("paused_at"),
-                    "rate_limits": readings[0]["rate_limits"],
-                }
+            if pause.get("recovery_basis") == "unknown_access":
+                paused_reading = None
             decision = reset_recovery_decision(
                 paused_reading,
                 readings,
                 now=self.clock(),
-                state_reconciled=state_ledger.state_reconciled(self.clock()),
+                state_reconciled=(
+                    state_ledger.state_reconciled(self.clock())
+                    and self.state_reconciler is not None
+                    and self.state_reconciler(self.clock()) is True
+                ),
             )
             ready = decision["ready"] is True
             reason = decision["reason"]
         if not ready:
-            state_ledger.set_controller_state("resource_pause", pause)
+            if not state_ledger.compare_controller_state("resource_pause", expected_pause, pause):
+                raise RuntimeError("resource_pause_changed_retry")
             raise RuntimeError("resource_recovery_required:" + reason)
-        state_ledger.set_controller_state(
-            "resource_pause_last",
-            {**pause, "status": "recovered", "recovery_decision": decision},
-        )
-        state_ledger.clear_controller_state("resource_pause")
+        recovered = {**pause, "status": "recovered", "recovery_decision": decision}
+        if not state_ledger.finish_resource_recovery(expected_pause, recovered):
+            raise RuntimeError("resource_pause_changed_retry")
 
     def refresh(self, reason="admission"):
         with self._account_lock:
@@ -426,6 +441,24 @@ class MeteredCodex:
                 "timeout" if "deadline" in str(exc) else "unknown",
                 {"error": type(exc).__name__},
             )
+            provider_terminal = self.controller.ledger.reconcile_dispatch_from_receipt(dispatch_id)
+            if (
+                provider_terminal
+                and provider_terminal.get("status") == "completed"
+                and provider_terminal.get("usage_terminal") is True
+            ):
+                try:
+                    self.controller.ledger.cover_dispatch(
+                        dispatch_id,
+                        thread_id=thread_id,
+                        turn_id=provider_terminal["turn_id"],
+                        model=model,
+                        counters=_canonical_counters(provider_terminal["usage_end"]),
+                        terminal_qualified=True,
+                        observed_at=self.controller.clock(),
+                    )
+                except (KeyError, TypeError, ValueError):
+                    pass
             self.controller._refresh_after_dispatch("after_failure")
             raise
         else:
@@ -503,9 +536,10 @@ def metered_client(
     )
     account = factory(cwd, codex=cfg.get("codex_executable", "codex"), harness_cwd=harness_cwd)
 
-    def preflight():
-        from .supervisor import config as frozen_config
+    from .supervisor import config as frozen_config
+    from .supervisor import organization_state_reconciled
 
+    def preflight():
         current = frozen_config(state)
         if current != cfg:
             raise RuntimeError("controller_config_changed")
@@ -516,6 +550,7 @@ def metered_client(
         lambda: account.call("account/rateLimits/read"),
         state=state,
         preflight=preflight,
+        state_reconciler=lambda now: organization_state_reconciled(state, ledger, now),
     )
     try:
         yield MeteredCodex(rpc, controller, context)

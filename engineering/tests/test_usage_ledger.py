@@ -761,7 +761,7 @@ class UsageLedgerTests(unittest.TestCase):
             )
         self.assertEqual(self.l.summary()["incremental"], c(250, 40))
 
-    def test_expired_unknown_releases_global_slot_but_locks_same_stream(self):
+    def test_expired_unknown_keeps_global_slot_and_same_stream_locked(self):
         now = time.time()
         self.l.reserve(
             "unknown-1",
@@ -775,6 +775,17 @@ class UsageLedgerTests(unittest.TestCase):
         )
         self.l.consume_dispatch("unknown-1")
         self.l.record_outcome("unknown-1", "unknown", {"error": "lost receipt"})
+        self.l.reserve(
+            "unknown-2",
+            "other-a",
+            "gpt-6-luna",
+            {"tokens": 20, "wpu": 1},
+            now + 1,
+            context={"role": "worker", "team": "Platform"},
+            now=now,
+        )
+        self.l.consume_dispatch("unknown-2")
+        self.l.record_outcome("unknown-2", "unknown", {"error": "lost receipt"})
         with self.assertRaisesRegex(ValueError, "unresolved_stream_dispatch"):
             self.l.reserve(
                 "same-stream-retry",
@@ -786,16 +797,81 @@ class UsageLedgerTests(unittest.TestCase):
                 baseline=c(),
                 now=now + 2,
             )
+        with self.assertRaisesRegex(ValueError, "active_model_limit"):
+            self.l.reserve(
+                "other-stream",
+                "b",
+                "gpt-6-luna",
+                {"tokens": 20, "wpu": 1},
+                now + 100,
+                context={"role": "worker", "team": "Experience"},
+                now=now + 2,
+            )
+        self.assertFalse(self.l.state_reconciled(now + 2))
+
+    def test_provider_terminal_receipt_reconciles_unknown_dispatch(self):
+        self.l.reserve(
+            "receipt-reconcile",
+            "a",
+            "gpt-6-luna",
+            {"tokens": 20, "wpu": 1},
+            time.time() + 100,
+            context={"role": "worker", "team": "Experience"},
+            baseline=c(),
+        )
+        self.l.consume_dispatch("receipt-reconcile")
+        self.l.bind("receipt-reconcile", "a", "turn-1")
+        self.l.record_outcome("receipt-reconcile", "unknown", {"error": "lost response"})
+        end = c(10)
+        self.l.observe("a", "e1", "usage-10", end, source="provider", sequence=10, observed_at=10)
+        evidence = {
+            "provider_thread_id": "a",
+            "turn_id": "turn-1",
+            "status": "completed",
+            "usage_terminal": True,
+            "usage_end": {
+                "inputTokens": 10,
+                "cachedInputTokens": 0,
+                "outputTokens": 0,
+                "reasoningOutputTokens": 0,
+                "totalTokens": 10,
+            },
+        }
+        self.l.observe_receipt(
+            "terminal-event",
+            "receipt-reconcile",
+            None,
+            "turn-1",
+            "turn_completed",
+            10.0,
+            11.0,
+            evidence,
+        )
+        reconciled = self.l.reconcile_dispatch_from_receipt("receipt-reconcile")
+        self.assertEqual(reconciled, evidence)
+        self.assertEqual(self.l.dispatch("receipt-reconcile")["status"], "completed")
+        self.assertTrue(self.l.state_reconciled(time.time()))
+        self.assertEqual(len(self.l.summary()["reservations"]), 1)
         row = self.l.reserve(
-            "other-stream",
+            "after-terminal",
             "b",
             "gpt-6-luna",
             {"tokens": 20, "wpu": 1},
-            now + 100,
+            time.time() + 100,
             context={"role": "worker", "team": "Experience"},
-            now=now + 2,
         )
         self.assertEqual(row["status"], "reserved")
+
+    def test_resource_pause_state_compare_and_swap_preserves_newer_pause(self):
+        old = {"status": "paused", "generation": 1}
+        new = {"status": "paused", "generation": 2}
+        self.l.set_controller_state("resource_pause", old)
+        self.l.set_controller_state("resource_pause", new)
+        self.assertFalse(
+            self.l.compare_controller_state("resource_pause", old, {"recovery_readings": []})
+        )
+        self.assertFalse(self.l.finish_resource_recovery(old, {"status": "recovered"}))
+        self.assertEqual(self.l.get_controller_state("resource_pause"), new)
 
     def test_reopen_durable_and_duplicate_event_conflict(self):
         self.observe("x", 1, c(3))

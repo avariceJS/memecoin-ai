@@ -1281,8 +1281,8 @@ class UsageLedger:
                     raise ValueError("unresolved_stream_dispatch")
                 active = self.db.execute(
                     "SELECT model,payload,identity FROM dispatches "
-                    "WHERE status IN ('reserved','dispatched','bound','unknown') "
-                    "AND deadline_at>?",
+                    "WHERE (status='reserved' AND deadline_at>?) "
+                    "OR status IN ('dispatched','bound','unknown')",
                     (now,),
                 ).fetchall()
                 active_teams = set()
@@ -1384,6 +1384,51 @@ class UsageLedger:
                 (_json({"thread_id": thread_id, "new_unused_stream": True}), dispatch_id),
             )
             self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+
+    def reconcile_dispatch_from_receipt(self, dispatch_id):
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            dispatch = self.db.execute(
+                "SELECT * FROM dispatches WHERE dispatch_id=?", (dispatch_id,)
+            ).fetchone()
+            if dispatch is None or dispatch["status"] not in (
+                "dispatched",
+                "bound",
+                "unknown",
+                "timeout",
+            ):
+                self.db.execute("COMMIT")
+                return None
+            if not dispatch["provider_turn_id"]:
+                self.db.execute("COMMIT")
+                return None
+            receipt = self.db.execute(
+                "SELECT * FROM receipts WHERE dispatch_id=? AND provider_turn_id=? "
+                "AND source='turn_completed' ORDER BY observed_at DESC,event_id DESC LIMIT 1",
+                (dispatch_id, dispatch["provider_turn_id"]),
+            ).fetchone()
+            if receipt is None:
+                self.db.execute("COMMIT")
+                return None
+            evidence = json.loads(receipt["evidence"])
+            if (
+                type(evidence) is not dict
+                or evidence.get("provider_thread_id") != dispatch["identity"]
+                or evidence.get("turn_id") != dispatch["provider_turn_id"]
+                or evidence.get("status") not in ("completed", "failed", "cancelled", "interrupted")
+            ):
+                self.db.execute("COMMIT")
+                return None
+            status = "completed" if evidence["status"] == "completed" else "failed"
+            self.db.execute(
+                "UPDATE dispatches SET status=? WHERE dispatch_id=?",
+                (status, dispatch_id),
+            )
+            self.db.execute("COMMIT")
+            return evidence
         except Exception:
             self.db.execute("ROLLBACK")
             raise
@@ -1500,11 +1545,48 @@ class UsageLedger:
             self.db.execute("ROLLBACK")
             raise
 
-    def clear_controller_state(self, key):
+    def compare_controller_state(self, key, expected, replacement):
+        expected_json = _json(expected)
+        replacement_json = _json(replacement)
         self.db.execute("BEGIN IMMEDIATE")
         try:
-            self.db.execute("DELETE FROM controller_state WHERE key=?", (key,))
+            row = self.db.execute(
+                "SELECT value FROM controller_state WHERE key=?", (key,)
+            ).fetchone()
+            if row is None or row["value"] != expected_json:
+                self.db.execute("ROLLBACK")
+                return False
+            self.db.execute(
+                "UPDATE controller_state SET value=?,updated_at=? WHERE key=? AND value=?",
+                (replacement_json, time.time(), key, expected_json),
+            )
             self.db.execute("COMMIT")
+            return True
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+
+    def finish_resource_recovery(self, expected_pause, recovered):
+        expected_json = _json(expected_pause)
+        recovered_json = _json(recovered)
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            row = self.db.execute(
+                "SELECT value FROM controller_state WHERE key='resource_pause'"
+            ).fetchone()
+            if row is None or row["value"] != expected_json:
+                self.db.execute("ROLLBACK")
+                return False
+            self.db.execute(
+                "INSERT INTO controller_state(key,value,updated_at) "
+                "VALUES('resource_pause_last',?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value,"
+                "updated_at=excluded.updated_at",
+                (recovered_json, time.time()),
+            )
+            self.db.execute("DELETE FROM controller_state WHERE key='resource_pause'")
+            self.db.execute("COMMIT")
+            return True
         except Exception:
             self.db.execute("ROLLBACK")
             raise
@@ -1527,9 +1609,8 @@ class UsageLedger:
                     ),
                 )
             active = self.db.execute(
-                "SELECT 1 FROM dispatches WHERE status IN "
-                "('reserved','dispatched','bound','unknown') "
-                "AND deadline_at>? LIMIT 1",
+                "SELECT 1 FROM dispatches WHERE (status='reserved' AND deadline_at>?) "
+                "OR status IN ('dispatched','bound','unknown') LIMIT 1",
                 (now,),
             ).fetchone()
             self.db.execute("COMMIT")

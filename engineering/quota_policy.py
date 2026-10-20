@@ -218,16 +218,19 @@ def reset_recovery_decision(
     if other_stop_reasons:
         return denied("other_stop_reasons")
     if (
-        not isinstance(paused_reading, Mapping)
+        (paused_reading is not None and not isinstance(paused_reading, Mapping))
         or not isinstance(readings, Sequence)
         or isinstance(readings, (str, bytes))
         or len(readings) != 2
     ):
         return denied("insufficient_readings")
     now_ts = _timestamp(now)
-    paused = _historical_limits(paused_reading.get("rate_limits"))
-    paused_at = _timestamp(paused_reading.get("observed_at"))
-    if now_ts is None or paused is None or paused_at is None or paused_at > now_ts:
+    unknown_basis = paused_reading is None
+    paused = None if unknown_basis else _historical_limits(paused_reading.get("rate_limits"))
+    paused_at = None if unknown_basis else _timestamp(paused_reading.get("observed_at"))
+    if now_ts is None:
+        return denied("invalid_observation")
+    if not unknown_basis and (paused is None or paused_at is None or paused_at > now_ts):
         return denied("invalid_paused_evidence")
     first, last = readings[0], readings[1]
     if not isinstance(first, Mapping) or not isinstance(last, Mapping):
@@ -248,17 +251,22 @@ def reset_recovery_decision(
         return denied("readings_too_close")
     if t2 - t1 > poll1 + 60 or now_ts - t2 > validated[1][3]:
         return denied("stale_reading")
-    if t1 < paused_at or u1 >= 99 or u2 >= 99:
+    if (paused_at is not None and t1 < paused_at) or u1 >= 99 or u2 >= 99:
         return denied("capacity_not_restored")
-    ids_paused = {i for i, _, _ in paused}
     ids1 = {i for i, _, _ in b1}
     ids2 = {i for i, _, _ in b2}
-    if ids_paused != ids1 or ids1 != ids2:
+    if ids1 != ids2:
         return denied("bucket_identity_changed")
-    pmap = {i: pct for i, pct, _ in paused}
     m1 = {i: pct for i, pct, _ in b1}
     m2 = {i: pct for i, pct, _ in b2}
-    restored = any(m1[i] < pmap[i] and m2[i] < pmap[i] for i in ids1)
+    if unknown_basis:
+        restored = True
+    else:
+        ids_paused = {i for i, _, _ in paused}
+        if ids_paused != ids1:
+            return denied("bucket_identity_changed")
+        pmap = {i: pct for i, pct, _ in paused}
+        restored = any(m1[i] < pmap[i] and m2[i] < pmap[i] for i in ids1)
     if not restored:
         return denied("no_observed_restoration")
     # A changed reset window signature is corroborating evidence only when usage

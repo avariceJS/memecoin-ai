@@ -53,6 +53,7 @@ def make(tmp_path, percent=68):
         ledger,
         lambda: quota(percent),
         state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
         clock=lambda: 1000,
         preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
     )
@@ -94,7 +95,13 @@ def test_pre_send_reservation_and_replay_and_stop(tmp_path):
 def test_start_replay_is_blocked_but_new_attempt_gets_a_distinct_dispatch(tmp_path):
     ledger = UsageLedger(tmp_path / "start-replay.sqlite")
     rpc = FakeRPC(ledger)
-    controller = Controller(ledger, lambda: quota(), state=tmp_path, clock=lambda: 1000)
+    controller = Controller(
+        ledger,
+        lambda: quota(),
+        state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
+        clock=lambda: 1000,
+    )
     first = MeteredCodex(
         rpc,
         controller,
@@ -152,6 +159,7 @@ def test_resource_pause_survives_restart_until_two_spaced_reads_and_reconciliati
         ledger,
         lambda: quota(current["percent"]),
         state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
         clock=lambda: current["time"],
     )
     with pytest.raises(RuntimeError, match="quota_unavailable:reserve_threshold"):
@@ -163,6 +171,7 @@ def test_resource_pause_survives_restart_until_two_spaced_reads_and_reconciliati
         ledger,
         lambda: quota(current["percent"]),
         state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
         clock=lambda: current["time"],
     )
     with pytest.raises(RuntimeError, match="resource_recovery_required:insufficient_readings"):
@@ -182,6 +191,62 @@ def test_resource_pause_survives_restart_until_two_spaced_reads_and_reconciliati
     assert ledger.get_controller_state("resource_pause") is None
     assert ledger.get_controller_state("resource_pause_last")["status"] == "recovered"
     resumed.close()
+    ledger.close()
+
+
+def test_unknown_quota_read_pause_recovers_after_two_spaced_valid_reads(tmp_path):
+    ledger = UsageLedger(tmp_path / "unknown-pause.sqlite")
+    current = {"time": 1000}
+
+    def unavailable():
+        raise RuntimeError("account server unavailable")
+
+    controller = Controller(
+        ledger,
+        unavailable,
+        state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
+        clock=lambda: current["time"],
+    )
+    with pytest.raises(RuntimeError):
+        controller.refresh()
+    assert ledger.get_controller_state("resource_pause")["recovery_basis"] == "unknown_access"
+    controller.account_read = lambda: {"rate_limits": quota(68), "observed_at": current["time"]}
+    with pytest.raises(RuntimeError, match="resource_recovery_required:insufficient_readings"):
+        controller.refresh()
+    current["time"] = 1061
+    controller.refresh()
+    assert ledger.get_controller_state("resource_pause") is None
+    controller.close()
+    ledger.close()
+
+
+def test_recovery_readings_roll_forward_after_old_pair_becomes_stale(tmp_path):
+    ledger = UsageLedger(tmp_path / "rolling-pause.sqlite")
+    current = {"time": 1000}
+    controller = Controller(
+        ledger,
+        lambda: quota(99),
+        state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
+        clock=lambda: current["time"],
+    )
+    with pytest.raises(RuntimeError):
+        controller.refresh()
+    current["percent"] = 68
+    controller.account_read = lambda: {"rate_limits": quota(68), "observed_at": current["time"]}
+    current["time"] = 1001
+    with pytest.raises(RuntimeError):
+        controller.refresh()
+    current["time"] = 1400
+    with pytest.raises(RuntimeError, match="resource_recovery_required:stale_reading"):
+        controller.refresh()
+    readings = ledger.get_controller_state("resource_pause")["recovery_readings"]
+    assert [item["observed_at"] for item in readings] == [1001, 1400]
+    current["time"] = 1460
+    controller.refresh()
+    assert ledger.get_controller_state("resource_pause") is None
+    controller.close()
     ledger.close()
 
 
@@ -228,6 +293,7 @@ def test_stale_and_future_quota_observations_fail_closed(tmp_path):
         ledger,
         lambda: {"rate_limits": quota(68), "observed_at": 600},
         state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
         clock=lambda: 1000,
     )
     with pytest.raises(RuntimeError, match="stale_quota_evidence"):
@@ -286,6 +352,7 @@ def test_qualified_terminal_receipt_covers_only_its_dispatch(tmp_path):
         ledger,
         lambda: quota(),
         state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
         clock=lambda: 1000,
         preflight=lambda: {
             "resources": {"policy_id": "CEO-20261020-02"},
@@ -349,7 +416,13 @@ def test_progress_usage_remains_a_measured_lower_bound_after_turn_failure(tmp_pa
 
     ledger = UsageLedger(tmp_path / "progress.sqlite")
     rpc = ProgressFailRPC(ledger)
-    controller = Controller(ledger, lambda: quota(), state=tmp_path, clock=lambda: 1000)
+    controller = Controller(
+        ledger,
+        lambda: quota(),
+        state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
+        clock=lambda: 1000,
+    )
     client = MeteredCodex(
         rpc,
         controller,
@@ -392,7 +465,13 @@ def test_monitor_refresh_is_independent_and_cancels_when_quota_read_fails(tmp_pa
             raise RuntimeError("quota_read_failed")
         return quota()
 
-    controller = Controller(ledger, account_read, state=tmp_path, clock=lambda: 1000)
+    controller = Controller(
+        ledger,
+        account_read,
+        state=tmp_path,
+        state_reconciler=lambda now: ledger.state_reconciled(now),
+        clock=lambda: 1000,
+    )
     controller._poll_seconds = 0.01
     controller.refresh()
     cancel = threading.Event()

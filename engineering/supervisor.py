@@ -20,7 +20,7 @@ from pathlib import Path
 from .codex_rpc import Codex
 from .confinement import SandboxRunner, python_runtime_roots
 from .git_gate import GitGate, VerificationPolicy
-from .metered_codex import metered_client
+from .metered_codex import Controller, metered_client
 from .org_state import StaleAttempt, Store
 from .processes import process_identity, terminate_owned
 from .service import validate_deployment
@@ -714,6 +714,84 @@ def activate_contract(state, db):
         )
 
 
+def organization_state_reconciled(state, ledger, now=None, db=None):
+    state = Path(state)
+    now = time.time() if now is None else now
+    if (state / "STOP").exists() or not ledger.state_reconciled(now):
+        return False
+    owned = db is None
+    db = db or store(state)
+    try:
+        tasks = {task["id"]: task for task in db.list_tasks()}
+        if any(task["state"] == "submitted" for task in tasks.values()):
+            return False
+        for attempt in db.list_attempts():
+            if attempt["state"] != "running":
+                continue
+            if attempt["lease_until"] <= now:
+                return False
+            process_file = state / "attempts" / str(attempt["id"]) / "processes.json"
+            try:
+                processes = read(process_file)
+            except (OSError, ValueError, TypeError):
+                return False
+            if not isinstance(processes, list) or not processes:
+                return False
+            witness = processes[0]
+            if (
+                type(witness) is not dict
+                or type(witness.get("pid")) is not int
+                or process_identity(witness["pid"]) != witness.get("birth")
+            ):
+                return False
+        for path in (state / "intents").glob("*.json"):
+            try:
+                intent = read(path)
+                task = tasks[intent["task"]]
+            except (OSError, KeyError, TypeError, ValueError):
+                return False
+            if task.get("state") != "integrated" or task.get("candidate_sha") != intent.get(
+                "submitted_sha"
+            ):
+                return False
+        return True
+    except Exception:
+        return False
+    finally:
+        if owned:
+            db.close()
+
+
+def supervisor_quota_sample(controller, raw_limits, observed_at=None):
+    if raw_limits is None:
+
+        def unavailable():
+            raise RuntimeError("supervisor_quota_read_unavailable")
+
+        controller.account_read = unavailable
+        try:
+            controller.refresh("supervisor_read_failed")
+        except Exception:
+            pass
+        return {"ordinaryUsageAllowed": False}
+    controller.account_read = lambda: {
+        "rate_limits": raw_limits,
+        "observed_at": observed_at,
+    }
+    try:
+        controller.refresh("supervisor")
+    except Exception:
+        return {
+            "ordinaryUsageAllowed": False,
+            "rateLimits": raw_limits.get("rateLimits"),
+            "rateLimitsByLimitId": raw_limits.get("rateLimitsByLimitId"),
+        }
+    return {
+        key: raw_limits.get(key)
+        for key in ("ordinaryUsageAllowed", "rateLimits", "rateLimitsByLimitId")
+    }
+
+
 def supervise(state: Path, max_seconds=1800):
     from .resources import choose_capacity
 
@@ -725,6 +803,22 @@ def supervise(state: Path, max_seconds=1800):
         end = time.monotonic() + max_seconds
         native = state / "budget-native"
         native.mkdir(exist_ok=True)
+        quota_ledger = UsageLedger(state / "usage-ledger.sqlite")
+        quota_snapshot = {"value": None}
+
+        def quota_read():
+            if quota_snapshot["value"] is None:
+                raise RuntimeError("supervisor_quota_read_unavailable")
+            return quota_snapshot["value"]
+
+        quota_controller = Controller(
+            quota_ledger,
+            quota_read,
+            state=state,
+            state_reconciler=lambda now: organization_state_reconciled(
+                state, quota_ledger, now, db
+            ),
+        )
         with Codex(native, codex=cfg.get("codex_executable", "codex")) as account:
             last_read, limits = 0.0, None
             while time.monotonic() < end and not (state / "STOP").exists():
@@ -739,14 +833,17 @@ def supervise(state: Path, max_seconds=1800):
                     continue
                 if time.monotonic() - last_read > 60:
                     try:
-                        limits = account.call("account/rateLimits/read")
+                        raw_limits = account.call("account/rateLimits/read")
+                        observed_at = time.time()
+                        quota_snapshot["value"] = {
+                            "rate_limits": raw_limits,
+                            "observed_at": observed_at,
+                        }
+                        limits = supervisor_quota_sample(quota_controller, raw_limits, observed_at)
                     except Exception:
-                        limits = {"ordinaryUsageAllowed": None}
+                        quota_snapshot["value"] = None
+                        limits = supervisor_quota_sample(quota_controller, None)
                     # Do not persist identity or reset-credit objects.
-                    limits = {
-                        k: limits.get(k)
-                        for k in ("ordinaryUsageAllowed", "rateLimits", "rateLimitsByLimitId")
-                    }
                     atomic(state / "limits.json", limits)
                     last_read = time.monotonic()
                 active = [t for t in db.list_tasks() if t["state"] == "running"]
@@ -841,6 +938,8 @@ def supervise(state: Path, max_seconds=1800):
         atomic(state / "status.json", status(state, db))
         render_desk(state, db)
         log_event(state, "supervisor_stopped")
+    quota_controller.close()
+    quota_ledger.close()
     db.close()
 
 
