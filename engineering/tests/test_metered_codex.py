@@ -302,6 +302,23 @@ def test_stop_monitor_waits_for_inflight_quota_read_and_joins_watcher(tmp_path):
     ledger.close()
 
 
+def test_zero_slot_quota_cancels_active_monitor(tmp_path):
+    ledger, _rpc, controller, _client = make(tmp_path)
+    cancelled = threading.Event()
+
+    def no_capacity(_source):
+        controller.quota_decision = {"slots": 0}
+        return quota(99)
+
+    controller.refresh = no_capacity
+    watcher = controller.monitor(time.monotonic() + 30, cancelled.set)
+    assert cancelled.wait(2)
+    watcher.join(2)
+    assert not watcher.is_alive()
+    controller.close()
+    ledger.close()
+
+
 def test_unqualified_progress_across_model_switch_stays_unassigned(tmp_path):
     ledger = UsageLedger(tmp_path / "switch.sqlite")
 

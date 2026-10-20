@@ -1,5 +1,6 @@
 import hashlib
 import json
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -54,6 +55,16 @@ class UsageLedgerTests(unittest.TestCase):
     def tearDown(self):
         self.l.close()
         self.tmp.cleanup()
+
+    def test_schema_version_is_initialized_and_newer_versions_fail_closed(self):
+        self.assertEqual(self.l.db.execute("PRAGMA user_version").fetchone()[0], 1)
+        self.l.close()
+        with sqlite3.connect(self.path) as db:
+            db.execute("PRAGMA user_version=2")
+        with self.assertRaisesRegex(ValueError, "usage_ledger_schema_newer_than_controller"):
+            UsageLedger(self.path)
+        self.l = UsageLedger(self.path)
+        self.l.db.execute("PRAGMA user_version=1")
 
     def observe(self, eid, seq, counters, source="provider", epoch="e1"):
         self.l.observe("a", epoch, eid, counters, source=source, sequence=seq, observed_at=seq)

@@ -12,16 +12,22 @@ from .org_state import Store
 from .qualification import qualify_native_profile
 from .resources import DEFAULT_POLICY
 from .supervisor import atomic, git
+from .usage_ledger import UsageLedger
 
 
 def bootstrap(state: Path, source: Path, python: str):
     state = state.resolve()
-    if (state / "config.json").exists() or (state / "organization.sqlite").exists():
+    if any(
+        (state / name).exists()
+        for name in ("config.json", "organization.sqlite", "usage-ledger.sqlite")
+    ):
         raise ValueError("deployment_already_exists")
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(state, 0o700)
     for name in ("trusted", "intents", "attempts", "receipts", "verification", "controller"):
         (state / name).mkdir(exist_ok=True)
+    ledger = UsageLedger(state / "usage-ledger.sqlite")
+    ledger.close()
     qualification = qualify_sandbox(
         state, python_executable=python, read_roots=["/opt/homebrew/opt/sqlite"]
     )
@@ -168,7 +174,7 @@ def bootstrap(state: Path, source: Path, python: str):
         "schema": "brain-engineering-deployment-v1",
         "python": python,
         "codex_executable": str(Path(shutil.which("codex")).resolve(strict=True)),
-        "codex_sha256": native_qualification["executable_sha256"],
+        "codex_executable_sha256": native_qualification["executable_sha256"],
         "controller": str(state / "controller"),
         "base": base,
         "old_active": old_active,

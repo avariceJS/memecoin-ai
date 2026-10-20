@@ -224,6 +224,9 @@ class Controller:
                 except Exception:
                     cancel()
                     return
+                if self.quota_decision["slots"] <= 0:
+                    cancel()
+                    return
                 remaining = max(0.0, deadline - self.monotonic())
                 if stopped.wait(min(60, remaining)):
                     return

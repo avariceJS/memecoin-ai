@@ -61,6 +61,10 @@ class UsageLedger:
         self.path = str(path)
         self.db = sqlite3.connect(self.path, isolation_level=None)
         self.db.row_factory = sqlite3.Row
+        version = self.db.execute("PRAGMA user_version").fetchone()[0]
+        if version > 1:
+            self.db.close()
+            raise ValueError("usage_ledger_schema_newer_than_controller")
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(
@@ -162,6 +166,7 @@ class UsageLedger:
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(receipts)")}
         if "evidence" not in columns:
             self.db.execute("ALTER TABLE receipts ADD COLUMN evidence TEXT NOT NULL DEFAULT '{}'")
+        self.db.execute("PRAGMA user_version=1")
 
     def persist_raw_rpc(self, raw_bytes):
         if not isinstance(raw_bytes, bytes):

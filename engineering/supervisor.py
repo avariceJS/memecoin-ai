@@ -224,6 +224,11 @@ def run_attempt(state: Path, attempt_id: int):
     epoch = attempt["epoch"]
     # A queued OS child may start after its lease was already replaced.
     db.renew(attempt_id, epoch, LEASE)
+    circuit = db.get_decision("circuit/controller-parse")
+    if circuit is not None and circuit.get("status") == "open":
+        db.fail(attempt_id, epoch, "controller_circuit_open:structured_parse", retryable=False)
+        db.close()
+        return
     run = state / "attempts" / str(attempt_id)
     run.mkdir(parents=True, exist_ok=True)
     checkout, scratch = run / "checkout", run / "scratch"
@@ -347,7 +352,33 @@ def run_attempt(state: Path, attempt_id: int):
                 lead.record_outcome(
                     f"attempt:{attempt_id}:lead", "failed", {"parser_error": type(exc).__name__}
                 )
-                raise
+                db.put_decision(
+                    "circuit/controller-parse",
+                    {
+                        "status": "open",
+                        "fault": "structured_parse",
+                        "first_attempt_id": attempt_id,
+                        "task_id": task["id"],
+                        "stage": "lead",
+                        "exception_type": type(exc).__name__,
+                    },
+                )
+                db.put_decision(
+                    "recovery-obligation/controller-parse",
+                    {
+                        "status": "open",
+                        "fault": "structured_parse",
+                        "first_attempt_id": attempt_id,
+                        "task_id": task["id"],
+                        "stage": "lead",
+                        "required_evidence": [
+                            "qualified parser/controller fix",
+                            "independent release review",
+                            "separate bounded recovery authorization",
+                        ],
+                    },
+                )
+                raise RuntimeError("controller_fault:structured_parse") from exc
             atomic(run / "lead.json", {**out, "plan": plan, "thread": thread})
             db.put_decision(
                 "lead-" + task["id"],
@@ -438,7 +469,33 @@ def run_attempt(state: Path, attempt_id: int):
                 worker.record_outcome(
                     f"attempt:{attempt_id}:worker", "failed", {"parser_error": type(exc).__name__}
                 )
-                raise
+                db.put_decision(
+                    "circuit/controller-parse",
+                    {
+                        "status": "open",
+                        "fault": "structured_parse",
+                        "first_attempt_id": attempt_id,
+                        "task_id": task["id"],
+                        "stage": "worker",
+                        "exception_type": type(exc).__name__,
+                    },
+                )
+                db.put_decision(
+                    "recovery-obligation/controller-parse",
+                    {
+                        "status": "open",
+                        "fault": "structured_parse",
+                        "first_attempt_id": attempt_id,
+                        "task_id": task["id"],
+                        "stage": "worker",
+                        "required_evidence": [
+                            "qualified parser/controller fix",
+                            "independent release review",
+                            "separate bounded recovery authorization",
+                        ],
+                    },
+                )
+                raise RuntimeError("controller_fault:structured_parse") from exc
             if not isinstance(worker_result, dict) or not all(
                 k in worker_result for k in ("summary", "tests", "limitations")
             ):
@@ -484,12 +541,61 @@ def run_attempt(state: Path, attempt_id: int):
                 attempt_id,
                 epoch,
                 type(exc).__name__ + ":" + str(exc)[:500],
-                retryable="lead_blocked" not in str(exc),
+                retryable=("lead_blocked" not in str(exc) and "controller_fault:" not in str(exc)),
             )
         except StaleAttempt:
             pass
     finally:
         stopped.set()
+        db.close()
+
+
+def resolve_controller_parse_fault(
+    state: Path,
+    *,
+    recovery_id: str,
+    fix_sha256: str,
+    review_ref: str,
+    authorization_ref: str,
+):
+    """Close the parser circuit only with pinned fix, review, and recovery authority."""
+    values = (recovery_id, review_ref, authorization_ref)
+    if any(not isinstance(value, str) or not value.strip() or len(value) > 500 for value in values):
+        raise ValueError("controller_recovery_evidence_required")
+    if (
+        not isinstance(fix_sha256, str)
+        or len(fix_sha256) != 64
+        or any(char not in "0123456789abcdef" for char in fix_sha256)
+    ):
+        raise ValueError("controller_recovery_fix_hash_required")
+    db = store(state)
+    try:
+        circuit = db.get_decision("circuit/controller-parse")
+        obligation = db.get_decision("recovery-obligation/controller-parse")
+        if circuit is None or circuit.get("status") != "open" or obligation is None:
+            raise ValueError("controller_recovery_obligation_missing")
+        db.put_decision(
+            "circuit/controller-parse",
+            {
+                "status": "closed",
+                "fault": "structured_parse",
+                "recovery_id": recovery_id,
+                "fix_sha256": fix_sha256,
+                "review_ref": review_ref,
+                "authorization_ref": authorization_ref,
+            },
+        )
+        db.put_decision(
+            "recovery-obligation/controller-parse",
+            {
+                "status": "resolved",
+                "recovery_id": recovery_id,
+                "fix_sha256": fix_sha256,
+                "review_ref": review_ref,
+                "authorization_ref": authorization_ref,
+            },
+        )
+    finally:
         db.close()
 
 
