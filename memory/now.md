@@ -72,6 +72,11 @@ automatically.
   Pinned gate passed 298 tests/45 subtests and Ruff (51 files). Request consumption, cross-epoch
   deduplication, retry policy, scheduler/process wiring and operational A05 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-fencing-review-20261021.json`.
+- A05 passive consumer remains unimplemented: inspection of the current Store contract shows that
+  lifecycle owner epoch is only a replaceable lease fence, while `launch_authorized` is caller-supplied
+  observation data. No durable controller-owned authorization-generation source exists; do not mint
+  or promote it in the consumer. Keep the request inert until a separately owned generation interface
+  exists. Consumer may persist passive disposition only; process/service action needs separate review.
 - A05 observation-binding source increment `db04f23468744f736622ad5ea33f13d0166c4446` makes Store
   recompute launch plans under the owner fence and persist the exact detached caller-supplied gate
   observations with each plan.
@@ -97,8 +102,13 @@ automatically.
   `714bb573fc659ba00c849c9b7e0be7c1f470b472`. Handoffs now fingerprint the coherent task/readiness
   snapshot and are atomically rechecked/deduplicated by Store; eligible work defers quiescence. Sol
   accepted the exact diff; Ruff passed and the engineering gate passed 344 tests/73 subtests.
-  Separate quota/resource observations, post-commit state changes, scale with retained tasks, and
-  an actual second-connection lock-wait race remain limitations. Generic contracts, plans/leases,
+  Separate quota/resource observations, post-commit state changes and scale with retained tasks
+  remain limitations. A separate Sol-accepted test-only increment `01a4c14` now holds a writer lock
+  on a second Store connection, waits for the handoff writer, mutates readiness before unlock and
+  verifies stale rejection plus fresh acceptance; gate passed 349 tests/83 subtests and Ruff.
+  The timeout is practical contention evidence, not exhaustive scheduling proof. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-quiescence-lockwait-review-20261021.json`.
+  Generic contracts, plans/leases,
   conflict adjudication and full A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-trigger-freshness-review-20261021.json`.
 - A04 source-only verifier-manifest custody resolver merged at `9487fc70057bc8ff5a467394fe7b70b06391e7b3`;

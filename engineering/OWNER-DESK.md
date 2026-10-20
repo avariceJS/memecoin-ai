@@ -472,3 +472,17 @@ At `d985cffdcbddee11d25f9972f6a1dafcf73f90fb` A04 verifier manifest поднят
 ограниченной residual policy. Loader/import dependency closure также не квалифицирован. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-darwin-fd-exec-probe-20261021.json`
 (SHA-256 `1e22ca8a59053bf0b4b746a98b6d23b543391497ac7b92da2840defe92b0b07f`).
+
+A10 закрыл недостающий regression для lock-wait handoff: вторая SQLite connection держит
+`BEGIN IMMEDIATE`, первая реально ждёт, вторая добавляет ready task до commit; старый snapshot
+отклоняется, свежий принимается. Sol принял exact test-only diff; полный gate прошёл: 349 тестов,
+83 subtests, Ruff (58 файлов). Timeout подтверждает практическую конкуренцию, но не все scheduler
+interleavings; quota/resource остаются вне общей транзакции, а state может измениться после commit.
+Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-quiescence-lockwait-review-20261021.json`
+(SHA-256 `e8f16bbb23dcc955185586c72148de3a7bf18633500d8ee001547fb86ef5d254`).
+
+A05 consumer пока не реализован: Store имеет owner epoch как lease fence, но не имеет отдельного
+controller-owned authorization generation; `launch_authorized` приходит как caller observation.
+Consumer не должен создавать или повышать launch authority. Нужен отдельный владелец generation;
+пассивный disposition и любые process/service actions остаются разными границами.
