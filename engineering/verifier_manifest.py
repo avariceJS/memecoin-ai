@@ -1,8 +1,8 @@
 """Resolve controller-owned verifier manifests against immutable task bindings.
 
-This module validates manifest custody, harness identity, interpreter file identity, and the
-required isolated CPython command prefix. It does not qualify the full interpreter/loader chain,
-the sandbox, result execution, or authorize use.
+This module validates manifest custody, harness identity, interpreter file and running-code
+identity pins, and the required isolated CPython command prefix. It does not qualify Python's full
+import/loader closure, the sandbox, result execution, or authorize use.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import stat
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .mac_code_identity import MacCodeIdentityError, static_code_directory_hash
 from .task_execution import VERIFIER_COMMAND_PREFIX
 
 
@@ -30,6 +31,8 @@ _MANIFEST_FIELDS = {
     "integration_policy_sha256",
     "interpreter_path",
     "interpreter_sha256",
+    "interpreter_runtime_path",
+    "interpreter_runtime_cdhash",
     "verifiers",
 }
 _VERIFIER_FIELDS = {
@@ -215,7 +218,7 @@ def resolve_verifier_manifest(
         raise VerifierManifestError("verifier_manifest_binding_invalid")
     if (
         set(manifest) != _MANIFEST_FIELDS
-        or manifest.get("schema") != "brain-verifier-manifest-v3"
+        or manifest.get("schema") != "brain-verifier-manifest-v4"
         or manifest.get("controller_release_sha256") != binding.get("controller_release_sha256")
         or manifest.get("integration_policy_sha256") != binding.get("integration_policy_sha256")
     ):
@@ -243,6 +246,28 @@ def resolve_verifier_manifest(
         manifest.get("interpreter_sha256"),
         configured_interpreter=configured_interpreter,
     )
+    runtime_cdhash = manifest.get("interpreter_runtime_cdhash")
+    runtime_path_value = manifest.get("interpreter_runtime_path")
+    if type(runtime_cdhash) is not str or re.fullmatch(r"[0-9a-f]{40}", runtime_cdhash) is None:
+        raise VerifierManifestError("verifier_interpreter_runtime_cdhash_invalid")
+    if (
+        type(runtime_path_value) is not str
+        or not runtime_path_value
+        or not Path(runtime_path_value).is_absolute()
+        or str(Path(runtime_path_value)) != runtime_path_value
+    ):
+        raise VerifierManifestError("verifier_interpreter_runtime_path_invalid")
+    try:
+        runtime_path = Path(runtime_path_value)
+        if runtime_path.resolve(strict=True) != runtime_path:
+            raise VerifierManifestError("verifier_interpreter_runtime_path_invalid")
+        actual_runtime_cdhash = static_code_directory_hash(runtime_path)
+    except VerifierManifestError:
+        raise
+    except (MacCodeIdentityError, OSError, ValueError, RuntimeError):
+        raise VerifierManifestError("verifier_interpreter_runtime_identity_invalid") from None
+    if actual_runtime_cdhash != runtime_cdhash:
+        raise VerifierManifestError("verifier_interpreter_runtime_cdhash_mismatch")
 
     resolved = []
     for expected, record in zip(bound, records, strict=True):
@@ -300,6 +325,8 @@ def resolve_verifier_manifest(
                 "harness_path": record["harness_path"],
                 "interpreter_path": str(interpreter_path),
                 "interpreter_sha256": manifest["interpreter_sha256"],
+                "interpreter_runtime_path": str(runtime_path),
+                "interpreter_runtime_cdhash": runtime_cdhash,
             }
         )
     return tuple(resolved)

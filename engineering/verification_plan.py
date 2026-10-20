@@ -33,6 +33,8 @@ class BoundVerifier:
     harness_path: Path
     interpreter_path: Path
     interpreter_sha256: str
+    interpreter_runtime_path: Path
+    interpreter_runtime_cdhash: str
     result_schema: str
     case_field: str
     passed_field: str
@@ -52,6 +54,8 @@ class VerificationPlan:
     bound_verifiers: tuple[BoundVerifier, ...] = ()
     interpreter_path: str | None = None
     interpreter_sha256: str | None = None
+    interpreter_runtime_path: str | None = None
+    interpreter_runtime_cdhash: str | None = None
 
     def identity(self) -> dict[str, Any]:
         """Return the JSON-safe identity that must travel with an admitted attempt."""
@@ -67,6 +71,8 @@ class VerificationPlan:
             identity["verifier_manifest_sha256"] = self.verifier_manifest_sha256
             identity["interpreter_path"] = self.interpreter_path
             identity["interpreter_sha256"] = self.interpreter_sha256
+            identity["interpreter_runtime_path"] = self.interpreter_runtime_path
+            identity["interpreter_runtime_cdhash"] = self.interpreter_runtime_cdhash
         return identity
 
 
@@ -131,7 +137,8 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
     A spec-backed task never falls back to the legacy `cfg['tasks']` catalogue. When deployment
     config pins `verifier_manifest_sha256`, the exact controller manifest and trusted harness bytes
     are resolved and the manifest digest joins the attempt identity. Executable qualification stays
-    false until interpreter, sandbox and result execution are qualified separately.
+    false until the running interpreter identity, loader closure, sandbox and result execution are
+    qualified separately.
     """
     task_id = task.get("id") if type(task) is dict else None
     if type(task_id) is not str or not task_id:
@@ -140,6 +147,8 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
     bound_verifiers: tuple[BoundVerifier, ...] = ()
     interpreter_path: str | None = None
     interpreter_sha256: str | None = None
+    interpreter_runtime_path: str | None = None
+    interpreter_runtime_cdhash: str | None = None
     if saved_spec is None:
         try:
             commands = [
@@ -206,6 +215,8 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
             verifier_manifest_sha256 = configured_manifest_sha256
             interpreter_path = resolved[0]["interpreter_path"]
             interpreter_sha256 = resolved[0]["interpreter_sha256"]
+            interpreter_runtime_path = resolved[0]["interpreter_runtime_path"]
+            interpreter_runtime_cdhash = resolved[0]["interpreter_runtime_cdhash"]
             bound_verifiers = tuple(
                 BoundVerifier(
                     item["acceptance_id"],
@@ -213,6 +224,8 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
                     (state / "trusted" / item["harness_path"]).resolve(strict=True),
                     Path(item["interpreter_path"]),
                     item["interpreter_sha256"],
+                    Path(item["interpreter_runtime_path"]),
+                    item["interpreter_runtime_cdhash"],
                     item["result_schema"],
                     item["case_field"],
                     item["passed_field"],
@@ -294,6 +307,8 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
         plan_body["verifier_manifest_sha256"] = verifier_manifest_sha256
         plan_body["interpreter_path"] = interpreter_path
         plan_body["interpreter_sha256"] = interpreter_sha256
+        plan_body["interpreter_runtime_path"] = interpreter_runtime_path
+        plan_body["interpreter_runtime_cdhash"] = interpreter_runtime_cdhash
     return VerificationPlan(
         policy,
         qualified,
@@ -307,4 +322,6 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
         bound_verifiers,
         interpreter_path,
         interpreter_sha256,
+        interpreter_runtime_path,
+        interpreter_runtime_cdhash,
     )

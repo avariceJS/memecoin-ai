@@ -751,6 +751,16 @@ def verify_one(state, task):
                     if verifier is not None and verifier_command_index == 0
                     else None
                 ),
+                expected_executable_cdhash=(
+                    verifier.interpreter_runtime_cdhash
+                    if verifier is not None and verifier_command_index == 0
+                    else None
+                ),
+                expected_executable_main_path=(
+                    verifier.interpreter_runtime_path
+                    if verifier is not None and verifier_command_index == 0
+                    else None
+                ),
             )
             results.append(dataclasses.asdict(result))
             atomic(verify_root / "commands.json", results)

@@ -195,11 +195,13 @@ class TaskSpecStoreTests(unittest.TestCase):
                 SPEC["id"], controller_release_sha256="e" * 64
             )
             manifest = {
-                "schema": "brain-verifier-manifest-v3",
+                "schema": "brain-verifier-manifest-v4",
                 "controller_release_sha256": "e" * 64,
                 "integration_policy_sha256": "f" * 64,
                 "interpreter_path": str(interpreter.resolve()),
                 "interpreter_sha256": hashlib.sha256(interpreter.read_bytes()).hexdigest(),
+                "interpreter_runtime_path": str(interpreter.resolve()),
+                "interpreter_runtime_cdhash": "d" * 40,
                 "verifiers": [{**binding["verifiers"][0], "harness_path": "acceptance.py"}],
             }
             raw = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
@@ -211,9 +213,13 @@ class TaskSpecStoreTests(unittest.TestCase):
                 "verifier_manifest_sha256": manifest_sha256,
                 "python": str(interpreter),
             }
-            plan = prepare_verification_plan(
-                state, self.store, self.store.get_task(SPEC["id"]), cfg
-            )
+            with patch(
+                "engineering.verifier_manifest.static_code_directory_hash",
+                return_value="d" * 40,
+            ):
+                plan = prepare_verification_plan(
+                    state, self.store, self.store.get_task(SPEC["id"]), cfg
+                )
             self.assertFalse(plan.execution_qualified)
             self.assertEqual(plan.reason, "interpreter_or_sandbox_not_qualified")
             self.assertEqual(plan.verifier_manifest_sha256, manifest_sha256)
@@ -222,10 +228,16 @@ class TaskSpecStoreTests(unittest.TestCase):
             self.assertEqual(
                 plan.interpreter_sha256, hashlib.sha256(interpreter.read_bytes()).hexdigest()
             )
+            self.assertEqual(plan.interpreter_runtime_cdhash, "d" * 40)
+            self.assertEqual(plan.identity()["interpreter_runtime_cdhash"], "d" * 40)
+            self.assertEqual(
+                plan.identity()["interpreter_runtime_path"], str(interpreter.resolve())
+            )
             self.assertEqual(plan.identity()["interpreter_path"], str(interpreter.resolve()))
             self.assertEqual(plan.bound_verifiers[0].interpreter_path, interpreter.resolve())
             self.assertEqual(len(plan.bound_verifiers), 1)
             self.assertEqual(plan.bound_verifiers[0].acceptance_id, "atomic-spec-store")
+            self.assertEqual(plan.bound_verifiers[0].interpreter_runtime_cdhash, "d" * 40)
             self.assertEqual(plan.bound_verifiers[0].result_schema, "org-acceptance-v1")
             self.assertEqual(
                 expand_bound_verifier_command(

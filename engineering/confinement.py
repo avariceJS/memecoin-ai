@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import selectors
 import signal
 import socket
@@ -23,11 +24,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from .mac_code_identity import MacCodeIdentityError, running_code_identity
+
 SANDBOX_EXEC = Path("/usr/bin/sandbox-exec")
 DYLD_SUPPORT = Path("/System/Library/Sandbox/Profiles/dyld-support.sb")
 SYSTEM_READ_ROOTS = ("/System/Library", "/usr/lib", "/usr/share", "/usr/bin", "/bin")
 VERIFIER_ENV_KEYS = frozenset({"LANG", "LC_ALL", "TZ", "PYTHONHASHSEED", "PYTHONUTF8"})
 MAX_PINNED_EXECUTABLE_BYTES = 512_000_000
+PROCESS_CODE_IDENTITY_TIMEOUT = 2.0
 
 
 class ConfinementError(RuntimeError):
@@ -45,16 +49,17 @@ class SandboxResult:
     elapsed_seconds: float
     output_truncated: bool = False
     prelaunch_executable_sha256: str | None = None
+    process_code_directory_hash: str | None = None
+    process_executable_path: str | None = None
 
 
 def _prelaunch_executable_sha256(path: str | Path, expected_sha256: str) -> str:
     """Recheck a pinned canonical executable immediately before sandbox launch.
 
     This hashes the inode opened through a no-follow descriptor. Darwin's
-    subprocess API later receives a path, so a trusted host process able to
-    replace its resolution after open (including after this function returns)
-    remains in the TCB; this is evidence of a prelaunch path check, not proof
-    that sandbox-exec executed the hashed inode.
+    subprocess API later receives a path. When a code-directory hash pin is
+    also supplied, SandboxRunner checks the signed code identity reported for
+    the running process after launch and before accepting its result.
     """
     if (
         not isinstance(expected_sha256, str)
@@ -279,11 +284,29 @@ class SandboxRunner:
         max_output_bytes: int = 1_000_000,
         env_overrides: dict[str, str] | None = None,
         expected_executable_sha256: str | None = None,
+        expected_executable_cdhash: str | None = None,
+        expected_executable_main_path: str | Path | None = None,
     ) -> SandboxResult:
         if not argv or not all(isinstance(arg, str) and "\0" not in arg for arg in argv):
             raise ConfinementError("argv must contain non-NUL strings")
         if not Path(argv[0]).is_absolute():
             raise ConfinementError("Executable must be absolute; shell resolution is forbidden")
+        if expected_executable_cdhash is not None and (
+            expected_executable_sha256 is None
+            or expected_executable_main_path is None
+            or type(expected_executable_cdhash) is not str
+            or re.fullmatch(r"[0-9a-f]{40}", expected_executable_cdhash) is None
+        ):
+            raise ConfinementError("Expected executable code-directory hash is invalid")
+        if expected_executable_main_path is not None:
+            expected_executable_main_path = Path(expected_executable_main_path)
+            if (
+                expected_executable_cdhash is None
+                or not expected_executable_main_path.is_absolute()
+                or str(expected_executable_main_path)
+                != str(expected_executable_main_path.resolve(strict=True))
+            ):
+                raise ConfinementError("Expected running executable path is invalid")
         prelaunch_executable_sha256 = None
         if expected_executable_sha256 is not None:
             prelaunch_executable_sha256 = _prelaunch_executable_sha256(
@@ -307,6 +330,24 @@ class SandboxRunner:
             close_fds=True,
             start_new_session=True,
         ) as process:
+            process_code_directory_hash = None
+            process_executable_path = None
+            if expected_executable_cdhash is not None:
+                try:
+                    (
+                        process_code_directory_hash,
+                        process_executable_path,
+                    ) = self._wait_for_process_code_identity(
+                        process,
+                        expected_executable_cdhash,
+                        expected_executable_main_path,
+                        deadline=started + timeout,
+                    )
+                except BaseException:
+                    # Also reap on unexpected FFI errors and cancellation. The
+                    # Popen context manager otherwise waits for the verifier.
+                    self._kill_process_group(process)
+                    raise
             timed_out = False
             output_truncated = False
             buffers = {"stdout": bytearray(), "stderr": bytearray()}
@@ -341,17 +382,7 @@ class SandboxRunner:
             # Always clean the original process group, including children that
             # retained pipes after the leader exited. Never wait for pipe EOF
             # after timeout: an adversarial descendant could keep it open.
-            process.poll()  # Reap an exited leader before Darwin's killpg check.
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            except PermissionError:
-                # Darwin can report EPERM for a group containing only its
-                # already-exited leader. A live leader must never be ignored.
-                if process.poll() is None:
-                    raise
-            process.wait(timeout=5)
+            self._kill_process_group(process)
             stdout, stderr = bytes(buffers["stdout"]), bytes(buffers["stderr"])
         return SandboxResult(
             tuple(argv),
@@ -363,7 +394,56 @@ class SandboxRunner:
             time.monotonic() - started,
             output_truncated,
             prelaunch_executable_sha256,
+            process_code_directory_hash,
+            process_executable_path,
         )
+
+    @staticmethod
+    def _kill_process_group(process: subprocess.Popen) -> None:
+        process.poll()  # Reap an exited leader before Darwin's killpg check.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            # Darwin can report EPERM for a group containing only its
+            # already-exited leader. A live leader must never be ignored.
+            if process.poll() is None:
+                raise
+        process.wait(timeout=5)
+
+    @staticmethod
+    def _wait_for_process_code_identity(
+        process: subprocess.Popen,
+        expected: str,
+        expected_path: Path,
+        *,
+        deadline: float,
+    ) -> tuple[str, str]:
+        """Observe one matching image; prior, later, and output provenance are unbound."""
+        deadline = min(deadline, time.monotonic() + PROCESS_CODE_IDENTITY_TIMEOUT)
+        last_observed = None
+        while True:
+            try:
+                last_observed, executable_path = running_code_identity(process.pid)
+            except MacCodeIdentityError:
+                if process.poll() is not None:
+                    raise ConfinementError(
+                        "Running executable code identity is unavailable"
+                    ) from None
+            else:
+                if last_observed == expected and executable_path == str(expected_path):
+                    return last_observed, executable_path
+                if process.poll() is not None:
+                    raise ConfinementError("Running executable code identity does not match pin")
+            if time.monotonic() >= deadline:
+                message = (
+                    "Running executable code identity does not match pin"
+                    if last_observed is not None
+                    else "Running executable code identity is unavailable"
+                )
+                raise ConfinementError(message)
+            time.sleep(0.01)
 
 
 def qualify_sandbox(

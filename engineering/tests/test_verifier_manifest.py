@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from engineering.verifier_manifest import (
     VerifierManifestError,
@@ -60,11 +61,13 @@ class VerifierManifestTests(unittest.TestCase):
             json.dumps(self.binding, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
         self.manifest = {
-            "schema": "brain-verifier-manifest-v3",
+            "schema": "brain-verifier-manifest-v4",
             "controller_release_sha256": RELEASE,
             "integration_policy_sha256": POLICY,
             "interpreter_path": str(self.interpreter.resolve()),
             "interpreter_sha256": self.interpreter_sha,
+            "interpreter_runtime_path": str(self.interpreter.resolve()),
+            "interpreter_runtime_cdhash": "d" * 40,
             "verifiers": [
                 {
                     **self.binding["verifiers"][0],
@@ -74,12 +77,15 @@ class VerifierManifestTests(unittest.TestCase):
         }
 
     def resolve(self, binding=None, manifest=None, *, configured_interpreter=None):
-        return resolve_verifier_manifest(
-            binding or self.binding,
-            manifest or self.manifest,
-            trusted_root=self.trusted,
-            configured_interpreter=configured_interpreter or self.interpreter,
-        )
+        with patch(
+            "engineering.verifier_manifest.static_code_directory_hash", return_value="d" * 40
+        ):
+            return resolve_verifier_manifest(
+                binding or self.binding,
+                manifest or self.manifest,
+                trusted_root=self.trusted,
+                configured_interpreter=configured_interpreter or self.interpreter,
+            )
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -205,10 +211,38 @@ class VerifierManifestTests(unittest.TestCase):
             ):
                 self.resolve(binding, candidate)
 
-    def test_manifest_v2_is_not_accepted_as_v3(self):
+    def test_manifest_v3_is_not_accepted_as_v4(self):
         candidate = json.loads(json.dumps(self.manifest))
-        candidate["schema"] = "brain-verifier-manifest-v2"
+        candidate["schema"] = "brain-verifier-manifest-v3"
         with self.assertRaisesRegex(VerifierManifestError, "binding_mismatch"):
+            self.resolve(self.binding, candidate)
+
+    def test_manifest_requires_runtime_code_directory_hash(self):
+        for value in (None, 1, "d" * 39, "D" * 40, "x" * 40):
+            candidate = json.loads(json.dumps(self.manifest))
+            candidate["interpreter_runtime_cdhash"] = value
+            with (
+                self.subTest(value=value),
+                self.assertRaisesRegex(VerifierManifestError, "interpreter_runtime_cdhash_invalid"),
+            ):
+                self.resolve(self.binding, candidate)
+
+    def test_manifest_runtime_path_must_be_canonical_and_match_code_hash(self):
+        for path, error in (
+            ("relative/runtime", "runtime_path_invalid"),
+            (str(self.root / "missing"), "runtime_identity_invalid"),
+        ):
+            candidate = json.loads(json.dumps(self.manifest))
+            candidate["interpreter_runtime_path"] = path
+            with (
+                self.subTest(path=path),
+                self.assertRaisesRegex(VerifierManifestError, error),
+            ):
+                self.resolve(self.binding, candidate)
+
+        candidate = json.loads(json.dumps(self.manifest))
+        candidate["interpreter_runtime_cdhash"] = "e" * 40
+        with self.assertRaisesRegex(VerifierManifestError, "runtime_cdhash_mismatch"):
             self.resolve(self.binding, candidate)
 
     def test_load_requires_exact_canonical_manifest_hash(self):
@@ -248,7 +282,7 @@ class VerifierManifestTests(unittest.TestCase):
     def test_loader_rejects_deep_noncanonical_and_oversized_json(self):
         path = self.root / "manifest.json"
         for raw in (
-            b' {"schema": "brain-verifier-manifest-v3"} ',
+            b' {"schema": "brain-verifier-manifest-v4"} ',
             b"[" * 1100 + b"0" + b"]" * 1100,
             b"{" + b'"x":' + b"1" * 5000 + b"}",
         ):
