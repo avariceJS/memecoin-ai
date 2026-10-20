@@ -5,6 +5,20 @@ The founder directive of 2026-10-19 appoints Astra High CEO / Engineering Direct
 leads departments and Luna High implements bounded tasks. The [Founder Desk](../engineering/OWNER-DESK.md)
 is Russian by explicit request. Research contracts remain in `docs/contracts.md`.
 
+## Current founder role amendment — 2026-10-20
+
+[FOUNDER-20261020-LUNA-FIRST-01](evidence/brain-org-luna-first-20261020.json) supersedes earlier
+Sol-primary implementation wording: independent Luna6/high owns sustained root coding, testing,
+planning and Pursuing Goal continuation; Sol6.1/high is invoked for difficult design and independent
+review. Astra remains director, never automatic. Transfer uses the existing implementation thread
+`01a15657-3558-79c1-86dc-6ed033c264df`, preserving Goal/history and a single code owner. The original
+coordinator owns handoff/evidence only. The existing [mandate](../engineering/SOL-MANDATE.md) remains
+the canonical entrypoint; private handoff reconciles exact source and in-flight work.
+[Actual transfer evidence](evidence/brain-org-luna-first-transfer-20261020.json) confirms the same
+Goal/history and an observed automatic gpt-6-luna/high turn; no multi-day endurance is implied. No capability,
+confinement, acceptance, Git or STOP gate is relaxed. Frozen runtime model routing changes require
+a reviewed release. CEO-20261020-02 remains the resource policy; Luna handles routine renewals.
+
 ## Authority and implementation
 
 `engineering/` is a stdlib controller, not a trading runtime. Independent Codex app-server root
@@ -81,11 +95,23 @@ ceilings of CEO-20261020-01. The founder allocates essentially all remaining wee
 to useful Sol/Luna engineering and authorizes qualified continuation after account access is restored.
 The existing Sol root `01a15657-3558-79c1-86dc-6ed033c264df` owns implementation; no competing team.
 Its supported Pursuing Goal is active for the full sustained mandate, not just the accounting repair.
-The prior blocked root remains a predecessor record, not a falsely resumed goal. The exact API receipt
+The original root was later explicitly resumed through the documented App Server `thread/goal/set`
+with only status=active, preserving its objective and usage. This fixes the visible Goal-stalled
+condition that remained after earlier resource decisions; it does not resume the deployment. The exact API receipt
 and current owner/worker/next-gate projection are private under
 `/Users/root1/Developer/brain-org-state/founder-quota-20261020/` as
 `continuation-goal-receipt.json` and `sol-live-status.json`. Independent review rejected candidate
-`0d74d69` for three accounting/recovery defects; bounded actual Luna6 High repair is active. This is
+`0d74d69` for three accounting/recovery defects, and later reviews produced further fixes. An actual
+automatic implementation-root Goal turn collected review3 and dispatched confined Luna snapshot repair.
+The source progressed to `27431b7`; exact-SHA review and separate controller-gate work remain active.
+See [lifecycle recovery evidence](evidence/brain-org-goal-lifecycle-recovery-20261020.json), which
+separates the initial status restoration from scheduling verification. A subsequent native automatic
+original-root turn is now observed; private `original-goal-automatic-proof-1.json` records the trigger
+and new engineering work. That turn reproduced a real release gap: stale native evidence is rejected
+by the service validator but accepted through direct `supervisor.config`. The confined synthetic
+regression is preserved under private `release-audit/` and handed to the existing implementation team.
+Every supported runtime entry needs the same trusted qualification preflight before release. One
+observed automatic turn per root is evidence of continuation, not overnight/endurance qualification. This is
 source work, not operational acceptance or unattended-service qualification. No automatic Astra.
 
 Actual entitlement and applicable account-limit telemetry govern availability. Productive inference
