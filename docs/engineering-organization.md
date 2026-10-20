@@ -28,14 +28,14 @@ and pilot state remain intact. The [handoff](../engineering/SOL-MANDATE.md) owns
 The founder subsequently authorized autonomous **engineering development**. This does not authorize
 operational release, original pilot dispatch, removal of STOP, market collection, training, AUTO,
 trading, protected-data access, production or `main` changes, paid resources, or automatic Astra.
-The sole implementation owner is the existing successor thread
-`01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` (`gpt-6-luna/high`). Preserve this Goal's identity, counters,
-checkpoints, prior decisions and all six pilot failures. The prior Luna thread remains paused, and
-the Astra audit thread has no Goal. On 2026-10-20 the founder explicitly resumed work after the
-native Goal manager reported it blocked following three repeated A03 investigations. Do not create a
-competing Goal, coordinator or worker team. The available Goal API exposes status reads and status
-transitions only; it cannot revise this Goal's objective or resume a blocked Goal. Keep that native
-limitation visible, continue under the same Goal identity, and do not reset its history or counters.
+The sole implementation owner is successor thread
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b` (`gpt-6-luna/high`). Predecessor Goal/thread
+`01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` remains blocked and preserved after repeated A03 research;
+the native Goal API cannot resume a blocked Goal. The founder authorized exactly one successor because
+of that API limit. Preserve the predecessor's counters, checkpoints, prior decisions and all six pilot
+failures. The Astra audit thread has no Goal. Continue bounded A05/A10/A04 source development and
+verification under the resumption limits; do not create another Goal, coordinator or worker team. The
+successor Goal is recorded in the external resumption handoff.
 
 Independent Sol technical lead `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`
 (`gpt-6.1-sol/high`) verified the current checkout, selected private evidence hashes, pilot STOP,

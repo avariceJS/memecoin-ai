@@ -6,8 +6,8 @@ source for the task; do not scan `docs/` or `docs/evidence/` wholesale.
 ## Consolidated audit entry — 2026-10-20
 
 Current organization branch: `org/development`; Brain: `brain/development`; Linux: `brain/linux`.
-The independent director audit of `b2dcd6d` is complete; development remains paused pending
-explicit founder resumption. Findings and staged release gates are in `engineering-organization.md`;
+The independent director audit of `b2dcd6d` is complete and the founder has explicitly resumed
+bounded source development. Findings and staged release gates are in `engineering-organization.md`;
 the unique audit receipt is `evidence/brain-org-independent-audit-2026-10-20.json`.
 Read `engineering/SOL-MANDATE.md` and the current Git registry in `operator-runtime.md`.
 The exact consolidation result is `evidence/git-consolidation-2026-10-20.json`.

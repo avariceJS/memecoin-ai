@@ -54,15 +54,17 @@ integrated release and permission to restart the original pilot remain distinct 
 
 ### Successor ownership checkpoint — 2026-10-20
 
-The prepared transfer is now held by successor thread `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f`.
-The predecessor Luna thread `01a15657-3558-79c1-86dc-6ed033c264df` remains idle with its Goal
-paused and history preserved. Native `state_5.sqlite` metadata confirms both predecessor and
-successor are `gpt-6-luna/high`. Current pilot inspection found six failed attempts, zero live
+The former successor Goal `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` reported blocked after repeated
+A03 research and remains preserved. The founder authorized one successor because the native Goal API
+cannot resume a blocked Goal: current implementation owner is `01a15b1c-c263-71b0-bfca-c5b46d17a89b`
+(`gpt-6-luna/high`), with bounded A05/A10/A04 source development under STOP. The original predecessor
+Luna thread `01a15657-3558-79c1-86dc-6ed033c264df` remains idle with its Goal paused and history
+preserved. Current pilot inspection found six failed attempts, zero live
 attempts, zero acceptances and zero integrations; STOP remains present and the organization
 LaunchAgent is not loaded. The successor may pursue only the engineering sequence above, with no
-pilot replay, runtime activation, STOP removal or expanded authority. One active Pursuing Goal now
-covers usage-evidence qualification, the finite candidate, independent Sol review and complete
-checkpoint/restore proof.
+pilot replay, runtime activation, STOP removal or expanded authority. It pursues bounded independent
+A05/A10/A04 source development and verification. A03 remains fail-closed and blocks full release only;
+unknown usage and its reservations remain preserved.
 
 ## Historical founder audit hold — 2026-10-20
 

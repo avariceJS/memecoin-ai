@@ -1,11 +1,11 @@
 # Current state
 
-As of **2026-10-20**, the founder explicitly resumed engineering work in the existing Luna Goal
-`01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` (`gpt-6-luna/high`) after it reported blocked on repeated
-ORG-A03 research. Preserve its identity, counters, checkpoints and history; do not create another
-Goal. The native Goal API cannot revise a blocked Goal's objective/status, so `get_goal` still reports
-`blocked` while source work proceeds under the founder's explicit resumption. Astra remains episodic
-and is not to be started automatically.
+As of **2026-10-21**, independent source development continues in successor Luna Goal
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b` (`gpt-6-luna/high`). Predecessor Goal/thread
+`01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` remains blocked and preserved after repeated ORG-A03 research;
+the native Goal API cannot resume it. The successor is the sole implementation owner for bounded
+A05/A10/A04 source development and verification. Astra remains episodic and is not to be started
+automatically.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported
