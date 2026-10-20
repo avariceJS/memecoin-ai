@@ -65,11 +65,12 @@ automatically.
   Pinned gate passed 298 tests/45 subtests and Ruff (51 files). Request consumption, cross-epoch
   deduplication, retry policy, scheduler/process wiring and operational A05 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-fencing-review-20261021.json`.
-- A10 read-only readiness report is merged at `57f496f5f74258d00a09dc37b5818e409495dffc`; Sol
-  accepted the exact scaffold and the gate passed 275 tests/42 subtests with Ruff. It exposes
-  dependency/contract blockers without hiding independent ready work; claim stays authoritative.
-  Contract transitions, acknowledgements and durable obligations remain open. Receipt:
-  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-readiness-report-scaffold-review-20261020.json`.
+- A10 transition increment merged at `ef953d5d95e0fb9bef50477957fcbd8f9fc90ed6` (exact source
+  `0879b5efed1cf0942d080e02624da13fd5a9aede`): content-hashed one-version proposals, immutable
+  producer/consumer acknowledgements and atomic activation after producer integration. Sol accepted
+  bounded source; merged gate passed 312 tests/45 subtests and Ruff. Generic contract migration,
+  dependency obligations, department plans/leases and broad A10 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-durable-contract-transition-review-20261021.json`.
 - A12 bounded active-task projection merged at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`; Sol
   accepted the exact source and the gate passed 278 tests/42 subtests with Ruff. SQL limits active
   rows to 100, full state counts remain, omitted rows are disclosed, and history is retained. Full

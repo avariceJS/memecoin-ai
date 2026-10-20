@@ -66,6 +66,17 @@ pilot replay, runtime activation, STOP removal or expanded authority. It pursues
 A05/A10/A04 source development and verification. A03 remains fail-closed and blocks full release only;
 unknown usage and its reservations remain preserved.
 
+On 2026-10-21, bounded A10 contract transitions merged at `ef953d5d95e0fb9bef50477957fcbd8f9fc90ed6`
+(exact Sol-reviewed source `0879b5efed1cf0942d080e02624da13fd5a9aede`). Only initial v1 contract
+publication remains direct; later publication requires an immutable content-hashed proposal, exact
+producer/consumer acknowledgements and integrated producer state, committed atomically with the
+activation receipt. Supervisor binds acknowledgements to configured content. The merged gate passed
+312 tests, 45 subtests and Ruff. This closes only the current schema-validation v2 acknowledgement
+path. Dependency obligations, generic contract migration, department plans/leases and broad A10 stay
+open. Sol's bounded-source receipt is
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-durable-contract-transition-review-20261021.json`
+(SHA-256 `d94296b79abae78b7d22cce4348b750a2123046dbb860250ff13407490e9424e`).
+
 ## Historical founder audit hold — 2026-10-20
 
 The founder paused autonomous development for Git consolidation and an independent architecture

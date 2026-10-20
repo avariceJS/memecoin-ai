@@ -312,8 +312,20 @@ A10 получил read-only readiness report в `57f496f5f74258d00a09dc37b5818e
 snapshot показывает non-integrated/missing dependencies и несовпадающие версии contracts. Blocked
 задача не скрывает независимую ready работу; transactional `claim` остаётся авторитетным и повторно
 проверяет готовность. Sol принял exact source; полный gate прошёл: 275 тестов, 42 subtests и Ruff
-(49 файлов). Durable producer/consumer acknowledgements, transitions, dependency obligations и
-broad A10 остаются открыты. Receipt:
+(49 файлов). Этот scaffold остаётся основой.
+
+21 октября в `org/development` добавлен durable contract transition (`ef953d5d95e0fb9bef50477957fcbd8f9fc90ed6`,
+exact Sol-reviewed source `0879b5efed1cf0942d080e02624da13fd5a9aede`). Версии после начальной v1
+публикуются через content-hashed transition, подтверждения producer и consumer хранятся как
+неизменяемые записи, а активация требует integrated producer и все точные acknowledgements в одной
+SQLite transaction. Supervisor сверяет transition с контрактом из конфигурации. Sol принял этот
+ограниченный source; после merge прошли 312 тестов, 45 subtests и Ruff (52 файла). Поддерживается
+только текущий специальный переход schema-validation v2; legacy v2 читается без ретроактивных
+подтверждений. Dependency obligations, department plans/leases и широкое закрытие A10 остаются
+открыты. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-durable-contract-transition-review-20261021.json`
+(SHA-256 `d94296b79abae78b7d22cce4348b750a2123046dbb860250ff13407490e9424e`).
+
+Receipt scaffold:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-readiness-report-scaffold-review-20261020.json`
 (SHA-256 `22037f53771b100bc1694f5f9133eec59ceeef519888389ff98f42d03af62176`).
 
