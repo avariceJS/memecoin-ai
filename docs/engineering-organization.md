@@ -105,6 +105,17 @@ source hashes and URLs are in `terminal-usage-raw-response-source-semantics-2026
 establishes complete accounting, full dispatch/model/epoch binding and delivery completeness, ORG-A03
 stays fail-closed. Unknown usage remains reserved; `turn/completed` remains lifecycle-only.
 
+A public-snapshot alternative also fails completeness. If an upstream response completes without
+usage before any token-usage state exists, core emits a token-count event with no usage info and the
+app-server suppresses `thread/tokenUsage/updated`. A later response with valid usage can therefore
+produce a positive cumulative snapshot that appears complete against a zero baseline, although the
+earlier response's spend is unknown. Public lifecycle/item events carry no guaranteed response count
+or marker that rules out this hidden response. Sol independently rejected settlement based on such
+snapshots. Evidence is source-only in
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-public-snapshot-null-gap-20261020.json`;
+SHA-256 `810efd6528d1cdcdcb0d0283ac2a0877ae93bb5d049f56a136cddf88b42fff38`; it supports the
+fail-closed boundary, not a settlement implementation.
+
 Sol also identified a conditional parser compatibility gap in `metered_codex.capture`: the generated
 schema permits an optional `cacheWriteInputTokens` counter, but canonicalization currently requires
 the counter object to contain exactly the five other known keys. When the optional sixth key is

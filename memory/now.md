@@ -27,8 +27,11 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   reconnect, duplicates, and late corrections remain untested; payload lacks dispatch/model/epoch.
   Receipts: `terminal-usage-raw-response-source-semantics-20261020.json` and
   `terminal-usage-raw-response-incomplete-gap-20261020.json`. Stable `codex exec --json` re-exports
-  progress snapshot totals on successful completion and is not an independent terminal source. A03
-  remains fail-closed. Correction receipt: `terminal-usage-schema-filter-correction-20261020.json`.
+  progress snapshot totals on successful completion and is not an independent terminal source. A
+  public null-usage response can also be hidden: `TokenCount.info=None` produces no public usage
+  notification; a later positive snapshot can appear complete against a zero baseline. Sol rejected
+  settlement on this counterexample. Receipt: `terminal-usage-public-snapshot-null-gap-20261020.json`.
+  A03 remains fail-closed. Correction receipt: `terminal-usage-schema-filter-correction-20261020.json`.
 - Current-host native profile (21 checks) and OS confinement (27 checks) passed on Python 3.13.6 and
   pinned Codex CLI 0.163.0; adapter digest matches exact candidate `3c16388`. Receipts are
   `native-profile-qualification-20261020.json` and `confinement-qualification-20261020.json`. This
