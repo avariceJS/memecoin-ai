@@ -187,6 +187,19 @@ Supplemental incomplete-usage receipt:
 отсутствующем snapshot usage становится нулевым, а failed/interrupted не дают terminal usage.
 Это не независимая terminal квитанция. Pin и adapter не менялись, internal opt-in не включался;
 A03 остаётся fail-closed.
+Публичный cumulative snapshot тоже не закрывает полноту: completed response без `usage` может
+оставить core без `TokenUsageInfo`, после чего app-server не публикует `thread/tokenUsage/updated`;
+более поздний положительный snapshot скрывает этот неизвестный расход относительно нулевой базы.
+Sol отверг settlement по такому потоку. Узкий guard с заранее доказанным provider state мог бы
+аннулировать любой in-turn snapshot без прироста, но неизвестно, как публично подтвердить полноту и
+происхождение исходной базы; событие без прироста не отличает null usage от отсутствия новых трат
+или служебной публикации. Нет квалифицированной привязки к модели/epoch и поддерживаемого пути
+инициализации такой базы. Это только условный guard, не settlement contract. Receipts:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-public-snapshot-null-gap-20261020.json`
+(SHA-256 `810efd6528d1cdcdcb0d0283ac2a0877ae93bb5d049f56a136cddf88b42fff38`) и
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-public-snapshot-guard-review-20261020.json`
+(SHA-256 `3e082f264a19e92f11b3023556150613059e03ee186573080a9b1573bfa89f8e`). A03 остаётся
+fail-closed; неизвестный и поздний usage продолжает удерживать reservation.
 Найден отдельный условный parser gap: optional
 `cacheWriteInputTokens` сохраняется в raw receipt, но мешает canonical progress snapshot; реальная
 частота поля неизвестна. В конечном кандидате добавим синтетические варианты на 5 и 6 полей и
