@@ -42,9 +42,21 @@ LEAD_SCHEMA = {
         "decision": {"type": "string", "enum": ["approve", "blocked"]},
         "worker_brief": {"type": "string"},
         "rationale": {"type": "string"},
-        "contract_ack": {"type": "boolean"},
+        "contract_acks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "name": {"type": "string"},
+                    "version": {"type": "integer"},
+                    "contract_hash": {"type": "string"},
+                },
+                "required": ["name", "version", "contract_hash"],
+            },
+        },
     },
-    "required": ["decision", "worker_brief", "rationale", "contract_ack"],
+    "required": ["decision", "worker_brief", "rationale", "contract_acks"],
 }
 WORKER_SCHEMA = {
     "type": "object",
@@ -66,6 +78,107 @@ REVIEW_SCHEMA = {
     },
     "required": ["approved", "rationale", "findings"],
 }
+
+
+def _configured_contract_transitions(cfg, db):
+    """Persist exact configured proposals and retain their current publication state."""
+    contracts = cfg.get("contracts", {})
+    if type(contracts) is not dict or any(type(name) is not str for name in contracts):
+        raise StateError("contract configuration invalid")
+    resolved = []
+    for name, proposal in sorted(contracts.items()):
+        if (
+            not name.strip()
+            or type(proposal) is not dict
+            or type(proposal.get("version")) is not int
+            or type(proposal.get("producer")) is not str
+            or not proposal["producer"].strip()
+            or (
+                "producer_task_id" in proposal
+                and (
+                    type(proposal["producer_task_id"]) is not str
+                    or not proposal["producer_task_id"].strip()
+                )
+            )
+        ):
+            raise StateError("contract configuration invalid")
+        consumers = proposal.get("consumers", [proposal.get("consumer")])
+        if (
+            type(consumers) is not list
+            or not consumers
+            or any(type(team) is not str or not team.strip() for team in consumers)
+        ):
+            raise StateError("contract configuration invalid")
+        current = db.get_contract(name)
+        if current is None:
+            raise StateError("contract transition source contract missing")
+        transition = db.get_contract_transition(name, proposal["version"])
+        already_active = current["version"] == proposal["version"] and current["body"] == proposal
+        if transition is None and already_active:
+            continue  # Exact legacy publication without transition evidence.
+        if not already_active and current["version"] != proposal["version"] - 1:
+            raise StateError("contract transition source version is stale")
+        producer_task_id = proposal.get("producer_task_id")
+        if transition is not None and producer_task_id is None:
+            producer_task_id = transition["body"].get("producer_task_id")
+        if producer_task_id is None and name == "schema-validation":
+            # Preserve the original immutable deployment config during this migration.
+            producer_task_id = "EXP-001"
+        if type(producer_task_id) is not str or not producer_task_id.strip():
+            raise StateError("contract producer task identity unavailable")
+        transition = db.propose_contract_transition(
+            name,
+            proposal["version"] - 1,
+            proposal["version"],
+            proposal,
+            producer_task_id=producer_task_id,
+            producer_team=proposal["producer"],
+            consumer_teams=consumers,
+        )
+        resolved.append(
+            {
+                "name": name,
+                "version": proposal["version"],
+                "body": transition["body"],
+                "already_active": already_active,
+            }
+        )
+    return resolved
+
+
+def _validate_lead_contract_acks(value, *, team, transitions):
+    """Accept only distinct, exact-hash acknowledgements for proposals this team owns."""
+    if type(value) is not list or type(team) is not str:
+        raise ValueError("lead_contract_ack_shape")
+    allowed = {}
+    for transition in transitions:
+        body = transition["body"]
+        if team in [body["producer_team"], *body["consumer_teams"]]:
+            identity = (body["name"], body["to_version"], body["contract_hash"])
+            allowed[identity] = {
+                "name": identity[0],
+                "version": identity[1],
+                "contract_hash": identity[2],
+            }
+    accepted = []
+    seen = set()
+    for item in value:
+        if type(item) is not dict or set(item) != {"name", "version", "contract_hash"}:
+            raise ValueError("lead_contract_ack_shape")
+        if (
+            type(item["name"]) is not str
+            or type(item["version"]) is not int
+            or type(item["contract_hash"]) is not str
+        ):
+            raise ValueError("lead_contract_ack_shape")
+        identity = (item["name"], item["version"], item["contract_hash"])
+        if identity not in allowed or identity in seen:
+            raise ValueError("lead_contract_ack_unbound")
+        seen.add(identity)
+        accepted.append(allowed[identity])
+    return accepted
+
+
 RULES = """You are an independent Brain engineering team session. The organization
 controller, not any chief chat, owns your task and authority. Only the bounded
 task below is authorized. Do not access market data, protected datasets, owner
@@ -335,13 +448,31 @@ def run_attempt(state: Path, attempt_id: int):
             git(checkout, "checkout", "--detach", base)
         box = runner(state, checkout, scratch, task["scope"])
         tool = tool_function(box, checkout, heartbeat)
+        configured_transitions = _configured_contract_transitions(cfg, db)
+        team_transitions = [
+            item
+            for item in configured_transitions
+            if not item["already_active"]
+            and task["team"] in [item["body"]["producer_team"], *item["body"]["consumer_teams"]]
+        ]
         packet = {
             "task": task,
             "verification_plan": verification_plan.identity(),
             "effective_base": base,
             "python": cfg["python"],
             "contracts": {k: db.get_contract(k) for k in cfg["contracts"]},
-            "proposed_contracts": cfg["contracts"],
+            "proposed_contracts": [
+                {
+                    "name": item["name"],
+                    "version": item["version"],
+                    "contract_hash": item["body"]["contract_hash"],
+                    "producer_task_id": item["body"]["producer_task_id"],
+                    "producer_team": item["body"]["producer_team"],
+                    "consumer_teams": item["body"]["consumer_teams"],
+                    "body": item["body"]["body"],
+                }
+                for item in team_transitions
+            ],
             "prior_attempts": [
                 {"id": a["id"], "state": a["state"]} for a in db.list_attempts(task["id"])
             ],
@@ -384,10 +515,13 @@ def run_attempt(state: Path, attempt_id: int):
                 thread,
                 (
                     "Review the bounded task and relevant code if necessary. Decide its "
-                    "contract and worker acceptance. If a proposed interface affects your "
-                    "team, explicitly assess compatibility. Return JSON "
+                    "contract and worker acceptance. Review each item in proposed_contracts. "
+                    "If your team accepts a listed interface, return its exact name, version "
+                    "and contract_hash in contract_acks; return an empty list otherwise. "
+                    "You may acknowledge only proposals listing your team. Return JSON "
                     "{decision: approve|blocked, worker_brief: string, rationale: string, "
-                    "contract_ack: boolean}. Do not implement.\n"
+                    "contract_acks: [{name:string,version:integer,contract_hash:string}]}. "
+                    "Do not implement.\n"
                 )
                 + json.dumps(packet),
                 dispatch_id=f"attempt:{attempt_id}:lead",
@@ -416,13 +550,15 @@ def run_attempt(state: Path, attempt_id: int):
                 plan = structured(out["text"])
                 if (
                     not isinstance(plan, dict)
-                    or set(plan) != {"decision", "worker_brief", "rationale", "contract_ack"}
+                    or set(plan) != {"decision", "worker_brief", "rationale", "contract_acks"}
                     or plan["decision"] not in ("approve", "blocked")
                     or not isinstance(plan["worker_brief"], str)
                     or not isinstance(plan["rationale"], str)
-                    or type(plan["contract_ack"]) is not bool
                 ):
                     raise ValueError("lead_result_shape")
+                plan["contract_acks"] = _validate_lead_contract_acks(
+                    plan["contract_acks"], team=task["team"], transitions=team_transitions
+                )
             except Exception as exc:
                 lead.record_outcome(
                     f"attempt:{attempt_id}:lead", "failed", {"parser_error": type(exc).__name__}
@@ -435,42 +571,10 @@ def run_attempt(state: Path, attempt_id: int):
             )
             if plan.get("decision") != "approve":
                 raise RuntimeError("lead_blocked")
-            if plan.get("contract_ack") is True:
-                proposal = cfg["contracts"]["schema-validation"]
-                transition = db.get_contract_transition("schema-validation", proposal["version"])
-                if transition is None:
-                    current = db.get_contract("schema-validation")
-                    if current is None:
-                        raise StateError("contract transition source contract missing")
-                    if current["version"] == proposal["version"] and current["body"] == proposal:
-                        transition = None  # already active in a legacy database
-                    else:
-                        transition = db.propose_contract_transition(
-                            "schema-validation",
-                            proposal["version"] - 1,
-                            proposal["version"],
-                            proposal,
-                            producer_task_id="EXP-001",
-                            producer_team=proposal["producer"],
-                            consumer_teams=[proposal["consumer"]],
-                        )
-                if transition is not None:
-                    transition = db.propose_contract_transition(
-                        "schema-validation",
-                        proposal["version"] - 1,
-                        proposal["version"],
-                        proposal,
-                        producer_task_id="EXP-001",
-                        producer_team=proposal["producer"],
-                        consumer_teams=[proposal["consumer"]],
-                    )
-                if transition is not None:
-                    db.acknowledge_contract_transition(
-                        "schema-validation",
-                        proposal["version"],
-                        task["team"],
-                        transition["body"]["contract_hash"],
-                    )
+            for ack in plan["contract_acks"]:
+                db.acknowledge_contract_transition(
+                    ack["name"], ack["version"], task["team"], ack["contract_hash"]
+                )
         with metered_client(
             state,
             checkout,
@@ -984,62 +1088,10 @@ def reconcile(state, db):
 
 def activate_contract(state, db):
     """Reconcile configured contract transitions without coupling names or versions."""
-    contracts = config(state).get("contracts", {})
-    if type(contracts) is not dict:
-        raise StateError("contract configuration invalid")
-    for name, proposal in sorted(contracts.items()):
-        if (
-            type(name) is not str
-            or not name.strip()
-            or type(proposal) is not dict
-            or type(proposal.get("version")) is not int
-            or type(proposal.get("producer")) is not str
-            or not proposal["producer"].strip()
-            or (
-                "producer_task_id" in proposal
-                and (
-                    type(proposal["producer_task_id"]) is not str
-                    or not proposal["producer_task_id"].strip()
-                )
-            )
-        ):
-            raise StateError("contract configuration invalid")
-        consumers = proposal.get("consumers", [proposal.get("consumer")])
-        if (
-            type(consumers) is not list
-            or not consumers
-            or any(type(team) is not str or not team.strip() for team in consumers)
-        ):
-            raise StateError("contract configuration invalid")
-        current = db.get_contract(name)
-        if current is None:
-            raise StateError("contract transition source contract missing")
-        transition = db.get_contract_transition(name, proposal["version"])
-        if (
-            transition is None
-            and current["version"] == proposal["version"]
-            and current["body"] == proposal
-        ):
-            continue  # already active in a legacy database
-        producer_task_id = proposal.get("producer_task_id")
-        if transition is not None and producer_task_id is None:
-            producer_task_id = transition["body"].get("producer_task_id")
-        if producer_task_id is None and name == "schema-validation":
-            # Preserve the original immutable deployment config during this migration.
-            producer_task_id = "EXP-001"
-        if type(producer_task_id) is not str or not producer_task_id.strip():
-            raise StateError("contract producer task identity unavailable")
-        db.propose_contract_transition(
-            name,
-            proposal["version"] - 1,
-            proposal["version"],
-            proposal,
-            producer_task_id=producer_task_id,
-            producer_team=proposal["producer"],
-            consumer_teams=consumers,
-        )
+    transitions = _configured_contract_transitions(config(state), db)
+    for transition in transitions:
         try:
-            activated = db.activate_contract_transition(name, proposal["version"])
+            activated = db.activate_contract_transition(transition["name"], transition["version"])
         except StateError as exc:
             if str(exc) in {
                 "contract producer is not integrated",
@@ -1051,8 +1103,8 @@ def activate_contract(state, db):
             log_event(
                 state,
                 "contract_activated",
-                name=name,
-                version=proposal["version"],
+                name=transition["name"],
+                version=transition["version"],
                 agreement_hash=activated["body"]["contract_hash"],
             )
 

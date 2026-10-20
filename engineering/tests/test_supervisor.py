@@ -24,6 +24,7 @@ class FakeCodex:
 
     response = "{malformed"
     turn_estimates = []
+    turn_calls = []
     calls = []
 
     def __init__(self, *args, **kwargs):
@@ -40,6 +41,7 @@ class FakeCodex:
 
     def turn(self, *args, **kwargs):
         self.turn_estimates.append(kwargs.get("estimate", {}).get("tokens"))
+        self.turn_calls.append(args)
         return {"text": self.response, "usage": {"total": {"totalTokens": 3}}}
 
     def call(self, *args, **kwargs):
@@ -57,6 +59,7 @@ class SupervisorTests(unittest.TestCase):
         self.state = Path(self.temp.name)
         FakeCodex.response = "{malformed"
         FakeCodex.turn_estimates = []
+        FakeCodex.turn_calls = []
         FakeCodex.calls = []
         (self.state / "intents").mkdir()
         self.now = 1000.0
@@ -545,7 +548,7 @@ class SupervisorTests(unittest.TestCase):
                 "decision": "approve",
                 "worker_brief": "bounded",
                 "rationale": "settled",
-                "contract_ack": False,
+                "contract_acks": [],
             }
         )
         worker.response = "{malformed"
@@ -583,7 +586,7 @@ class SupervisorTests(unittest.TestCase):
                 "decision": "approve",
                 "worker_brief": None,
                 "rationale": 123,
-                "contract_ack": {},
+                "contract_acks": {},
             }
         )
         with (
@@ -606,7 +609,7 @@ class SupervisorTests(unittest.TestCase):
                 "decision": "approve",
                 "worker_brief": "bounded",
                 "rationale": "settled",
-                "contract_ack": False,
+                "contract_acks": [],
             }
         )
         worker.response = json.dumps({"summary": None, "tests": 17, "limitations": {}})
@@ -784,6 +787,14 @@ class SupervisorTests(unittest.TestCase):
             supervisor.activate_contract(self.state, self.db)
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
 
+    def test_contract_proposal_rejects_stale_source_version(self):
+        self.db.db.execute(
+            "UPDATE contracts SET version=?, body=? WHERE name=?",
+            (2, json.dumps({"meaning": "another v2"}), "schema-validation"),
+        )
+        with self.assertRaisesRegex(StateError, "source version is stale"):
+            supervisor._configured_contract_transitions(self.cfg, self.db)
+
     def test_lead_ack_creates_missing_transition_in_legacy_v1_database(self):
         self.cfg["contracts"]["schema-validation"] = {
             "meaning": "strict validation v2",
@@ -794,12 +805,22 @@ class SupervisorTests(unittest.TestCase):
         self.task("T", "Platform")
         attempt = self.db.claim("T", "worker", 100)
         lead, worker = FakeCodex(), FakeCodex()
+        proposal = self.cfg["contracts"]["schema-validation"]
+        contract_hash = hashlib.sha256(
+            json.dumps(proposal, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
         lead.response = json.dumps(
             {
                 "decision": "approve",
                 "worker_brief": "bounded",
                 "rationale": "reviewed v2",
-                "contract_ack": True,
+                "contract_acks": [
+                    {
+                        "name": "schema-validation",
+                        "version": 2,
+                        "contract_hash": contract_hash,
+                    }
+                ],
             }
         )
         worker.response = "{malformed"
@@ -825,6 +846,116 @@ class SupervisorTests(unittest.TestCase):
         ).fetchone()
         self.assertIsNotNone(ack)
         self.assertEqual(json.loads(ack[0])["team"], "Platform")
+
+    def test_lead_ack_routes_generic_contract_by_exact_identity_and_team(self):
+        proposal = {
+            "version": 2,
+            "producer": "Experience",
+            "producer_task_id": "EXP-002",
+            "consumers": ["Platform", "Research"],
+            "schema": "research-output-v2",
+        }
+        self.cfg["contracts"]["research-output"] = proposal
+        self.db.put_contract("research-output", 1, {"schema": "research-output-v1"})
+        self.task("T", "Research")
+        attempt = self.db.claim("T", "worker", 100)
+        contract_hash = hashlib.sha256(
+            json.dumps(proposal, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        lead, worker = FakeCodex(), FakeCodex()
+        lead.response = json.dumps(
+            {
+                "decision": "approve",
+                "worker_brief": "bounded",
+                "rationale": "reviewed research-output v2",
+                "contract_acks": [
+                    {
+                        "name": "research-output",
+                        "version": 2,
+                        "contract_hash": contract_hash,
+                    }
+                ],
+            }
+        )
+        worker.response = "{malformed"
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def fake_metered_client(*args, **kwargs):
+            yield lead if kwargs["context"]["role"] == "lead" else worker
+
+        with (
+            patch.object(supervisor, "metered_client", side_effect=fake_metered_client),
+            patch.object(supervisor, "runner", return_value=MagicMock()),
+            patch.object(supervisor, "git", return_value=" M src/example.py"),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+
+        transition = self.db.get_contract_transition("research-output", 2)
+        self.assertIsNotNone(transition)
+        ack = self.db.db.execute(
+            "SELECT body FROM decisions WHERE name LIKE 'contract-ack/%' ORDER BY name"
+        ).fetchall()
+        decoded = [json.loads(row[0]) for row in ack]
+        self.assertEqual(
+            decoded,
+            [
+                {
+                    "kind": "contract_acknowledgement",
+                    "name": "research-output",
+                    "version": 2,
+                    "team": "Research",
+                    "contract_hash": contract_hash,
+                }
+            ],
+        )
+        prompt = lead.turn_calls[0][1]
+        packet = json.loads(prompt.rsplit("\n", 1)[1])
+        self.assertEqual(
+            packet["proposed_contracts"],
+            [
+                {
+                    "name": "research-output",
+                    "version": 2,
+                    "contract_hash": contract_hash,
+                    "producer_task_id": "EXP-002",
+                    "producer_team": "Experience",
+                    "consumer_teams": ["Platform", "Research"],
+                    "body": proposal,
+                }
+            ],
+        )
+
+    def test_lead_contract_ack_validator_rejects_unknown_duplicate_and_nonparticipant(self):
+        transition = {
+            "body": {
+                "name": "research-output",
+                "to_version": 2,
+                "contract_hash": "a" * 64,
+                "producer_team": "Experience",
+                "consumer_teams": ["Platform", "Research"],
+            }
+        }
+        exact = {"name": "research-output", "version": 2, "contract_hash": "a" * 64}
+        self.assertEqual(
+            supervisor._validate_lead_contract_acks(
+                [exact], team="Research", transitions=[transition]
+            ),
+            [exact],
+        )
+        for team, acknowledgements in (
+            ("Research", [exact, exact]),
+            ("Experience", [{**exact, "contract_hash": "b" * 64}]),
+            ("Unrelated", [exact]),
+            ("Research", [{**exact, "version": True}]),
+        ):
+            with self.subTest(team=team, acknowledgements=acknowledgements):
+                with self.assertRaises(ValueError):
+                    supervisor._validate_lead_contract_acks(
+                        acknowledgements, team=team, transitions=[transition]
+                    )
 
     def test_activate_contract_accepts_exact_legacy_v2_without_creating_transition(self):
         proposal = self.cfg["contracts"]["schema-validation"]
