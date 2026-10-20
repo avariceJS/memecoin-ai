@@ -200,6 +200,14 @@ Sol отверг settlement по такому потоку. Узкий guard с 
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-public-snapshot-guard-review-20261020.json`
 (SHA-256 `3e082f264a19e92f11b3023556150613059e03ee186573080a9b1573bfa89f8e`). A03 остаётся
 fail-closed; неизвестный и поздний usage продолжает удерживать reservation.
+Core также сохраняет внутренние `TokenUsageRecord` с response ID и usage, включая известные
+incomplete расходы, когда есть и ID, и usage. Публичная проекция `thread/read` явно пропускает эти
+записи; list/read items возвращают только проекцию items, resume переигрывает агрегированный
+`TokenCount`. При null usage запись не создаётся, а сами записи не имеют dispatch/model/epoch и
+признака полноты. Sol независимо отверг этот путь как публичный или достаточный settlement source.
+Частные rollout-данные не читались. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-token-record-public-api-review-20261020.json`
+(SHA-256 `a72445772e0a4aabff3b59621deb881b30ebc8d0161164b22c1d7ba08a6a26e3`).
 Найден отдельный условный parser gap: optional
 `cacheWriteInputTokens` сохраняется в raw receipt, но мешает canonical progress snapshot; реальная
 частота поля неизвестна. В конечном кандидате добавим синтетические варианты на 5 и 6 полей и

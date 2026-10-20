@@ -36,6 +36,11 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   `terminal-usage-public-snapshot-null-gap-20261020.json`; independent follow-up:
   `terminal-usage-public-snapshot-guard-review-20261020.json`. A03 remains fail-closed. Correction
   receipt: `terminal-usage-schema-filter-correction-20261020.json`.
+  Internal per-response `TokenUsageRecord` is also not a route: public thread history omits the
+  record, resume replays only aggregate TokenCount, null usage creates no record, and record fields
+  lack dispatch/model/epoch/completeness. Sol rejected it as public or sufficient settlement evidence.
+  Receipt: `terminal-usage-token-record-public-api-review-20261020.json`; private rollout data was not
+  read.
 - Current-host native profile (21 checks) and OS confinement (27 checks) passed on Python 3.13.6 and
   pinned Codex CLI 0.163.0; adapter digest matches exact candidate `3c16388`. Receipts are
   `native-profile-qualification-20261020.json` and `confinement-qualification-20261020.json`. This

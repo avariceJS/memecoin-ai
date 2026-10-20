@@ -127,6 +127,15 @@ source. The source-only review is in
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-public-snapshot-guard-review-20261020.json`
 (SHA-256 `3e082f264a19e92f11b3023556150613059e03ee186573080a9b1573bfa89f8e`).
 
+Core also persists internal `TokenUsageRecord` rollout rows with response IDs and usage, including
+reported incomplete-response spending when both response ID and usage exist. The pinned public
+`thread/read` history projection explicitly ignores these rows; item list/read APIs return projected
+items, and resume replays only aggregate `TokenCount` state. Null usage creates no record, and these
+rows contain no dispatch/model/epoch or missing-response completeness marker. Sol independently
+rejected this as a public or sufficient internal settlement path. No private rollout data was read.
+Evidence: `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-token-record-public-api-review-20261020.json`
+(SHA-256 `a72445772e0a4aabff3b59621deb881b30ebc8d0161164b22c1d7ba08a6a26e3`).
+
 Sol also identified a conditional parser compatibility gap in `metered_codex.capture`: the generated
 schema permits an optional `cacheWriteInputTokens` counter, but canonicalization currently requires
 the counter object to contain exactly the five other known keys. When the optional sixth key is
