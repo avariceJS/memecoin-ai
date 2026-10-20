@@ -125,10 +125,7 @@ class Store:
         policy_sha256: str,
         admission: Any,
     ) -> str:
-        if (
-            type(policy_sha256) is not str
-            or re.fullmatch(r"[0-9a-f]{64}", policy_sha256) is None
-        ):
+        if type(policy_sha256) is not str or re.fullmatch(r"[0-9a-f]{64}", policy_sha256) is None:
             raise StateError("invalid_task_spec_policy_hash")
         if type(admission) is not dict:
             raise StateError("invalid_task_spec_admission")
@@ -151,13 +148,17 @@ class Store:
             proposed_id = None
         decision_name = "admission/task-spec/" + proposed_id if proposed_id else None
         with self._tx():
-            if proposed_id and self.db.execute(
-                "SELECT 1 FROM tasks WHERE id=?", (proposed_id,)
-            ).fetchone():
+            if (
+                proposed_id
+                and self.db.execute("SELECT 1 FROM tasks WHERE id=?", (proposed_id,)).fetchone()
+            ):
                 raise StateError("task_spec_duplicate")
-            if decision_name and self.db.execute(
-                "SELECT 1 FROM decisions WHERE name=?", (decision_name,)
-            ).fetchone():
+            if (
+                decision_name
+                and self.db.execute(
+                    "SELECT 1 FROM decisions WHERE name=?", (decision_name,)
+                ).fetchone()
+            ):
                 raise StateError("task_spec_duplicate")
             if (
                 type(spec) is dict
@@ -181,11 +182,12 @@ class Store:
                 raise
             task_id = canonical["id"]
             decision_name = "admission/task-spec/" + task_id
-            collision = self.db.execute(
-                "SELECT 1 FROM tasks WHERE id=?", (task_id,)
-            ).fetchone() or self.db.execute(
-                "SELECT 1 FROM decisions WHERE name=?", (decision_name,)
-            ).fetchone()
+            collision = (
+                self.db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone()
+                or self.db.execute(
+                    "SELECT 1 FROM decisions WHERE name=?", (decision_name,)
+                ).fetchone()
+            )
             if collision:
                 raise StateError("task_spec_duplicate")
             if not self.db.execute(

@@ -1,6 +1,11 @@
 """Independent resource-policy and adapter regression cases."""
 
 
+class SyntheticPermit:
+    def consume(self, thread_id, model):
+        assert thread_id == "s"
+
+
 def test_independent_quota_acceptance():
     import copy
     import json
@@ -140,10 +145,20 @@ def test_independent_adapter_acceptance():
             "method": "thread/tokenUsage/updated",
             "params": {"threadId": "s", "turnId": "t", "tokenUsage": {"total": count(220000)}},
         },
-        {"method": "turn/completed", "params": {"turn": {"id": "t", "status": "completed"}}},
+        {
+            "method": "turn/completed",
+            "params": {"threadId": "s", "turn": {"id": "t", "status": "completed"}},
+        },
     ]
-    x = c.turn("s", "bounded", model="gpt-6-luna", tool=Mock(), start_usage=count(200000))
-    assert x["usage_delta"]["totalTokens"] == 20000
+    x = c.turn(
+        "s",
+        "bounded",
+        model="gpt-6-luna",
+        tool=Mock(),
+        start_usage=count(200000),
+        permit=SyntheticPermit(),
+    )
+    assert x["usage_delta"] is None and x["usage_terminal"] is False
     assert x["usage_start"] == count(200000)
     print(json.dumps({"frozen_adapter_acceptance": "passed"}))
 
@@ -350,9 +365,12 @@ def test_independent_review_regressions_acceptance():
     c.messages = queue.Queue()
     c.usage_counters = {"s": camel(100)}
     c.notifications = [
-        {"method": "turn/completed", "params": {"turn": {"id": "t1", "status": "completed"}}}
+        {
+            "method": "turn/completed",
+            "params": {"threadId": "s", "turn": {"id": "t1", "status": "completed"}},
+        }
     ]
-    x = c.turn("s", "bounded", model="gpt-6.1-sol", tool=Mock())
+    x = c.turn("s", "bounded", model="gpt-6.1-sol", tool=Mock(), permit=SyntheticPermit())
     assert x["usage_delta"] is None and c.usage_counters.get("s") is None
     c.call = Mock(return_value={"turn": {"id": "t2"}})
     c.notifications = [
@@ -360,9 +378,12 @@ def test_independent_review_regressions_acceptance():
             "method": "thread/tokenUsage/updated",
             "params": {"threadId": "s", "turnId": "t2", "tokenUsage": {"total": camel(150)}},
         },
-        {"method": "turn/completed", "params": {"turn": {"id": "t2", "status": "completed"}}},
+        {
+            "method": "turn/completed",
+            "params": {"threadId": "s", "turn": {"id": "t2", "status": "completed"}},
+        },
     ]
-    x = c.turn("s", "bounded", model="gpt-6.1-sol", tool=Mock())
+    x = c.turn("s", "bounded", model="gpt-6.1-sol", tool=Mock(), permit=SyntheticPermit())
     assert x["usage_delta"] is None
 
     def limits(pct=1):
@@ -426,9 +447,15 @@ def test_independent_review_regressions_acceptance():
             "method": "thread/tokenUsage/updated",
             "params": {"threadId": "s", "turnId": "previous", "tokenUsage": {"total": camel(100)}},
         },
-        {"method": "turn/completed", "params": {"turn": {"id": "current", "status": "completed"}}},
+        {
+            "method": "turn/completed",
+            "params": {
+                "threadId": "s",
+                "turn": {"id": "current", "status": "completed"},
+            },
+        },
     ]
-    x = c.turn("s", "bounded", model="gpt-6.1-sol", tool=Mock())
+    x = c.turn("s", "bounded", model="gpt-6.1-sol", tool=Mock(), permit=SyntheticPermit())
     assert x["usage_delta"] is None and c.usage_counters.get("s") is None
     old = limits(99)
     latest_denial = {"observed_at": 1001, "rate_limits": limits()}

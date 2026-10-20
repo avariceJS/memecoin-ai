@@ -326,9 +326,7 @@ class SupervisorTests(unittest.TestCase):
             patch.object(supervisor, "process_identity", return_value="fake"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
-            patch.object(
-                supervisor.time, "monotonic", return_value=10.0
-            ),
+            patch.object(supervisor.time, "monotonic", return_value=10.0),
             patch.object(
                 supervisor.time, "sleep", side_effect=lambda _: (self.state / "STOP").touch()
             ),
@@ -356,9 +354,7 @@ class SupervisorTests(unittest.TestCase):
             supervisor.run_attempt(self.state, attempt["id"])
         self.assertEqual(self.db.get_task("T")["state"], "failed")
         self.assertEqual(self.db.list_attempts()[0]["state"], "failed")
-        self.assertEqual(
-            self.db.get_decision("circuit/controller-parse")["body"]["status"], "open"
-        )
+        self.assertEqual(self.db.get_decision("circuit/controller-parse")["body"]["status"], "open")
         self.assertEqual(
             self.db.get_decision("recovery-obligation/controller-parse")["body"]["status"],
             "open",
@@ -401,9 +397,7 @@ class SupervisorTests(unittest.TestCase):
         ):
             supervisor.run_attempt(self.state, attempt["id"])
         self.assertEqual(self.db.get_task("T")["state"], "failed")
-        self.assertEqual(
-            self.db.get_decision("circuit/controller-parse")["body"]["status"], "open"
-        )
+        self.assertEqual(self.db.get_decision("circuit/controller-parse")["body"]["status"], "open")
         self.assertFalse(any("commit" in args for args in calls))
         self.assertEqual(len(FakeCodex.turn_estimates), 2)
         self.assertTrue(all(0 < estimate <= 4000 for estimate in FakeCodex.turn_estimates))
@@ -427,9 +421,7 @@ class SupervisorTests(unittest.TestCase):
         ):
             supervisor.run_attempt(self.state, attempt["id"])
         self.assertEqual(self.db.get_task("T")["state"], "failed")
-        self.assertEqual(
-            self.db.get_decision("circuit/controller-parse")["body"]["status"], "open"
-        )
+        self.assertEqual(self.db.get_decision("circuit/controller-parse")["body"]["status"], "open")
         self.assertEqual(len(FakeCodex.turn_estimates), 1)
 
     def test_wrong_typed_worker_fields_open_circuit(self):
@@ -460,9 +452,7 @@ class SupervisorTests(unittest.TestCase):
         ):
             supervisor.run_attempt(self.state, attempt["id"])
         self.assertEqual(self.db.get_task("T")["state"], "failed")
-        self.assertEqual(
-            self.db.get_decision("circuit/controller-parse")["body"]["status"], "open"
-        )
+        self.assertEqual(self.db.get_decision("circuit/controller-parse")["body"]["status"], "open")
 
     def test_open_controller_circuit_stops_queued_attempt_before_dispatch(self):
         self.task("T")

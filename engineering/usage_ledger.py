@@ -58,92 +58,127 @@ def _json(v):
 
 _SCHEMA_COLUMNS = {
     "dispatches": (
-        ("dispatch_id", "TEXT", 0, 1), ("payload", "TEXT", 1, 0),
-        ("identity", "TEXT", 1, 0), ("model", "TEXT", 1, 0),
-        ("estimate_tokens", "REAL", 1, 0), ("estimate_wpu", "REAL", 1, 0),
-        ("deadline_at", "REAL", 1, 0), ("baseline", "TEXT", 0, 0),
-        ("provider_turn_id", "TEXT", 0, 0), ("status", "TEXT", 1, 0),
-        ("outcome", "TEXT", 0, 0), ("created_at", "REAL", 1, 0),
+        ("dispatch_id", "TEXT", 0, 1),
+        ("payload", "TEXT", 1, 0),
+        ("identity", "TEXT", 1, 0),
+        ("model", "TEXT", 1, 0),
+        ("estimate_tokens", "REAL", 1, 0),
+        ("estimate_wpu", "REAL", 1, 0),
+        ("deadline_at", "REAL", 1, 0),
+        ("baseline", "TEXT", 0, 0),
+        ("provider_turn_id", "TEXT", 0, 0),
+        ("status", "TEXT", 1, 0),
+        ("outcome", "TEXT", 0, 0),
+        ("created_at", "REAL", 1, 0),
         ("epoch", "TEXT", 0, 0),
     ),
     "events": (
-        ("event_id", "TEXT", 0, 1), ("identity", "TEXT", 1, 0),
-        ("epoch", "TEXT", 1, 0), ("sequence", "INTEGER", 1, 0),
-        ("counters", "TEXT", 1, 0), ("source", "TEXT", 1, 0),
-        ("observed_at", "REAL", 1, 0), ("event_at", "REAL", 0, 0),
-        ("parent_event_id", "TEXT", 0, 0), ("reason", "TEXT", 0, 0),
+        ("event_id", "TEXT", 0, 1),
+        ("identity", "TEXT", 1, 0),
+        ("epoch", "TEXT", 1, 0),
+        ("sequence", "INTEGER", 1, 0),
+        ("counters", "TEXT", 1, 0),
+        ("source", "TEXT", 1, 0),
+        ("observed_at", "REAL", 1, 0),
+        ("event_at", "REAL", 0, 0),
+        ("parent_event_id", "TEXT", 0, 0),
+        ("reason", "TEXT", 0, 0),
     ),
     "external_historical_unknown": (
-        ("event_id", "TEXT", 0, 1), ("counters", "TEXT", 1, 0),
-        ("collector_id", "TEXT", 1, 0), ("evidence_sha256", "TEXT", 1, 0),
+        ("event_id", "TEXT", 0, 1),
+        ("counters", "TEXT", 1, 0),
+        ("collector_id", "TEXT", 1, 0),
+        ("evidence_sha256", "TEXT", 1, 0),
         ("created_at", "REAL", 1, 0),
     ),
     "external_imports": (
-        ("collector_id", "TEXT", 1, 1), ("evidence_sha256", "TEXT", 1, 2),
-        ("evidence_bytes", "BLOB", 1, 0), ("imported_at", "REAL", 1, 0),
+        ("collector_id", "TEXT", 1, 1),
+        ("evidence_sha256", "TEXT", 1, 2),
+        ("evidence_bytes", "BLOB", 1, 0),
+        ("imported_at", "REAL", 1, 0),
     ),
     "interval_attributions": (
-        ("event_id", "TEXT", 0, 1), ("dispatch_id", "TEXT", 1, 0),
-        ("identity", "TEXT", 1, 0), ("epoch", "TEXT", 1, 0),
-        ("model", "TEXT", 1, 0), ("start_counters", "TEXT", 1, 0),
-        ("end_counters", "TEXT", 1, 0), ("evidence", "TEXT", 1, 0),
+        ("event_id", "TEXT", 0, 1),
+        ("dispatch_id", "TEXT", 1, 0),
+        ("identity", "TEXT", 1, 0),
+        ("epoch", "TEXT", 1, 0),
+        ("model", "TEXT", 1, 0),
+        ("start_counters", "TEXT", 1, 0),
+        ("end_counters", "TEXT", 1, 0),
+        ("evidence", "TEXT", 1, 0),
         ("created_at", "REAL", 1, 0),
     ),
     "outcomes": (
-        ("event_id", "TEXT", 0, 1), ("dispatch_id", "TEXT", 1, 0),
-        ("status", "TEXT", 1, 0), ("receipt", "TEXT", 0, 0),
+        ("event_id", "TEXT", 0, 1),
+        ("dispatch_id", "TEXT", 1, 0),
+        ("status", "TEXT", 1, 0),
+        ("receipt", "TEXT", 0, 0),
         ("observed_at", "REAL", 1, 0),
     ),
     "receipt_conflicts": (
-        ("conflict_id", "TEXT", 0, 1), ("event_id", "TEXT", 1, 0),
-        ("payload", "TEXT", 1, 0), ("observed_at", "REAL", 1, 0),
+        ("conflict_id", "TEXT", 0, 1),
+        ("event_id", "TEXT", 1, 0),
+        ("payload", "TEXT", 1, 0),
+        ("observed_at", "REAL", 1, 0),
     ),
     "receipts": (
-        ("event_id", "TEXT", 0, 1), ("dispatch_id", "TEXT", 1, 0),
-        ("provider_turn_id", "TEXT", 0, 0), ("source", "TEXT", 1, 0),
-        ("receipt", "TEXT", 0, 0), ("event_at", "REAL", 0, 0),
-        ("observed_at", "REAL", 1, 0), ("evidence", "TEXT", 1, 0),
+        ("event_id", "TEXT", 0, 1),
+        ("dispatch_id", "TEXT", 1, 0),
+        ("provider_turn_id", "TEXT", 0, 0),
+        ("source", "TEXT", 1, 0),
+        ("receipt", "TEXT", 0, 0),
+        ("event_at", "REAL", 0, 0),
+        ("observed_at", "REAL", 1, 0),
+        ("evidence", "TEXT", 1, 0),
     ),
     "registrations": (
-        ("identity", "TEXT", 1, 1), ("epoch", "TEXT", 1, 2),
-        ("model", "TEXT", 1, 0), ("baseline", "TEXT", 0, 0),
-        ("evidence", "TEXT", 1, 0), ("started", "INTEGER", 1, 0),
+        ("identity", "TEXT", 1, 1),
+        ("epoch", "TEXT", 1, 2),
+        ("model", "TEXT", 1, 0),
+        ("baseline", "TEXT", 0, 0),
+        ("evidence", "TEXT", 1, 0),
+        ("started", "INTEGER", 1, 0),
     ),
     "rpc_ingress": (
-        ("ingress_id", "TEXT", 0, 1), ("raw_bytes", "BLOB", 1, 0),
+        ("ingress_id", "TEXT", 0, 1),
+        ("raw_bytes", "BLOB", 1, 0),
         ("received_at", "REAL", 1, 0),
     ),
     "terminal_receipt_conflicts": (
-        ("conflict_id", "TEXT", 0, 1), ("dispatch_id", "TEXT", 1, 0),
-        ("evidence_sha256", "TEXT", 1, 0), ("evidence", "TEXT", 1, 0),
+        ("conflict_id", "TEXT", 0, 1),
+        ("dispatch_id", "TEXT", 1, 0),
+        ("evidence_sha256", "TEXT", 1, 0),
+        ("evidence", "TEXT", 1, 0),
         ("observed_at", "REAL", 1, 0),
     ),
     "terminal_receipts": (
-        ("dispatch_id", "TEXT", 0, 1), ("evidence_sha256", "TEXT", 1, 0),
-        ("evidence", "TEXT", 1, 0), ("observed_at", "REAL", 1, 0),
+        ("dispatch_id", "TEXT", 0, 1),
+        ("evidence_sha256", "TEXT", 1, 0),
+        ("evidence", "TEXT", 1, 0),
+        ("observed_at", "REAL", 1, 0),
     ),
     "turn_finishes": (
-        ("turn_id", "TEXT", 0, 1), ("end_counters", "TEXT", 1, 0),
-        ("receipt", "TEXT", 1, 0), ("failed", "INTEGER", 1, 0),
+        ("turn_id", "TEXT", 0, 1),
+        ("end_counters", "TEXT", 1, 0),
+        ("receipt", "TEXT", 1, 0),
+        ("failed", "INTEGER", 1, 0),
     ),
     "turns": (
-        ("turn_id", "TEXT", 0, 1), ("identity", "TEXT", 1, 0),
-        ("epoch", "TEXT", 1, 0), ("start_counters", "TEXT", 1, 0),
-        ("reservation_tokens", "REAL", 1, 0), ("reservation_wpu", "REAL", 1, 0),
-        ("deadline_at", "REAL", 1, 0), ("evidence", "TEXT", 1, 0),
+        ("turn_id", "TEXT", 0, 1),
+        ("identity", "TEXT", 1, 0),
+        ("epoch", "TEXT", 1, 0),
+        ("start_counters", "TEXT", 1, 0),
+        ("reservation_tokens", "REAL", 1, 0),
+        ("reservation_wpu", "REAL", 1, 0),
+        ("deadline_at", "REAL", 1, 0),
+        ("evidence", "TEXT", 1, 0),
     ),
 }
 _SCHEMA_FKS = {
-    "events": {
-        ("registrations", (("identity", "identity"), ("epoch", "epoch")))
-    },
-    "interval_attributions": {
-        ("registrations", (("identity", "identity"), ("epoch", "epoch")))
-    },
+    "events": {("registrations", (("identity", "identity"), ("epoch", "epoch")))},
+    "interval_attributions": {("registrations", (("identity", "identity"), ("epoch", "epoch")))},
     "turn_finishes": {("turns", (("turn_id", "turn_id"),))},
-    "turns": {
-        ("registrations", (("identity", "identity"), ("epoch", "epoch")))
-    },
+    "turns": {("registrations", (("identity", "identity"), ("epoch", "epoch")))},
 }
 _SCHEMA_UNIQUE = {
     "events": {("event_id",), ("parent_event_id",)},
@@ -245,18 +280,21 @@ class UsageLedger:
                 "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
             )
         }
-        if (version == 1 and not tables) or (tables and (
-            tables - known_tables
-            or not {
-                "registrations",
-                "events",
-                "turns",
-                "turn_finishes",
-                "dispatches",
-                "receipts",
-            }
-            <= tables
-        )):
+        if (version == 1 and not tables) or (
+            tables
+            and (
+                tables - known_tables
+                or not {
+                    "registrations",
+                    "events",
+                    "turns",
+                    "turn_finishes",
+                    "dispatches",
+                    "receipts",
+                }
+                <= tables
+            )
+        ):
             self.db.close()
             raise ValueError("usage_ledger_schema_unrecognized")
         required_columns = {

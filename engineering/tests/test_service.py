@@ -11,6 +11,8 @@ from unittest.mock import patch
 
 import pytest
 
+import engineering.service as service_module
+from engineering.org_state import Store
 from engineering.service import (
     LABEL,
     backup_snapshot,
@@ -18,8 +20,6 @@ from engineering.service import (
     restore_snapshot,
     validate_deployment,
 )
-import engineering.service as service_module
-from engineering.org_state import Store
 from engineering.usage_ledger import UsageLedger
 
 
@@ -333,8 +333,12 @@ def test_snapshot_rejects_promisor_remote_without_running_helper(tmp_path):
     )
     subprocess.run(
         [
-            "git", "-C", str(state / "integration"), "config",
-            "remote.origin.url", "auditprobe::repo",
+            "git",
+            "-C",
+            str(state / "integration"),
+            "config",
+            "remote.origin.url",
+            "auditprobe::repo",
         ],
         check=True,
     )

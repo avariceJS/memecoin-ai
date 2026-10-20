@@ -14,27 +14,50 @@ BASE = "b" * 40
 POLICY = "c" * 64
 SCOPE = ["engineering/org_state.py", "engineering/tests/test_task_spec_store.py"]
 SPEC = {
-    "schema": "brain-task-spec-v1", "id": "PLAT-010",
-    "objective_id": "offline-brain-engineering", "team": "Platform",
+    "schema": "brain-task-spec-v1",
+    "id": "PLAT-010",
+    "objective_id": "offline-brain-engineering",
+    "team": "Platform",
     "title": "Persist a bounded task spec atomically",
     "brief": "Store the validated synthetic task spec as immutable durable state.",
-    "base_sha": BASE, "scope": SCOPE, "dependencies": [],
+    "base_sha": BASE,
+    "scope": SCOPE,
+    "dependencies": [],
     "contracts": {"store-api": {"version": 1, "proposal_sha256": H}},
-    "risk": "low", "capabilities": ["offline_code", "synthetic_tests"],
+    "risk": "low",
+    "capabilities": ["offline_code", "synthetic_tests"],
     "resources": {"max_attempts": 2, "max_turn_seconds": 600, "estimated_wpu": 1},
     "acceptance": [{"id": "atomic-spec-store", "sha256": H}],
     "evidence_refs": ["synthetic-fixture:atomic-store"],
 }
-ENVELOPE = {"schema": "brain-task-envelope-v1", "objective_id": SPEC["objective_id"],
-    "teams": ["Platform"], "allowed_paths": SCOPE,
-    "capabilities": ["offline_code", "synthetic_tests"], "max_attempts": 3,
-    "max_turn_seconds": 600, "allowed_contracts": {"store-api": {"1": H}},
-    "base_sha": BASE, "risk_levels": ["low"]}
-REGISTRY = {"atomic-spec-store": {"sha256": H, "objective_id": SPEC["objective_id"],
-    "scope": SCOPE, "contracts": SPEC["contracts"], "independent": True,
-    "frozen": True, "risk": "low"}}
-ADMISSION = {"rationale": "Atomic storage is required before scheduler integration.",
-    "evidence": "The existing Store has no canonical task-spec persistence API."}
+ENVELOPE = {
+    "schema": "brain-task-envelope-v1",
+    "objective_id": SPEC["objective_id"],
+    "teams": ["Platform"],
+    "allowed_paths": SCOPE,
+    "capabilities": ["offline_code", "synthetic_tests"],
+    "max_attempts": 3,
+    "max_turn_seconds": 600,
+    "allowed_contracts": {"store-api": {"1": H}},
+    "base_sha": BASE,
+    "risk_levels": ["low"],
+}
+REGISTRY = {
+    "atomic-spec-store": {
+        "sha256": H,
+        "objective_id": SPEC["objective_id"],
+        "scope": SCOPE,
+        "contracts": SPEC["contracts"],
+        "independent": True,
+        "frozen": True,
+        "risk": "low",
+    }
+}
+ADMISSION = {
+    "rationale": "Atomic storage is required before scheduler integration.",
+    "evidence": "The existing Store has no canonical task-spec persistence API.",
+}
+
 
 class TaskSpecStoreTests(unittest.TestCase):
     def setUp(self):
@@ -49,9 +72,12 @@ class TaskSpecStoreTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def admit(self, **kwargs):
-        args = {"envelope": copy.deepcopy(ENVELOPE),
-            "acceptance_registry": copy.deepcopy(REGISTRY), "policy_sha256": POLICY,
-            "admission": copy.deepcopy(ADMISSION)}
+        args = {
+            "envelope": copy.deepcopy(ENVELOPE),
+            "acceptance_registry": copy.deepcopy(REGISTRY),
+            "policy_sha256": POLICY,
+            "admission": copy.deepcopy(ADMISSION),
+        }
         args.update(kwargs)
         return self.store.admit_task_spec(copy.deepcopy(SPEC), **args)
 
@@ -130,6 +156,7 @@ class TaskSpecStoreTests(unittest.TestCase):
         self.assertEqual(saved["admission"], ADMISSION)
         decision = self.store.get_decision("admission/task-spec/" + SPEC["id"], 1)
         self.assertEqual(decision["body"]["admission"], ADMISSION)
+
 
 if __name__ == "__main__":
     unittest.main()

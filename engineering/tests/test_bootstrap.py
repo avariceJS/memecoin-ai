@@ -29,9 +29,7 @@ class BootstrapTests(unittest.TestCase):
         self.git("-C", str(self.source), "commit", "-m", "synthetic source")
         head = self.git("-C", str(self.source), "rev-parse", "HEAD")
         self.git("-C", str(self.source), "update-ref", "refs/remotes/origin/main", head)
-        self.git(
-            "-C", str(self.source), "update-ref", "refs/remotes/origin/research/active", head
-        )
+        self.git("-C", str(self.source), "update-ref", "refs/remotes/origin/research/active", head)
         self.executable = self.root / "codex"
         self.executable.write_text("#!/bin/sh\nexit 0\n")
         self.executable.chmod(0o700)
@@ -68,9 +66,7 @@ class BootstrapTests(unittest.TestCase):
             cfg["codex_executable_sha256"], hashlib.sha256(self.executable.read_bytes()).hexdigest()
         )
         self.assertNotIn("codex_sha256", cfg)
-        self.assertEqual(
-            validate_deployment(state)["codex_executable"], self.executable.resolve()
-        )
+        self.assertEqual(validate_deployment(state)["codex_executable"], self.executable.resolve())
         ledger = UsageLedger(state / "usage-ledger.sqlite")
         try:
             self.assertEqual(ledger.db.execute("PRAGMA user_version").fetchone()[0], 1)

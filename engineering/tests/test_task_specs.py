@@ -104,17 +104,16 @@ class TaskSpecTests(unittest.TestCase):
             {"contracts": {"schema-validation": {"version": 10**5000, "proposal_sha256": H}}},
         )
         for update in cases:
-            with self.subTest(update=update.keys()), self.assertRaisesRegex(
-                ValueError, "^invalid_json_value$"
+            with (
+                self.subTest(update=update.keys()),
+                self.assertRaisesRegex(ValueError, "^invalid_json_value$"),
             ):
                 invoke({**SPEC, **update})
 
     def test_envelope_containers_are_checked_before_membership(self):
         for key, value in (("teams", None), ("risk_levels", 2)):
             envelope = {**ENVELOPE, key: value}
-            with self.subTest(key=key), self.assertRaisesRegex(
-                ValueError, "^invalid_envelope$"
-            ):
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "^invalid_envelope$"):
                 invoke(envelope=envelope)
 
     def test_existing_dependency_lists_and_targets_are_validated(self):
@@ -125,8 +124,9 @@ class TaskSpecTests(unittest.TestCase):
             "dependencies": [],
         }
         for value in ("CTX-002", {"target": "CTX-002"}, None):
-            with self.subTest(dependencies=value), self.assertRaisesRegex(
-                ValueError, "^invalid_existing_tasks$"
+            with (
+                self.subTest(dependencies=value),
+                self.assertRaisesRegex(ValueError, "^invalid_existing_tasks$"),
             ):
                 invoke(tasks=[{**good, "dependencies": value}])
         with self.assertRaisesRegex(ValueError, "^unknown_dependency$"):
@@ -175,11 +175,10 @@ class TaskSpecTests(unittest.TestCase):
     def test_registry_contract_versions_reject_bool_and_float(self):
         for version in (True, 2.0):
             registry = copy.deepcopy(REGISTRY)
-            registry["schema-shape-v2"]["contracts"]["schema-validation"][
-                "version"
-            ] = version
-            with self.subTest(version=version), self.assertRaisesRegex(
-                ValueError, "^untrusted_acceptance$"
+            registry["schema-shape-v2"]["contracts"]["schema-validation"]["version"] = version
+            with (
+                self.subTest(version=version),
+                self.assertRaisesRegex(ValueError, "^untrusted_acceptance$"),
             ):
                 invoke(registry=registry)
 

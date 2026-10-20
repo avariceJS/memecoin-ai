@@ -106,75 +106,102 @@ def _inventory(root: Path) -> dict[str, str]:
 
 _ORGANIZATION_SCHEMA = {
     "acceptances": (
-        ("task_id", "TEXT", 0, 1, None), ("sha", "TEXT", 1, 0, None),
-        ("attempt_id", "INTEGER", 1, 0, None), ("epoch", "INTEGER", 1, 0, None),
+        ("task_id", "TEXT", 0, 1, None),
+        ("sha", "TEXT", 1, 0, None),
+        ("attempt_id", "INTEGER", 1, 0, None),
+        ("epoch", "INTEGER", 1, 0, None),
     ),
     "attempts": (
-        ("id", "INTEGER", 0, 1, None), ("task_id", "TEXT", 1, 0, None),
-        ("epoch", "INTEGER", 1, 0, None), ("worker", "TEXT", 1, 0, None),
-        ("lease_until", "REAL", 1, 0, None), ("state", "TEXT", 1, 0, None),
+        ("id", "INTEGER", 0, 1, None),
+        ("task_id", "TEXT", 1, 0, None),
+        ("epoch", "INTEGER", 1, 0, None),
+        ("worker", "TEXT", 1, 0, None),
+        ("lease_until", "REAL", 1, 0, None),
+        ("state", "TEXT", 1, 0, None),
         ("session", "TEXT", 0, 0, None),
     ),
     "candidates": (
-        ("task_id", "TEXT", 1, 1, None), ("sha", "TEXT", 1, 2, None),
-        ("attempt_id", "INTEGER", 1, 0, None), ("epoch", "INTEGER", 1, 0, None),
+        ("task_id", "TEXT", 1, 1, None),
+        ("sha", "TEXT", 1, 2, None),
+        ("attempt_id", "INTEGER", 1, 0, None),
+        ("epoch", "INTEGER", 1, 0, None),
         ("evidence", "TEXT", 1, 0, None),
     ),
     "contracts": (
-        ("name", "TEXT", 1, 1, None), ("version", "INTEGER", 1, 2, None),
+        ("name", "TEXT", 1, 1, None),
+        ("version", "INTEGER", 1, 2, None),
         ("body", "TEXT", 1, 0, None),
     ),
     "decisions": (
-        ("name", "TEXT", 1, 1, None), ("version", "INTEGER", 1, 2, None),
-        ("body", "TEXT", 1, 0, None), ("replaces", "TEXT", 0, 0, None),
+        ("name", "TEXT", 1, 1, None),
+        ("version", "INTEGER", 1, 2, None),
+        ("body", "TEXT", 1, 0, None),
+        ("replaces", "TEXT", 0, 0, None),
         ("replaces_version", "INTEGER", 0, 0, None),
     ),
     "events": (
-        ("seq", "INTEGER", 0, 1, None), ("at", "REAL", 1, 0, None),
-        ("kind", "TEXT", 1, 0, None), ("entity", "TEXT", 1, 0, None),
+        ("seq", "INTEGER", 0, 1, None),
+        ("at", "REAL", 1, 0, None),
+        ("kind", "TEXT", 1, 0, None),
+        ("entity", "TEXT", 1, 0, None),
         ("body", "TEXT", 1, 0, None),
     ),
     "integrations": (
-        ("task_id", "TEXT", 0, 1, None), ("sha", "TEXT", 1, 0, None),
-        ("integration_sha", "TEXT", 1, 0, None), ("details", "TEXT", 1, 0, None),
+        ("task_id", "TEXT", 0, 1, None),
+        ("sha", "TEXT", 1, 0, None),
+        ("integration_sha", "TEXT", 1, 0, None),
+        ("details", "TEXT", 1, 0, None),
     ),
     "objectives": (
-        ("id", "TEXT", 0, 1, None), ("title", "TEXT", 1, 0, None),
+        ("id", "TEXT", 0, 1, None),
+        ("title", "TEXT", 1, 0, None),
         ("brief", "TEXT", 1, 0, None),
     ),
     "task_specs": (
-        ("task_id", "TEXT", 0, 1, None), ("body", "TEXT", 1, 0, None),
-        ("policy_sha256", "TEXT", 1, 0, None), ("admission", "TEXT", 1, 0, None),
+        ("task_id", "TEXT", 0, 1, None),
+        ("body", "TEXT", 1, 0, None),
+        ("policy_sha256", "TEXT", 1, 0, None),
+        ("admission", "TEXT", 1, 0, None),
         ("decision_name", "TEXT", 1, 0, None),
         ("decision_version", "INTEGER", 1, 0, None),
     ),
     "tasks": (
-        ("id", "TEXT", 0, 1, None), ("team", "TEXT", 1, 0, None),
-        ("title", "TEXT", 1, 0, None), ("brief", "TEXT", 1, 0, None),
-        ("scope", "TEXT", 1, 0, None), ("acceptance", "TEXT", 1, 0, None),
-        ("dependencies", "TEXT", 1, 0, None), ("contracts", "TEXT", 1, 0, None),
-        ("base_sha", "TEXT", 1, 0, None), ("objective_id", "TEXT", 0, 0, None),
-        ("max_attempts", "INTEGER", 1, 0, None), ("state", "TEXT", 1, 0, "'pending'"),
-        ("epoch", "INTEGER", 1, 0, "0"), ("active_attempt", "INTEGER", 0, 0, None),
+        ("id", "TEXT", 0, 1, None),
+        ("team", "TEXT", 1, 0, None),
+        ("title", "TEXT", 1, 0, None),
+        ("brief", "TEXT", 1, 0, None),
+        ("scope", "TEXT", 1, 0, None),
+        ("acceptance", "TEXT", 1, 0, None),
+        ("dependencies", "TEXT", 1, 0, None),
+        ("contracts", "TEXT", 1, 0, None),
+        ("base_sha", "TEXT", 1, 0, None),
+        ("objective_id", "TEXT", 0, 0, None),
+        ("max_attempts", "INTEGER", 1, 0, None),
+        ("state", "TEXT", 1, 0, "'pending'"),
+        ("epoch", "INTEGER", 1, 0, "0"),
+        ("active_attempt", "INTEGER", 0, 0, None),
         ("candidate_sha", "TEXT", 0, 0, None),
     ),
     "usage": (
-        ("id", "INTEGER", 0, 1, None), ("attempt_id", "INTEGER", 1, 0, None),
-        ("epoch", "INTEGER", 1, 0, None), ("body", "TEXT", 1, 0, None),
+        ("id", "INTEGER", 0, 1, None),
+        ("attempt_id", "INTEGER", 1, 0, None),
+        ("epoch", "INTEGER", 1, 0, None),
+        ("body", "TEXT", 1, 0, None),
     ),
     "verifications": (
-        ("id", "INTEGER", 0, 1, None), ("task_id", "TEXT", 1, 0, None),
-        ("sha", "TEXT", 1, 0, None), ("attempt_id", "INTEGER", 1, 0, None),
-        ("epoch", "INTEGER", 1, 0, None), ("passed", "INTEGER", 1, 0, None),
+        ("id", "INTEGER", 0, 1, None),
+        ("task_id", "TEXT", 1, 0, None),
+        ("sha", "TEXT", 1, 0, None),
+        ("attempt_id", "INTEGER", 1, 0, None),
+        ("epoch", "INTEGER", 1, 0, None),
+        ("passed", "INTEGER", 1, 0, None),
         ("details", "TEXT", 1, 0, None),
     ),
 }
 _ORGANIZATION_FOREIGN_KEYS = {
     "acceptances": {("tasks", (("task_id", "id"),))},
     "attempts": {("tasks", (("task_id", "id"),))},
-    "candidates": {
-        ("attempts", (("attempt_id", "id"),)), ("tasks", (("task_id", "id"),))
-    },
+    "candidates": {("attempts", (("attempt_id", "id"),)), ("tasks", (("task_id", "id"),))},
     "integrations": {("tasks", (("task_id", "id"),))},
     "task_specs": {("tasks", (("task_id", "id"),))},
     "tasks": {("objectives", (("objective_id", "id"),))},
@@ -195,10 +222,7 @@ _ORGANIZATION_UNIQUE = {
 
 def _assert_no_running_attempts(database: Path) -> None:
     with sqlite3.connect(database) as db:
-        tables = {
-            row[0]
-            for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        }
+        tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if tables != set(_ORGANIZATION_SCHEMA):
             raise ValueError("snapshot_organization_schema")
         for table, expected_columns in _ORGANIZATION_SCHEMA.items():
@@ -237,9 +261,7 @@ def _assert_no_running_attempts(database: Path) -> None:
         try:
             if db.execute("PRAGMA foreign_key_check").fetchone():
                 raise ValueError("snapshot_organization_integrity")
-            running = db.execute(
-                "SELECT 1 FROM attempts WHERE state='running' LIMIT 1"
-            ).fetchone()
+            running = db.execute("SELECT 1 FROM attempts WHERE state='running' LIMIT 1").fetchone()
         except sqlite3.DatabaseError as exc:
             raise ValueError("snapshot_organization_schema") from exc
         if running:
@@ -270,9 +292,7 @@ def _validate_integration_repository(repository: Path) -> None:
     }
     try:
         config = subprocess.run(
-            [
-                "git", "-C", str(repository), "config", "--local", "--null", "--list"
-            ],
+            ["git", "-C", str(repository), "config", "--local", "--null", "--list"],
             capture_output=True,
             check=False,
             env=environment,

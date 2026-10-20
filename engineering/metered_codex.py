@@ -12,7 +12,6 @@ from pathlib import Path
 
 from .usage_ledger import UsageLedger
 
-
 _USAGE_TOTAL_KEYS = {
     "inputTokens": "input_tokens",
     "cachedInputTokens": "cached_input_tokens",
