@@ -86,13 +86,15 @@ was made. Sol independently accepted the first receipt only as static schema/sou
 rejected terminal-settlement qualification: those identifiers do not prove same-epoch dispatch/model
 attribution, finality, event ordering, completeness, or late-correction handling. A follow-up
 read-only probe of the same pinned CLI found `rawResponse/completed`, whose schema carries
-`responseId`, `threadId`, `turnId`, and per-response usage or `null`. However, pinned
-`ThreadStartParams` has no `experimentalRawEvents` opt-in, `TurnCompletedNotification` has no usage
-field, and the raw-response schema has no dispatch/model/epoch binding. No runtime emission or
-completeness/order behavior was exercised. This is a promising source lead, not a qualified
-settlement source. Exact schema hashes and limitations are in the follow-up receipt named below.
-Until a reviewed pin/API supports emission and the full binding/completeness contract is proven,
-ORG-A03 stays fail-closed. Unknown usage remains reserved; `turn/completed` remains lifecycle-only.
+`responseId`, `threadId`, `turnId`, and per-response usage or `null`. The first follow-up schema export omitted `experimentalRawEvents` because it used the default
+experimental-field filter. A corrected read-only export with `--experimental` confirms that exact
+pinned v0.163.0 includes the boolean opt-in, but its schema description says it is for internal use
+only; the `RawResponseCompletedNotification` schema is itself described as internal-only. The raw
+payload has no dispatch/model/epoch binding, and no runtime emission or completeness/order behavior
+was exercised. This is not an authorized owner-adapter source. Exact default and experimental schema
+hashes are in the correction receipt below. Until a reviewed supported interface establishes the
+full binding/completeness contract, ORG-A03 stays fail-closed. Unknown usage remains reserved;
+`turn/completed` remains lifecycle-only.
 
 Sol also identified a conditional parser compatibility gap in `metered_codex.capture`: the generated
 schema permits an optional `cacheWriteInputTokens` counter, but canonicalization currently requires
@@ -115,19 +117,23 @@ The immutable read-only schema/source receipt is stored outside Git at
 The follow-up raw-response schema probe is stored separately at
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-raw-response-source-probe-20261020.json`
 (SHA-256 `b4372bd744c4f3c61a71410df99e25eba101439959b13e939a43847b6642cf05`); the earlier receipt
-remains unchanged.
+remains unchanged. The earlier no-`--experimental` schema omission is corrected by
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-schema-filter-correction-20261020.json`
+(SHA-256 `89ef2e6a6017b5dd9a6bff446742a3263e43238e4e298c3c2084e927903e1640`); it does not authorize
+using the internal-only stream.
 
 A follow-up comparison against official Codex source closes two apparent alternatives. Stable
-v0.163.0 does not expose `experimentalRawEvents`; v0.164.0-alpha.7 adds the field but labels it
-experimental and internal-only, and `rawResponse/completed` itself is documented as internal-only.
+v0.163.0 contains `experimentalRawEvents` in its experimental schema, but labels the opt-in and
+`rawResponse/completed` internal-only. The v0.164.0-alpha.7 prerelease carries the same internal-only
+restriction.
 The stable `codex exec --json` exporter stores the latest `thread/tokenUsage/updated` snapshot and
 copies its cumulative `tokenUsage.total` into successful `turn.completed`; missing snapshots become
 zero usage, while failed and interrupted turns do not carry terminal usage. That output is not
 independent terminal evidence and does not establish same-dispatch/model/epoch completeness. No
 binary was downloaded and no internal opt-in or provider request was used. A03 remains fail-closed.
-The read-only source comparison is recorded at
+The original read-only source-comparison receipt remains immutable at
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-contract-review-20261020.json`
-(SHA-256 `f414ecb8a9bb9576d8a3e33d3cc32e3d5017722718f56c97ece6790b732f3aff`).
+(SHA-256 `f414ecb8a9bb9576d8a3e33d3cc32e3d5017722718f56c97ece6790b732f3aff`); its claim that v0.163.0 lacked the opt-in is superseded by the schema-filter correction receipt above.
 
 The exact `d4d6590` service code also passed a direct end-to-end synthetic run of
 `test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts`: it created a complete checkpoint,

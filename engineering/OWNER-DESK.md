@@ -161,19 +161,22 @@ Sol принял receipt только как static correlation и отклон�
 порядок, полнота и привязка к модели, dispatch и epoch не доказаны. Release остаётся blocked,
 неизвестный usage зарезервирован. Дополнительная read-only проверка закреплённого CLI нашла
 `rawResponse/completed` с `responseId`/`threadId`/`turnId` и точным upstream usage либо `null`, но
-его `ThreadStartParams` не содержит opt-in `experimentalRawEvents`; выдача, порядок и полнота не
-подтверждены. Сам payload также не связывает запись с dispatch/model/epoch. Это источник для
-дальнейшей квалификации, не разрешение settlement. `turn/completed` остаётся только событием
-жизненного цикла, неизвестный usage резервируется. Подробный probe receipt:
+первая схема была сгенерирована без `--experimental` и скрыла opt-in фильтром, а не потому, что
+его нет в pinned бинарнике. Исправленный экспорт схемы v0.163.0 с `--experimental` показывает
+`experimentalRawEvents` и помечает его internal-only; `RawResponseCompletedNotification` тоже
+помечен internal-only. Эмиссия, порядок и полнота не проверялись; payload не связывает запись с
+dispatch/model/epoch. Это не разрешённый owner-adapter источник. Подробный probe receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-raw-response-source-probe-20261020.json`.
-Сверка official source закрыла две альтернативы: `0.164.0-alpha.7` добавляет `experimentalRawEvents`,
-но помечает его internal-only; `rawResponse/completed` также internal-only. Стабильный
-`codex exec --json` экспортирует последний progress snapshot `thread/tokenUsage/updated` как
-cumulative `usage` только при успешном `turn/completed`; отсутствующий snapshot превращается в
-нулевой объект, а failed/interrupted не дают терминального usage. Это не независимая terminal
-квитанция. Pin и adapter не менялись, internal opt-in не включался. Receipt:
-`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-contract-review-20261020.json`
-(SHA-256 `f414ecb8a9bb9576d8a3e33d3cc32e3d5017722718f56c97ece6790b732f3aff`). A03 остаётся fail-closed.
+Сверка official source подтвердила: в pinned v0.163.0 поле есть в experimental schema, но оно
+помечено internal-only; `rawResponse/completed` также internal-only. Первая отрицательная находка
+была следствием schema filtering при отсутствии `--experimental`. Корректирующий receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-schema-filter-correction-20261020.json`
+(SHA-256 `89ef2e6a6017b5dd9a6bff446742a3263e43238e4e298c3c2084e927903e1640`).
+Стабильный `codex exec --json` экспортирует последний progress snapshot
+`thread/tokenUsage/updated` как cumulative `usage` только при успешном `turn/completed`; при
+отсутствующем snapshot usage становится нулевым, а failed/interrupted не дают terminal usage.
+Это не независимая terminal квитанция. Pin и adapter не менялись, internal opt-in не включался;
+A03 остаётся fail-closed.
 Найден отдельный условный parser gap: optional
 `cacheWriteInputTokens` сохраняется в raw receipt, но мешает canonical progress snapshot; реальная
 частота поля неизвестна. В конечном кандидате добавим синтетические варианты на 5 и 6 полей и

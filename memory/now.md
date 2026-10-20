@@ -17,16 +17,12 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   settlement qualification. `thread/tokenUsage/updated` lacks proven finality/order/completeness and
   dispatch/model/epoch binding; account usage is estimated and aggregate. A conditional six-field
   parser gap exists for optional `cacheWriteInputTokens`; see the canonical organization document.
-- Follow-up read-only schema probe found `rawResponse/completed` in pinned CLI 0.163.0 with
-  per-response IDs and exact usage-or-null, but pinned `ThreadStartParams` has no
-  `experimentalRawEvents` opt-in and the payload lacks dispatch/model/epoch binding. Emission and
-  completeness remain unqualified; A03 stays fail-closed. Receipt:
-  `terminal-usage-raw-response-source-probe-20261020.json` in the external resumption handoff.
-- Upstream comparison found the opt-in only in prerelease 0.164.0-alpha.7, explicitly experimental
-  and internal-only. Stable `codex exec --json` copies the last progress snapshot's cumulative total
-  into successful `turn.completed`; missing data defaults to zero, and failed/interrupted outcomes
-  omit usage. It is not an independent terminal source. Pin and adapter remain unchanged; receipt:
-  `terminal-usage-source-contract-review-20261020.json` in external state.
+- Corrected the raw-event schema probe: the first default schema export filtered out
+  `experimentalRawEvents`; exact pinned v0.163.0 `--experimental` schema includes it, but marks both
+  opt-in and `RawResponseCompletedNotification` internal-only. Payload still lacks dispatch/model/epoch;
+  no runtime emission/completeness was exercised. Stable `codex exec --json` re-exports progress
+  snapshot totals on successful completion and is not an independent terminal source. A03 remains
+  fail-closed. Correction receipt: `terminal-usage-schema-filter-correction-20261020.json`.
 - The parser now preserves that optional field in raw evidence and normalizes only the five canonical
   counters. Exact candidate `3c16388` passed the pinned engineering release target using Python
   3.13.6 and the already-installed external venv: Ruff lint/format and pytest (251 tests, 42 subtests).
