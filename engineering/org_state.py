@@ -147,6 +147,36 @@ class Store:
             entity TEXT NOT NULL, body TEXT NOT NULL);
           CREATE INDEX IF NOT EXISTS idx_tasks_state_id ON tasks(state,id);
         """)
+        self.db.executescript("""
+          CREATE TABLE IF NOT EXISTS quiescence_revision(
+            id INTEGER PRIMARY KEY CHECK(id=1), value INTEGER NOT NULL);
+          INSERT OR IGNORE INTO quiescence_revision(id,value) VALUES(1,0);
+          CREATE TRIGGER IF NOT EXISTS quiescence_tasks_insert
+            AFTER INSERT ON tasks BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_tasks_update
+            AFTER UPDATE ON tasks BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_tasks_delete
+            AFTER DELETE ON tasks BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contracts_insert
+            AFTER INSERT ON contracts BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contracts_update
+            AFTER UPDATE ON contracts BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contracts_delete
+            AFTER DELETE ON contracts BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+        """)
+        self._issued_quiescence_snapshot_sha256: bytes | None = None
 
     def admit_task_spec(
         self,
@@ -538,8 +568,12 @@ class Store:
     def quiescence_snapshot(self) -> dict:
         """Return task identity and readiness from one coherent read snapshot."""
         with self._read_snapshot():
+            revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
             tasks = self.list_tasks()
-            return {
+            snapshot = {
+                "revision": revision,
                 "tasks": [
                     {
                         "task_id": task["id"],
@@ -550,6 +584,10 @@ class Store:
                 ],
                 "readiness": self._readiness_report_in_snapshot(),
             }
+            self._issued_quiescence_snapshot_sha256 = hashlib.sha256(
+                _json(snapshot).encode("utf-8")
+            ).digest()
+            return snapshot
 
     def record_quiescence_handoff_if_current(
         self, fingerprint: Any, expected_snapshot: Any, body: Any
@@ -561,7 +599,9 @@ class Store:
         body = _lifecycle_snapshot(body)
         if (
             type(expected_snapshot) is not dict
-            or set(expected_snapshot) != {"tasks", "readiness"}
+            or set(expected_snapshot) != {"revision", "tasks", "readiness"}
+            or type(expected_snapshot.get("revision")) is not int
+            or expected_snapshot["revision"] < 0
             or type(body) is not dict
             or set(body) != {"owner", "status", "reason", "resource_reason", "fingerprint"}
             or body.get("owner") != "Sol"
@@ -585,21 +625,16 @@ class Store:
         expected_fingerprint = hashlib.sha256(_json(identity).encode("utf-8")).hexdigest()
         if fingerprint != expected_fingerprint:
             raise StateError("quiescence handoff fingerprint mismatch")
+        expected_snapshot_sha256 = hashlib.sha256(_json(expected_snapshot).encode("utf-8")).digest()
         name = "sol-handoff/" + fingerprint
         with self._tx():
-            current_tasks = self.list_tasks()
-            current_snapshot = {
-                "tasks": [
-                    {
-                        "task_id": task["id"],
-                        "state": task["state"],
-                        "candidate_sha": task["candidate_sha"],
-                    }
-                    for task in current_tasks
-                ],
-                "readiness": self._readiness_report_in_snapshot(),
-            }
-            if _json(current_snapshot) != _json(expected_snapshot):
+            current_revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            if (
+                self._issued_quiescence_snapshot_sha256 != expected_snapshot_sha256
+                or current_revision != expected_snapshot["revision"]
+            ):
                 return False
             existing = self.get_decision(name)
             if existing is not None:

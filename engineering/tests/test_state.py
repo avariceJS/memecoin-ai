@@ -112,6 +112,59 @@ class StateTests(unittest.TestCase):
         with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
             self.store.put_decision("sol-handoff/" + digest, exact_body)
 
+    def test_quiescence_revision_rechecks_without_rebuilding_retained_task_snapshot(self):
+        self.task("stable")
+        snapshot = self.store.quiescence_snapshot()
+        self.assertEqual(snapshot["revision"], 1)
+        body = {
+            "owner": "Sol",
+            "status": "requested",
+            "reason": "catalogue-exhausted",
+            "resource_reason": "synthetic",
+        }
+        identity = {
+            "snapshot": snapshot,
+            "resource_reason": body["resource_reason"],
+            "reason": body["reason"],
+        }
+        digest = hashlib.sha256(
+            json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        exact_body = {**body, "fingerprint": digest}
+
+        with patch.object(self.store, "list_tasks", side_effect=AssertionError("full scan")):
+            self.assertTrue(
+                self.store.record_quiescence_handoff_if_current(digest, snapshot, exact_body)
+            )
+
+        before = self.store.quiescence_snapshot()["revision"]
+        self.store.db.execute("UPDATE tasks SET candidate_sha='changed' WHERE id='stable'")
+        after = self.store.quiescence_snapshot()["revision"]
+        self.assertEqual(after, before + 1)
+
+    def test_quiescence_handoff_rejects_modified_issued_snapshot(self):
+        snapshot = self.store.quiescence_snapshot()
+        forged = {**snapshot, "readiness": [{"task_id": "invented", "eligible": True}]}
+        body = {
+            "owner": "Sol",
+            "status": "requested",
+            "reason": "catalogue-exhausted",
+            "resource_reason": "synthetic",
+        }
+        identity = {
+            "snapshot": forged,
+            "resource_reason": body["resource_reason"],
+            "reason": body["reason"],
+        }
+        digest = hashlib.sha256(
+            json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        self.assertFalse(
+            self.store.record_quiescence_handoff_if_current(
+                digest, forged, {**body, "fingerprint": digest}
+            )
+        )
+
     def test_quiescence_handoff_rechecks_snapshot_after_second_connection_lock_wait(self):
         snapshot = self.store.quiescence_snapshot()
         body = {

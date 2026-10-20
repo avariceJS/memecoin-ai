@@ -157,6 +157,10 @@ _ORGANIZATION_SCHEMA = {
         ("title", "TEXT", 1, 0, None),
         ("brief", "TEXT", 1, 0, None),
     ),
+    "quiescence_revision": (
+        ("id", "INTEGER", 0, 1, None),
+        ("value", "INTEGER", 1, 0, None),
+    ),
     "task_specs": (
         ("task_id", "TEXT", 0, 1, None),
         ("body", "TEXT", 1, 0, None),
@@ -218,14 +222,23 @@ _ORGANIZATION_UNIQUE = {
     "task_specs": {("task_id",)},
     "tasks": {("id",)},
 }
+_LEGACY_ORGANIZATION_SCHEMA_V2 = {
+    table: columns
+    for table, columns in _ORGANIZATION_SCHEMA.items()
+    if table != "quiescence_revision"
+}
 
 
 def _assert_no_running_attempts(database: Path) -> None:
     with sqlite3.connect(database) as db:
         tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        if tables != set(_ORGANIZATION_SCHEMA):
+        if tables == set(_ORGANIZATION_SCHEMA):
+            schema = _ORGANIZATION_SCHEMA
+        elif tables == set(_LEGACY_ORGANIZATION_SCHEMA_V2):
+            schema = _LEGACY_ORGANIZATION_SCHEMA_V2
+        else:
             raise ValueError("snapshot_organization_schema")
-        for table, expected_columns in _ORGANIZATION_SCHEMA.items():
+        for table, expected_columns in schema.items():
             columns = tuple(
                 (row[1], row[2].upper(), row[3], row[5], row[4])
                 for row in db.execute(f"PRAGMA table_info({table})")

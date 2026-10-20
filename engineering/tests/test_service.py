@@ -126,6 +126,31 @@ def test_plist_is_fixed_bounded_and_does_not_install(tmp_path):
         launch_agent_plist(state, max_seconds=14401)
 
 
+def test_snapshot_validator_accepts_and_store_migrates_previous_v2_schema(tmp_path):
+    state = deployment(tmp_path)
+    database = state / "organization.sqlite"
+    with sqlite3.connect(database) as db:
+        triggers = [
+            row[0]
+            for row in db.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'quiescence_%'"
+            )
+        ]
+        for trigger in triggers:
+            db.execute(f'DROP TRIGGER "{trigger}"')
+        db.execute("DROP TABLE quiescence_revision")
+
+    service_module._assert_no_running_attempts(database)
+    migrated = Store(database)
+    try:
+        before = migrated.quiescence_snapshot()["revision"]
+        migrated.db.execute("UPDATE tasks SET candidate_sha='changed' WHERE id='synthetic'")
+        after = migrated.quiescence_snapshot()["revision"]
+        assert after == before + 1
+    finally:
+        migrated.close()
+
+
 @pytest.mark.parametrize(
     "mutation,code",
     [
