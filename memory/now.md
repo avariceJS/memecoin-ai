@@ -44,6 +44,10 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   unittest cases passed; 12 snapshot/restore/deployment functions passed via a minimal import-only
   `pytest` shim.
   This is not a pytest runner execution. Ruff/pytest remain unavailable.
+- Exact `d4d6590` source passed a direct complete synthetic checkpoint/move/fresh-path restore
+  scenario: online SQLite backups, copied inventory/receipts/integration Git ref, STOP retained,
+  persisted host-requalification barrier, `runtime_ready=false`. Owner deployment and pilot were not
+  copied/restored.
   Pilot STOP, original SQLite and six failures remain frozen. Reopening original tasks requires
   release acceptance and separate founder authorization. Market collection, training, AUTO, trading,
   protected data, production, `main`, paid APIs and supervisor operation remain prohibited.

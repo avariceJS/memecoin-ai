@@ -199,3 +199,5 @@ Release qualification остаётся незавершённой: `ORG-A03` fai
 26 supervisor unittest тестов и 12 функций snapshot/restore/deployment через минимальную
 import-only заглушку `pytest` (это не запуск pytest runner). Пилот, STOP, runtime и protected data
 не трогались.
+
+Дополнительно напрямую прошёл полный синтетический сценарий `test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts`: checkpoint → перемещение источника → restore в новый путь; проверены SQLite backup, inventory/файлы, integration Git ref, сохранение STOP, persisted host-requalification barrier и `runtime_ready=false`. Тест использовал временное состояние и синтетический Git repo; owner runtime и pilot не копировались и не восстанавливались.

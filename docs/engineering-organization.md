@@ -117,6 +117,13 @@ The follow-up raw-response schema probe is stored separately at
 (SHA-256 `b4372bd744c4f3c61a71410df99e25eba101439959b13e939a43847b6642cf05`); the earlier receipt
 remains unchanged.
 
+The exact `d4d6590` service code also passed a direct end-to-end synthetic run of
+`test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts`: it created a complete checkpoint,
+moved the source state aside, restored into a fresh path, and checked preserved STOP, SQLite contents,
+copied private files and integration Git ref, persisted host-requalification barrier, and
+`runtime_ready=false`. The fixture and Git repository were temporary and synthetic. This does not
+qualify a restore of the owner deployment or pilot; those were not accessed or restored.
+
 ### Evidence established in this audit
 
 - Current read-only `thread/goal/get` returned `paused` for both former roots. The implementation
