@@ -1,0 +1,69 @@
+{
+  "schema": "brain-org-source-review-v1",
+  "created_at": 1792463613.6994612,
+  "scope": "isolated source candidate only; no operational release",
+  "source_commit": "a94983a5e6de4b7c1ceb99df92cdc811e9b02109",
+  "source_branch": "org/resource-bootstrap-20261020",
+  "pin_manifest_sha256": "a7816e408551cbf86876ea9be1ba3cadae1c8fd4ae3ffd1ef14e6c85aa75fa1f",
+  "files": {
+    "docs/engineering-organization.md": "c2fc4fe2682e04372f38a66a8f0834fff850d33228b3fa25d1f01083a7745114",
+    "engineering/supervisor.py": "b6fcf0e9dada90e9fa2b422a72a61006af1dde5e86549ac25b3ab8de4d7085ac",
+    "engineering/tests/test_supervisor.py": "6f39f96ce41837d5b5e0ba40fca81406182c34b65b93291ff4c80cf3bb003bf4",
+    "engineering/tests/test_usage_ledger.py": "af4d0a04ef619ff7b3a2bd72fce47ed1990bef0deb1e829fce77ecb20144e0f9",
+    "engineering/usage_ledger.py": "64a6a51f6e969a2719c4db8880ca4a6be3764aaadee628cb31cfcdebd3a0cebc"
+  },
+  "review": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "thread_id": "01a15724-8b78-7563-9a03-efb9e319fcc6",
+    "approved": true,
+    "findings": [],
+    "rationale": "Одобрено только содержимое исходников по манифесту a94983a5e6de4b7c1ceb99df92cdc811e9b02109: все пять SHA-256 совпали до тестов и после проверок. Timeout сохраняет глобальные блокировки ёмкости и восстановления после deadline; только точный turn_completed receipt подтверждает завершение lifecycle. Совместный timeout+unknown удерживает лимит модели. Missing/null/empty birth-witness отклоняются; совпадающий фактический live-witness принимается. Пять прежних замечаний перепроверены, включая CAS с двумя соединениями и откат при ошибке. Pytest: 76 passed, 6 subtests passed; Ruff engineering и четыре запрошенные frozen-проверки прошли. Дополнительный legacy check_review_regressions.py остановился из-за отсутствующего обязательного Permit, как отмечено в документации. Сам Git-объект независимо не проверен: брокер запретил доступ к внешнему gitdir. Операционный допуск, разрешение model calls и возобновление пилота не предоставляются.",
+    "response_sha256": "7ee6fbd7e6b18906391fbce53d71488adaab05f50ce08606b9446753f155f469",
+    "usage": {
+      "totalTokens": 898805,
+      "inputTokens": 891791,
+      "cachedInputTokens": 815104,
+      "cacheWriteInputTokens": 0,
+      "outputTokens": 7014,
+      "reasoningOutputTokens": 1659
+    },
+    "git_object_independently_verified": false,
+    "git_object_limit": "Read-only reviewer sandbox could not access the checkout Git directory; it verified all five content hashes against the fixed manifest before and after checks."
+  },
+  "verification": {
+    "independent": {
+      "pytest": "76 passed, 6 subtests",
+      "ruff": "engineering passed",
+      "frozen": [
+        "ledger",
+        "quota",
+        "atomic corrections",
+        "controller gates"
+      ]
+    },
+    "owner": {
+      "pytest": "115 passed, 18 subtests",
+      "ruff": "engineering passed",
+      "frozen": [
+        "ledger",
+        "quota",
+        "atomic corrections",
+        "controller gates",
+        "real usage interval reproduction"
+      ]
+    },
+    "real_usage_reproduction": {
+      "intervals": 114,
+      "total_tokens": 8004989,
+      "unresolved": 1,
+      "claim": "accounting reproduction only; not subscription charge or completeness claim"
+    }
+  },
+  "known_limits": [
+    "Legacy frozen raw-RPC acceptance scripts still omit the required Permit or episode identity; frozen files were left unchanged.",
+    "The independent Sol review approved exact source content hashes, not the Git object itself.",
+    "No controller release, deployment, live model-call permission, or pilot resumption was granted.",
+    "The original pilot STOP and six failed attempts remain preserved."
+  ]
+}

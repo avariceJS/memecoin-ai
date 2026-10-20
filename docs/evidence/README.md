@@ -6,6 +6,8 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [Metered organization source acceptance](brain-org-metering-source-acceptance-20261020.json): independent Sol accepted exact content pins for quota pause/lifecycle recovery. This is source-only; Git object verification and operational release are excluded.
+
 - [Engineering organization executive handoff](brain-org-handoff-20261019.json):
   scoped controller tests, actual permission probes, six failed lead attempts, stopped process
   custody and protected branch pins. Checkpoint only: no accepted Brain changes or unattended

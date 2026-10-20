@@ -72,26 +72,18 @@ operation. Exact evidence and limitations: `docs/evidence/brain-org-handoff-2026
 
 ## Organization resource decision — 2026-10-20
 
-Founder amendment `CEO-20261020-02` supersedes68/69% controls and72h/200-WPU/five-renewal limits.
-Fresh account read:68%, ordinary use allowed. Productive work may use the available weekly quota,
-with default1-point recovery reserve/productive pause99%, reduced concurrency at97%. Sol manages
-routine planning renewals and qualified recovery after actual account reset; no automatic Astra.
-Existing root `01a15657-3558-79c1-86dc-6ed033c264df` owns an actually active Pursuing Goal for the
-full organization mandate, with predecessor identity preserved; no duplicate team. Actual Luna6/high
-is repairing three findings from independent review of `0d74d69`; that candidate is not accepted.
-Durable goal/worker/next-gate status is at
-`/Users/root1/Developer/brain-org-state/founder-quota-20261020/sol-live-status.json`; exact API receipt
-is adjacent `continuation-goal-receipt.json`. Pilot config/STOP and six failed attempts are preserved;
-reviewed controller upgrade and operational qualification remain required. Prior source `b37eafa` and unreviewed proposal `1546e4c` remain intact. Original full goal
-`01a1563e-1a26-75e2-bdab-ca2b38c7b51f` requires supported gated continuation, not an executive reset.
-Policy: `docs/evidence/brain-org-founder-quota-amendment-20261020.json`.
-
-Source repair `1d6d44f` has independent exact-pin Sol acceptance: 82 tests/six subtests,
-six frozen checks, no-auto-Astra and shared direct-entry native/hash preflight. See
-`docs/evidence/brain-org-accounting-source-acceptance-20261020.json`. Full owner Goal
-`01a15657-3558-79c1-86dc-6ed033c264df` is active and an automatic continuation performed real
-source repair. Pilot STOP/six failures/config remain; dispatch metering wiring, controlled upgrade,
-same-DB recovery and the full mandate remain open. Task-spec validator is source-only/pending review.
+Founder amendment CEO-20261020-02 supersedes the old quota controls. Latest account read during
+2026-10-20 review: 73%, ordinary use allowed, no paid credits reported. Existing active Luna6/high
+Goal root owns the full organization mandate; Sol6.1/high is on-demand review. No competing root.
+Source candidate org/resource-bootstrap-20261020 at a94983a has independent exact-content Sol
+acceptance for metered admission, durable quota recovery and lifecycle gates. The reviewer matched
+all five file hashes but could not read the Git object through its broker. Candidate work remains
+separate from deployment: pilot /Users/root1/Developer/brain-org-state/pilot-20261019 retains
+zero-byte STOP, six failed attempts, no accepted tasks and no running controller process. The
+local owner status was read-only; main stays unchanged. Controlled release, same-state recovery,
+transactional scheduler integration and full organization qualification remain open. See
+docs/engineering-organization.md and the unique source receipt in docs/evidence/README.md.
+Policy: docs/evidence/brain-org-founder-quota-amendment-20261020.json.
 
 ## Git consolidation — 2026-10-18
 

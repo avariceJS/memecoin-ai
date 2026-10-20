@@ -289,18 +289,17 @@ and shared frozen-controller/native/executable preflight for direct runtime entr
 checks, 82 focused tests and six subtests passed inside the OS boundary. Scope, pins and the
 independent direct-entry probe are in the [source receipt](evidence/brain-org-accounting-source-acceptance-20261020.json).
 
-This was source acceptance, not an operational release. Local source checkpoint
-3b5c1cff8868733dbc219c34368a44e7751f99b0 wired metered dispatch into planner and manual-chief
-episodes, but exact Sol review rejected it for seven accounting/admission issues. Follow-up commit
-a26dbef2a90fffd309a301347a962f38deb3d1c3 addressed those findings, but exact Sol review again
-rejected it for seven pause and lifecycle defects. Commit 095aacfd79320700e4eb45847d541edc086e0148
-fixed those findings, but exact Sol review found two more: timeout dispatches must remain blockers
-until provider terminal evidence, and missing process birth witnesses must fail closed. Current
-uncommitted candidate fixes both. Its 115 focused tests, 18 subtests, Ruff, frozen ledger/quota/
-atomic/controller-gate checks, and real usage-interval reproduction pass. Independent review is
-pending. Two older frozen raw-RPC checks still omit required Permit/episode identity and fail;
-frozen files remain unchanged. This is not release acceptance. The original pilot remains STOPped
-with six failures and no accepted tasks.
+Independent Sol accepted exact content pins for source commit
+a94983a5e6de4b7c1ceb99df92cdc811e9b02109 with no findings. The five changed-file hashes,
+reviewer decision, test counts, usage and limitations are recorded in the unique
+[source acceptance receipt](evidence/brain-org-metering-source-acceptance-20261020.json).
+Independent checks passed 76 tests and six subtests, Ruff, and four frozen ledger/quota/atomic/
+controller gates. Owner checks passed 115 tests and 18 subtests, Ruff, five frozen checks and
+the 114-interval usage reproduction. Legacy raw-RPC frozen scripts using pre-Permit/episode
+interfaces still fail and remain unchanged. The reviewer verified content hashes, not the
+Git object, because the read-only broker denied its external Git directory.
+This is source acceptance, not an operational release. The original pilot remains STOPped with
+six failures and no accepted tasks.
 The full independent-root Goal remains active; its observed automatic continuation, live
 process custody and next actions are private durable state.
 The source-only structured task validator has separately passed its frozen 37-check acceptance;
