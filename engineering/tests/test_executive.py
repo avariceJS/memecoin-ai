@@ -177,6 +177,22 @@ class ExecutiveTests(unittest.TestCase):
                 self.executive.transition_obligation(lease, "O1", status)
         self.assertEqual(self.executive.get_obligation("O1")["status"], "open")
 
+    def test_cancellation_requires_evidence_and_is_terminal(self):
+        lease = self.lease()
+        self.executive.obligation(lease, "O1", "Resolve dependency")
+        with self.assertRaisesRegex(ExecutiveError, "cancellation requires evidence"):
+            self.executive.transition_obligation(lease, "O1", "cancelled")
+        cancelled = self.executive.transition_obligation(
+            lease,
+            "O1",
+            "cancelled",
+            cancellation_evidence=["dependency-readiness:sha256"],
+        )
+        self.assertEqual(cancelled["status"], "cancelled")
+        self.assertEqual(cancelled["cancellation_evidence"], ["dependency-readiness:sha256"])
+        with self.assertRaisesRegex(ExecutiveError, "terminal records cannot reopen"):
+            self.executive.transition_obligation(lease, "O1", "open")
+
     def test_pending_resource_request_and_ceo_expiration_do_not_block_tasks(self):
         self.store.add_task("T1", "Platform", "Independent task")
         lease = self.lease(lease_seconds=1)

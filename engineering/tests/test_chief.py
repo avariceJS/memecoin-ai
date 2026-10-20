@@ -1,5 +1,6 @@
 """Executive episodes recover durable responsibility; no model service required."""
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -91,8 +92,9 @@ class ChiefTests(unittest.TestCase):
         self.assertEqual(self.executive.get_obligation("next-policy-horizon"), obligation)
         self.assertIn("next-policy-horizon", (self.path / "OWNER-DESK.md").read_text())
 
-    def test_blocked_dependency_boundary_preserves_specific_owned_obligation(self):
+    def test_dependency_obligation_tracks_only_blockers_and_preserves_ready_work(self):
         self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
+        self.db.add_task("independent", "Platform", "Ready work")
         chief.chief(self.path, trigger="blocked-dependencies")
         rows = [
             row
@@ -102,7 +104,119 @@ class ChiefTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["status"], "blocked")
         self.assertIn("task:consumer", rows[0]["blocked_by"])
+        self.assertNotIn("task:T", rows[0]["blocked_by"])
+        snapshot = rows[0]["details"]["snapshot"]
+        self.assertEqual([row["task_id"] for row in snapshot["blocked"]], ["consumer"])
+        self.assertEqual(snapshot["ready"], ["T", "independent"])
         self.assertEqual(self.db.get_task("consumer")["state"], "pending")
+
+        chief.chief(self.path, trigger="blocked-dependencies")
+        rows_after_retry = [
+            row
+            for row in self.executive.snapshot(open_limit=100)["obligations"]
+            if row["id"].startswith("blocked-dependencies/")
+        ]
+        self.assertEqual(len(rows_after_retry), 1)
+        self.assertEqual(rows_after_retry[0]["id"], rows[0]["id"])
+
+    def test_dependency_obligation_cancels_atomically_when_readiness_clears(self):
+        self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
+        chief.chief(self.path, trigger="blocked-dependencies")
+        obligation = next(
+            row
+            for row in self.executive.snapshot(open_limit=100)["obligations"]
+            if row["id"].startswith("blocked-dependencies/")
+        )
+
+        attempt = self.db.claim("T", "worker")
+        self.db.submit(attempt["id"], attempt["epoch"], "candidate", {})
+        self.db.verify("T", "candidate", True, {})
+        self.db.accept("T", "candidate")
+        self.db.integrate("T", "candidate", "merged")
+        chief.chief(self.path, trigger="blocked-dependencies")
+
+        closed = self.executive.get_obligation(obligation["id"])
+        self.assertEqual(closed["status"], "cancelled")
+        self.assertEqual(len(closed["cancellation_evidence"]), 1)
+        evidence_ref = closed["cancellation_evidence"][0]
+        self.assertTrue(evidence_ref.startswith("dependency-readiness:"))
+
+        # Later readiness changes must not erase the immutable cancellation basis.
+        self.db.add_task("later", "Platform", "Later ready task")
+        chief.chief(self.path, trigger="blocked-dependencies")
+        evidence = self.db.db.execute(
+            "SELECT body FROM events WHERE kind='dependency_readiness_reconciled' AND entity=?",
+            (evidence_ref,),
+        ).fetchone()
+        self.assertIsNotNone(evidence)
+        evidence_body = json.loads(evidence[0])
+        self.assertEqual(evidence_body["snapshot"]["blocked"], [])
+        self.assertEqual(
+            hashlib.sha256(
+                json.dumps(
+                    evidence_body["snapshot"],
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                ).encode("utf-8")
+            ).hexdigest(),
+            evidence_body["snapshot_sha256"],
+        )
+        self.assertEqual(evidence_ref, "dependency-readiness:" + evidence_body["snapshot_sha256"])
+        self.assertEqual(evidence_body["snapshot"]["ready"], ["consumer"])
+        self.assertEqual(self.db.get_task("consumer")["state"], "pending")
+        self.assertEqual([task["id"] for task in self.db.ready_tasks()], ["consumer", "later"])
+        self.assertFalse(
+            any(
+                row["id"].startswith("blocked-dependencies/")
+                for row in self.executive.snapshot(open_limit=100)["obligations"]
+            )
+        )
+
+    def test_dependency_obligation_records_contract_mismatch_and_leaves_ready_task(self):
+        self.db.put_contract("api", 1, {"schema": "v1"})
+        self.db.add_task("contract-consumer", "Platform", "Contract task", contracts={"api": 2})
+        self.db.add_task("ready", "Platform", "Unrelated ready task")
+        chief.chief(self.path, trigger="blocked-dependencies")
+
+        obligation = next(
+            row
+            for row in self.executive.snapshot(open_limit=100)["obligations"]
+            if row["id"].startswith("blocked-dependencies/")
+        )
+        self.assertEqual(
+            obligation["details"]["snapshot"]["blocked"],
+            [
+                {
+                    "task_id": "contract-consumer",
+                    "blockers": [
+                        {
+                            "kind": "contract",
+                            "name": "api",
+                            "required_version": 2,
+                            "current_version": 1,
+                        }
+                    ],
+                }
+            ],
+        )
+        self.assertIn("ready", obligation["details"]["snapshot"]["ready"])
+        self.assertEqual([task["id"] for task in self.db.ready_tasks()], ["T", "ready"])
+
+    def test_unrelated_obligation_details_do_not_block_dependency_reconciliation(self):
+        lease = self.executive.claim("prior-owner")
+        self.executive.obligation(lease, "unrelated", "Unrelated", details=[])
+        self.executive.release(lease)
+        self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
+
+        chief.chief(self.path, trigger="blocked-dependencies")
+
+        self.assertTrue(
+            any(
+                row["id"].startswith("blocked-dependencies/")
+                for row in self.executive.snapshot(open_limit=100)["obligations"]
+            )
+        )
 
     def test_dossier_bound_preserves_authority_and_total_counts(self):
         packet = {

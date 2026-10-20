@@ -8,6 +8,7 @@ conversations are disposable and open obligations survive their replacement.
 
 from __future__ import annotations
 
+import hashlib
 import json
 
 from .org_state import StateError, Store, _json, _name, _positive
@@ -160,27 +161,28 @@ class Executive:
         _name(record_id)
         with self.store._tx():
             role = self._fence(lease)
-            old = self._get(table, record_id)
-            if old is not None:
-                if old["initial"] != body:
-                    raise ExecutiveError("immutable governance ID reused with different content")
-                return old
-            seq = self._journal("executive_" + table + "_created", record_id, body, role)
-            record = {
-                "id": record_id,
-                **body,
-                "initial": body,
-                "created_seq": seq,
-                "updated_seq": seq,
-                "created_epoch": role["epoch"],
-                "created_owner": role["owner"],
-            }
-            self.db.execute(
-                f"INSERT INTO executive_{table} VALUES(?,?)", (record_id, _json(record))
-            )
-            role["last_event_seq"] = seq
-            self._save_role(role)
-            return record
+            return self._create_in_transaction(role, table, record_id, body)
+
+    def _create_in_transaction(self, role, table, record_id, body):
+        old = self._get(table, record_id)
+        if old is not None:
+            if old["initial"] != body:
+                raise ExecutiveError("immutable governance ID reused with different content")
+            return old
+        seq = self._journal("executive_" + table + "_created", record_id, body, role)
+        record = {
+            "id": record_id,
+            **body,
+            "initial": body,
+            "created_seq": seq,
+            "updated_seq": seq,
+            "created_epoch": role["epoch"],
+            "created_owner": role["owner"],
+        }
+        self.db.execute(f"INSERT INTO executive_{table} VALUES(?,?)", (record_id, _json(record)))
+        role["last_event_seq"] = seq
+        self._save_role(role)
+        return record
 
     def decision(
         self,
@@ -219,6 +221,7 @@ class Executive:
         rationale="",
         evidence_refs=(),
         blocked_by=(),
+        details=None,
     ):
         if objective_id is not None:
             _name(objective_id)
@@ -235,28 +238,181 @@ class Executive:
             "status": "blocked" if blocked_by else "open",
             "completion_evidence": [],
         }
+        if details is not None:
+            try:
+                details_json = _json(details)
+                detached_details = json.loads(details_json)
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+                raise ExecutiveError("invalid obligation details") from None
+            if len(details_json.encode("utf-8")) > 65_536:
+                raise ExecutiveError("obligation details exceed byte limit")
+            body["details"] = detached_details
         return self._create(lease, "obligations", obligation_id, body)
 
     def transition_obligation(
-        self, lease, obligation_id: str, status: str, *, completion_evidence=(), blocked_by=()
+        self,
+        lease,
+        obligation_id: str,
+        status: str,
+        *,
+        completion_evidence=(),
+        cancellation_evidence=(),
+        blocked_by=(),
     ):
         if status not in ("open", "blocked", "completed", "cancelled"):
             raise ExecutiveError("unknown obligation status")
         evidence, blockers = _refs(completion_evidence), _refs(blocked_by)
+        cancellation = _refs(cancellation_evidence)
         if status == "completed" and not evidence:
             raise ExecutiveError("completion requires evidence references")
+        if status == "cancelled" and not cancellation:
+            raise ExecutiveError("cancellation requires evidence references")
         if status == "blocked" and not blockers:
             raise ExecutiveError("blocked obligation requires blockers")
         if status != "blocked" and blockers:
             raise ExecutiveError("only blocked obligations may retain blockers")
+        if status != "cancelled" and cancellation:
+            raise ExecutiveError("only cancelled obligations may retain cancellation evidence")
         return self._transition(
             lease,
             "obligations",
             obligation_id,
             status,
-            {"completion_evidence": evidence, "blocked_by": blockers},
+            {
+                "completion_evidence": evidence,
+                "cancellation_evidence": cancellation,
+                "blocked_by": blockers,
+            },
             terminal=("completed", "cancelled"),
         )
+
+    def reconcile_dependency_obligations(self, lease):
+        """Atomically align durable dependency duties to one current readiness snapshot."""
+        with self.store._tx():
+            role = self._fence(lease)
+            report = self.store._readiness_report_in_snapshot()
+            blocked = [
+                {"task_id": row["task_id"], "blockers": row["blockers"]}
+                for row in report
+                if row["state"] == "pending" and row["blockers"]
+            ]
+            ready = [
+                row["task_id"] for row in report if row["state"] == "pending" and row["eligible"]
+            ]
+            snapshot = {"schema": "dependency-readiness-v1", "blocked": blocked, "ready": ready}
+            snapshot_json = _json(snapshot)
+            if len(snapshot_json.encode("utf-8")) > 65_536:
+                raise ExecutiveError("dependency readiness snapshot exceeds byte limit")
+            snapshot_sha256 = hashlib.sha256(snapshot_json.encode("utf-8")).hexdigest()
+            snapshot_ref = "dependency-readiness:" + snapshot_sha256
+
+            rows = [
+                json.loads(row[0])
+                for row in self.db.execute("SELECT body FROM executive_obligations")
+            ]
+            if any(
+                type(row) is not dict
+                or type(row.get("id")) is not str
+                or type(row.get("status")) is not str
+                for row in rows
+            ):
+                raise ExecutiveError("dependency obligation history is malformed")
+            for row in rows:
+                if row["id"].startswith("blocked-dependencies/") and row["status"] not in (
+                    "open",
+                    "blocked",
+                    "completed",
+                    "cancelled",
+                ):
+                    raise ExecutiveError("dependency obligation status is malformed")
+            active = [
+                row
+                for row in rows
+                if row["id"].startswith("blocked-dependencies/")
+                and row["status"] in ("open", "blocked")
+            ]
+            dependency_rows = [row for row in rows if row["id"].startswith("blocked-dependencies/")]
+            for row in dependency_rows:
+                details = row.get("details")
+                if details is not None and type(details) is not dict:
+                    raise ExecutiveError("dependency obligation details are malformed")
+            matching = (
+                [
+                    row
+                    for row in active
+                    if type(row.get("details")) is dict
+                    and row["details"].get("snapshot_sha256") == snapshot_sha256
+                    and row["details"].get("snapshot") == snapshot
+                ]
+                if blocked
+                else []
+            )
+            if len(matching) > 1:
+                raise ExecutiveError("duplicate active dependency obligations")
+
+            kept_id = matching[0]["id"] if matching else None
+            stale = [row for row in active if row["id"] != kept_id]
+            if stale:
+                # Persist the content-addressed cancellation basis before the transitions
+                # that cite it. Both the evidence event and cancellations share this tx.
+                self._journal(
+                    "dependency_readiness_reconciled",
+                    snapshot_ref,
+                    {"snapshot_sha256": snapshot_sha256, "snapshot": snapshot},
+                    role,
+                )
+            for row in stale:
+                self._transition_in_transaction(
+                    role,
+                    "obligations",
+                    row["id"],
+                    "cancelled",
+                    {
+                        "completion_evidence": row.get("completion_evidence", []),
+                        "blocked_by": [],
+                        "cancellation_evidence": [snapshot_ref],
+                    },
+                    terminal=("completed", "cancelled"),
+                )
+
+            obligation_id = kept_id
+            if blocked and obligation_id is None:
+                prefix = f"blocked-dependencies/{snapshot_sha256}/"
+                generation = 1 + sum(row["id"].startswith(prefix) for row in rows)
+                obligation_id = prefix + str(generation)
+                blocked_by = [snapshot_ref]
+                for item in blocked[:49]:
+                    task_ref = "task:" + item["task_id"]
+                    if len(task_ref) > 500:
+                        task_ref = (
+                            "task-sha256:"
+                            + hashlib.sha256(item["task_id"].encode("utf-8")).hexdigest()
+                        )
+                    blocked_by.append(task_ref)
+                body = {
+                    "title": "Resolve blocked dependencies without suppressing ready work.",
+                    "objective_id": None,
+                    "owner_role": "CEO",
+                    "team": None,
+                    "rationale": (
+                        f"{len(blocked)} pending tasks have unmet dependency or contract gates; "
+                        f"{len(ready)} unrelated pending tasks remain ready."
+                    ),
+                    "evidence_refs": [snapshot_ref],
+                    "blocked_by": blocked_by,
+                    "status": "blocked",
+                    "completion_evidence": [],
+                    "details": {"snapshot_sha256": snapshot_sha256, "snapshot": snapshot},
+                }
+                if len(_json(body).encode("utf-8")) > 65_536:
+                    raise ExecutiveError("dependency obligation exceeds byte limit")
+                self._create_in_transaction(role, "obligations", obligation_id, body)
+            return {
+                "snapshot_sha256": snapshot_sha256,
+                "blocked_task_count": len(blocked),
+                "ready_task_count": len(ready),
+                "obligation_id": obligation_id,
+            }
 
     def request(
         self,
@@ -305,26 +461,31 @@ class Executive:
     def _transition(self, lease, table, record_id, status, changes, *, terminal):
         with self.store._tx():
             role = self._fence(lease)
-            old = self._get(table, record_id)
-            if old is None:
-                raise ExecutiveError("unknown governance record")
-            if old["status"] == status and all(old.get(k) == v for k, v in changes.items()):
-                return old
-            if old["status"] in terminal:
-                raise ExecutiveError("terminal records cannot reopen; create a new ID")
-            seq = self._journal(
-                "executive_" + table + "_transition",
-                record_id,
-                {"from": old["status"], "to": status, **changes},
-                role,
+            return self._transition_in_transaction(
+                role, table, record_id, status, changes, terminal
             )
-            record = {**old, **changes, "status": status, "updated_seq": seq}
-            self.db.execute(
-                f"UPDATE executive_{table} SET body=? WHERE id=?", (_json(record), record_id)
-            )
-            role["last_event_seq"] = seq
-            self._save_role(role)
-            return record
+
+    def _transition_in_transaction(self, role, table, record_id, status, changes, terminal):
+        old = self._get(table, record_id)
+        if old is None:
+            raise ExecutiveError("unknown governance record")
+        if old["status"] == status and all(old.get(k) == v for k, v in changes.items()):
+            return old
+        if old["status"] in terminal:
+            raise ExecutiveError("terminal records cannot reopen; create a new ID")
+        seq = self._journal(
+            "executive_" + table + "_transition",
+            record_id,
+            {"from": old["status"], "to": status, **changes},
+            role,
+        )
+        record = {**old, **changes, "status": status, "updated_seq": seq}
+        self.db.execute(
+            f"UPDATE executive_{table} SET body=? WHERE id=?", (_json(record), record_id)
+        )
+        role["last_event_seq"] = seq
+        self._save_role(role)
+        return record
 
     def snapshot(self, *, history_limit=20, open_limit=20):
         """Bounded dossier shared by the episodic CEO and Founder Desk."""
