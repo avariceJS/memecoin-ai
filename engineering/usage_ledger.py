@@ -56,6 +56,153 @@ def _json(v):
     return json.dumps(v, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
+_SCHEMA_COLUMNS = {
+    "dispatches": (
+        ("dispatch_id", "TEXT", 0, 1), ("payload", "TEXT", 1, 0),
+        ("identity", "TEXT", 1, 0), ("model", "TEXT", 1, 0),
+        ("estimate_tokens", "REAL", 1, 0), ("estimate_wpu", "REAL", 1, 0),
+        ("deadline_at", "REAL", 1, 0), ("baseline", "TEXT", 0, 0),
+        ("provider_turn_id", "TEXT", 0, 0), ("status", "TEXT", 1, 0),
+        ("outcome", "TEXT", 0, 0), ("created_at", "REAL", 1, 0),
+        ("epoch", "TEXT", 0, 0),
+    ),
+    "events": (
+        ("event_id", "TEXT", 0, 1), ("identity", "TEXT", 1, 0),
+        ("epoch", "TEXT", 1, 0), ("sequence", "INTEGER", 1, 0),
+        ("counters", "TEXT", 1, 0), ("source", "TEXT", 1, 0),
+        ("observed_at", "REAL", 1, 0), ("event_at", "REAL", 0, 0),
+        ("parent_event_id", "TEXT", 0, 0), ("reason", "TEXT", 0, 0),
+    ),
+    "external_historical_unknown": (
+        ("event_id", "TEXT", 0, 1), ("counters", "TEXT", 1, 0),
+        ("collector_id", "TEXT", 1, 0), ("evidence_sha256", "TEXT", 1, 0),
+        ("created_at", "REAL", 1, 0),
+    ),
+    "external_imports": (
+        ("collector_id", "TEXT", 1, 1), ("evidence_sha256", "TEXT", 1, 2),
+        ("evidence_bytes", "BLOB", 1, 0), ("imported_at", "REAL", 1, 0),
+    ),
+    "interval_attributions": (
+        ("event_id", "TEXT", 0, 1), ("dispatch_id", "TEXT", 1, 0),
+        ("identity", "TEXT", 1, 0), ("epoch", "TEXT", 1, 0),
+        ("model", "TEXT", 1, 0), ("start_counters", "TEXT", 1, 0),
+        ("end_counters", "TEXT", 1, 0), ("evidence", "TEXT", 1, 0),
+        ("created_at", "REAL", 1, 0),
+    ),
+    "outcomes": (
+        ("event_id", "TEXT", 0, 1), ("dispatch_id", "TEXT", 1, 0),
+        ("status", "TEXT", 1, 0), ("receipt", "TEXT", 0, 0),
+        ("observed_at", "REAL", 1, 0),
+    ),
+    "receipt_conflicts": (
+        ("conflict_id", "TEXT", 0, 1), ("event_id", "TEXT", 1, 0),
+        ("payload", "TEXT", 1, 0), ("observed_at", "REAL", 1, 0),
+    ),
+    "receipts": (
+        ("event_id", "TEXT", 0, 1), ("dispatch_id", "TEXT", 1, 0),
+        ("provider_turn_id", "TEXT", 0, 0), ("source", "TEXT", 1, 0),
+        ("receipt", "TEXT", 0, 0), ("event_at", "REAL", 0, 0),
+        ("observed_at", "REAL", 1, 0), ("evidence", "TEXT", 1, 0),
+    ),
+    "registrations": (
+        ("identity", "TEXT", 1, 1), ("epoch", "TEXT", 1, 2),
+        ("model", "TEXT", 1, 0), ("baseline", "TEXT", 0, 0),
+        ("evidence", "TEXT", 1, 0), ("started", "INTEGER", 1, 0),
+    ),
+    "rpc_ingress": (
+        ("ingress_id", "TEXT", 0, 1), ("raw_bytes", "BLOB", 1, 0),
+        ("received_at", "REAL", 1, 0),
+    ),
+    "terminal_receipt_conflicts": (
+        ("conflict_id", "TEXT", 0, 1), ("dispatch_id", "TEXT", 1, 0),
+        ("evidence_sha256", "TEXT", 1, 0), ("evidence", "TEXT", 1, 0),
+        ("observed_at", "REAL", 1, 0),
+    ),
+    "terminal_receipts": (
+        ("dispatch_id", "TEXT", 0, 1), ("evidence_sha256", "TEXT", 1, 0),
+        ("evidence", "TEXT", 1, 0), ("observed_at", "REAL", 1, 0),
+    ),
+    "turn_finishes": (
+        ("turn_id", "TEXT", 0, 1), ("end_counters", "TEXT", 1, 0),
+        ("receipt", "TEXT", 1, 0), ("failed", "INTEGER", 1, 0),
+    ),
+    "turns": (
+        ("turn_id", "TEXT", 0, 1), ("identity", "TEXT", 1, 0),
+        ("epoch", "TEXT", 1, 0), ("start_counters", "TEXT", 1, 0),
+        ("reservation_tokens", "REAL", 1, 0), ("reservation_wpu", "REAL", 1, 0),
+        ("deadline_at", "REAL", 1, 0), ("evidence", "TEXT", 1, 0),
+    ),
+}
+_SCHEMA_FKS = {
+    "events": {("registrations", "identity", "identity"), ("registrations", "epoch", "epoch")},
+    "interval_attributions": {
+        ("registrations", "identity", "identity"), ("registrations", "epoch", "epoch")
+    },
+    "turn_finishes": {("turns", "turn_id", "turn_id")},
+    "turns": {("registrations", "identity", "identity"), ("registrations", "epoch", "epoch")},
+}
+_SCHEMA_UNIQUE = {
+    "events": {("event_id",), ("parent_event_id",)},
+    "external_historical_unknown": {("event_id",)},
+    "external_imports": {("collector_id", "evidence_sha256")},
+    "interval_attributions": {("event_id",)},
+    "outcomes": {("event_id",)},
+    "receipt_conflicts": {("conflict_id",)},
+    "receipts": {("event_id",)},
+    "registrations": {("identity", "epoch")},
+    "rpc_ingress": {("ingress_id",)},
+    "terminal_receipt_conflicts": {("conflict_id",)},
+    "terminal_receipts": {("dispatch_id",)},
+    "turn_finishes": {("turn_id",)},
+    "turns": {("turn_id",)},
+    "dispatches": {("dispatch_id",)},
+}
+
+
+def _validate_schema(db):
+    tables = {
+        row[0]
+        for row in db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )
+    }
+    if tables != set(_SCHEMA_COLUMNS):
+        raise ValueError("usage_ledger_schema_unrecognized")
+    for table, expected in _SCHEMA_COLUMNS.items():
+        actual = tuple(
+            (row[1], row[2].upper(), row[3], row[5])
+            for row in db.execute(f"PRAGMA table_info({table})")
+        )
+        if actual != expected:
+            raise ValueError("usage_ledger_schema_unrecognized")
+        defaults = {
+            row[1]: row[4]
+            for row in db.execute(f"PRAGMA table_info({table})")
+            if row[4] is not None
+        }
+        expected_defaults = ({}, {"evidence": "'{}'"}) if table == "receipts" else ({},)
+        if defaults not in expected_defaults:
+            raise ValueError("usage_ledger_schema_unrecognized")
+        foreign_keys = {
+            (row[2], row[3], row[4]) for row in db.execute(f"PRAGMA foreign_key_list({table})")
+        }
+        if foreign_keys != _SCHEMA_FKS.get(table, set()):
+            raise ValueError("usage_ledger_schema_unrecognized")
+        unique_indexes = set()
+        for index in db.execute(f"PRAGMA index_list({table})"):
+            if index[2]:
+                if index[4]:
+                    raise ValueError("usage_ledger_schema_unrecognized")
+                columns = tuple(
+                    row[2]
+                    for row in db.execute(f"PRAGMA index_info({index[1]})")
+                    if row[2] is not None
+                )
+                unique_indexes.add(columns)
+        if unique_indexes != _SCHEMA_UNIQUE[table]:
+            raise ValueError("usage_ledger_schema_unrecognized")
+
+
 class UsageLedger:
     def __init__(self, path):
         self.path = str(path)
@@ -307,6 +454,7 @@ class UsageLedger:
                 self.db.execute(
                     "ALTER TABLE receipts ADD COLUMN evidence TEXT NOT NULL DEFAULT '{}'"
                 )
+            _validate_schema(self.db)
             self.db.execute("PRAGMA user_version=1")
             self.db.execute("COMMIT")
         except BaseException:

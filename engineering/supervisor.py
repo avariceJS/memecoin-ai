@@ -357,9 +357,13 @@ def run_attempt(state: Path, attempt_id: int):
                 )
             try:
                 plan = structured(out["text"])
-                if not isinstance(plan, dict) or not all(
-                    key in plan
-                    for key in ("decision", "worker_brief", "rationale", "contract_ack")
+                if (
+                    not isinstance(plan, dict)
+                    or set(plan) != {"decision", "worker_brief", "rationale", "contract_ack"}
+                    or plan["decision"] not in ("approve", "blocked")
+                    or not isinstance(plan["worker_brief"], str)
+                    or not isinstance(plan["rationale"], str)
+                    or type(plan["contract_ack"]) is not bool
                 ):
                     raise ValueError("lead_result_shape")
             except Exception as exc:
@@ -453,8 +457,14 @@ def run_attempt(state: Path, attempt_id: int):
                 )
             try:
                 worker_result = structured(out["text"])
-                if not isinstance(worker_result, dict) or not all(
-                    key in worker_result for key in ("summary", "tests", "limitations")
+                if (
+                    not isinstance(worker_result, dict)
+                    or set(worker_result) != {"summary", "tests", "limitations"}
+                    or not isinstance(worker_result["summary"], str)
+                    or not isinstance(worker_result["tests"], list)
+                    or any(not isinstance(value, str) for value in worker_result["tests"])
+                    or not isinstance(worker_result["limitations"], list)
+                    or any(not isinstance(value, str) for value in worker_result["limitations"])
                 ):
                     raise ValueError("worker_result_shape")
             except Exception as exc:

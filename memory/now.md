@@ -20,16 +20,19 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
 - The parser now preserves that optional field in raw evidence and normalizes only the five canonical
   counters. Five/six-field cases and malformed optional values passed direct invocation; checkout
   has no pytest/Ruff and only Python 3.9, so standard focused test tooling remains unverified.
-- Exact candidate `8a28908` was rejected by Sol review: decision body lookup and circuit transitions
-  were incorrect, A07 confused additional slots with permission to continue active work, and three
-  tests had deterministic failures. Follow-up fixes now use atomic lease-fenced circuit opening,
-  version-bound resolution, valid active quota thresholds, and corrected assertions. This repair is
-  uncommitted and needs direct probes plus exact Sol re-review. A03 remains fail-closed; A06 restore
-  remains open; pinned Ruff/pytest are unavailable.
-- Prove complete checkpoint and fresh-path restore before any original pilot mutation. Pilot STOP,
-  original SQLite and six failures remain frozen. Reopening original tasks requires release acceptance
-  and separate founder authorization. Market collection, training, AUTO, trading, protected data,
-  production, `main`, paid APIs and supervisor operation remain prohibited.
+- Sol reviewed `f73e030`: A01, A07 and A02 bootstrap ordering/atomic migration were accepted, while
+  A02 schema compatibility, A09 wrong-shaped output validation and complete release qualification
+  were rejected. The uncommitted follow-up checks ordered full ledger schema signatures, validates
+  output field/value types before submit, and adds synthetic snapshot v2/fresh-path restore. Restored
+  copies retain STOP and require host requalification (`runtime_ready=false`); this is not operational
+  restore qualification. The follow-up still needs final focused verification and exact Sol review.
+  A03 remains fail-closed; unknown/late usage keeps reservations.
+- Current focused check: 66 unittest cases across ledger, state, bootstrap and targeted supervisor
+  regressions passed, plus 4 snapshot/restore test functions invoked directly with a minimal
+  import-only `pytest` shim. This is not a pytest runner execution. Ruff/pytest remain unavailable.
+  Pilot STOP, original SQLite and six failures remain frozen. Reopening original tasks requires
+  release acceptance and separate founder authorization. Market collection, training, AUTO, trading,
+  protected data, production, `main`, paid APIs and supervisor operation remain prohibited.
 - Verified read-only state at succession: the predecessor Goal remains paused; one successor
   Pursuing Goal is active; pilot has three tasks, six failed attempts, no live attempts, zero
   acceptances and zero integrations; STOP remains present and organization LaunchAgent is not loaded.

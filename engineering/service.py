@@ -6,6 +6,7 @@ starting or loading a LaunchAgent remains an operator action.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -15,6 +16,8 @@ import sqlite3
 import stat
 import tempfile
 from pathlib import Path
+
+from .usage_ledger import UsageLedger
 
 LABEL = "com.brain.engineering.organization"
 MAX_EPISODE_SECONDS = 14_400
@@ -40,6 +43,78 @@ def _regular_file(path: Path) -> bool:
     return stat.S_ISREG(info.st_mode)
 
 
+def _copy_private_tree(source: Path, destination: Path, *, skip_lock: bool = False) -> None:
+    destination.mkdir(mode=0o700, parents=True, exist_ok=True)
+    for root, directories, files in os.walk(source, followlinks=False):
+        root_path = Path(root)
+        relative_root = root_path.relative_to(source)
+        target_root = destination / relative_root
+        target_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        for name in list(directories):
+            item = root_path / name
+            if item.is_symlink() or not item.is_dir():
+                raise ValueError("snapshot_tree_permissions")
+            (target_root / name).mkdir(mode=0o700, exist_ok=True)
+        for name in files:
+            item = root_path / name
+            relative = item.relative_to(source)
+            if skip_lock and relative == Path("supervisor.lock"):
+                continue
+            if item.is_symlink() or not _regular_file(item):
+                raise ValueError("snapshot_tree_permissions")
+            if item.name.endswith(("-wal", "-shm")):
+                continue
+            target = destination / relative
+            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            shutil.copyfile(item, target)
+            os.chmod(target, 0o600)
+
+
+def _sqlite_backup(source: Path, destination: Path) -> None:
+    if source.is_symlink() or not _regular_file(source):
+        raise ValueError("snapshot_database_permissions")
+    input_db = output_db = None
+    try:
+        input_db = sqlite3.connect(f"file:{source}?mode=ro", uri=True)
+        output_db = sqlite3.connect(destination)
+        input_db.backup(output_db)
+        if output_db.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+            raise ValueError("snapshot_database_integrity")
+    except sqlite3.DatabaseError as exc:
+        raise ValueError("snapshot_database_integrity") from exc
+    finally:
+        if output_db is not None:
+            output_db.close()
+        if input_db is not None:
+            input_db.close()
+    os.chmod(destination, 0o600)
+
+
+def _inventory(root: Path) -> dict[str, str]:
+    inventory = {}
+    for path in sorted(root.rglob("*")):
+        if path.is_symlink():
+            raise ValueError("snapshot_tree_permissions")
+        if path.is_dir():
+            continue
+        if not path.is_file() or not _regular_file(path):
+            raise ValueError("snapshot_tree_permissions")
+        inventory[str(path.relative_to(root))] = _digest(path)
+    return inventory
+
+
+def _assert_no_running_attempts(database: Path) -> None:
+    with sqlite3.connect(database) as db:
+        tables = {
+            row[0]
+            for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        if "attempts" in tables and db.execute(
+            "SELECT 1 FROM attempts WHERE state='running' LIMIT 1"
+        ).fetchone():
+            raise ValueError("snapshot_live_attempts")
+
+
 def validate_deployment(state: str | Path) -> dict:
     """Verify a private, qualified bootstrap before exposing launchd arguments."""
     state = Path(state).absolute()
@@ -58,6 +133,8 @@ def validate_deployment(state: str | Path) -> dict:
         raise ValueError("deployment_schema")
     if cfg.get("remote_publication_enabled") is not False:
         raise ValueError("remote_publication_must_remain_disabled")
+    if cfg.get("restore_requires_host_requalification") is True:
+        raise ValueError("deployment_requalification_required")
     controller = (state / "controller").resolve(strict=True)
     if controller != state / "controller" or cfg.get("controller") != str(controller):
         raise ValueError("controller_path")
@@ -190,77 +267,193 @@ def install_launch_agent(
 
 
 def backup_snapshot(state: str | Path, destination: str | Path) -> Path:
-    """Create a private point-in-time SQLite + policy + receipt snapshot."""
+    """Create a complete private checkpoint of a stopped deployment."""
     deployment = validate_deployment(state)
     state, destination = deployment["state"], Path(destination).absolute()
     if destination == state or state in destination.parents or destination.exists():
         raise ValueError("snapshot_destination")
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    temp = Path(tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
-    os.chmod(temp, 0o700)
+    stop = state / "STOP"
+    if stop.is_symlink() or not stop.exists() or not _regular_file(stop):
+        raise ValueError("snapshot_requires_STOP")
+    lock_path = state / "supervisor.lock"
+    if lock_path.is_symlink() or (lock_path.exists() and not _regular_file(lock_path)):
+        raise ValueError("snapshot_lock_permissions")
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
     try:
-        source_db = state / "organization.sqlite"
-        if not _regular_file(source_db):
-            raise ValueError("database_permissions")
-        target_db = temp / "organization.sqlite"
-        with sqlite3.connect(f"file:{source_db}?mode=ro", uri=True) as source:
-            with sqlite3.connect(target_db) as target:
-                source.backup(target)
-                if target.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                    raise ValueError("snapshot_database_integrity")
-        os.chmod(target_db, 0o400)
-        files = [
-            "config.json",
-            "config.sha256",
-            "controller-manifest.json",
-            "confinement.json",
-            "native-profile.json",
-        ]
-        for name in files:
-            shutil.copyfile(state / name, temp / name)
-        manifest = _json(state / "controller-manifest.json")
-        for name in manifest:
-            rel = Path(name)
-            root = state / "trusted" if name.startswith("trusted/") else state / "controller"
-            tail = Path(*rel.parts[1:]) if name.startswith("trusted/") else rel
-            source = root / tail
-            target_root = temp / ("trusted" if name.startswith("trusted/") else "controller")
-            target = target_root / tail
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
-        for directory in ("receipts",):
-            src = state / directory
-            if src.exists():
-                (temp / directory).mkdir(mode=0o700)
-                for item in src.iterdir():
-                    if item.is_symlink() or not item.is_file() or not _regular_file(item):
-                        raise ValueError("snapshot_receipt_permissions")
-                    try:
-                        receipt = json.loads(item.read_bytes())
-                    except (OSError, ValueError) as exc:
-                        raise ValueError("snapshot_receipt_invalid") from exc
-                    receipt_hash = hashlib.sha256(_canonical(receipt)).hexdigest()
-                    if item.name != receipt_hash + ".json" or item.read_bytes() != _canonical(
-                        receipt
-                    ):
-                        raise ValueError("snapshot_receipt_hash")
-                    shutil.copyfile(item, temp / directory / item.name)
-        inventory = {}
-        for path in sorted(p for p in temp.rglob("*") if p.is_file()):
-            if path.name != "snapshot.json":
-                inventory[str(path.relative_to(temp))] = _digest(path)
-                os.chmod(path, 0o400)
+        lock_fd = os.open(lock_path, flags, 0o600)
+    except OSError as exc:
+        raise ValueError("snapshot_lock_permissions") from exc
+    if not stat.S_ISREG(os.fstat(lock_fd).st_mode):
+        os.close(lock_fd)
+        raise ValueError("snapshot_lock_permissions")
+    os.fchmod(lock_fd, 0o600)
+    lock_file = os.fdopen(lock_fd, "r+b")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as exc:
+        lock_file.close()
+        raise ValueError("snapshot_supervisor_active") from exc
+    temp = None
+    try:
+        if stop.is_symlink() or not stop.exists() or not _regular_file(stop):
+            raise ValueError("snapshot_requires_STOP")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temp = Path(tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
+        os.chmod(temp, 0o700)
+        _copy_private_tree(state, temp, skip_lock=True)
+        (temp / "organization.sqlite").unlink(missing_ok=True)
+        (temp / "usage-ledger.sqlite").unlink(missing_ok=True)
+        _sqlite_backup(state / "organization.sqlite", temp / "organization.sqlite")
+        _sqlite_backup(state / "usage-ledger.sqlite", temp / "usage-ledger.sqlite")
+        ledger = UsageLedger(temp / "usage-ledger.sqlite")
+        ledger.close()
+        os.chmod(temp / "organization.sqlite", 0o400)
+        os.chmod(temp / "usage-ledger.sqlite", 0o400)
+        if stop.is_symlink() or not stop.exists() or not _regular_file(stop):
+            raise ValueError("snapshot_requires_STOP")
+        if not (temp / "integration/.git").is_dir():
+            raise ValueError("snapshot_integration_repository_missing")
+        _assert_no_running_attempts(temp / "organization.sqlite")
+        inventory = _inventory(temp)
         (temp / "snapshot.json").write_text(
             json.dumps(
-                {"schema": "brain-organization-snapshot-v1", "files": inventory},
+                {
+                    "schema": "brain-organization-snapshot-v2",
+                    "files": inventory,
+                    "stop_preserved": True,
+                    "running_attempts": 0,
+                },
                 sort_keys=True,
                 indent=2,
             )
             + "\n"
         )
-        os.chmod(temp / "snapshot.json", 0o400)
+        os.chmod(temp / "snapshot.json", 0o600)
         os.replace(temp, destination)
         return destination
     except Exception:
+        if temp is not None:
+            shutil.rmtree(temp, ignore_errors=True)
+        raise
+    finally:
+        fcntl.flock(lock_file, fcntl.LOCK_UN)
+        lock_file.close()
+
+
+def restore_snapshot(snapshot: str | Path, destination: str | Path) -> Path:
+    """Restore a verified checkpoint to a fresh path and keep STOP asserted."""
+    snapshot_path = Path(snapshot).absolute()
+    if snapshot_path.is_symlink() or not snapshot_path.is_dir():
+        raise ValueError("restore_path")
+    snapshot = snapshot_path.resolve(strict=True)
+    if snapshot.stat().st_uid != os.getuid() or snapshot.stat().st_mode & 0o077:
+        raise ValueError("snapshot_permissions")
+    destination_input = Path(destination).absolute()
+    destination = destination_input.parent.resolve() / destination_input.name
+    if destination.exists():
+        raise ValueError("restore_path")
+    if destination == snapshot or snapshot in destination.parents:
+        raise ValueError("restore_path")
+    manifest_path = snapshot / "snapshot.json"
+    if manifest_path.is_symlink() or not manifest_path.exists() or not _regular_file(manifest_path):
+        raise ValueError("snapshot_manifest_invalid")
+    manifest = _json(manifest_path)
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("schema") != "brain-organization-snapshot-v2"
+        or manifest.get("stop_preserved") is not True
+        or manifest.get("running_attempts") != 0
+        or not isinstance(manifest.get("files"), dict)
+    ):
+        raise ValueError("snapshot_manifest_invalid")
+    expected = manifest["files"]
+    actual = _inventory(snapshot)
+    actual.pop("snapshot.json", None)
+    if actual != expected:
+        raise ValueError("snapshot_inventory_mismatch")
+    for name in expected:
+        rel = Path(name)
+        if rel.is_absolute() or ".." in rel.parts or name == "snapshot.json":
+            raise ValueError("snapshot_inventory_path")
+    required_files = {
+        "STOP",
+        "organization.sqlite",
+        "usage-ledger.sqlite",
+        "config.json",
+        "config.sha256",
+        "controller-manifest.json",
+        "integration/.git/HEAD",
+    }
+    if not required_files <= expected.keys():
+        raise ValueError("snapshot_incomplete")
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp = Path(tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
+    os.chmod(temp, 0o700)
+    try:
+        _copy_private_tree(snapshot, temp)
+        cfg_path = temp / "config.json"
+        cfg = _json(cfg_path)
+        cfg["controller"] = str((temp / "controller").resolve())
+        cfg_bytes = json.dumps(cfg, sort_keys=True, indent=2).encode()
+        cfg_path.write_bytes(cfg_bytes)
+        (temp / "config.sha256").write_text(hashlib.sha256(cfg_bytes).hexdigest())
+        os.chmod(cfg_path, 0o600)
+        os.chmod(temp / "config.sha256", 0o600)
+        for path in temp.rglob("*"):
+            if path.is_dir():
+                os.chmod(path, 0o700)
+            elif path.is_file():
+                os.chmod(path, 0o600)
+        if not (temp / "STOP").is_file():
+            raise ValueError("restore_STOP_missing")
+        ledger = UsageLedger(temp / "usage-ledger.sqlite")
+        ledger.close()
+        _assert_no_running_attempts(temp / "organization.sqlite")
+        validate_deployment(temp)
+        _sqlite_backup(temp / "organization.sqlite", temp / ".organization-check.sqlite")
+        (temp / ".organization-check.sqlite").unlink()
+        _sqlite_backup(temp / "usage-ledger.sqlite", temp / ".usage-check.sqlite")
+        (temp / ".usage-check.sqlite").unlink()
+        receipt_dir = temp / "receipts"
+        for item in receipt_dir.glob("*") if receipt_dir.exists() else ():
+            if item.is_symlink() or not item.is_file():
+                raise ValueError("snapshot_receipt_permissions")
+            try:
+                receipt = json.loads(item.read_bytes())
+            except (OSError, ValueError) as exc:
+                raise ValueError("snapshot_receipt_invalid") from exc
+            raw = item.read_bytes()
+            expected_name = hashlib.sha256(_canonical(receipt)).hexdigest() + ".json"
+            if item.name != expected_name or raw != _canonical(receipt):
+                raise ValueError("snapshot_receipt_hash")
+        cfg["controller"] = str((destination / "controller").resolve())
+        cfg_bytes = json.dumps(cfg, sort_keys=True, indent=2).encode()
+        cfg_path.write_bytes(cfg_bytes)
+        (temp / "config.sha256").write_text(hashlib.sha256(cfg_bytes).hexdigest())
+        os.replace(temp, destination)
+        validate_deployment(destination)
+        cfg["restore_requires_host_requalification"] = True
+        cfg_bytes = json.dumps(cfg, sort_keys=True, indent=2).encode()
+        (destination / "config.json").write_bytes(cfg_bytes)
+        (destination / "config.sha256").write_text(hashlib.sha256(cfg_bytes).hexdigest())
+        os.chmod(destination / "config.json", 0o600)
+        os.chmod(destination / "config.sha256", 0o600)
+        restore_receipt = {
+            "schema": "brain-organization-restore-v1",
+            "snapshot_manifest_sha256": _digest(destination / "snapshot.json"),
+            "restored_path": str(destination),
+            "stop_preserved": True,
+            "structural_deployment_validation": True,
+            "runtime_ready": False,
+            "host_requalification_required": True,
+        }
+        receipt_path = destination / "restore-receipt.json"
+        receipt_path.write_text(json.dumps(restore_receipt, sort_keys=True, indent=2) + "\n")
+        os.chmod(receipt_path, 0o600)
+        return destination
+    except Exception:
         shutil.rmtree(temp, ignore_errors=True)
+        if destination.exists() and not temp.exists():
+            shutil.rmtree(destination, ignore_errors=True)
         raise

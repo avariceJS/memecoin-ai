@@ -93,6 +93,23 @@ class UsageLedgerTests(unittest.TestCase):
             UsageLedger(incompatible)
         self.l = UsageLedger(self.tmp.name + "/fresh.sqlite")
 
+    def test_legacy_schema_with_missing_primary_key_is_not_stamped(self):
+        self.l.close()
+        with sqlite3.connect(self.path) as db:
+            db.executescript(
+                """
+                CREATE TABLE registrations_copy AS SELECT * FROM registrations;
+                DROP TABLE registrations;
+                ALTER TABLE registrations_copy RENAME TO registrations;
+                PRAGMA user_version=0;
+                """
+            )
+        with self.assertRaisesRegex(ValueError, "usage_ledger_schema_unrecognized"):
+            UsageLedger(self.path)
+        with sqlite3.connect(self.path) as db:
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 0)
+        self.l = UsageLedger(Path(self.tmp.name) / "fresh.sqlite")
+
     def observe(self, eid, seq, counters, source="provider", epoch="e1"):
         self.l.observe("a", epoch, eid, counters, source=source, sequence=seq, observed_at=seq)
 

@@ -51,6 +51,7 @@ class SupervisorTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.state = Path(self.temp.name)
+        FakeCodex.response = "{malformed"
         FakeCodex.turn_estimates = []
         (self.state / "intents").mkdir()
         self.now = 1000.0
@@ -386,6 +387,80 @@ class SupervisorTests(unittest.TestCase):
         self.assertFalse(any("commit" in args for args in calls))
         self.assertEqual(len(FakeCodex.turn_estimates), 2)
         self.assertTrue(all(0 < estimate <= 4000 for estimate in FakeCodex.turn_estimates))
+
+    def test_wrong_typed_lead_fields_open_circuit(self):
+        self.task()
+        attempt = self.db.claim("T", "worker", 100)
+        FakeCodex.response = json.dumps(
+            {
+                "decision": "approve",
+                "worker_brief": None,
+                "rationale": 123,
+                "contract_ack": {},
+            }
+        )
+        with (
+            patch.object(supervisor, "metered_client", side_effect=lambda *a, **k: FakeCodex()),
+            patch.object(supervisor, "runner", return_value=MagicMock()),
+            patch.object(supervisor, "git", return_value="base"),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+        self.assertEqual(self.db.get_task("T")["state"], "failed")
+        self.assertEqual(
+            self.db.get_decision("circuit/controller-parse")["body"]["status"], "open"
+        )
+        self.assertEqual(len(FakeCodex.turn_estimates), 1)
+
+    def test_wrong_typed_worker_fields_open_circuit(self):
+        self.task()
+        attempt = self.db.claim("T", "worker", 100)
+        lead, worker = FakeCodex(), FakeCodex()
+        lead.response = json.dumps(
+            {
+                "decision": "approve",
+                "worker_brief": "bounded",
+                "rationale": "settled",
+                "contract_ack": False,
+            }
+        )
+        worker.response = json.dumps({"summary": None, "tests": 17, "limitations": {}})
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def fake_metered_client(*args, **kwargs):
+            yield lead if kwargs["context"]["role"] == "lead" else worker
+
+        with (
+            patch.object(supervisor, "metered_client", side_effect=fake_metered_client),
+            patch.object(supervisor, "runner", return_value=MagicMock()),
+            patch.object(supervisor, "git", return_value=" M src/example.py"),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+        self.assertEqual(self.db.get_task("T")["state"], "failed")
+        self.assertEqual(
+            self.db.get_decision("circuit/controller-parse")["body"]["status"], "open"
+        )
+
+    def test_open_controller_circuit_stops_queued_attempt_before_dispatch(self):
+        self.task("T")
+        self.task("T2")
+        first = self.db.claim("T", "worker", 100)
+        FakeCodex.response = "{malformed"
+        with (
+            patch.object(supervisor, "metered_client", side_effect=lambda *a, **k: FakeCodex()),
+            patch.object(supervisor, "runner", return_value=MagicMock()),
+            patch.object(supervisor, "git", return_value="base"),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+        ):
+            supervisor.run_attempt(self.state, first["id"])
+        turns_before = len(FakeCodex.turn_estimates)
+        queued = self.db.claim("T2", "worker", 100)
+        supervisor.run_attempt(self.state, queued["id"])
+        self.assertEqual(len(FakeCodex.turn_estimates), turns_before)
+        self.assertEqual(self.db.get_task("T2")["state"], "failed")
 
     def test_contract_activation_requires_both_matching_hash_ack_and_is_idempotent(self):
         self.candidate("EXP-001", target_state="integrated")

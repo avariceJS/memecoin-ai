@@ -170,10 +170,15 @@ Sol принял receipt только как static correlation и отклон�
 receipt, некорректные значения отвергаются, terminal settlement не включался. Добавленные focused
 cases прошли прямой запуск и компиляцию; `pytest`/Ruff отсутствуют в среде.
 
-Sol отклонил release qualification точного source candidate `8a28908`: нашёл неверные проверки
-decision envelope, неатомарный circuit, чрезмерную отмену при нулевых admission slots и три
-детерминированные ошибки тестов. Исправления уже в рабочем diff, включая lease-fenced transaction
-и version-bound recovery, но ещё не закреплены и не прошли повторный Sol review. `ORG-A03`
-остаётся fail-closed, `ORG-A06` и полный fresh-path restore не закрыты. Пилот, STOP и runtime не
-трогались. Стандартные проверки недоступны: в checkout нет pinned Ruff/pytest; узкие проверки
-запущены напрямую.
+Sol отклонил release qualification source candidate `8a28908`, затем проверил `f73e030`:
+подтвердил A01, семантику A07, порядок bootstrap и атомарность миграции A02, но отклонил
+совместимость схемы A02, проверку типов выходов A09 и полную release qualification. Текущий
+незакоммиченный follow-up проверяет полную сигнатуру ledger schema, отклоняет неверно типизированные
+выходы до submit и добавляет synthetic snapshot v2 с восстановлением в новый путь. Snapshot
+сохраняет STOP и данные, но восстановленная копия помечается `runtime_ready=false` и требует
+host requalification. Этот точный кандидат ещё требует focused verification и независимого review
+Sol; release не квалифицирован. `ORG-A03` остаётся fail-closed, usage reservations сохраняются.
+Пилот, STOP, runtime и protected data не трогались. Прямой запуск прошёл 66 unittest случаев
+ledger/state/bootstrap и целевых supervisor регрессий, а также 4 функции snapshot/restore через
+минимальную import-only заглушку `pytest` (без запуска pytest runner). Обычный импорт набора
+supervisor невозможен: `pytest` отсутствует; Ruff также отсутствует.
