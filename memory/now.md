@@ -118,7 +118,9 @@ automatically.
   independently while preserving exact producer/consumer acknowledgements, integrated-producer
   checks, activation-history revalidation and legacy `schema-validation` config/hash. Sol accepted
   exact diff `259867174de4f18c7a0f36bbc66c7301e175cde6e388e599564d13286903f518`; gate passed 351
-  tests, 83 subtests and Ruff. Generic proposal/lead-ack routing and broad A10 remain open. Receipt:
+  tests, 83 subtests and Ruff. Source and owner docs are fast-forwarded into `org/development` at
+  `6b9b18a33c7b043610546111fc815b9a7e9a971e`; `main` is unchanged. Generic proposal/lead-ack routing
+  and broad A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-generic-contract-activation-review-20261021.json`.
 - A04 source-only verifier-manifest custody resolver merged at `9487fc70057bc8ff5a467394fe7b70b06391e7b3`;
   Sol accepted the exact source. It verifies canonical manifest/binding digests, release/policy
