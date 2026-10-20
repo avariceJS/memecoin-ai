@@ -106,7 +106,9 @@ automatically.
   remain limitations. A separate Sol-accepted test-only increment `01a4c14` now holds a writer lock
   on a second Store connection, waits for the handoff writer, mutates readiness before unlock and
   verifies stale rejection plus fresh acceptance; gate passed 349 tests/83 subtests and Ruff.
-  The timeout is practical contention evidence, not exhaustive scheduling proof. Receipt:
+  The timeout is practical contention evidence, not exhaustive scheduling proof. Source and docs are
+  fast-forwarded into `org/development` at `73683bd3ce4fa8ac1c659e22889171af620c34ae`; `main` is
+  unchanged. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-quiescence-lockwait-review-20261021.json`.
   Generic contracts, plans/leases,
   conflict adjudication and full A10 remain open. Receipt:
