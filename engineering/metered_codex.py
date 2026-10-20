@@ -223,7 +223,7 @@ class Controller:
 
     def reconcile_dispatch(self, dispatch_id, *, terminal_receipt, stream_observations):
         row = self.ledger.dispatch(dispatch_id)
-        if not row or row["status"] not in ("completed", "unknown", "failed", "timeout"):
+        if not row or row["status"] not in ("completed", "unknown", "failed", "timeout", "settled"):
             raise RuntimeError("dispatch_not_reconcilable")
         pf = self.preflight() if self.preflight else {}
         if not isinstance(pf, dict) or pf.get("terminal_usage_qualified") is not True:
@@ -287,6 +287,19 @@ class Controller:
             raise ValueError("terminal_interval_uncovered")
         encoded_receipt = json.dumps(terminal_receipt, sort_keys=True, separators=(",", ":"))
         receipt_hash = hashlib.sha256(encoded_receipt.encode()).hexdigest()
+        self.ledger.attribute_dispatch(
+            dispatch_id,
+            identity,
+            epoch,
+            row["model"],
+            baseline,
+            end,
+            evidence={
+                "event_id": "qualified-terminal:" + dispatch_id,
+                "receipt_sha256": receipt_hash,
+                "turn_id": row["provider_turn_id"],
+            },
+        )
         self.ledger.db.execute("BEGIN IMMEDIATE")
         try:
             existing = self.ledger.db.execute(
@@ -438,8 +451,21 @@ class MeteredCodex:
         if model not in ("gpt-6.1-sol", "gpt-6-luna") or deadline_seconds > maximum:
             raise ValueError("model deadline exceeds bounded allowance")
         monotonic_deadline = self.controller.monotonic() + deadline_seconds
+        epoch = self._epochs.get(thread_id)
+        if epoch is None:
+            candidates = self.controller.ledger.db.execute(
+                "SELECT epoch FROM registrations WHERE identity=? ORDER BY epoch", (thread_id,)
+            ).fetchall()
+            if len(candidates) == 1:
+                epoch = candidates[0]["epoch"]
+                self._epochs[thread_id] = epoch
+        baseline = (
+            self.controller.ledger.trusted_terminal_baseline(thread_id, epoch)
+            if epoch is not None
+            else None
+        )
         permit = self.controller.admit(
-            dispatch_id, thread_id, None, model, estimate, monotonic_deadline, self.context
+            dispatch_id, thread_id, baseline, model, estimate, monotonic_deadline, self.context
         )
 
         monitor = self.controller.start_monitor(monotonic_deadline, permit)

@@ -1240,5 +1240,52 @@ class UsageLedger:
         ).fetchone()
         return dict(row) if row else None
 
+    def trusted_terminal_baseline(self, identity, epoch):
+        registration = self.db.execute(
+            "SELECT baseline FROM registrations WHERE identity=? AND epoch=?",
+            (identity, epoch),
+        ).fetchone()
+        if registration is None:
+            return None
+        terminals = self.db.execute(
+            "SELECT t.evidence FROM terminal_receipts t JOIN dispatches d "
+            "ON d.dispatch_id=t.dispatch_id WHERE d.identity=? AND d.epoch=? "
+            "ORDER BY d.created_at,t.observed_at",
+            (identity, epoch),
+        ).fetchall()
+        if terminals:
+            ends = [_counters(json.loads(item["evidence"])["end"]) for item in terminals]
+            greatest = max(item["total_tokens"] for item in ends)
+            candidates = {tuple(item[key] for key in FIELDS) for item in ends}
+            top = {item for item in candidates if item[-1] == greatest}
+            if len(top) != 1:
+                return None
+            baseline = next(item for item in ends if item["total_tokens"] == greatest)
+            for end in ends:
+                try:
+                    self._validate_interval(end, baseline)
+                except ValueError:
+                    return None
+        else:
+            baseline = (
+                json.loads(registration["baseline"])
+                if registration["baseline"] is not None
+                else None
+            )
+        if baseline is None:
+            return None
+        latest = self.db.execute(
+            "SELECT e.counters FROM events e WHERE e.identity=? AND e.epoch=? "
+            "AND e.sequence=(SELECT MAX(last.sequence) FROM events last "
+            "WHERE last.identity=e.identity AND last.epoch=e.epoch) "
+            "AND NOT EXISTS (SELECT 1 FROM events child WHERE child.parent_event_id=e.event_id)",
+            (identity, epoch),
+        ).fetchall()
+        if latest:
+            points = {tuple(json.loads(item["counters"]).values()) for item in latest}
+            if len(points) != 1 or _counters(json.loads(latest[0]["counters"])) != baseline:
+                return None
+        return baseline
+
     def close(self):
         self.db.close()

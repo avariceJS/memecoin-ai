@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 
@@ -267,5 +268,117 @@ def test_unqualified_progress_across_model_switch_stays_unassigned(tmp_path):
         )
         == 300
     )
+    controller.close()
+    ledger.close()
+
+
+def test_qualified_terminal_reconciliation_attributes_only_certified_interval(tmp_path):
+    ledger = UsageLedger(tmp_path / "qualified.sqlite")
+
+    class TerminalRPC(FakeRPC):
+        def __init__(self, ledger):
+            super().__init__(ledger)
+            self.sink = lambda _event: None
+
+        def turn(self, thread, prompt, **kwargs):
+            kwargs["permit"].consume(thread, kwargs["model"])
+            kwargs["started"]("qualified-turn")
+            self.sink(
+                {
+                    "kind": "token_usage",
+                    "turn_id": "qualified-turn",
+                    "usage": {
+                        "total": {
+                            "inputTokens": 100,
+                            "cachedInputTokens": 0,
+                            "outputTokens": 0,
+                            "reasoningOutputTokens": 0,
+                            "totalTokens": 100,
+                        }
+                    },
+                }
+            )
+            return {
+                "text": "{}",
+                "turn_id": "qualified-turn",
+                "usage": {"total": {"totalTokens": 100}},
+                "usage_start": None,
+                "usage_end": None,
+                "usage_delta": None,
+                "usage_terminal": False,
+            }
+
+    rpc = TerminalRPC(ledger)
+    controller = Controller(
+        ledger,
+        lambda: quota(),
+        state=tmp_path,
+        clock=lambda: 1000,
+        preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
+    )
+    client = MeteredCodex(
+        rpc, controller, {"role": "worker", "team": "Experience", "task": "terminal"}
+    )
+    thread = client.start("gpt-6-luna", "start")
+    client.turn(
+        thread,
+        "bounded",
+        dispatch_id="qualified-dispatch",
+        model="gpt-6-luna",
+        estimate={"tokens": 100, "wpu": 1},
+        tool=lambda _: None,
+        deadline_seconds=10,
+    )
+    before = ledger.summary()
+    assert before["by_model"] == {}
+    assert any(row["reason"] == "model_attribution_unverified" for row in before["unresolved"])
+    dispatch = ledger.dispatch("qualified-dispatch")
+    assert json.loads(dispatch["baseline"]) == {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 0,
+    }
+    progress = ledger.db.execute(
+        "SELECT event_id,sequence,counters FROM events WHERE source='codex-rpc-unattributed'"
+    ).fetchone()
+    controller.preflight = lambda: {
+        "resources": {"policy_id": "CEO-20261020-02"},
+        "terminal_usage_qualified": True,
+    }
+    controller.reconcile_dispatch(
+        "qualified-dispatch",
+        terminal_receipt={
+            "thread_id": thread,
+            "turn_id": "qualified-turn",
+            "epoch": "initial",
+            "baseline": {
+                "input_tokens": 0,
+                "cached_input_tokens": 0,
+                "output_tokens": 0,
+                "reasoning_output_tokens": 0,
+                "total_tokens": 0,
+            },
+            "end": {
+                "input_tokens": 100,
+                "cached_input_tokens": 0,
+                "output_tokens": 0,
+                "reasoning_output_tokens": 0,
+                "total_tokens": 100,
+            },
+        },
+        stream_observations=[
+            {
+                "event_id": progress["event_id"],
+                "sequence": progress["sequence"],
+                "counters": json.loads(progress["counters"]),
+            }
+        ],
+    )
+    after = ledger.summary()
+    assert after["by_model"]["gpt-6-luna"]["input_tokens"] == 100
+    assert after["unresolved"] == []
+    assert after["reservations"] == []
     controller.close()
     ledger.close()
