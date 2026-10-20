@@ -92,9 +92,13 @@ Sol also identified a conditional parser compatibility gap in `metered_codex.cap
 schema permits an optional `cacheWriteInputTokens` counter, but canonicalization currently requires
 the counter object to contain exactly the five other known keys. When the optional sixth key is
 present, the raw receipt is retained while the canonical progressive observation is dropped. Live
-payload frequency and cache-write semantics were not established. Add synthetic five- and six-field
-cases and define whether cache-write tokens contribute to input totals before qualification; this gap
-is separate from terminal finality and must not be used to weaken settlement.
+payload frequency and cache-write pricing semantics were not established. The current unreviewed
+source checkpoint accepts the optional field only as a nonnegative integer, keeps it in raw evidence,
+and does not add it to or subtract it from the five canonical counters. The existing invariant
+`totalTokens = inputTokens + outputTokens` remains required. Focused synthetic five- and six-field
+cases were added; pytest/Ruff are unavailable in this checkout, while syntax compilation and direct
+execution of those cases passed. This is parsing/retention only, not terminal settlement or
+cache-write pricing qualification.
 
 The independent review is recorded in native Sol thread
 `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`.

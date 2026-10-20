@@ -17,6 +17,9 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   settlement qualification. `thread/tokenUsage/updated` lacks proven finality/order/completeness and
   dispatch/model/epoch binding; account usage is estimated and aggregate. A conditional six-field
   parser gap exists for optional `cacheWriteInputTokens`; see the canonical organization document.
+- The parser now preserves that optional field in raw evidence and normalizes only the five canonical
+  counters. Five/six-field cases and malformed optional values passed direct invocation; checkout
+  has no pytest/Ruff and only Python 3.9, so standard focused test tooling remains unverified.
 - Prove complete checkpoint and fresh-path restore before any original pilot mutation. Pilot STOP,
   original SQLite and six failures remain frozen. Reopening original tasks requires release acceptance
   and separate founder authorization. Market collection, training, AUTO, trading, protected data,

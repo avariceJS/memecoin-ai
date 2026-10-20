@@ -13,6 +13,38 @@ from pathlib import Path
 from .usage_ledger import UsageLedger
 
 
+_USAGE_TOTAL_KEYS = {
+    "inputTokens": "input_tokens",
+    "cachedInputTokens": "cached_input_tokens",
+    "outputTokens": "output_tokens",
+    "reasoningOutputTokens": "reasoning_output_tokens",
+    "totalTokens": "total_tokens",
+}
+_CACHE_WRITE_INPUT_TOKENS = "cacheWriteInputTokens"
+
+
+def _canonical_usage_total(total):
+    """Normalize known counters while leaving optional cache-write data in raw evidence."""
+    if not isinstance(total, dict):
+        return None
+    keys = set(total)
+    if keys not in (
+        set(_USAGE_TOTAL_KEYS),
+        set(_USAGE_TOTAL_KEYS) | {_CACHE_WRITE_INPUT_TOKENS},
+    ):
+        return None
+    if any(type(value) is not int or value < 0 for value in total.values()):
+        return None
+    canonical = {target: total[source] for source, target in _USAGE_TOTAL_KEYS.items()}
+    if (
+        canonical["total_tokens"] != canonical["input_tokens"] + canonical["output_tokens"]
+        or canonical["cached_input_tokens"] > canonical["input_tokens"]
+        or canonical["reasoning_output_tokens"] > canonical["output_tokens"]
+    ):
+        return None
+    return canonical
+
+
 class Permit:
     def __init__(self, controller, dispatch_id, model, identity=None):
         self.controller, self.dispatch_id, self.model = controller, dispatch_id, model
@@ -525,17 +557,7 @@ class MeteredCodex:
             turn_id = event.get("turn_id") if isinstance(event, dict) else None
             usage = event.get("usage") if isinstance(event, dict) else None
             total = usage.get("total") if isinstance(usage, dict) else None
-            canonical = None
-            if isinstance(total, dict):
-                mapping = {
-                    "inputTokens": "input_tokens",
-                    "cachedInputTokens": "cached_input_tokens",
-                    "outputTokens": "output_tokens",
-                    "reasoningOutputTokens": "reasoning_output_tokens",
-                    "totalTokens": "total_tokens",
-                }
-                if set(total) == set(mapping):
-                    canonical = {target: total[source] for source, target in mapping.items()}
+            canonical = _canonical_usage_total(total)
             event_hash = hashlib.sha256(
                 json.dumps(event, sort_keys=True, default=str).encode()
             ).hexdigest()

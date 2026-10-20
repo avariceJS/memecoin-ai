@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from engineering.metered_codex import Controller, MeteredCodex
+from engineering.metered_codex import Controller, MeteredCodex, _canonical_usage_total
 from engineering.usage_ledger import UsageLedger
 
 
@@ -65,6 +65,112 @@ def make(tmp_path, percent=68):
         "authority": "CEO-20261020-02",
     }
     return ledger, rpc, controller, MeteredCodex(rpc, controller, context)
+
+
+def test_canonical_usage_accepts_optional_cache_write_counter():
+    five_fields = {
+        "inputTokens": 12,
+        "cachedInputTokens": 4,
+        "outputTokens": 3,
+        "reasoningOutputTokens": 1,
+        "totalTokens": 15,
+    }
+    expected = {
+        "input_tokens": 12,
+        "cached_input_tokens": 4,
+        "output_tokens": 3,
+        "reasoning_output_tokens": 1,
+        "total_tokens": 15,
+    }
+
+    assert _canonical_usage_total(five_fields) == expected
+    assert _canonical_usage_total({**five_fields, "cacheWriteInputTokens": 0}) == expected
+    assert _canonical_usage_total({**five_fields, "cacheWriteInputTokens": 8}) == expected
+
+
+@pytest.mark.parametrize("value", [True, -1, 1.5, "8"])
+def test_canonical_usage_rejects_invalid_optional_cache_write_counter(value):
+    five_fields = {
+        "inputTokens": 12,
+        "cachedInputTokens": 4,
+        "outputTokens": 3,
+        "reasoningOutputTokens": 1,
+        "totalTokens": 15,
+    }
+    assert _canonical_usage_total({**five_fields, "cacheWriteInputTokens": value}) is None
+
+
+def test_canonical_usage_preserves_raw_optional_counter_in_receipt(tmp_path):
+    ledger = UsageLedger(tmp_path / "usage.sqlite")
+
+    class UsageRPC(FakeRPC):
+        def __init__(self, ledger):
+            super().__init__(ledger)
+            self.sink = lambda _event: None
+
+        def turn(self, thread, prompt, **kwargs):
+            kwargs["permit"].consume(thread, kwargs["model"])
+            kwargs["started"]("cache-write-turn")
+            usage = {
+                "inputTokens": 12,
+                "cachedInputTokens": 4,
+                "outputTokens": 3,
+                "reasoningOutputTokens": 1,
+                "totalTokens": 15,
+                "cacheWriteInputTokens": 8,
+            }
+            self.sink(
+                {
+                    "kind": "token_usage",
+                    "thread_id": thread,
+                    "turn_id": "cache-write-turn",
+                    "usage": {"total": usage},
+                }
+            )
+            return {
+                "text": "{}",
+                "turn_id": "cache-write-turn",
+                "usage": {"total": usage},
+                "usage_start": None,
+                "usage_end": None,
+                "usage_delta": None,
+                "usage_terminal": False,
+            }
+
+    rpc = UsageRPC(ledger)
+    controller = Controller(
+        ledger,
+        lambda: quota(),
+        state=tmp_path,
+        clock=lambda: 1000,
+        preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
+    )
+    client = MeteredCodex(
+        rpc, controller, {"role": "worker", "team": "Experience", "task": "cache-write"}
+    )
+    thread = client.start("gpt-6-luna", "start")
+    client.turn(
+        thread,
+        "bounded",
+        dispatch_id="cache-write-dispatch",
+        model="gpt-6-luna",
+        estimate={"tokens": 100, "wpu": 1},
+        tool=lambda _: None,
+        deadline_seconds=10,
+    )
+    row = ledger.db.execute(
+        "SELECT receipt,evidence FROM receipts WHERE provider_turn_id=?", ("cache-write-turn",)
+    ).fetchone()
+    assert json.loads(row["receipt"]) == {
+        "input_tokens": 12,
+        "cached_input_tokens": 4,
+        "output_tokens": 3,
+        "reasoning_output_tokens": 1,
+        "total_tokens": 15,
+    }
+    assert json.loads(row["evidence"])["usage"]["total"]["cacheWriteInputTokens"] == 8
+    controller.close()
+    ledger.close()
 
 
 def test_pre_send_reservation_and_replay_and_stop(tmp_path):

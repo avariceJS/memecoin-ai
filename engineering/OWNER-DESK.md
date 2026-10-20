@@ -163,3 +163,8 @@ Sol принял receipt только как static correlation и отклон�
 частота поля неизвестна. В конечном кандидате добавим синтетические варианты на 5 и 6 полей и
 уточним семантику cache-write, не используя его для settlement. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-qualification-20261020.json`; review: Sol thread `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`.
+
+Условную потерю canonical progress snapshot исправил: пятифилдовый формат и optional шестое
+`cacheWriteInputTokens` сохраняют те же пять канонических счётчиков; raw шестое поле остаётся в
+receipt, некорректные значения отвергаются, terminal settlement не включался. Добавленные focused
+cases прошли прямой запуск и компиляцию; `pytest`/Ruff отсутствуют в среде.
