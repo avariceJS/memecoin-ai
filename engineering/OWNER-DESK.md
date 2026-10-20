@@ -416,3 +416,13 @@ At `d985cffdcbddee11d25f9972f6a1dafcf73f90fb` A04 verifier manifest поднят
 Следующий bounded A04 source increment проверяет canonical interpreter path, regular-file/execute mode и SHA-256 непосредственно перед `sandbox-exec`: чтение идёт через no-follow descriptor и ограничено 512 MB накопленных байтов. Результат хранит это как `prelaunch_executable_sha256`. Это сужает окно замены после plan resolution, но `sandbox-exec` позднее разрешает pathname; проверка не доказывает запуск именно проверенного inode. Замена parent path или файла после проверки, loader/invocation semantics, sandbox, executable integration и production gates остаются открыты. План по-прежнему `execution_qualified=False`. Sol принял ограниченный diff; engineering gate: 332 теста и 65 subtests, Ruff прошёл на 56 файлах. Полный A04 и operational acceptance не пройдены.
 
 Этот source increment вводит manifest v3 и фиксированный command prefix `interpreter -I -S -B harness`. Admission и resolver отклоняют иной порядок; manifest v2 не принимается этим контрактом. Эти CPython flags игнорируют `PYTHON*` и небезопасные пути, отключают автоматический `site`/`.pth` startup и запись `.pyc`. Synthetic harness прошёл с pinned interpreter в disposable Seatbelt profile; strict result contract, startup flags, prelaunch hash и отсутствие bytecode проверены. Sol принял ограниченный source increment; engineering gate прошёл: 336 тестов, 73 subtests, Ruff на 56 файлах. Это проверяет только synthetic host/profile/command tuple: exact deployment roots, полный loader graph и доказательство, что sandbox-exec исполнил именно hashed inode, остаются открытыми. План всё ещё `execution_qualified=False`; production admission и full A04 не приняты.
+
+21 октября проверен отдельный disposable same-inode feasibility probe на macOS 26.7.1 / Darwin
+25.6.0 (build 25G241): открытый `/bin/echo` descriptor нельзя исполнить через `posix_spawn` как
+`/dev/fd/N` (`EACCES`) ни с `O_RDONLY`, ни с `O_EXEC`. В установленном SDK и текущем `libSystem` не
+нашлись публичные `fexecve`/`execveat`; private API не используется. Это ограниченный вывод только
+для проверенного host, не доказательство отсутствия всех альтернатив. A04 остаётся fail-closed,
+планы `execution_qualified=False`, пока не будет независимо проверенного механизма или принятой
+ограниченной residual policy. Loader/import dependency closure также не квалифицирован. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-darwin-fd-exec-probe-20261021.json`
+(SHA-256 `1e22ca8a59053bf0b4b746a98b6d23b543391497ac7b92da2840defe92b0b07f`).

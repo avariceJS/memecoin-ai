@@ -261,6 +261,21 @@ synthetic host/profile/command tuple only. Exact deployment roots, complete load
 path-to-invocation identity, production default-off admission and full A04 remain open; bound plans
 still have `execution_qualified=False`.
 
+A disposable feasibility probe on macOS 26.7.1 / Darwin 25.6.0 (build 25G241) did not find a
+reviewed public descriptor-to-exec path. The installed SDK's `execve` interface takes a pathname;
+the SDK headers and current `libSystem` lookup expose neither `fexecve` nor `execveat`. Although the
+SDK defines `O_EXEC`, `posix_spawn` of `/dev/fd/N` returned `EACCES` for an inherited `/bin/echo`
+descriptor, both with `O_RDONLY` and `O_EXEC`. This is a host-specific negative result, not proof
+that no private or alternative mechanism exists. No private interface is adopted. A04 remains
+fail-closed until a supported, independently reviewed same-inode mechanism or an explicitly bounded
+residual policy is established. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-darwin-fd-exec-probe-20261021.json`
+(SHA-256 `1e22ca8a59053bf0b4b746a98b6d23b543391497ac7b92da2840defe92b0b07f`). The source basis is
+Apple's [`execve(2)` reference](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/execve.2.html),
+[Libc `unistd.h`](https://github.com/apple-oss-distributions/Libc/blob/main/include/unistd.h), and
+[XNU `kern_exec.c`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_exec.c).
+This does not address Python loader/import dependency closure.
+
 The source candidate, merged-system acceptance, operational release, and founder authority to resume
 the original pilot are distinct gates. A03 currently blocks full operational release, not independent
 engineering progress. Passing synthetic tests or the local release command alone does not pass them.
