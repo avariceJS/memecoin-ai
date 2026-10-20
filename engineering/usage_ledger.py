@@ -542,12 +542,30 @@ class UsageLedger:
             previous = current
             for seq in sorted(positions):
                 value = positions[seq][0]
-                event_row = self.db.execute(
-                    "SELECT event_id,source FROM events WHERE identity=? AND epoch=? "
-                    "AND sequence=? ORDER BY event_id LIMIT 1",
+                event_rows = self.db.execute(
+                    "SELECT e.event_id,e.source FROM events e WHERE e.identity=? AND e.epoch=? "
+                    "AND e.sequence=? AND NOT EXISTS (SELECT 1 FROM events child "
+                    "WHERE child.parent_event_id=e.event_id) ORDER BY e.event_id",
                     (r["identity"], r["epoch"], seq),
-                ).fetchone()
-                attribution = attributed.get(event_row["event_id"]) if event_row else None
+                ).fetchall()
+                event_row = event_rows[0] if event_rows else None
+                attributions = [
+                    attributed[row["event_id"]]
+                    for row in event_rows
+                    if row["event_id"] in attributed
+                ]
+                attribution_shapes = {
+                    (
+                        row["model"],
+                        row["start_counters"],
+                        row["end_counters"],
+                    )
+                    for row in attributions
+                }
+                attribution_ambiguous = len(attribution_shapes) > 1
+                attribution = (
+                    attributions[0] if attributions and not attribution_ambiguous else None
+                )
                 try:
                     delta = self._validate_interval(previous, value)
                 except ValueError:
@@ -560,29 +578,50 @@ class UsageLedger:
                     )
                     previous = value
                     continue
-                model_delta = delta
+                model_delta = None if attribution_ambiguous else delta
                 model = r["model"]
+                if attribution_ambiguous:
+                    unresolved.append(
+                        {
+                            "identity": r["identity"],
+                            "epoch": r["epoch"],
+                            "sequence": seq,
+                            "event_ids": [row["event_id"] for row in event_rows],
+                            "reason": "ambiguous_model_attribution",
+                            "counters": delta,
+                        }
+                    )
                 if attribution:
                     start = json.loads(attribution["start_counters"])
                     model_delta = self._validate_interval(start, value)
                     if previous != start:
+                        if previous["total_tokens"] < start["total_tokens"]:
+                            reason = "model_attribution_gap"
+                            interval_start = previous
+                            interval_end = start
+                            model_delta = self._validate_interval(start, value)
+                        else:
+                            reason = "model_attribution_overlap"
+                            interval_start = start
+                            interval_end = previous
+                            model_delta = self._validate_interval(previous, value)
                         try:
-                            gap = self._validate_interval(previous, start)
+                            affected = self._validate_interval(interval_start, interval_end)
                         except ValueError:
-                            gap = None
+                            affected = None
                         unresolved.append(
                             {
                                 "identity": r["identity"],
                                 "epoch": r["epoch"],
                                 "event_id": event_row["event_id"],
-                                "reason": "model_attribution_gap",
-                                "start": previous,
-                                "end": start,
-                                "counters": gap,
+                                "reason": reason,
+                                "start": interval_start,
+                                "end": interval_end,
+                                "counters": affected,
                             }
                         )
                     model = attribution["model"]
-                elif event_row and ":" in event_row["source"]:
+                elif not attribution_ambiguous and event_row and ":" in event_row["source"]:
                     candidate = event_row["source"].rsplit(":", 1)[1]
                     if candidate in MODELS:
                         model = candidate
@@ -940,17 +979,6 @@ class UsageLedger:
             if actual != expected:
                 raise ValueError("interval_attribution_conflict")
             return dispatch_id
-        latest = self.db.execute(
-            "SELECT counters FROM events WHERE identity=? AND epoch=? "
-            "AND parent_event_id IS NULL ORDER BY sequence DESC,event_id DESC LIMIT 1",
-            (identity, epoch),
-        ).fetchone()
-        if latest:
-            head = _counters(json.loads(latest["counters"]))
-            if head["total_tokens"] > before["total_tokens"]:
-                raise ValueError("overlapping_attribution_interval")
-            if head["total_tokens"] == before["total_tokens"] and head != before:
-                raise ValueError("attribution_start_conflict")
         self.observe(
             identity,
             epoch,

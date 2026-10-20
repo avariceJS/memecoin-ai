@@ -229,17 +229,79 @@ class UsageLedgerTests(unittest.TestCase):
         gaps = [row for row in summary["unresolved"] if row["reason"] == "model_attribution_gap"]
         self.assertEqual(len(gaps), 1)
         self.assertEqual(gaps[0]["counters"], c(100))
-        with self.assertRaisesRegex(ValueError, "overlapping_attribution_interval"):
-            self.l.attribute_dispatch(
-                "overlap",
-                "a",
-                "e1",
-                "gpt-6-luna",
-                c(150),
-                c(250),
-                evidence={"event_id": "luna-250", "receipt_sha256": "other"},
-            )
-        self.assertEqual(self.l.summary()["by_model"]["gpt-6.1-sol"]["input_tokens"], 100)
+        self.l.attribute_dispatch(
+            "overlap",
+            "a",
+            "e1",
+            "gpt-6-luna",
+            c(150),
+            c(250),
+            evidence={"event_id": "luna-250", "receipt_sha256": "other"},
+        )
+        overlap_summary = self.l.summary()
+        self.assertEqual(overlap_summary["incremental"], c(250))
+        self.assertEqual(overlap_summary["by_model"]["gpt-6.1-sol"]["input_tokens"], 100)
+        self.assertEqual(overlap_summary["by_model"]["gpt-6-luna"]["input_tokens"], 50)
+        overlaps = [
+            row
+            for row in overlap_summary["unresolved"]
+            if row["reason"] == "model_attribution_overlap"
+        ]
+        self.assertEqual(len(overlaps), 1)
+        self.assertEqual(overlaps[0]["counters"], c(50))
+
+    def test_external_interval_overlaps_local_union_without_double_counting(self):
+        self.l.observe(
+            "a",
+            "e1",
+            "local-100",
+            c(100),
+            source="codex-rpc",
+            sequence=100,
+            observed_at=1,
+        )
+        self.l.attribute_dispatch(
+            "external-local-duplicate",
+            "a",
+            "e1",
+            "gpt-6-luna",
+            c(),
+            c(100),
+            evidence={"event_id": "external-100", "receipt_sha256": "fixture"},
+        )
+        summary = self.l.summary()
+        self.assertEqual(summary["incremental"], c(100))
+        self.assertEqual(summary["by_model"]["gpt-6-luna"]["input_tokens"], 100)
+        self.assertEqual(
+            [row for row in summary["unresolved"] if row["reason"] == "model_attribution_overlap"],
+            [],
+        )
+
+    def test_conflicting_models_at_same_endpoint_remain_unattributed(self):
+        self.l.attribute_dispatch(
+            "sol-claim",
+            "a",
+            "e1",
+            "gpt-6.1-sol",
+            c(),
+            c(100),
+            evidence={"event_id": "a-sol-100", "receipt_sha256": "sol"},
+        )
+        self.l.attribute_dispatch(
+            "luna-claim",
+            "a",
+            "e1",
+            "gpt-6-luna",
+            c(),
+            c(100),
+            evidence={"event_id": "z-luna-100", "receipt_sha256": "luna"},
+        )
+        summary = self.l.summary()
+        self.assertEqual(summary["incremental"], c(100))
+        self.assertEqual(summary["by_model"], {})
+        self.assertTrue(
+            any(row["reason"] == "ambiguous_model_attribution" for row in summary["unresolved"])
+        )
 
     def test_raw_rpc_ingress_is_byte_exact_and_persists_on_separate_connection(self):
         raw = b'{"method":"turn/started"}\r\n'

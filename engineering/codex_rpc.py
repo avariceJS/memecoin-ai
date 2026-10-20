@@ -173,9 +173,10 @@ class Codex:
         try:
             for raw in iter(self.proc.stdout.readline, b""):
                 ingress_sink = getattr(self, "raw_ingress_sink", None)
+                ingress_id = None
                 if ingress_sink is not None:
                     try:
-                        ingress_sink(raw)
+                        ingress_id = ingress_sink(raw)
                     except Exception as exc:
                         self.messages.put(
                             {"_ingress_error": type(exc).__name__ + ":" + str(exc)[:200]}
@@ -185,15 +186,31 @@ class Codex:
                     message = json.loads(raw)
                 except (UnicodeDecodeError, json.JSONDecodeError):
                     self.messages.put(
-                        {"_codex_raw_event": {"kind": "rpc_malformed", "raw_bytes_hex": raw.hex()}}
+                        {
+                            "_codex_raw_event": {
+                                "kind": "rpc_malformed",
+                                "raw_bytes_hex": raw.hex(),
+                                "ingress_id": ingress_id,
+                            }
+                        }
                     )
                     continue
                 if not isinstance(message, dict):
                     self.messages.put(
-                        {"_codex_raw_event": {"kind": "rpc_malformed", "raw_bytes_hex": raw.hex()}}
+                        {
+                            "_codex_raw_event": {
+                                "kind": "rpc_malformed",
+                                "raw_bytes_hex": raw.hex(),
+                                "ingress_id": ingress_id,
+                            }
+                        }
                     )
                     continue
-                message["_codex_raw_event"] = {"kind": "rpc_raw", "raw_bytes_hex": raw.hex()}
+                message["_codex_raw_event"] = {
+                    "kind": "rpc_raw",
+                    "raw_bytes_hex": raw.hex(),
+                    "ingress_id": ingress_id,
+                }
                 self.messages.put(message)
         finally:
             self.messages.put({"_closed": True})
@@ -402,6 +419,13 @@ class Codex:
                                 }
                             ],
                         }
+                if getattr(permit, "cancelled", False) or time.monotonic() >= end:
+                    try:
+                        self.call(
+                            "turn/interrupt", {"threadId": thread_id, "turnId": turn_id}, timeout=10
+                        )
+                    finally:
+                        raise RpcError("tool_returned_after_turn_deadline")
                 self.send({"id": msg["id"], "result": response})
                 self.sink(
                     {

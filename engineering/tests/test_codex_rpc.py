@@ -4,6 +4,7 @@ import io
 import json
 import queue
 import threading
+import time
 from unittest.mock import Mock
 
 import pytest
@@ -97,6 +98,48 @@ def test_raw_turn_and_start_require_permit_before_provider_call():
     client.call.assert_not_called()
 
 
+def test_tool_result_after_deadline_is_not_returned_to_app_server():
+    client = Codex.__new__(Codex)
+    client.call = Mock(return_value={"turn": {"id": "turn-1"}})
+    client.send = Mock()
+    client.sink = Mock()
+    client.messages = queue.Queue()
+    client.notifications = [
+        {
+            "method": "item/tool/call",
+            "id": 8,
+            "params": {
+                "tool": "org_exec",
+                "threadId": "thread",
+                "turnId": "turn-1",
+                "arguments": {},
+            },
+        }
+    ]
+
+    class Permit:
+        cancelled = False
+
+        def consume(self, thread_id, model):
+            assert (thread_id, model) == ("thread", "gpt-6-luna")
+
+    def slow_tool(_args):
+        time.sleep(1.05)
+        return {"ok": True}
+
+    with pytest.raises(Exception, match="tool_returned_after_turn_deadline"):
+        client.turn(
+            "thread",
+            "prompt",
+            model="gpt-6-luna",
+            tool=slow_tool,
+            deadline_seconds=1,
+            permit=Permit(),
+        )
+    client.send.assert_not_called()
+    assert client.call.call_args_list[-1].args[0] == "turn/interrupt"
+
+
 def test_reader_queues_raw_evidence_for_owner_thread_delivery():
     client = Codex.__new__(Codex)
     client.proc = type(
@@ -108,7 +151,12 @@ def test_reader_queues_raw_evidence_for_owner_thread_delivery():
     client.send = Mock()
     delivered = []
     ingressed = []
-    client.raw_ingress_sink = lambda raw: ingressed.append((threading.get_ident(), raw))
+
+    def persist(raw):
+        ingressed.append((threading.get_ident(), raw))
+        return "ingress-" + str(len(ingressed))
+
+    client.raw_ingress_sink = persist
     client.sink = lambda event: delivered.append((threading.get_ident(), event))
     reader = threading.Thread(target=client._read)
     reader.start()
@@ -124,5 +172,6 @@ def test_reader_queues_raw_evidence_for_owner_thread_delivery():
     ]
     assert all(reader != threading.get_ident() for reader, _raw in ingressed)
     assert [event["kind"] for _owner, event in delivered] == ["rpc_malformed", "rpc_raw"]
+    assert [event["ingress_id"] for _owner, event in delivered] == ["ingress-1", "ingress-2"]
     assert delivered[0][1]["raw_bytes_hex"] == b"not-json\r\n".hex()
     assert json.loads(bytes.fromhex(delivered[1][1]["raw_bytes_hex"]))["id"] == 1
