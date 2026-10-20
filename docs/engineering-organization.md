@@ -212,6 +212,16 @@ Off-catalog end-to-end execution, default-off production admission and full A04 
 
 At `3c859e2`, bound result commands invoke the pinned harness directly and strict JSON result checks require the declared schema, acceptance identity and literal `true`. At `d985cff`, manifest v2 adds a canonical absolute interpreter path and executable digest; plan construction checks that digest against the configured interpreter, requires the first command to use `{interpreter}` then `{harness}`, and carries both identities into the plan and attempt evidence. Sol accepted the exact bounded source; the engineering gate passed 329 tests and 65 subtests with Ruff. This observes interpreter bytes during plan resolution, but does not prevent replacement before later invocation or qualify Python loader/invocation semantics. The bound plan remains `execution_qualified=False`; sandbox and executable integration acceptance remain open. Receipts: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-pin-review-20261021.json` (SHA-256 `a045ffd8c9d747a9fbd848f28ee0917782023663c2acc04484be2b2b2954dfe0`) and its hash correction `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-pin-review-correction-20261021.json` (SHA-256 `4a09da47cd6b643ff8853b782cdc2d5741ce136a2d8d9927294fb50ec0edfffe`).
 
+The next A04 source increment rechecks the first bound command's canonical interpreter path,
+regular-file/executable mode, and SHA-256 through a no-follow descriptor immediately before
+`sandbox-exec`; cumulative reads are capped at 512 MB. The command result records the observation as
+`prelaunch_executable_sha256`. This narrows the plan-to-launch replacement window, but
+`sandbox-exec` still receives a path and resolves it later, so this does not prove that the hashed
+inode ran. Parent-path replacement, post-check mutation, loader/invocation semantics, sandbox
+qualification, executable integration acceptance, production admission defaults, and full A04
+remain open. Plans remain `execution_qualified=False`. The updated engineering gate passed 332 tests
+and 65 subtests; Ruff check/format passed on 56 files. Sol accepted this bounded source increment.
+
 The source candidate, merged-system acceptance, operational release, and founder authority to resume
 the original pilot are distinct gates. A03 currently blocks full operational release, not independent
 engineering progress. Passing synthetic tests or the local release command alone does not pass them.
