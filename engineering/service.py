@@ -14,6 +14,7 @@ import plistlib
 import shutil
 import sqlite3
 import stat
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -103,19 +104,89 @@ def _inventory(root: Path) -> dict[str, str]:
     return inventory
 
 
+_ORGANIZATION_SCHEMA = {
+    "acceptances": ("task_id", "sha", "attempt_id", "epoch"),
+    "attempts": ("id", "task_id", "epoch", "worker", "lease_until", "state", "session"),
+    "candidates": ("task_id", "sha", "attempt_id", "epoch", "evidence"),
+    "contracts": ("name", "version", "body"),
+    "decisions": ("name", "version", "body", "replaces", "replaces_version"),
+    "events": ("seq", "at", "kind", "entity", "body"),
+    "integrations": ("task_id", "sha", "integration_sha", "details"),
+    "objectives": ("id", "title", "brief"),
+    "task_specs": (
+        "task_id", "body", "policy_sha256", "admission", "decision_name", "decision_version"
+    ),
+    "tasks": (
+        "id", "team", "title", "brief", "scope", "acceptance", "dependencies",
+        "contracts", "base_sha", "objective_id", "max_attempts", "state", "epoch",
+        "active_attempt", "candidate_sha",
+    ),
+    "usage": ("id", "attempt_id", "epoch", "body"),
+    "verifications": ("id", "task_id", "sha", "attempt_id", "epoch", "passed", "details"),
+}
+
+
 def _assert_no_running_attempts(database: Path) -> None:
     with sqlite3.connect(database) as db:
         tables = {
             row[0]
             for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
-        if "attempts" in tables and db.execute(
-            "SELECT 1 FROM attempts WHERE state='running' LIMIT 1"
-        ).fetchone():
+        if tables != set(_ORGANIZATION_SCHEMA):
+            raise ValueError("snapshot_organization_schema")
+        for table, expected_columns in _ORGANIZATION_SCHEMA.items():
+            columns = tuple(row[1] for row in db.execute(f"PRAGMA table_info({table})"))
+            if columns != expected_columns:
+                raise ValueError("snapshot_organization_schema")
+        try:
+            if db.execute("PRAGMA foreign_key_check").fetchone():
+                raise ValueError("snapshot_organization_integrity")
+            running = db.execute(
+                "SELECT 1 FROM attempts WHERE state='running' LIMIT 1"
+            ).fetchone()
+        except sqlite3.DatabaseError as exc:
+            raise ValueError("snapshot_organization_schema") from exc
+        if running:
             raise ValueError("snapshot_live_attempts")
 
 
-def validate_deployment(state: str | Path) -> dict:
+def _validate_integration_repository(repository: Path) -> None:
+    git = repository / ".git"
+    if git.is_symlink() or not git.is_dir():
+        raise ValueError("snapshot_integration_repository_missing")
+    forbidden = (
+        git / "objects/info/alternates",
+        git / "shallow",
+        git / "info/grafts",
+    )
+    if any(path.exists() or path.is_symlink() for path in forbidden):
+        raise ValueError("snapshot_integration_repository_external_objects")
+    environment = os.environ.copy()
+    for key in (
+        "GIT_DIR", "GIT_WORK_TREE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES"
+    ):
+        environment.pop(key, None)
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
+    environment["GIT_OPTIONAL_LOCKS"] = "0"
+    for args in (
+        ("rev-parse", "--verify", "HEAD^{commit}"),
+        ("fsck", "--full", "--strict", "--no-reflogs", "--no-progress"),
+    ):
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(repository), *args],
+                capture_output=True,
+                text=True,
+                check=False,
+                env=environment,
+            )
+        except OSError as exc:
+            raise ValueError("snapshot_integration_repository_invalid") from exc
+        if result.returncode != 0:
+            raise ValueError("snapshot_integration_repository_invalid")
+
+
+def validate_deployment(state: str | Path, *, allow_requalification: bool = False) -> dict:
     """Verify a private, qualified bootstrap before exposing launchd arguments."""
     state = Path(state).absolute()
     if state.is_symlink() or not state.is_dir() or state.stat().st_uid != os.getuid():
@@ -133,7 +204,7 @@ def validate_deployment(state: str | Path) -> dict:
         raise ValueError("deployment_schema")
     if cfg.get("remote_publication_enabled") is not False:
         raise ValueError("remote_publication_must_remain_disabled")
-    if cfg.get("restore_requires_host_requalification") is True:
+    if cfg.get("restore_requires_host_requalification") is True and not allow_requalification:
         raise ValueError("deployment_requalification_required")
     controller = (state / "controller").resolve(strict=True)
     if controller != state / "controller" or cfg.get("controller") != str(controller):
@@ -188,17 +259,23 @@ def validate_deployment(state: str | Path) -> dict:
     executable_value = cfg.get("codex_executable")
     if not isinstance(executable_value, str) or not Path(executable_value).is_absolute():
         raise ValueError("codex_executable_binding")
+    executable = Path(executable_value)
     try:
-        executable = Path(executable_value).resolve(strict=True)
+        executable = executable.resolve(strict=True)
     except OSError as exc:
-        raise ValueError("codex_executable_binding") from exc
-    if not executable.is_file() or not os.access(executable, os.X_OK):
+        if not allow_requalification:
+            raise ValueError("codex_executable_binding") from exc
+        executable = Path(executable_value)
+    if executable.exists():
+        if not executable.is_file() or not os.access(executable, os.X_OK):
+            raise ValueError("codex_executable_binding")
+        executable_digest = _digest(executable)
+        if cfg.get("codex_executable_sha256") != executable_digest:
+            raise ValueError("codex_executable_binding")
+        if reports["native-profile.json"].get("executable_sha256") != executable_digest:
+            raise ValueError("native_executable_binding")
+    elif not allow_requalification:
         raise ValueError("codex_executable_binding")
-    executable_digest = _digest(executable)
-    if cfg.get("codex_executable_sha256") != executable_digest:
-        raise ValueError("codex_executable_binding")
-    if reports["native-profile.json"].get("executable_sha256") != executable_digest:
-        raise ValueError("native_executable_binding")
     return {
         "state": state,
         "config": cfg,
@@ -269,8 +346,15 @@ def install_launch_agent(
 def backup_snapshot(state: str | Path, destination: str | Path) -> Path:
     """Create a complete private checkpoint of a stopped deployment."""
     deployment = validate_deployment(state)
-    state, destination = deployment["state"], Path(destination).absolute()
-    if destination == state or state in destination.parents or destination.exists():
+    state = deployment["state"].resolve(strict=True)
+    destination_input = Path(destination).absolute()
+    destination = destination_input.parent.resolve() / destination_input.name
+    if (
+        destination == state
+        or state in destination.parents
+        or destination.exists()
+        or destination.is_symlink()
+    ):
         raise ValueError("snapshot_destination")
     stop = state / "STOP"
     if stop.is_symlink() or not stop.exists() or not _regular_file(stop):
@@ -311,8 +395,7 @@ def backup_snapshot(state: str | Path, destination: str | Path) -> Path:
         os.chmod(temp / "usage-ledger.sqlite", 0o400)
         if stop.is_symlink() or not stop.exists() or not _regular_file(stop):
             raise ValueError("snapshot_requires_STOP")
-        if not (temp / "integration/.git").is_dir():
-            raise ValueError("snapshot_integration_repository_missing")
+        _validate_integration_repository(temp / "integration")
         _assert_no_running_attempts(temp / "organization.sqlite")
         inventory = _inventory(temp)
         (temp / "snapshot.json").write_text(
@@ -329,7 +412,9 @@ def backup_snapshot(state: str | Path, destination: str | Path) -> Path:
             + "\n"
         )
         os.chmod(temp / "snapshot.json", 0o600)
-        os.replace(temp, destination)
+        if destination.exists() or destination.is_symlink():
+            raise ValueError("snapshot_destination")
+        os.rename(temp, destination)
         return destination
     except Exception:
         if temp is not None:
@@ -350,7 +435,7 @@ def restore_snapshot(snapshot: str | Path, destination: str | Path) -> Path:
         raise ValueError("snapshot_permissions")
     destination_input = Path(destination).absolute()
     destination = destination_input.parent.resolve() / destination_input.name
-    if destination.exists():
+    if destination.exists() or destination.is_symlink():
         raise ValueError("restore_path")
     if destination == snapshot or snapshot in destination.parents:
         raise ValueError("restore_path")
@@ -390,11 +475,33 @@ def restore_snapshot(snapshot: str | Path, destination: str | Path) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
     temp = Path(tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
     os.chmod(temp, 0o700)
+    published = False
     try:
         _copy_private_tree(snapshot, temp)
         cfg_path = temp / "config.json"
         cfg = _json(cfg_path)
+        original_controller = Path(cfg.get("controller", "")).resolve()
+        original_executable = Path(cfg.get("codex_executable", "")).resolve()
+        if (
+            not original_controller.is_absolute()
+            or original_controller.name != "controller"
+            or not original_executable.is_absolute()
+        ):
+            raise ValueError("restore_config_binding")
+        executable_relative = None
+        try:
+            executable_relative = original_executable.relative_to(original_controller.parent)
+        except ValueError:
+            pass
+        if executable_relative is not None:
+            if ".." in executable_relative.parts:
+                raise ValueError("restore_config_binding")
+            copied_executable = temp / executable_relative
+            if copied_executable.is_symlink() or not _regular_file(copied_executable):
+                raise ValueError("codex_executable_binding")
+            cfg["codex_executable"] = str(copied_executable)
         cfg["controller"] = str((temp / "controller").resolve())
+        cfg["restore_requires_host_requalification"] = True
         cfg_bytes = json.dumps(cfg, sort_keys=True, indent=2).encode()
         cfg_path.write_bytes(cfg_bytes)
         (temp / "config.sha256").write_text(hashlib.sha256(cfg_bytes).hexdigest())
@@ -405,12 +512,15 @@ def restore_snapshot(snapshot: str | Path, destination: str | Path) -> Path:
                 os.chmod(path, 0o700)
             elif path.is_file():
                 os.chmod(path, 0o600)
+        if executable_relative is not None:
+            os.chmod(temp / executable_relative, 0o700)
         if not (temp / "STOP").is_file():
             raise ValueError("restore_STOP_missing")
         ledger = UsageLedger(temp / "usage-ledger.sqlite")
         ledger.close()
         _assert_no_running_attempts(temp / "organization.sqlite")
-        validate_deployment(temp)
+        _validate_integration_repository(temp / "integration")
+        validate_deployment(temp, allow_requalification=True)
         _sqlite_backup(temp / "organization.sqlite", temp / ".organization-check.sqlite")
         (temp / ".organization-check.sqlite").unlink()
         _sqlite_backup(temp / "usage-ledger.sqlite", temp / ".usage-check.sqlite")
@@ -427,18 +537,17 @@ def restore_snapshot(snapshot: str | Path, destination: str | Path) -> Path:
             expected_name = hashlib.sha256(_canonical(receipt)).hexdigest() + ".json"
             if item.name != expected_name or raw != _canonical(receipt):
                 raise ValueError("snapshot_receipt_hash")
-        cfg["controller"] = str((destination / "controller").resolve())
+        if destination.exists() or destination.is_symlink():
+            raise ValueError("restore_path")
+        cfg["controller"] = str(destination / "controller")
+        if executable_relative is not None:
+            cfg["codex_executable"] = str(destination / executable_relative)
         cfg_bytes = json.dumps(cfg, sort_keys=True, indent=2).encode()
         cfg_path.write_bytes(cfg_bytes)
         (temp / "config.sha256").write_text(hashlib.sha256(cfg_bytes).hexdigest())
-        os.replace(temp, destination)
-        validate_deployment(destination)
-        cfg["restore_requires_host_requalification"] = True
-        cfg_bytes = json.dumps(cfg, sort_keys=True, indent=2).encode()
-        (destination / "config.json").write_bytes(cfg_bytes)
-        (destination / "config.sha256").write_text(hashlib.sha256(cfg_bytes).hexdigest())
-        os.chmod(destination / "config.json", 0o600)
-        os.chmod(destination / "config.sha256", 0o600)
+        os.rename(temp, destination)
+        published = True
+        validate_deployment(destination, allow_requalification=True)
         restore_receipt = {
             "schema": "brain-organization-restore-v1",
             "snapshot_manifest_sha256": _digest(destination / "snapshot.json"),
@@ -454,6 +563,6 @@ def restore_snapshot(snapshot: str | Path, destination: str | Path) -> Path:
         return destination
     except Exception:
         shutil.rmtree(temp, ignore_errors=True)
-        if destination.exists() and not temp.exists():
+        if published:
             shutil.rmtree(destination, ignore_errors=True)
         raise

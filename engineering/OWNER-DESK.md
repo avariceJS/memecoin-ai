@@ -172,13 +172,18 @@ cases прошли прямой запуск и компиляцию; `pytest`/R
 
 Sol отклонил release qualification source candidate `8a28908`, затем проверил `f73e030`:
 подтвердил A01, семантику A07, порядок bootstrap и атомарность миграции A02, но отклонил
-совместимость схемы A02, проверку типов выходов A09 и полную release qualification. Текущий
-незакоммиченный follow-up проверяет полную сигнатуру ledger schema, отклоняет неверно типизированные
-выходы до submit и добавляет synthetic snapshot v2 с восстановлением в новый путь. Snapshot
-сохраняет STOP и данные, но восстановленная копия помечается `runtime_ready=false` и требует
-host requalification. Этот точный кандидат ещё требует focused verification и независимого review
-Sol; release не квалифицирован. `ORG-A03` остаётся fail-closed, usage reservations сохраняются.
-Пилот, STOP, runtime и protected data не трогались. Прямой запуск прошёл 66 unittest случаев
-ledger/state/bootstrap и целевых supervisor регрессий, а также 4 функции snapshot/restore через
-минимальную import-only заглушку `pytest` (без запуска pytest runner). Обычный импорт набора
-supervisor невозможен: `pytest` отсутствует; Ruff также отсутствует.
+совместимость схемы A02, проверку типов выходов A09 и полную release qualification. Кандидат
+`47d0770` также отклонён: review обнаружил, что валидатор ledger терял группировку composite FK,
+а snapshot принимал повреждённый Git object graph и неполную SQLite schema; restore зависел от
+старого executable path, мог удалить не принадлежащую ему destination, обходил containment через
+symlink parent и публиковал копию до установки requalification barrier. Текущий незакоммиченный
+follow-up исправляет эти случаи: exact grouped FK checks, Git fsck без alternates/shallow state,
+проверка organization table/column schema и FK integrity, source-path rebinding, canonical
+containment, безопасная cleanup и barrier до публикации. Snapshot требует STOP/lock и сохраняет
+`runtime_ready=false`; host requalification остаётся обязательной. Exact follow-up ещё не прошёл
+Sol review; release не квалифицирован. `ORG-A03` остаётся fail-closed, usage reservations
+сохраняются. Пилот, STOP, runtime и protected data не трогались.
+
+Последняя focused проверка прошла: 62 unittest случая ledger/state/bootstrap, 5 целевых supervisor
+регрессий и 8 функций snapshot/restore через минимальную import-only заглушку `pytest` (без запуска
+pytest runner). Ruff/pytest отсутствуют, поэтому полный release target недоступен.

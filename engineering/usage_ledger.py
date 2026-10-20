@@ -134,12 +134,16 @@ _SCHEMA_COLUMNS = {
     ),
 }
 _SCHEMA_FKS = {
-    "events": {("registrations", "identity", "identity"), ("registrations", "epoch", "epoch")},
-    "interval_attributions": {
-        ("registrations", "identity", "identity"), ("registrations", "epoch", "epoch")
+    "events": {
+        ("registrations", (("identity", "identity"), ("epoch", "epoch")))
     },
-    "turn_finishes": {("turns", "turn_id", "turn_id")},
-    "turns": {("registrations", "identity", "identity"), ("registrations", "epoch", "epoch")},
+    "interval_attributions": {
+        ("registrations", (("identity", "identity"), ("epoch", "epoch")))
+    },
+    "turn_finishes": {("turns", (("turn_id", "turn_id"),))},
+    "turns": {
+        ("registrations", (("identity", "identity"), ("epoch", "epoch")))
+    },
 }
 _SCHEMA_UNIQUE = {
     "events": {("event_id",), ("parent_event_id",)},
@@ -183,8 +187,15 @@ def _validate_schema(db):
         expected_defaults = ({}, {"evidence": "'{}'"}) if table == "receipts" else ({},)
         if defaults not in expected_defaults:
             raise ValueError("usage_ledger_schema_unrecognized")
+        grouped_foreign_keys = defaultdict(list)
+        for row in db.execute(f"PRAGMA foreign_key_list({table})"):
+            grouped_foreign_keys[row[0]].append((row[1], row[2], row[3], row[4]))
         foreign_keys = {
-            (row[2], row[3], row[4]) for row in db.execute(f"PRAGMA foreign_key_list({table})")
+            (
+                rows[0][1],
+                tuple((row[2], row[3]) for row in sorted(rows, key=lambda item: item[0])),
+            )
+            for rows in grouped_foreign_keys.values()
         }
         if foreign_keys != _SCHEMA_FKS.get(table, set()):
             raise ValueError("usage_ledger_schema_unrecognized")

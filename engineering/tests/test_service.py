@@ -1,11 +1,13 @@
 import fcntl
 import hashlib
 import json
+import os
 import plistlib
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -16,6 +18,8 @@ from engineering.service import (
     restore_snapshot,
     validate_deployment,
 )
+import engineering.service as service_module
+from engineering.org_state import Store
 from engineering.usage_ledger import UsageLedger
 
 
@@ -102,9 +106,9 @@ def deployment(tmp_path):
             "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
         },
     )
-    with sqlite3.connect(state / "organization.sqlite") as db:
-        db.execute("CREATE TABLE evidence (value TEXT)")
-        db.execute("INSERT INTO evidence VALUES ('synthetic')")
+    db = Store(state / "organization.sqlite")
+    db.add_task("synthetic", "team", "Synthetic checkpoint task", scope=["src/example.py"])
+    db.close()
     return state
 
 
@@ -167,7 +171,7 @@ def test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts(tmp_path):
     _write(receipt, _canonical(receipt_body))
     destination = tmp_path / "backup"
     result = backup_snapshot(state, destination)
-    assert result == destination
+    assert result == destination.resolve()
     assert (destination / "config.json").read_bytes() == (state / "config.json").read_bytes()
     assert (destination / "receipts" / receipt.name).read_bytes() == receipt.read_bytes()
     snapshot = json.loads((destination / "snapshot.json").read_text())
@@ -179,14 +183,24 @@ def test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts(tmp_path):
     assert "intents/EXP-001.json" in snapshot["files"]
     with sqlite3.connect(destination / "organization.sqlite") as db:
         assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-        assert db.execute("SELECT value FROM evidence").fetchone()[0] == "synthetic"
+        assert db.execute("SELECT id FROM tasks").fetchone()[0] == "synthetic"
     assert destination.stat().st_mode & 0o077 == 0
     assert (destination / "organization.sqlite").stat().st_mode & 0o222 == 0
     with pytest.raises(ValueError, match="snapshot_destination"):
         backup_snapshot(state, destination)
 
+    moved_source = tmp_path / "state-original-moved"
+    state.rename(moved_source)
     restored_path = tmp_path / "restored"
-    restored = restore_snapshot(destination, restored_path)
+    rename = os.rename
+
+    def verify_barrier_before_publication(source, target):
+        cfg = json.loads((Path(source) / "config.json").read_text())
+        assert cfg["restore_requires_host_requalification"] is True
+        rename(source, target)
+
+    with patch.object(service_module.os, "rename", verify_barrier_before_publication):
+        restored = restore_snapshot(destination, restored_path)
     assert (restored / "STOP").is_file()
     assert (restored / "attempts/7/worker.json").read_bytes() == b'{"synthetic":true}'
     assert (restored / "intents/EXP-001.json").read_bytes() == b'{"status":"pending"}'
@@ -197,11 +211,15 @@ def test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts(tmp_path):
     assert receipt["host_requalification_required"] is True
     restored_cfg = json.loads((restored / "config.json").read_text())
     assert restored_cfg["controller"] == str((restored / "controller").resolve())
+    assert restored_cfg["codex_executable"] == str((restored / "synthetic-codex").resolve())
+    assert Path(restored_cfg["codex_executable"]).is_file()
     with pytest.raises(ValueError, match="deployment_requalification_required"):
         validate_deployment(restored)
     with sqlite3.connect(restored / "usage-ledger.sqlite") as db:
         assert db.execute("PRAGMA user_version").fetchone()[0] == 1
         assert db.execute("SELECT identity FROM registrations").fetchone()[0] == "synthetic"
+    with sqlite3.connect(restored / "organization.sqlite") as db:
+        assert db.execute("SELECT id FROM tasks").fetchone()[0] == "synthetic"
     restored_tip = subprocess.run(
         ["git", "-C", str(restored / "integration"), "rev-parse", "refs/heads/research/active"],
         check=True,
@@ -241,11 +259,81 @@ def test_snapshot_requires_stop_and_an_inactive_supervisor(tmp_path):
 def test_snapshot_rejects_running_attempts(tmp_path):
     state = deployment(tmp_path)
     _prepare_complete_checkpoint(state)
-    with sqlite3.connect(state / "organization.sqlite") as db:
-        db.execute("CREATE TABLE attempts(state TEXT)")
-        db.execute("INSERT INTO attempts VALUES ('running')")
+    db = Store(state / "organization.sqlite")
+    db.add_task("running", "team", "Running synthetic task", scope=["src/example.py"])
+    db.claim("running", "worker", 60)
+    db.close()
     with pytest.raises(ValueError, match="snapshot_live_attempts"):
         backup_snapshot(state, tmp_path / "active-attempt")
+
+
+def test_snapshot_rejects_incomplete_organization_schema(tmp_path):
+    state = deployment(tmp_path)
+    _prepare_complete_checkpoint(state)
+    (state / "organization.sqlite").unlink()
+    with sqlite3.connect(state / "organization.sqlite") as db:
+        db.execute("CREATE TABLE evidence (value TEXT)")
+    with pytest.raises(ValueError, match="snapshot_organization_schema"):
+        backup_snapshot(state, tmp_path / "incomplete")
+
+
+def test_snapshot_rejects_incomplete_integration_git_objects(tmp_path):
+    state = deployment(tmp_path)
+    tip = _prepare_complete_checkpoint(state)
+    object_path = state / "integration/.git/objects" / tip[:2] / tip[2:]
+    object_path.unlink()
+    with pytest.raises(ValueError, match="snapshot_integration_repository_invalid"):
+        backup_snapshot(state, tmp_path / "incomplete-git")
+
+
+def test_snapshot_resolves_destination_parent_before_containment_check(tmp_path):
+    state = deployment(tmp_path)
+    _prepare_complete_checkpoint(state)
+    alias = tmp_path / "state-alias"
+    alias.symlink_to(state, target_is_directory=True)
+    with pytest.raises(ValueError, match="snapshot_destination"):
+        backup_snapshot(state, alias / "inside-snapshot")
+    assert not (state / "inside-snapshot").exists()
+
+
+def test_restore_does_not_delete_unowned_destination_on_failure(tmp_path):
+    state = deployment(tmp_path)
+    _prepare_complete_checkpoint(state)
+    snapshot = backup_snapshot(state, tmp_path / "backup")
+    destination = tmp_path / "restored"
+
+    def create_unowned_destination_then_fail(path, **kwargs):
+        destination.mkdir()
+        (destination / "owner.txt").write_text("created by another operation")
+        raise ValueError("injected_restore_validation_failure")
+
+    with patch.object(service_module, "validate_deployment", create_unowned_destination_then_fail):
+        with pytest.raises(ValueError, match="injected_restore_validation_failure"):
+            restore_snapshot(snapshot, destination)
+    assert (destination / "owner.txt").read_text() == "created by another operation"
+
+
+def test_restore_without_original_host_executable_stays_unqualified(tmp_path):
+    state = deployment(tmp_path)
+    _prepare_complete_checkpoint(state)
+    external_executable = tmp_path / "host-codex"
+    external_executable.write_bytes((state / "synthetic-codex").read_bytes())
+    external_executable.chmod(0o700)
+    cfg_path = state / "config.json"
+    cfg = json.loads(cfg_path.read_text())
+    cfg["codex_executable"] = str(external_executable.resolve())
+    cfg_bytes = json.dumps(cfg, sort_keys=True, indent=2).encode()
+    cfg_path.write_bytes(cfg_bytes)
+    (state / "config.sha256").write_text(hashlib.sha256(cfg_bytes).hexdigest())
+    snapshot = backup_snapshot(state, tmp_path / "backup")
+    external_executable.unlink()
+
+    restored = restore_snapshot(snapshot, tmp_path / "restored")
+    receipt = json.loads((restored / "restore-receipt.json").read_text())
+    restored_cfg = json.loads((restored / "config.json").read_text())
+    assert receipt["runtime_ready"] is False
+    assert restored_cfg["restore_requires_host_requalification"] is True
+    assert restored_cfg["codex_executable"] == str(external_executable.resolve())
 
 
 def test_plist_round_trip_has_no_extra_launch_services(tmp_path):

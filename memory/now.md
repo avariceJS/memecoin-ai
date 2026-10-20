@@ -22,14 +22,16 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   has no pytest/Ruff and only Python 3.9, so standard focused test tooling remains unverified.
 - Sol reviewed `f73e030`: A01, A07 and A02 bootstrap ordering/atomic migration were accepted, while
   A02 schema compatibility, A09 wrong-shaped output validation and complete release qualification
-  were rejected. The uncommitted follow-up checks ordered full ledger schema signatures, validates
-  output field/value types before submit, and adds synthetic snapshot v2/fresh-path restore. Restored
-  copies retain STOP and require host requalification (`runtime_ready=false`); this is not operational
-  restore qualification. The follow-up still needs final focused verification and exact Sol review.
+  were rejected. Sol also rejected `47d0770`: it found split-FK acceptance, missing Git object closure
+  and organization schema validation, old executable-path dependence, symlink containment bypass,
+  unowned destination cleanup and a late restore barrier. The uncommitted follow-up repairs these
+  cases with grouped FK validation, offline Git fsck, organization schema/FK checks, path rebinding,
+  canonical containment and prepublication requalification. Restore retains STOP and remains
+  `runtime_ready=false`; host qualification is required. Exact follow-up review remains pending.
   A03 remains fail-closed; unknown/late usage keeps reservations.
-- Current focused check: 66 unittest cases across ledger, state, bootstrap and targeted supervisor
-  regressions passed, plus 4 snapshot/restore test functions invoked directly with a minimal
-  import-only `pytest` shim. This is not a pytest runner execution. Ruff/pytest remain unavailable.
+- Current focused check: 62 unittest cases across ledger/state/bootstrap and 5 targeted supervisor
+  regressions passed; 8 snapshot/restore functions passed via a minimal import-only `pytest` shim.
+  This is not a pytest runner execution. Ruff/pytest remain unavailable.
   Pilot STOP, original SQLite and six failures remain frozen. Reopening original tasks requires
   release acceptance and separate founder authorization. Market collection, training, AUTO, trading,
   protected data, production, `main`, paid APIs and supervisor operation remain prohibited.

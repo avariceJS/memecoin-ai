@@ -110,6 +110,34 @@ class UsageLedgerTests(unittest.TestCase):
             self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 0)
         self.l = UsageLedger(Path(self.tmp.name) / "fresh.sqlite")
 
+    def test_composite_foreign_key_cannot_be_replaced_by_separate_keys(self):
+        path = Path(self.tmp.name) / "split-foreign-keys.sqlite"
+        ledger = UsageLedger(path)
+        ledger.close()
+        with sqlite3.connect(path) as db:
+            db.execute("PRAGMA foreign_keys=OFF")
+            db.executescript(
+                """
+                CREATE TABLE events_copy (
+                    event_id TEXT PRIMARY KEY,
+                    identity TEXT NOT NULL REFERENCES registrations(identity),
+                    epoch TEXT NOT NULL REFERENCES registrations(epoch),
+                    sequence INTEGER NOT NULL,
+                    counters TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    observed_at REAL NOT NULL,
+                    event_at REAL,
+                    parent_event_id TEXT UNIQUE,
+                    reason TEXT
+                );
+                DROP TABLE events;
+                ALTER TABLE events_copy RENAME TO events;
+                PRAGMA user_version=1;
+                """
+            )
+        with self.assertRaisesRegex(ValueError, "usage_ledger_schema_unrecognized"):
+            UsageLedger(path)
+
     def observe(self, eid, seq, counters, source="provider", epoch="e1"):
         self.l.observe("a", epoch, eid, counters, source=source, sequence=seq, observed_at=seq)
 
