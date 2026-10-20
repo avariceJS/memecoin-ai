@@ -712,6 +712,57 @@ class SupervisorTests(unittest.TestCase):
         published = [event for event in self.db.events() if event["kind"] == "contract_published"]
         self.assertEqual(len(published), 2)  # original v1, one activation v2
 
+    def test_contract_activation_reconciles_multiple_configured_contracts(self):
+        self.cfg["contracts"]["research-output"] = {
+            "version": 2,
+            "producer": "Experience",
+            "producer_task_id": "EXP-002",
+            "consumers": ["Platform", "Research"],
+            "schema": "research-output-v2",
+        }
+        self.db.put_contract("research-output", 1, {"schema": "research-output-v1"})
+        self.candidate("EXP-002", target_state="integrated", team="Experience")
+        transition = self.db.propose_contract_transition(
+            "research-output",
+            1,
+            2,
+            self.cfg["contracts"]["research-output"],
+            producer_task_id="EXP-002",
+            producer_team="Experience",
+            consumer_teams=["Platform", "Research"],
+        )
+        digest = transition["body"]["contract_hash"]
+        for team in ("Experience", "Platform", "Research"):
+            self.db.acknowledge_contract_transition("research-output", 2, team, digest)
+
+        supervisor.activate_contract(self.state, self.db)
+
+        self.assertEqual(self.db.get_contract("research-output")["version"], 2)
+        # An unrelated configured contract stays pending until its own producer and acks exist.
+        self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
+
+    def test_contract_activation_revalidates_ack_history_after_publication(self):
+        self.candidate("EXP-001", target_state="integrated", team="Experience")
+        transition = self.db.propose_contract_transition(
+            "schema-validation",
+            1,
+            2,
+            self.cfg["contracts"]["schema-validation"],
+            producer_task_id="EXP-001",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        )
+        digest = transition["body"]["contract_hash"]
+        for team in ("Experience", "Platform"):
+            self.db.acknowledge_contract_transition("schema-validation", 2, team, digest)
+        supervisor.activate_contract(self.state, self.db)
+        self.assertEqual(self.db.get_contract("schema-validation")["version"], 2)
+
+        ack_key = self.db._contract_ack_key("schema-validation", 2, "Platform")
+        self.db.db.execute("DELETE FROM decisions WHERE name=?", (ack_key,))
+        with self.assertRaisesRegex(StateError, "activation evidence incomplete"):
+            supervisor.activate_contract(self.state, self.db)
+
     def test_integrated_producer_without_two_lead_ack_keeps_contract_v1(self):
         self.candidate("EXP-001", target_state="integrated")
         self.reconcile("merged")

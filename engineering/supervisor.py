@@ -983,40 +983,78 @@ def reconcile(state, db):
 
 
 def activate_contract(state, db):
-    proposal = config(state)["contracts"]["schema-validation"]
-    transition = db.get_contract_transition("schema-validation", proposal["version"])
-    if transition is None:
-        current = db.get_contract("schema-validation")
+    """Reconcile configured contract transitions without coupling names or versions."""
+    contracts = config(state).get("contracts", {})
+    if type(contracts) is not dict:
+        raise StateError("contract configuration invalid")
+    for name, proposal in sorted(contracts.items()):
+        if (
+            type(name) is not str
+            or not name.strip()
+            or type(proposal) is not dict
+            or type(proposal.get("version")) is not int
+            or type(proposal.get("producer")) is not str
+            or not proposal["producer"].strip()
+            or (
+                "producer_task_id" in proposal
+                and (
+                    type(proposal["producer_task_id"]) is not str
+                    or not proposal["producer_task_id"].strip()
+                )
+            )
+        ):
+            raise StateError("contract configuration invalid")
+        consumers = proposal.get("consumers", [proposal.get("consumer")])
+        if (
+            type(consumers) is not list
+            or not consumers
+            or any(type(team) is not str or not team.strip() for team in consumers)
+        ):
+            raise StateError("contract configuration invalid")
+        current = db.get_contract(name)
         if current is None:
             raise StateError("contract transition source contract missing")
-        if current["version"] == proposal["version"] and current["body"] == proposal:
-            return  # already active in a legacy database
-    transition = db.propose_contract_transition(
-        "schema-validation",
-        proposal["version"] - 1,
-        proposal["version"],
-        proposal,
-        producer_task_id="EXP-001",
-        producer_team=proposal["producer"],
-        consumer_teams=[proposal["consumer"]],
-    )
-    try:
-        activated = db.activate_contract_transition("schema-validation", proposal["version"])
-    except StateError as exc:
-        if str(exc) in {
-            "contract producer is not integrated",
-            "contract transition acknowledgements incomplete",
-        }:
-            return
-        raise
-    if activated["created"]:
-        log_event(
-            state,
-            "contract_activated",
-            name="schema-validation",
-            version=proposal["version"],
-            agreement_hash=activated["body"]["contract_hash"],
+        transition = db.get_contract_transition(name, proposal["version"])
+        if (
+            transition is None
+            and current["version"] == proposal["version"]
+            and current["body"] == proposal
+        ):
+            continue  # already active in a legacy database
+        producer_task_id = proposal.get("producer_task_id")
+        if transition is not None and producer_task_id is None:
+            producer_task_id = transition["body"].get("producer_task_id")
+        if producer_task_id is None and name == "schema-validation":
+            # Preserve the original immutable deployment config during this migration.
+            producer_task_id = "EXP-001"
+        if type(producer_task_id) is not str or not producer_task_id.strip():
+            raise StateError("contract producer task identity unavailable")
+        db.propose_contract_transition(
+            name,
+            proposal["version"] - 1,
+            proposal["version"],
+            proposal,
+            producer_task_id=producer_task_id,
+            producer_team=proposal["producer"],
+            consumer_teams=consumers,
         )
+        try:
+            activated = db.activate_contract_transition(name, proposal["version"])
+        except StateError as exc:
+            if str(exc) in {
+                "contract producer is not integrated",
+                "contract transition acknowledgements incomplete",
+            }:
+                continue
+            raise
+        if activated["created"]:
+            log_event(
+                state,
+                "contract_activated",
+                name=name,
+                version=proposal["version"],
+                agreement_hash=activated["body"]["contract_hash"],
+            )
 
 
 def supervise(state: Path, max_seconds=1800):
