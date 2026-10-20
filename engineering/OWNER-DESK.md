@@ -317,3 +317,12 @@ states сведены в `unclassified`, а report показывает omitted 
 полный A12 остаются открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a12-active-task-projection-scaffold-review-20261020.json`
 (SHA-256 `3e921d550fc67c2d295f6024a4fe24ebfcbe0e1572bb73e260607cf70961ba77`).
+
+A04 shared verifier plan is in `066227ef14fec28ed9d8879e0b61668cd3448f1b`. `verify_one` and `reconcile`
+resolve one controller-owned policy; spec-backed work never falls back to the fixed catalogue, and
+execution remains explicitly unqualified until manifest/interpreter/sandbox/result checks exist.
+Reconciliation gates before acceptance and continues past blocked intents. Sol accepted the exact
+bytes; full gate passed: 284 tests, 42 subtests, Ruff (50 files). `run_attempt`, executable binding,
+production gates and full A04 remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-shared-verification-plan-review-20261020.json`
+(SHA-256 `0d2383df79740ae3dff73acfa6967de4788a424db8a24ad9cebca011d25a8a7d`). Supervisor stayed off.

@@ -26,6 +26,14 @@ and is not to be started automatically.
   Sol rejected its first draft; drift and snapshot gaps were corrected and Sol accepted the bounded
   persistence/resolver scaffold. Exact receipt is in the resumption directory. Full engineering gate:
   255 passed, 42 subtests passed; Ruff lint/format passed (45 files).
+- A04 shared verification-plan construction is merged at
+  `066227ef14fec28ed9d8879e0b61668cd3448f1b`. `verify_one` and `reconcile` resolve the immutable
+  controller binding; spec-backed plans fail closed before Git, sandbox, model, acceptance or
+  publication until executable manifest qualification exists. Reconciliation continues past
+  blocked intents and legacy policy digests are unchanged. Sol accepted exact source; gate passed
+  284 tests/42 subtests and Ruff (50 files). `run_attempt`, manifest/interpreter/sandbox/result
+  qualification, production admission gates and full A04 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-shared-verification-plan-review-20261020.json`.
 - A11 review packet is in isolated worktree
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a11-review-packet-checkout`, branch
   `org/a11-review-packet`, based on `6974f941aa6c58b64d1fa6dcce26f48faa3428a2`. Silent diff
