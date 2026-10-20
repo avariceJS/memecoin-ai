@@ -105,24 +105,91 @@ def _inventory(root: Path) -> dict[str, str]:
 
 
 _ORGANIZATION_SCHEMA = {
-    "acceptances": ("task_id", "sha", "attempt_id", "epoch"),
-    "attempts": ("id", "task_id", "epoch", "worker", "lease_until", "state", "session"),
-    "candidates": ("task_id", "sha", "attempt_id", "epoch", "evidence"),
-    "contracts": ("name", "version", "body"),
-    "decisions": ("name", "version", "body", "replaces", "replaces_version"),
-    "events": ("seq", "at", "kind", "entity", "body"),
-    "integrations": ("task_id", "sha", "integration_sha", "details"),
-    "objectives": ("id", "title", "brief"),
+    "acceptances": (
+        ("task_id", "TEXT", 0, 1, None), ("sha", "TEXT", 1, 0, None),
+        ("attempt_id", "INTEGER", 1, 0, None), ("epoch", "INTEGER", 1, 0, None),
+    ),
+    "attempts": (
+        ("id", "INTEGER", 0, 1, None), ("task_id", "TEXT", 1, 0, None),
+        ("epoch", "INTEGER", 1, 0, None), ("worker", "TEXT", 1, 0, None),
+        ("lease_until", "REAL", 1, 0, None), ("state", "TEXT", 1, 0, None),
+        ("session", "TEXT", 0, 0, None),
+    ),
+    "candidates": (
+        ("task_id", "TEXT", 1, 1, None), ("sha", "TEXT", 1, 2, None),
+        ("attempt_id", "INTEGER", 1, 0, None), ("epoch", "INTEGER", 1, 0, None),
+        ("evidence", "TEXT", 1, 0, None),
+    ),
+    "contracts": (
+        ("name", "TEXT", 1, 1, None), ("version", "INTEGER", 1, 2, None),
+        ("body", "TEXT", 1, 0, None),
+    ),
+    "decisions": (
+        ("name", "TEXT", 1, 1, None), ("version", "INTEGER", 1, 2, None),
+        ("body", "TEXT", 1, 0, None), ("replaces", "TEXT", 0, 0, None),
+        ("replaces_version", "INTEGER", 0, 0, None),
+    ),
+    "events": (
+        ("seq", "INTEGER", 0, 1, None), ("at", "REAL", 1, 0, None),
+        ("kind", "TEXT", 1, 0, None), ("entity", "TEXT", 1, 0, None),
+        ("body", "TEXT", 1, 0, None),
+    ),
+    "integrations": (
+        ("task_id", "TEXT", 0, 1, None), ("sha", "TEXT", 1, 0, None),
+        ("integration_sha", "TEXT", 1, 0, None), ("details", "TEXT", 1, 0, None),
+    ),
+    "objectives": (
+        ("id", "TEXT", 0, 1, None), ("title", "TEXT", 1, 0, None),
+        ("brief", "TEXT", 1, 0, None),
+    ),
     "task_specs": (
-        "task_id", "body", "policy_sha256", "admission", "decision_name", "decision_version"
+        ("task_id", "TEXT", 0, 1, None), ("body", "TEXT", 1, 0, None),
+        ("policy_sha256", "TEXT", 1, 0, None), ("admission", "TEXT", 1, 0, None),
+        ("decision_name", "TEXT", 1, 0, None),
+        ("decision_version", "INTEGER", 1, 0, None),
     ),
     "tasks": (
-        "id", "team", "title", "brief", "scope", "acceptance", "dependencies",
-        "contracts", "base_sha", "objective_id", "max_attempts", "state", "epoch",
-        "active_attempt", "candidate_sha",
+        ("id", "TEXT", 0, 1, None), ("team", "TEXT", 1, 0, None),
+        ("title", "TEXT", 1, 0, None), ("brief", "TEXT", 1, 0, None),
+        ("scope", "TEXT", 1, 0, None), ("acceptance", "TEXT", 1, 0, None),
+        ("dependencies", "TEXT", 1, 0, None), ("contracts", "TEXT", 1, 0, None),
+        ("base_sha", "TEXT", 1, 0, None), ("objective_id", "TEXT", 0, 0, None),
+        ("max_attempts", "INTEGER", 1, 0, None), ("state", "TEXT", 1, 0, "'pending'"),
+        ("epoch", "INTEGER", 1, 0, "0"), ("active_attempt", "INTEGER", 0, 0, None),
+        ("candidate_sha", "TEXT", 0, 0, None),
     ),
-    "usage": ("id", "attempt_id", "epoch", "body"),
-    "verifications": ("id", "task_id", "sha", "attempt_id", "epoch", "passed", "details"),
+    "usage": (
+        ("id", "INTEGER", 0, 1, None), ("attempt_id", "INTEGER", 1, 0, None),
+        ("epoch", "INTEGER", 1, 0, None), ("body", "TEXT", 1, 0, None),
+    ),
+    "verifications": (
+        ("id", "INTEGER", 0, 1, None), ("task_id", "TEXT", 1, 0, None),
+        ("sha", "TEXT", 1, 0, None), ("attempt_id", "INTEGER", 1, 0, None),
+        ("epoch", "INTEGER", 1, 0, None), ("passed", "INTEGER", 1, 0, None),
+        ("details", "TEXT", 1, 0, None),
+    ),
+}
+_ORGANIZATION_FOREIGN_KEYS = {
+    "acceptances": {("tasks", (("task_id", "id"),))},
+    "attempts": {("tasks", (("task_id", "id"),))},
+    "candidates": {
+        ("attempts", (("attempt_id", "id"),)), ("tasks", (("task_id", "id"),))
+    },
+    "integrations": {("tasks", (("task_id", "id"),))},
+    "task_specs": {("tasks", (("task_id", "id"),))},
+    "tasks": {("objectives", (("objective_id", "id"),))},
+    "usage": {("attempts", (("attempt_id", "id"),))},
+}
+_ORGANIZATION_UNIQUE = {
+    "acceptances": {("task_id",)},
+    "attempts": {("task_id", "epoch")},
+    "candidates": {("task_id", "sha")},
+    "contracts": {("name", "version")},
+    "decisions": {("name", "version")},
+    "integrations": {("task_id",)},
+    "objectives": {("id",)},
+    "task_specs": {("task_id",)},
+    "tasks": {("id",)},
 }
 
 
@@ -135,8 +202,37 @@ def _assert_no_running_attempts(database: Path) -> None:
         if tables != set(_ORGANIZATION_SCHEMA):
             raise ValueError("snapshot_organization_schema")
         for table, expected_columns in _ORGANIZATION_SCHEMA.items():
-            columns = tuple(row[1] for row in db.execute(f"PRAGMA table_info({table})"))
+            columns = tuple(
+                (row[1], row[2].upper(), row[3], row[5], row[4])
+                for row in db.execute(f"PRAGMA table_info({table})")
+            )
             if columns != expected_columns:
+                raise ValueError("snapshot_organization_schema")
+            grouped = {}
+            for row in db.execute(f"PRAGMA foreign_key_list({table})"):
+                grouped.setdefault(row[0], []).append((row[1], row[2], row[3], row[4]))
+            foreign_keys = {
+                (
+                    rows[0][1],
+                    tuple((row[2], row[3]) for row in sorted(rows, key=lambda item: item[0])),
+                )
+                for rows in grouped.values()
+            }
+            if foreign_keys != _ORGANIZATION_FOREIGN_KEYS.get(table, set()):
+                raise ValueError("snapshot_organization_schema")
+            unique_indexes = set()
+            for index in db.execute(f"PRAGMA index_list({table})"):
+                if index[2]:
+                    if index[4]:
+                        raise ValueError("snapshot_organization_schema")
+                    unique_indexes.add(
+                        tuple(
+                            row[2]
+                            for row in db.execute(f"PRAGMA index_info({index[1]})")
+                            if row[2] is not None
+                        )
+                    )
+            if unique_indexes != _ORGANIZATION_UNIQUE.get(table, set()):
                 raise ValueError("snapshot_organization_schema")
         try:
             if db.execute("PRAGMA foreign_key_check").fetchone():
@@ -161,11 +257,40 @@ def _validate_integration_repository(repository: Path) -> None:
     )
     if any(path.exists() or path.is_symlink() for path in forbidden):
         raise ValueError("snapshot_integration_repository_external_objects")
-    environment = os.environ.copy()
-    for key in (
-        "GIT_DIR", "GIT_WORK_TREE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES"
-    ):
-        environment.pop(key, None)
+    environment = {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "HOME": str(repository),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_SYSTEM": os.devnull,
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_NO_LAZY_FETCH": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+    }
+    try:
+        config = subprocess.run(
+            [
+                "git", "-C", str(repository), "config", "--local", "--null", "--list"
+            ],
+            capture_output=True,
+            check=False,
+            env=environment,
+        )
+    except OSError as exc:
+        raise ValueError("snapshot_integration_repository_invalid") from exc
+    if config.returncode != 0:
+        raise ValueError("snapshot_integration_repository_invalid")
+    local_settings = []
+    for entry in config.stdout.decode("utf-8", errors="replace").split("\0"):
+        if "\n" in entry:
+            key, value = entry.split("\n", 1)
+            local_settings.append((key.lower(), value.lower()))
+    if any(
+        key == "extensions.partialclone"
+        or (key.startswith("remote.") and key.endswith(".promisor") and value == "true")
+        for key, value in local_settings
+    ) or any((repository / ".git/objects").rglob("*.promisor")):
+        raise ValueError("snapshot_integration_repository_external_objects")
     environment["GIT_NO_REPLACE_OBJECTS"] = "1"
     environment["GIT_OPTIONAL_LOCKS"] = "0"
     for args in (
@@ -209,9 +334,13 @@ def validate_deployment(state: str | Path, *, allow_requalification: bool = Fals
     controller = (state / "controller").resolve(strict=True)
     if controller != state / "controller" or cfg.get("controller") != str(controller):
         raise ValueError("controller_path")
-    python = Path(cfg.get("python", ""))
-    if not python.is_absolute() or not python.is_file() or not os.access(python, os.X_OK):
+    python_value = cfg.get("python")
+    if not isinstance(python_value, str) or not Path(python_value).is_absolute():
         raise ValueError("python_executable")
+    python = Path(python_value)
+    if not python.is_file() or not os.access(python, os.X_OK):
+        if not allow_requalification:
+            raise ValueError("python_executable")
     manifest_path = state / "controller-manifest.json"
     if not _regular_file(manifest_path):
         raise ValueError("manifest_permissions")

@@ -177,13 +177,15 @@ Sol отклонил release qualification source candidate `8a28908`, зате�
 а snapshot принимал повреждённый Git object graph и неполную SQLite schema; restore зависел от
 старого executable path, мог удалить не принадлежащую ему destination, обходил containment через
 symlink parent и публиковал копию до установки requalification barrier. Текущий незакоммиченный
-follow-up исправляет эти случаи: exact grouped FK checks, Git fsck без alternates/shallow state,
-проверка organization table/column schema и FK integrity, source-path rebinding, canonical
-containment, безопасная cleanup и barrier до публикации. Snapshot требует STOP/lock и сохраняет
+follow-up исправляет эти случаи: exact grouped FK checks; organization column/type/null/default/
+PK/FK/unique signatures and data integrity; Git fsck with sanitized config and rejection of
+promisor remotes; source-path rebinding for bundled tools; missing host Python/Codex accepted only
+behind requalification; canonical containment; safe cleanup; and barrier before publication. Также
+квота читается на первом цикле независимо от system uptime. Snapshot требует STOP/lock и сохраняет
 `runtime_ready=false`; host requalification остаётся обязательной. Exact follow-up ещё не прошёл
 Sol review; release не квалифицирован. `ORG-A03` остаётся fail-closed, usage reservations
 сохраняются. Пилот, STOP, runtime и protected data не трогались.
 
-Последняя focused проверка прошла: 62 unittest случая ledger/state/bootstrap, 5 целевых supervisor
-регрессий и 8 функций snapshot/restore через минимальную import-only заглушку `pytest` (без запуска
+Последняя focused проверка прошла: 62 unittest случая ledger/state/bootstrap, 6 целевых supervisor
+регрессий и 11 функций snapshot/restore через минимальную import-only заглушку `pytest` (без запуска
 pytest runner). Ruff/pytest отсутствуют, поэтому полный release target недоступен.

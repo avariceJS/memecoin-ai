@@ -827,7 +827,7 @@ def supervise(state: Path, max_seconds=1800):
         native = state / "budget-native"
         native.mkdir(exist_ok=True)
         with Codex(native, codex=cfg.get("codex_executable", "codex")) as account:
-            last_read, limits = 0.0, None
+            last_read, limits = None, None
             while time.monotonic() < end and not (state / "STOP").exists():
                 reconcile(state, db)
                 reap_expired(state, db)
@@ -838,7 +838,7 @@ def supervise(state: Path, max_seconds=1800):
                 if submitted:
                     verify_one(state, submitted)
                     continue
-                if time.monotonic() - last_read > 60:
+                if last_read is None or time.monotonic() - last_read > 60:
                     try:
                         limits = account.call("account/rateLimits/read")
                         quota_observed_at = time.time()

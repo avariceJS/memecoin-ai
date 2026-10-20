@@ -22,6 +22,7 @@ class FakeCodex:
 
     response = "{malformed"
     turn_estimates = []
+    calls = []
 
     def __init__(self, *args, **kwargs):
         self.proc = SimpleNamespace(pid=123)
@@ -40,6 +41,7 @@ class FakeCodex:
         return {"text": self.response, "usage": {"total": {"totalTokens": 3}}}
 
     def call(self, *args, **kwargs):
+        self.calls.append(args)
         return {"ordinaryUsageAllowed": False}
 
     def record_outcome(self, *args, **kwargs):
@@ -53,6 +55,7 @@ class SupervisorTests(unittest.TestCase):
         self.state = Path(self.temp.name)
         FakeCodex.response = "{malformed"
         FakeCodex.turn_estimates = []
+        FakeCodex.calls = []
         (self.state / "intents").mkdir()
         self.now = 1000.0
         self.db = Store(self.state / "organization.sqlite", clock=lambda: self.now)
@@ -315,6 +318,23 @@ class SupervisorTests(unittest.TestCase):
         spawn.assert_not_called()
         self.assertEqual(self.db.get_task("T")["active_attempt"], first["id"])
         self.assertEqual(len(self.db.list_attempts()), 1)
+
+    def test_initial_rate_limit_read_does_not_depend_on_system_uptime(self):
+        self.task()
+        with (
+            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+            patch.object(supervisor, "available_memory", return_value=10**10),
+            patch.object(supervisor, "status", return_value={}),
+            patch.object(
+                supervisor.time, "monotonic", return_value=10.0
+            ),
+            patch.object(
+                supervisor.time, "sleep", side_effect=lambda _: (self.state / "STOP").touch()
+            ),
+        ):
+            supervisor.supervise(self.state, max_seconds=10)
+        self.assertIn(("account/rateLimits/read",), FakeCodex.calls)
 
     def test_malformed_lead_output_opens_circuit_without_running_worker(self):
         self.task()

@@ -25,12 +25,14 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   were rejected. Sol also rejected `47d0770`: it found split-FK acceptance, missing Git object closure
   and organization schema validation, old executable-path dependence, symlink containment bypass,
   unowned destination cleanup and a late restore barrier. The uncommitted follow-up repairs these
-  cases with grouped FK validation, offline Git fsck, organization schema/FK checks, path rebinding,
-  canonical containment and prepublication requalification. Restore retains STOP and remains
-  `runtime_ready=false`; host qualification is required. Exact follow-up review remains pending.
+  cases with grouped FK validation, full organization column/constraint signatures, offline Git
+  config and promisor rejection, bundled path rebinding, unavailable host tool handling behind the
+  barrier, canonical containment and prepublication requalification. The supervisor now performs
+  its first quota read regardless of uptime. Restore retains STOP and remains `runtime_ready=false`;
+  host qualification is required. Exact follow-up review remains pending.
   A03 remains fail-closed; unknown/late usage keeps reservations.
-- Current focused check: 62 unittest cases across ledger/state/bootstrap and 5 targeted supervisor
-  regressions passed; 8 snapshot/restore functions passed via a minimal import-only `pytest` shim.
+- Current focused check: 62 unittest cases across ledger/state/bootstrap and 6 targeted supervisor
+  regressions passed; 11 snapshot/restore functions passed via a minimal import-only `pytest` shim.
   This is not a pytest runner execution. Ruff/pytest remain unavailable.
   Pilot STOP, original SQLite and six failures remain frozen. Reopening original tasks requires
   release acceptance and separate founder authorization. Market collection, training, AUTO, trading,

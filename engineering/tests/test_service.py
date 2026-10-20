@@ -277,6 +277,28 @@ def test_snapshot_rejects_incomplete_organization_schema(tmp_path):
         backup_snapshot(state, tmp_path / "incomplete")
 
 
+def test_snapshot_rejects_organization_tables_without_constraints(tmp_path):
+    state = deployment(tmp_path)
+    _prepare_complete_checkpoint(state)
+    with sqlite3.connect(state / "organization.sqlite") as db:
+        db.execute("PRAGMA foreign_keys=OFF")
+        tables = [
+            row[0]
+            for row in db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        ]
+        for table in tables:
+            copy = "copy_" + table
+            db.execute(f"CREATE TABLE {copy} AS SELECT * FROM {table}")
+        for table in tables:
+            db.execute(f"DROP TABLE {table}")
+        for table in tables:
+            db.execute(f"ALTER TABLE copy_{table} RENAME TO {table}")
+    with pytest.raises(ValueError, match="snapshot_organization_schema"):
+        backup_snapshot(state, tmp_path / "missing-constraints")
+
+
 def test_snapshot_rejects_incomplete_integration_git_objects(tmp_path):
     state = deployment(tmp_path)
     tip = _prepare_complete_checkpoint(state)
@@ -284,6 +306,40 @@ def test_snapshot_rejects_incomplete_integration_git_objects(tmp_path):
     object_path.unlink()
     with pytest.raises(ValueError, match="snapshot_integration_repository_invalid"):
         backup_snapshot(state, tmp_path / "incomplete-git")
+
+
+def test_snapshot_rejects_promisor_remote_without_running_helper(tmp_path):
+    state = deployment(tmp_path)
+    tip = _prepare_complete_checkpoint(state)
+    git = state / "integration/.git"
+    object_path = git / "objects" / tip[:2] / tip[2:]
+    object_path.unlink()
+    subprocess.run(
+        ["git", "-C", str(state / "integration"), "config", "extensions.partialClone", "origin"],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-C", str(state / "integration"), "config",
+            "remote.origin.url", "auditprobe::repo",
+        ],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(state / "integration"), "config", "remote.origin.promisor", "true"],
+        check=True,
+    )
+    helper_dir = tmp_path / "helpers"
+    helper_dir.mkdir()
+    marker = tmp_path / "helper-ran"
+    helper = helper_dir / "git-remote-auditprobe"
+    helper.write_text(f"#!/bin/sh\nprintf called > '{marker}'\nexit 1\n")
+    helper.chmod(0o700)
+    path = str(helper_dir) + ":" + os.environ.get("PATH", "/usr/bin:/bin")
+    with patch.dict(os.environ, {"PATH": path}):
+        with pytest.raises(ValueError, match="snapshot_integration_repository_external_objects"):
+            backup_snapshot(state, tmp_path / "promisor")
+    assert not marker.exists()
 
 
 def test_snapshot_resolves_destination_parent_before_containment_check(tmp_path):
@@ -319,14 +375,19 @@ def test_restore_without_original_host_executable_stays_unqualified(tmp_path):
     external_executable = tmp_path / "host-codex"
     external_executable.write_bytes((state / "synthetic-codex").read_bytes())
     external_executable.chmod(0o700)
+    external_python = tmp_path / "host-python"
+    external_python.write_text("#!/bin/sh\nexit 0\n")
+    external_python.chmod(0o700)
     cfg_path = state / "config.json"
     cfg = json.loads(cfg_path.read_text())
     cfg["codex_executable"] = str(external_executable.resolve())
+    cfg["python"] = str(external_python.resolve())
     cfg_bytes = json.dumps(cfg, sort_keys=True, indent=2).encode()
     cfg_path.write_bytes(cfg_bytes)
     (state / "config.sha256").write_text(hashlib.sha256(cfg_bytes).hexdigest())
     snapshot = backup_snapshot(state, tmp_path / "backup")
     external_executable.unlink()
+    external_python.unlink()
 
     restored = restore_snapshot(snapshot, tmp_path / "restored")
     receipt = json.loads((restored / "restore-receipt.json").read_text())
@@ -334,6 +395,7 @@ def test_restore_without_original_host_executable_stays_unqualified(tmp_path):
     assert receipt["runtime_ready"] is False
     assert restored_cfg["restore_requires_host_requalification"] is True
     assert restored_cfg["codex_executable"] == str(external_executable.resolve())
+    assert restored_cfg["python"] == str(external_python.resolve())
 
 
 def test_plist_round_trip_has_no_extra_launch_services(tmp_path):
