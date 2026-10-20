@@ -175,6 +175,17 @@ acceptance remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-dependency-obligations-review-20261021.json`
 (SHA-256 `30a9fac250685cb73ad28db0575b6d75322c196c9f44d43bb122682b3c4c47f4`).
 
+The A10 quiescence-trigger increment is on `org/development` at `714bb573fc659ba00c849c9b7e0be7c1f470b472`.
+Handoff identity now includes the coherent task/readiness snapshot, and the Store rechecks it under
+`BEGIN IMMEDIATE` before atomically deduplicating or recording the immutable handoff. Fresh eligible
+work defers quiescence. Sol accepted the exact source diff; Ruff passed and the engineering gate
+passed 344 tests and 73 subtests. Quota/resource observations remain outside that transaction,
+state may change after commit, hashing scales with retained tasks/blockers, and a true second-connection
+lock-wait race is not covered. Generic contract migration, department plans/leases, conflict
+adjudication, full A10 and operational acceptance remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-trigger-freshness-review-20261021.json`
+(SHA-256 `efc80cca51087c30d66414069359e7516eef86d415dbbcb6e4ffc1e699114c87`).
+
 A12 now has a bounded active-task projection at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`.
 SQLite selects at most 100 active rows through an indexed state/id query; full state counts are
 reported independently, unknown states are summarized as `unclassified`, and the Founder report says

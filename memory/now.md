@@ -93,6 +93,14 @@ automatically.
   341 tests/73 subtests. Automatic trigger freshness, generic contracts, department plans/leases and
   full A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-dependency-obligations-review-20261021.json`.
+- A10 quiescence-trigger freshness increment is on `org/development` at
+  `714bb573fc659ba00c849c9b7e0be7c1f470b472`. Handoffs now fingerprint the coherent task/readiness
+  snapshot and are atomically rechecked/deduplicated by Store; eligible work defers quiescence. Sol
+  accepted the exact diff; Ruff passed and the engineering gate passed 344 tests/73 subtests.
+  Separate quota/resource observations, post-commit state changes, scale with retained tasks, and
+  an actual second-connection lock-wait race remain limitations. Generic contracts, plans/leases,
+  conflict adjudication and full A10 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-trigger-freshness-review-20261021.json`.
 - A04 source-only verifier-manifest custody resolver merged at `9487fc70057bc8ff5a467394fe7b70b06391e7b3`;
   Sol accepted the exact source. It verifies canonical manifest/binding digests, release/policy
   identities, exact verifier metadata and trusted harness bytes. The shared plan does not call this

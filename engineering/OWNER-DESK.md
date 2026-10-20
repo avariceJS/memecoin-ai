@@ -364,6 +364,17 @@ contract blockers и независимые ready tasks; совпадающее 
 (SHA-256 `30a9fac250685cb73ad28db0575b6d75322c196c9f44d43bb122682b3c4c47f4`). Автоматическая
 свежесть trigger, generic contract migration, department plans/leases и полный A10 остаются открыты.
 
+Следующий A10 increment включён в `org/development` на `714bb573fc659ba00c849c9b7e0be7c1f470b472`:
+идентичность quiescence handoff теперь учитывает coherent task/readiness snapshot, а Store сверяет
+снимок и атомарно записывает или deduplicate-ит immutable handoff под `BEGIN IMMEDIATE`. Если
+свежая readiness и capacity показывают доступную работу, quiescence откладывается. Sol принял
+точный diff; Ruff прошёл, engineering gate: 344 теста и 73 subtests. Quota/resources остаются
+отдельным наблюдением, task state может измениться после commit, hash-работа растёт с числом tasks
+и blockers; second-connection lock-wait race не проверен. Generic contract migration, department
+plans/leases, conflict adjudication и полный A10 остаются открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-trigger-freshness-review-20261021.json`
+(SHA-256 `efc80cca51087c30d66414069359e7516eef86d415dbbcb6e4ffc1e699114c87`).
+
 Receipt scaffold:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-readiness-report-scaffold-review-20261020.json`
 (SHA-256 `22037f53771b100bc1694f5f9133eec59ceeef519888389ff98f42d03af62176`).
