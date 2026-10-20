@@ -6,6 +6,8 @@ starting or loading a LaunchAgent remains an operator action.
 
 from __future__ import annotations
 
+import ctypes
+import errno
 import fcntl
 import hashlib
 import json
@@ -193,6 +195,7 @@ def install_launch_agent(
 _SNAPSHOT_SCHEMA = "brain-organization-snapshot-v2"
 _EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 _SQLITE_SIDECARS = {"organization.sqlite-wal", "organization.sqlite-shm"}
+_RENAME_EXCL = 0x00000004
 
 
 def _snapshot_manifest_bytes(value: dict) -> bytes:
@@ -376,19 +379,76 @@ def _fsync_directory(path: Path) -> None:
         os.close(fd)
 
 
+def _publish_directory_exclusive(source: Path, destination: Path) -> None:
+    """Atomically rename a sibling directory only if the target is still absent."""
+    if source.parent != destination.parent:
+        _snapshot_error("snapshot_destination")
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        parent_fd = os.open(source.parent, flags)
+    except OSError as exc:
+        _snapshot_error("snapshot_destination", exc)
+    try:
+        try:
+            renameatx_np = ctypes.CDLL(None, use_errno=True).renameatx_np
+            renameatx_np.argtypes = [
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_uint,
+            ]
+            renameatx_np.restype = ctypes.c_int
+        except AttributeError as exc:
+            _snapshot_error("snapshot_destination", exc)
+        result = renameatx_np(
+            parent_fd,
+            os.fsencode(source.name),
+            parent_fd,
+            os.fsencode(destination.name),
+            _RENAME_EXCL,
+        )
+        if result != 0:
+            error_number = ctypes.get_errno() or errno.EIO
+            _snapshot_error(
+                "snapshot_destination",
+                OSError(error_number, os.strerror(error_number), str(destination)),
+            )
+    finally:
+        try:
+            os.close(parent_fd)
+        except OSError:
+            pass
+
+
 def _supervisor_barrier(state: Path) -> int:
     path = state / "supervisor.lock"
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    fd = None
     try:
         fd = os.open(path, flags)
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1:
-            os.close(fd)
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            fd = None
             _snapshot_error("snapshot_unsafe_entry")
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError as exc:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
         _snapshot_error("snapshot_busy", exc)
     except OSError as exc:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
         _snapshot_error("snapshot_busy", exc)
     return fd
 
@@ -526,7 +586,7 @@ def backup_snapshot(state: str | Path, destination: str | Path) -> Path:
         _fsync_directory(temp)
         if os.path.lexists(destination):
             _snapshot_error("snapshot_destination")
-        os.rename(temp, destination)
+        _publish_directory_exclusive(temp, destination)
         try:
             _fsync_directory(destination.parent)
         except OSError:
@@ -784,7 +844,7 @@ def restore_snapshot(
         _verify_restored_tree(temp, entries, manifest["source_state_mode"])
         if os.path.lexists(destination):
             _snapshot_error("snapshot_destination")
-        os.rename(temp, destination)
+        _publish_directory_exclusive(temp, destination)
         published = True
         _fsync_directory(parent)
         try:

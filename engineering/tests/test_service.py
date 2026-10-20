@@ -1,3 +1,4 @@
+import errno
 import hashlib
 import json
 import plistlib
@@ -7,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+import engineering.service as service
 from engineering.service import (
     LABEL,
     backup_snapshot,
@@ -157,6 +159,66 @@ def test_snapshot_round_trip_uses_sqlite_backup_and_copies_durable_state(tmp_pat
     restored = restore_snapshot(destination, state, expected_manifest_sha256=digest)
     assert restored == state
     assert (restored / "supervisor.lock").read_bytes() == b""
+
+
+def test_backup_does_not_replace_raced_in_empty_destination(tmp_path, monkeypatch):
+    state = deployment(tmp_path)
+    destination = tmp_path / "raced-backup"
+    publish = service._publish_directory_exclusive
+
+    def race(source, target):
+        target.mkdir()
+        publish(source, target)
+
+    monkeypatch.setattr(service, "_publish_directory_exclusive", race)
+    with pytest.raises(ValueError, match="snapshot_destination"):
+        backup_snapshot(state, destination)
+    assert destination.is_dir()
+    assert list(destination.iterdir()) == []
+    assert list(tmp_path.glob(".raced-backup.*")) == []
+
+
+def test_restore_does_not_replace_raced_in_empty_destination(tmp_path, monkeypatch):
+    state = deployment(tmp_path)
+    snapshot = backup_snapshot(state, tmp_path / "backup")
+    digest = hashlib.sha256((snapshot / "snapshot.json").read_bytes()).hexdigest()
+    state.rename(tmp_path / "detached-state")
+    publish = service._publish_directory_exclusive
+
+    def race(source, target):
+        target.mkdir()
+        publish(source, target)
+
+    monkeypatch.setattr(service, "_publish_directory_exclusive", race)
+    with pytest.raises(ValueError, match="snapshot_destination"):
+        restore_snapshot(snapshot, state, expected_manifest_sha256=digest)
+    assert state.is_dir()
+    assert list(state.iterdir()) == []
+    assert list(tmp_path.glob(".state.restore.*")) == []
+
+
+def test_snapshot_closes_lock_descriptor_when_flock_fails(tmp_path, monkeypatch):
+    state = deployment(tmp_path)
+    opened = []
+    real_open = service.os.open
+
+    def track_open(path, *args, **kwargs):
+        fd = real_open(path, *args, **kwargs)
+        if Path(path) == state / "supervisor.lock":
+            opened.append(fd)
+        return fd
+
+    def contention(*_args):
+        raise BlockingIOError(errno.EWOULDBLOCK, "synthetic lock contention")
+
+    monkeypatch.setattr(service.os, "open", track_open)
+    monkeypatch.setattr(service.fcntl, "flock", contention)
+    with pytest.raises(ValueError, match="snapshot_busy"):
+        backup_snapshot(state, tmp_path / "locked-backup")
+    assert len(opened) == 1
+    with pytest.raises(OSError) as error:
+        service.os.fstat(opened[0])
+    assert error.value.errno == errno.EBADF
 
 
 def test_plist_round_trip_has_no_extra_launch_services(tmp_path):
