@@ -3,6 +3,7 @@ import json
 import math
 import sqlite3
 import time
+import uuid
 from collections import defaultdict
 
 MODELS = {
@@ -57,7 +58,8 @@ def _json(v):
 
 class UsageLedger:
     def __init__(self, path):
-        self.db = sqlite3.connect(str(path), isolation_level=None)
+        self.path = str(path)
+        self.db = sqlite3.connect(self.path, isolation_level=None)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA journal_mode=WAL")
@@ -122,6 +124,10 @@ class UsageLedger:
                 event_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
                 status TEXT NOT NULL, receipt TEXT, observed_at REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS rpc_ingress (
+                ingress_id TEXT PRIMARY KEY, raw_bytes BLOB NOT NULL,
+                received_at REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS terminal_receipts (
                 dispatch_id TEXT PRIMARY KEY, evidence_sha256 TEXT NOT NULL,
                 evidence TEXT NOT NULL, observed_at REAL NOT NULL
@@ -141,6 +147,21 @@ class UsageLedger:
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(receipts)")}
         if "evidence" not in columns:
             self.db.execute("ALTER TABLE receipts ADD COLUMN evidence TEXT NOT NULL DEFAULT '{}'")
+
+    def persist_raw_rpc(self, raw_bytes):
+        if not isinstance(raw_bytes, bytes):
+            raise ValueError("rpc_ingress_requires_original_bytes")
+        ingress_id = uuid.uuid4().hex
+        connection = sqlite3.connect(self.path, isolation_level=None, timeout=2)
+        try:
+            connection.execute("PRAGMA busy_timeout=2000")
+            connection.execute(
+                "INSERT INTO rpc_ingress VALUES(?,?,?)",
+                (ingress_id, sqlite3.Binary(raw_bytes), time.time()),
+            )
+        finally:
+            connection.close()
+        return ingress_id
 
     def register(self, identity, epoch, model, baseline, *, evidence, started_after_T0=False):
         if not identity or not epoch or model not in MODELS or not evidence:
@@ -891,6 +912,45 @@ class UsageLedger:
         event_id = evidence.get("event_id")
         if not event_id:
             raise ValueError("external attribution event identity missing")
+        prior = self.db.execute(
+            "SELECT * FROM interval_attributions WHERE event_id=?", (event_id,)
+        ).fetchone()
+        expected = (
+            dispatch_id,
+            identity,
+            epoch,
+            model,
+            _json(before),
+            _json(after),
+            _json(evidence),
+        )
+        if prior:
+            actual = tuple(
+                prior[key]
+                for key in (
+                    "dispatch_id",
+                    "identity",
+                    "epoch",
+                    "model",
+                    "start_counters",
+                    "end_counters",
+                    "evidence",
+                )
+            )
+            if actual != expected:
+                raise ValueError("interval_attribution_conflict")
+            return dispatch_id
+        latest = self.db.execute(
+            "SELECT counters FROM events WHERE identity=? AND epoch=? "
+            "AND parent_event_id IS NULL ORDER BY sequence DESC,event_id DESC LIMIT 1",
+            (identity, epoch),
+        ).fetchone()
+        if latest:
+            head = _counters(json.loads(latest["counters"]))
+            if head["total_tokens"] > before["total_tokens"]:
+                raise ValueError("overlapping_attribution_interval")
+            if head["total_tokens"] == before["total_tokens"] and head != before:
+                raise ValueError("attribution_start_conflict")
         self.observe(
             identity,
             epoch,

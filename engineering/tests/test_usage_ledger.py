@@ -229,6 +229,31 @@ class UsageLedgerTests(unittest.TestCase):
         gaps = [row for row in summary["unresolved"] if row["reason"] == "model_attribution_gap"]
         self.assertEqual(len(gaps), 1)
         self.assertEqual(gaps[0]["counters"], c(100))
+        with self.assertRaisesRegex(ValueError, "overlapping_attribution_interval"):
+            self.l.attribute_dispatch(
+                "overlap",
+                "a",
+                "e1",
+                "gpt-6-luna",
+                c(150),
+                c(250),
+                evidence={"event_id": "luna-250", "receipt_sha256": "other"},
+            )
+        self.assertEqual(self.l.summary()["by_model"]["gpt-6.1-sol"]["input_tokens"], 100)
+
+    def test_raw_rpc_ingress_is_byte_exact_and_persists_on_separate_connection(self):
+        raw = b'{"method":"turn/started"}\r\n'
+        event_id = self.l.persist_raw_rpc(raw)
+        self.l.close()
+        reopened = UsageLedger(self.path)
+        try:
+            row = reopened.db.execute(
+                "SELECT raw_bytes FROM rpc_ingress WHERE ingress_id=?", (event_id,)
+            ).fetchone()
+            self.assertEqual(bytes(row["raw_bytes"]), raw)
+        finally:
+            reopened.close()
+        self.l = UsageLedger(self.path)
 
     def test_dispatch_reservation_summary_retains_team_identity(self):
         self.l.reserve(

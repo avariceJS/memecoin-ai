@@ -316,7 +316,7 @@ class Controller:
                 event.set()
         for item in peers:
             if item is not threading.current_thread():
-                item.join(timeout=1)
+                item.join()
         with self._monitor_lock:
             for item in peers:
                 if not item.is_alive():
@@ -332,7 +332,7 @@ class Controller:
         for event in events:
             event.set()
         for t in ts:
-            t.join(timeout=1)
+            t.join()
 
 
 class MeteredCodex:
@@ -342,6 +342,8 @@ class MeteredCodex:
         self._epochs = {}
         self._turn_dispatches = {}
         self._turn_threads = {}
+        if hasattr(self.rpc, "raw_ingress_sink"):
+            self.rpc.raw_ingress_sink = self.controller.ledger.persist_raw_rpc
 
     def __getattr__(self, name):
         return getattr(self.rpc, name)
@@ -589,7 +591,7 @@ def metered_client(
 
     controller = Controller(
         ledger,
-        lambda: account.call("account/rateLimits/read"),
+        lambda: account.call("account/rateLimits/read", timeout=2),
         state=state,
         preflight=common_preflight,
     )

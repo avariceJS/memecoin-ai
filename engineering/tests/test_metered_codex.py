@@ -1,3 +1,6 @@
+import threading
+import time
+
 import pytest
 
 from engineering.metered_codex import Controller, MeteredCodex
@@ -165,3 +168,28 @@ def test_unknown_required_or_paid_quota_evidence_stops_before_send(tmp_path):
         assert not ledger.summary()["reservations"]
         controller.close()
         ledger.close()
+
+
+def test_stop_monitor_waits_for_inflight_quota_read_and_joins_watcher(tmp_path):
+    ledger, _rpc, controller, _client = make(tmp_path)
+    entered, release = threading.Event(), threading.Event()
+
+    def blocked_read():
+        entered.set()
+        release.wait()
+        return quota()
+
+    controller.account_read = blocked_read
+    watcher = controller.monitor(time.monotonic() + 30, lambda: None)
+    assert entered.wait(2)
+    stopper = threading.Thread(target=controller.stop_monitor, args=(watcher,))
+    stopper.start()
+    time.sleep(0.05)
+    assert stopper.is_alive()
+    release.set()
+    stopper.join(3)
+    assert not stopper.is_alive()
+    assert not watcher.is_alive()
+    assert watcher not in controller._monitors
+    controller.close()
+    ledger.close()

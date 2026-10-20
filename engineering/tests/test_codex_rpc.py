@@ -107,6 +107,8 @@ def test_reader_queues_raw_evidence_for_owner_thread_delivery():
     client.sequence = 0
     client.send = Mock()
     delivered = []
+    ingressed = []
+    client.raw_ingress_sink = lambda raw: ingressed.append((threading.get_ident(), raw))
     client.sink = lambda event: delivered.append((threading.get_ident(), event))
     reader = threading.Thread(target=client._read)
     reader.start()
@@ -116,6 +118,11 @@ def test_reader_queues_raw_evidence_for_owner_thread_delivery():
     assert result == {"ok": True}
     assert len(delivered) == 2
     assert all(owner == threading.get_ident() for owner, _event in delivered)
+    assert [raw for _reader, raw in ingressed] == [
+        b"not-json\r\n",
+        b'{"id":1,"result":{"ok":true}}\r\n',
+    ]
+    assert all(reader != threading.get_ident() for reader, _raw in ingressed)
     assert [event["kind"] for _owner, event in delivered] == ["rpc_malformed", "rpc_raw"]
     assert delivered[0][1]["raw_bytes_hex"] == b"not-json\r\n".hex()
     assert json.loads(bytes.fromhex(delivered[1][1]["raw_bytes_hex"]))["id"] == 1

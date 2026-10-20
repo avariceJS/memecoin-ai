@@ -63,6 +63,7 @@ class Codex:
             if (ancestor / ".codex/config.toml").is_file() and ancestor != Path.home():
                 raise RpcError("project_codex_config_rejected")
         self.sink = event_sink or (lambda event: None)
+        self.raw_ingress_sink = None
         cfg = {
             "notify": [],
             "features.shell_tool": False,
@@ -171,6 +172,15 @@ class Codex:
     def _read(self):
         try:
             for raw in iter(self.proc.stdout.readline, b""):
+                ingress_sink = getattr(self, "raw_ingress_sink", None)
+                if ingress_sink is not None:
+                    try:
+                        ingress_sink(raw)
+                    except Exception as exc:
+                        self.messages.put(
+                            {"_ingress_error": type(exc).__name__ + ":" + str(exc)[:200]}
+                        )
+                        return
                 try:
                     message = json.loads(raw)
                 except (UnicodeDecodeError, json.JSONDecodeError):
@@ -212,6 +222,8 @@ class Codex:
             except queue.Empty as exc:
                 raise RpcError("rpc_timeout:" + method) from exc
             self._deliver_raw(msg)
+            if msg.get("_ingress_error"):
+                raise RpcError("rpc_ingress_persistence_failed")
             if msg.get("_closed"):
                 raise RpcError("app_server_closed")
             if msg.get("id") == ident and "method" not in msg:
@@ -355,6 +367,8 @@ class Codex:
                 except queue.Empty:
                     continue
             self._deliver_raw(msg)
+            if msg.get("_ingress_error"):
+                raise RpcError("rpc_ingress_persistence_failed")
             if msg.get("_closed"):
                 raise RpcError("app_server_closed")
             method, p = msg.get("method"), msg.get("params", {})
