@@ -82,6 +82,13 @@ automatically.
   and all bound execution remains blocked pending interpreter, sandbox and result qualification.
   Sol accepted exact source; gate passed 322 tests/55 subtests and Ruff (54 files). Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-manifest-review-20261021.json`.
+- A04 result-contract wiring merged at `3c859e28eed86d9d7c6ecdcacdb9128c826fb387`. The first
+  result command must pass the pinned harness directly; strict result parsing enforces schema,
+  acceptance identity and literal success, with allowlisted environment overrides. Sol accepted the
+  bounded source; the engineering gate passed 328 tests/62 subtests and Ruff. Bound plans remain
+  `execution_qualified=False`; interpreter/sandbox qualification, executable integration acceptance
+  and full A04 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-result-contract-review-20261021.json`.
 - A12 bounded active-task projection merged at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`; Sol
   accepted the exact source and the gate passed 278 tests/42 subtests with Ruff. SQL limits active
   rows to 100, full state counts remain, omitted rows are disclosed, and history is retained. Full

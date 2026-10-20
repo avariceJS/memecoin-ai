@@ -379,3 +379,13 @@ interpreter, sandbox и result qualification. Sol принял exact source; gat
 Ruff (54 файла). Full A04 и operational acceptance открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-manifest-review-20261021.json`
 (SHA-256 `ae63abe99124eb4bfad6fe68b02b1b2177e1162037fdc2e347e9d747b9fc9e61`). Supervisor stayed off.
+
+
+At `3c859e28eed86d9d7c6ecdcacdb9128c826fb387` A04 получил source-only result-contract wiring:
+первый acceptance command обязан запускать pinned harness напрямую, результат проверяется по
+уникальному JSON schema, acceptance ID и literal `true`, а environment override ограничен
+allowlist. Sol принял exact scaffold; gate прошёл: 328 тестов, 62 subtests, Ruff check/format.
+Планы всё ещё `execution_qualified=False`; interpreter, sandbox и executable integration не
+квалифицированы, Supervisor не запускался. Full A04 и operational acceptance открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-result-contract-review-20261021.json`
+(SHA-256 `ecfb8f8a9888a96b059e1fa2122eb6331aeb5de81353ad3f8ab43fc85a6e4278`).
