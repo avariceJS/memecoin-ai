@@ -159,7 +159,14 @@ terminal usage, конечного STOP-preserving кандидата, неза�
 считает его progress. `account/usage/read` возвращает estimated агрегат без привязки к dispatch/turn.
 Sol принял receipt только как static correlation и отклонил terminal settlement: финальность,
 порядок, полнота и привязка к модели, dispatch и epoch не доказаны. Release остаётся blocked,
-неизвестный usage зарезервирован. Найден отдельный условный parser gap: optional
+неизвестный usage зарезервирован. Дополнительная read-only проверка закреплённого CLI нашла
+`rawResponse/completed` с `responseId`/`threadId`/`turnId` и точным upstream usage либо `null`, но
+его `ThreadStartParams` не содержит opt-in `experimentalRawEvents`; выдача, порядок и полнота не
+подтверждены. Сам payload также не связывает запись с dispatch/model/epoch. Это источник для
+дальнейшей квалификации, не разрешение settlement. `turn/completed` остаётся только событием
+жизненного цикла, неизвестный usage резервируется. Подробный probe receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-raw-response-source-probe-20261020.json`.
+Найден отдельный условный parser gap: optional
 `cacheWriteInputTokens` сохраняется в raw receipt, но мешает canonical progress snapshot; реальная
 частота поля неизвестна. В конечном кандидате добавим синтетические варианты на 5 и 6 полей и
 уточним семантику cache-write, не используя его для settlement. Receipt:

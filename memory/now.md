@@ -17,6 +17,11 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   settlement qualification. `thread/tokenUsage/updated` lacks proven finality/order/completeness and
   dispatch/model/epoch binding; account usage is estimated and aggregate. A conditional six-field
   parser gap exists for optional `cacheWriteInputTokens`; see the canonical organization document.
+- Follow-up read-only schema probe found `rawResponse/completed` in pinned CLI 0.163.0 with
+  per-response IDs and exact usage-or-null, but pinned `ThreadStartParams` has no
+  `experimentalRawEvents` opt-in and the payload lacks dispatch/model/epoch binding. Emission and
+  completeness remain unqualified; A03 stays fail-closed. Receipt:
+  `terminal-usage-raw-response-source-probe-20261020.json` in the external resumption handoff.
 - The parser now preserves that optional field in raw evidence and normalizes only the five canonical
   counters. Five/six-field cases and malformed optional values passed direct invocation; checkout
   has no pytest/Ruff and only Python 3.9, so standard focused test tooling remains unverified.
