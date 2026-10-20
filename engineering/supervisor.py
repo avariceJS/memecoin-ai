@@ -738,10 +738,14 @@ def organization_state_reconciled(state, ledger, now=None, db=None):
             if not isinstance(processes, list) or not processes:
                 return False
             witness = processes[0]
+            birth = witness.get("birth") if type(witness) is dict else None
             if (
                 type(witness) is not dict
                 or type(witness.get("pid")) is not int
-                or process_identity(witness["pid"]) != witness.get("birth")
+                or witness["pid"] <= 1
+                or type(birth) is not str
+                or not birth
+                or process_identity(witness["pid"]) != birth
             ):
                 return False
         for path in (state / "intents").glob("*.json"):

@@ -520,6 +520,27 @@ class SupervisorTests(unittest.TestCase):
         )
         ledger.close()
 
+    def test_recovery_gate_rejects_missing_process_birth_witness(self):
+        import os
+
+        from engineering.processes import process_identity
+
+        ledger = UsageLedger(self.state / "usage-ledger.sqlite")
+        self.task()
+        attempt = self.db.claim("T", "worker", 100)
+        run = self.state / "attempts" / str(attempt["id"])
+        run.mkdir(parents=True)
+        processes = run / "processes.json"
+        processes.write_text(json.dumps([{"pid": 99999999, "birth": None}]))
+        self.assertFalse(
+            supervisor.organization_state_reconciled(self.state, ledger, 1000, self.db)
+        )
+        processes.write_text(
+            json.dumps([{"pid": os.getpid(), "birth": process_identity(os.getpid())}])
+        )
+        self.assertTrue(supervisor.organization_state_reconciled(self.state, ledger, 1000, self.db))
+        ledger.close()
+
     def test_supervisor_quota_reads_share_durable_pause(self):
         from engineering.metered_codex import Controller
         from engineering.supervisor import supervisor_quota_sample

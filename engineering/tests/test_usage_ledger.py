@@ -785,7 +785,7 @@ class UsageLedgerTests(unittest.TestCase):
             now=now,
         )
         self.l.consume_dispatch("unknown-2")
-        self.l.record_outcome("unknown-2", "unknown", {"error": "lost receipt"})
+        self.l.record_outcome("unknown-2", "timeout", {"error": "deadline"})
         with self.assertRaisesRegex(ValueError, "unresolved_stream_dispatch"):
             self.l.reserve(
                 "same-stream-retry",

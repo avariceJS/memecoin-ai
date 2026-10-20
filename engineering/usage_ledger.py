@@ -1282,7 +1282,7 @@ class UsageLedger:
                 active = self.db.execute(
                     "SELECT model,payload,identity FROM dispatches "
                     "WHERE (status='reserved' AND deadline_at>?) "
-                    "OR status IN ('dispatched','bound','unknown')",
+                    "OR status IN ('dispatched','bound','unknown','timeout')",
                     (now,),
                 ).fetchall()
                 active_teams = set()
@@ -1610,7 +1610,7 @@ class UsageLedger:
                 )
             active = self.db.execute(
                 "SELECT 1 FROM dispatches WHERE (status='reserved' AND deadline_at>?) "
-                "OR status IN ('dispatched','bound','unknown') LIMIT 1",
+                "OR status IN ('dispatched','bound','unknown','timeout') LIMIT 1",
                 (now,),
             ).fetchone()
             self.db.execute("COMMIT")

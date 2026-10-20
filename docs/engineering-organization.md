@@ -293,13 +293,14 @@ This was source acceptance, not an operational release. Local source checkpoint
 3b5c1cff8868733dbc219c34368a44e7751f99b0 wired metered dispatch into planner and manual-chief
 episodes, but exact Sol review rejected it for seven accounting/admission issues. Follow-up commit
 a26dbef2a90fffd309a301347a962f38deb3d1c3 addressed those findings, but exact Sol review again
-rejected it for seven pause and lifecycle defects. Current uncommitted candidate fixes add atomic
-pause recovery, supervisor quota gating, two-sample rolling recovery, lifecycle receipts, and
-owner-state reconciliation. Its 114 focused tests, 18 subtests, Ruff, frozen ledger/quota/atomic/
-controller-gate checks, and real usage-interval reproduction pass. Independent review is pending.
-Two older frozen raw-RPC checks still omit required Permit/episode identity and fail; frozen files
-remain unchanged. This is not release acceptance. The original pilot remains STOPped with six
-failures and no accepted tasks.
+rejected it for seven pause and lifecycle defects. Commit 095aacfd79320700e4eb45847d541edc086e0148
+fixed those findings, but exact Sol review found two more: timeout dispatches must remain blockers
+until provider terminal evidence, and missing process birth witnesses must fail closed. Current
+uncommitted candidate fixes both. Its 115 focused tests, 18 subtests, Ruff, frozen ledger/quota/
+atomic/controller-gate checks, and real usage-interval reproduction pass. Independent review is
+pending. Two older frozen raw-RPC checks still omit required Permit/episode identity and fail;
+frozen files remain unchanged. This is not release acceptance. The original pilot remains STOPped
+with six failures and no accepted tasks.
 The full independent-root Goal remains active; its observed automatic continuation, live
 process custody and next actions are private durable state.
 The source-only structured task validator has separately passed its frozen 37-check acceptance;
