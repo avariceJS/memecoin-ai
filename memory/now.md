@@ -91,6 +91,20 @@ qualification remain open. See
 docs/engineering-organization.md and the unique source receipt in docs/evidence/README.md.
 Policy: docs/evidence/brain-org-founder-quota-amendment-20261020.json.
 
+### Task-spec Store source acceptance — 2026-10-20
+
+On isolated branch `org/task-spec-store-20261020`, source commit
+`a16d8b8a958feec0cdf697d9a5d72d9823b5338c` adds bounded atomic task-spec persistence to `Store` and
+detached admission metadata validation. Independent Sol approved this exact source SHA with no
+findings. Frozen SQLite acceptance passed 10 scenario groups; focused pytest passed 42 tests and 27
+subtests; changed-path Ruff and `make smoke` passed. `make check` remains blocked by 107 existing
+Ruff findings outside the task paths, and `make test` collection is blocked by a missing historical
+fixture. This is source-only acceptance: planner/scheduler dispatch, durable verifier binding,
+controlled release and pilot activation remain open. An immutable read-only pilot DB check on Oct 20
+found the two failed original tasks, one pending `PLAT-001`, six failed attempts and no integration
+rows; the zero-byte STOP remains. See
+`docs/evidence/brain-org-task-spec-store-source-acceptance-2026-10-20.json`.
+
 ## Git consolidation — 2026-10-18
 
 `main` is the sole integration baseline on GitHub, incorporating research code/history through

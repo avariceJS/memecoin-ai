@@ -195,13 +195,19 @@ require another Astra session. A genuine capability/resource/objective expansion
 internal request for Astra through the Russian Founder Desk. Astra remains the executive and sole
 founder communicator; Sol holds delegated implementation/queue authority, not the executive role.
 
-The finite task catalogue is the initial qualification mechanism. The next implementation must admit
-Sol-issued structured task specifications against the immutable envelope: objective, team, exact
-scope, dependencies and contract versions, bounded attempts/resources, risk and independently owned
+The finite task catalogue is the initial qualification mechanism. Sol-issued structured task
+specifications are validated against the immutable envelope: objective, team, exact scope,
+dependencies and contract versions, bounded attempts/resources, risk and independently owned
 acceptance references. An independent verifier fixes acceptance before implementation; a worker
-cannot change it. Admission is deterministic and rejects unsupported execution/authority. New task
-content is not permission to rewrite the controller policy. No useful admissible work means a durable
-reason and stop, not indefinite model polling.
+cannot change it. The validator and a separate additive `Store` persistence path are accepted in
+source. `Store.admit_task_spec` validates a detached metadata snapshot and atomically records the
+specification and its v1 decision; the pinned SQLite acceptance and focused store tests cover the
+transaction and metadata-mutation race. See the
+[task-spec Store source acceptance](evidence/brain-org-task-spec-store-source-acceptance-2026-10-20.json).
+This does not yet wire task specs into planner/scheduler dispatch, bind durable tasks to independent
+verifiers, qualify a controlled release, or activate the pilot. Admission remains deterministic and
+rejects unsupported execution/authority. New task content is not permission to rewrite controller
+policy. No useful admissible work means a durable reason and stop, not indefinite model polling.
 
 The first live pilot failed before any accepted worker implementation: commentary contaminated final
 JSON and real dynamic-tool delivery was not qualified. EXP-001/CTX-001 exhausted three attempts each.
