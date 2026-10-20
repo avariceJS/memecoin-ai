@@ -232,80 +232,64 @@ Grok remains disabled by the user's latest instruction.
 
 ## Git integration and recovery registry
 
-As of 2026-10-18, GitHub `avariceJS/memecoin-ai` owns all published code/history. `main` is the
-only primary integration baseline. The consolidation advances the former `770699d` baseline through
-all 321 research commits ending at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186`, followed by
-test-only contract alignment (`d8fdff7`) and consolidation documentation. This includes Senses/storage work, neural artifact/statistics integrity,
-DR tooling, and the practical Migration v1 implementation and operator package. It is code
-integration, not model promotion, runtime deployment, backup/restore acceptance, or permission to erase.
+### Consolidation and founder audit hold — 2026-10-20
 
-| GitHub branch | Purpose and exact checkpoint | Remaining gate |
+The founder paused organization development and authorized repository consolidation. This registry
+supersedes older branch instructions. `main` stays exactly at
+`2f8da5f92da521b511e0d4fb20205981a000cab5`; no experimental source was promoted.
+
+| Branch | Role | Status |
 |---|---|---|
-| `main` | Current integration baseline; start here | Use task-specific checks before each integration |
-| `research/active` | Frozen compatibility ref at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` | Historical Migration v1 package fetches this branch before `6ad944c`; that Mac2 package is now retired, but retain this ref until replacement recovery execution is verified |
-| `codex/linux-portability-20261018` | Linux development at `fb36e7e43857e082cbe1c5f1d0ef6eb8f8dd5fe8` | Unmasked clean-host provisioning, inert-service apply, exact-head lifecycle and absence of transient service starts remain unqualified; consult this branch's `memory/now.md` and Linux receipts |
-| `codex/v3-scratch-20261017` | Descriptor-bound DR scratch prototype at `4a84d5bd1496bbd6bb8832391edebd9bf51b845a` | Physical APFS/HFS and owner-scale qualification remain open; production capture remains fail-closed |
-| `control-center/observatory-handoff` | Recovered UI reconstruction at `ce8505a6da99c5d5e1f118d1e55346f95981c328` | CC02.8 final integrated visual acceptance remains unfinished; nine formerly local commits are published; no new runtime/control permission |
+| `main` | Stable existing baseline | Unchanged; existing repository failures remain documented |
+| `brain/development` | Current Brain development entry | Based on main; consolidation documentation only |
+| `org/development` | Unified organization source and audit entry | Reviewed metering and validator plus additive reviewed Store; merged candidate is not an independently accepted release |
+| `brain/linux` | Isolated Linux portability candidate | Original `65846e8` source retained; clean-host provisioning, lifecycle and inert-service qualification remain open |
+| `research/active` | Frozen remote compatibility alias at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` | Not a development lane; current `engineering/bootstrap.py` still resolves `origin/research/active`, and historical recovery packages name it |
 
-The published topic heads after documentation/custody updates are Linux `65846e8`, v3 `6554a01`,
-and UI `de4b42d`; their implementation checkpoints in the table remain unchanged. Root agent
-instructions on each topic now identify `main` as the integration entrypoint. UI additionally
-preserves 27 previously unpublished local review artifacts under
-`docs/control-center/archives/local-pre-reset-20261018/`; five other local images were already
-published and are referenced by their original blob IDs. These are historical records, not a new
-visual acceptance.
+The compatibility alias cannot be removed without changing and qualifying current bootstrap/recovery
+callers. That is a separate controller release, outside this consolidation. Frozen private pilot
+repositories also retain their exact historical refs; they are not development checkouts. Linux
+changes overlap operator host/control and shared storage behavior; merging this unqualified platform
+release into Brain solely to reduce branch count would overstate acceptance. Linux was renamed,
+not updated to the current Brain baseline; reconcile that dependency during its future review.
 
-Linux, v3, and UI are intentionally unmerged. Their latest written code does not establish complete
-compatibility or acceptance. The UI branch retains historical scoped workflow records; current root
-Git policy and this registry govern consolidation and future branch custody. No general work should
-resume on frozen `research/active`.
+The obsolete development-readiness and organization topic branches are consolidated. UI reconstruction
+`de4b42d` and DR v3 prototype `6554a01` are archived, not accepted or silently merged. UI visual
+acceptance and physical/owner-scale v3 qualification remain open. Unreviewed supervisor proposal
+`1546e4c` and backup/restore `613c5e9` plus its last dirty repair are also custody only.
 
-`archive/pre-reset-20261018` is an immutable annotated GitHub tag whose commit is
-`b35f8d089b603b3e33c54acbe0db38e7fa1b1178`. It retains all 14 previously unpublished commits,
-intermediate blobs/trees, original checkpoint-ref mapping, and four historical migration helper
-scripts. It is recovery custody, not a branch to merge or an executable baseline. Read its
-`README.txt` and `manifest.json`; `blobs/<original-object-id>` and `trees/<original-object-id>` retain
-exact source versions. One negative-test tag is stored as exact raw tag-object bytes for explicit
-reproduction, without publishing it under a valid handoff name. Existing `brain-dr-handoff-v1` through
-`v5` tags were not retargeted. The supplemental tag `archive/bootstrap-fixtures-20261018`
-(`2f28fcc4b37bf8d54fb5a0fef9d2b7b8c3240293`) preserves seven historical negative-test tag objects
-found in macOS temporary fixture directories; never use these as operator handoffs. The older v3
-files also remain byte-exact in the published
-`docs/archives/portability-disaster-recovery-v2/v3-capture-adapter-draft-2026-10-16.tar.gz`.
+`archive/consolidation-20261020` is an annotated, never-retargeted custody tag. Its commit has an
+archive tree, not a runnable project. `manifest.json` maps every original ref/checkpoint and dirty
+organization source file. Its parents preserve all 69 original commit pins. A separate bare clone
+from this GitHub tag verified all pins, four dirty organization files, and `git fsck --full` before
+branch deletion. Five historical owner documentation edits remain untouched at
+`/Users/root1/Desktop/memecoin-ai` and in a verified private dirty-file archive. Private bundles,
+ignored worktree artifacts and raw reviewer logs remain outside Git under
+`/Users/root1/Developer/brain-org-state/consolidation-20261020/`.
 
-Recovery of an experimental task requires only a normal clone plus its published branch:
+Recover an archived source without merging the custody tree:
 
 ```sh
-git fetch origin --prune --tags
-git worktree add ../brain-linux --track -b codex/linux-portability-20261018 origin/codex/linux-portability-20261018
+git fetch origin --tags
+git show archive/consolidation-20261020:manifest.json
+git switch -c recovery/<topic> <original-commit-from-manifest>
 ```
 
-Use the corresponding registry name for v3 or UI. For new parallel tasks, use
-`git worktree add -b codex/<task> ../brain-<task> origin/main`, then
-`git push -u origin codex/<task>`. Commit and push meaningful checkpoints, integrate only after
-checks/review, and remove the topic branch/worktree after verifying remote custody and ancestry.
+The archive stores the final uncommitted service repair under
+`snapshots/checkout-15/engineering/service.py` and the matching test path. Reconstruct it on
+`613c5e9e6dd6fe00d6ebf4b072a31885826ac7a4` only in an isolated recovery checkout, then obtain frozen
+acceptance and independent review. Existing `archive/pre-reset-20261018`,
+`archive/bootstrap-fixtures-20261018`, `archive/research-active-pre-org-20261019`, DR handoff tags and
+`brain-git-consolidated-20261018` remain unchanged. Historical protocol hashes require their exact
+source commit, never current archival pointer text.
 
-The source and object audit, every discovered checkout's disposition, exact retained refs, test
-results, and scan limits are in the immutable
-[consolidation receipt](evidence/git-consolidation-2026-10-18.json). No Kingston payload, private
-configuration, owner runtime, or original Migration v1 handoff/receipt bytes were changed. The owner
-checkout stays at its historical source commit; a newer GitHub `main` does not update its files.
+New ordinary Brain work starts from `brain/development`; organization audit and any later explicitly
+resumed Luna work start from `org/development`. The founder will invite Astra High for independent
+architecture review. No Goal, team, service, inference, collector, training, AUTO or trading is resumed
+by consolidation. Pilot SQLite, its six failures and zero acceptances/integrations, STOP, protected
+datasets and historical owner runtime stay unchanged. The current publisher still targets private
+`research/active`; no new publication authority or runtime branch rebinding is implied.
 
-Consolidation validation: 62 Migration v1 tests, 591 DR/host tests (two explicit Kingston opt-ins
-skipped), 418 experience tests (one CUDA skip), 39 Observatory Python boundary tests, synthetic smoke,
-and 80 final Gecko contract tests passed. The broader initial run had 4,878 passes, 56 failures and
-six skips after excluding one test module whose legacy local `work/` capture is absent in a clean
-clone. Of those failures, 43 reproduce on old `main`; eight pass on isolated rerun after environment
-and resource differences are removed; five exposed stale test bindings and are corrected by the
-80-test gate. No production implementation was changed to make tests pass. `make check` still stops
-at 107 preexisting Ruff findings (old `main`: 110; no new diagnostics). Full-suite green is not claimed.
-The five historical `git diff --check 770699d..c157f79` findings are immutable receipt/transcript
-whitespace and plain-text `=======` heading underlines, not unresolved merges; their bytes remain
-unchanged. New changes pass diff, targeted Ruff and formatting checks.
-
-GitHub Actions [run 39133861313](https://github.com/avariceJS/memecoin-ai/actions/runs/39133861313)
-reported failure before jobs started: its account annotation cites failed recent payments or the
-spending limit. No CI execution result is inferred from that infrastructure failure, and no billing
-or repository settings were changed. The published `brain-git-consolidated-20261018` tag anchors
-`a6ee5fcdef32e10475983428dd83302a81dc8773`, including the final object-custody and runtime-status
-verification in its annotation. Later documentation clarification does not change its tested code.
+See the machine-readable [consolidation receipt](evidence/git-consolidation-2026-10-20.json) for exact
+source selection, tests, failures, custody and cleanup. Historical acceptance from the earlier
+[2026-10-18 consolidation](evidence/git-consolidation-2026-10-18.json) is not new verification.

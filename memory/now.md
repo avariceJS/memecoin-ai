@@ -1,12 +1,30 @@
 # Current state
 
+As of **2026-10-20**, Brain development uses **`brain/development`** in this checkout.
+Stable `main` is unchanged at `2f8da5f92da521b511e0d4fb20205981a000cab5`.
+The separate organization audit candidate is `org/development` in
+`/Users/root1/Developer/brain-org-build`; Linux remains isolated on `brain/linux`.
+`research/active` is a frozen remote compatibility alias, not a development branch.
+
+The founder paused autonomous organization development pending an independent Astra High audit.
+Do not resume Goals, workers, services, or development automatically. No new team or runtime start
+is authorized by consolidation. Organization source components have limited review; the merged
+system and release still require independent acceptance. Incomplete backup/restore, UI and DR v3
+work are preserved in annotated tag `archive/consolidation-20261020`, not merged here.
+Private durable audit handoff: `/Users/root1/Developer/brain-org-state/consolidation-20261020/handoff.json`.
+Read `docs/operator-runtime.md` for recovery/branch ownership and
+`docs/evidence/git-consolidation-2026-10-20.json` for actual checks and limitations.
+
+## Previously qualified Brain environment — 2026-10-19
+
+
 As of **2026-10-19**, the post-reset research checkout is usable for local development,
 read-only historical inspection, paired model evaluation, synthetic training tests, and local UI.
 The current user explicitly authorizes this work and temporary loopback services; the old
 pre-reset freeze is historical. External collectors/writers, unattended jobs, AUTO activation,
 trading, signing, promotion, and paid upgrades remain disabled pending separate authorization.
 
-- Open `/Users/root1/Developer/memecoin-research`, integration branch `main`. The fetched reset
+- Open `/Users/root1/Developer/memecoin-research`, development branch `brain/development`. The fetched reset
   baseline was `f9a8118`. Historical owner `/Users/root1/Desktop/memecoin-ai` remains pinned at
   `a594474`; its five documentation-only edits from the earlier audit are preserved unchanged.
 - Both research Python environments now install this checkout **editable**. Existing pins remain;

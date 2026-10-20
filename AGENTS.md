@@ -95,6 +95,18 @@ is available from historical Git commits.
   limits instead of silently substituting. Routing does not relax project authorization, evidence,
   testing, provenance, temporal-correctness, recovery, or protected-data requirements.
 
+## Consolidated branches and founder audit hold — 2026-10-20
+
+Use `brain/development` for Brain work and `org/development` for the separate engineering organization.
+`main` stays unchanged. `brain/linux` retains the unqualified Linux platform candidate.
+`research/active` is a frozen remote compatibility alias required by current bootstrap/recovery
+callers, not a development lane. The branch registry is in `docs/operator-runtime.md`.
+Organization development is paused pending the founder's independent Astra High audit. Do not resume
+Goals, start workers/services, invoke Astra automatically, or clear STOP. Organization audit handoff
+lives on `org/development` at `engineering/SOL-MANDATE.md`; it is absent from this Brain-only branch.
+Preserve `archive/consolidation-20261020` and all existing archive/handoff tags. Its custody tree is
+not source to merge. Historical owner and pilot snapshots remain immutable during consolidation.
+
 ## Engineering and authorization boundaries
 
 - Do not change production behavior, champion, promotion gates, AUTO, paper ledgers, datasets,

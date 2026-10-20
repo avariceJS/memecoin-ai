@@ -3,6 +3,12 @@
 Read this page first. Current documentation is English and intentionally small. Open one canonical
 source for the task; do not scan `docs/` or `docs/evidence/` wholesale.
 
+## Consolidated repository entry — 2026-10-20
+
+Brain development: `brain/development`; stable main is unchanged. Organization audit/handoff lives
+on `org/development`, not in this branch. See the Git registry in `operator-runtime.md` and
+`evidence/git-consolidation-2026-10-20.json`. Founder audit hold prohibits autonomous resumption.
+
 ## Session entry
 
 1. [`memory/now.md`](../memory/now.md): dated volatile state; verify live status before acting.
