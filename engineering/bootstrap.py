@@ -242,5 +242,14 @@ def bootstrap(state: Path, source: Path, python: str):
             objective_id="offline-brain-engineering",
             max_attempts=3,
         )
+    db.propose_contract_transition(
+        "schema-validation",
+        1,
+        contracts["schema-validation"]["version"],
+        contracts["schema-validation"],
+        producer_task_id="EXP-001",
+        producer_team=contracts["schema-validation"]["producer"],
+        consumer_teams=[contracts["schema-validation"]["consumer"]],
+    )
     db.close()
     return cfg

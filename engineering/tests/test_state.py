@@ -37,6 +37,28 @@ class StateTests(unittest.TestCase):
         self.store.accept(task_id, sha)
         self.store.integrate(task_id, sha, f"integrated-{sha}")
 
+    def advance_contract(self, name, from_version, to_version, body):
+        producer_id = f"contract-producer-{name}-{to_version}"
+        self.store.add_task(producer_id, "Producer", "Contract producer", scope=["contract"])
+        attempt = self.store.claim(producer_id, "synthetic")
+        self.store.submit(attempt["id"], attempt["epoch"], f"candidate-{to_version}", {})
+        self.store.verify(producer_id, f"candidate-{to_version}", True, {})
+        self.store.accept(producer_id, f"candidate-{to_version}")
+        self.store.integrate(producer_id, f"candidate-{to_version}", f"merge-{to_version}")
+        transition = self.store.propose_contract_transition(
+            name,
+            from_version,
+            to_version,
+            body,
+            producer_task_id=producer_id,
+            producer_team="Producer",
+            consumer_teams=["Consumer"],
+        )
+        digest = transition["body"]["contract_hash"]
+        self.store.acknowledge_contract_transition(name, to_version, "Producer", digest)
+        self.store.acknowledge_contract_transition(name, to_version, "Consumer", digest)
+        self.store.activate_contract_transition(name, to_version)
+
     def test_sqlite_durability_settings(self):
         self.assertEqual(self.store.db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
         self.assertEqual(self.store.db.execute("PRAGMA synchronous").fetchone()[0], 2)
@@ -245,9 +267,9 @@ class StateTests(unittest.TestCase):
         self.assertEqual(self.store.ready_tasks(), [])
         self.store.put_contract("api", 1, {"field": "old"})
         self.assertIsNone(self.store.claim("a", "worker"))
-        self.store.put_contract("api", 2, {"field": "current"})
+        self.advance_contract("api", 1, 2, {"field": "current"})
         self.assertEqual([t["id"] for t in self.store.ready_tasks()], ["a"])
-        self.store.put_contract("api", 3, {"field": "new"})
+        self.advance_contract("api", 2, 3, {"field": "new"})
         self.assertIsNone(self.store.claim("a", "worker"))
         self.assertEqual(self.store.get_contract("api", 1)["body"], {"field": "old"})
         self.assertEqual(self.store.get_contract("api")["version"], 3)
@@ -258,7 +280,7 @@ class StateTests(unittest.TestCase):
         self.store.put_contract("api", 1, {})
         self.task(contracts={"api": 1})
         attempt = self.store.claim("a", "worker")
-        self.store.put_contract("api", 2, {})
+        self.advance_contract("api", 1, 2, {})
         with self.assertRaises(StateError):
             self.store.submit(attempt["id"], attempt["epoch"], "stale", {})
         self.assertEqual(self.store.get_task("a")["state"], "running")
@@ -270,7 +292,7 @@ class StateTests(unittest.TestCase):
         self.task(contracts={"api": 1})
         self.submit()
         self.store.verify("a", "candidate", True, {})
-        self.store.put_contract("api", 2, {})
+        self.advance_contract("api", 1, 2, {})
         with self.assertRaises(StateError):
             self.store.accept("a", "candidate")
         self.assertEqual(self.store.get_task("a")["state"], "verified")

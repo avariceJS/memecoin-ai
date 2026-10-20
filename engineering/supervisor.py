@@ -21,7 +21,7 @@ from .codex_rpc import Codex
 from .confinement import SandboxRunner, python_runtime_roots
 from .git_gate import GitGate
 from .metered_codex import metered_client
-from .org_state import StaleAttempt, Store
+from .org_state import StaleAttempt, StateError, Store
 from .processes import process_identity, terminate_owned
 from .review_packet import build_review_packet
 from .service import validate_deployment
@@ -432,19 +432,39 @@ def run_attempt(state: Path, attempt_id: int):
                 raise RuntimeError("lead_blocked")
             if plan.get("contract_ack") is True:
                 proposal = cfg["contracts"]["schema-validation"]
-                digest = hashlib.sha256(json.dumps(proposal, sort_keys=True).encode()).hexdigest()
-                key = "contract-ack/" + digest + "/" + task["team"]
-                if db.get_decision(key) is None:
-                    db.put_decision(
-                        key,
-                        {
-                            "team": task["team"],
-                            "thread": thread,
-                            "model": SOL,
-                            "contract_hash": digest,
-                            "version": 2,
-                            "contract_ack": True,
-                        },
+                transition = db.get_contract_transition("schema-validation", proposal["version"])
+                if transition is None:
+                    current = db.get_contract("schema-validation")
+                    if current is None:
+                        raise StateError("contract transition source contract missing")
+                    if current["version"] == proposal["version"] and current["body"] == proposal:
+                        transition = None  # already active in a legacy database
+                    else:
+                        transition = db.propose_contract_transition(
+                            "schema-validation",
+                            proposal["version"] - 1,
+                            proposal["version"],
+                            proposal,
+                            producer_task_id="EXP-001",
+                            producer_team=proposal["producer"],
+                            consumer_teams=[proposal["consumer"]],
+                        )
+                if transition is not None:
+                    transition = db.propose_contract_transition(
+                        "schema-validation",
+                        proposal["version"] - 1,
+                        proposal["version"],
+                        proposal,
+                        producer_task_id="EXP-001",
+                        producer_team=proposal["producer"],
+                        consumer_teams=[proposal["consumer"]],
+                    )
+                if transition is not None:
+                    db.acknowledge_contract_transition(
+                        "schema-validation",
+                        proposal["version"],
+                        task["team"],
+                        transition["body"]["contract_hash"],
                     )
         with metered_client(
             state,
@@ -905,22 +925,39 @@ def reconcile(state, db):
 
 
 def activate_contract(state, db):
-    exp = next((t for t in db.list_tasks() if t["id"] == "EXP-001"), None)
     proposal = config(state)["contracts"]["schema-validation"]
-    digest = hashlib.sha256(json.dumps(proposal, sort_keys=True).encode()).hexdigest()
-    acks = [
-        db.get_decision("contract-ack/" + digest + "/" + team)
-        for team in ("Experience", "Platform")
-    ]
-    if (
-        exp
-        and exp["state"] == "integrated"
-        and all(acks)
-        and db.get_contract("schema-validation")["version"] == 1
-    ):
-        db.put_contract("schema-validation", 2, proposal)
+    transition = db.get_contract_transition("schema-validation", proposal["version"])
+    if transition is None:
+        current = db.get_contract("schema-validation")
+        if current is None:
+            raise StateError("contract transition source contract missing")
+        if current["version"] == proposal["version"] and current["body"] == proposal:
+            return  # already active in a legacy database
+    transition = db.propose_contract_transition(
+        "schema-validation",
+        proposal["version"] - 1,
+        proposal["version"],
+        proposal,
+        producer_task_id="EXP-001",
+        producer_team=proposal["producer"],
+        consumer_teams=[proposal["consumer"]],
+    )
+    try:
+        activated = db.activate_contract_transition("schema-validation", proposal["version"])
+    except StateError as exc:
+        if str(exc) in {
+            "contract producer is not integrated",
+            "contract transition acknowledgements incomplete",
+        }:
+            return
+        raise
+    if activated["created"]:
         log_event(
-            state, "contract_activated", name="schema-validation", version=2, agreement_hash=digest
+            state,
+            "contract_activated",
+            name="schema-validation",
+            version=proposal["version"],
+            agreement_hash=activated["body"]["contract_hash"],
         )
 
 

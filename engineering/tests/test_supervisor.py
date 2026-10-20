@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 from engineering import supervisor
 from engineering.confinement import SandboxResult
 from engineering.git_gate import VerificationPolicy
-from engineering.org_state import Store
+from engineering.org_state import StateError, Store
 from engineering.tests.test_service import deployment as deployment_fixture
 from engineering.verification_plan import prepare_verification_plan
 
@@ -65,7 +65,14 @@ class SupervisorTests(unittest.TestCase):
         self.cfg = {
             "python": sys.executable,
             "controller": str(self.state),
-            "contracts": {"schema-validation": {"meaning": "strict validation v2"}},
+            "contracts": {
+                "schema-validation": {
+                    "meaning": "strict validation v2",
+                    "version": 2,
+                    "producer": "Experience",
+                    "consumer": "Platform",
+                }
+            },
             "tasks": {"T": {"checks": []}},
             "resources": {"per_worker_tokens": 100},
         }
@@ -85,11 +92,11 @@ class SupervisorTests(unittest.TestCase):
             item.start()
             self.addCleanup(item.stop)
 
-    def task(self, task_id="T"):
-        self.db.add_task(task_id, "team", "Synthetic task", scope=["src/example.py"])
+    def task(self, task_id="T", team="team"):
+        self.db.add_task(task_id, team, "Synthetic task", scope=["src/example.py"])
 
-    def candidate(self, task_id="T", sha="submitted", target_state="accepted"):
-        self.task(task_id)
+    def candidate(self, task_id="T", sha="submitted", target_state="accepted", team="team"):
+        self.task(task_id, team)
         attempt = self.db.claim(task_id, "worker", 100)
         self.db.submit(
             attempt["id"],
@@ -676,23 +683,25 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(self.db.get_task("T")["state"], "submitted")
 
     def test_contract_activation_requires_both_matching_hash_ack_and_is_idempotent(self):
-        self.candidate("EXP-001", target_state="integrated")
-        digest = hashlib.sha256(
-            json.dumps(self.cfg["contracts"]["schema-validation"], sort_keys=True).encode()
-        ).hexdigest()
-        self.db.put_decision(
-            "contract-ack/" + digest + "/Experience",
-            {"contract_hash": digest, "version": 2, "contract_ack": True},
+        self.candidate("EXP-001", target_state="integrated", team="Experience")
+        proposal = self.db.propose_contract_transition(
+            "schema-validation",
+            1,
+            2,
+            self.cfg["contracts"]["schema-validation"],
+            producer_task_id="EXP-001",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
         )
+        digest = proposal["body"]["contract_hash"]
+        self.db.acknowledge_contract_transition("schema-validation", 2, "Experience", digest)
         self.reconcile("merged")
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
-        self.db.put_decision("contract-ack/" + "wrong-hash" + "/Platform", {"contract_ack": True})
+        with self.assertRaisesRegex(StateError, "acknowledgement does not match"):
+            self.db.acknowledge_contract_transition("schema-validation", 2, "Platform", "0" * 64)
         self.reconcile("merged")
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
-        self.db.put_decision(
-            "contract-ack/" + digest + "/Platform",
-            {"contract_hash": digest, "version": 2, "contract_ack": True},
-        )
+        self.db.acknowledge_contract_transition("schema-validation", 2, "Platform", digest)
         self.reconcile("merged")
         self.reconcile("merged")
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 2)
@@ -707,6 +716,73 @@ class SupervisorTests(unittest.TestCase):
         self.candidate("EXP-001", target_state="integrated")
         self.reconcile("merged")
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
+
+    def test_contract_activation_rejects_persisted_proposal_that_differs_from_config(self):
+        self.candidate("EXP-001", target_state="integrated", team="Experience")
+        persisted = {**self.cfg["contracts"]["schema-validation"], "meaning": "unreviewed"}
+        self.db.propose_contract_transition(
+            "schema-validation",
+            1,
+            2,
+            persisted,
+            producer_task_id="EXP-001",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        )
+        with self.assertRaisesRegex(StateError, "proposal is immutable"):
+            supervisor.activate_contract(self.state, self.db)
+        self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
+
+    def test_lead_ack_creates_missing_transition_in_legacy_v1_database(self):
+        self.cfg["contracts"]["schema-validation"] = {
+            "meaning": "strict validation v2",
+            "version": 2,
+            "producer": "Experience",
+            "consumer": "Platform",
+        }
+        self.task("T", "Platform")
+        attempt = self.db.claim("T", "worker", 100)
+        lead, worker = FakeCodex(), FakeCodex()
+        lead.response = json.dumps(
+            {
+                "decision": "approve",
+                "worker_brief": "bounded",
+                "rationale": "reviewed v2",
+                "contract_ack": True,
+            }
+        )
+        worker.response = "{malformed"
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def fake_metered_client(*args, **kwargs):
+            yield lead if kwargs["context"]["role"] == "lead" else worker
+
+        with (
+            patch.object(supervisor, "metered_client", side_effect=fake_metered_client),
+            patch.object(supervisor, "runner", return_value=MagicMock()),
+            patch.object(supervisor, "git", return_value=" M src/example.py"),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+
+        transition = self.db.get_contract_transition("schema-validation", 2)
+        self.assertIsNotNone(transition)
+        ack = self.db.db.execute(
+            "SELECT body FROM decisions WHERE name LIKE 'contract-ack/%'"
+        ).fetchone()
+        self.assertIsNotNone(ack)
+        self.assertEqual(json.loads(ack[0])["team"], "Platform")
+
+    def test_activate_contract_accepts_exact_legacy_v2_without_creating_transition(self):
+        proposal = self.cfg["contracts"]["schema-validation"]
+        self.db.db.execute(
+            "INSERT INTO contracts(name,version,body) VALUES(?,?,?)",
+            ("schema-validation", 2, json.dumps(proposal, sort_keys=True, separators=(",", ":"))),
+        )
+        supervisor.activate_contract(self.state, self.db)
+        self.assertIsNone(self.db.get_contract_transition("schema-validation", 2))
 
     def run_quiescence(self, reason, *, pending=False, slots=1):
         if pending:

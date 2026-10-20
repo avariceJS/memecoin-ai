@@ -917,16 +917,361 @@ class Store:
 
     def put_contract(self, name: str, version: int, body: Any) -> None:
         _name(name)
-        if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        if type(version) is not int or version < 1:
             raise StateError("contract version must be positive integer")
+        if version != 1:
+            raise StateError("contract version advances require an acknowledged transition")
+        try:
+            body_json = _json(body)
+            body = json.loads(body_json)
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract body must be finite JSON data") from None
         with self._tx():
-            old = self.db.execute(
+            if self.db.execute("SELECT 1 FROM contracts WHERE name=? LIMIT 1", (name,)).fetchone():
+                raise StateError("contract version advances require an acknowledged transition")
+            self._put_contract_in_transaction(name, version, body, body_json)
+
+    def _single_contract_decision(self, name: str) -> dict | None:
+        versions = [
+            row[0]
+            for row in self.db.execute(
+                "SELECT version FROM decisions WHERE name=? ORDER BY version", (name,)
+            )
+        ]
+        if not versions:
+            return None
+        if versions != [1]:
+            raise StateError("contract decision history invalid")
+        row = self.get_decision(name, 1)
+        if row is None:
+            raise StateError("contract decision history invalid")
+        events = self.db.execute(
+            "SELECT body FROM events WHERE kind='decision_recorded' AND entity=? ORDER BY seq",
+            (name,),
+        ).fetchall()
+        if len(events) != 1:
+            raise StateError("contract decision history invalid")
+        expected_event = {
+            "version": 1,
+            "body": row["body"],
+            "replaces": None,
+            "replaces_version": None,
+        }
+        if events[0]["body"] != _json(expected_event):
+            raise StateError("contract decision history invalid")
+        return row
+
+    @staticmethod
+    def _validated_contract_transition(body: Any, name: str, version: int) -> dict:
+        required = {
+            "kind",
+            "status",
+            "name",
+            "from_version",
+            "to_version",
+            "body",
+            "contract_hash",
+            "producer_task_id",
+            "producer_team",
+            "consumer_teams",
+        }
+        if type(body) is not dict or set(body) != required:
+            raise StateError("contract transition proposal invalid")
+        if (
+            body["kind"] != "contract_transition"
+            or body["status"] != "proposed"
+            or type(body["name"]) is not str
+            or body["name"] != name
+            or type(body["from_version"]) is not int
+            or body["from_version"] < 1
+            or type(body["to_version"]) is not int
+            or body["to_version"] != body["from_version"] + 1
+            or body["to_version"] != version
+            or type(body["producer_task_id"]) is not str
+            or not body["producer_task_id"].strip()
+            or type(body["producer_team"]) is not str
+            or not body["producer_team"].strip()
+            or type(body["contract_hash"]) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", body["contract_hash"])
+        ):
+            raise StateError("contract transition proposal invalid")
+        teams = body["consumer_teams"]
+        if (
+            type(teams) is not list
+            or not teams
+            or any(type(team) is not str or not team.strip() for team in teams)
+            or teams != sorted(set(teams))
+            or body["producer_team"] in teams
+        ):
+            raise StateError("contract transition participants invalid")
+        try:
+            detached_body = json.loads(_json(body["body"]))
+            canonical = _json(detached_body)
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract transition content invalid") from None
+        if hashlib.sha256(canonical.encode("utf-8")).hexdigest() != body["contract_hash"]:
+            raise StateError("contract transition content hash mismatch")
+        if (
+            type(detached_body) is dict
+            and "version" in detached_body
+            and (
+                type(detached_body["version"]) is not int
+                or detached_body["version"] != body["to_version"]
+            )
+        ):
+            raise StateError("contract transition body version mismatch")
+        return body
+
+    @staticmethod
+    def _validated_contract_ack(body: Any, name: str, version: int, team: str, digest: str) -> dict:
+        expected = {
+            "kind": "contract_acknowledgement",
+            "name": name,
+            "version": version,
+            "team": team,
+            "contract_hash": digest,
+        }
+        if (
+            type(body) is not dict
+            or set(body) != set(expected)
+            or type(body.get("kind")) is not str
+            or type(body.get("name")) is not str
+            or type(body.get("version")) is not int
+            or type(body.get("team")) is not str
+            or type(body.get("contract_hash")) is not str
+            or body != expected
+        ):
+            raise StateError("contract acknowledgement record invalid")
+        return body
+
+    def _put_contract_in_transaction(
+        self, name: str, version: int, body: Any, body_json: str
+    ) -> None:
+        old = self.db.execute(
+            "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
+        ).fetchone()[0]
+        if old is not None and version <= old:
+            raise StateError("contract versions must increase")
+        self.db.execute("INSERT INTO contracts VALUES(?,?,?)", (name, version, body_json))
+        self._event("contract_published", name, {"version": version, "body": body})
+
+    @staticmethod
+    def _contract_transition_key(name: str, version: int) -> str:
+        digest = hashlib.sha256(name.encode("utf-8")).hexdigest()
+        return f"contract-transition/{digest}/{version}"
+
+    @staticmethod
+    def _contract_ack_key(name: str, version: int, team: str) -> str:
+        contract_id = hashlib.sha256(name.encode("utf-8")).hexdigest()
+        team_id = hashlib.sha256(team.encode("utf-8")).hexdigest()
+        return f"contract-ack/{contract_id}/{version}/{team_id}"
+
+    def propose_contract_transition(
+        self,
+        name: str,
+        from_version: int,
+        to_version: int,
+        body: Any,
+        *,
+        producer_task_id: str,
+        producer_team: str,
+        consumer_teams: list[str],
+    ) -> dict:
+        """Persist an immutable contract proposal and its required producer/consumer set."""
+        if type(name) is not str or not name.strip():
+            raise StateError("contract name must be a plain nonempty string")
+        if any(type(v) is not int or v < 1 for v in (from_version, to_version)):
+            raise StateError("contract versions must be positive integers")
+        if to_version != from_version + 1:
+            raise StateError("contract transition must advance exactly one version")
+        if type(producer_task_id) is not str or not producer_task_id.strip():
+            raise StateError("contract producer task required")
+        if type(producer_team) is not str or not producer_team.strip():
+            raise StateError("contract producer team required")
+        if type(consumer_teams) is not list or any(
+            type(team) is not str or not team.strip() for team in consumer_teams
+        ):
+            raise StateError("contract consumer teams must be nonempty strings")
+        consumer_teams = list(consumer_teams)
+        if not consumer_teams:
+            raise StateError("contract transition requires at least one consumer")
+        if len(set(consumer_teams)) != len(consumer_teams) or producer_team in consumer_teams:
+            raise StateError("contract participants must be unique")
+        try:
+            body = json.loads(_json(body))
+            body_json = _json(body)
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract body must be finite JSON data") from None
+        key = self._contract_transition_key(name, to_version)
+        contract_hash = hashlib.sha256(body_json.encode("utf-8")).hexdigest()
+        record = {
+            "kind": "contract_transition",
+            "status": "proposed",
+            "name": name,
+            "from_version": from_version,
+            "to_version": to_version,
+            "body": body,
+            "contract_hash": contract_hash,
+            "producer_task_id": producer_task_id,
+            "producer_team": producer_team,
+            "consumer_teams": sorted(consumer_teams),
+        }
+        self._validated_contract_transition(record, name, to_version)
+        with self._tx():
+            existing = self._single_contract_decision(key)
+            if existing is not None:
+                existing_body = self._validated_contract_transition(
+                    existing["body"], name, to_version
+                )
+                if existing_body != record:
+                    raise StateError("contract transition proposal is immutable")
+                return {
+                    "name": existing["name"],
+                    "version": existing["version"],
+                    "body": existing_body,
+                }
+            current = self.db.execute(
                 "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
             ).fetchone()[0]
-            if old is not None and version <= old:
-                raise StateError("contract versions must increase")
-            self.db.execute("INSERT INTO contracts VALUES(?,?,?)", (name, version, _json(body)))
-            self._event("contract_published", name, {"version": version, "body": body})
+            if current != from_version:
+                raise StateError("contract transition source version is stale")
+            version = self._put_decision_in_transaction(key, record)
+            return {"name": key, "version": version, "body": record}
+
+    def get_contract_transition(self, name: str, version: int) -> dict | None:
+        if type(name) is not str or type(version) is not int:
+            raise StateError("invalid contract transition identity")
+        return self.get_decision(self._contract_transition_key(name, version))
+
+    def acknowledge_contract_transition(
+        self, name: str, version: int, team: str, contract_hash: str
+    ) -> dict:
+        """Record one immutable, content-bound acknowledgement for a required participant."""
+        if type(name) is not str or not name.strip() or type(team) is not str or not team.strip():
+            raise StateError("contract and team names must be plain nonempty strings")
+        if type(version) is not int or version < 2:
+            raise StateError("contract transition version must be an integer >= 2")
+        if type(contract_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", contract_hash):
+            raise StateError("contract hash must be lowercase SHA-256")
+        key = self._contract_transition_key(name, version)
+        ack_key = self._contract_ack_key(name, version, team)
+        with self._tx():
+            transition = self._single_contract_decision(key)
+            if transition is None:
+                raise StateError("contract transition proposal missing")
+            proposal = self._validated_contract_transition(transition["body"], name, version)
+            if proposal["contract_hash"] != contract_hash or team not in [
+                proposal["producer_team"],
+                *proposal["consumer_teams"],
+            ]:
+                raise StateError("contract acknowledgement does not match proposal")
+            record = {
+                "kind": "contract_acknowledgement",
+                "name": name,
+                "version": version,
+                "team": team,
+                "contract_hash": contract_hash,
+            }
+            existing = self._single_contract_decision(ack_key)
+            if existing is not None:
+                self._validated_contract_ack(existing["body"], name, version, team, contract_hash)
+                if existing["body"] != record:
+                    raise StateError("contract acknowledgement is immutable")
+                return {"name": existing["name"], "version": existing["version"], "body": record}
+            ack_version = self._put_decision_in_transaction(ack_key, record)
+            return {"name": ack_key, "version": ack_version, "body": record}
+
+    def activate_contract_transition(self, name: str, version: int) -> dict:
+        """Atomically publish a proposed version after producer integration and all exact acks."""
+        if type(name) is not str or not name.strip() or type(version) is not int or version < 2:
+            raise StateError("invalid contract transition identity")
+        key = self._contract_transition_key(name, version)
+        result_key = key + "/activated"
+        with self._tx():
+            transition = self._single_contract_decision(key)
+            if transition is None:
+                raise StateError("contract transition proposal missing")
+            proposal = self._validated_contract_transition(transition["body"], name, version)
+            prior = self._single_contract_decision(result_key)
+            if prior is not None:
+                task = self.db.execute(
+                    "SELECT team,state FROM tasks WHERE id=?", (proposal["producer_task_id"],)
+                ).fetchone()
+                participants = [proposal["producer_team"], *proposal["consumer_teams"]]
+                for team in participants:
+                    ack = self._single_contract_decision(
+                        self._contract_ack_key(name, version, team)
+                    )
+                    if ack is None:
+                        raise StateError("contract activation evidence incomplete")
+                    self._validated_contract_ack(
+                        ack["body"], name, version, team, proposal["contract_hash"]
+                    )
+                published = self.db.execute(
+                    "SELECT version,body FROM contracts WHERE name=? AND version=?",
+                    (name, version),
+                ).fetchone()
+                expected_result = {
+                    "kind": "contract_transition_activation",
+                    "name": name,
+                    "from_version": proposal["from_version"],
+                    "to_version": version,
+                    "contract_hash": proposal["contract_hash"],
+                    "producer_task_id": proposal["producer_task_id"],
+                    "acknowledged_teams": sorted(participants),
+                }
+                if (
+                    published is None
+                    or task is None
+                    or task["team"] != proposal["producer_team"]
+                    or task["state"] != "integrated"
+                    or json.loads(published["body"]) != proposal["body"]
+                    or prior["body"] != expected_result
+                    or prior["body"].get("contract_hash")
+                    != hashlib.sha256(published["body"].encode("utf-8")).hexdigest()
+                ):
+                    raise StateError("activated contract state is inconsistent")
+                return {
+                    "name": prior["name"],
+                    "version": prior["version"],
+                    "body": prior["body"],
+                    "created": False,
+                }
+            current = self.db.execute(
+                "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
+            ).fetchone()[0]
+            if current != proposal["from_version"] or version != proposal["to_version"]:
+                raise StateError("contract transition source version is stale")
+            task = self.db.execute(
+                "SELECT team,state FROM tasks WHERE id=?", (proposal.get("producer_task_id"),)
+            ).fetchone()
+            if (
+                task is None
+                or task["team"] != proposal.get("producer_team")
+                or task["state"] != "integrated"
+            ):
+                raise StateError("contract producer is not integrated")
+            participants = [proposal["producer_team"], *proposal["consumer_teams"]]
+            digest = proposal["contract_hash"]
+            for team in participants:
+                ack_key = self._contract_ack_key(name, version, team)
+                ack = self._single_contract_decision(ack_key)
+                if ack is None:
+                    raise StateError("contract transition acknowledgements incomplete")
+                self._validated_contract_ack(ack["body"], name, version, team, digest)
+            body_json = _json(proposal["body"])
+            self._put_contract_in_transaction(name, version, proposal["body"], body_json)
+            result = {
+                "kind": "contract_transition_activation",
+                "name": name,
+                "from_version": proposal["from_version"],
+                "to_version": version,
+                "contract_hash": digest,
+                "producer_task_id": proposal["producer_task_id"],
+                "acknowledged_teams": sorted(participants),
+            }
+            result_version = self._put_decision_in_transaction(result_key, result)
+            return {"name": result_key, "version": result_version, "body": result, "created": True}
 
     def get_contract(self, name: str, version: int | None = None) -> dict | None:
         with self._lock:
@@ -941,7 +1286,12 @@ class Store:
         if type(name) is not str:
             raise StateError("decision name must be a plain string")
         _name(name)
-        if name == "lifecycle/owner" or name.startswith("lifecycle/request/"):
+        if (
+            name == "lifecycle/owner"
+            or name.startswith("lifecycle/request/")
+            or name.startswith("contract-transition/")
+            or name.startswith("contract-ack/")
+        ):
             raise StateError("decision_namespace_reserved")
         with self._tx():
             old = (
