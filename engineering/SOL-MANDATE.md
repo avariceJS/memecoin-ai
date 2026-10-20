@@ -2,10 +2,9 @@
 
 ## Independent audit outcome — 2026-10-20
 
-The founder-requested audit of `b2dcd6d` is complete. **Implementation, Goals, workers and services
-remain paused until the founder explicitly resumes them.** The director selected preservation of
-the core architecture and completion of one integrated lifecycle before organization expansion.
-The audit is not controller-source acceptance, a release, or permission to reopen original tasks.
+The founder-requested audit of `b2dcd6d` is complete. The director selected preservation of the core
+architecture and completion of one integrated lifecycle before organization expansion. The audit is
+not controller-source acceptance, a release, or permission to reopen original tasks.
 
 Read the findings ORG-A01 through ORG-A12 and the four evidence stages in
 `docs/engineering-organization.md`, then the unique receipt
@@ -25,12 +24,40 @@ After reviewed release and separate restart authorization, recover EXP-001/CTX-0
 the same pilot database, then prove a useful task outside the fixed catalogue. Never reset failed
 history to manufacture a successful pilot.
 
-## Founder audit hold — 2026-10-20
+## Founder resumption and Sol technical direction — 2026-10-20
 
-The founder paused autonomous development, authorized Git consolidation, and subsequently requested
-the completed independent audit above. **Do not resume development, Goals, workers or services.**
-Do not create a new team or invoke Astra automatically. This instruction supersedes former
-continuation prompts; their history is preserved in Git and the consolidation archive.
+The founder subsequently authorized autonomous engineering development, while retaining all
+operational prohibitions in the founder directive. Do not activate market collection, training,
+AUTO, trading, protected data, production, `main`, paid resources, the runtime supervisor or pilot
+dispatch. Do not clear STOP or invoke Astra automatically. Use one existing Luna owner; preserve its
+Goal history, counters, checkpoint, prior task history and archives. Do not create a competing Goal
+or development team.
+
+Sol’s read-only independent direction was produced by native thread
+`01a15a5e-7fc3-7bf0-9a10-73199636bfcd`, verified as `gpt-6.1-sol/high`. Sol checked the current
+checkout and relevant private evidence against the audit and pilot hashes; it made no mutations.
+Its sequence and completion criteria are recorded in `docs/engineering-organization.md` under
+“Founder resumption and technical program”. In brief: establish a real terminal-usage evidence
+source and settlement contract; build one finite release candidate for A01-A03/A07-A09 and A08
+release wiring; prove full checkpoint/restore and independent exact-candidate review; only after
+separate founder restart authorization replay the original tasks in the same database; then close
+generic task/verifier binding, lifecycle recovery, department coordination and measured endurance.
+
+Unknown usage remains reserved. `turn/completed` alone is not qualified settlement. If the native
+interface lacks sufficient evidence, record that limitation and keep the release blocked rather than
+inventing usage or weakening accounting.
+
+The existing implementation owner is native thread `01a15657-3558-79c1-86dc-6ed033c264df`,
+verified as `gpt-6-luna/high`; the current former-Astra audit thread has no Goal. Resume only this
+existing Luna owner after the durable handoff is updated. The first finite candidate must leave
+dynamic admission and unattended continuation disabled. Source acceptance, integrated release and
+permission to restart the original pilot remain distinct decisions.
+
+## Historical founder audit hold — 2026-10-20
+
+The founder paused autonomous development for Git consolidation and an independent architecture
+audit. That hold is superseded by the subsequent explicit founder resumption above. Its history and
+all previously paused Goals remain preserved; this update does not alter the frozen pilot or its STOP.
 
 Audit entry: `/Users/root1/Developer/brain-org-build`, branch `org/development`. Brain work belongs
 to `brain/development` at `/Users/root1/Developer/memecoin-research`; Linux remains `brain/linux`.

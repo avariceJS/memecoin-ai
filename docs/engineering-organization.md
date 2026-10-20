@@ -23,6 +23,57 @@ local reproductions, test results and limits. Private scripts and raw results ar
 `/Users/root1/Developer/brain-org-state/audit-20261020-independent/`. Original consolidation custody
 and pilot state remain intact. The [handoff](../engineering/SOL-MANDATE.md) owns the resumption entry.
 
+### Founder resumption and technical program — 2026-10-20
+
+The founder subsequently authorized autonomous **engineering development**. This does not authorize
+operational release, original pilot dispatch, removal of STOP, market collection, training, AUTO,
+trading, protected-data access, production or `main` changes, paid resources, or automatic Astra.
+The native implementation owner is the existing thread `01a15657-3558-79c1-86dc-6ed033c264df`
+(`gpt-6-luna/high`); preserve its prior Goal, counters, checkpoints and all six pilot failures. The
+current Astra audit thread has no Goal. Resume only the existing Luna owner after the Sol plan and
+handoff are durable; do not create a competing coordinator or worker team.
+
+Independent Sol technical lead `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`
+(`gpt-6.1-sol/high`) verified the current checkout, selected private evidence hashes, pilot STOP,
+configuration, manifest and SQLite against the audit. It made no source or pilot changes. Its
+ranked program is:
+
+1. **Settle the usage evidence contract first.** Sol owns source feasibility and semantics; Luna owns
+   a bounded implementation only after the evidence source is established. Bind provider evidence
+   to dispatch, native thread/turn, model and attempt epoch; define baseline, terminal and late-event
+   handling. Prove duplicate, missing, conflicting, wrong-turn, restart and model-ambiguity cases.
+   Unknown usage remains reserved. If the native interface cannot provide sufficient evidence,
+   document the exact limit and keep the release blocked; `turn/completed` alone is not settlement.
+2. **Build one finite STOP-preserving release candidate:** ORG-A01/A02/A03/A07/A08 and the minimal
+   ORG-A09 deterministic-controller circuit breaker needed before any task replay. Fix real bootstrap
+   to pass real preflight, use versioned non-destructive ledger initialization, settle only qualified
+   usage, stop active permits within a stated overshoot bound on fresh zero capacity, and include all
+   engineering checks in one explicit local release command. Dynamic task admission and unattended
+   continuation remain disabled in this first candidate. Luna is the sole implementation owner;
+   Sol reviews the exact candidate.
+3. **Checkpoint and release acceptance.** Before changing the historical pilot, prove a complete
+   checkpoint and fresh-path restore, including STOP/reasons, policy/config/native binding, both
+   databases, Git refs/objects, intents, attempts, receipts and recovery records. Verify checksum-bound
+   manifest, STOP-preserving upgrade/rollback and rejection of incomplete snapshots. This is source
+   and release evidence only; original pilot dispatch still needs separate founder authorization.
+4. **First useful pilot cycle, only after that authorization.** Preserve all six failures and use the
+   same pilot database. Independently accept/integrate EXP-001, CTX-001 and PLAT-001 through the
+   released controller; prove native model identity, final JSON, brokered tool execution, usage
+   settlement, exact merged-candidate review and one-time publication. A deterministic parser or
+   controller fault must create a bounded recovery obligation/circuit break, not burn implementation
+   retries. Then close ORG-A04 with one useful task outside the fixed catalogue through the same
+   immutable trusted execution/verifier binding.
+5. **Lifecycle, restore, departments and endurance.** Close ORG-A05/A06 and remaining A09 before
+   unattended continuation. Then close A10-A12 with durable department plans/contracts, full review
+   packets and bounded history projections. Qualify reboot/storage-loss separately and only then
+   run 24 hours, 72 hours and seven days with useful work across at least two independent streams.
+   Measure accepted throughput, idle causes, recovery latency, unknown usage and disk growth; expand
+   concurrency only when measured accepted throughput improves.
+
+The source candidate, merged-system acceptance, operational release, and founder authority to resume
+the original pilot are distinct gates. Passing synthetic tests or the local release command alone
+does not pass them.
+
 ### Evidence established in this audit
 
 - Current read-only `thread/goal/get` returned `paused` for both former roots. The implementation
