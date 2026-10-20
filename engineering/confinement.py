@@ -25,6 +25,7 @@ from pathlib import Path
 SANDBOX_EXEC = Path("/usr/bin/sandbox-exec")
 DYLD_SUPPORT = Path("/System/Library/Sandbox/Profiles/dyld-support.sb")
 SYSTEM_READ_ROOTS = ("/System/Library", "/usr/lib", "/usr/share", "/usr/bin", "/bin")
+VERIFIER_ENV_KEYS = frozenset({"LANG", "LC_ALL", "TZ", "PYTHONHASHSEED", "PYTHONUTF8"})
 
 
 class ConfinementError(RuntimeError):
@@ -169,8 +170,8 @@ class SandboxRunner:
             ]
         )
 
-    def environment(self) -> dict[str, str]:
-        return {
+    def environment(self, overrides: dict[str, str] | None = None) -> dict[str, str]:
+        environment = {
             "HOME": str(self.home),
             "TMPDIR": str(self.home),
             "PATH": "/usr/bin:/bin",
@@ -185,6 +186,17 @@ class SandboxRunner:
             "GIT_ASKPASS": "/usr/bin/false",
             "GIT_OPTIONAL_LOCKS": "0",
         }
+        if overrides is None:
+            return environment
+        if type(overrides) is not dict or set(overrides) - VERIFIER_ENV_KEYS:
+            raise ConfinementError("verifier_environment_not_allowed")
+        if any(
+            type(key) is not str or type(value) is not str or "\x00" in key + value
+            for key, value in overrides.items()
+        ):
+            raise ConfinementError("verifier_environment_invalid")
+        environment.update(overrides)
+        return environment
 
     def run(
         self,
@@ -193,6 +205,7 @@ class SandboxRunner:
         cwd: str | Path,
         timeout: float = 30.0,
         max_output_bytes: int = 1_000_000,
+        env_overrides: dict[str, str] | None = None,
     ) -> SandboxResult:
         if not argv or not all(isinstance(arg, str) and "\0" not in arg for arg in argv):
             raise ConfinementError("argv must contain non-NUL strings")
@@ -209,7 +222,7 @@ class SandboxRunner:
         with subprocess.Popen(
             [str(SANDBOX_EXEC), "-p", self.profile, *argv],
             cwd=directory,
-            env=self.environment(),
+            env=self.environment(env_overrides),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

@@ -41,7 +41,7 @@ class VerifierManifestTests(unittest.TestCase):
                     "acceptance_id": "synthetic-acceptance",
                     "acceptance_sha256": H,
                     "policy_id": "synthetic-policy-v1",
-                    "commands": [["/trusted/python", "{checkout}/acceptance.py", "{task_id}"]],
+                    "commands": [["/trusted/python", "{harness}", "{task_id}", "{checkout}"]],
                     "env": {"LANG": "C"},
                     "harness_sha256": self.harness_sha,
                     "result_schema": "synthetic-result-v1",
@@ -102,6 +102,32 @@ class VerifierManifestTests(unittest.TestCase):
         (self.trusted / "acceptance.py").write_bytes(b"changed harness\n")
         with self.assertRaisesRegex(VerifierManifestError, "hash_mismatch"):
             resolve_verifier_manifest(self.binding, self.manifest, trusted_root=self.trusted)
+
+    def test_manifest_command_must_reference_harness_in_result_command(self):
+        candidate = json.loads(json.dumps(self.manifest))
+        binding = json.loads(json.dumps(self.binding))
+        commands = [["/trusted/python", "{task_id}"], ["/trusted/python", "{harness}"]]
+        candidate["verifiers"][0]["commands"] = commands
+        binding["verifiers"][0]["commands"] = commands
+        unsigned = {key: value for key, value in binding.items() if key != "binding_sha256"}
+        binding["binding_sha256"] = hashlib.sha256(
+            json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        with self.assertRaisesRegex(VerifierManifestError, "harness_command_unbound"):
+            resolve_verifier_manifest(binding, candidate, trusted_root=self.trusted)
+
+    def test_manifest_result_command_must_execute_harness_as_script(self):
+        candidate = json.loads(json.dumps(self.manifest))
+        binding = json.loads(json.dumps(self.binding))
+        commands = [["/trusted/python", "-c", "print('{}')", "{harness}"]]
+        candidate["verifiers"][0]["commands"] = commands
+        binding["verifiers"][0]["commands"] = commands
+        unsigned = {key: value for key, value in binding.items() if key != "binding_sha256"}
+        binding["binding_sha256"] = hashlib.sha256(
+            json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        with self.assertRaisesRegex(VerifierManifestError, "harness_command_unbound"):
+            resolve_verifier_manifest(binding, candidate, trusted_root=self.trusted)
 
     def test_load_requires_exact_canonical_manifest_hash(self):
         path = self.root / "manifest.json"

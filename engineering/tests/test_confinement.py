@@ -85,6 +85,15 @@ class ConfinementTests(unittest.TestCase):
         for executable, cwd in (("python3", self.task), (str(PYTHON), self.outside)):
             with self.subTest(executable=executable, cwd=cwd), self.assertRaises(ConfinementError):
                 self.runner.run([executable, "-c", "print('bad')"], cwd=cwd)
+
+    def test_verifier_environment_overrides_are_allowlisted(self):
+        environment = self.runner.environment({"LANG": "C", "PYTHONHASHSEED": "0"})
+        self.assertEqual(environment["LANG"], "C")
+        self.assertEqual(environment["PYTHONHASHSEED"], "0")
+        with self.assertRaisesRegex(ConfinementError, "verifier_environment_not_allowed"):
+            self.runner.environment({"OPENAI_API_KEY": "never-inherit"})
+        with self.assertRaisesRegex(ConfinementError, "verifier_environment_invalid"):
+            self.runner.environment({"LANG": "C\x00bad"})
         (self.task / "outside-link").symlink_to(self.outside, target_is_directory=True)
         with self.assertRaises(ConfinementError):
             self.runner.run([str(PYTHON), "-c", "print('bad')"], cwd=self.task / "outside-link")

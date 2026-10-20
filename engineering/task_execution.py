@@ -12,6 +12,8 @@ import json
 import re
 from typing import Any
 
+from .confinement import VERIFIER_ENV_KEYS
+
 
 class ExecutionBindingError(ValueError):
     """Missing, malformed, or drifted trusted task execution binding."""
@@ -92,7 +94,7 @@ def build_execution_binding(
             if any(type(arg) is not str or not arg or "\x00" in arg for arg in argv):
                 raise ExecutionBindingError("invalid_verifier_commands")
             if any(
-                ("{" in arg or "}" in arg) and arg not in {"{checkout}", "{task_id}"}
+                ("{" in arg or "}" in arg) and arg not in {"{checkout}", "{task_id}", "{harness}"}
                 for arg in argv
             ):
                 raise ExecutionBindingError("invalid_verifier_placeholder")
@@ -102,6 +104,8 @@ def build_execution_binding(
             type(key) is not str or not key or type(value) is not str or "\x00" in key + value
             for key, value in env.items()
         ):
+            raise ExecutionBindingError("invalid_verifier_environment")
+        if set(env) - VERIFIER_ENV_KEYS:
             raise ExecutionBindingError("invalid_verifier_environment")
         if (
             type(record["result_schema"]) is not str

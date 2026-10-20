@@ -25,7 +25,12 @@ from .org_state import StaleAttempt, StateError, Store
 from .processes import process_identity, terminate_owned
 from .review_packet import build_review_packet
 from .service import validate_deployment
-from .verification_plan import attempt_plan_matches, prepare_verification_plan
+from .verification_plan import (
+    attempt_plan_matches,
+    expand_bound_verifier_command,
+    prepare_verification_plan,
+)
+from .verifier_result import validate_verifier_result
 
 SOL = "gpt-6.1-sol"
 LUNA = "gpt-6-luna"
@@ -711,14 +716,41 @@ def verify_one(state, task):
             protected_roots=[state / "organization.sqlite", state / "config.json"],
         )
         results = []
-        for command in fixed_policy.commands:
-            argv = [str(checkout) if a == "{checkout}" else a for a in command]
-            result = box.run(argv, cwd=checkout, timeout=90, max_output_bytes=200000)
+        if plan.binding_sha256 is None:
+            commands = [(command, None, None) for command in fixed_policy.commands]
+        else:
+            flattened = tuple(
+                command for verifier in plan.bound_verifiers for command in verifier.commands
+            )
+            if not plan.bound_verifiers or flattened != fixed_policy.commands:
+                raise RuntimeError("bound_verifier_plan_commands_mismatch")
+            commands = [
+                (command, verifier, command_index)
+                for verifier in plan.bound_verifiers
+                for command_index, command in enumerate(verifier.commands)
+            ]
+        for command_index, (command, verifier, verifier_command_index) in enumerate(commands):
+            if verifier is None:
+                argv = [str(checkout) if arg == "{checkout}" else arg for arg in command]
+            else:
+                argv = expand_bound_verifier_command(
+                    command,
+                    checkout=checkout,
+                    task_id=task["id"],
+                    harness_path=verifier.harness_path,
+                )
+            result = box.run(
+                argv,
+                cwd=checkout,
+                timeout=90,
+                max_output_bytes=200000,
+                env_overrides=dict(fixed_policy.env),
+            )
             results.append(dataclasses.asdict(result))
             atomic(verify_root / "commands.json", results)
             if result.returncode or result.timed_out or result.output_truncated:
                 raise RuntimeError("verification_command_failed:" + json.dumps(results[-1])[-2500:])
-            if command == fixed_policy.commands[0]:
+            if verifier is None and command_index == 0:
                 proof = json.loads(result.stdout)
                 if (
                     proof.get("schema") != "org-pilot-acceptance-v1"
@@ -726,6 +758,16 @@ def verify_one(state, task):
                     or proof.get("passed") is not True
                 ):
                     raise RuntimeError("missing_independent_acceptance_completion")
+            elif verifier is not None and verifier_command_index == 0:
+                validate_verifier_result(
+                    result.stdout,
+                    {
+                        "acceptance_id": verifier.acceptance_id,
+                        "result_schema": verifier.result_schema,
+                        "case_field": verifier.case_field,
+                        "passed_field": verifier.passed_field,
+                    },
+                )
         diff = git(
             state / "integration",
             "diff",

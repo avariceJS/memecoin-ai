@@ -27,6 +27,16 @@ class VerificationPlanError(ValueError):
 
 
 @dataclass(frozen=True)
+class BoundVerifier:
+    acceptance_id: str
+    commands: tuple[tuple[str, ...], ...]
+    harness_path: Path
+    result_schema: str
+    case_field: str
+    passed_field: str
+
+
+@dataclass(frozen=True)
 class VerificationPlan:
     policy: VerificationPolicy
     execution_qualified: bool
@@ -37,6 +47,7 @@ class VerificationPlan:
     acceptance_identities: tuple[str, ...]
     plan_sha256: str
     verifier_manifest_sha256: str | None = None
+    bound_verifiers: tuple[BoundVerifier, ...] = ()
 
     def identity(self) -> dict[str, Any]:
         """Return the JSON-safe identity that must travel with an admitted attempt."""
@@ -88,6 +99,20 @@ def _digest(body: Any) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def expand_bound_verifier_command(
+    command: tuple[str, ...], *, checkout: Path, task_id: str, harness_path: Path
+) -> tuple[str, ...]:
+    """Expand only controller-approved placeholders in a manifest-bound command."""
+    if type(command) is not tuple or any(type(arg) is not str for arg in command):
+        raise VerificationPlanError("bound_verifier_command_invalid")
+    substitutions = {
+        "{checkout}": str(checkout),
+        "{task_id}": task_id,
+        "{harness}": str(harness_path),
+    }
+    return tuple(substitutions.get(arg, arg) for arg in command)
+
+
 def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> VerificationPlan:
     """Prepare a fixed-catalogue plan or an explicitly unqualified bound plan.
 
@@ -100,6 +125,7 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
     if type(task_id) is not str or not task_id:
         raise VerificationPlanError("invalid_verification_task")
     saved_spec = db.get_task_spec(task_id)
+    bound_verifiers: tuple[BoundVerifier, ...] = ()
     if saved_spec is None:
         try:
             commands = [
@@ -142,10 +168,23 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
                 manifest = load_verifier_manifest(
                     manifest_path, expected_sha256=configured_manifest_sha256
                 )
-                resolve_verifier_manifest(binding, manifest, trusted_root=state / "trusted")
+                resolved = resolve_verifier_manifest(
+                    binding, manifest, trusted_root=state / "trusted"
+                )
             except VerifierManifestError as exc:
                 raise VerificationPlanError(str(exc)) from None
             verifier_manifest_sha256 = configured_manifest_sha256
+            bound_verifiers = tuple(
+                BoundVerifier(
+                    item["acceptance_id"],
+                    tuple(tuple(command) for command in item["commands"]),
+                    (state / "trusted" / item["harness_path"]).resolve(strict=True),
+                    item["result_schema"],
+                    item["case_field"],
+                    item["passed_field"],
+                )
+                for item in resolved
+            )
         verifiers = binding.get("verifiers")
         if type(verifiers) is not list or not verifiers:
             raise VerificationPlanError("bound_verifier_policy_missing")
@@ -229,4 +268,5 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
         acceptance_identities,
         _digest(plan_body),
         verifier_manifest_sha256,
+        bound_verifiers,
     )

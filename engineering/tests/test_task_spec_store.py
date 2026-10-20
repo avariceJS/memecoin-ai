@@ -69,7 +69,7 @@ VERIFIER_REGISTRY = {
     "atomic-spec-store": {
         "acceptance_sha256": H,
         "policy_id": "atomic-store-v1",
-        "commands": [["/trusted/python", "/trusted/accept.py", "{task_id}", "{checkout}"]],
+        "commands": [["/trusted/python", "{harness}", "{task_id}", "{checkout}"]],
         "env": {"LANG": "C"},
         "harness_sha256": "d" * 64,
         "result_schema": "org-acceptance-v1",
@@ -211,6 +211,12 @@ class TaskSpecStoreTests(unittest.TestCase):
             self.assertEqual(plan.reason, "interpreter_or_sandbox_not_qualified")
             self.assertEqual(plan.verifier_manifest_sha256, manifest_sha256)
             self.assertEqual(plan.identity()["verifier_manifest_sha256"], manifest_sha256)
+            self.assertEqual(len(plan.bound_verifiers), 1)
+            self.assertEqual(plan.bound_verifiers[0].acceptance_id, "atomic-spec-store")
+            self.assertEqual(plan.bound_verifiers[0].result_schema, "org-acceptance-v1")
+            self.assertEqual(
+                plan.bound_verifiers[0].harness_path, (trusted / "acceptance.py").resolve()
+            )
             self.assertEqual(
                 attempt_plan_matches(plan, {"verification_plan": plan.identity()}),
                 (True, None),
@@ -306,6 +312,14 @@ class TaskSpecStoreTests(unittest.TestCase):
         registry = copy.deepcopy(VERIFIER_REGISTRY)
         registry["atomic-spec-store"]["commands"] = [["{checkout};touch /tmp/pwned"]]
         with self.assertRaisesRegex(StateError, "invalid_verifier_placeholder"):
+            self.admit(
+                verifier_registry=registry,
+                controller_release_sha256="e" * 64,
+                integration_policy_sha256="f" * 64,
+            )
+        registry = copy.deepcopy(VERIFIER_REGISTRY)
+        registry["atomic-spec-store"]["env"] = {"OPENAI_API_KEY": "forbidden"}
+        with self.assertRaisesRegex(StateError, "invalid_verifier_environment"):
             self.admit(
                 verifier_registry=registry,
                 controller_release_sha256="e" * 64,

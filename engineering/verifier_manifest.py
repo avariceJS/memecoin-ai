@@ -208,6 +208,16 @@ def resolve_verifier_manifest(
         actual = {key: record.get(key) for key in projection}
         if _canonical(actual) != _canonical(projection):
             raise VerifierManifestError("verifier_manifest_record_mismatch")
+        commands = record.get("commands")
+        if (
+            type(commands) is not list
+            or not commands
+            or any(type(command) is not list for command in commands)
+            or sum(arg == "{harness}" for command in commands for arg in command) != 1
+            or len(commands[0]) < 2
+            or commands[0][1] != "{harness}"
+        ):
+            raise VerifierManifestError("verifier_harness_command_unbound")
         if not _hash(record.get("harness_sha256")):
             raise VerifierManifestError("verifier_harness_hash_invalid")
         harness = _trusted_harness(root, record.get("harness_path"))
