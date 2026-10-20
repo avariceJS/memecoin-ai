@@ -20,9 +20,11 @@ from pathlib import Path
 from .codex_rpc import Codex
 from .confinement import SandboxRunner, python_runtime_roots
 from .git_gate import GitGate, VerificationPolicy
+from .metered_codex import metered_client
 from .org_state import StaleAttempt, Store
 from .processes import process_identity, terminate_owned
 from .service import validate_deployment
+from .usage_ledger import UsageLedger
 
 SOL = "gpt-6.1-sol"
 LUNA = "gpt-6-luna"
@@ -185,7 +187,20 @@ def structured(text):
 
 
 def usage_tokens(result):
-    return result.get("usage", {}).get("total", {}).get("totalTokens", 0)
+    return (
+        result.get("usage_delta", {}).get("totalTokens")
+        if result.get("usage_terminal") is True
+        else None
+    )
+
+
+def usage_record(result, role_counter):
+    tokens = usage_tokens(result)
+    record = {role_counter: 1}
+    record["tokens" if tokens is not None else "tokens_unknown"] = (
+        tokens if tokens is not None else 1
+    )
+    return record
 
 
 def reap_expired(state, db):
@@ -279,9 +294,16 @@ def run_attempt(state: Path, attempt_id: int):
         }
         atomic(run / "packet.json", packet)
         readonly_box = runner(state, checkout, run / "lead-scratch", readonly=True)
-        with Codex(
+        with metered_client(
+            state,
             checkout,
-            codex=cfg.get("codex_executable", "codex"),
+            cfg=cfg,
+            context={
+                "role": "lead",
+                "team": task["team"],
+                "task": task["id"],
+                "authority": "CEO-20261020-02",
+            },
             harness_cwd=native,
             event_sink=sink,
         ) as lead:
@@ -306,6 +328,8 @@ def run_attempt(state: Path, attempt_id: int):
                     "contract_ack: boolean}. Do not implement.\n"
                 )
                 + json.dumps(packet),
+                dispatch_id=f"attempt:{attempt_id}:lead",
+                estimate={"tokens": 12000, "wpu": 1.0},
                 model=SOL,
                 tool=tool_function(readonly_box, checkout, heartbeat),
                 heartbeat=heartbeat,
@@ -313,7 +337,7 @@ def run_attempt(state: Path, attempt_id: int):
                 output_schema=LEAD_SCHEMA,
             )
             atomic(run / "lead-raw.json", out)
-            db.record_usage(attempt_id, epoch, {"tokens": usage_tokens(out), "sol_turns": 1})
+            db.record_usage(attempt_id, epoch, usage_record(out, "sol_turns"))
             plan = structured(out["text"])
             atomic(run / "lead.json", {**out, "plan": plan, "thread": thread})
             db.put_decision(
@@ -338,9 +362,16 @@ def run_attempt(state: Path, attempt_id: int):
                             "contract_ack": True,
                         },
                     )
-        with Codex(
+        with metered_client(
+            state,
             checkout,
-            codex=cfg.get("codex_executable", "codex"),
+            cfg=cfg,
+            context={
+                "role": "worker",
+                "team": task["team"],
+                "task": task["id"],
+                "authority": "CEO-20261020-02",
+            },
             harness_cwd=native,
             event_sink=sink,
         ) as worker:
@@ -366,6 +397,11 @@ def run_attempt(state: Path, attempt_id: int):
             out = worker.turn(
                 thread,
                 prompt,
+                dispatch_id=f"attempt:{attempt_id}:worker",
+                estimate={
+                    "tokens": cfg.get("resources", {}).get("per_worker_tokens", 12000),
+                    "wpu": 1.0,
+                },
                 model=LUNA,
                 tool=tool,
                 heartbeat=heartbeat,
@@ -373,7 +409,7 @@ def run_attempt(state: Path, attempt_id: int):
                 output_schema=WORKER_SCHEMA,
             )
             atomic(run / "worker-raw.json", out)
-            db.record_usage(attempt_id, epoch, {"tokens": usage_tokens(out), "luna_turns": 1})
+            db.record_usage(attempt_id, epoch, usage_record(out, "luna_turns"))
             worker_result = structured(out["text"])
             if not isinstance(worker_result, dict) or not all(
                 k in worker_result for k in ("summary", "tests", "limitations")
@@ -491,9 +527,16 @@ def verify_one(state, task):
         )
         native = verify_root / "native"
         native.mkdir(exist_ok=True)
-        with Codex(
+        with metered_client(
+            state,
             checkout,
-            codex=cfg.get("codex_executable", "codex"),
+            cfg=cfg,
+            context={
+                "role": "verifier",
+                "team": task["team"],
+                "task": task["id"],
+                "authority": "CEO-20261020-02",
+            },
             harness_cwd=native,
             event_sink=lambda event: log_event(state, "codex", role="verifier", event=event),
         ) as reviewer:
@@ -528,6 +571,8 @@ def verify_one(state, task):
                         ],
                     }
                 ),
+                dispatch_id=f"verify:{task['id']}:{sha}",
+                estimate={"tokens": 12000, "wpu": 1.0},
                 model=SOL,
                 tool=lambda _: {"error": "review_tools_disabled"},
                 deadline_seconds=240,
@@ -884,19 +929,12 @@ def render_desk(state, db=None, resource_decision=None):
 
 
 def measured_usage(state, db):
-    result = db.usage_summary()
-    threads = {}
-    path = state / "operations.jsonl"
-    if path.exists():
-        for line in path.read_text().splitlines():
-            try:
-                event = json.loads(line).get("event", {})
-                if event.get("kind") in ("token_usage", "turn_completed"):
-                    key = event["thread_id"]
-                    count = event.get("usage", {}).get("total", {}).get("totalTokens", 0)
-                    threads[key] = max(threads.get(key, 0), count)
-            except (ValueError, KeyError):
-                continue
-    result["total"]["tokens"] = max(result["total"].get("tokens", 0), sum(threads.values()))
-    result["metered_threads"] = len(threads)
-    return result
+    """Keep legacy database totals historical and expose the metered union separately."""
+    historical = db.usage_summary()
+    historical.setdefault("total", {}).setdefault("tokens", 0)
+    ledger = UsageLedger.readonly_summary(state / "usage-ledger.sqlite")
+    return {
+        **historical,
+        "historical_usage": historical,
+        "current_metering": ledger,
+    }

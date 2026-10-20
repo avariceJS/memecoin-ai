@@ -3,6 +3,11 @@ import queue
 from engineering.codex_rpc import Codex
 
 
+class TrustedPermit:
+    def consume(self, thread_id, model):
+        assert thread_id == "thread"
+
+
 def counters(total):
     return {
         "inputTokens": total,
@@ -27,13 +32,21 @@ def make_client(messages):
 
 
 def completed():
-    return {"method": "turn/completed", "params": {"turn": {"id": "turn", "status": "completed"}}}
+    return {
+        "method": "turn/completed",
+        "params": {"threadId": "thread", "turn": {"id": "turn", "status": "completed"}},
+    }
 
 
 def test_missing_end_usage_invalidates_cached_baseline_for_next_turn():
     client = make_client([completed()])
     first = client.turn(
-        "thread", "prompt", model="gpt-6.1-sol", tool=lambda _: None, start_usage=counters(100)
+        "thread",
+        "prompt",
+        model="gpt-6.1-sol",
+        tool=lambda _: None,
+        start_usage=counters(100),
+        permit=TrustedPermit(),
     )
     assert first["usage_delta"] is None
     assert "thread" not in client.usage_counters
@@ -49,10 +62,12 @@ def test_missing_end_usage_invalidates_cached_baseline_for_next_turn():
         }
     )
     client.messages.put(completed())
-    second = client.turn("thread", "prompt", model="gpt-6.1-sol", tool=lambda _: None)
+    second = client.turn(
+        "thread", "prompt", model="gpt-6.1-sol", tool=lambda _: None, permit=TrustedPermit()
+    )
     assert second["usage_start"] is None
     assert second["usage_delta"] is None
-    assert client.usage_counters["thread"] == counters(150)
+    assert "thread" not in client.usage_counters
 
 
 def test_invalid_end_usage_does_not_seed_cached_baseline():
@@ -68,6 +83,8 @@ def test_invalid_end_usage_does_not_seed_cached_baseline():
         ]
     )
     client.usage_counters["thread"] = counters(100)
-    result = client.turn("thread", "prompt", model="gpt-6.1-sol", tool=lambda _: None)
+    result = client.turn(
+        "thread", "prompt", model="gpt-6.1-sol", tool=lambda _: None, permit=TrustedPermit()
+    )
     assert result["usage_delta"] is None
     assert "thread" not in client.usage_counters

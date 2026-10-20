@@ -98,6 +98,70 @@ class TaskSpecTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             invoke({**SPEC, "resources": {**SPEC["resources"], "max_turn_seconds": 1201}})
 
+    def test_oversized_numbers_reject_with_stable_codes(self):
+        for proposal, code in (
+            (
+                {
+                    **SPEC,
+                    "contracts": {"schema-validation": {"version": 10**5000, "proposal_sha256": H}},
+                },
+                "invalid_contracts",
+            ),
+            (
+                {**SPEC, "resources": {**SPEC["resources"], "estimated_wpu": 10**400}},
+                "invalid_resources",
+            ),
+        ):
+            with self.subTest(code=code):
+                with self.assertRaisesRegex(ValueError, f"^{code}$"):
+                    invoke(proposal)
+
+    def test_envelope_collections_are_checked_before_membership(self):
+        for key, value in (("teams", None), ("risk_levels", 2)):
+            with self.subTest(key=key):
+                envelope = {**ENVELOPE, key: value}
+                with self.assertRaisesRegex(ValueError, "^invalid_envelope$"):
+                    invoke(envelope=envelope)
+
+    def test_existing_dependency_graph_is_validated_iteratively(self):
+        dependency = {
+            "id": "CTX-001",
+            "state": "running",
+            "scope": ["tools/agent_context.py"],
+            "dependencies": [],
+        }
+        for malformed in ("CTX-002", {"target": "CTX-002"}, None):
+            with self.subTest(malformed=malformed):
+                row = {**dependency, "dependencies": malformed}
+                with self.assertRaisesRegex(ValueError, "^invalid_existing_tasks$"):
+                    invoke(tasks=[row])
+        bad_target = {**dependency, "dependencies": ["MISSING-001"]}
+        with self.assertRaisesRegex(ValueError, "^invalid_existing_tasks$"):
+            invoke({**SPEC, "dependencies": ["CTX-001"]}, tasks=[bad_target])
+
+        rows = []
+        for index in range(1000):
+            row_id = f"CTX-{index:03d}"
+            next_ids = [f"CTX-{index + 1:03d}"] if index < 999 else []
+            rows.append(
+                {
+                    "id": row_id,
+                    "state": "pending",
+                    "scope": [],
+                    "dependencies": next_ids,
+                }
+            )
+        proposal = {**SPEC, "dependencies": ["CTX-000"]}
+        self.assertEqual(invoke(proposal, tasks=rows), proposal)
+
+    def test_registry_contracts_require_strict_integer_versions(self):
+        for version in (True, 2.0):
+            with self.subTest(version=version):
+                registry = copy.deepcopy(REGISTRY)
+                registry["schema-shape-v2"]["contracts"]["schema-validation"]["version"] = version
+                with self.assertRaisesRegex(ValueError, "^untrusted_acceptance$"):
+                    invoke(registry=registry)
+
     def test_dependencies_and_owned_scope(self):
         dependency = {
             "id": "CTX-001",

@@ -128,14 +128,6 @@ def validate_task_spec(
         },
         "invalid_envelope",
     )
-    if (
-        e["schema"] != _ENVELOPE_SCHEMA
-        or e["objective_id"] != objective
-        or team not in e["teams"]
-        or base != e["base_sha"]
-        or risk not in e["risk_levels"]
-    ):
-        _fail("outside_envelope")
     for key in ("teams", "allowed_paths", "capabilities", "risk_levels"):
         if (
             type(e[key]) is not list
@@ -145,6 +137,14 @@ def validate_task_spec(
             or len(set(e[key])) != len(e[key])
         ):
             _fail("invalid_envelope")
+    if (
+        e["schema"] != _ENVELOPE_SCHEMA
+        or e["objective_id"] != objective
+        or team not in e["teams"]
+        or base != e["base_sha"]
+        or risk not in e["risk_levels"]
+    ):
+        _fail("outside_envelope")
     scope = s["scope"]
     if type(scope) is not list or not 1 <= len(scope) <= 64:
         _fail("invalid_scope")
@@ -180,7 +180,7 @@ def validate_task_spec(
         digest = contract["proposal_sha256"]
         if (
             type(version) is not int
-            or version < 1
+            or not 1 <= version <= 2**31 - 1
             or type(digest) is not str
             or not _SHA256.fullmatch(digest)
         ):
@@ -208,7 +208,13 @@ def validate_task_spec(
         _fail("invalid_resources")
     if type(seconds) is not int or not 1 <= seconds <= max_seconds:
         _fail("invalid_resources")
-    if type(wpu) not in (int, float) or not math.isfinite(wpu) or not 0 <= wpu <= 100000:
+    if type(wpu) is int:
+        if not 0 <= wpu <= 100000:
+            _fail("invalid_resources")
+    elif type(wpu) is float:
+        if not math.isfinite(wpu) or not 0 <= wpu <= 100000:
+            _fail("invalid_resources")
+    else:
         _fail("invalid_resources")
 
     acceptance = s["acceptance"]
@@ -244,13 +250,39 @@ def validate_task_spec(
             "risk",
         }:
             _fail("untrusted_acceptance")
+        record_contracts = record["contracts"]
+        if type(record_contracts) is not dict or not 1 <= len(record_contracts) <= 32:
+            _fail("untrusted_acceptance")
+        normalized_record_contracts: dict[str, dict[str, Any]] = {}
+        for contract_name, contract in record_contracts.items():
+            if (
+                type(contract_name) is not str
+                or not _NAME.fullmatch(contract_name)
+                or type(contract) is not dict
+                or set(contract) != {"version", "proposal_sha256"}
+                or type(contract["version"]) is not int
+                or not 1 <= contract["version"] <= 2**31 - 1
+                or type(contract["proposal_sha256"]) is not str
+                or not _SHA256.fullmatch(contract["proposal_sha256"])
+            ):
+                _fail("untrusted_acceptance")
+            normalized_record_contracts[contract_name] = {
+                "version": contract["version"],
+                "proposal_sha256": contract["proposal_sha256"],
+            }
+        if (
+            type(record["sha256"]) is not str
+            or type(record["objective_id"]) is not str
+            or type(record["risk"]) is not str
+        ):
+            _fail("untrusted_acceptance")
         if (
             record["independent"] is not True
             or record["frozen"] is not True
             or record["sha256"] != digest
             or record["objective_id"] != objective
             or record["risk"] != risk
-            or record["contracts"] != contracts
+            or normalized_record_contracts != contracts
         ):
             _fail("acceptance_mismatch")
         record_scope = record["scope"]
@@ -287,11 +319,20 @@ def validate_task_spec(
         if (
             type(row) is not dict
             or type(row.get("id")) is not str
+            or not _ID.fullmatch(row["id"])
             or type(row.get("state")) is not str
             or type(row.get("scope")) is not list
         ):
             _fail("invalid_existing_tasks")
         rid = row["id"]
+        row_dependencies = row.get("dependencies", [])
+        if (
+            type(row_dependencies) is not list
+            or len(row_dependencies) > 64
+            or any(type(dep) is not str or not _ID.fullmatch(dep) for dep in row_dependencies)
+            or len(set(row_dependencies)) != len(row_dependencies)
+        ):
+            _fail("invalid_existing_tasks")
         if rid in by_id:
             _fail("duplicate_existing_id")
         by_id[rid] = row
@@ -305,24 +346,29 @@ def validate_task_spec(
         if dep not in by_id:
             _fail("unknown_dependency")
     graph = {rid: row.get("dependencies", []) for rid, row in by_id.items()}
+    for children in graph.values():
+        if any(child not in graph for child in children):
+            _fail("invalid_existing_tasks")
     graph[task_id] = deps
-    visiting: set[str] = set()
-    visited: set[str] = set()
-
-    def visit(node: str) -> None:
-        if node in visiting:
-            _fail("dependency_cycle")
-        if node in visited:
-            return
-        visiting.add(node)
-        for child in graph.get(node, []):
-            if type(child) is not str:
-                _fail("invalid_existing_tasks")
-            if child in graph:
-                visit(child)
-        visiting.remove(node)
-        visited.add(node)
-
-    for node in graph:
-        visit(node)
+    colors: dict[str, int] = {}
+    for root in graph:
+        if colors.get(root, 0) == 2:
+            continue
+        stack: list[tuple[str, int]] = [(root, 0)]
+        while stack:
+            node, child_index = stack[-1]
+            if colors.get(node, 0) == 0:
+                colors[node] = 1
+            children = graph[node]
+            if child_index == len(children):
+                colors[node] = 2
+                stack.pop()
+                continue
+            child = children[child_index]
+            stack[-1] = (node, child_index + 1)
+            child_color = colors.get(child, 0)
+            if child_color == 1:
+                _fail("dependency_cycle")
+            if child_color == 0:
+                stack.append((child, 0))
     return copy.deepcopy(s)

@@ -7,6 +7,7 @@ import json
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -15,6 +16,7 @@ from engineering import supervisor
 from engineering.confinement import SandboxResult
 from engineering.org_state import Store
 from engineering.tests.test_service import deployment as deployment_fixture
+from engineering.usage_ledger import UsageLedger
 
 
 class FakeCodex:
@@ -39,6 +41,21 @@ class FakeCodex:
 
     def call(self, *args, **kwargs):
         return {"ordinaryUsageAllowed": False}
+
+
+@contextmanager
+def fake_metered_client(client):
+    yield client
+
+
+def metered_clients(*clients):
+    iterator = iter(clients)
+
+    @contextmanager
+    def factory(*args, **kwargs):
+        yield next(iterator)
+
+    return factory
 
 
 class SupervisorTests(unittest.TestCase):
@@ -264,7 +281,9 @@ class SupervisorTests(unittest.TestCase):
             patch.object(supervisor, "GitGate", return_value=gate),
             patch.object(supervisor, "runner", return_value=MagicMock()),
             patch.object(supervisor, "SandboxRunner", return_value=box),
-            patch.object(supervisor, "Codex", return_value=reviewer) as model,
+            patch.object(
+                supervisor, "metered_client", side_effect=metered_clients(reviewer)
+            ) as model,
             patch.object(supervisor, "git", return_value="synthetic diff"),
         ):
             supervisor.verify_one(self.state, self.db.get_task("T"))
@@ -317,7 +336,7 @@ class SupervisorTests(unittest.TestCase):
             return "base"
 
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(supervisor, "metered_client", side_effect=metered_clients(FakeCodex())),
             patch.object(supervisor, "runner", return_value=MagicMock()),
             patch.object(supervisor, "git", side_effect=fake_git),
             patch.object(supervisor, "process_identity", return_value="fake"),
@@ -326,7 +345,7 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(self.db.get_task("T")["state"], "pending")
         self.assertEqual(self.db.list_attempts()[0]["state"], "failed")
         self.assertFalse(any("commit" in args for args in calls))
-        self.assertEqual(self.db.usage_summary()["total"]["tokens"], 3)
+        self.assertEqual(self.db.usage_summary()["total"]["tokens_unknown"], 1)
 
     def test_malformed_worker_output_retries_before_commit(self):
         self.task()
@@ -348,7 +367,7 @@ class SupervisorTests(unittest.TestCase):
             return " M src/example.py" if args[0] == "status" else "candidate"
 
         with (
-            patch.object(supervisor, "Codex", side_effect=[lead, worker]),
+            patch.object(supervisor, "metered_client", side_effect=metered_clients(lead, worker)),
             patch.object(supervisor, "runner", return_value=MagicMock()),
             patch.object(supervisor, "git", side_effect=fake_git),
             patch.object(supervisor, "process_identity", return_value="fake"),
@@ -442,6 +461,43 @@ class SupervisorTests(unittest.TestCase):
 
     def test_quiescence_unavailable_quota_handoff_has_no_chief_call(self):
         self.run_quiescence("quota-unavailable", slots=0)
+
+    def test_measured_usage_keeps_history_separate_from_metered_union(self):
+        self.task()
+        attempt = self.db.claim("T", "worker", 100)
+        self.db.record_usage(attempt["id"], attempt["epoch"], {"tokens": 42})
+        ledger_path = self.state / "usage-ledger.sqlite"
+        ledger = UsageLedger(ledger_path)
+        baseline = {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 0,
+        }
+        latest = {**baseline, "input_tokens": 10, "total_tokens": 10}
+        ledger.register("thread", "epoch-1", "gpt-6-luna", baseline, evidence="new")
+        ledger.observe(
+            "thread",
+            "epoch-1",
+            "receipt-1",
+            latest,
+            source="qualified-test",
+            sequence=10,
+            observed_at=1000,
+        )
+        ledger.close()
+        measured = supervisor.measured_usage(self.state, self.db)
+        self.assertEqual(measured["total"]["tokens"], 42)
+        self.assertEqual(measured["current_metering"]["incremental"]["total_tokens"], 10)
+        self.assertEqual(measured["historical_usage"]["total"]["tokens"], 42)
+
+    def test_measured_usage_does_not_create_missing_metering_database(self):
+        path = self.state / "usage-ledger.sqlite"
+        self.assertFalse(path.exists())
+        measured = supervisor.measured_usage(self.state, self.db)
+        self.assertIsNone(measured["current_metering"])
+        self.assertFalse(path.exists())
 
     def test_stop_prevents_quiescence_resource_or_handoff_work(self):
         (self.state / "STOP").touch()

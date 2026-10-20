@@ -54,6 +54,328 @@ class UsageLedgerTests(unittest.TestCase):
     def observe(self, eid, seq, counters, source="provider", epoch="e1"):
         self.l.observe("a", epoch, eid, counters, source=source, sequence=seq, observed_at=seq)
 
+    def test_dispatch_receipts_are_immutable_and_readonly_summary_is_noncreating(self):
+        summary_path = Path(self.tmp.name) / "missing.sqlite"
+        self.assertIsNone(UsageLedger.readonly_summary(summary_path))
+        row = self.l.reserve(
+            "dispatch-1",
+            "thread-1",
+            "gpt-6-luna",
+            {"tokens": 10, "wpu": 1},
+            1234,
+            context={"role": "worker", "team": "Experience"},
+        )
+        self.assertEqual(row["status"], "reserved")
+        self.assertTrue(self.l.consume_dispatch("dispatch-1"))
+        self.assertFalse(self.l.consume_dispatch("dispatch-1"))
+        self.l.bind("dispatch-1", "thread-1", "turn-1", {"started": True})
+        self.l.bind("dispatch-1", "thread-1", "turn-1", {"started": False})
+        self.l.record_outcome("dispatch-1", "completed", {"usage_terminal": False})
+        self.l.record_outcome("dispatch-1", "completed", {"usage_terminal": False})
+        self.assertEqual(len(self.l.summary()["reservations"]), 1)
+        self.assertTrue(UsageLedger.readonly_summary(self.path)["reservations"])
+        with self.assertRaises(ValueError):
+            self.l.record_outcome("dispatch-1", "completed", {"usage_terminal": True})
+
+    def test_dispatch_rejects_unrepresentable_estimates_and_deadlines(self):
+        with self.assertRaisesRegex(ValueError, "tokens must be finite and positive"):
+            self.l.reserve(
+                "huge",
+                "thread-huge",
+                "gpt-6-luna",
+                {"tokens": 10**400, "wpu": 1},
+                1234,
+                context={"role": "worker", "team": "Experience"},
+            )
+        with self.assertRaisesRegex(ValueError, "deadline_at must be a finite timestamp"):
+            self.l.reserve(
+                "huge-time",
+                "thread-huge",
+                "gpt-6-luna",
+                {"tokens": 1, "wpu": 1},
+                10**5000,
+                context={"role": "worker", "team": "Experience"},
+            )
+
+    def test_dispatch_settlement_requires_exact_qualified_terminal_and_stream_coverage(self):
+        baseline = c(0)
+        end = c(10, 2, 3, 1)
+        row = self.l.reserve(
+            "settle-1",
+            "a",
+            "gpt-6-luna",
+            {"tokens": 20, "wpu": 1},
+            2000,
+            context={"role": "worker", "team": "Experience"},
+            baseline=baseline,
+        )
+        self.assertEqual(row["status"], "reserved")
+        self.assertTrue(self.l.consume_dispatch("settle-1"))
+        self.l.bind("settle-1", "a", "turn-1")
+        self.l.record_outcome("settle-1", "completed", {"turn_id": "turn-1"})
+        rpc_end = {
+            "inputTokens": end["input_tokens"],
+            "cachedInputTokens": end["cached_input_tokens"],
+            "outputTokens": end["output_tokens"],
+            "reasoningOutputTokens": end["reasoning_output_tokens"],
+            "totalTokens": end["total_tokens"],
+        }
+        self.l.observe_receipt(
+            "settle-1:terminal",
+            "settle-1",
+            None,
+            "turn-1",
+            "turn_completed",
+            1.0,
+            2.0,
+            {
+                "thread_id": "a",
+                "provider_thread_id": "a",
+                "turn_id": "turn-1",
+                "status": "completed",
+                "usage_terminal": True,
+                "usage_end": rpc_end,
+            },
+        )
+        with self.assertRaisesRegex(ValueError, "terminal_usage_not_qualified"):
+            self.l.cover_dispatch(
+                "settle-1",
+                thread_id="a",
+                turn_id="turn-1",
+                model="gpt-6-luna",
+                counters=end,
+                terminal_qualified=False,
+            )
+        with self.assertRaisesRegex(ValueError, "terminal_attribution_turn_mismatch"):
+            self.l.cover_dispatch(
+                "settle-1",
+                thread_id="a",
+                turn_id="wrong",
+                model="gpt-6-luna",
+                counters=end,
+                terminal_qualified=True,
+            )
+        self.assertEqual(len(self.l.summary()["reservations"]), 1)
+        self.l.cover_dispatch(
+            "settle-1",
+            thread_id="a",
+            turn_id="turn-1",
+            model="gpt-6-luna",
+            counters=end,
+            terminal_qualified=True,
+            event_at=1.0,
+            observed_at=2.0,
+        )
+        summary = self.l.summary()
+        self.assertEqual(summary["reservations"], [])
+        self.assertEqual(summary["incremental"], end)
+        self.assertEqual(summary["by_model"]["gpt-6-luna"]["total_tokens"], end["total_tokens"])
+        self.assertEqual(self.l.dispatch("settle-1")["status"], "covered")
+
+    def test_dispatch_replay_cannot_reserve_same_stream_after_unknown_outcome(self):
+        self.l.reserve(
+            "uncertain-1",
+            "a",
+            "gpt-6-luna",
+            {"tokens": 20, "wpu": 1},
+            2000,
+            context={"role": "worker", "team": "Experience"},
+            baseline=c(),
+        )
+        with self.assertRaisesRegex(ValueError, "unresolved_stream_dispatch"):
+            self.l.reserve(
+                "uncertain-2",
+                "a",
+                "gpt-6-luna",
+                {"tokens": 20, "wpu": 1},
+                2000,
+                context={"role": "worker", "team": "Experience"},
+                baseline=c(),
+            )
+
+    def test_new_stream_settlement_is_distinct_from_raw_outcome(self):
+        self.l.reserve(
+            "start-1",
+            "start-1",
+            "gpt-6-luna",
+            {"tokens": 1, "wpu": 0.1},
+            2000,
+            context={"role": "worker", "team": "Experience"},
+        )
+        self.l.consume_dispatch("start-1")
+        with self.assertRaisesRegex(ValueError, "invalid outcome"):
+            self.l.record_outcome("start-1", "settled", {"new_unused_stream": True})
+        self.l.settle_new_stream("start-1", "new-thread", evidence="thread-start-receipt")
+        self.assertEqual(
+            self.l.current_snapshot("new-thread"), {"epoch": "initial", "counters": c()}
+        )
+        self.assertEqual(self.l.dispatch("start-1")["status"], "settled")
+
+    def test_external_import_deduplicates_usage_and_attributes_only_evidenced_models(self):
+        base, sol_end, luna_end = c(100, 10, 20, 4), c(110, 12, 22, 4), c(115, 13, 23, 5)
+        batch = {
+            "schema": "brain-org-usage-import-v1",
+            "streams": [
+                {
+                    "identity": "external-thread",
+                    "epoch": "epoch-1",
+                    "baseline": base,
+                    "intervals": [
+                        {
+                            "id": "i-1",
+                            "model": "gpt-6.1-sol",
+                            "start": base,
+                            "end": sol_end,
+                            "event_at": 1.0,
+                            "source": "rollout",
+                            "evidence": {"turn": "one"},
+                        },
+                        {
+                            "id": "i-2",
+                            "model": "gpt-6-luna",
+                            "start": sol_end,
+                            "end": luna_end,
+                            "event_at": 2.0,
+                            "source": "rollout",
+                            "evidence": {"turn": "two"},
+                        },
+                    ],
+                }
+            ],
+            "unresolved": [{"identity": "tail", "reason": "inflight_tail", "evidence": {}}],
+        }
+        digest = self.l.external_batch_hash(batch)
+        first = self.l.import_external(batch, "codex-rollout-intervals-v1", digest)
+        self.assertFalse(first["duplicate"])
+        self.assertTrue(
+            self.l.import_external(batch, "codex-rollout-intervals-v1", digest)["duplicate"]
+        )
+        duplicate_source = {
+            **batch,
+            "streams": [
+                {
+                    **batch["streams"][0],
+                    "intervals": [batch["streams"][0]["intervals"][0]],
+                }
+            ],
+            "unresolved": [],
+        }
+        self.l.import_external(
+            duplicate_source,
+            "codex-rollout-intervals-v1",
+            self.l.external_batch_hash(duplicate_source),
+        )
+        self.l.observe(
+            "external-thread",
+            "epoch-1",
+            "after-import",
+            c(118, 13, 25, 5),
+            source="later-observation",
+            sequence=140,
+            observed_at=3.0,
+        )
+        summary = self.l.summary()
+        self.assertEqual(summary["incremental"], c(18, 3, 5, 1))
+        self.assertEqual(
+            summary["by_model"]["gpt-6.1-sol"],
+            {
+                **c(10, 2, 2, 0),
+                "wpu": (8 * 50 + 2 * 2.5 + 2 * 250) / 1e6,
+            },
+        )
+        self.assertEqual(
+            summary["by_model"]["gpt-6-luna"],
+            {
+                **c(5, 1, 1, 1),
+                "wpu": (4 * 2.5 + 1 * 0.25 + 1 * 12.5) / 1e6,
+            },
+        )
+        self.assertEqual(
+            summary["by_model"]["unclassified"],
+            {
+                **c(3, 0, 2, 0),
+                "wpu": None,
+            },
+        )
+        self.assertEqual(len(summary["external_imports"]), 2)
+        self.assertEqual(len(summary["external_unresolved"]), 1)
+        self.assertEqual(summary["reservations"], [])
+
+    def test_external_import_unknown_baseline_and_conflicts_fail_closed(self):
+        unknown = {
+            "schema": "brain-org-usage-import-v1",
+            "streams": [{"identity": "unknown", "epoch": "e", "baseline": None, "intervals": []}],
+            "unresolved": [
+                {
+                    "identity": "unknown",
+                    "reason": "baseline_unavailable",
+                    "evidence": {"source": "test"},
+                }
+            ],
+        }
+        unknown_hash = self.l.external_batch_hash(unknown)
+        self.l.import_external(unknown, "codex-rollout-intervals-v1", unknown_hash)
+        unknown_summary = self.l.summary()
+        self.assertTrue(
+            any(
+                item["identity"] == "unknown" and item["reason"] == "baseline_unknown"
+                for item in unknown_summary["unresolved"]
+            )
+        )
+        self.assertEqual(
+            unknown_summary["external_unresolved"][0]["reason"], "baseline_unavailable"
+        )
+
+        batch = {
+            "schema": "brain-org-usage-import-v1",
+            "streams": [
+                {
+                    "identity": "conflict",
+                    "epoch": "e",
+                    "baseline": c(),
+                    "intervals": [
+                        {
+                            "id": "x",
+                            "model": "gpt-6.1-sol",
+                            "start": c(),
+                            "end": c(4),
+                            "event_at": 1.0,
+                            "source": "rollout",
+                            "evidence": {},
+                        }
+                    ],
+                }
+            ],
+            "unresolved": [],
+        }
+        digest = self.l.external_batch_hash(batch)
+        self.l.import_external(batch, "codex-rollout-intervals-v1", digest)
+        conflicting = {
+            **batch,
+            "streams": [
+                {
+                    **batch["streams"][0],
+                    "intervals": [
+                        {
+                            **batch["streams"][0]["intervals"][0],
+                            "model": "gpt-6-luna",
+                        }
+                    ],
+                }
+            ],
+        }
+        conflicting_hash = self.l.external_batch_hash(conflicting)
+        before = self.l.db.execute("SELECT COUNT(*) FROM external_batches").fetchone()[0]
+        with self.assertRaisesRegex(ValueError, "external_model_interval_conflict"):
+            self.l.import_external(conflicting, "codex-rollout-intervals-v1", conflicting_hash)
+        self.assertEqual(
+            self.l.db.execute("SELECT COUNT(*) FROM external_batches").fetchone()[0], before
+        )
+        with self.assertRaisesRegex(ValueError, "external_evidence_hash_mismatch"):
+            self.l.import_external(conflicting, "codex-rollout-intervals-v1", digest)
+        with self.assertRaisesRegex(ValueError, "external_collector_not_allowed"):
+            self.l.import_external(unknown, "unknown-collector", unknown_hash)
+
     def test_disjoint_and_overlapping_cumulative_union(self):
         self.observe("1", 1, c(10, 2, 3), "x")
         self.observe("2", 1, c(10, 2, 3), "y")

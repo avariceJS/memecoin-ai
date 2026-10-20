@@ -202,7 +202,10 @@ class Codex:
             self.notifications.append(msg)
         raise RpcError("rpc_timeout:" + method)
 
-    def start(self, model, instructions):
+    def start(self, model, instructions, *, permit=None):
+        if permit is None:
+            raise RpcError("permit_required")
+        permit.consume("new-thread", model)
         result = self.call(
             "thread/start",
             {
@@ -276,7 +279,11 @@ class Codex:
         output_schema=None,
         started=None,
         start_usage=None,
+        permit=None,
+        cancel_event=None,
     ):
+        if permit is None:
+            raise RpcError("permit_required")
         # Resumed threads need a persisted baseline or a counter already known
         # to this client. Never assume an unknown lifetime counter starts at zero.
         cache = getattr(self, "usage_counters", {})
@@ -293,6 +300,7 @@ class Codex:
         }
         if output_schema:
             params["outputSchema"] = output_schema
+        permit.consume(thread_id, model)
         result = self.call("turn/start", params)
         turn_id = result["turn"]["id"]
         if started:
@@ -311,6 +319,13 @@ class Codex:
         last_heartbeat = 0.0
         outputs, usage = [], {}
         while time.monotonic() < end:
+            if cancel_event is not None and cancel_event.is_set():
+                try:
+                    self.call(
+                        "turn/interrupt", {"threadId": thread_id, "turnId": turn_id}, timeout=10
+                    )
+                finally:
+                    raise RpcError("metered_turn_interrupted")
             now = time.monotonic()
             if heartbeat and now - last_heartbeat > 5:
                 heartbeat()
@@ -386,11 +401,15 @@ class Codex:
             elif method == "thread/tokenUsage/updated" and p.get("threadId") == thread_id:
                 snapshot = p.get("tokenUsage", {})
                 belongs = p.get("turnId") == turn_id
-                self.sink({
-                    "kind": "token_usage", "thread_id": thread_id,
-                    "turn_id": p.get("turnId"), "usage": snapshot,
-                    "accepted_for_current_turn": belongs,
-                })
+                self.sink(
+                    {
+                        "kind": "token_usage",
+                        "thread_id": thread_id,
+                        "turn_id": p.get("turnId"),
+                        "usage": snapshot,
+                        "accepted_for_current_turn": belongs,
+                    }
+                )
                 if not belongs:
                     continue  # Late/unknown-turn receipts remain evidence, never current end usage.
                 usage = snapshot
@@ -400,23 +419,32 @@ class Codex:
                 # admission remain enforced by the trusted caller.
             elif method == "model/rerouted":
                 raise RpcError("model_reroute_rejected")
-            elif method == "turn/completed" and p.get("turn", {}).get("id") == turn_id:
+            elif (
+                method == "turn/completed"
+                and p.get("threadId") in (None, thread_id)
+                and p.get("turn", {}).get("id") == turn_id
+            ):
                 status = p["turn"].get("status")
                 end_usage = usage.get("total")
-                if counter_delta(dict.fromkeys(COUNTER_KEYS, 0), end_usage) is not None:
-                    if not hasattr(self, "usage_counters"):
-                        self.usage_counters = {}
-                    self.usage_counters[thread_id] = dict(end_usage)
+                usage_delta = counter_delta(baseline, end_usage)
+                usage_terminal = (
+                    p.get("threadId") == thread_id
+                    and getattr(permit, "terminal_usage_qualified", False) is True
+                    and status == "completed"
+                    and usage_delta is not None
+                )
                 self.sink(
                     {
                         "kind": "turn_completed",
                         "thread_id": thread_id,
+                        "provider_thread_id": p.get("threadId"),
                         "turn_id": turn_id,
                         "status": status,
                         "usage": usage,
                         "usage_start": baseline,
-                        "usage_end": usage.get("total"),
-                        "usage_delta": counter_delta(baseline, usage.get("total")),
+                        "usage_end": end_usage,
+                        "usage_delta": usage_delta,
+                        "usage_terminal": usage_terminal,
                     }
                 )
                 if status != "completed":
@@ -426,8 +454,9 @@ class Codex:
                     "usage": usage,
                     "turn_id": turn_id,
                     "usage_start": baseline,
-                    "usage_end": usage.get("total"),
-                    "usage_delta": counter_delta(baseline, usage.get("total")),
+                    "usage_end": end_usage,
+                    "usage_delta": usage_delta,
+                    "usage_terminal": usage_terminal,
                 }
         try:
             self.call("turn/interrupt", {"threadId": thread_id, "turnId": turn_id}, timeout=10)
