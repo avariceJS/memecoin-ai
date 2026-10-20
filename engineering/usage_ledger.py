@@ -139,6 +139,11 @@ class UsageLedger:
                 evidence TEXT NOT NULL, created_at REAL NOT NULL,
                 FOREIGN KEY (identity, epoch) REFERENCES registrations(identity, epoch)
             );
+            CREATE TABLE IF NOT EXISTS external_historical_unknown (
+                event_id TEXT PRIMARY KEY, counters TEXT NOT NULL,
+                collector_id TEXT NOT NULL, evidence_sha256 TEXT NOT NULL,
+                created_at REAL NOT NULL
+            );
             """
         )
         dispatch_columns = {row[1] for row in self.db.execute("PRAGMA table_info(dispatches)")}
@@ -554,18 +559,18 @@ class UsageLedger:
                     for row in event_rows
                     if row["event_id"] in attributed
                 ]
-                attribution_shapes = {
-                    (
-                        row["model"],
-                        row["start_counters"],
-                        row["end_counters"],
+                attribution_models = {row["model"] for row in attributions}
+                attribution_ambiguous = len(attribution_models) > 1
+                # Multiple collectors can make the same-model claim with
+                # different starts. Treat those as one model claim and prefer
+                # the earliest evidenced start so overlap clipping remains
+                # deterministic instead of manufacturing model ambiguity.
+                attribution = None
+                if attributions and not attribution_ambiguous:
+                    attribution = min(
+                        attributions,
+                        key=lambda row: json.loads(row["start_counters"])["total_tokens"],
                     )
-                    for row in attributions
-                }
-                attribution_ambiguous = len(attribution_shapes) > 1
-                attribution = (
-                    attributions[0] if attributions and not attribution_ambiguous else None
-                )
                 try:
                     delta = self._validate_interval(previous, value)
                 except ValueError:
@@ -621,6 +626,18 @@ class UsageLedger:
                             }
                         )
                     model = attribution["model"]
+                elif event_row and event_row["source"] == "codex-rpc-unattributed":
+                    model_delta = None
+                    unresolved.append(
+                        {
+                            "identity": r["identity"],
+                            "epoch": r["epoch"],
+                            "sequence": seq,
+                            "event_ids": [row["event_id"] for row in event_rows],
+                            "reason": "model_attribution_unverified",
+                            "counters": delta,
+                        }
+                    )
                 elif not attribution_ambiguous and event_row and ":" in event_row["source"]:
                     candidate = event_row["source"].rsplit(":", 1)[1]
                     if candidate in MODELS:
@@ -704,6 +721,16 @@ class UsageLedger:
                     "deadline_at": d["deadline_at"],
                     "status": d["status"],
                     "baseline": json.loads(d["baseline"]) if d["baseline"] else None,
+                }
+            )
+        for item in self.db.execute(
+            "SELECT event_id,counters FROM external_historical_unknown ORDER BY event_id"
+        ):
+            unresolved.append(
+                {
+                    "event_id": item["event_id"],
+                    "reason": "historical_usage_unknown",
+                    "counters": json.loads(item["counters"]),
                 }
             )
         return {
@@ -1045,6 +1072,7 @@ class UsageLedger:
             raise ValueError("external_evidence_hash_mismatch")
         starts = {}
         intervals = []
+        historical_unknown = []
         for item in batch:
             if not isinstance(item, dict):
                 raise ValueError("external_event_invalid")
@@ -1057,9 +1085,24 @@ class UsageLedger:
                 starts[item["event_id"]] = item
             elif kind == "turn_interval":
                 intervals.append(item)
+            elif kind == "active_reservation":
+                if (
+                    not item.get("event_id")
+                    or not item.get("team")
+                    or item.get("model") not in MODELS
+                    or item.get("status") != "active"
+                ):
+                    raise ValueError("external_active_reservation_invalid")
+                _finite_positive(item.get("tokens"), "tokens")
+                _finite_positive(item.get("wpu"), "wpu")
+                _timestamp(item.get("deadline_at"), "deadline_at")
+            elif kind == "historical_unknown":
+                if not item.get("event_id"):
+                    raise ValueError("external_historical_identity_missing")
+                historical_unknown.append((item["event_id"], _counters(item.get("counters"))))
             else:
                 raise ValueError("external_endpoint_only_or_unknown_kind")
-        if not starts or not intervals:
+        if bool(starts) != bool(intervals):
             raise ValueError("external_interval_requires_evidenced_start")
         prepared = []
         for item in intervals:
@@ -1078,8 +1121,6 @@ class UsageLedger:
                 raise ValueError("external_interval_identity_invalid")
             before, after = _counters(item.get("start")), _counters(item.get("end"))
             self._validate_interval(before, after)
-            if _counters(start["counters"]) != before:
-                raise ValueError("external_interval_start_counters_mismatch")
             prepared.append((item, before, after))
         # Reject endpoint-only or malformed batches before writing any rows.
         for _event_id, start in starts.items():
@@ -1118,6 +1159,31 @@ class UsageLedger:
                     "sha256": digest,
                 },
             )
+        for item in batch:
+            if item.get("kind") == "active_reservation":
+                self.reserve(
+                    "external:" + item["event_id"],
+                    "external:" + item["event_id"],
+                    item["model"],
+                    {"tokens": item["tokens"], "wpu": item["wpu"]},
+                    item["deadline_at"],
+                    context={"team": item["team"], "external": True},
+                )
+        for event_id, counters in historical_unknown:
+            row = (event_id, _json(counters), collector_id, digest)
+            prior = self.db.execute(
+                "SELECT event_id,counters,collector_id,evidence_sha256 "
+                "FROM external_historical_unknown WHERE event_id=?",
+                (event_id,),
+            ).fetchone()
+            if prior:
+                if tuple(prior) != row:
+                    raise ValueError("external_historical_event_conflict")
+            else:
+                self.db.execute(
+                    "INSERT INTO external_historical_unknown VALUES(?,?,?,?,?)",
+                    (*row, time.time()),
+                )
         return {"collector_id": collector_id, "sha256": digest, "intervals": len(prepared)}
 
     def consume_dispatch(self, dispatch_id):

@@ -193,3 +193,79 @@ def test_stop_monitor_waits_for_inflight_quota_read_and_joins_watcher(tmp_path):
     assert watcher not in controller._monitors
     controller.close()
     ledger.close()
+
+
+def test_unqualified_progress_across_model_switch_stays_unassigned(tmp_path):
+    ledger = UsageLedger(tmp_path / "switch.sqlite")
+
+    class SwitchingRPC(FakeRPC):
+        def __init__(self, ledger):
+            super().__init__(ledger)
+            self.sink = lambda _event: None
+            self.endpoints = iter((100, 200, 300))
+
+        def turn(self, thread, prompt, **kwargs):
+            self.calls += 1
+            kwargs["permit"].consume(thread, kwargs["model"])
+            turn_id = "switch-turn-" + str(self.calls)
+            kwargs["started"](turn_id)
+            total = next(self.endpoints)
+            self.sink(
+                {
+                    "kind": "token_usage",
+                    "turn_id": turn_id,
+                    "usage": {
+                        "total": {
+                            "inputTokens": total,
+                            "cachedInputTokens": 0,
+                            "outputTokens": 0,
+                            "reasoningOutputTokens": 0,
+                            "totalTokens": total,
+                        }
+                    },
+                }
+            )
+            return {
+                "text": "{}",
+                "turn_id": turn_id,
+                "usage": {"total": {"totalTokens": total}},
+                "usage_start": None,
+                "usage_end": None,
+                "usage_delta": None,
+                "usage_terminal": False,
+            }
+
+    rpc = SwitchingRPC(ledger)
+    controller = Controller(
+        ledger,
+        lambda: quota(),
+        state=tmp_path,
+        clock=lambda: 1000,
+        preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
+    )
+    context = {"role": "worker", "team": "Experience", "task": "switch"}
+    client = MeteredCodex(rpc, controller, context)
+    thread = client.start("gpt-6-luna", "start")
+    for index, model in enumerate(("gpt-6-luna", "gpt-6.1-sol", "gpt-6-luna")):
+        client.turn(
+            thread,
+            "bounded",
+            dispatch_id=f"switch-{index}",
+            model=model,
+            estimate={"tokens": 100, "wpu": 1},
+            tool=lambda _: None,
+            deadline_seconds=10,
+        )
+    summary = ledger.summary()
+    assert summary["incremental"]["total_tokens"] == 300
+    assert summary["by_model"] == {}
+    assert (
+        sum(
+            row["counters"]["total_tokens"]
+            for row in summary["unresolved"]
+            if row["reason"] == "model_attribution_unverified"
+        )
+        == 300
+    )
+    controller.close()
+    ledger.close()

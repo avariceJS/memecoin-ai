@@ -489,7 +489,12 @@ class MeteredCodex:
                         self._epochs[event_thread],
                         event_dispatch + ":counter:" + event_hash,
                         canonical,
-                        source="codex-rpc",
+                        # A cumulative progress sample is useful for the
+                        # canonical stream union, but cannot prove which model
+                        # owned the interval since the prior sample. Keep its
+                        # spend in the union and leave model attribution open
+                        # until qualified interval evidence arrives.
+                        source="codex-rpc-unattributed",
                         sequence=canonical["total_tokens"],
                         observed_at=self.controller.clock(),
                     )

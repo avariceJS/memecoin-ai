@@ -1,7 +1,10 @@
+import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
+from engineering.metered_codex import Controller
 from engineering.usage_ledger import UsageLedger
 
 
@@ -301,6 +304,162 @@ class UsageLedgerTests(unittest.TestCase):
         self.assertEqual(summary["by_model"], {})
         self.assertTrue(
             any(row["reason"] == "ambiguous_model_attribution" for row in summary["unresolved"])
+        )
+
+    def test_same_model_overlapping_claims_at_shared_endpoint_are_not_ambiguous(self):
+        self.l.attribute_dispatch(
+            "full-claim",
+            "a",
+            "e1",
+            "gpt-6-luna",
+            c(),
+            c(100),
+            evidence={"event_id": "full-100"},
+        )
+        self.l.attribute_dispatch(
+            "partial-claim",
+            "a",
+            "e1",
+            "gpt-6-luna",
+            c(50),
+            c(100),
+            evidence={"event_id": "partial-100"},
+        )
+        summary = self.l.summary()
+        self.assertEqual(summary["incremental"], c(100))
+        self.assertEqual(summary["by_model"]["gpt-6-luna"]["input_tokens"], 100)
+        self.assertFalse(
+            any(row["reason"] == "ambiguous_model_attribution" for row in summary["unresolved"])
+        )
+
+    def test_public_external_import_accepts_mixed_model_interval_chain(self):
+        batch = [
+            {
+                "kind": "thread_start",
+                "event_id": "ext-start",
+                "thread_id": "ext-thread",
+                "epoch": "ext-epoch",
+                "model": "gpt-6-luna",
+                "counters": c(),
+                "started_after_T0": True,
+            },
+            {
+                "kind": "turn_interval",
+                "event_id": "ext-luna-100",
+                "turn_id": "ext-turn-1",
+                "start_event_id": "ext-start",
+                "thread_id": "ext-thread",
+                "epoch": "ext-epoch",
+                "model": "gpt-6-luna",
+                "start": c(),
+                "end": c(100),
+            },
+            {
+                "kind": "turn_interval",
+                "event_id": "ext-sol-200",
+                "turn_id": "ext-turn-2",
+                "start_event_id": "ext-start",
+                "thread_id": "ext-thread",
+                "epoch": "ext-epoch",
+                "model": "gpt-6.1-sol",
+                "start": c(100),
+                "end": c(200),
+            },
+            {
+                "kind": "turn_interval",
+                "event_id": "ext-luna-300",
+                "turn_id": "ext-turn-3",
+                "start_event_id": "ext-start",
+                "thread_id": "ext-thread",
+                "epoch": "ext-epoch",
+                "model": "gpt-6-luna",
+                "start": c(200),
+                "end": c(300),
+            },
+        ]
+        encoded = json.dumps(batch, sort_keys=True, separators=(",", ":")).encode()
+        result = self.l.import_external(
+            batch,
+            "trusted-fixture",
+            encoded,
+            hashlib.sha256(encoded).hexdigest(),
+            external_allowlist={"trusted-fixture"},
+        )
+        summary = self.l.summary()
+        self.assertEqual(result["intervals"], 3)
+        self.assertEqual(summary["incremental"], c(300))
+        self.assertEqual(summary["by_model"]["gpt-6-luna"]["input_tokens"], 200)
+        self.assertEqual(summary["by_model"]["gpt-6.1-sol"]["input_tokens"], 100)
+
+    def test_external_active_reservation_occupies_model_and_team_slots(self):
+        batch = [
+            {
+                "kind": "active_reservation",
+                "event_id": "active-sol-alpha",
+                "team": "Alpha",
+                "model": "gpt-6.1-sol",
+                "tokens": 2500,
+                "wpu": 1,
+                "deadline_at": 9999,
+                "status": "active",
+            }
+        ]
+        encoded = json.dumps(batch, sort_keys=True, separators=(",", ":")).encode()
+        self.l.import_external(
+            batch,
+            "trusted-fixture",
+            encoded,
+            hashlib.sha256(encoded).hexdigest(),
+            external_allowlist={"trusted-fixture"},
+        )
+        active = self.l.summary()["reservations"]
+        self.assertTrue(any(row.get("team") == "Alpha" for row in active))
+        self.l.reserve(
+            "local-sol-beta",
+            "b",
+            "gpt-6.1-sol",
+            {"tokens": 100, "wpu": 1},
+            9999,
+            context={"team": "Beta"},
+        )
+        with self.assertRaisesRegex(
+            RuntimeError, "model_dispatch_slots_full|team_dispatch_slots_full"
+        ):
+            self.l.reserve(
+                "blocked-sol-gamma",
+                "c",
+                "gpt-6.1-sol",
+                {"tokens": 100, "wpu": 1},
+                9999,
+                context={"team": "Gamma"},
+            )
+
+    def test_public_import_of_historical_unknown_adds_no_retrospective_reservation(self):
+        batch = [
+            {"kind": "historical_unknown", "event_id": "history-unknown-1", "counters": c(120)}
+        ]
+        encoded = json.dumps(batch, sort_keys=True, separators=(",", ":")).encode()
+        controller = Controller(
+            self.l,
+            lambda: {},
+            state=self.tmp.name,
+            external_allowlist={"trusted-history"},
+        )
+        before = self.l.summary()
+        controller.import_external(
+            batch,
+            "trusted-history",
+            encoded,
+            hashlib.sha256(encoded).hexdigest(),
+        )
+        after = self.l.summary()
+        self.assertEqual(after["incremental"], before["incremental"])
+        self.assertEqual(after["reservations"], before["reservations"])
+        self.assertTrue(
+            any(
+                row["reason"] == "historical_usage_unknown" and row["counters"] == c(120)
+                for row in after["unresolved"]
+            )
         )
 
     def test_raw_rpc_ingress_is_byte_exact_and_persists_on_separate_connection(self):
