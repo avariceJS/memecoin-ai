@@ -85,9 +85,9 @@ automatically.
 - Original worktree `/Users/root1/Developer/brain-org-build` stays on `org/development`; `main` and
   protected state remain untouched. Pilot, supervisor runtime, services, market collection, training,
   AUTO, trading, protected datasets and STOP remain untouched.
-- Same successor Goal ID and prior history are preserved. Native Goal read at this checkpoint:
-  active, 799,682 tokens, 1,809 seconds. Durable handoff counters and review receipt were atomically
-  updated and verified; predecessor history and single-owner identity remain intact.
+- Same successor Goal ID and prior history are preserved. Native Goal remains active. The durable
+  handoff carries the latest API counters and review receipt; predecessor history and the
+  single-owner identity remain intact.
 
 Canonical program, acceptance criteria and limits: `docs/engineering-organization.md`. Founder-facing
 external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receipts remain under
