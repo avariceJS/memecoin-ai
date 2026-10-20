@@ -30,8 +30,12 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   progress snapshot totals on successful completion and is not an independent terminal source. A
   public null-usage response can also be hidden: `TokenCount.info=None` produces no public usage
   notification; a later positive snapshot can appear complete against a zero baseline. Sol rejected
-  settlement on this counterexample. Receipt: `terminal-usage-public-snapshot-null-gap-20261020.json`.
-  A03 remains fail-closed. Correction receipt: `terminal-usage-schema-filter-correction-20261020.json`.
+  settlement on this counterexample. A pre-dispatch provider-state guard plus rejection of any
+  zero-delta snapshot could conservatively exclude in-turn null usage, but the baseline provenance,
+  model and epoch are not qualified and no supported settlement seeding path exists. Receipt:
+  `terminal-usage-public-snapshot-null-gap-20261020.json`; independent follow-up:
+  `terminal-usage-public-snapshot-guard-review-20261020.json`. A03 remains fail-closed. Correction
+  receipt: `terminal-usage-schema-filter-correction-20261020.json`.
 - Current-host native profile (21 checks) and OS confinement (27 checks) passed on Python 3.13.6 and
   pinned Codex CLI 0.163.0; adapter digest matches exact candidate `3c16388`. Receipts are
   `native-profile-qualification-20261020.json` and `confinement-qualification-20261020.json`. This

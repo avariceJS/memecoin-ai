@@ -116,6 +116,17 @@ snapshots. Evidence is source-only in
 SHA-256 `810efd6528d1cdcdcb0d0283ac2a0877ae93bb5d049f56a136cddf88b42fff38`; it supports the
 fail-closed boundary, not a settlement implementation.
 
+Sol reviewed a narrower guard: if valid provider token state is independently proven before dispatch,
+any in-turn snapshot with zero delta could invalidate settlement because a normal null-usage response
+with existing state republishes the unchanged counters. That snapshot is indistinguishable from no
+new spend or a service publication, so even exact identity matching cannot safely ignore it. More
+fundamentally, the ledger baseline does not prove core had provider state; the public stream does not
+qualify baseline provenance/completeness, model identity or attempt epoch, and no current supported
+path seeds such a baseline for settlement. This is a conditional guard only, not an accepted settlement
+source. The source-only review is in
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-public-snapshot-guard-review-20261020.json`
+(SHA-256 `3e082f264a19e92f11b3023556150613059e03ee186573080a9b1573bfa89f8e`).
+
 Sol also identified a conditional parser compatibility gap in `metered_codex.capture`: the generated
 schema permits an optional `cacheWriteInputTokens` counter, but canonicalization currently requires
 the counter object to contain exactly the five other known keys. When the optional sixth key is
