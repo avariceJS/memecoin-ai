@@ -389,3 +389,6 @@ allowlist. Sol принял exact scaffold; gate прошёл: 328 тестов,
 квалифицированы, Supervisor не запускался. Full A04 и operational acceptance открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-result-contract-review-20261021.json`
 (SHA-256 `ecfb8f8a9888a96b059e1fa2122eb6331aeb5de81353ad3f8ab43fc85a6e4278`).
+
+
+At `d985cffdcbddee11d25f9972f6a1dafcf73f90fb` A04 verifier manifest поднят до v2: он pin-ит canonical path и SHA-256 interpreter binary, сверяет конфигурацию, запускает pinned interpreter в argv[0] и harness в argv[1]; path/hash входят в plan и attempt identity. Sol принял bounded source; gate прошёл 329 тестов и 65 subtests, Ruff check/format. Проверка наблюдает байты при построении plan, но не закрывает замену файла до последующего запуска и не квалифицирует loader/invocation semantics. Планы остаются `execution_qualified=False`; sandbox и executable integration открыты. Receipts: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-pin-review-20261021.json` и correction `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-pin-review-correction-20261021.json`.

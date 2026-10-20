@@ -89,6 +89,7 @@ automatically.
   `execution_qualified=False`; interpreter/sandbox qualification, executable integration acceptance
   and full A04 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-result-contract-review-20261021.json`.
+- A04 manifest v2 interpreter pin merged at `d985cffdcbddee11d25f9972f6a1dafcf73f90fb`. Canonical interpreter path and binary SHA-256 are checked against configuration and included in plan/attempt identity; the first command binds interpreter then harness. Sol accepted bounded source; gate passed 329 tests/65 subtests and Ruff. Bound plans remain unqualified; file replacement between resolution and invocation, invocation/loader semantics, sandbox qualification, executable integration and full A04 remain open. Review receipt and hash correction are under `/Users/root1/Developer/brain-org-state/resumption-20261020/`.
 - A12 bounded active-task projection merged at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`; Sol
   accepted the exact source and the gate passed 278 tests/42 subtests with Ruff. SQL limits active
   rows to 100, full state counts remain, omitted rows are disclosed, and history is retained. Full
