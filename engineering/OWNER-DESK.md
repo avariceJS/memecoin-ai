@@ -493,6 +493,10 @@ Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-quiescence-lockwait-review-20261021.json`
 (SHA-256 `e8f16bbb23dcc955185586c72148de3a7bf18633500d8ee001547fb86ef5d254`).
 
+Следующий A10 increment на `86a3b55` убирает полный пересчёт task/readiness каталога из write-lock handoff: SQLite triggers на task и contract таблицах обновляют revision, а Store проверяет выданный им snapshot digest и revision после получения `BEGIN IMMEDIATE`. Snapshot hashing выполняется до write transaction. Текущий Store также принимает предыдущую organization schema v2 и устанавливает миграцию при открытии базы. Sol принял точный diff `ab487e9f2898e1c36c41945f8009e9527c3751c2ff8ca84c69dcf624cd0e38c2`; gate: 369 tests, 96 subtests, Ruff. Quota/resource остаются вне общей транзакции, состояние может измениться после commit, а построение snapshot и fingerprint всё ещё растёт с retained tasks/blockers. Runtime и полный A10 не квалифицированы. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-quiescence-revision-review-20261021.json`
+(SHA-256 `8e89894afd372733cf75baa07823994ebd1ff292ceb43269de539bebf794158f`).
+
 A10 теперь сверяет все configured contract transitions независимо по имени, версии, producer
 identity и consumer set; один ещё не готовый переход не мешает другим. Store сохраняет требования к
 интегрированному producer, точным immutable acknowledgements и повторной проверке activation

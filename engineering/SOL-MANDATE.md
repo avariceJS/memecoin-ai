@@ -83,7 +83,7 @@ department scaffold adds two-team epoch-fenced coordination leases, immutable ow
 revisions, review deadlines and bounded projections. A coherent SQLite read snapshot now classifies
 plan revisions; the cross-connection race regression and engineering gate passed (362 tests/96
 subtests, Ruff), and Sol accepted the exact diff. No admission, execution, scheduling or runtime
-authority is added. Conflict adjudication, remaining trigger freshness and broad A10 remain open.
+authority is added. Conflict adjudication, external quota/resource freshness, post-commit changes and broad A10 remain open. At `86a3b55`, task/contract triggers maintain a monotonic revision; handoff recording checks the issuing Store snapshot digest and revision after acquiring the write lock without rescanning retained tasks. The full gate passed 369 tests/96 subtests with Ruff; Sol accepted exact diff `ab487e9f2898e1c36c41945f8009e9527c3751c2ff8ca84c69dcf624cd0e38c2`. Previous organization schema v2 remains accepted and is migrated when opened by the current Store. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-quiescence-revision-review-20261021.json` (SHA-256 `8e89894afd372733cf75baa07823994ebd1ff292ceb43269de539bebf794158f`).
 Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-department-plan-leases-review-20261021.json`
 (SHA-256 `7ea47eacb174c8c2723c385b00d84977453554ac7f14fbbd71f19912b3fdb84b`).

@@ -113,6 +113,15 @@ automatically.
   Generic contracts, plans/leases,
   conflict adjudication and full A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-trigger-freshness-review-20261021.json`.
+- A10 quiescence revision source increment merged at `86a3b55a8e8e18b88a1209f81d841beb0c52732c`.
+  Task/contract SQLite triggers maintain a monotonic revision; the issuing Store snapshot digest and
+  revision are checked after `BEGIN IMMEDIATE`, without rescanning tasks inside the write lock.
+  Canonical hashing is outside that lock. Prior organization schema v2 remains accepted and migrates
+  on Store open. Sol accepted exact diff `ab487e9f2898e1c36c41945f8009e9527c3751c2ff8ca84c69dcf624cd0e38c2`;
+  gate passed 369 tests/96 subtests and Ruff. Quota/resource observations, post-commit changes, and
+  snapshot/fingerprint scaling remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-quiescence-revision-review-20261021.json`
+  (SHA-256 `8e89894afd372733cf75baa07823994ebd1ff292ceb43269de539bebf794158f`).
 - A10 generic contract activation and lead-ack routing are covered by source commits
   `4fbf196a562f409a966a5f7f5a9135f07bd9d6dc` and `886a2e2842a329210ddb4e9444fbb0506315b4c6`.
   Configured proposals reach only participant leads; acks bind exact name/version/hash, stale source
