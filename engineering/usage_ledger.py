@@ -1,3 +1,4 @@
+import hashlib
 import json
 import math
 import sqlite3
@@ -110,7 +111,11 @@ class UsageLedger:
             CREATE TABLE IF NOT EXISTS receipts (
                 event_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
                 provider_turn_id TEXT, source TEXT NOT NULL, receipt TEXT,
-                event_at REAL, observed_at REAL NOT NULL
+                event_at REAL, observed_at REAL NOT NULL, evidence TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS receipt_conflicts (
+                conflict_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, payload TEXT NOT NULL,
+                observed_at REAL NOT NULL
             );
             CREATE TABLE IF NOT EXISTS outcomes (
                 event_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
@@ -118,6 +123,9 @@ class UsageLedger:
             );
             """
         )
+        columns = {row[1] for row in self.db.execute("PRAGMA table_info(receipts)")}
+        if "evidence" not in columns:
+            self.db.execute("ALTER TABLE receipts ADD COLUMN evidence TEXT NOT NULL DEFAULT '{}'")
 
     def register(self, identity, epoch, model, baseline, *, evidence, started_after_T0=False):
         if not identity or not epoch or model not in MODELS or not evidence:
@@ -308,24 +316,24 @@ class UsageLedger:
     def _append_event_in_transaction(self, row):
         old = self.db.execute("SELECT * FROM events WHERE event_id=?", (row[0],)).fetchone()
         if old:
-            if (
-                tuple(
-                    old[k]
-                    for k in (
-                        "event_id",
-                        "identity",
-                        "epoch",
-                        "sequence",
-                        "counters",
-                        "source",
-                        "observed_at",
-                        "event_at",
-                        "parent_event_id",
-                        "reason",
-                    )
+            old_row = tuple(
+                old[k]
+                for k in (
+                    "event_id",
+                    "identity",
+                    "epoch",
+                    "sequence",
+                    "counters",
+                    "source",
+                    "observed_at",
+                    "event_at",
+                    "parent_event_id",
+                    "reason",
                 )
-                != row
-            ):
+            )
+            comparable_old = old_row[:6] + old_row[7:]
+            comparable_new = row[:6] + row[7:]
+            if comparable_old != comparable_new:
                 raise ValueError("event_id payload conflict")
             return False
         self.db.execute("INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?)", row)
@@ -364,6 +372,7 @@ class UsageLedger:
         if any(value < 0 for value in delta.values()):
             raise ValueError("counters decreased across sequence positions")
         _counters(delta)
+        return delta
 
     def start_turn(
         self,
@@ -491,28 +500,45 @@ class UsageLedger:
                 )
                 continue
             current = json.loads(r["baseline"])
+            previous = current
             for seq in sorted(positions):
-                current = positions[seq][0]
-            delta = {k: current[k] - json.loads(r["baseline"])[k] for k in FIELDS}
-            if any(v < 0 for v in delta.values()):
-                unresolved.append(
-                    {"identity": r["identity"], "epoch": r["epoch"], "reason": "counter_decrease"}
-                )
-                continue
-            registration_coverage[(r["identity"], r["epoch"])] = current
-            for k in FIELDS:
-                totals[k] += delta[k]
-            model = r["model"]
-            agg = by_model.setdefault(model, dict(ZERO, wpu=0.0))
-            for k in FIELDS:
-                agg[k] += delta[k]
-            uncached = delta["input_tokens"] - delta["cached_input_tokens"]
-            rates = MODELS[model]
-            agg["wpu"] += (
-                uncached * rates[0]
-                + delta["cached_input_tokens"] * rates[1]
-                + delta["output_tokens"] * rates[2]
-            ) / 1_000_000
+                value = positions[seq][0]
+                try:
+                    delta = self._validate_interval(previous, value)
+                except ValueError:
+                    unresolved.append(
+                        {
+                            "identity": r["identity"],
+                            "epoch": r["epoch"],
+                            "reason": "counter_decrease",
+                        }
+                    )
+                    previous = value
+                    continue
+                model = r["model"]
+                source_row = self.db.execute(
+                    "SELECT source FROM events WHERE identity=? AND epoch=? AND sequence=? "
+                    "ORDER BY event_id LIMIT 1",
+                    (r["identity"], r["epoch"], seq),
+                ).fetchone()
+                if source_row and ":" in source_row["source"]:
+                    candidate = source_row["source"].rsplit(":", 1)[1]
+                    if candidate in MODELS:
+                        model = candidate
+                for key in FIELDS:
+                    totals[key] += delta[key]
+                agg = by_model.setdefault(model, dict(ZERO, wpu=0.0))
+                for key in FIELDS:
+                    agg[key] += delta[key]
+                uncached = delta["input_tokens"] - delta["cached_input_tokens"]
+                rates = MODELS[model]
+                agg["wpu"] += (
+                    uncached * rates[0]
+                    + delta["cached_input_tokens"] * rates[1]
+                    + delta["output_tokens"] * rates[2]
+                ) / 1_000_000
+                previous = value
+            registration_coverage[(r["identity"], r["epoch"])] = previous
         reservations = []
         turns = {}
         for r in regs:
@@ -565,9 +591,13 @@ class UsageLedger:
             "SELECT * FROM dispatches WHERE status NOT IN "
             "('covered','settled') ORDER BY dispatch_id"
         ):
+            payload = json.loads(d["payload"])
+            context = payload.get("context")
+            team = context.get("team") if isinstance(context, dict) else None
             reservations.append(
                 {
                     "dispatch_id": d["dispatch_id"],
+                    "team": team,
                     "reservation_tokens": d["estimate_tokens"],
                     "reservation_wpu": d["estimate_wpu"],
                     "deadline_at": d["deadline_at"],
@@ -618,17 +648,17 @@ class UsageLedger:
             ).fetchone()
             if row:
                 if row["payload"] != payload:
-                    raise ValueError("dispatch_id_payload_conflict")
+                    raise RuntimeError("dispatch_id_payload_conflict")
             else:
                 if (
                     self.db.execute(
                         "SELECT 1 FROM dispatches "
-                        "WHERE status IN ('reserved','dispatched','bound') AND model=? LIMIT 1",
+                        "WHERE status NOT IN ('covered','settled') AND model=? LIMIT 1",
                         (model,),
                     ).fetchone()
                     and self.db.execute(
                         "SELECT count(*) FROM dispatches "
-                        "WHERE status IN ('reserved','dispatched','bound') AND model=?",
+                        "WHERE status NOT IN ('covered','settled') AND model=?",
                         (model,),
                     ).fetchone()[0]
                     >= 2
@@ -638,7 +668,7 @@ class UsageLedger:
                     item[0]
                     for item in self.db.execute(
                         "SELECT DISTINCT json_extract(payload,'$.context.team') FROM dispatches "
-                        "WHERE status IN ('reserved','dispatched','bound')"
+                        "WHERE status NOT IN ('covered','settled')"
                     )
                     if item[0]
                 }
@@ -683,16 +713,6 @@ class UsageLedger:
         )
         if cur.rowcount != 1:
             raise ValueError("dispatch binding conflict")
-        self.observe_receipt(
-            dispatch_id + ":bind",
-            dispatch_id,
-            receipt,
-            provider_turn_id,
-            "started",
-            None,
-            time.time(),
-            {},
-        )
 
     def record_outcome(self, dispatch_id, status, receipt=None):
         if status not in ("completed", "failed", "timeout", "unknown"):
@@ -736,14 +756,154 @@ class UsageLedger:
         value = None if counters is None else _json(counters)
         if not event_id or not dispatch_id or not source:
             raise ValueError("receipt identity and source are required")
-        _json(evidence)
-        row = (event_id, dispatch_id, provider_turn_id, source, value, event_at, observed_at)
+        encoded_evidence = _json(evidence)
+        observed = _timestamp(observed_at, "observed_at")
+        row = (
+            event_id,
+            dispatch_id,
+            provider_turn_id,
+            source,
+            value,
+            event_at,
+            observed,
+            encoded_evidence,
+        )
         prior = self.db.execute("SELECT * FROM receipts WHERE event_id=?", (event_id,)).fetchone()
         if prior:
-            if tuple(prior) != row:
+            prior_values = tuple(
+                prior[k]
+                for k in (
+                    "event_id",
+                    "dispatch_id",
+                    "provider_turn_id",
+                    "source",
+                    "receipt",
+                    "event_at",
+                    "observed_at",
+                    "evidence",
+                )
+            )
+            # Duplicate delivery may have a later local receipt timestamp; raw
+            # evidence and provider event identity define idempotence.
+            if prior_values[:6] + prior_values[7:] != row[:6] + row[7:]:
+                conflict = _json({"row": row, "prior": prior_values})
+                import hashlib
+
+                conflict_id = hashlib.sha256((event_id + conflict).encode()).hexdigest()
+                self.db.execute(
+                    "INSERT OR IGNORE INTO receipt_conflicts VALUES(?,?,?,?)",
+                    (conflict_id, event_id, conflict, observed),
+                )
                 raise ValueError("receipt event payload conflict")
             return
-        self.db.execute("INSERT INTO receipts VALUES(?,?,?,?,?,?,?)", row)
+        self.db.execute("INSERT INTO receipts VALUES(?,?,?,?,?,?,?,?)", row)
+
+    def attribute_dispatch(self, dispatch_id, identity, epoch, model, start, end, *, evidence):
+        if not dispatch_id or model not in MODELS or not isinstance(evidence, dict):
+            raise ValueError("external attribution identity invalid")
+        before, after = _counters(start), _counters(end)
+        self._validate_interval(before, after)
+        self._require_registration(identity, epoch)
+        event_id = evidence.get("event_id")
+        if not event_id:
+            raise ValueError("external attribution event identity missing")
+        self.observe(
+            identity,
+            epoch,
+            event_id,
+            after,
+            source="external:" + model,
+            sequence=after["total_tokens"],
+            observed_at=time.time(),
+        )
+        return dispatch_id
+
+    def import_external(
+        self, batch, collector_id, evidence_bytes, evidence_sha256, *, external_allowlist
+    ):
+        if collector_id not in external_allowlist:
+            raise ValueError("external_collector_not_allowlisted")
+        if not isinstance(batch, list) or not batch:
+            raise ValueError("external_batch_must_be_nonempty")
+        canonical = json.dumps(
+            batch, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+        if not isinstance(evidence_bytes, bytes) or canonical != evidence_bytes:
+            raise ValueError("external_evidence_bytes_mismatch")
+        digest = hashlib.sha256(canonical).hexdigest()
+        if evidence_sha256 != digest:
+            raise ValueError("external_evidence_hash_mismatch")
+        starts = {}
+        intervals = []
+        for item in batch:
+            if not isinstance(item, dict):
+                raise ValueError("external_event_invalid")
+            kind = item.get("kind")
+            if kind == "thread_start":
+                if not item.get("event_id") or not item.get("thread_id") or not item.get("epoch"):
+                    raise ValueError("external_start_identity_missing")
+                if item.get("started_after_T0") is not True:
+                    raise ValueError("external_start_not_post_t0")
+                starts[item["event_id"]] = item
+            elif kind == "turn_interval":
+                intervals.append(item)
+            else:
+                raise ValueError("external_endpoint_only_or_unknown_kind")
+        if not starts or not intervals:
+            raise ValueError("external_interval_requires_evidenced_start")
+        prepared = []
+        for item in intervals:
+            start = starts.get(item.get("start_event_id"))
+            if (
+                not start
+                or start["thread_id"] != item.get("thread_id")
+                or start["epoch"] != item.get("epoch")
+            ):
+                raise ValueError("external_interval_start_link_invalid")
+            if (
+                item.get("model") not in MODELS
+                or not item.get("event_id")
+                or not item.get("turn_id")
+            ):
+                raise ValueError("external_interval_identity_invalid")
+            before, after = _counters(item.get("start")), _counters(item.get("end"))
+            self._validate_interval(before, after)
+            if _counters(start["counters"]) != before:
+                raise ValueError("external_interval_start_counters_mismatch")
+            prepared.append((item, before, after))
+        # Reject endpoint-only or malformed batches before writing any rows.
+        for _event_id, start in starts.items():
+            _counters(start.get("counters"))
+        evidence = {"collector_id": collector_id, "sha256": digest}
+        for start in starts.values():
+            self.register(
+                start["thread_id"],
+                start["epoch"],
+                start.get("model"),
+                _counters(start["counters"]),
+                evidence=_json(evidence),
+                started_after_T0=True,
+            )
+            self.observe(
+                start["thread_id"],
+                start["epoch"],
+                start["event_id"],
+                _counters(start["counters"]),
+                source="external-thread-start",
+                sequence=0,
+                observed_at=time.time(),
+            )
+        for item, _before, after in prepared:
+            self.observe(
+                item["thread_id"],
+                item["epoch"],
+                item["event_id"],
+                after,
+                source="external:" + item["model"],
+                sequence=after["total_tokens"],
+                observed_at=time.time(),
+            )
+        return {"collector_id": collector_id, "sha256": digest, "intervals": len(prepared)}
 
     def consume_dispatch(self, dispatch_id):
         cur = self.db.execute(

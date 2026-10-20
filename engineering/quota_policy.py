@@ -32,68 +32,61 @@ def _number(value):
     return value if math.isfinite(value) and 0 <= value <= 100 else None
 
 
-def _limits(rate_limits):
+def _limits(rate_limits, now=None):
     if not isinstance(rate_limits, Mapping) or rate_limits.get("ordinaryUsageAllowed") is not True:
         return None
     raw = rate_limits.get("rateLimitsByLimitId")
-    if not isinstance(raw, (Mapping, list, tuple)) or not raw:
+    if not isinstance(raw, Mapping) or not raw:
         return None
-    items = (
-        list(raw.items()) if isinstance(raw, Mapping) else [(str(i), v) for i, v in enumerate(raw)]
-    )
     buckets = []
-    for limit_id, limit in items:
-        if not isinstance(limit, Mapping) or limit_id is None or str(limit_id) == "":
+    for limit_id, limit in raw.items():
+        if not isinstance(limit_id, str) or not limit_id.strip() or not isinstance(limit, Mapping):
             return None
-        if not {
+        required = {
             "primary",
             "secondary",
             "credits",
             "rateLimitReachedType",
             "spendControlReached",
-        }.issubset(limit):
+        }
+        if not required.issubset(limit):
             return None
-        if type(limit["spendControlReached"]) is not bool:
+        if type(limit["spendControlReached"]) is not bool or limit["spendControlReached"]:
             return None
-        primary = limit.get("primary")
-        if not isinstance(primary, Mapping):
+        if limit["rateLimitReachedType"] is not None:
             return None
-        if any(primary.get(k) is True for k in ("limitReached", "reached")):
+        if "providerReached" in limit and limit["providerReached"] is not False:
             return None
-        primary_pct = _number(primary.get("usedPercent"))
-        if primary_pct is None:
-            return None
-        buckets.append((f"{limit_id}:primary", primary_pct, primary.get("resetsAt")))
-        secondary = limit.get("secondary")
-        if secondary is not None:
-            if not isinstance(secondary, Mapping):
-                return None
-            if any(secondary.get(k) is True for k in ("limitReached", "reached")):
-                return None
-            secondary_pct = _number(secondary.get("usedPercent"))
-            if secondary_pct is None:
-                return None
-            buckets.append((f"{limit_id}:secondary", secondary_pct, secondary.get("resetsAt")))
-        reached = limit.get("rateLimitReachedType")
+        credits = limit["credits"]
         if (
-            reached is not None
-            or limit.get("spendControlReached") is True
-            or limit.get("providerReached") is True
+            not isinstance(credits, Mapping)
+            or credits.get("hasCredits") is not False
+            or credits.get("unlimited") is not False
         ):
             return None
-        credits = limit.get("credits")
-        if not isinstance(credits, Mapping):
-            return None
         balance = credits.get("balance")
-        if credits.get("hasCredits") is not False or credits.get("unlimited") is not False:
+        if isinstance(balance, bool) or not (
+            type(balance) in (int, float) and balance == 0 or balance == "0"
+        ):
             return None
-        if isinstance(balance, bool) or balance not in (None, "0", 0, 0.0):
-            return None
-    if not buckets or len({identity for identity, _, _ in buckets}) != len(buckets):
-        return None
+        for bucket_name in ("primary", "secondary"):
+            if bucket_name not in limit:
+                return None
+            bucket = limit[bucket_name]
+            if bucket is None and bucket_name == "secondary":
+                continue
+            if not isinstance(bucket, Mapping):
+                return None
+            pct = _number(bucket.get("usedPercent"))
+            reset = _timestamp(bucket.get("resetsAt"))
+            if pct is None or pct >= 100 or reset is None:
+                return None
+            if now is not None and (reset <= now or reset > now + 7 * 86400):
+                return None
+            buckets.append((f"{limit_id}:{bucket_name}", pct, reset))
     if rate_limits.get("spendControlReached") is True or rate_limits.get("providerReached") is True:
         return None
-    return sorted(buckets)
+    return buckets or None
 
 
 def _historical_limits(rate_limits):
@@ -149,7 +142,7 @@ def _decision(rate_limits, observed_at, now, active_teams, stop, reserve_points,
         or reserve_points not in (1, 2)
     ):
         return None, "invalid_reserve", 300
-    buckets = _limits(rate_limits)
+    buckets = _limits(rate_limits, now=n)
     if buckets is None:
         return None, "invalid_or_missing_quota_evidence", 300
     usage = max(pct for _, pct, _ in buckets)

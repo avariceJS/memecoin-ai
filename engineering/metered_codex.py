@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
-import math
 import threading
 import time
 from contextlib import contextmanager
@@ -15,8 +14,9 @@ from .usage_ledger import UsageLedger
 
 
 class Permit:
-    def __init__(self, controller, dispatch_id, model):
+    def __init__(self, controller, dispatch_id, model, identity=None):
         self.controller, self.dispatch_id, self.model = controller, dispatch_id, model
+        self.identity = identity
         self._used = False
         self._lock = threading.Lock()
         self._cancelled = threading.Event()
@@ -32,8 +32,12 @@ class Permit:
         with self._lock:
             if self.cancelled:
                 raise RuntimeError("permit_cancelled")
-            if self._used or model != self.model:
-                raise RuntimeError("permit_replay_or_model_mismatch")
+            if (
+                self._used
+                or model != self.model
+                or (self.identity is not None and thread_id != self.identity)
+            ):
+                raise RuntimeError("permit_replay_or_binding_mismatch")
             self.controller._check_send(self.dispatch_id)
             if not self.controller.ledger.consume_dispatch(self.dispatch_id):
                 raise RuntimeError("dispatch_already_consumed")
@@ -41,69 +45,76 @@ class Permit:
 
 
 class Controller:
-    def __init__(self, ledger, account_read, *, state, clock=time.time, preflight=None):
+    def __init__(
+        self,
+        ledger,
+        account_read,
+        *,
+        state,
+        clock=time.time,
+        monotonic=time.monotonic,
+        preflight=None,
+        external_allowlist=frozenset(),
+    ):
         self.ledger, self.account_read, self.state, self.clock = (
             ledger,
             account_read,
             Path(state),
             clock,
         )
+        self.monotonic = monotonic
         self.preflight, self.lock, self.closed = preflight, threading.RLock(), False
+        self.external_allowlist = frozenset(external_allowlist)
         self.account_lock = threading.Lock()
         self._monitors = set()
+        self._monitor_events = {}
         self._monitor_lock = threading.Lock()
         self._monitor_stop = threading.Event()
+        self._owner_thread = threading.get_ident()
+        self._active_teams_snapshot = set()
+        self._active_teams_lock = threading.Lock()
 
     def refresh(self, reason="admission"):
+        # Timestamp the observation as soon as the serialized official read returns.
         with self.account_lock:
             data = self.account_read()
-        if not isinstance(data, dict) or data.get("ordinaryUsageAllowed") is not True:
-            raise RuntimeError("quota_unknown_or_denied")
-        by = data.get("rateLimitsByLimitId", {})
-        bucket = by.get("codex") if isinstance(by, dict) else None
-        if not isinstance(bucket, dict):
-            raise RuntimeError("quota_required_bucket_missing")
-        primary = bucket.get("primary")
-        if (
-            not isinstance(primary, dict)
-            or isinstance(primary.get("usedPercent"), bool)
-            or not isinstance(primary.get("usedPercent"), (int, float))
-            or not math.isfinite(primary["usedPercent"])
+            observed_at = self.clock()
+        from .quota_policy import choose_quota_capacity
+
+        # SQLite is deliberately thread-bound. Only the serialized dispatch
+        # owner reads it; watchdog threads use this last committed snapshot.
+        if threading.get_ident() == self._owner_thread:
+            rows = self.ledger.db.execute(
+                "SELECT payload FROM dispatches WHERE status NOT IN ('covered','settled')"
+            ).fetchall()
+            teams = {json.loads(row["payload"]).get("context", {}).get("team") for row in rows}
+            teams.discard(None)
+            with self._active_teams_lock:
+                self._active_teams_snapshot = teams
+        else:
+            with self._active_teams_lock:
+                teams = set(self._active_teams_snapshot)
+        stop = (self.state / "STOP").exists()
+        decision = choose_quota_capacity(
+            data,
+            observed_at=observed_at,
+            now=self.clock(),
+            active_teams=len(teams),
+            stop=stop,
+        )
+        if decision["reason"] in (
+            "invalid_or_missing_quota_evidence",
+            "stale_quota_evidence",
+            "invalid_observation",
         ):
-            raise RuntimeError("quota_primary_unknown")
-        resets = primary.get("resetsAt")
-        if (
-            isinstance(resets, bool)
-            or not isinstance(resets, (int, float))
-            or not math.isfinite(resets)
-        ):
-            raise RuntimeError("quota_reset_unknown")
-        now = self.clock()
-        if resets <= now or resets - now > 7 * 24 * 60 * 60:
-            raise RuntimeError("quota_evidence_stale")
-        used = primary["usedPercent"]
-        if used >= 99:
-            raise RuntimeError("quota_pause_99")
-        if (
-            not isinstance(bucket.get("spendControlReached"), bool)
-            or "rateLimitReachedType" not in bucket
-        ):
-            raise RuntimeError("quota_stop_evidence_unknown")
-        if bucket["spendControlReached"] is True or bucket.get("rateLimitReachedType"):
-            raise RuntimeError("quota_spend_or_rate_stop")
-        credits = bucket.get("credits")
-        if (
-            not isinstance(credits, dict)
-            or not isinstance(credits.get("hasCredits"), bool)
-            or not isinstance(credits.get("unlimited"), bool)
-        ):
-            raise RuntimeError("quota_credit_evidence_unknown")
-        if credits.get("unlimited") is not True and credits.get("hasCredits") is True:
-            raise RuntimeError("paid_credit_path_unqualified")
+            raise RuntimeError("quota_unknown_or_stale")
         if self.preflight:
             pf = self.preflight()
             if not isinstance(pf, dict) or not pf.get("resources", {}).get("policy_id"):
                 raise RuntimeError("preflight_unknown")
+        self.observed_at = observed_at
+        self.last_quota = data
+        self.quota_decision = decision
         return data
 
     def admit(self, dispatch_id, stream, baseline_or_none, model, estimate, deadline_at, context):
@@ -111,9 +122,18 @@ class Controller:
             if (self.state / "STOP").exists():
                 raise RuntimeError("STOP")
             quota = self.refresh("admit")
-            used = quota["rateLimitsByLimitId"]["codex"]["primary"]["usedPercent"]
-            if used >= 97 and (context.get("team") is None or estimate["tokens"] > 4000):
-                raise RuntimeError("quota_97_short_productive_turn_only")
+            used = max(
+                float(bucket[name]["usedPercent"])
+                for bucket in quota["rateLimitsByLimitId"].values()
+                for name in ("primary", "secondary")
+                if bucket[name] is not None
+            )
+            current_team = context.get("team")
+            active_team = current_team in self._active_teams_snapshot
+            if used >= 99 or (self.quota_decision["slots"] <= 0 and not active_team):
+                raise RuntimeError("quota_capacity_unavailable")
+            if used >= 97 and estimate["tokens"] > 4000:
+                raise RuntimeError("quota_97_estimate_exceeds_4000")
             row = self.ledger.reserve(
                 dispatch_id,
                 stream,
@@ -126,7 +146,7 @@ class Controller:
             )
             if row["status"] != "reserved":
                 raise RuntimeError("dispatch_already_sent")
-            return Permit(self, dispatch_id, model)
+            return Permit(self, dispatch_id, model, stream)
 
     def _check_send(self, dispatch_id):
         with self.lock:
@@ -134,43 +154,163 @@ class Controller:
                 raise RuntimeError("STOP")
             self.refresh("pre_send")
             row = self.ledger.dispatch(dispatch_id)
-            if not row or row["status"] != "reserved" or self.clock() >= row["deadline_at"]:
+            if not row or row["status"] != "reserved" or self.monotonic() >= row["deadline_at"]:
                 raise RuntimeError("dispatch_not_sendable")
+            payload = json.loads(row["payload"])
+            quota = self.last_quota
+            usage = max(
+                float(bucket[name]["usedPercent"])
+                for bucket in quota["rateLimitsByLimitId"].values()
+                for name in ("primary", "secondary")
+                if bucket[name] is not None
+            )
+            if usage >= 99:
+                raise RuntimeError("quota_pause_99")
+            if usage >= 97:
+                active_teams = self._active_teams_snapshot
+                team = payload.get("context", {}).get("team")
+                if (
+                    payload["estimate"]["tokens"] > 4000
+                    or len(active_teams) != 1
+                    or team not in active_teams
+                ):
+                    raise RuntimeError("quota_97_single_team_estimate_gate")
 
     def monitor(self, deadline, cancel):
-        def run():
-            interval = 300
-            while not self.closed and not self._monitor_stop.is_set() and self.clock() < deadline:
+        """Quota polling and monotonic cancellation run on independent threads."""
+        stopped = threading.Event()
+
+        def deadline_watch():
+            remaining = max(0.0, deadline - self.monotonic())
+            if not stopped.wait(remaining) and not self.closed:
+                cancel()
+
+        def quota_watch():
+            while not stopped.is_set() and not self.closed and self.monotonic() < deadline:
                 try:
-                    q = self.refresh("active")
-                    if q["rateLimitsByLimitId"]["codex"]["primary"]["usedPercent"] >= 95:
-                        interval = 60
+                    self.refresh("active")
                 except Exception:
                     cancel()
                     return
-                if (self.state / "STOP").exists() or self.clock() >= deadline:
+                remaining = max(0.0, deadline - self.monotonic())
+                if stopped.wait(min(60, remaining)):
+                    return
+                if self.monotonic() >= deadline:
                     cancel()
                     return
-                remaining = max(0, deadline - self.clock())
-                if self._monitor_stop.wait(min(interval, remaining)):
-                    return
 
-        t = threading.Thread(target=run, daemon=True)
-        t.start()
+        timer = threading.Thread(target=deadline_watch, name="metered-deadline", daemon=True)
+        watcher = threading.Thread(target=quota_watch, name="metered-quota-watch", daemon=True)
+        timer.start()
+        watcher.start()
         with self._monitor_lock:
-            self._monitors.add(t)
-        return t
+            self._monitors.update((timer, watcher))
+            self._monitor_events[timer] = stopped
+            self._monitor_events[watcher] = stopped
+        return watcher
 
     def start_monitor(self, deadline, permit):
         return self.monitor(deadline, permit.cancel)
+
+    def import_external(self, batch, collector_id, evidence_bytes, evidence_sha256):
+        return self.ledger.import_external(
+            batch,
+            collector_id,
+            evidence_bytes,
+            evidence_sha256,
+            external_allowlist=self.external_allowlist,
+        )
+
+    def reconcile_dispatch(self, dispatch_id, *, terminal_receipt, stream_observations):
+        row = self.ledger.dispatch(dispatch_id)
+        if not row or row["status"] not in ("completed", "unknown", "failed", "timeout"):
+            raise RuntimeError("dispatch_not_reconcilable")
+        pf = self.preflight() if self.preflight else {}
+        if not isinstance(pf, dict) or pf.get("terminal_usage_qualified") is not True:
+            raise RuntimeError("terminal_usage_not_qualified")
+        if not isinstance(terminal_receipt, dict) or not isinstance(stream_observations, list):
+            raise ValueError("invalid_terminal_evidence")
+        if (
+            terminal_receipt.get("thread_id") != row["identity"]
+            or terminal_receipt.get("turn_id") != row["provider_turn_id"]
+        ):
+            raise ValueError("terminal_identity_mismatch")
+        baseline = json.loads(row["baseline"]) if row["baseline"] else None
+        if baseline is None or terminal_receipt.get("baseline") != baseline:
+            raise ValueError("terminal_baseline_unknown_or_mismatch")
+        end = terminal_receipt.get("end")
+        from .usage_ledger import _counters
+
+        end = _counters(end)
+        self.ledger._validate_interval(baseline, end)
+        identity, epoch = row["identity"], terminal_receipt.get("epoch")
+        reg = self.ledger.db.execute(
+            "SELECT 1 FROM registrations WHERE identity=? AND epoch=?", (identity, epoch)
+        ).fetchone()
+        if not reg:
+            raise ValueError("terminal_epoch_unknown")
+        if not stream_observations:
+            raise ValueError("terminal_interval_uncovered")
+        covered = False
+        for item in stream_observations:
+            counters = _counters(item.get("counters"))
+            event_id = item.get("event_id")
+            sequence = item.get("sequence")
+            if not event_id or isinstance(sequence, bool) or not isinstance(sequence, int):
+                raise ValueError("invalid_stream_observation")
+            existing = self.ledger.db.execute(
+                "SELECT identity,epoch,sequence,counters FROM events WHERE event_id=?", (event_id,)
+            ).fetchone()
+            if existing:
+                if (
+                    existing["identity"],
+                    existing["epoch"],
+                    existing["sequence"],
+                    json.loads(existing["counters"]),
+                ) != (identity, epoch, sequence, counters):
+                    raise ValueError("stream_event_conflict")
+            else:
+                self.ledger.observe(
+                    identity,
+                    epoch,
+                    event_id,
+                    counters,
+                    source="reconciliation",
+                    sequence=sequence,
+                    observed_at=self.clock(),
+                )
+            if counters == end:
+                covered = True
+        if not covered:
+            raise ValueError("terminal_interval_uncovered")
+        self.ledger.db.execute(
+            "UPDATE dispatches SET status='settled' WHERE dispatch_id=?", (dispatch_id,)
+        )
+        return True
+
+    def stop_monitor(self, thread):
+        with self._monitor_lock:
+            event = self._monitor_events.get(thread)
+            peers = [t for t, value in self._monitor_events.items() if value is event]
+            if event:
+                event.set()
+            for item in peers:
+                self._monitor_events.pop(item, None)
+                self._monitors.discard(item)
+        for item in peers:
+            if item is not threading.current_thread():
+                item.join(timeout=1)
 
     def close(self):
         self.closed = True
         self._monitor_stop.set()
         with self._monitor_lock:
             ts = list(self._monitors)
+            events = list(self._monitor_events.values())
+        for event in events:
+            event.set()
         for t in ts:
-            t.join()
+            t.join(timeout=1)
 
 
 class MeteredCodex:
@@ -197,7 +337,7 @@ class MeteredCodex:
             None,
             model,
             {"tokens": 1, "wpu": 1},
-            self.controller.clock() + 120,
+            self.controller.monotonic() + 120,
             self.context,
         )
         # Real Codex.start enforces the permit itself. A small injected RPC fake may
@@ -212,8 +352,12 @@ class MeteredCodex:
             for parameter in parameters
         )
         if accepts_permit:
+            # A provider thread ID does not exist before start; bind this one-use
+            # capability to the protocol's synthetic new-thread identity.
+            permit.identity = "new-thread"
             self.thread = self.rpc.start(model, instructions, permit=permit)
         else:
+            # Legacy adapters consume locally against the durable start dispatch.
             permit.consume(did, model)
             self.thread = self.rpc.start(model, instructions)
         from .usage_ledger import ZERO
@@ -270,12 +414,12 @@ class MeteredCodex:
         maximum = 1200 if model == "gpt-6.1-sol" else 600
         if model not in ("gpt-6.1-sol", "gpt-6-luna") or deadline_seconds > maximum:
             raise ValueError("model deadline exceeds bounded allowance")
-        deadline = self.controller.clock() + deadline_seconds
+        monotonic_deadline = self.controller.monotonic() + deadline_seconds
         permit = self.controller.admit(
-            dispatch_id, thread_id, None, model, estimate, deadline, self.context
+            dispatch_id, thread_id, None, model, estimate, monotonic_deadline, self.context
         )
 
-        monitor = self.controller.start_monitor(deadline, permit)
+        monitor = self.controller.start_monitor(monotonic_deadline, permit)
         old_sink = getattr(self.rpc, "sink", None)
         provider_turn = None
 
@@ -365,8 +509,7 @@ class MeteredCodex:
                 pass
             raise
         finally:
-            with self.controller._monitor_lock:
-                self.controller._monitors.discard(monitor)
+            self.controller.stop_monitor(monitor)
             if old_sink is not None:
                 self.rpc.sink = old_sink
         self.controller.ledger.record_outcome(

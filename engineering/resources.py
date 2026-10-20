@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import math
+import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from .quota_policy import choose_quota_capacity
+
 DEFAULT_POLICY: dict[str, int | float] = {
     "max_workers": 2,
-    "total_token_budget": 750_000,
-    "reserve_tokens": 60_000,
     "per_worker_tokens": 50_000,
     "min_available_memory_bytes": 1_073_741_824,
-    "max_usage_percent": 90,
 }
 
 
@@ -33,41 +33,50 @@ def choose_capacity(
         settings.update(policy)
     try:
         max_workers = _integer(settings["max_workers"], positive=True)
-        total_budget = _integer(settings["total_token_budget"], positive=True)
-        reserve = _integer(settings["reserve_tokens"])
         per_worker = _integer(settings["per_worker_tokens"], positive=True)
         min_memory = _integer(settings["min_available_memory_bytes"])
-        max_usage = _number(settings["max_usage_percent"])
-        if not 0 < max_usage <= 100:
-            raise ValueError("max_usage_percent must be in (0, 100]")
     except (KeyError, TypeError, ValueError) as exc:
         return _decision(0, f"invalid policy: {exc}", 0, [])
 
-    if rate_limits.get("ordinaryUsageAllowed") is not True:
-        return _decision(0, "ordinary usage is not explicitly allowed", 0, [])
-    buckets = _limit_buckets(rate_limits.get("rateLimitsByLimitId"))
-    if buckets is None or not buckets:
-        return _decision(0, "rate limit buckets are missing or unknown", 0, [])
-    usage_cap = max_workers
-    for bucket in buckets:
-        try:
-            used = _number(
-                bucket.get("usedPercent", bucket.get("usagePercent", bucket.get("percentUsed")))
-            )
-            reached = bucket.get("limitReached", bucket.get("reached"))
-            if not 0 <= used <= 100 or not isinstance(reached, bool):
-                raise ValueError
-        except (TypeError, ValueError):
-            return _decision(0, "rate limit bucket has invalid or unknown usage", 0, [])
-        if reached or used >= max_usage:
-            return _decision(0, "a rate limit is reached or at its usage ceiling", 0, [])
-        if used >= max_usage - 5:
-            usage_cap = min(usage_cap, 1)
+    reservations = usage_summary.get("reservations", ())
+    if not isinstance(reservations, Sequence) or isinstance(reservations, (str, bytes)):
+        return _decision(0, "active reservations are unknown", 0, [])
+    active_teams = set()
+    supplied_teams = resources.get("active_team_ids", ())
+    if not isinstance(supplied_teams, Sequence) or isinstance(supplied_teams, (str, bytes)):
+        return _decision(0, "active team identities are unknown", 0, [])
+    for team in supplied_teams:
+        if not isinstance(team, str) or not team.strip():
+            return _decision(0, "active team identities are unknown", 0, [])
+        active_teams.add(team)
+    for reservation in reservations:
+        if not isinstance(reservation, Mapping):
+            return _decision(0, "active reservations are unknown", 0, [])
+        team = reservation.get("team")
+        if not isinstance(team, str) or not team.strip():
+            return _decision(0, "active reservation team is unknown", 0, [])
+        active_teams.add(team)
+    legacy_count = resources.get("active_teams", 0)
+    if isinstance(legacy_count, bool) or not isinstance(legacy_count, int) or legacy_count < 0:
+        return _decision(0, "active team count is unknown", 0, [])
+    active_count = max(len(active_teams), legacy_count)
+    quota = choose_quota_capacity(
+        rate_limits,
+        observed_at=rate_limits.get("observed_at"),
+        now=rate_limits.get("evaluated_at", time.time()),
+        active_teams=active_count,
+    )
+    if quota["slots"] <= 0:
+        return _decision(0, quota["reason"], 0, [])
+    usage_cap = min(max_workers, quota["slots"])
 
-    measured = _measured_tokens(usage_summary)
     running_tokens = active_tokens if active_tokens is not None else resources.get("active_tokens")
+    unresolved = usage_summary.get("usage_unresolved", usage_summary.get("unresolved", ()))
+    if not isinstance(unresolved, Sequence) or isinstance(unresolved, (str, bytes)):
+        return _decision(0, "usage attribution is unknown", 0, [])
+    if unresolved:
+        return _decision(0, "usage attribution unresolved", 0, [])
     try:
-        measured = _integer(measured)
         running_tokens = _integer(running_tokens)
         memory = _integer(resources.get("available_memory_bytes"))
         cpus = _integer(resources.get("cpu_count"), positive=True)
@@ -76,12 +85,12 @@ def choose_capacity(
     if memory < min_memory:
         return _decision(0, "available memory is below the configured minimum", 0, [])
 
-    remaining = total_budget - reserve - measured - running_tokens
-    token_cap = max(0, remaining // per_worker)
-    slots = min(max_workers, usage_cap, cpus, token_cap)
+    # Historical Store totals are evidence only. Current capacity is bounded by
+    # fresh quota and active reservation/team count, not lifetime token ceilings.
+    slots = min(max_workers, usage_cap, cpus, quota["slots"])
     reason = "capacity available"
     if slots == 0:
-        reason = "token budget or CPU capacity is exhausted"
+        reason = "quota or CPU capacity is exhausted"
     elif usage_cap == 1:
         reason = "rate limit is near its ceiling; capped to one worker"
 

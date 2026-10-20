@@ -171,7 +171,16 @@ class Codex:
     def _read(self):
         try:
             for line in self.proc.stdout:
-                self.messages.put(json.loads(line))
+                raw = line.encode("utf-8")
+                try:
+                    self.sink({"kind": "rpc_raw", "raw_bytes_hex": raw.hex()})
+                finally:
+                    try:
+                        message = json.loads(raw)
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        self.sink({"kind": "rpc_malformed", "raw_bytes_hex": raw.hex()})
+                        continue
+                    self.messages.put(message)
         finally:
             self.messages.put({"_closed": True})
 
@@ -205,7 +214,7 @@ class Codex:
     def start(self, model, instructions, *, permit=None):
         if permit is None:
             raise RpcError("permit_required")
-        permit.consume("new-thread", model)
+        permit.consume(getattr(permit, "identity", None) or "new-thread", model)
         result = self.call(
             "thread/start",
             {
@@ -285,10 +294,9 @@ class Codex:
             raise RpcError("permit_required")
         # Resumed threads need a persisted baseline or a counter already known
         # to this client. Never assume an unknown lifetime counter starts at zero.
-        cache = getattr(self, "usage_counters", {})
-        baseline = start_usage if start_usage is not None else cache.get(thread_id)
-        # A cached cumulative value cannot be carried across an unverified turn end.
-        cache.pop(thread_id, None)
+        # Progress receipts and unqualified completion never establish an epoch baseline.
+        baseline = start_usage
+        getattr(self, "usage_counters", {}).pop(thread_id, None)
         params = {
             "threadId": thread_id,
             "input": [{"type": "text", "text": prompt}],
@@ -411,20 +419,16 @@ class Codex:
                 )
                 if not belongs:
                     continue  # Late/unknown-turn receipts remain evidence, never current end usage.
-                usage = snapshot
-                # Cache only a verified end snapshot, after the turn completes.
-                # CEO-20261020-02: cumulative raw usage is telemetry, not quota.
-                # The turn wall deadline, finite attempts and fresh account
-                # admission remain enforced by the trusted caller.
+                # Progress is telemetry only. It cannot become a terminal end or
+                # the next turn's baseline without trusted qualification.
             elif method == "model/rerouted":
                 raise RpcError("model_reroute_rejected")
-            elif method == "turn/completed" and p.get("turn", {}).get("id") == turn_id:
+            elif (
+                method == "turn/completed"
+                and p.get("threadId") == thread_id
+                and p.get("turn", {}).get("id") == turn_id
+            ):
                 status = p["turn"].get("status")
-                end_usage = usage.get("total")
-                if counter_delta(dict.fromkeys(COUNTER_KEYS, 0), end_usage) is not None:
-                    if not hasattr(self, "usage_counters"):
-                        self.usage_counters = {}
-                    self.usage_counters[thread_id] = dict(end_usage)
                 self.sink(
                     {
                         "kind": "turn_completed",
@@ -434,7 +438,7 @@ class Codex:
                         "usage": usage,
                         "usage_start": baseline,
                         "usage_end": usage.get("total"),
-                        "usage_delta": counter_delta(baseline, usage.get("total")),
+                        "usage_delta": None,
                     }
                 )
                 if status != "completed":
@@ -445,7 +449,7 @@ class Codex:
                     "turn_id": turn_id,
                     "usage_start": baseline,
                     "usage_end": usage.get("total"),
-                    "usage_delta": counter_delta(baseline, usage.get("total")),
+                    "usage_delta": None,
                     "usage_terminal": False,
                 }
         try:

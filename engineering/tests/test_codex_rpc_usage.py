@@ -32,7 +32,10 @@ def make_client(messages):
 
 
 def completed():
-    return {"method": "turn/completed", "params": {"turn": {"id": "turn", "status": "completed"}}}
+    return {
+        "method": "turn/completed",
+        "params": {"threadId": "thread", "turn": {"id": "turn", "status": "completed"}},
+    }
 
 
 def test_missing_end_usage_invalidates_cached_baseline_for_next_turn():
@@ -64,7 +67,7 @@ def test_missing_end_usage_invalidates_cached_baseline_for_next_turn():
     )
     assert second["usage_start"] is None
     assert second["usage_delta"] is None
-    assert client.usage_counters["thread"] == counters(150)
+    assert "thread" not in client.usage_counters
 
 
 def test_invalid_end_usage_does_not_seed_cached_baseline():

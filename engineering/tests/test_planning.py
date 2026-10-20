@@ -206,7 +206,7 @@ class PlanningAdmissionTests(unittest.TestCase):
         return (
             fake,
             patch.object(planning, "config", return_value=self.cfg),
-            patch.object(planning, "Codex", return_value=fake),
+            patch.object(planning, "metered_client", return_value=fake),
             patch.object(planning, "git", return_value="base"),
             patch.object(planning, "log_event"),
         )

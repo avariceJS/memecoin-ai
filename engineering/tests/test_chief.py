@@ -4,43 +4,18 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from engineering import chief
 from engineering.executive import Executive, StaleExecutive
 from engineering.org_state import Store
 
-
-class EpisodeClient:
-    prompts = []
-    response = {
-        "summary": "Отделы продолжают разрешённую работу.",
-        "rationale": "Обязательство сохраняется в SQLite.",
-        "next_horizon": "Проверить независимую приёмку.",
-        "limitations": "Длительная работа не измерена.",
-    }
-
-    def __init__(self, *args, **kwargs):
-        self.proc = SimpleNamespace(pid=1)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        pass
-
-    def start(self, model, instructions):
-        assert model == "gpt-6-astra"
-        return "episode-thread"
-
-    def turn(self, thread, prompt, **kwargs):
-        assert kwargs["model"] == "gpt-6-astra"
-        assert kwargs["deadline_seconds"] == 120
-        assert kwargs["tool"]({}) == {"error": "chief_has_no_execution_capability"}
-        kwargs["heartbeat"]()
-        self.prompts.append(prompt)
-        return {"text": json.dumps(self.response, ensure_ascii=False)}
+EPISODE_RESPONSE = {
+    "summary": "Отделы продолжают разрешённую работу.",
+    "rationale": "Обязательство сохраняется в SQLite.",
+    "next_horizon": "Проверить независимую приёмку.",
+    "limitations": "Длительная работа не измерена.",
+}
 
 
 class ChiefTests(unittest.TestCase):
@@ -56,47 +31,37 @@ class ChiefTests(unittest.TestCase):
         prior = self.executive.claim("previous-director")
         self.executive.obligation(prior, "O", "Keep responsibility", objective_id="offline")
         self.executive.release(prior)
-        self.patches = [
-            patch.object(chief, "config", return_value={"schema": "test", "resources": {}}),
-            patch.object(chief, "Codex", EpisodeClient),
-            patch.object(chief, "process_identity", return_value="test-process"),
-            patch.object(
-                chief,
-                "render_desk",
-                side_effect=lambda state, db: (state / "OWNER-DESK.md").write_text(
-                    Executive(db).render_report()
-                ),
+        self.render_patch = patch.object(
+            chief,
+            "render_desk",
+            side_effect=lambda state, db: (state / "OWNER-DESK.md").write_text(
+                Executive(db).render_report()
             ),
-        ]
-        for item in self.patches:
-            item.start()
-            self.addCleanup(item.stop)
-        EpisodeClient.prompts = []
+        )
+        self.render_patch.start()
+        self.addCleanup(self.render_patch.stop)
 
     def test_fresh_episodes_reconstruct_obligations_without_changing_tasks(self):
         before = self.db.list_tasks()
         first = chief.chief(self.path, trigger="replacement")
         second = chief.chief(self.path, trigger="accepted-milestone")
         self.assertEqual((first["epoch"], second["epoch"]), (2, 3))
-        self.assertEqual(first["status"], "completed")
+        self.assertEqual(first["status"], "blocked")
         for obligation_id in ("ORG-ACCEPT-01", "ORG-CONTINUE-01", "ORG-LONGRUN-01"):
             obligation = self.executive.get_obligation(obligation_id)
             self.assertEqual(obligation["status"], "open")
             self.assertEqual(obligation["created_epoch"], 2)
         self.assertEqual(self.db.list_tasks(), before)
         self.assertEqual(self.executive.get_obligation("O")["status"], "open")
-        self.assertTrue(all("Keep responsibility" in prompt for prompt in EpisodeClient.prompts))
-        self.assertIn("executive-episode-2", EpisodeClient.prompts[1])
         self.assertEqual(self.executive.snapshot()["role"]["status"], "released")
-        self.assertIsNotNone(self.executive.get_decision("executive-episode-3"))
+        self.assertIsNone(self.executive.get_decision("executive-episode-3"))
         projection = json.loads((self.path / "chief.json").read_text())
-        self.assertEqual(projection["status"], "completed")
+        self.assertEqual(projection["status"], "blocked")
         self.assertNotIn("pid", projection)
 
-    def test_malformed_output_releases_ceo_without_recording_decision(self):
-        with patch.object(EpisodeClient, "response", {"unauthorized": "change policy"}):
-            with self.assertRaisesRegex(ValueError, "executive_response_fields"):
-                chief.chief(self.path)
+    def test_manual_inference_is_blocked_without_recording_decision(self):
+        result = chief.chief(self.path)
+        self.assertEqual(result["status"], "blocked")
         self.assertEqual(self.executive.snapshot()["role"]["status"], "released")
         self.assertIsNone(self.executive.get_decision("executive-episode-2"))
         self.assertEqual(self.executive.get_obligation("O")["status"], "open")
@@ -106,22 +71,19 @@ class ChiefTests(unittest.TestCase):
         self.assertEqual(chief.chief(self.path)["status"], "executive_busy")
         (self.path / "STOP").touch()
         self.assertEqual(chief.chief(self.path)["status"], "stopped")
-        self.assertEqual(EpisodeClient.prompts, [])
         self.assertEqual(self.executive.snapshot()["role"]["epoch"], active["epoch"])
 
-    def test_model_failure_does_not_cancel_already_authorized_work(self):
+    def test_blocked_inference_does_not_cancel_already_authorized_work(self):
         attempt = self.db.claim("T", "luna", 120)
-        with patch.object(EpisodeClient, "turn", side_effect=TimeoutError("deadline")):
-            with self.assertRaises(TimeoutError):
-                chief.chief(self.path)
+        result = chief.chief(self.path)
+        self.assertEqual(result["status"], "blocked")
         self.assertEqual(self.db.get_task("T")["active_attempt"], attempt["id"])
         self.assertEqual(self.db.get_task("T")["state"], "running")
         self.assertEqual(self.executive.snapshot()["role"]["status"], "released")
 
-    def test_exhausted_catalogue_persists_obligation_even_when_director_times_out(self):
-        with patch.object(EpisodeClient, "turn", side_effect=TimeoutError("deadline")):
-            with self.assertRaises(TimeoutError):
-                chief.chief(self.path, trigger="catalogue-exhausted")
+    def test_exhausted_catalogue_persists_obligation_without_model_inference(self):
+        result = chief.chief(self.path, trigger="catalogue-exhausted")
+        self.assertEqual(result["status"], "blocked")
         obligation = self.executive.get_obligation("next-policy-horizon")
         self.assertEqual(obligation["status"], "open")
         self.assertEqual(obligation["owner_role"], "CEO")
@@ -161,34 +123,23 @@ class ChiefTests(unittest.TestCase):
         self.assertEqual(len(packet["organization"]["obligations"]), 100)
         self.assertIn("projection_limits", bounded)
 
-    def test_expired_episode_cannot_record_or_overwrite_replacement_projection(self):
+    def test_expired_lease_cannot_record_or_overwrite_replacement_projection(self):
         clock = [1000.0]
         self.db.clock = lambda: clock[0]
-
-        def replace_during_turn(*args, **kwargs):
-            clock[0] += 181
-            replacement = self.executive.claim("replacement")
-            (self.path / "chief.json").write_text(json.dumps({"epoch": replacement["epoch"]}))
-            return {"text": json.dumps(EpisodeClient.response)}
-
-        with (
-            patch.object(
-                chief,
-                "store",
-                side_effect=lambda state: Store(
-                    self.path / "organization.sqlite", clock=lambda: clock[0]
-                ),
-            ),
-            patch.object(EpisodeClient, "turn", side_effect=replace_during_turn),
-        ):
-            with self.assertRaises(StaleExecutive):
-                chief.chief(self.path)
-        self.assertIsNone(self.executive.get_decision("executive-episode-2"))
+        lease = self.executive.claim("expired-director")
+        self.executive.release(lease)
+        replacement = self.executive.claim("replacement")
+        (self.path / "chief.json").write_text(json.dumps({"epoch": replacement["epoch"]}))
+        with self.assertRaises(StaleExecutive):
+            self.executive.decision(lease, "stale", "stale output")
+        self.assertIsNone(self.executive.get_decision("stale"))
         self.assertEqual(self.executive.snapshot()["role"]["owner"], "replacement")
-        self.assertEqual(json.loads((self.path / "chief.json").read_text()), {"epoch": 3})
+        self.assertEqual(
+            json.loads((self.path / "chief.json").read_text()), {"epoch": replacement["epoch"]}
+        )
 
     def test_schema_rejects_overlong_empty_and_nonstring_decisions(self):
         for bad in ("", " " * 10, "a" * 1001, 5, None):
-            response = {**EpisodeClient.response, "summary": bad}
+            response = {**EPISODE_RESPONSE, "summary": bad}
             with self.assertRaises(ValueError):
                 chief.validate_response(json.dumps(response))

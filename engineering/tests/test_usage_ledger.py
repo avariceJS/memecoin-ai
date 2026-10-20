@@ -177,6 +177,19 @@ class UsageLedgerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.l.finish_turn("t1", c(8, 1, 2, 1), receipt="other")
 
+    def test_dispatch_reservation_summary_retains_team_identity(self):
+        self.l.reserve(
+            "dispatch-alpha",
+            "a",
+            "gpt-6.1-sol",
+            {"tokens": 1000, "wpu": 0.1},
+            100,
+            context={"team": "Alpha"},
+        )
+        reservations = self.l.summary()["reservations"]
+        self.assertEqual(len(reservations), 1)
+        self.assertEqual(reservations[0]["team"], "Alpha")
+
     def test_finished_turn_reservation_waits_for_union_coverage(self):
         self.l.start_turn(
             "covered-later",

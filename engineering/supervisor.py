@@ -771,13 +771,16 @@ def supervise(state: Path, max_seconds=1800):
                 if time.monotonic() - last_read > 60:
                     try:
                         limits = account.call("account/rateLimits/read")
+                        quota_observed_at = time.time()
                     except Exception:
                         limits = {"ordinaryUsageAllowed": None}
+                        quota_observed_at = None
                     # Do not persist identity or reset-credit objects.
                     limits = {
                         k: limits.get(k)
                         for k in ("ordinaryUsageAllowed", "rateLimits", "rateLimitsByLimitId")
                     }
+                    limits["observed_at"] = quota_observed_at
                     atomic(state / "limits.json", limits)
                     last_read = time.monotonic()
                 active = [t for t in db.list_tasks() if t["state"] == "running"]
@@ -787,7 +790,11 @@ def supervise(state: Path, max_seconds=1800):
                 decision = choose_capacity(
                     limits,
                     measured_usage(state, db),
-                    {"available_memory_bytes": available_memory(), "cpu_count": os.cpu_count()},
+                    {
+                        "available_memory_bytes": available_memory(),
+                        "cpu_count": os.cpu_count(),
+                        "active_team_ids": sorted({t["team"] for t in active}),
+                    },
                     cfg["resources"],
                     active_tokens=len(active) * cfg["resources"]["per_worker_tokens"],
                     ready_tasks=ready,
@@ -801,7 +808,11 @@ def supervise(state: Path, max_seconds=1800):
                     decision = choose_capacity(
                         limits,
                         measured_usage(state, db),
-                        {"available_memory_bytes": available_memory(), "cpu_count": os.cpu_count()},
+                        {
+                            "available_memory_bytes": available_memory(),
+                            "cpu_count": os.cpu_count(),
+                            "active_team_ids": [],
+                        },
                         cfg["resources"],
                         active_tokens=0,
                     )
@@ -835,7 +846,7 @@ def supervise(state: Path, max_seconds=1800):
                             },
                         )
                     break
-                free = max(0, decision["slots"] - len(active))
+                free = decision["slots"]
                 for task in decision["selected_tasks"][:free]:
                     attempt = db.claim(task["id"], LUNA, LEASE)
                     if not attempt:

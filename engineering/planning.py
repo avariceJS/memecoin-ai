@@ -10,7 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from .codex_rpc import Codex
+from .metered_codex import metered_client
 from .org_state import StateError, _json
 from .supervisor import RULES, SOL, config, git, log_event, structured
 
@@ -126,9 +126,12 @@ def plan_next(state: Path, db):
     try:
         native = state / "planning" / fingerprint
         native.mkdir(parents=True, exist_ok=True)
-        with Codex(
-            native, codex=cfg.get("codex_executable", "codex"),
-            event_sink=lambda e: log_event(state, "codex", role="planner", event=e)
+        with metered_client(
+            state,
+            native,
+            cfg=cfg,
+            context={"team": "Platform", "role": "planner", "task": "planning/" + fingerprint},
+            event_sink=lambda e: log_event(state, "codex", role="planner", event=e),
         ) as c:
             thread = c.start(SOL, RULES + "\nYou are the Platform department planning lead.")
             result = c.turn(
@@ -138,15 +141,20 @@ def plan_next(state: Path, db):
                 "work or claim a defect has been reproduced if no experiment did so. "
                 "Return JSON {card: string|null, rationale:string, evidence:string}.\n"
                 + json.dumps(dossier),
+                dispatch_id="planning-proposal:" + fingerprint,
                 model=SOL,
+                estimate={"tokens": 3500, "wpu": 1},
                 tool=lambda _: {"error": "planning_has_no_execution_capability"},
                 deadline_seconds=180,
                 output_schema={
-                    "type": "object", "additionalProperties": False,
+                    "type": "object",
+                    "additionalProperties": False,
                     "properties": {
                         "card": {"type": ["string", "null"]},
-                        "rationale": {"type": "string"}, "evidence": {"type": "string"},
-                    }, "required": ["card", "rationale", "evidence"],
+                        "rationale": {"type": "string"},
+                        "evidence": {"type": "string"},
+                    },
+                    "required": ["card", "rationale", "evidence"],
                 },
             )
             try:
