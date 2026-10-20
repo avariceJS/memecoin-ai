@@ -132,7 +132,8 @@ automatically.
   (SHA-256 `dfbed547202fe6ec40cbc09c8612681264319d637e273944e2e6a91cfe783ec5`). Gate passed 348 tests,
   83 subtests and Ruff (58 files). This is not literal inode, prior/later execution or output provenance;
   only first command is sampled, loader closure remains open, and plans stay `execution_qualified=False`.
-  Local integration into `org/development` is the next action.
+  Source, docs and this checkpoint are fast-forwarded into `org/development` at
+  `afdc32247c8c0a1a89d79f5245ba7fe88c455ca5`. `main` remains unchanged.
 - A12 bounded active-task projection merged at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`; Sol
   accepted the exact source and the gate passed 278 tests/42 subtests with Ruff. SQL limits active
   rows to 100, full state counts remain, omitted rows are disclosed, and history is retained. Full
