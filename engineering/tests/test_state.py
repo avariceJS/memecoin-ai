@@ -1,5 +1,7 @@
 """Adversarial, offline state-machine tests; no project/runtime data required."""
 
+import hashlib
+import json
 import sqlite3
 import subprocess
 import sys
@@ -63,6 +65,50 @@ class StateTests(unittest.TestCase):
         self.assertEqual(self.store.db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
         self.assertEqual(self.store.db.execute("PRAGMA synchronous").fetchone()[0], 2)
         self.assertEqual(self.store.db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
+
+    def test_quiescence_handoff_rechecks_snapshot_atomically_and_is_idempotent(self):
+        snapshot = self.store.quiescence_snapshot()
+        body = {
+            "owner": "Sol",
+            "status": "requested",
+            "reason": "catalogue-exhausted",
+            "resource_reason": "synthetic",
+        }
+
+        def fingerprint(current_snapshot):
+            identity = {
+                "snapshot": current_snapshot,
+                "resource_reason": body["resource_reason"],
+                "reason": body["reason"],
+            }
+            return hashlib.sha256(
+                json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+
+        self.task("changed")
+        stale_digest = fingerprint(snapshot)
+        with self.assertRaisesRegex(StateError, "fingerprint mismatch"):
+            self.store.record_quiescence_handoff_if_current(
+                "0" * 64, snapshot, {**body, "fingerprint": "0" * 64}
+            )
+        self.assertFalse(
+            self.store.record_quiescence_handoff_if_current(
+                stale_digest, snapshot, {**body, "fingerprint": stale_digest}
+            )
+        )
+        current = self.store.quiescence_snapshot()
+        digest = fingerprint(current)
+        exact_body = {**body, "fingerprint": digest}
+        self.assertTrue(
+            self.store.record_quiescence_handoff_if_current(digest, current, exact_body)
+        )
+        events = len(self.store.events())
+        self.assertTrue(
+            self.store.record_quiescence_handoff_if_current(digest, current, exact_body)
+        )
+        self.assertEqual(len(self.store.events()), events)
+        with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
+            self.store.put_decision("sol-handoff/" + digest, exact_body)
 
     def test_active_task_projection_is_bounded_and_preserves_total_state_counts(self):
         self.task("completed")

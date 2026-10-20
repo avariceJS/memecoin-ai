@@ -784,9 +784,16 @@ class SupervisorTests(unittest.TestCase):
         supervisor.activate_contract(self.state, self.db)
         self.assertIsNone(self.db.get_contract_transition("schema-validation", 2))
 
-    def run_quiescence(self, reason, *, pending=False, slots=1):
+    def run_quiescence(self, reason, *, pending=False, slots=1, readiness_change=False):
         if pending:
-            self.task()
+            self.candidate("EXP-001", target_state="integrated", team="Experience")
+            self.db.add_task(
+                "T",
+                "team",
+                "Synthetic blocked task",
+                scope=["src/example.py"],
+                contracts={"schema-validation": 3},
+            )
         else:
             self.task()
             attempt = self.db.claim("T", "worker", 100)
@@ -814,6 +821,27 @@ class SupervisorTests(unittest.TestCase):
         ):
             supervisor.supervise(self.state, max_seconds=10)
             (self.state / "STOP").unlink(missing_ok=True)
+            if readiness_change:
+                # Task rows stay byte-for-byte unchanged; only the current contract
+                # version changes, so a readiness-aware trigger must get a new identity.
+                before = self.db.list_tasks()
+                proposal = self.cfg["contracts"]["schema-validation"]
+                transition = self.db.propose_contract_transition(
+                    "schema-validation",
+                    1,
+                    2,
+                    proposal,
+                    producer_task_id="EXP-001",
+                    producer_team="Experience",
+                    consumer_teams=["Platform"],
+                )
+                digest = transition["body"]["contract_hash"]
+                self.db.acknowledge_contract_transition(
+                    "schema-validation", 2, "Experience", digest
+                )
+                self.db.acknowledge_contract_transition("schema-validation", 2, "Platform", digest)
+                self.db.activate_contract_transition("schema-validation", 2)
+                self.assertEqual(self.db.list_tasks(), before)
             supervisor.supervise(self.state, max_seconds=10)
         executive.assert_not_called()
         model_turn.assert_not_called()
@@ -823,7 +851,10 @@ class SupervisorTests(unittest.TestCase):
             if event["kind"] == "decision_recorded"
             and event.get("entity", "").startswith("sol-handoff/")
         ]
-        self.assertEqual(len(handoffs), 1)
+        self.assertEqual(len(handoffs), 2 if readiness_change else 1)
+        if readiness_change:
+            bodies = [self.db.get_decision(event["entity"])["body"] for event in handoffs]
+            self.assertNotEqual(bodies[0]["fingerprint"], bodies[1]["fingerprint"])
         details = self.db.get_decision(handoffs[-1]["entity"])["body"]
         self.assertEqual(details["reason"], reason)
         (self.state / "STOP").unlink(missing_ok=True)
@@ -834,8 +865,46 @@ class SupervisorTests(unittest.TestCase):
     def test_quiescence_blocked_dependencies_handoff_has_no_chief_call(self):
         self.run_quiescence("blocked-dependencies", pending=True)
 
+    def test_quiescence_handoff_identity_tracks_current_contract_readiness(self):
+        self.run_quiescence("blocked-dependencies", pending=True, readiness_change=True)
+
     def test_quiescence_unavailable_quota_handoff_has_no_chief_call(self):
         self.run_quiescence("quota-unavailable", slots=0)
+
+    def test_quiescence_handoff_survives_stable_blocked_verifier(self):
+        self.task()
+        attempt = self.db.claim("T", "worker", 100)
+        self.db.submit(attempt["id"], attempt["epoch"], "sha", {})
+        decision = {"slots": 1, "selected_tasks": [], "reason": "synthetic"}
+        with (
+            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+            patch.object(supervisor, "available_memory", return_value=10**10),
+            patch.object(supervisor, "status", return_value={}),
+            patch.object(supervisor, "render_desk"),
+            patch.object(supervisor.time, "sleep", side_effect=lambda _: None),
+            patch.object(supervisor.time, "monotonic", return_value=0),
+            patch("engineering.planning.plan_next", return_value=None),
+            patch("engineering.resources.choose_capacity", return_value=decision),
+            patch.object(Store, "ready_tasks", return_value=[]),
+            patch.object(supervisor, "verify_one", return_value=False) as verify,
+            patch("engineering.chief.chief") as executive,
+            patch.object(FakeCodex, "turn") as model_turn,
+        ):
+            supervisor.supervise(self.state, max_seconds=10)
+        verify.assert_called_once()
+        executive.assert_not_called()
+        model_turn.assert_not_called()
+        handoffs = [
+            event
+            for event in self.db.events()
+            if event["kind"] == "decision_recorded"
+            and event.get("entity", "").startswith("sol-handoff/")
+        ]
+        self.assertEqual(len(handoffs), 1)
+        self.assertEqual(self.db.get_task("T")["state"], "submitted")
+        (self.state / "STOP").unlink(missing_ok=True)
 
     def test_stop_prevents_quiescence_resource_or_handoff_work(self):
         (self.state / "STOP").touch()

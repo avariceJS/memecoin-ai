@@ -1078,6 +1078,21 @@ def supervise(state: Path, max_seconds=1800):
 
                     if decision["slots"] and plan_next(state, db):
                         continue
+                    snapshot = db.quiescence_snapshot()
+                    readiness = snapshot["readiness"]
+                    if any(
+                        row["state"] == "running"
+                        or (
+                            row["state"] == "submitted"
+                            and row["task_id"] not in blocked_verification
+                        )
+                        for row in readiness
+                    ):
+                        # The earlier active/ready reads may have gone stale while the
+                        # supervisor reconciled and planned. Let the next pass act on the
+                        # fresh state instead of recording a quiescence handoff for it.
+                        time.sleep(2)
+                        continue
                     decision = choose_capacity(
                         limits,
                         measured_usage(state, db),
@@ -1089,35 +1104,40 @@ def supervise(state: Path, max_seconds=1800):
                         cfg["resources"],
                         active_tokens=0,
                     )
+                    if decision["slots"] and any(row["eligible"] for row in readiness):
+                        # Capacity and task readiness were observed separately; avoid
+                        # classifying ready work as dependency-blocked after capacity changed.
+                        time.sleep(2)
+                        continue
                     resource_reason = decision.get("reason", "unknown")
                     if decision["slots"] == 0:
                         reason = "quota-unavailable"
-                    elif any(t["state"] == "pending" for t in tasks):
+                    elif any(row["state"] == "pending" for row in readiness):
                         reason = "blocked-dependencies"
                     else:
                         reason = "catalogue-exhausted"
                     fingerprint_data = {
-                        "tasks": sorted(
-                            (t["id"], t["state"], t.get("candidate_sha")) for t in tasks
-                        ),
+                        "snapshot": snapshot,
                         "resource_reason": resource_reason,
                         "reason": reason,
                     }
                     fingerprint = hashlib.sha256(
                         json.dumps(fingerprint_data, sort_keys=True, separators=(",", ":")).encode()
                     ).hexdigest()
-                    handoff_key = "sol-handoff/" + fingerprint
-                    if db.get_decision(handoff_key) is None:
-                        db.put_decision(
-                            handoff_key,
-                            {
-                                "owner": "Sol",
-                                "status": "requested",
-                                "reason": reason,
-                                "resource_reason": resource_reason,
-                                "fingerprint": fingerprint,
-                            },
-                        )
+                    recorded = db.record_quiescence_handoff_if_current(
+                        fingerprint,
+                        snapshot,
+                        {
+                            "owner": "Sol",
+                            "status": "requested",
+                            "reason": reason,
+                            "resource_reason": resource_reason,
+                            "fingerprint": fingerprint,
+                        },
+                    )
+                    if not recorded:
+                        time.sleep(2)
+                        continue
                     break
                 free = decision["slots"]
                 for task in decision["selected_tasks"][:free]:

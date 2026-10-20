@@ -535,6 +535,80 @@ class Store:
         with self._read_snapshot():
             return self._readiness_report_in_snapshot()
 
+    def quiescence_snapshot(self) -> dict:
+        """Return task identity and readiness from one coherent read snapshot."""
+        with self._read_snapshot():
+            tasks = self.list_tasks()
+            return {
+                "tasks": [
+                    {
+                        "task_id": task["id"],
+                        "state": task["state"],
+                        "candidate_sha": task["candidate_sha"],
+                    }
+                    for task in tasks
+                ],
+                "readiness": self._readiness_report_in_snapshot(),
+            }
+
+    def record_quiescence_handoff_if_current(
+        self, fingerprint: Any, expected_snapshot: Any, body: Any
+    ) -> bool:
+        """Atomically record an inert quiescence handoff only if its task snapshot is current."""
+        if type(fingerprint) is not str or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None:
+            raise StateError("quiescence handoff fingerprint invalid")
+        expected_snapshot = _lifecycle_snapshot(expected_snapshot)
+        body = _lifecycle_snapshot(body)
+        if (
+            type(expected_snapshot) is not dict
+            or set(expected_snapshot) != {"tasks", "readiness"}
+            or type(body) is not dict
+            or set(body) != {"owner", "status", "reason", "resource_reason", "fingerprint"}
+            or body.get("owner") != "Sol"
+            or body.get("status") != "requested"
+            or body.get("fingerprint") != fingerprint
+            or type(body.get("reason")) is not str
+            or type(body.get("resource_reason")) is not str
+        ):
+            raise StateError("quiescence handoff body invalid")
+        if body["reason"] not in {
+            "quota-unavailable",
+            "blocked-dependencies",
+            "catalogue-exhausted",
+        }:
+            raise StateError("quiescence handoff reason invalid")
+        identity = {
+            "snapshot": expected_snapshot,
+            "resource_reason": body["resource_reason"],
+            "reason": body["reason"],
+        }
+        expected_fingerprint = hashlib.sha256(_json(identity).encode("utf-8")).hexdigest()
+        if fingerprint != expected_fingerprint:
+            raise StateError("quiescence handoff fingerprint mismatch")
+        name = "sol-handoff/" + fingerprint
+        with self._tx():
+            current_tasks = self.list_tasks()
+            current_snapshot = {
+                "tasks": [
+                    {
+                        "task_id": task["id"],
+                        "state": task["state"],
+                        "candidate_sha": task["candidate_sha"],
+                    }
+                    for task in current_tasks
+                ],
+                "readiness": self._readiness_report_in_snapshot(),
+            }
+            if _json(current_snapshot) != _json(expected_snapshot):
+                return False
+            existing = self.get_decision(name)
+            if existing is not None:
+                if _json(existing["body"]) != _json(body):
+                    raise StateError("quiescence handoff identity conflict")
+                return True
+            self._put_decision_in_transaction(name, body)
+            return True
+
     def _readiness_report_in_snapshot(self) -> list[dict]:
         """Build readiness from the current transaction or read snapshot."""
         tasks = self.list_tasks()
@@ -1312,6 +1386,7 @@ class Store:
             or name.startswith("lifecycle/request/")
             or name.startswith("contract-transition/")
             or name.startswith("contract-ack/")
+            or name.startswith("sol-handoff/")
         ):
             raise StateError("decision_namespace_reserved")
         with self._tx():
