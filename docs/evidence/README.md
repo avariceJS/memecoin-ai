@@ -6,6 +6,10 @@ contain large exact payloads, so open only the named artifact needed for a speci
 
 ## Brain and operator
 
+- [Independent organization system audit](brain-org-independent-audit-2026-10-20.json): source at
+  `b2dcd6d`, current pause/custody checks, local component tests, new synthetic integration and
+  failure reproductions, and explicit operational rejection. Conclusions and future gates belong
+  to `../engineering-organization.md`; no runtime resumption or controller implementation.
 - [Metered organization source acceptance](brain-org-metering-source-acceptance-20261020.json): independent Sol accepted exact content pins for quota pause/lifecycle recovery. This is source-only; Git object verification and operational release are excluded.
 - [Task-spec validator source acceptance](brain-org-task-spec-validator-source-acceptance-20261020.json): independent Sol accepted exact content hashes after closing malformed existing-state/scope validation gaps. Standalone validator only; Git object, scheduler wiring, live admission and release are excluded.
 - [Task-spec Store source acceptance](brain-org-task-spec-store-source-acceptance-2026-10-20.json): independent Sol review of bounded additive SQLite persistence, frozen pre-implementation acceptance, focused tests and source-only limits. Planner/scheduler wiring, verifier binding, release qualification and pilot activation remain open; STOP remains in place.

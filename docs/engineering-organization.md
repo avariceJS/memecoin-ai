@@ -1,378 +1,264 @@
 # Brain Engineering Organization
 
-Canonical owner of the engineering control system, distinct from the live Brain operator.
-The founder directive of 2026-10-19 appoints Astra High CEO / Engineering Director; Sol High
-leads departments and Luna High implements bounded tasks. The [Founder Desk](../engineering/OWNER-DESK.md)
-is Russian by explicit request. Research contracts remain in `docs/contracts.md`.
+Canonical owner of the engineering control system, separate from the Brain research and production
+runtimes. Technical documentation is English; the [Founder Desk](../engineering/OWNER-DESK.md) is
+Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
+`brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
-## Current founder audit hold — 2026-10-20
+## Independent director audit — 2026-10-20
 
-Organization development is paused by the founder. Do not resume Goals, dispatch workers, invoke
-Astra automatically, deploy the controller, or clear STOP. Astra High will be invited separately for
-an independent architecture audit. The registry in [operator-runtime.md](operator-runtime.md#git-integration-and-recovery-registry)
-and [Sol mandate](../engineering/SOL-MANDATE.md) supersede all active-continuation statements below;
-those statements describe prior authority and historical episodes.
+**Verdict: retain the core architecture; reject operational release and unattended operation.**
+The organization has substantial tested coordination and isolation primitives. It has not completed
+its first real, independently accepted Brain task through the deployed pipeline. Component source
+approval, integrated system acceptance, and operational authority remain separate.
 
-`org/development` combines exact metering source `3733ce43`, validator `2b81ebbc`, Store source
-`a16d8b8a` (recorded at `963a830`), and founder/Luna custody `afc6bea`. Conflict resolution preserves
-all metering files and validator bytes from `2b81ebbc`; only `org_state.py` and
-`test_task_spec_store.py` come from the Store line. Older receipt-bound variants remain historical.
-This source composition requires its own integration and release review; predecessor approvals do
-not approve the merged system. Planner/scheduler admission and verifier binding remain incomplete.
+Audited source: `b2dcd6dc58a8e1ab09b15da8fa0d1bba5f3ad0d0`, `org/development`.
+The audit changed documentation and evidence only. It did not repair controller source, resume a
+Goal, dispatch a worker, install/start a service, clear pilot STOP, run training, access protected
+datasets, request market data, or authorize publication. **The founder must explicitly resume the
+next implementation stage.** The gates below are selected strategy, not a restart authorization.
 
-Backup/restore commits through `613c5e9`, followed by the final dirty cleanup repair, are preserved
-in `archive/consolidation-20261020`, excluded from the unified source. The last exact review rejected
-unpublished staging cleanup; the dirty repair has reported focused checks but lacks a fresh frozen
-acceptance and independent review. The integrated `service.backup_snapshot` is still partial.
-Physical reboot, external-media/cross-machine recovery, long-running unattended operation, a
-STOP-preserving release and original-task recovery remain unqualified. No useful Brain task has
-been accepted or integrated by the pilot. Source custody is not system acceptance.
+The [audit receipt](evidence/brain-org-independent-audit-2026-10-20.json) binds source identities,
+local reproductions, test results and limits. Private scripts and raw results are under
+`/Users/root1/Developer/brain-org-state/audit-20261020-independent/`. Original consolidation custody
+and pilot state remain intact. The [handoff](../engineering/SOL-MANDATE.md) owns the resumption entry.
 
-Read [the consolidation receipt](evidence/git-consolidation-2026-10-20.json) and private
-`brain-org-state/consolidation-20261020/handoff.json` before audit. Preserve the original SQLite,
-attempts, events, leases, usage and configuration. Do not follow stale checkout pointers from older
-handoffs; removed topic worktrees are recoverable by the archive manifest.
+### Evidence established in this audit
 
-## Current founder role amendment — 2026-10-20
+- Current read-only `thread/goal/get` returned `paused` for both former roots. The implementation
+  root's last rollout Goal event still said `active`; log tail is not current native Goal state.
+  Native metadata and the last turn context identify that implementation owner as `gpt-6-luna/high`.
+- Pilot SQLite still contains three tasks, six failed attempts, 106 events, zero acceptances and
+  zero integrations. EXP-001 and CTX-001 exhausted three attempts each; PLAT-001 remains dependent.
+  All six failures are JSON parsing failures at the Sol lead stage, before any worker stage.
+- With a canonical temporary-directory path: **216 engineering tests and 42 subtests passed;
+  two failed**. The failures are unchanged legacy raw-adapter acceptance wrappers requiring the
+  now-mandatory Permit. The first run additionally exposed two fixture path failures through the
+  macOS `/var` alias; changing only the test temporary directory resolved them.
+- Real disposable Seatbelt tests ran in that suite. A separate installed native-profile probe
+  passed **21/21**, Codex CLI `0.163.0`, with no model, thread-start, turn-start or account request.
+  These results do not qualify real dynamic-tool delivery, release, reboot or endurance.
+- Engineering Ruff and the synthetic Brain smoke passed. The repository Ruff stage still reports
+  **107 findings**; the full repository check was not declared green. No training suite ran.
+- A new experiment connected real temporary Git repositories, `GitGate`, `Store` and
+  `supervisor.reconcile`: two disjoint changes from the same original base survived sequential
+  integration, with recovery before database verification and after Git publication. Repeated
+  reconciliation produced exactly two integrations. Acceptance in this experiment was a synthetic
+  content check, not an independent model review or a physical process-crash trial.
+- All 69 recorded original commit pins are reachable from the archive; all selected component
+  files match their source pins, all four archived dirty-source hashes match, and the 11 bundles
+  and three private dirty archives match their recorded hashes. Local Git fsck passed. Advertised
+  remote branch/archive pins matched the consolidation handoff at observation. This audit did not
+  repeat a fresh network clone or the nine ignored-artifact restore trials.
 
-[FOUNDER-20261020-LUNA-FIRST-01](evidence/brain-org-luna-first-20261020.json) supersedes earlier
-Sol-primary implementation wording: independent Luna6/high owns sustained root coding, testing,
-planning and Pursuing Goal continuation; Sol6.1/high is invoked for difficult design and independent
-review. Astra remains director, never automatic. Transfer uses the existing implementation thread
-`01a15657-3558-79c1-86dc-6ed033c264df`, preserving Goal/history and a single code owner. The original
-coordinator owns handoff/evidence only. The existing [mandate](../engineering/SOL-MANDATE.md) remains
-the canonical entrypoint; private handoff reconciles exact source and in-flight work.
-[Actual transfer evidence](evidence/brain-org-luna-first-transfer-20261020.json) confirms the same
-Goal/history and an observed automatic gpt-6-luna/high turn; no multi-day endurance is implied. No capability,
-confinement, acceptance, Git or STOP gate is relaxed. Frozen runtime model routing changes require
-a reviewed release. CEO-20261020-02 remains the resource policy; Luna handles routine renewals.
+### Material findings
 
-## Authority and implementation
+P1 means a blocker for the intended integrated release or sustained operation. P2 means a design
+or assurance gap that must be bounded before expansion. These severities do not imply demonstrated
+production corruption or a successful sandbox escape.
 
-`engineering/` is a stdlib controller, not a trading runtime. Independent Codex app-server root
-threads provide episodic Astra (`gpt-6-astra`, high), Sol leads/planning/review (`gpt-6.1-sol`, high)
-and Luna execution (`gpt-6-luna`, high). There is no parent conversation dependency. No model has
-publisher or controller-write tools. Codex0.163.0 provides threads, turns, dynamic tools, usage,
-rate-limit reads and native permission profiles; durable scheduling, fencing, recovery, contracts,
-acceptance, publication and the Founder Desk are implemented here. Native chat resume exists but
-is not the recovery guarantee: replacement reconstructs a compact packet in a fresh root thread.
+| ID | Priority | Evidence and consequence |
+|---|---|---|
+| ORG-A01 | P1 | `bootstrap.py` writes `codex_sha256`; `service.validate_deployment` requires `codex_executable_sha256`. Real bootstrap construction with synthetic qualification/Git effects produces a deployment rejected as `codex_executable_binding`. The test deployment fixture uses the other field and misses the interface mismatch. |
+| ORG-A02 | P1 | Bootstrap does not initialize `usage-ledger.sqlite`. `measured_usage` reports `ledger_missing`; `choose_capacity` returns zero slots even with valid fresh quota and ready tasks. A first metered worker would create the ledger, but normal scheduler admission blocks that worker. A reviewed migration/initialization path is missing. |
+| ORG-A03 | P1 | The operational adapter always returns `usage_terminal=False`; progress counters are deliberately unattributed. `metered_client` sets `terminal_usage_qualified=False`, and there is no operational caller of `reconcile_dispatch`. A completed synthetic turn retained its reservation and `model_attribution_unverified`; scheduler capacity became zero. Correct conservative accounting has no qualified operational settlement path. Do not fix this by assuming unknown usage is zero. |
+| ORG-A04 | P1 | `Store.admit_task_spec` atomically persists a valid spec, but planner uses fixed cards and verifier resolves `cfg['tasks'][id]['checks']` plus pilot-only acceptance. A Store-admitted PLAT-010 reaches submitted state and `verify_one` raises `KeyError` before its guarded verifier block. Spec capabilities, deadline and acceptance references are not an executable trusted task binding. |
+| ORG-A05 | P1 | Successful supervisor exit after its bounded episode is not restarted by the generated `KeepAlive={'SuccessfulExit': False}` plist. Quiescence writes a Sol handoff and exits; no qualified consumer of that handoff exists. `reset_recovery_decision` has no operational caller. Chat Goal continuation and the frozen pilot are separate control paths, not one qualified lifetime service. |
+| ORG-A06 | P1 | Current `backup_snapshot` omits STOP, usage ledger, Git objects/refs, integration intents, attempts and operation logs. A synthetic snapshot reproduced all omissions and failed deployment validation at a different path. There is no accepted full restore/upgrade path in this source. Archived repair is not accepted implementation. |
+| ORG-A07 | P1 | The quota watchdog calls `refresh` but ignores a valid zero-slot decision. Fresh 99% evidence returned `reserve_threshold` without cancelling the active permit. New sends are blocked, but active work can continue to its deadline. The release must define and test active-turn drain/cancellation and bounded overshoot; no provider billing cap is proven. |
+| ORG-A08 | P1 | `pyproject.toml` default test discovery targets `tests`, and `make check` lints `src tests tools`; `engineering/` is outside both. Hosted workflows call those targets and use Ubuntu. Fixing the historical CI account block alone would not provide controller/native release acceptance. |
+| ORG-A09 | P2 | Infrastructure, parser, provider and task failures largely share the attempt retry path. The six lead parser failures consumed both original tasks' retry allowances in about 41 seconds between first and last failure. A repeated deterministic controller fault needs a circuit breaker and a separate recovery obligation, not fresh implementation attempts. |
+| ORG-A10 | P2 | Runtime contracts remain special-cased to EXP-001, schema-validation v2, Experience and Platform. Department names are task labels, not durable department plans/leases, generic contract migration, conflict adjudication or a research experiment service. |
+| ORG-A11 | P2 | Every attempt creates a Sol lead and Luna worker; every candidate gets a Sol review. The reviewer receives at most 50,000 diff characters and cannot inspect files. Fixed catalogue selection can spend a Sol episode to choose one eligible card. General risk-aware routing, reusable contract decisions and complete review packets are missing. Independent verification must remain mandatory. |
+| ORG-A12 | P2 | Store passes all historical tasks to a validator with a 1,024-element JSON list bound; 1,025 rows fail before semantic validation. No completed-history projection exists. Full event/usage scans, raw-RPC persistence and accumulating candidate checkouts also need retention/capacity policy. Multi-month scale is unmeasured. |
 
-Private deployment state contains SQLite WAL/FULL, append-only events, immutable config and code
-hash manifest, pinned acceptance scripts, isolated candidate checkouts, verification receipts,
-integration intents, process birth witnesses, and a generated `OWNER-DESK.md`. Store transactions
-serialize ownership. Attempts renew leases independently of supervisor; expired attempts lose the
-right to submit. Epoch-fenced acceptance/integration binds one candidate. Execution can repeat after
-failure; acceptance/integration is idempotent. SQLite is a single-host coordinator, not a distributed
-consensus system. The host/storage remain a failure domain.
+The bootstrap and scheduler failures predate consolidation: their source bytes match the selected
+validator/metering lineage. Sol preserved source custody accurately; that does not certify the
+interfaces between independently approved components. `org/development` is a valid development
+baseline and an unsuitable operational release.
 
-An Astra role lease is independent of worker leases. Decisions, obligations, requests and their
-history survive replacement. Requests never grant authority or globally block scheduling. Short CEO
-episodes review durable evidence; they end rather than burn idle turns. Sol may select the next
-justified task from an executive-approved immutable catalogue. Admission supplies fixed scope,
-dependencies and independent checks; generated proposals cannot supply executable policy. Expansion
-beyond this envelope requires a reviewed controller release, which is an engineering duty rather
-than a routine founder approval. Exhaustion opens the next-policy-horizon obligation.
+## Architecture retained
 
-The first envelope has Experience schema validation and Platform context/CLI work. Contract v2
-requires producer and consumer acknowledgements of the same proposal hash, then producer integration.
-The CLI is blocked until those conditions hold; unrelated Platform context work remains runnable.
-This is bounded continuity, not evidence of indefinite task invention or months of operation.
+- **Local transactional authority.** SQLite WAL/FULL, append-only events, epoch-fenced leases,
+  immutable candidates and idempotent acceptance/integration are appropriate for one host. Attempts
+  can repeat; stale attempts cannot submit under a replaced fence. SQLite is not distributed consensus.
+- **One trusted publisher.** Import explicit commits, enforce scope/protected paths, build an exact
+  merged candidate, verify it independently, persist intent before publication, and CAS the expected
+  integration tip. Revalidate after the integration tip changes. Workers never hold Git publication
+  authority. Main has a separate release boundary.
+- **Separate trust domains.** Workers get isolated checkouts, a brokered tool and explicit file
+  grants. Frozen acceptance and controller policy stay outside their writable scope. Candidate code
+  executes inside OS confinement. Read-only native policy and broker confinement are separate gates.
+- **Replaceable model sessions.** Objectives, tasks, contracts, attempts, evidence and obligations
+  belong to durable storage. Conversations are caches. Requested model names are not identity proof;
+  preserve native thread/model/effort evidence and reject silent rerouting.
+- **Honest uncertainty.** Missing/late/ambiguous usage remains recorded; cumulative streams are
+  deduplicated and disjoint usage is unioned. Cached input is a subset of input; reasoning is a subset
+  of output. Quota availability, accounting completeness and planning estimates are separate facts.
+- **Scientific boundaries.** Code acceptance, dataset admission, evaluation and promotion remain
+  separate. Paper outcomes do not authorize real execution; F01/D43/reserved holdout remain protected.
 
-## Isolation and gates
+Do not replace this foundation with a distributed queue, a new repository per department or a general
+agent framework merely to increase organizational appearance. The immediate need is complete
+interfaces, one coherent lifecycle, and useful accepted work.
 
-All model-generated commands pass through a default-deny macOS Seatbelt runner: readonly checkout,
-write grants only to task subdirectories and scratch, sanitized environment, no network or IPC,
-no owner home, protected evidence, runtime, credentials, controller, policy or publisher access.
-Readonly verification imports candidate code inside the same OS boundary. Its frozen independent
-acceptance harness is outside candidate scope, checks completion, then focused regressions and a
-separate Sol review must pass on the exact merged SHA. Candidate scope, modes, symlinks, protected
-paths, source ancestry, cleanliness and receipts are enforced by `GitGate`.
+### Trust and recovery limits
 
-External MCP/plugins/hooks/apps and several native execution features are disabled; native tools
-are not literally absent. The final catalog still included readonly-denied apply_patch, clock and
-resource helpers, plus brokered org_exec through the required code host. The probe saw only internal
-node_repl and zero exposed resources. Actual unauthorized native writing was rejected. Empirical
-qualification found `:minimal` implicitly granted shared/per-user temp access; explicit deny overlays
-close those paths. Positive task reads and negative sibling/home/temp/symlink/network checks passed
-on the tested binary. Platform runtime reads remain allowed; this is not a claim that every byte
-outside cwd is inaccessible. The custom runner has separate actual read/write/link/socket/signal/
-publication probes. Full unattended Sol maintainer behavior remains unqualified.
+The trusted computing base includes macOS, the owner account, Codex harness, interpreter, pinned
+controller and acceptance policy. Hash manifests detect drift; they are not secure boot. Protection
+against confined agent commands does not protect against an unconfined administrator under the same
+owner UID. Platform runtime reads remain permitted. Process birth witnesses reduce PID-reuse risk;
+Darwin signals lack an atomic pidfd equivalent. CPU, process and disk consumption are not hard OS
+quotas. Host/storage loss remains a single failure domain.
 
-The trusted computing base includes macOS, Codex harness, interpreter, this pinned controller and
-the owner account. This protects against confined agent commands, not an administrator or an
-unconfined hostile process under the owner UID. Manifest checks detect drift after trusted startup;
-they are not secure boot. Policy tests are not a proof against a malicious interpreter exploit.
-Process recovery uses kernel microsecond birth witnesses and rechecks ownership/group before kill;
-Darwin lacks an atomic pidfd-equivalent signal. Detached descendants retain the sandbox but process
-counts/CPU/memory/disk quotas are not hard OS limits. These limitations must remain explicit.
+Pilot STOP is a graceful dispatch pause, not an emergency kill. Already-authorized bounded work may
+finish and submit; preserve this distinction from a separately designed emergency cancellation path.
+Recovery must retain failed attempts, usage uncertainty, fences, pending intents and every independent
+STOP reason. Quota restoration cannot clear a scientific, security, release or founder STOP.
 
-The publisher holds only trusted Git authority. It serializes local `research/active` CAS updates
-and reconciles write-ahead integration intent after crashes. A changed active tip requires a newly
-merged candidate and new verification. `main` is outside this first release authority. Before any
-remote active movement, preserve old `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` under immutable
-`archive/research-active-pre-org-20261019`, verify remote ancestry and unchanged main, then normal
-fast-forward publication with fixed remote/ref and receipt. Never force push. GitHub protection and
-hosted CI are not trusted gates. Remote automatic publication remains disabled until local trial
-and independent security/publication qualification are evidenced.
+## Selected operating design
 
-## Resource management and evidence
+Astra owns strategy, objective/capability expansion and exceptional unresolved decisions in short
+founder-invited episodes. Luna is the single implementation owner after explicit resumption; Sol
+owns difficult architecture and independent exact-candidate verification. No automatic Astra,
+standing idle model supervisor or competing implementation roots.
 
-Current resource authority is the explicit founder amendment
-[CEO-20261020-02](evidence/brain-org-founder-quota-amendment-20261020.json), superseding the resource
-ceilings of CEO-20261020-01. The founder allocates essentially all remaining weekly subscription quota
-to useful Sol/Luna engineering and authorizes qualified continuation after account access is restored.
-The existing Sol root `01a15657-3558-79c1-86dc-6ed033c264df` owns implementation; no competing team.
-Its supported Pursuing Goal is active for the full sustained mandate, not just the accounting repair.
-The original root was later explicitly resumed through the documented App Server `thread/goal/set`
-with only status=active, preserving its objective and usage. This fixes the visible Goal-stalled
-condition that remained after earlier resource decisions; it does not resume the deployment. The exact API receipt
-and current owner/worker/next-gate projection are private under
-`/Users/root1/Developer/brain-org-state/founder-quota-20261020/` as
-`continuation-goal-receipt.json` and `sol-live-status.json`. Independent review rejected candidate
-`0d74d69` for three accounting/recovery defects, and later reviews produced further fixes. An actual
-automatic implementation-root Goal turn collected review3 and dispatched confined Luna snapshot repair.
-The source progressed to `27431b7`; exact-SHA review and separate controller-gate work remain active.
-See [lifecycle recovery evidence](evidence/brain-org-goal-lifecycle-recovery-20261020.json), which
-separates the initial status restoration from scheduling verification. A subsequent native automatic
-original-root turn is now observed; private `original-goal-automatic-proof-1.json` records the trigger
-and new engineering work. That turn reproduced a real release gap: stale native evidence is rejected
-by the service validator but accepted through direct `supervisor.config`. The confined synthetic
-regression is preserved under private `release-audit/` and handed to the existing implementation team.
-Every supported runtime entry needs the same trusted qualification preflight before release. One
-observed automatic turn per root is evidence of continuation, not overnight/endurance qualification. This is
-source work, not operational acceptance or unattended-service qualification. No automatic Astra.
+Implement one trusted non-inference lifecycle owner with separate desired state, observed process
+state and scheduling eligibility. It owns wake/retry/backoff/reconciliation and reasons for waiting;
+models receive bounded work when evidence changes. Use native Goal support as a worker continuation
+facility if qualified, not as the sole organization scheduler or a second competing authority.
+Startup must be inert until release identity, STOP reasons, storage, quota, accounting and publisher
+ownership reconcile. A model cannot authorize its own deployment upgrade.
 
-Actual entitlement and applicable account-limit telemetry govern availability. Productive inference
-pauses at99% with a default1-percentage-point checkpoint/recovery reserve; at97% use one productive
-team and short bounded turns. A measured in-flight/granularity requirement may justify at most2 points
-of reserve, recorded by Sol. The former68/69% controls and1-point/15-minute automatic STOP are revoked.
-Read limits before dispatch and after completion, every5 minutes while active, and at most60 seconds
-once a bucket reaches95%. Provider denial or a reached limit stops inference; optional absent buckets
-are distinguished from missing required evidence. No paid credits, upgrades or billable API fallback.
+The durable path must be:
 
-WPU, raw tokens and task-duration estimates remain efficiency/accounting tools. The72-hour hard expiry,
-200-WPU cumulative cap, five-renewal cap and fixed20-WPU/2-hour repair expiry are superseded. Sol records
-routine scope/progress/quota reviews and may renew planning allocations without Astra. Bounded turns,
-finite attempts, leases, reservations and independent code/release acceptance remain mandatory.
-Review ongoing strategy at least daily; do not create work merely to consume available quota.
+`objective -> department backlog -> validated task -> frozen verifier binding -> admitted attempt
+-> candidate -> exact merged verification -> integration receipt -> next eligible task`.
 
-Keep per-agent/task/model cumulative snapshots and incremental deltas, deduplicate overlapping sources
-and union disjoint usage. Cached input is within input; reasoning is within output. Preserve all old
-receipts, initial T0, failures and unknown/late usage. Unknown historical totals are not zero or newly
-charged debt; current in-flight uncertainty must be bounded. Fresh actual account access, rather than
-an arbitrary historical WPU reserve, establishes subscription availability.
+Persist one canonical task execution binding: objective/revision, base/integration policy, department,
+scope, dependency and contract pins, risk, capabilities, resource/deadline bounds, independent acceptance
+identity and immutable artifact references. Planner, worker, verifier and recovery must consume the
+same binding. Separate proposed, admitted, running, awaiting verification, accepted and integrated
+states; classify infrastructure pauses separately from implementation rejection.
 
-At quota pause, preserve edits, commits, attempts, leases, usage and integration intents. Qualified
-non-inference polling may await restoration; a wall-clock reset estimate alone grants no authority.
-After two fresh successful account reads at least60 seconds apart confirm access and restored capacity,
-Sol may reconcile state and resume the same objective through qualified recovery without CEO renewal.
-Reset changes the quota window, never accounting history. Keep resource pause separate from other STOP
-reasons; no safety/release STOP is cleared merely by a quota reset. No idle model polling or automatic
-Astra. Existing concurrency, security, scientific, protected-data, acquisition, training, trading, Git
-and publication restrictions remain. The frozen pilot config remains unchanged. Source work in an
-isolated candidate does not authorize operational resumption; preserve STOP until an independently
-accepted, controlled release passes its gates.
+Add generic producer/consumer contract proposals and acknowledgements, explicit version transitions,
+conflict escalation and supersession. Detect dependency dead ends; continue unrelated work. Use a
+bounded ready-task projection with durable dependency resolution rather than deleting historical tasks
+to bypass the validator limit. Department plans and obligations need durable owners and review dates,
+without requiring a permanently running conversation for each department.
 
-The following initial policy is historical and remains in the frozen old deployment until reviewed
-replacement; it is not an alternative current resource authorization.
+### Brain department interfaces
 
+These are responsibility boundaries, not a request to start five simultaneous teams. The existing
+maximum two-team envelope remains until measured evidence and reviewed policy justify expansion.
 
-The initial envelope permits at most two concurrent teams, measured token admission budget750k,
-60k reserve, known ordinary quota permission and all exposed buckets below90% utilization. Near the
-ceiling, parallelism reduces. Memory/CPU and overlapping file scopes further constrain dispatch.
-Count chief, planner, lead, worker and verifier usage; persist partial usage notifications so failed
-attempts do not disappear. Reservations and bounded turn deadlines constrain admission; missing final
-usage and tokens already in flight mean this is not a strict monetary or instantaneous token cap.
-A model turn has an additional measured180k ceiling. Unknown quota fails closed.
+| Department | Existing Brain boundary to retain | Missing organization binding / first suitable work |
+|---|---|---|
+| Senses | Immutable captures, source qualification, observation/support provenance | Versioned source contracts, coverage/failure denominators, synthetic decoder and acquisition-planner tasks; provider/writer access separately gated |
+| Experience | `observations`, `schema`, partitioned snapshots and composition | Producer/consumer schema versions, compatibility tests, artifact pins and ownership; original EXP-001 is a real defect |
+| Cortex | Owned `generations`, pinned recipe/snapshot/code and sealed artifacts | Registered experiment job, compute/storage lease, resumable artifact evidence and independent comparison; no training authorization in this audit |
+| Evaluation | Preregistered protocols/populations, separate evaluation role, baseline/coverage metrics | Independent acceptance owner, negative-result retention, leakage/lineage checks and promotion separation; candidate authors cannot change the exam |
+| Policy/Paper | Decision/observation separation and virtual ledger invariants | Versioned model-policy interface, replay/ledger contracts and isolated synthetic tests; no AUTO, production ledger or trading grants |
+| Platform | Controller, storage binding, developer tools and release broker | Full task lifecycle, local release gate, recoverable checkpoint, telemetry and failure handling |
 
-Measure accepted useful changes, verified invariants, time to acceptance, rework/retry rates, blocked
-versus independent progress, model usage and recovery time. Do not score productivity by lines of
-orchestration code. The offline pilot can improve schema and tooling reliability; it cannot establish
-forecast accuracy, edge, execution quality or financial returns. Broad historical repo checks have
-known failures; scoped green must never be represented as whole-project green.
+The repository already contains meaningful data, generation and evaluation interfaces. The company
+needs adapters to those existing contracts, not another Brain rewrite. Research tasks additionally
+need experiment declarations (hypothesis, input role/pins, baseline, metrics, budget, output ownership,
+stop criteria), artifact publication and negative findings. A Git commit alone cannot accept a
+scientific experiment. Large artifacts remain under explicitly bound research storage, with verified
+volume identity and descriptor-bound live writes; there is no internal-storage fallback or legacy
+`work/` writer configuration.
 
-## Reproduction and operation
+## Resource and productivity policy
 
-Use the existing dev Python3.13 environment and installed Codex0.163.0 authentication. No credentials
-belong in source, model packets or Founder Desk. From the implementation checkout:
+The latest founder resource amendment remains
+[CEO-20261020-02](evidence/brain-org-founder-quota-amendment-20261020.json), subject to the current audit
+hold. It permits useful Sol/Luna work within actual subscription entitlement, not paid credits,
+upgrades or a billable API fallback. Legacy 68/69%, 750k lifetime, 72-hour, 200-WPU and renewal-count
+ceilings are historical and do not override that amendment.
 
-```sh
-/Users/root1/Developer/memecoin-research/.venv/bin/python -m pytest -q engineering/tests
-/Users/root1/Developer/memecoin-research/.venv/bin/python -m ruff check engineering
-/Users/root1/Developer/memecoin-research/.venv/bin/python -m engineering bootstrap \
-  --state /Users/root1/Developer/brain-org-state/pilot-20261019 \
-  --source /Users/root1/Developer/brain-org-build \
-  --python /Users/root1/Developer/memecoin-research/.venv/bin/python
-```
+Before dispatch and after completion read actual account limits; while active poll at most every
+five minutes, at most every 60 seconds from 95%. At 97%, use one productive team and bounded short
+turns; at 99%, pause productive inference with the default one-point recovery reserve. A measured
+in-flight/granularity need may justify two points with recorded evidence. Provider denial or unknown
+required entitlement fails closed. The existing watchdog does not fully implement active-turn policy
+(ORG-A07). Two fresh successful readings at least 60 seconds apart plus state reconciliation are
+required for quota recovery; predicted reset time alone grants nothing. This rule is currently a
+helper, not a completed recovery service.
 
-Bootstrap is create-only: qualify OS/native boundaries, copy pinned controller+acceptance, clone
-source, preserve historical active locally and seed objectives/tasks. Run the frozen controller
-from STATE/controller, never from a worker checkout:
+Keep reservations and bounded uncertainty for in-flight/unknown outcomes. Separate unknown model
+attribution from unknown aggregate usage where independently justified, without inventing terminal
+counters or cancelling debt. WPU is an internal planning proxy, not subscription consumption or a
+bill. Track elapsed intervals, accepted useful tasks, time to acceptance, retries by cause, review
+reversals, queue age, maintenance share, model usage and recovery latency. Do not equate tokens,
+commits, passing component tests or time in Goal mode with useful delivery.
 
-```sh
-python -m engineering chief --state STATE
-python -m engineering supervise --state STATE --max-seconds 14400
-python -m engineering status --state STATE
-python -m engineering desk --state STATE
-python -m engineering stop --state STATE
-```
+The founder supplied 14h28 elapsed, about 7h59 registered activity and 4h37 idle after HTTP 403.
+These are about 55.2% and 31.9% of elapsed time respectively. The remaining 1h52 is unclassified by
+those rounded observations; it must not be called extra idle time or productive work. The audit did
+not independently reconstruct that full interval or prove the cause of 403. These figures show an
+availability/recovery problem, not a controlled Luna-versus-Sol efficiency comparison. Historical
+source repairs are real work, but pilot useful acceptance remains zero.
 
-Use the explicit dev interpreter above in place of `python`. STOP prevents new dispatch/CEO episodes;
-already-authorized bounded workers may finish and persist submission. It is a graceful pause, not
-an emergency kill. A restart reconstructs leases/intent; do not delete the SQLite WAL or overwrite
-state. Snapshot SQLite through its backup API and retain config/controller/receipts/intents together.
-Original research/runtime/data locations are never part of an organization cleanup.
+Reduce duplicate coordination through reusable versioned contract decisions, deterministic selection
+when only one task is eligible, bounded failure classification and complete read-only review packets.
+Use risk-scaled regression scope and one accountable independent acceptance owner. Rerun affected gates
+when their inputs change; do not repeat entire unrelated review campaigns or weaken mandatory gates
+to improve throughput statistics. After two rejections for the same root cause, require a compact
+interface-level diagnosis before another implementation loop.
 
-Acceptance must include actual overlapping Sol/Luna root sessions; interrupted chief and worker;
-supervisor kill/restart; stale submit/duplicate accept rejection; automatic contract gating and an
-unrelated team's progress; independently verified merged commits; unauthorized file and publication
-attempts; and one subsequent admitted task. Unit/fault simulations and actual model/OS evidence are
-reported separately. Physical reboot, prolonged unattended endurance, external backup restore and
-cross-machine recovery remain unqualified until those particular trials occur.
+## Evidence gates for later authorization
 
-## Final architecture handoff — 2026-10-19
+1. **Small coherent release candidate.** Fix the startup/accounting/active-quota path (ORG-A01,
+   A02, A03, A07) and put engineering checks in an explicit local release command (A08).
+   Validate the exact assembled finite-pilot release in a disposable deployment with real local
+   Git/SQLite, synthetic transport and frozen external acceptance. Test clean startup and old-state
+   migration, terminal/late/ambiguous accounting, invalid messages, drift and STOP precedence.
+   Require a complete recoverable checkpoint before mutating the original pilot. Unsupported dynamic
+   admission and unattended service continuation remain explicitly disabled until their later gates;
+   do not postpone the first bounded useful result for a general five-department framework.
+   No worker starts merely because configuration hashes match.
+2. **First real bounded loop.** After a separately reviewed STOP-preserving release and explicit
+   restart authorization, recover the original pilot in the same database. Preserve all six failures.
+   Independently accept and integrate EXP-001, CTX-001 and PLAT-001; demonstrate producer/consumer
+   contract gating and unrelated progress. Qualify actual model identity, final JSON, tool execution,
+   exact merged review and publication on that release. Then close ORG-A04: admit and complete a
+   useful task absent from the original catalogue through the same trusted execution/verifier record.
+3. **Failure and restoration.** Close lifecycle and restore gaps ORG-A05/A06. Inject loss of
+   internet/provider access, model/tool failure, worker
+   and controller death, duplicate/late responses and crashes at each publication boundary. Distinguish
+   missing entitlement from quota reset. Restore a complete checkpoint into a fresh path with no model
+   calls, STOP present and matching tasks, usage, receipts, Git reachability and pending intents.
+   Demonstrate a reviewed release upgrade/rollback without replacing history. Test logout/reboot and
+   storage loss separately; a Git bundle is not an organization backup.
+4. **Measured endurance.** Qualify 24 hours, then 72 hours, then seven days on a pinned release with
+   a real useful backlog, at least two department streams and cross-department dependencies. Require
+   zero unverified integrations or unauthorized effects; no founder nudges for covered recoverable
+   failures; complete classification of idle/blocked intervals; bounded unresolved usage and disk
+   growth; at least one demonstrated recovery and useful accepted output after recovery. Sleeping
+   safely with no admissible work is valid but not evidence of productive endurance. Do not fabricate
+   work to satisfy a duration or task-count target. Expand concurrency only when accepted throughput
+   improves within quality, host and resource limits.
 
-The founder ended the Astra architecture sprint and delegated the next implementation horizon to
-an independent root Sol6.1 High with Luna6 High workers. The self-contained
-[Sol mandate](../engineering/SOL-MANDATE.md) owns this handoff. Astra must not remain active overnight,
-be polled by the organization, or be an automatic routine escalation target. The current frozen
-supervisor can invoke Astra when work becomes quiescent; STOP must remain until a reviewed Sol-owned
-release removes that automatic invocation. Do not represent the current subagent or a prepared
-LaunchAgent as a qualified independent Sol service.
+A successful stage permits only its measured operating envelope. Multi-host, GPU, provider, dataset,
+training, production/promotion and real-money capabilities require their own authorization and
+qualification. Weeks/months of reliability cannot be inferred from one automatic Goal turn or a
+successful unit fault harness.
 
-Astra retains strategic executive authority; routine queue and engineering decisions are delegated
-to Sol inside the founder's unchanged objective and capability envelope. Exceptional unresolved
-decisions may enter a durable escalation for a later deliberate Astra episode, with no automatic
-nightly invocation or requirement that the founder approve each technical judgment. Sol can repair and release the controller through isolated changes, independent
-review, tests, a pinned manifest and an explicit upgrade receipt. Routine controller work does not
-require another Astra session. A genuine capability/resource/objective expansion remains a recorded
-internal request for Astra through the Russian Founder Desk. Astra remains the executive and sole
-founder communicator; Sol holds delegated implementation/queue authority, not the executive role.
+## Source and historical custody
 
-The finite task catalogue is the initial qualification mechanism. Sol-issued structured task
-specifications are validated against the immutable envelope: objective, team, exact scope,
-dependencies and contract versions, bounded attempts/resources, risk and independently owned
-acceptance references. An independent verifier fixes acceptance before implementation; a worker
-cannot change it. The validator and a separate additive `Store` persistence path are accepted in
-source. `Store.admit_task_spec` validates a detached metadata snapshot and atomically records the
-specification and its v1 decision; the pinned SQLite acceptance and focused store tests cover the
-transaction and metadata-mutation race. See the
-[task-spec Store source acceptance](evidence/brain-org-task-spec-store-source-acceptance-2026-10-20.json).
-This does not yet wire task specs into planner/scheduler dispatch, bind durable tasks to independent
-verifiers, qualify a controlled release, or activate the pilot. Admission remains deterministic and
-rejects unsupported execution/authority. New task content is not permission to rewrite controller
-policy. No useful admissible work means a durable reason and stop, not indefinite model polling.
+Current organization source combines metering `3733ce43`, validator `2b81ebbc`, additive Store
+`a16d8b8a` (receipt `963a830`) and founder/Luna custody `afc6bea`. Source selection is verified in
+[evidence/git-consolidation-2026-10-20.json](evidence/git-consolidation-2026-10-20.json).
+Brain development is `brain/development`; stable main remains `2f8da5f`; `brain/linux` is isolated
+and unqualified. `research/active` remains the frozen remote compatibility alias and the old private
+publisher's ref. A future publisher lane binding needs a reviewed release, not a documentation edit.
 
-The first live pilot failed before any accepted worker implementation: commentary contaminated final
-JSON and real dynamic-tool delivery was not qualified. EXP-001/CTX-001 exhausted three attempts each.
-A controller repair and three extra attempts per task are approved only after parser and real tool
-qualification. `Store.reopen_failed` records an immutable recovery decision and preserves all failed
-attempts, events, evidence, epochs and usage in the original database. The750k admission envelope is
-unchanged. Do not bootstrap another clean database or omit the failed run from resource accounting.
+Archive `archive/consolidation-20261020` preserves all original refs/pins and dirty organization
+files. Its tree is custody only and must never be merged as source. Backup/restore `613c5e9` plus
+its final dirty repair, UI reconstruction, DR v3 and unreviewed maintenance remain archived and
+unaccepted. Preserve frozen pilot/owner checkouts, original SQLite/WAL and prior archive/handoff tags.
 
-The next one-to-three-day horizon is qualification and useful accepted work, not a duration promise:
-repair the named adapter blockers; release with no automatic Astra; recover and independently accept
-the original tasks; qualify task-spec admission and independent Sol recovery; then extend observed
-run intervals within measured remaining capacity. Long-duration, reboot and cross-machine claims
-remain separate unmeasured acceptance. Final custody/shutdown facts are recorded in the Founder Desk
-and the final handoff receipt; do not infer them from an earlier source commit or a prepared plist.
-
-The final narrow security probe succeeded with `code_mode_host=True`, `code_mode=False`, `goals=False`:
-real Sol delivered the brokered tool, native apply_patch could not alter the readonly canary, and the
-native profile again passed21/21. The four probe turns consumed80447 tokens outside the organization
-telemetry; retain their private handoff receipt and account for them once in remaining capacity.
-This does not close the strict-parser end-to-end, deployment-upgrade/STOP-maintenance or independent
-unattended Sol qualification gaps. The failed pilot was not resumed during the handoff.
-
-### Final decisions and rejected alternatives
-
-| Decision | Selected | Rejected for this stage | Reason / revisit condition |
-|---|---|---|---|
-| Durable authority | Local SQLite transactions, journal and detached supervisor | Parent conversation tree as authority; Kafka/distributed orchestration now | Reconstructable local state already exists; cross-host coordination is unqualified and not presently required. Revisit after measured multi-host need. |
-| Code organization | One repository with explicit department/module contracts and isolated task checkouts | Brain rewrite, a second permanent baseline, repositories split merely to mimic departments | Preserve existing contracts/tests/history; boundaries and ownership provide isolation without migration churn. |
-| Integration | One trusted publisher; exact merged candidate, independent gate, CAS against expected tip | Worker push, concurrent blind merges, acceptance of an outdated merge result | One serialized integration authority and fresh checks prevent lost updates and stale acceptance. |
-| Availability | Explicit single-host failure domain; launchd only after qualification and login | Calling a detached process or plist durable multi-host/24x7 availability | Sleep, logout, reboot, disk loss and account authentication need measured recovery; no remote uptime claim. |
-| Planning | Sol-issued validated task specs inside immutable objective/capability bounds | A permanently finite demo catalogue; arbitrary generated executable tasks | Continue useful work while deterministic admission constrains authority. Catalogue remains first qualification evidence. |
-| Acceptance ownership | Independent verifier fixes acceptance before worker implementation | Workers rewriting their own checks; planners granting themselves new gates | Preserve an independent reason to reject incorrect or out-of-scope work. |
-| Capabilities and maintenance | Explicit task file/tool grants; Sol-maintained controller through reviewed pinned releases | Blanket filesystem/network/publisher access; editing active policy to bypass failure | Separate implementation from policy release. Expansion is a durable request; routine maintenance stays delegated. |
-| Executive continuity | Astra strategic authority and founder channel; Sol routine queue/implementation mandate | Overnight idle Astra, automatic Astra retries, treating a subagent as an independent root | Latest founder directive closes this sprint; exceptional escalation is durable and deliberately resumed later. |
-
-These are selected architecture decisions, not claims that every runtime path has already passed
-acceptance. The final measured state and custody are in
-[`brain-org-handoff-20261019.json`](evidence/brain-org-handoff-20261019.json).
-
-### Recovery limits retained at handoff
-
-`service.backup_snapshot` currently preserves SQLite, policy/controller and receipts but omits the
-integration Git objects/refs, intents, attempt artifacts and logs. It is a partial snapshot, not a
-restorable organization backup. A consistent checkpoint barrier, complete content manifest and actual
-restore trial are required before that claim. Do not fix this by copying a live SQLite file alone.
-
-`service.validate_deployment` checks qualification flags/manifests but does not yet bind native
-qualification to the adapter/executable hashes during restart. New source pins the executable hash;
-the existing deployed configuration lacks that field. The reviewed upgrade and restart binding remain
-open requirements. The manual independent Sol UI handoff grants ordinary delegated engineering;
-it does not qualify unattended full-maintainer execution or eliminate the STOP/startup gates.
-
-### Sol implementation checkpoint — 2026-10-20
-
-Persistent goal continuation was actually activated in root `01a1563e-1a26-75e2-bdab-ca2b38c7b51f`.
-Rollout metadata confirms the independent root is `gpt-6.1-sol` high and maintenance workers are
-`gpt-6-luna` high. Work is on `org/sol-recovery-20261020`; the pilot remains STOPped at its old
-release, with all six failures and the original database preserved. Main and historical active
-remote pins were read and remain unchanged. No Astra episode or unattended service was started.
-
-A real Luna run exposed missing timeout units in the dynamic tool interface: milliseconds were
-rejected by the unchanged 1..90-second boundary. Source now explains seconds and gives an actionable
-broker error. Adapter phase filtering and timeout regressions pass: 142 engineering tests and
-18 subtests, plus engineering Ruff. These are source checks, not independent release acceptance.
-The second confined Luna run produced an unreviewed supervisor proposal at `1546e4c` on
-`org/proposal-no-auto-astra-20261020`; it crossed the measured turn ceiling before completion.
-Do not adopt it without independent review and collected quiescence/STOP/quota regression tests.
-
-Maintenance admission initially counted historical known usage without incorporating the measurable
-outer-root cumulative counter. This is an accounting failure, not permission to expand the envelope.
-At resource stop, the known aggregate lower bound was 2,342,879 tokens including repeated cached input,
-above the 750,000 admission budget; later shutdown context and historical killed-chief usage remain
-additional/unknown. The separate account weekly window read 67% before maintenance. New model dispatch
-is stopped; a further resource horizon needs a durable internal Astra decision, never automatic Astra.
-Next engineering requirements remain executable/adapter restart binding, reviewed STOP-preserving
-upgrade, bounded original-task recovery, independent acceptance and complete backup/restore.
-Exact custody and private evidence locator: [checkpoint receipt](evidence/brain-org-sol-checkpoint-20261020.json).
-
-
-### Reviewed source repair — 2026-10-20
-
-Independent Sol accepted exact source `1d6d44f`: cumulative usage primitives, atomic late
-corrections, consistent SQLite summaries, quota decisions, no automatic Astra in the supervisor,
-and shared frozen-controller/native/executable preflight for direct runtime entries. Six frozen
-checks, 82 focused tests and six subtests passed inside the OS boundary. Scope, pins and the
-independent direct-entry probe are in the [source receipt](evidence/brain-org-accounting-source-acceptance-20261020.json).
-
-Independent Sol accepted exact content pins for source commit
-a94983a5e6de4b7c1ceb99df92cdc811e9b02109 with no findings. The five changed-file hashes,
-reviewer decision, test counts, usage and limitations are recorded in the unique
-[source acceptance receipt](evidence/brain-org-metering-source-acceptance-20261020.json).
-Independent checks passed 76 tests and six subtests, Ruff, and four frozen ledger/quota/atomic/
-controller gates. Owner checks passed 115 tests and 18 subtests, Ruff, five frozen checks and
-the 114-interval usage reproduction. Legacy raw-RPC frozen scripts using pre-Permit/episode
-interfaces still fail and remain unchanged. The reviewer verified content hashes, not the
-Git object, because the read-only broker denied its external Git directory.
-This is source acceptance, not an operational release. The original pilot remains STOPped with
-six failures and no accepted tasks.
-The full independent-root Goal remains active; its observed automatic continuation, live
-process custody and next actions are private durable state.
-The standalone structured task validator is source-accepted at commit
-`9b5c6c97720eda6b1eba482983ebbe3d25d3f3bf`. Independent Sol matched both file hashes and found no
-remaining source findings after 37 frozen checks, 10 focused tests/27 subtests, Ruff and 624
-state/scope/input probes. The reviewer could not read the Git object through its broker. This does
-not accept transactional scheduler integration or trusted verifier mapping. Full recovery, useful
-tasks and every organization acceptance gate remain in scope; see the unique
-[task-spec source receipt](evidence/brain-org-task-spec-validator-source-acceptance-20261020.json).
-The validator is currently a pure function with synthetic test fixtures. `planning.py` still
-admits only fixed catalogue cards, `Store` has no durable task-spec record, and worker/verification
-resolve grants and commands from `config["tasks"][id]`. The validator’s independent acceptance
-references are IDs and hashes; they do not themselves bind a runnable trusted verifier. Scheduler
-integration therefore requires a reviewed immutable policy mapping each accepted reference to its
-frozen verifier/checks, plus atomic persistence of the canonical spec and recovery/verification paths
-that consume that same record. A proposal must never select commands or acceptance policy.
+Earlier source-review, quota, transfer and pilot receipts remain immutable evidence for their exact
+scope. Superseded execution narratives remain in Git history at the audited source commit. They do
+not establish current Goal activity, current capability grants, or acceptance of a later composition.

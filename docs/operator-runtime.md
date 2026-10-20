@@ -284,8 +284,9 @@ acceptance and independent review. Existing `archive/pre-reset-20261018`,
 source commit, never current archival pointer text.
 
 New ordinary Brain work starts from `brain/development`; organization audit and any later explicitly
-resumed Luna work start from `org/development`. The founder will invite Astra High for independent
-architecture review. No Goal, team, service, inference, collector, training, AUTO or trading is resumed
+resumed Luna work start from `org/development`. The independent director audit of `b2dcd6d` is now
+complete; findings and release gates are owned by `engineering-organization.md`. Development remains
+paused pending explicit founder resumption. No Goal, team, service, inference, collector, training, AUTO or trading is resumed
 by consolidation. Pilot SQLite, its six failures and zero acceptances/integrations, STOP, protected
 datasets and historical owner runtime stay unchanged. The current publisher still targets private
 `research/active`; no new publication authority or runtime branch rebinding is implied.

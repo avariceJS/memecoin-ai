@@ -1,9 +1,34 @@
 # Organization audit and resumption handoff
 
+## Independent audit outcome — 2026-10-20
+
+The founder-requested audit of `b2dcd6d` is complete. **Implementation, Goals, workers and services
+remain paused until the founder explicitly resumes them.** The director selected preservation of
+the core architecture and completion of one integrated lifecycle before organization expansion.
+The audit is not controller-source acceptance, a release, or permission to reopen original tasks.
+
+Read the findings ORG-A01 through ORG-A12 and the four evidence stages in
+`docs/engineering-organization.md`, then the unique receipt
+`docs/evidence/brain-org-independent-audit-2026-10-20.json`. Private reproductions are in
+`/Users/root1/Developer/brain-org-state/audit-20261020-independent/`.
+The next authorized implementation owner remains Luna High, with Sol for difficult architecture
+and independent verification. No new competing root or automatic Astra.
+
+Prioritize bootstrap/preflight and ledger initialization, qualified terminal usage settlement,
+canonical task/verifier binding, lifecycle/recovery, complete backup/restore and an explicit
+engineering release gate. Preserve exact component evidence but accept the assembled runtime as
+a system. A bare task validator, Store API or green component suite cannot close that gate.
+Use the finite-pilot staging in the canonical document: unsupported dynamic admission and unattended
+continuation can remain disabled for the first bounded release. Do not make a general department
+framework a prerequisite for the first useful accepted task.
+After reviewed release and separate restart authorization, recover EXP-001/CTX-001/PLAT-001 in
+the same pilot database, then prove a useful task outside the fixed catalogue. Never reset failed
+history to manufacture a successful pilot.
+
 ## Founder audit hold — 2026-10-20
 
-The founder paused autonomous development, authorized Git consolidation, and will invite Astra High
-for an independent architectural audit. **Do not resume development, Goals, workers or services.**
+The founder paused autonomous development, authorized Git consolidation, and subsequently requested
+the completed independent audit above. **Do not resume development, Goals, workers or services.**
 Do not create a new team or invoke Astra automatically. This instruction supersedes former
 continuation prompts; their history is preserved in Git and the consolidation archive.
 
