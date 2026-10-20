@@ -453,6 +453,53 @@ class Store:
             for name, version in task["contracts"].items()
         )
 
+    def readiness_report(self) -> list[dict]:
+        """Return one coherent, read-only snapshot of pending work and explicit blockers.
+
+        A blocked task does not hide unrelated ready tasks. This report is advisory; `claim`
+        remains the transactional authority that rechecks readiness.
+        """
+        with self._read_snapshot():
+            tasks = self.list_tasks()
+            by_id = {task["id"]: task for task in tasks}
+            report = []
+            for task in tasks:
+                blockers = []
+                for dependency_id in task["dependencies"]:
+                    dependency = by_id.get(dependency_id)
+                    state = None if dependency is None else dependency["state"]
+                    if state != "integrated":
+                        blockers.append(
+                            {
+                                "kind": "dependency",
+                                "id": dependency_id,
+                                "state": state,
+                            }
+                        )
+                for contract_name, required_version in task["contracts"].items():
+                    row = self.db.execute(
+                        "SELECT MAX(version) FROM contracts WHERE name=?", (contract_name,)
+                    ).fetchone()
+                    current_version = row[0]
+                    if current_version != required_version:
+                        blockers.append(
+                            {
+                                "kind": "contract",
+                                "name": contract_name,
+                                "required_version": required_version,
+                                "current_version": current_version,
+                            }
+                        )
+                report.append(
+                    {
+                        "task_id": task["id"],
+                        "state": task["state"],
+                        "eligible": task["state"] == "pending" and not blockers,
+                        "blockers": blockers,
+                    }
+                )
+            return report
+
     def ready_tasks(self, team: str | None = None) -> list[dict]:
         with self._tx():
             self._recover()

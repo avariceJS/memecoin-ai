@@ -187,6 +187,34 @@ class StateTests(unittest.TestCase):
         self.store.integrate("producer", "candidate", "merged-sha")
         self.assertIsNotNone(self.store.claim("consumer", "worker"))
 
+    def test_readiness_report_names_dependency_and_contract_blockers_without_suppressing_ready_work(
+        self,
+    ):
+        self.task("producer")
+        self.task("blocked", dependencies=["producer"], contracts={"api": 2})
+        self.task("independent")
+
+        report = {item["task_id"]: item for item in self.store.readiness_report()}
+        self.assertEqual(
+            report["blocked"]["blockers"],
+            [
+                {"kind": "dependency", "id": "producer", "state": "pending"},
+                {
+                    "kind": "contract",
+                    "name": "api",
+                    "required_version": 2,
+                    "current_version": None,
+                },
+            ],
+        )
+        self.assertFalse(report["blocked"]["eligible"])
+        self.assertTrue(report["producer"]["eligible"])
+        self.assertTrue(report["independent"]["eligible"])
+        self.assertEqual(
+            {task["id"] for task in self.store.ready_tasks()}, {"producer", "independent"}
+        )
+        self.assertIsNotNone(self.store.claim("independent", "worker"))
+
     def test_contract_requirements_block_until_exact_current_version(self):
         self.task(contracts={"api": 2})
         self.assertEqual(self.store.ready_tasks(), [])
