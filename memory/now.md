@@ -77,8 +77,15 @@ automatically.
   `0879b5efed1cf0942d080e02624da13fd5a9aede`): content-hashed one-version proposals, immutable
   producer/consumer acknowledgements and atomic activation after producer integration. Sol accepted
   bounded source; merged gate passed 312 tests/45 subtests and Ruff. Generic contract migration,
-  dependency obligations, department plans/leases and broad A10 remain open. Receipt:
+  department plans/leases and broad A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-durable-contract-transition-review-20261021.json`.
+- A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
+  The blocked-dependencies trigger now refreshes durable duties from a transactionally coherent
+  readiness snapshot, preserves unrelated ready work, and cancels stale duties with an immutable,
+  content-addressed readiness event. Sol accepted the exact diff; Ruff passed and the gate passed
+  341 tests/73 subtests. Automatic trigger freshness, generic contracts, department plans/leases and
+  full A10 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-dependency-obligations-review-20261021.json`.
 - A04 source-only verifier-manifest custody resolver merged at `9487fc70057bc8ff5a467394fe7b70b06391e7b3`;
   Sol accepted the exact source. It verifies canonical manifest/binding digests, release/policy
   identities, exact verifier metadata and trusted harness bytes. The shared plan does not call this

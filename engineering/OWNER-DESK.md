@@ -331,9 +331,19 @@ exact Sol-reviewed source `0879b5efed1cf0942d080e02624da13fd5a9aede`). Верс�
 SQLite transaction. Supervisor сверяет transition с контрактом из конфигурации. Sol принял этот
 ограниченный source; после merge прошли 312 тестов, 45 subtests и Ruff (52 файла). Поддерживается
 только текущий специальный переход schema-validation v2; legacy v2 читается без ретроактивных
-подтверждений. Dependency obligations, department plans/leases и широкое закрытие A10 остаются
+подтверждений. Generic contract migration, department plans/leases и широкое закрытие A10 остаются
 открыты. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-durable-contract-transition-review-20261021.json`
 (SHA-256 `d94296b79abae78b7d22cce4348b750a2123046dbb860250ff13407490e9424e`).
+
+Новый A10 source increment `5e4d123ece95d6c87c0eb0ced6891d8473bedece` атомарно сверяет
+`blocked-dependencies` obligations с текущим readiness report. Снимок сохраняет точные dependency и
+contract blockers и независимые ready tasks; совпадающее активное obligation переиспользуется,
+устаревшее закрывается ссылкой на immutable readiness event в той же SQLite transaction. Повторный
+триггер не скрывает готовую работу и не меняет её состояние. Sol принял точный source diff; Ruff
+прошёл, engineering gate: 341 тест, 73 subtests. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-dependency-obligations-review-20261021.json`
+(SHA-256 `30a9fac250685cb73ad28db0575b6d75322c196c9f44d43bb122682b3c4c47f4`). Автоматическая
+свежесть trigger, generic contract migration, department plans/leases и полный A10 остаются открыты.
 
 Receipt scaffold:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-readiness-report-scaffold-review-20261020.json`
