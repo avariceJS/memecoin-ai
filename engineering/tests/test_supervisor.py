@@ -21,6 +21,7 @@ class FakeCodex:
     """Only a local fake; never starts an app server or calls a model."""
 
     response = "{malformed"
+    turn_estimates = []
 
     def __init__(self, *args, **kwargs):
         self.proc = SimpleNamespace(pid=123)
@@ -35,6 +36,7 @@ class FakeCodex:
         return "fake-thread"
 
     def turn(self, *args, **kwargs):
+        self.turn_estimates.append(kwargs.get("estimate", {}).get("tokens"))
         return {"text": self.response, "usage": {"total": {"totalTokens": 3}}}
 
     def call(self, *args, **kwargs):
@@ -49,6 +51,7 @@ class SupervisorTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.state = Path(self.temp.name)
+        FakeCodex.turn_estimates = []
         (self.state / "intents").mkdir()
         self.now = 1000.0
         self.db = Store(self.state / "organization.sqlite", clock=lambda: self.now)
@@ -371,6 +374,8 @@ class SupervisorTests(unittest.TestCase):
             supervisor.run_attempt(self.state, attempt["id"])
         self.assertEqual(self.db.get_task("T")["state"], "pending")
         self.assertFalse(any("commit" in args for args in calls))
+        self.assertEqual(len(FakeCodex.turn_estimates), 2)
+        self.assertTrue(all(0 < estimate <= 4000 for estimate in FakeCodex.turn_estimates))
 
     def test_contract_activation_requires_both_matching_hash_ack_and_is_idempotent(self):
         self.candidate("EXP-001", target_state="integrated")

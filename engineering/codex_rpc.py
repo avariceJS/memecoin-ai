@@ -138,8 +138,8 @@ class Codex:
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
+            text=False,
+            bufsize=0,
             start_new_session=True,
         )
         self.sink({"kind": "app_server_spawned", "pid": self.proc.pid})
@@ -162,7 +162,7 @@ class Codex:
             raise RpcError("app_server_initialization_failed") from None
 
         def drain_stderr():
-            for _ in self.proc.stderr:
+            for _ in iter(self.proc.stderr.readline, b""):
                 pass
 
         threading.Thread(target=drain_stderr, daemon=True).start()
@@ -170,23 +170,32 @@ class Codex:
 
     def _read(self):
         try:
-            for line in self.proc.stdout:
-                raw = line.encode("utf-8")
+            for raw in iter(self.proc.stdout.readline, b""):
                 try:
-                    self.sink({"kind": "rpc_raw", "raw_bytes_hex": raw.hex()})
-                finally:
-                    try:
-                        message = json.loads(raw)
-                    except (UnicodeDecodeError, json.JSONDecodeError):
-                        self.sink({"kind": "rpc_malformed", "raw_bytes_hex": raw.hex()})
-                        continue
-                    self.messages.put(message)
+                    message = json.loads(raw)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    self.messages.put(
+                        {"_codex_raw_event": {"kind": "rpc_malformed", "raw_bytes_hex": raw.hex()}}
+                    )
+                    continue
+                if not isinstance(message, dict):
+                    self.messages.put(
+                        {"_codex_raw_event": {"kind": "rpc_malformed", "raw_bytes_hex": raw.hex()}}
+                    )
+                    continue
+                message["_codex_raw_event"] = {"kind": "rpc_raw", "raw_bytes_hex": raw.hex()}
+                self.messages.put(message)
         finally:
             self.messages.put({"_closed": True})
 
+    def _deliver_raw(self, message):
+        event = message.pop("_codex_raw_event", None)
+        if isinstance(event, dict):
+            self.sink(event)
+
     def send(self, value):
         with self.lock:
-            self.proc.stdin.write(json.dumps(value) + "\n")
+            self.proc.stdin.write((json.dumps(value) + "\n").encode("utf-8"))
             self.proc.stdin.flush()
 
     def call(self, method, params=None, timeout=40):
@@ -202,6 +211,7 @@ class Codex:
                 msg = self.messages.get(timeout=max(0.01, deadline - time.monotonic()))
             except queue.Empty as exc:
                 raise RpcError("rpc_timeout:" + method) from exc
+            self._deliver_raw(msg)
             if msg.get("_closed"):
                 raise RpcError("app_server_closed")
             if msg.get("id") == ident and "method" not in msg:
@@ -344,6 +354,7 @@ class Codex:
                     msg = self.messages.get(timeout=1)
                 except queue.Empty:
                     continue
+            self._deliver_raw(msg)
             if msg.get("_closed"):
                 raise RpcError("app_server_closed")
             method, p = msg.get("method"), msg.get("params", {})

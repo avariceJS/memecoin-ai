@@ -142,7 +142,7 @@ class Controller:
                 deadline_at,
                 context=context,
                 baseline=baseline_or_none,
-                admission_percent=quota["rateLimitsByLimitId"]["codex"]["primary"]["usedPercent"],
+                admission_percent=used,
             )
             if row["status"] != "reserved":
                 raise RuntimeError("dispatch_already_sent")
@@ -244,6 +244,8 @@ class Controller:
         end = _counters(end)
         self.ledger._validate_interval(baseline, end)
         identity, epoch = row["identity"], terminal_receipt.get("epoch")
+        if row.get("epoch") is None or epoch != row["epoch"]:
+            raise ValueError("terminal_epoch_dispatch_mismatch")
         reg = self.ledger.db.execute(
             "SELECT 1 FROM registrations WHERE identity=? AND epoch=?", (identity, epoch)
         ).fetchone()
@@ -283,9 +285,27 @@ class Controller:
                 covered = True
         if not covered:
             raise ValueError("terminal_interval_uncovered")
-        self.ledger.db.execute(
-            "UPDATE dispatches SET status='settled' WHERE dispatch_id=?", (dispatch_id,)
-        )
+        encoded_receipt = json.dumps(terminal_receipt, sort_keys=True, separators=(",", ":"))
+        receipt_hash = hashlib.sha256(encoded_receipt.encode()).hexdigest()
+        self.ledger.db.execute("BEGIN IMMEDIATE")
+        try:
+            existing = self.ledger.db.execute(
+                "SELECT evidence_sha256,evidence FROM terminal_receipts WHERE dispatch_id=?",
+                (dispatch_id,),
+            ).fetchone()
+            receipt_row = (dispatch_id, receipt_hash, encoded_receipt, self.clock())
+            if existing:
+                if (existing["evidence_sha256"], existing["evidence"]) != receipt_row[:3]:
+                    raise ValueError("terminal_receipt_conflict")
+            else:
+                self.ledger.db.execute("INSERT INTO terminal_receipts VALUES(?,?,?,?)", receipt_row)
+            self.ledger.db.execute(
+                "UPDATE dispatches SET status='settled' WHERE dispatch_id=?", (dispatch_id,)
+            )
+            self.ledger.db.execute("COMMIT")
+        except Exception:
+            self.ledger.db.execute("ROLLBACK")
+            raise
         return True
 
     def stop_monitor(self, thread):
@@ -294,12 +314,14 @@ class Controller:
             peers = [t for t, value in self._monitor_events.items() if value is event]
             if event:
                 event.set()
-            for item in peers:
-                self._monitor_events.pop(item, None)
-                self._monitors.discard(item)
         for item in peers:
             if item is not threading.current_thread():
                 item.join(timeout=1)
+        with self._monitor_lock:
+            for item in peers:
+                if not item.is_alive():
+                    self._monitor_events.pop(item, None)
+                    self._monitors.discard(item)
 
     def close(self):
         self.closed = True
@@ -372,24 +394,23 @@ class MeteredCodex:
         )
         self._epochs[self.thread] = "initial"
         self.controller.ledger.record_outcome(did, "completed", {"thread_id": self.thread})
+        self.controller.ledger.settle_certified_start(did, self.thread)
         return self.thread
 
     def resume(self, thread_id, model):
+        rows = self.controller.ledger.db.execute(
+            "SELECT epoch,model FROM registrations WHERE identity=? ORDER BY epoch", (thread_id,)
+        ).fetchall()
+        if len(rows) != 1 or rows[0]["model"] != model:
+            raise RuntimeError("resume_requires_unique_ledger_epoch")
         result = self.rpc.resume(thread_id, model)
-        self.thread = (
+        resumed = (
             result.get("thread", {}).get("id", thread_id) if isinstance(result, dict) else thread_id
         )
-        if self.thread not in self._epochs:
-            epoch = "resumed-unknown"
-            self.controller.ledger.register(
-                self.thread,
-                epoch,
-                model,
-                None,
-                evidence="resumed-provider-thread",
-                started_after_T0=False,
-            )
-            self._epochs[self.thread] = epoch
+        if resumed != thread_id:
+            raise RuntimeError("resume_thread_identity_mismatch")
+        self.thread = thread_id
+        self._epochs[thread_id] = rows[0]["epoch"]
         return self.thread
 
     def record_outcome(self, dispatch_id, status, receipt=None):
@@ -482,7 +503,18 @@ class MeteredCodex:
             provider_turn = turn_id
             self._turn_dispatches[turn_id] = dispatch_id
             self._turn_threads[turn_id] = thread_id
-            self.controller.ledger.bind(dispatch_id, thread_id, turn_id)
+            epoch = self._epochs.get(thread_id)
+            if epoch is None:
+                candidates = self.controller.ledger.db.execute(
+                    "SELECT epoch FROM registrations WHERE identity=? ORDER BY epoch",
+                    (thread_id,),
+                ).fetchall()
+                if len(candidates) > 1:
+                    raise RuntimeError("dispatch_epoch_ambiguous")
+                epoch = candidates[0]["epoch"] if candidates else None
+                if epoch is not None:
+                    self._epochs[thread_id] = epoch
+            self.controller.ledger.bind(dispatch_id, thread_id, turn_id, epoch=epoch)
             return started(turn_id) if started else None
 
         try:

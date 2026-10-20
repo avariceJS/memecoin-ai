@@ -320,7 +320,7 @@ def run_attempt(state: Path, attempt_id: int):
                 )
                 + json.dumps(packet),
                 dispatch_id=f"attempt:{attempt_id}:lead",
-                estimate={"tokens": 12000, "wpu": 1.0},
+                estimate={"tokens": 3500, "wpu": 1.0},
                 model=SOL,
                 tool=tool_function(readonly_box, checkout, heartbeat),
                 heartbeat=heartbeat,
@@ -409,7 +409,7 @@ def run_attempt(state: Path, attempt_id: int):
                 prompt,
                 dispatch_id=f"attempt:{attempt_id}:worker",
                 estimate={
-                    "tokens": cfg.get("resources", {}).get("per_worker_tokens", 12000),
+                    "tokens": min(cfg.get("resources", {}).get("per_worker_tokens", 4000), 4000),
                     "wpu": 1.0,
                 },
                 model=LUNA,
@@ -602,7 +602,7 @@ def verify_one(state, task):
                     }
                 ),
                 dispatch_id=f"verify:{task['id']}:{sha}",
-                estimate={"tokens": 12000, "wpu": 1.0},
+                estimate={"tokens": 3500, "wpu": 1.0},
                 model=SOL,
                 tool=lambda _: {"error": "review_tools_disabled"},
                 deadline_seconds=240,

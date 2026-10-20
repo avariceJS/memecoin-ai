@@ -58,8 +58,19 @@ def validate_deployment(state: str | Path) -> dict:
         raise ValueError("deployment_schema")
     if cfg.get("remote_publication_enabled") is not False:
         raise ValueError("remote_publication_must_remain_disabled")
-    controller = (state / "controller").resolve(strict=True)
-    if controller != state / "controller" or cfg.get("controller") != str(controller):
+    controller_path = state / "controller"
+    if controller_path.is_symlink():
+        raise ValueError("controller_path")
+    controller = controller_path.resolve(strict=True)
+    if not controller.is_dir() or not os.path.samefile(controller.parent, state):
+        raise ValueError("controller_path")
+    configured_controller = Path(cfg.get("controller", ""))
+    if (
+        not configured_controller.is_absolute()
+        or configured_controller.is_symlink()
+        or not configured_controller.is_dir()
+        or not os.path.samefile(configured_controller, controller)
+    ):
         raise ValueError("controller_path")
     python = Path(cfg.get("python", ""))
     if not python.is_absolute() or not python.is_file() or not os.access(python, os.X_OK):

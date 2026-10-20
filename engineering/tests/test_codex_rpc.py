@@ -1,6 +1,9 @@
 """Adapter contracts tested without inference or executing candidate commands."""
 
+import io
+import json
 import queue
+import threading
 from unittest.mock import Mock
 
 import pytest
@@ -92,3 +95,27 @@ def test_raw_turn_and_start_require_permit_before_provider_call():
     with pytest.raises(Exception, match="permit_required"):
         client.start("gpt-6-luna", "bounded")
     client.call.assert_not_called()
+
+
+def test_reader_queues_raw_evidence_for_owner_thread_delivery():
+    client = Codex.__new__(Codex)
+    client.proc = type(
+        "Process", (), {"stdout": io.BytesIO(b'not-json\r\n{"id":1,"result":{"ok":true}}\r\n')}
+    )()
+    client.messages = queue.Queue()
+    client.notifications = []
+    client.sequence = 0
+    client.send = Mock()
+    delivered = []
+    client.sink = lambda event: delivered.append((threading.get_ident(), event))
+    reader = threading.Thread(target=client._read)
+    reader.start()
+    result = client.call("synthetic", timeout=1)
+    reader.join(timeout=1)
+    assert not reader.is_alive()
+    assert result == {"ok": True}
+    assert len(delivered) == 2
+    assert all(owner == threading.get_ident() for owner, _event in delivered)
+    assert [event["kind"] for _owner, event in delivered] == ["rpc_malformed", "rpc_raw"]
+    assert delivered[0][1]["raw_bytes_hex"] == b"not-json\r\n".hex()
+    assert json.loads(bytes.fromhex(delivered[1][1]["raw_bytes_hex"]))["id"] == 1

@@ -106,7 +106,8 @@ class UsageLedger:
                 dispatch_id TEXT PRIMARY KEY, payload TEXT NOT NULL, identity TEXT NOT NULL,
                 model TEXT NOT NULL, estimate_tokens REAL NOT NULL, estimate_wpu REAL NOT NULL,
                 deadline_at REAL NOT NULL, baseline TEXT, provider_turn_id TEXT,
-                status TEXT NOT NULL, outcome TEXT, created_at REAL NOT NULL
+                status TEXT NOT NULL, outcome TEXT, created_at REAL NOT NULL,
+                epoch TEXT
             );
             CREATE TABLE IF NOT EXISTS receipts (
                 event_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
@@ -121,8 +122,22 @@ class UsageLedger:
                 event_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
                 status TEXT NOT NULL, receipt TEXT, observed_at REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS terminal_receipts (
+                dispatch_id TEXT PRIMARY KEY, evidence_sha256 TEXT NOT NULL,
+                evidence TEXT NOT NULL, observed_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS interval_attributions (
+                event_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL,
+                identity TEXT NOT NULL, epoch TEXT NOT NULL, model TEXT NOT NULL,
+                start_counters TEXT NOT NULL, end_counters TEXT NOT NULL,
+                evidence TEXT NOT NULL, created_at REAL NOT NULL,
+                FOREIGN KEY (identity, epoch) REFERENCES registrations(identity, epoch)
+            );
             """
         )
+        dispatch_columns = {row[1] for row in self.db.execute("PRAGMA table_info(dispatches)")}
+        if "epoch" not in dispatch_columns:
+            self.db.execute("ALTER TABLE dispatches ADD COLUMN epoch TEXT")
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(receipts)")}
         if "evidence" not in columns:
             self.db.execute("ALTER TABLE receipts ADD COLUMN evidence TEXT NOT NULL DEFAULT '{}'")
@@ -474,6 +489,9 @@ class UsageLedger:
         by_model = {}
         unresolved = []
         registration_coverage = {}
+        attributed = {
+            row["event_id"]: row for row in self.db.execute("SELECT * FROM interval_attributions")
+        }
         regs = self.db.execute("SELECT * FROM registrations ORDER BY identity,epoch").fetchall()
         for r in regs:
             rows = self.db.execute(
@@ -503,6 +521,12 @@ class UsageLedger:
             previous = current
             for seq in sorted(positions):
                 value = positions[seq][0]
+                event_row = self.db.execute(
+                    "SELECT event_id,source FROM events WHERE identity=? AND epoch=? "
+                    "AND sequence=? ORDER BY event_id LIMIT 1",
+                    (r["identity"], r["epoch"], seq),
+                ).fetchone()
+                attribution = attributed.get(event_row["event_id"]) if event_row else None
                 try:
                     delta = self._validate_interval(previous, value)
                 except ValueError:
@@ -515,28 +539,45 @@ class UsageLedger:
                     )
                     previous = value
                     continue
+                model_delta = delta
                 model = r["model"]
-                source_row = self.db.execute(
-                    "SELECT source FROM events WHERE identity=? AND epoch=? AND sequence=? "
-                    "ORDER BY event_id LIMIT 1",
-                    (r["identity"], r["epoch"], seq),
-                ).fetchone()
-                if source_row and ":" in source_row["source"]:
-                    candidate = source_row["source"].rsplit(":", 1)[1]
+                if attribution:
+                    start = json.loads(attribution["start_counters"])
+                    model_delta = self._validate_interval(start, value)
+                    if previous != start:
+                        try:
+                            gap = self._validate_interval(previous, start)
+                        except ValueError:
+                            gap = None
+                        unresolved.append(
+                            {
+                                "identity": r["identity"],
+                                "epoch": r["epoch"],
+                                "event_id": event_row["event_id"],
+                                "reason": "model_attribution_gap",
+                                "start": previous,
+                                "end": start,
+                                "counters": gap,
+                            }
+                        )
+                    model = attribution["model"]
+                elif event_row and ":" in event_row["source"]:
+                    candidate = event_row["source"].rsplit(":", 1)[1]
                     if candidate in MODELS:
                         model = candidate
                 for key in FIELDS:
                     totals[key] += delta[key]
-                agg = by_model.setdefault(model, dict(ZERO, wpu=0.0))
-                for key in FIELDS:
-                    agg[key] += delta[key]
-                uncached = delta["input_tokens"] - delta["cached_input_tokens"]
-                rates = MODELS[model]
-                agg["wpu"] += (
-                    uncached * rates[0]
-                    + delta["cached_input_tokens"] * rates[1]
-                    + delta["output_tokens"] * rates[2]
-                ) / 1_000_000
+                if model_delta is not None:
+                    agg = by_model.setdefault(model, dict(ZERO, wpu=0.0))
+                    for key in FIELDS:
+                        agg[key] += model_delta[key]
+                    uncached = model_delta["input_tokens"] - model_delta["cached_input_tokens"]
+                    rates = MODELS[model]
+                    agg["wpu"] += (
+                        uncached * rates[0]
+                        + model_delta["cached_input_tokens"] * rates[1]
+                        + model_delta["output_tokens"] * rates[2]
+                    ) / 1_000_000
                 previous = value
             registration_coverage[(r["identity"], r["epoch"])] = previous
         reservations = []
@@ -678,7 +719,10 @@ class UsageLedger:
                 if admission_percent >= 97 and active_teams and team not in active_teams:
                     raise RuntimeError("quota_97_single_team_only")
                 self.db.execute(
-                    "INSERT INTO dispatches VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO dispatches "
+                    "(dispatch_id,payload,identity,model,estimate_tokens,estimate_wpu,deadline_at,"
+                    "baseline,provider_turn_id,status,outcome,created_at,epoch) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)",
                     (
                         dispatch_id,
                         payload,
@@ -702,14 +746,31 @@ class UsageLedger:
             "SELECT * FROM dispatches WHERE dispatch_id=?", (dispatch_id,)
         ).fetchone()
 
-    def bind(self, dispatch_id, identity, provider_turn_id, receipt=None):
+    def bind(self, dispatch_id, identity, provider_turn_id, receipt=None, *, epoch=None):
         if not provider_turn_id:
             raise ValueError("provider turn id required")
+        dispatch = self.db.execute(
+            "SELECT baseline FROM dispatches WHERE dispatch_id=? AND identity=?",
+            (dispatch_id, identity),
+        ).fetchone()
+        if dispatch is None:
+            raise ValueError("dispatch binding conflict")
+        if epoch is None:
+            baseline = dispatch["baseline"]
+            candidates = self.db.execute(
+                "SELECT epoch FROM registrations WHERE identity=? "
+                "AND model=(SELECT model FROM dispatches WHERE dispatch_id=?) "
+                "AND baseline IS ? ORDER BY epoch",
+                (identity, dispatch_id, baseline),
+            ).fetchall()
+            if len(candidates) > 1:
+                raise ValueError("dispatch_epoch_ambiguous")
+            epoch = candidates[0]["epoch"] if candidates else None
         cur = self.db.execute(
-            "UPDATE dispatches SET provider_turn_id=?,status='bound' "
+            "UPDATE dispatches SET provider_turn_id=?,status='bound',epoch=COALESCE(epoch,?) "
             "WHERE dispatch_id=? AND identity=? "
             "AND (provider_turn_id IS NULL OR provider_turn_id=?)",
-            (provider_turn_id, dispatch_id, identity, provider_turn_id),
+            (provider_turn_id, epoch, dispatch_id, identity, provider_turn_id),
         )
         if cur.rowcount != 1:
             raise ValueError("dispatch binding conflict")
@@ -741,6 +802,29 @@ class UsageLedger:
             self.db.execute("ROLLBACK")
             raise
         self.observe_receipt(event_id, dispatch_id, receipt, None, status, None, observed, {})
+
+    def settle_certified_start(self, dispatch_id, thread_id):
+        if not dispatch_id.startswith("start:") or not thread_id:
+            raise ValueError("certified_start_identity_invalid")
+        row = self.db.execute(
+            "SELECT status,outcome FROM dispatches WHERE dispatch_id=?", (dispatch_id,)
+        ).fetchone()
+        if row is None or row["status"] != "completed" or not row["outcome"]:
+            raise ValueError("certified_start_outcome_missing")
+        receipt = json.loads(row["outcome"])
+        if receipt != {"thread_id": thread_id}:
+            raise ValueError("certified_start_receipt_mismatch")
+        registration = self.db.execute(
+            "SELECT 1 FROM registrations WHERE identity=? AND model=(SELECT model FROM dispatches "
+            "WHERE dispatch_id=?) AND started=1 AND evidence=?",
+            (thread_id, dispatch_id, "provider-certified-new-thread:" + dispatch_id),
+        ).fetchone()
+        if registration is None:
+            raise ValueError("certified_start_registration_missing")
+        self.db.execute(
+            "UPDATE dispatches SET status='settled' WHERE dispatch_id=? AND status='completed'",
+            (dispatch_id,),
+        )
 
     def observe_receipt(
         self,
@@ -816,6 +900,44 @@ class UsageLedger:
             sequence=after["total_tokens"],
             observed_at=time.time(),
         )
+        row = (
+            event_id,
+            dispatch_id,
+            identity,
+            epoch,
+            model,
+            _json(before),
+            _json(after),
+            _json(evidence),
+            time.time(),
+        )
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            prior = self.db.execute(
+                "SELECT * FROM interval_attributions WHERE event_id=?", (event_id,)
+            ).fetchone()
+            if prior:
+                expected = tuple(
+                    prior[key]
+                    for key in (
+                        "event_id",
+                        "dispatch_id",
+                        "identity",
+                        "epoch",
+                        "model",
+                        "start_counters",
+                        "end_counters",
+                        "evidence",
+                    )
+                )
+                if expected != row[:8]:
+                    raise ValueError("interval_attribution_conflict")
+            else:
+                self.db.execute("INSERT INTO interval_attributions VALUES(?,?,?,?,?,?,?,?,?)", row)
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
         return dispatch_id
 
     def import_external(
@@ -893,15 +1015,20 @@ class UsageLedger:
                 sequence=0,
                 observed_at=time.time(),
             )
-        for item, _before, after in prepared:
-            self.observe(
+        for item, before, after in prepared:
+            self.attribute_dispatch(
+                "external:" + item["turn_id"],
                 item["thread_id"],
                 item["epoch"],
-                item["event_id"],
+                item["model"],
+                before,
                 after,
-                source="external:" + item["model"],
-                sequence=after["total_tokens"],
-                observed_at=time.time(),
+                evidence={
+                    "event_id": item["event_id"],
+                    "turn_id": item["turn_id"],
+                    "collector_id": collector_id,
+                    "sha256": digest,
+                },
             )
         return {"collector_id": collector_id, "sha256": digest, "intervals": len(prepared)}
 

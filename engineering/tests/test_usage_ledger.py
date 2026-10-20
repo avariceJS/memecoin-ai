@@ -177,6 +177,59 @@ class UsageLedgerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.l.finish_turn("t1", c(8, 1, 2, 1), receipt="other")
 
+    def test_certified_unused_start_settles_only_after_registered_success(self):
+        self.l.reserve(
+            "start:certified",
+            "a",
+            "gpt-6.1-sol",
+            {"tokens": 1, "wpu": 1},
+            100,
+            context={"team": "Alpha"},
+        )
+        self.l.consume_dispatch("start:certified")
+        self.l.record_outcome("start:certified", "completed", {"thread_id": "thread-1"})
+        self.assertEqual(len(self.l.summary()["reservations"]), 1)
+        self.l.register(
+            "thread-1",
+            "initial",
+            "gpt-6.1-sol",
+            c(),
+            evidence="provider-certified-new-thread:start:certified",
+            started_after_T0=True,
+        )
+        self.l.settle_certified_start("start:certified", "thread-1")
+        self.assertEqual(self.l.summary()["reservations"], [])
+        self.l.reserve(
+            "start:ambiguous",
+            "a",
+            "gpt-6.1-sol",
+            {"tokens": 1, "wpu": 1},
+            100,
+            context={"team": "Alpha"},
+        )
+        self.l.consume_dispatch("start:ambiguous")
+        with self.assertRaisesRegex(ValueError, "outcome_missing"):
+            self.l.settle_certified_start("start:ambiguous", "thread-2")
+        self.assertEqual(len(self.l.summary()["reservations"]), 1)
+
+    def test_attributed_interval_preserves_unknown_counter_gap(self):
+        self.l.observe("a", "e1", "zero", c(), source="baseline", sequence=0, observed_at=0)
+        self.l.attribute_dispatch(
+            "external-turn",
+            "a",
+            "e1",
+            "gpt-6.1-sol",
+            c(100),
+            c(200),
+            evidence={"event_id": "sol-200", "receipt_sha256": "fixture"},
+        )
+        summary = self.l.summary()
+        self.assertEqual(summary["incremental"], c(200))
+        self.assertEqual(summary["by_model"]["gpt-6.1-sol"]["input_tokens"], 100)
+        gaps = [row for row in summary["unresolved"] if row["reason"] == "model_attribution_gap"]
+        self.assertEqual(len(gaps), 1)
+        self.assertEqual(gaps[0]["counters"], c(100))
+
     def test_dispatch_reservation_summary_retains_team_identity(self):
         self.l.reserve(
             "dispatch-alpha",
