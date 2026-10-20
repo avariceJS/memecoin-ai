@@ -166,6 +166,14 @@ Sol принял receipt только как static correlation и отклон�
 дальнейшей квалификации, не разрешение settlement. `turn/completed` остаётся только событием
 жизненного цикла, неизвестный usage резервируется. Подробный probe receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-raw-response-source-probe-20261020.json`.
+Сверка official source закрыла две альтернативы: `0.164.0-alpha.7` добавляет `experimentalRawEvents`,
+но помечает его internal-only; `rawResponse/completed` также internal-only. Стабильный
+`codex exec --json` экспортирует последний progress snapshot `thread/tokenUsage/updated` как
+cumulative `usage` только при успешном `turn/completed`; отсутствующий snapshot превращается в
+нулевой объект, а failed/interrupted не дают терминального usage. Это не независимая terminal
+квитанция. Pin и adapter не менялись, internal opt-in не включался. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-contract-review-20261020.json`
+(SHA-256 `f414ecb8a9bb9576d8a3e33d3cc32e3d5017722718f56c97ece6790b732f3aff`). A03 остаётся fail-closed.
 Найден отдельный условный parser gap: optional
 `cacheWriteInputTokens` сохраняется в raw receipt, но мешает canonical progress snapshot; реальная
 частота поля неизвестна. В конечном кандидате добавим синтетические варианты на 5 и 6 полей и

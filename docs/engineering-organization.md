@@ -117,6 +117,18 @@ The follow-up raw-response schema probe is stored separately at
 (SHA-256 `b4372bd744c4f3c61a71410df99e25eba101439959b13e939a43847b6642cf05`); the earlier receipt
 remains unchanged.
 
+A follow-up comparison against official Codex source closes two apparent alternatives. Stable
+v0.163.0 does not expose `experimentalRawEvents`; v0.164.0-alpha.7 adds the field but labels it
+experimental and internal-only, and `rawResponse/completed` itself is documented as internal-only.
+The stable `codex exec --json` exporter stores the latest `thread/tokenUsage/updated` snapshot and
+copies its cumulative `tokenUsage.total` into successful `turn.completed`; missing snapshots become
+zero usage, while failed and interrupted turns do not carry terminal usage. That output is not
+independent terminal evidence and does not establish same-dispatch/model/epoch completeness. No
+binary was downloaded and no internal opt-in or provider request was used. A03 remains fail-closed.
+The read-only source comparison is recorded at
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-contract-review-20261020.json`
+(SHA-256 `f414ecb8a9bb9576d8a3e33d3cc32e3d5017722718f56c97ece6790b732f3aff`).
+
 The exact `d4d6590` service code also passed a direct end-to-end synthetic run of
 `test_snapshot_uses_sqlite_backup_and_copies_policy_and_receipts`: it created a complete checkpoint,
 moved the source state aside, restored into a fresh path, and checked preserved STOP, SQLite contents,

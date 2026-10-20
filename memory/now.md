@@ -22,6 +22,11 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   `experimentalRawEvents` opt-in and the payload lacks dispatch/model/epoch binding. Emission and
   completeness remain unqualified; A03 stays fail-closed. Receipt:
   `terminal-usage-raw-response-source-probe-20261020.json` in the external resumption handoff.
+- Upstream comparison found the opt-in only in prerelease 0.164.0-alpha.7, explicitly experimental
+  and internal-only. Stable `codex exec --json` copies the last progress snapshot's cumulative total
+  into successful `turn.completed`; missing data defaults to zero, and failed/interrupted outcomes
+  omit usage. It is not an independent terminal source. Pin and adapter remain unchanged; receipt:
+  `terminal-usage-source-contract-review-20261020.json` in external state.
 - The parser now preserves that optional field in raw evidence and normalizes only the five canonical
   counters. Exact candidate `3c16388` passed the pinned engineering release target using Python
   3.13.6 and the already-installed external venv: Ruff lint/format and pytest (251 tests, 42 subtests).
