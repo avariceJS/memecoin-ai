@@ -1,4 +1,5 @@
 import copy
+import json
 import sqlite3
 import tempfile
 import threading
@@ -57,6 +58,18 @@ ADMISSION = {
     "rationale": "Atomic storage is required before scheduler integration.",
     "evidence": "The existing Store has no canonical task-spec persistence API.",
 }
+VERIFIER_REGISTRY = {
+    "atomic-spec-store": {
+        "acceptance_sha256": H,
+        "policy_id": "atomic-store-v1",
+        "commands": [["/trusted/python", "/trusted/accept.py", "{task_id}", "{checkout}"]],
+        "env": {"LANG": "C"},
+        "harness_sha256": "d" * 64,
+        "result_schema": "org-acceptance-v1",
+        "case_field": "case",
+        "passed_field": "passed",
+    }
+}
 
 
 class TaskSpecStoreTests(unittest.TestCase):
@@ -89,6 +102,90 @@ class TaskSpecStoreTests(unittest.TestCase):
         self.assertEqual(self.store.get_task(SPEC["id"])["acceptance"], [f"atomic-spec-store:{H}"])
         saved["spec"]["scope"].clear()
         self.assertEqual(self.store.get_task_spec(SPEC["id"])["spec"], SPEC)
+
+    def test_admission_binds_trusted_verifier_and_resolves_exact_decision(self):
+        self.assertEqual(
+            self.admit(
+                verifier_registry=copy.deepcopy(VERIFIER_REGISTRY),
+                controller_release_sha256="e" * 64,
+                integration_policy_sha256="f" * 64,
+            ),
+            SPEC["id"],
+        )
+        binding = self.store.resolve_task_execution_binding(
+            SPEC["id"], controller_release_sha256="e" * 64
+        )
+        self.assertEqual(
+            binding["spec_sha256"],
+            __import__("hashlib")
+            .sha256(json.dumps(SPEC, sort_keys=True, separators=(",", ":")).encode())
+            .hexdigest(),
+        )
+        self.assertEqual(
+            binding["verifiers"][0]["commands"], VERIFIER_REGISTRY["atomic-spec-store"]["commands"]
+        )
+        self.assertEqual(binding["controller_release_sha256"], "e" * 64)
+
+    def test_execution_binding_rejects_untrusted_command_and_controller_drift(self):
+        registry = copy.deepcopy(VERIFIER_REGISTRY)
+        registry["atomic-spec-store"]["commands"] = [["{checkout};touch /tmp/pwned"]]
+        with self.assertRaisesRegex(StateError, "invalid_verifier_placeholder"):
+            self.admit(
+                verifier_registry=registry,
+                controller_release_sha256="e" * 64,
+                integration_policy_sha256="f" * 64,
+            )
+        self.admit(
+            verifier_registry=copy.deepcopy(VERIFIER_REGISTRY),
+            controller_release_sha256="e" * 64,
+            integration_policy_sha256="f" * 64,
+        )
+        with self.assertRaisesRegex(StateError, "execution_controller_release_mismatch"):
+            self.store.resolve_task_execution_binding(
+                SPEC["id"], controller_release_sha256="a" * 64
+            )
+
+    def test_execution_binding_rejects_task_and_spec_copy_drift(self):
+        self.admit(
+            verifier_registry=copy.deepcopy(VERIFIER_REGISTRY),
+            controller_release_sha256="e" * 64,
+            integration_policy_sha256="f" * 64,
+        )
+        self.store.db.execute(
+            "UPDATE tasks SET dependencies=? WHERE id=?",
+            (json.dumps(["OTHER-001"]), SPEC["id"]),
+        )
+        with self.assertRaisesRegex(StateError, "execution_task_binding_mismatch"):
+            self.store.resolve_task_execution_binding(
+                SPEC["id"], controller_release_sha256="e" * 64
+            )
+        self.store.db.execute(
+            "UPDATE tasks SET dependencies=? WHERE id=?",
+            (json.dumps([]), SPEC["id"]),
+        )
+        self.store.db.execute(
+            "UPDATE task_specs SET body=? WHERE task_id=?",
+            (json.dumps({**SPEC, "title": "drifted"}), SPEC["id"]),
+        )
+        with self.assertRaisesRegex(StateError, "execution_admission_record_mismatch"):
+            self.store.resolve_task_execution_binding(
+                SPEC["id"], controller_release_sha256="e" * 64
+            )
+
+    def test_execution_binding_uses_json_type_exact_comparisons(self):
+        self.admit(
+            verifier_registry=copy.deepcopy(VERIFIER_REGISTRY),
+            controller_release_sha256="e" * 64,
+            integration_policy_sha256="f" * 64,
+        )
+        self.store.db.execute(
+            "UPDATE tasks SET contracts=? WHERE id=?",
+            (json.dumps({"store-api": True}), SPEC["id"]),
+        )
+        with self.assertRaisesRegex(StateError, "execution_task_binding_mismatch"):
+            self.store.resolve_task_execution_binding(
+                SPEC["id"], controller_release_sha256="e" * 64
+            )
 
     def test_rejections_leave_database_unchanged(self):
         before = self.store.events()

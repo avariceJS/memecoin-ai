@@ -251,3 +251,27 @@ engineering-release-check` прошёл на Python 3.13.6 с точными в�
 Текущий Mac отдельно прошёл no-inference host checks: native permission profile — 21/21, OS confinement — 27/27, Python 3.13.6 и pinned Codex CLI 0.163.0. Native receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/native-profile-qualification-20261020.json` (SHA-256 `dfbdddeb79533198f27c63c35e85026d641b2d3c45cc281dea73a4b33d821889`). Confinement receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/confinement-qualification-20261020.json` (SHA-256 `d17acddff1ea8f8521b80bee4b9508906d9dce1adcdfcdb64908e56691bf546f`).
 
 Adapter hash совпадает с exact `3c16388`; Codex executable hash — `8813367285524ac798dd96d1b071aea30d58708c7226fd236cd275cf1cfdee31`. Эти receipts квалифицируют текущие host controls/pin, но не requalification конкретного restored deployment и не снимают persisted barrier; он остаётся `runtime_ready=false`. Model/account/thread/turn requests не выполнялись.
+
+### Возобновление разработки и внешний блокер ORG-A03 — 2026-10-20
+
+Founder явно возобновил работу того же Luna Goal после трёх повторных исследований A03. A03
+больше не останавливает независимую разработку: Sol-6.1 High подтвердил, что закреплённый Codex
+интерфейс не даёт полной terminal settlement квитанции для всех расходов и исходов. Неизвестный,
+поздний и неоднозначно привязанный расход остаётся зарезервированным; неизвестный расход нельзя
+считать нулём. Полный эксплуатационный выпуск остаётся закрыт.
+
+Запрос к upstream: поддерживаемый версионированный settlement интерфейс с полным набором terminal,
+incomplete, failed и cancelled исходов, уникальными response IDs, привязкой dispatch/thread/turn/model/
+attempt epoch, явной полнотой/потерями/поздними коррекциями и проверяемым полным denominator. Абсолютный
+лимит расходов требует enforcement со стороны провайдера. До появления интерфейса допустим только
+локальный bounded режим по числу dispatch, длительности, concurrency и числу неразрешённых dispatch;
+эти пределы не являются лимитом выставляемого счёта. Не использовать internal или paid fallback и
+не включать auto-resume.
+
+Luna параллельно продолжает A04 trusted execution binding, затем A11 verification/recovery packet,
+A05 пассивный lifecycle, A10 durable contract/dependency flow и A12 bounded history projection.
+Синтетическая source-проверка не разрешает pilot, supervisor runtime, market collection, обучение,
+AUTO или торговлю. Для supervisor, pilot и полного эксплуатационного приёма обязательны отдельные
+независимые release gates. Native Goal пока отображается как `blocked`: доступный Goal API позволяет
+читать и менять статус, но не менять objective и не возобновляет blocked Goal. Существующий ID,
+счётчики и история сохранены; новый Goal не создавался.

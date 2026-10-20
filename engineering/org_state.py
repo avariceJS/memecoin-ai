@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from .task_execution import build_execution_binding, resolve_execution_binding
 from .task_specs import validate_task_spec
 
 
@@ -124,6 +125,9 @@ class Store:
         acceptance_registry: Any,
         policy_sha256: str,
         admission: Any,
+        verifier_registry: Any = None,
+        controller_release_sha256: str | None = None,
+        integration_policy_sha256: str | None = None,
     ) -> str:
         if type(policy_sha256) is not str or re.fullmatch(r"[0-9a-f]{64}", policy_sha256) is None:
             raise StateError("invalid_task_spec_policy_hash")
@@ -181,6 +185,31 @@ class Store:
                     raise StateError("task_spec_duplicate") from None
                 raise
             task_id = canonical["id"]
+            execution_binding = None
+            binding_requested = any(
+                value is not None
+                for value in (
+                    verifier_registry,
+                    controller_release_sha256,
+                    integration_policy_sha256,
+                )
+            )
+            if binding_requested:
+                if (
+                    verifier_registry is None
+                    or controller_release_sha256 is None
+                    or integration_policy_sha256 is None
+                ):
+                    raise StateError("incomplete_task_execution_binding")
+                try:
+                    execution_binding = build_execution_binding(
+                        canonical,
+                        verifier_registry=verifier_registry,
+                        controller_release_sha256=controller_release_sha256,
+                        integration_policy_sha256=integration_policy_sha256,
+                    )
+                except ValueError as exc:
+                    raise StateError(str(exc)) from None
             decision_name = "admission/task-spec/" + task_id
             collision = (
                 self.db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone()
@@ -229,6 +258,7 @@ class Store:
                 "spec": canonical,
                 "policy_sha256": policy_sha256,
                 "admission": admission_snapshot,
+                "execution_binding": execution_binding,
             }
             self.db.execute(
                 """INSERT INTO decisions(
@@ -271,6 +301,42 @@ class Store:
                 "decision": {"name": row["decision_name"], "version": row["decision_version"]},
             }
 
+    def resolve_task_execution_binding(
+        self, task_id: str, *, controller_release_sha256: str
+    ) -> dict:
+        """Read the exact immutable admission decision referenced by the spec row."""
+        with self._read_snapshot():
+            row = self.db.execute(
+                "SELECT body,policy_sha256,admission,decision_name,decision_version "
+                "FROM task_specs WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+            if row is None:
+                raise StateError("missing_execution_binding")
+            decision_row = self.db.execute(
+                "SELECT name,version,body FROM decisions WHERE name=? AND version=?",
+                (row["decision_name"], row["decision_version"]),
+            ).fetchone()
+            if decision_row is None:
+                raise StateError("missing_execution_binding_decision")
+            decision = {**dict(decision_row), "body": json.loads(decision_row["body"])}
+            decision_body = decision["body"]
+            if (
+                _json(decision_body.get("spec")) != _json(json.loads(row["body"]))
+                or decision_body.get("policy_sha256") != row["policy_sha256"]
+                or _json(decision_body.get("admission")) != _json(json.loads(row["admission"]))
+            ):
+                raise StateError("execution_admission_record_mismatch")
+            try:
+                return resolve_execution_binding(
+                    task_id,
+                    self._task(task_id),
+                    decision,
+                    controller_release_sha256=controller_release_sha256,
+                )
+            except ValueError as exc:
+                raise StateError(str(exc)) from None
+
     def close(self) -> None:
         with self._lock:
             self.db.close()
@@ -285,6 +351,16 @@ class Store:
             except BaseException:
                 self.db.execute("ROLLBACK")
                 raise
+
+    @contextmanager
+    def _read_snapshot(self):
+        with self._lock:
+            self.db.execute("BEGIN")
+            try:
+                yield
+            finally:
+                if self.db.in_transaction:
+                    self.db.execute("ROLLBACK")
 
     def _event(self, kind: str, entity: str, body: Any) -> None:
         self.db.execute(

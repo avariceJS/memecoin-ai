@@ -23,47 +23,77 @@ local reproductions, test results and limits. Private scripts and raw results ar
 `/Users/root1/Developer/brain-org-state/audit-20261020-independent/`. Original consolidation custody
 and pilot state remain intact. The [handoff](../engineering/SOL-MANDATE.md) owns the resumption entry.
 
-### Founder resumption and technical program — 2026-10-20
+### Founder resumption and non-blocking technical program — 2026-10-20
 
 The founder subsequently authorized autonomous **engineering development**. This does not authorize
 operational release, original pilot dispatch, removal of STOP, market collection, training, AUTO,
 trading, protected-data access, production or `main` changes, paid resources, or automatic Astra.
-The native implementation owner is the existing thread `01a15657-3558-79c1-86dc-6ed033c264df`
-(`gpt-6-luna/high`); preserve its prior Goal, counters, checkpoints and all six pilot failures. The
-current Astra audit thread has no Goal. Resume only the existing Luna owner after the Sol plan and
-handoff are durable; do not create a competing coordinator or worker team.
+The sole implementation owner is the existing successor thread
+`01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` (`gpt-6-luna/high`). Preserve this Goal's identity, counters,
+checkpoints, prior decisions and all six pilot failures. The prior Luna thread remains paused, and
+the Astra audit thread has no Goal. On 2026-10-20 the founder explicitly resumed work after the
+native Goal manager reported it blocked following three repeated A03 investigations. Do not create a
+competing Goal, coordinator or worker team. The available Goal API exposes status reads and status
+transitions only; it cannot revise this Goal's objective or resume a blocked Goal. Keep that native
+limitation visible, continue under the same Goal identity, and do not reset its history or counters.
 
 Independent Sol technical lead `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`
 (`gpt-6.1-sol/high`) verified the current checkout, selected private evidence hashes, pilot STOP,
 configuration, manifest and SQLite against the audit. It made no source or pilot changes. Its
-ranked program is:
+follow-up established that A03 is an external Codex-interface dependency at pinned v0.163.0: stable
+public progress snapshots and successful turn completion cannot prove complete per-dispatch
+settlement; internal raw events and token records also fail completeness or public binding. Do not
+repeat source probes without a new interface or source change. Keep reservations for unknown, late or
+ambiguously attributed usage. Any future bounded operation must limit dispatch count, duration,
+concurrency and unresolved-dispatch count without describing those limits as provider spend caps. Do
+not auto-resume or fall back to paid/internal interfaces. Full release stays closed until a supported,
+versioned evidence contract binds complete terminal outcomes (including incomplete, failed and
+cancelled responses) to response, dispatch, thread/turn, model and attempt epoch, exposes loss and
+late-correction semantics, and provides a complete denominator. An absolute spend cap additionally
+requires provider-side enforcement.
 
-1. **Settle the usage evidence contract first.** Sol owns source feasibility and semantics; Luna owns
-   a bounded implementation only after the evidence source is established. Bind provider evidence
-   to dispatch, native thread/turn, model and attempt epoch; define baseline, terminal and late-event
-   handling. Prove duplicate, missing, conflicting, wrong-turn, restart and model-ambiguity cases.
-   Unknown usage remains reserved. If the native interface cannot provide sufficient evidence,
-   document the exact limit and keep the release blocked; `turn/completed` alone is not settlement.
-2. **Build one finite STOP-preserving release candidate:** ORG-A01/A02/A03/A07/A08 and the minimal
-   ORG-A09 deterministic-controller circuit breaker needed before any task replay. Fix real bootstrap
+Treat A03 as a tracked external release dependency, not a company-wide engineering stop. Continue
+independent source work while that interface is unavailable. Its ranked program was updated after
+source review:
+
+1. **Keep A03 fail-closed and open the upstream dependency.** Luna owns a bounded safe architecture
+   and records the exact supported-interface contract in the Founder Desk. Resume A03 implementation
+   only when upstream exposes a versioned complete source or a new qualified provider interface is
+   separately authorized. Unknown usage and its reservations remain unresolved.
+2. **Build useful source work in parallel.** A04 binds validated tasks to controller-owned verifier
+   policy in the same immutable admission decision; execution, verification and recovery resolve that
+   exact binding. Acceptance: a synthetic off-catalog task reaches verification without config-task
+   lookup; proposals cannot supply executable fields; policy, artifact, task, decision-version and
+   attempt-epoch drift fail before acceptance; production admission remains disabled by default. A11
+   supplies exact candidate identity, a complete review packet and a receipt; oversized diffs require
+   verified pagination or an explicit block, and moved integration tips require a new review. A05
+   implements a passive deterministic lifecycle state machine with one lease owner, durable wait
+   reasons/backoff and recovery obligations; synthetic crash, quota, STOP and unresolved A03 cases do
+   not busy-loop or dispatch. A10 adds idempotent producer/consumer acknowledgements and explicit
+   contract transitions; stale or mismatched acknowledgements cannot activate a contract, and blocked
+   dependencies do not suppress unrelated ready work. A12 adds bounded active projections and indexed
+   dependency lookup without deleting history. Each workstream gets independent exact-candidate review
+   and source checks; none enables a service or pilot.
+3. **Continue STOP-preserving source and restore work:** ORG-A01/A02/A06/A07/A08/A09, with the
+   deterministic-controller circuit breaker required before any task replay. Fix real bootstrap
    to pass real preflight, use versioned non-destructive ledger initialization, settle only qualified
    usage, stop active permits within a stated overshoot bound on fresh zero capacity, and include all
    engineering checks in one explicit local release command. Dynamic task admission and unattended
    continuation remain disabled in this first candidate. Luna is the sole implementation owner;
    Sol reviews the exact candidate.
-3. **Checkpoint and release acceptance.** Before changing the historical pilot, prove a complete
+4. **Checkpoint and release acceptance.** Before changing the historical pilot, prove a complete
    checkpoint and fresh-path restore, including STOP/reasons, policy/config/native binding, both
    databases, Git refs/objects, intents, attempts, receipts and recovery records. Verify checksum-bound
    manifest, STOP-preserving upgrade/rollback and rejection of incomplete snapshots. This is source
    and release evidence only; original pilot dispatch still needs separate founder authorization.
-4. **First useful pilot cycle, only after that authorization.** Preserve all six failures and use the
+5. **First useful pilot cycle, only after that authorization.** Preserve all six failures and use the
    same pilot database. Independently accept/integrate EXP-001, CTX-001 and PLAT-001 through the
    released controller; prove native model identity, final JSON, brokered tool execution, usage
    settlement, exact merged-candidate review and one-time publication. A deterministic parser or
    controller fault must create a bounded recovery obligation/circuit break, not burn implementation
    retries. Then close ORG-A04 with one useful task outside the fixed catalogue through the same
    immutable trusted execution/verifier binding.
-5. **Lifecycle, restore, departments and endurance.** Close ORG-A05/A06 and remaining A09 before
+6. **Lifecycle and endurance.** Close ORG-A05/A06 and remaining A09 before
    unattended continuation. Then close A10-A12 with durable department plans/contracts, full review
    packets and bounded history projections. Qualify reboot/storage-loss separately and only then
    run 24 hours, 72 hours and seven days with useful work across at least two independent streams.
@@ -71,8 +101,8 @@ ranked program is:
    concurrency only when measured accepted throughput improves.
 
 The source candidate, merged-system acceptance, operational release, and founder authority to resume
-the original pilot are distinct gates. Passing synthetic tests or the local release command alone
-does not pass them.
+the original pilot are distinct gates. A03 currently blocks full operational release, not independent
+engineering progress. Passing synthetic tests or the local release command alone does not pass them.
 
 ### Terminal usage evidence source qualification — 2026-10-20
 
@@ -232,7 +262,7 @@ production corruption or a successful sandbox escape.
 | ORG-A01 | P1 | **Bounded source repair accepted by Sol at `3c16388`:** bootstrap writes `codex_executable_sha256`, matching `service.validate_deployment`. Prior synthetic bootstrap evidence reproduced the rejection as `codex_executable_binding`. The pinned engineering release gate passed. |
 | ORG-A02 | P1 | **Bounded source repair accepted by Sol at `3c16388`:** bootstrap initializes the ledger only after both qualification steps, before creating organization state. Schema creation, legacy column additions and `user_version=1` commit together. Existing version-1 ledgers must match exact ordered columns, types, nullability, primary keys, grouped composite foreign keys and unique indexes; newer, partial, extra-table and unknown schemas fail closed. A split-FK regression test rejects two single-column constraints in place of the required composite key. The pinned engineering release gate passed. |
 | ORG-A03 | P1 | The operational adapter always returns `usage_terminal=False`; progress counters are deliberately unattributed. `metered_client` sets `terminal_usage_qualified=False`, and there is no operational caller of `reconcile_dispatch`. A completed synthetic turn retained its reservation and `model_attribution_unverified`; scheduler capacity became zero. Correct conservative accounting has no qualified operational settlement path. Do not fix this by assuming unknown usage is zero. |
-| ORG-A04 | P1 | `Store.admit_task_spec` atomically persists a valid spec, but planner uses fixed cards and verifier resolves `cfg['tasks'][id]['checks']` plus pilot-only acceptance. A Store-admitted PLAT-010 reaches submitted state and `verify_one` raises `KeyError` before its guarded verifier block. Spec capabilities, deadline and acceptance references are not an executable trusted task binding. |
+| ORG-A04 | P1 | `Store.admit_task_spec` atomically persists a valid spec, but planner uses fixed cards and verifier resolves `cfg['tasks'][id]['checks']` plus pilot-only acceptance. A Store-admitted PLAT-010 reaches submitted state and `verify_one` raises `KeyError` before its guarded verifier block. Spec capabilities, deadline and acceptance references are not yet an executable trusted task binding. A bounded persistence/resolver scaffold was independently accepted by Sol; it stores a controller-owned verifier metadata binding in the admission decision and rejects task/spec drift. It is not used by `run_attempt`, `verify_one` or `reconcile`; executable manifest qualification, production feature gates and full A04 acceptance remain open. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-persistence-resolver-scaffold-review-20261020.json` (SHA-256 `7f0333becf43206c9f383720202139b6dcb0c70f7e581ced106b54a60c3caf48`). |
 | ORG-A05 | P1 | Successful supervisor exit after its bounded episode is not restarted by the generated `KeepAlive={'SuccessfulExit': False}` plist. Quiescence writes a Sol handoff and exits; no qualified consumer of that handoff exists. `reset_recovery_decision` has no operational caller. Chat Goal continuation and the frozen pilot are separate control paths, not one qualified lifetime service. |
 | ORG-A06 | P1 | **Bounded source repair accepted by Sol at `3c16388`:** snapshot v2 copies the private state tree, backs up both SQLite databases, requires exact organization column/type/nullability/default/PK/FK/unique signatures, checks FK data integrity and no live attempts, and verifies the integration repository offline with sanitized Git configuration while rejecting alternates, shallow repositories and promisor remotes. It retains STOP, intents, attempts, logs and Git objects/refs; holds the supervisor lock; canonicalizes destination containment; and restores only to a fresh path. Synthetic restore after moving the source copy rebinds bundled executables and permits unavailable host executables only behind the persisted barrier. Relaxed structural validation requires `restore_requires_host_requalification=true`; restore receipts say `runtime_ready=false`. Fresh-path structural checks passed. Host qualification and operational/pilot restore remain open. |
 | ORG-A07 | P1 | **Bounded source repair accepted by Sol at `3c16388`:** the quota watchdog cancels active work for explicit `stop`, `quota_critical`, or `reserve_threshold` decisions. A zero count of additional admission slots alone does not cancel a permitted active team. Synthetic threshold and high-quota continuation probes passed. Drain timing, bounded overshoot and provider billing remain unqualified. |
