@@ -21,11 +21,14 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   `experimentalRawEvents`; exact pinned v0.163.0 `--experimental` schema includes it, but marks both
   opt-in and `RawResponseCompletedNotification` internal-only. Pinned core source emits per-response
   events after completed upstream responses and tests reject incomplete streams; app-server tags
-  thread/turn and publishes before turn completion. This is static only; runtime delivery, reconnect,
-  completeness, duplicates, and late corrections remain untested. Payload lacks dispatch/model/epoch.
-  Receipt: `terminal-usage-raw-response-source-semantics-20261020.json`. Stable `codex exec --json`
-  re-exports progress snapshot totals on successful completion and is not an independent terminal
-  source. A03 remains fail-closed. Correction receipt: `terminal-usage-schema-filter-correction-20261020.json`.
+  thread/turn and publishes before turn completion. However, `response.incomplete` can report nonzero
+  spending recorded separately without RawResponseCompleted, while TurnComplete still follows; pinned
+  tests assert this. Raw completion events cannot form a complete usage ledger. Runtime delivery,
+  reconnect, duplicates, and late corrections remain untested; payload lacks dispatch/model/epoch.
+  Receipts: `terminal-usage-raw-response-source-semantics-20261020.json` and
+  `terminal-usage-raw-response-incomplete-gap-20261020.json`. Stable `codex exec --json` re-exports
+  progress snapshot totals on successful completion and is not an independent terminal source. A03
+  remains fail-closed. Correction receipt: `terminal-usage-schema-filter-correction-20261020.json`.
 - The parser now preserves that optional field in raw evidence and normalizes only the five canonical
   counters. Exact candidate `3c16388` passed the pinned engineering release target using Python
   3.13.6 and the already-installed external venv: Ruff lint/format and pytest (251 tests, 42 subtests).

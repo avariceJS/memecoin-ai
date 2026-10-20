@@ -164,10 +164,11 @@ Sol принял receipt только как static correlation и отклон�
 первая схема была сгенерирована без `--experimental` и скрыла opt-in фильтром, а не потому, что
 его нет в pinned бинарнике. Исправленный экспорт схемы v0.163.0 с `--experimental` показывает
 `experimentalRawEvents` и помечает его internal-only; `RawResponseCompletedNotification` тоже
-помечен internal-only. Source review показывает: core создаёт событие после upstream Responses API
-completion, тесты исключают incomplete stream, app-server добавляет thread/turn и публикует событие
-до turn completion. Это только static evidence; runtime delivery, reconnect, полнота, дубли и late
-corrections не проверялись. Payload не связывает запись с
+помечен internal-only. Source review подтверждает событие после upstream completion,
+thread/turn binding и публикацию до turn completion. Но `response.incomplete` может содержать spending, который core записывает отдельно
+без `RawResponseCompleted`; pinned tests проверяют отсутствие raw event при ненулевом учтённом usage,
+затем `TurnComplete`. Поэтому сумма raw events неполна даже при идеальной доставке. Runtime
+delivery/reconnect/duplicates/late corrections не проверялись. Payload не связывает запись с
 dispatch/model/epoch. Это не разрешённый owner-adapter источник. Подробный probe receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-raw-response-source-probe-20261020.json`.
 Сверка official source подтвердила: в pinned v0.163.0 поле есть в experimental schema, но оно
@@ -175,7 +176,12 @@ dispatch/model/epoch. Это не разрешённый owner-adapter исто�
 была следствием schema filtering при отсутствии `--experimental`. Корректирующий receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-schema-filter-correction-20261020.json`
 (SHA-256 `89ef2e6a6017b5dd9a6bff446742a3263e43238e4e298c3c2084e927903e1640`). Подробный
-source-semantics receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-raw-response-source-semantics-20261020.json` (SHA-256 `86ce357cbd63162a63e5aa4792875b4ef26a1b0e73325c842812029f9f7b77b2`).
+source-semantics receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-raw-response-source-semantics-20261020.json`
+(SHA-256 `86ce357cbd63162a63e5aa4792875b4ef26a1b0e73325c842812029f9f7b77b2`).
+Supplemental incomplete-usage receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-raw-response-incomplete-gap-20261020.json`
+(SHA-256 `44f2730660e1591ae6fe24de5390aaaf28c9d72290cf2a19279a019be9083e6d`).
 Стабильный `codex exec --json` экспортирует последний progress snapshot
 `thread/tokenUsage/updated` как cumulative `usage` только при успешном `turn/completed`; при
 отсутствующем snapshot usage становится нулевым, а failed/interrupted не дают terminal usage.

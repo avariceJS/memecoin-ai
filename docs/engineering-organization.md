@@ -92,13 +92,17 @@ pinned v0.163.0 includes the boolean opt-in, but its schema description says it 
 only; the `RawResponseCompletedNotification` schema is itself described as internal-only. The raw
 payload has no dispatch/model/epoch binding. Pinned source inspection shows core emits the
 per-response event after completed upstream Responses API results (including foreground compaction);
-core tests reject incomplete streams as completed. The app-server adds thread/turn identifiers and
-forwards this event before its turn-completion notification, but gates it behind the internal-only
-opt-in. These are source semantics only: no runtime delivery, reconnect, completeness, duplicate, or
-late-correction behavior was exercised. This is not an authorized owner-adapter source. Exact default
-and experimental schema hashes are in the correction receipt below; source hashes and URLs for this
-follow-up are in `terminal-usage-raw-response-source-semantics-20261020.json`. Until a reviewed
-supported interface establishes full dispatch/model/epoch binding and delivery completeness, ORG-A03
+core tests reject incomplete streams as completed. However, `response.incomplete` can include reported
+spending that core records separately without emitting `RawResponseCompleted`; upstream tests assert
+that raw event is absent while retaining the nonzero usage, and the turn still reaches `TurnComplete`.
+Therefore raw completion events are not a complete turn-usage ledger even with perfect delivery. The
+app-server adds thread/turn identifiers and forwards this event before its turn-completion
+notification, but gates it behind the internal-only opt-in. These are source semantics only: no runtime
+delivery, reconnect, duplicate, or late-correction behavior was exercised. This is not an authorized
+owner-adapter source. Exact default and experimental schema hashes are in the correction receipt below;
+source hashes and URLs are in `terminal-usage-raw-response-source-semantics-20261020.json` and
+`terminal-usage-raw-response-incomplete-gap-20261020.json`. Until a reviewed supported interface
+establishes complete accounting, full dispatch/model/epoch binding and delivery completeness, ORG-A03
 stays fail-closed. Unknown usage remains reserved; `turn/completed` remains lifecycle-only.
 
 Sol also identified a conditional parser compatibility gap in `metered_codex.capture`: the generated
