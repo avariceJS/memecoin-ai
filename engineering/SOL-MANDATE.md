@@ -98,6 +98,20 @@ Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-conflict-adjudication-review-20261021.json`
 (SHA-256 `cbb8a0f9eeeea6e0716b46332361cfcf93655bc066e9df03ac25592a84f75925`).
 
+At source `e9bb957fbc4b956dde7955f40871cef301035e3b`, A04 schedules Security API image-identity
+checks every 100 ms during collection and wait for the first command of each manifest-bound verifier;
+the synchronous call can extend actual spacing. Samples require the
+expected code-directory hash and executable path; mismatch or live-process identity unavailability
+fails closed, kills and reaps the process group. A marker-controlled synthetic signed-binary test
+proves a changed image was observed after the initial match. Sol accepted exact diff
+`54e33e3c984a18660433c97d6dc1d720d9b3128d0353f3fe25c56b739400f8d4`; the engineering gate passed
+366 tests/96 subtests and Ruff. Sampling does not establish continuous identity, descendant identity,
+or stdout provenance, and the synchronous call is not interruptible by command timeout; same-inode
+launch, loader closure, deployment qualification and full A04 remain open. Bound plans remain
+`execution_qualified=False`. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-process-code-monitor-review-20261021.json`
+(SHA-256 `5e65765997a18e9b75881156ef30c50aaf3b5ccbf78e9f9e8b1f101323aab342`).
+
 ## Historical founder audit hold — 2026-10-20
 
 The founder paused autonomous development for Git consolidation and an independent architecture

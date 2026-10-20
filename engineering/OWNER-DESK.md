@@ -473,6 +473,17 @@ At `d985cffdcbddee11d25f9972f6a1dafcf73f90fb` A04 verifier manifest поднят
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-darwin-fd-exec-probe-20261021.json`
 (SHA-256 `1e22ca8a59053bf0b4b746a98b6d23b543391497ac7b92da2840defe92b0b07f`).
 
+Новый source increment A04 принят Sol: `SandboxRunner` планирует повторную проверку hash и path image
+identity каждые 100 мс, пока собирает вывод и ждёт первую команду каждого bound verifier; вызов
+Security API синхронный, поэтому интервал фактических наблюдений может быть длиннее. Synthetic signed
+binary regression подтверждает initial match, затем `exec` другого image и отказ до возврата
+результата. Gate: 366 tests, 96 subtests, Ruff. Это выборочные наблюдения; короткие смены между
+проверками, дочерние процессы и происхождение stdout не связаны с image; Security API не прерывается
+command timeout. Same-inode, loader/import, sandbox, production qualification и полный A04 остаются открыты; планы остаются
+`execution_qualified=False`. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-process-code-monitor-review-20261021.json`
+(SHA-256 `5e65765997a18e9b75881156ef30c50aaf3b5ccbf78e9f9e8b1f101323aab342`).
+
 A10 закрыл недостающий regression для lock-wait handoff: вторая SQLite connection держит
 `BEGIN IMMEDIATE`, первая реально ждёт, вторая добавляет ready task до commit; старый snapshot
 отклоняется, свежий принимается. Sol принял exact test-only diff; полный gate прошёл: 349 тестов,

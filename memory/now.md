@@ -173,6 +173,17 @@ automatically.
   only first command is sampled, loader closure remains open, and plans stay `execution_qualified=False`.
   Source, docs and this checkpoint are fast-forwarded into `org/development` at
   `afdc32247c8c0a1a89d79f5245ba7fe88c455ca5`. `main` remains unchanged.
+- A04 source increment `e9bb957fbc4b956dde7955f40871cef301035e3b` schedules repeated checks of the
+  first command per bound verifier's PID hash and executable path every 100 ms during output collection
+  and wait; synchronous Security calls can extend actual spacing and are not command-timeout interruptible.
+  mismatch/unavailable identity fails closed and kills/reaps the process group. A marker-controlled
+  ad-hoc-signed exec regression proves a changed image was observed after its initial match. Sol
+  accepted exact diff `54e33e3c984a18660433c97d6dc1d720d9b3128d0353f3fe25c56b739400f8d4`; full gate
+  passed 366 tests/96 subtests and Ruff. Periodic sampling leaves brief inter-sample changes,
+  descendant identity and stdout provenance open; loader/sandbox/deployment qualification remain
+  open and plans stay `execution_qualified=False`. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-process-code-monitor-review-20261021.json`
+  (SHA-256 `5e65765997a18e9b75881156ef30c50aaf3b5ccbf78e9f9e8b1f101323aab342`).
 - A12 bounded active-task projection merged at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`; Sol
   accepted the exact source and the gate passed 278 tests/42 subtests with Ruff. SQL limits active
   rows to 100, full state counts remain, omitted rows are disclosed, and history is retained. Full
