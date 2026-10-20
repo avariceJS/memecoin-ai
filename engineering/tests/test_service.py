@@ -197,6 +197,41 @@ def test_restore_does_not_replace_raced_in_empty_destination(tmp_path, monkeypat
     assert list(tmp_path.glob(".state.restore.*")) == []
 
 
+def test_restore_cleans_failed_publication_with_read_only_root_safely(tmp_path, monkeypatch):
+    state = deployment(tmp_path)
+    snapshot = backup_snapshot(state, tmp_path / "backup")
+    manifest_path = snapshot / "snapshot.json"
+    manifest_path.chmod(0o600)
+    manifest = json.loads(manifest_path.read_text())
+    manifest["source_state_mode"] = 0o500
+    manifest_path.write_bytes(service._snapshot_manifest_bytes(manifest))
+    manifest_path.chmod(0o400)
+    digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    state.rename(tmp_path / "detached-state")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    marker = outside / "preserve.txt"
+    marker.write_text("outside target remains")
+    validate = service.validate_deployment
+    observed = []
+
+    def fail_after_publication(path, *args, **kwargs):
+        if Path(path) == state and state.is_dir():
+            observed.append(state.stat().st_mode & 0o777)
+            state.chmod(0o700)
+            (state / "outside-link").symlink_to(outside, target_is_directory=True)
+            state.chmod(0o500)
+            raise ValueError("injected_post_publication_failure")
+        return validate(path, *args, **kwargs)
+
+    monkeypatch.setattr(service, "validate_deployment", fail_after_publication)
+    with pytest.raises(ValueError, match="injected_post_publication_failure"):
+        restore_snapshot(snapshot, state, expected_manifest_sha256=digest)
+    assert observed == [0o500]
+    assert not state.exists()
+    assert marker.read_text() == "outside target remains"
+
+
 def test_snapshot_closes_lock_descriptor_when_flock_fails(tmp_path, monkeypatch):
     state = deployment(tmp_path)
     opened = []

@@ -379,6 +379,68 @@ def _fsync_directory(path: Path) -> None:
         os.close(fd)
 
 
+def _make_tree_directories_removable(directory_fd: int) -> None:
+    try:
+        os.fchmod(directory_fd, 0o700)
+        children = os.listdir(directory_fd)
+    except OSError:
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    for name in children:
+        try:
+            info = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+            if not stat.S_ISDIR(info.st_mode):
+                continue
+            os.chmod(name, 0o700, dir_fd=directory_fd, follow_symlinks=False)
+            child_fd = os.open(name, flags, dir_fd=directory_fd)
+        except OSError:
+            continue
+        try:
+            _make_tree_directories_removable(child_fd)
+        finally:
+            try:
+                os.close(child_fd)
+            except OSError:
+                pass
+
+
+def _remove_tree_best_effort(path: Path) -> None:
+    try:
+        info = path.lstat()
+    except OSError:
+        return
+    if stat.S_ISLNK(info.st_mode):
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        return
+    if not stat.S_ISDIR(info.st_mode):
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        return
+    try:
+        os.chmod(path, 0o700, follow_symlinks=False)
+    except OSError:
+        pass
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        directory_fd = os.open(path, flags)
+    except OSError:
+        directory_fd = None
+    if directory_fd is not None:
+        try:
+            _make_tree_directories_removable(directory_fd)
+        finally:
+            try:
+                os.close(directory_fd)
+            except OSError:
+                pass
+    shutil.rmtree(path, ignore_errors=True)
+
+
 def _publish_directory_exclusive(source: Path, destination: Path) -> None:
     """Atomically rename a sibling directory only if the target is still absent."""
     if source.parent != destination.parent:
@@ -847,16 +909,11 @@ def restore_snapshot(
         _publish_directory_exclusive(temp, destination)
         published = True
         _fsync_directory(parent)
-        try:
-            validate_deployment(destination)
-        except Exception:
-            shutil.rmtree(destination, ignore_errors=True)
-            published = False
-            raise
+        validate_deployment(destination)
         return destination
     except Exception:
         if published:
-            shutil.rmtree(destination, ignore_errors=True)
+            _remove_tree_best_effort(destination)
         else:
             shutil.rmtree(temp, ignore_errors=True)
         raise
