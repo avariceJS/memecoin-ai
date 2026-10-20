@@ -10,7 +10,9 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from engineering import confinement
 from engineering.confinement import ConfinementError, SandboxRunner
 from engineering.mac_code_identity import (
     MacCodeIdentityError,
@@ -32,6 +34,26 @@ class MacCodeIdentityTests(unittest.TestCase):
             "#include <unistd.h>\n"
             f"int main(void) {{ const char c = '{marker}'; "
             "write(1, &c, 1); sleep(2); return 0; }\n"
+        )
+        subprocess.run([shutil.which("clang"), str(source), "-o", str(binary)], check=True)
+        subprocess.run(
+            [shutil.which("codesign"), "--force", "--sign", "-", str(binary)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return binary.resolve(strict=True)
+
+    def _execing_signed_binary(
+        self, root: Path, name: str, target: Path, release_marker: Path
+    ) -> Path:
+        source = root / f"{name}.c"
+        binary = root / name
+        source.write_text(
+            "#include <unistd.h>\n"
+            "int main(int argc, char **argv) { "
+            "while (access(argv[2], F_OK) != 0) usleep(1000); "
+            "execl(argv[1], argv[1], (char *)0); return 127; }\n"
         )
         subprocess.run([shutil.which("clang"), str(source), "-o", str(binary)], check=True)
         subprocess.run(
@@ -111,6 +133,7 @@ class MacCodeIdentityTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "B")
                 self.assertEqual(result.process_code_directory_hash, other)
+                self.assertGreater(result.process_identity_observations, 1)
                 with self.assertRaisesRegex(ConfinementError, "code identity does not match"):
                     runner.run(
                         [str(active_path)],
@@ -140,6 +163,48 @@ class MacCodeIdentityTests(unittest.TestCase):
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=2)
+
+    def test_sandbox_runner_rejects_process_image_change_during_output_collection(self):
+        with tempfile.TemporaryDirectory(prefix="mac-code-monitor-") as directory:
+            root = Path(directory).resolve()
+            scratch = root / "scratch"
+            scratch.mkdir()
+            target = self._signed_binary(root, "target", "T")
+            marker = scratch / "release-launcher"
+            launcher = self._execing_signed_binary(root, "launcher", target, marker)
+            runner = SandboxRunner(
+                writable_roots=[scratch],
+                home=scratch,
+                read_roots=[root],
+            )
+            expected = static_code_directory_hash(launcher)
+            observed = []
+            actual_identity = confinement.running_code_identity
+
+            def observe_then_release(pid):
+                identity = actual_identity(pid)
+                observed.append(identity)
+                if identity == (expected, str(launcher)):
+                    marker.write_text("go")
+                return identity
+
+            with (
+                patch(
+                    "engineering.confinement.running_code_identity",
+                    side_effect=observe_then_release,
+                ),
+                self.assertRaisesRegex(ConfinementError, "code identity does not match"),
+            ):
+                runner.run(
+                    [str(launcher), str(target), str(marker)],
+                    cwd=scratch,
+                    timeout=5,
+                    expected_executable_sha256=hashlib.sha256(launcher.read_bytes()).hexdigest(),
+                    expected_executable_cdhash=expected,
+                    expected_executable_main_path=launcher,
+                )
+            self.assertIn((expected, str(launcher)), observed)
+            self.assertTrue(any(identity != (expected, str(launcher)) for identity in observed))
 
 
 if __name__ == "__main__":

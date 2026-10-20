@@ -32,6 +32,7 @@ SYSTEM_READ_ROOTS = ("/System/Library", "/usr/lib", "/usr/share", "/usr/bin", "/
 VERIFIER_ENV_KEYS = frozenset({"LANG", "LC_ALL", "TZ", "PYTHONHASHSEED", "PYTHONUTF8"})
 MAX_PINNED_EXECUTABLE_BYTES = 512_000_000
 PROCESS_CODE_IDENTITY_TIMEOUT = 2.0
+PROCESS_CODE_IDENTITY_INTERVAL = 0.1
 
 
 class ConfinementError(RuntimeError):
@@ -51,6 +52,7 @@ class SandboxResult:
     prelaunch_executable_sha256: str | None = None
     process_code_directory_hash: str | None = None
     process_executable_path: str | None = None
+    process_identity_observations: int = 0
 
 
 def _prelaunch_executable_sha256(path: str | Path, expected_sha256: str) -> str:
@@ -332,6 +334,8 @@ class SandboxRunner:
         ) as process:
             process_code_directory_hash = None
             process_executable_path = None
+            process_identity_observations = 0
+            next_process_identity_check = None
             if expected_executable_cdhash is not None:
                 try:
                     (
@@ -343,6 +347,8 @@ class SandboxRunner:
                         expected_executable_main_path,
                         deadline=started + timeout,
                     )
+                    process_identity_observations = 1
+                    next_process_identity_check = time.monotonic() + PROCESS_CODE_IDENTITY_INTERVAL
                 except BaseException:
                     # Also reap on unexpected FFI errors and cancellation. The
                     # Popen context manager otherwise waits for the verifier.
@@ -361,7 +367,27 @@ class SandboxRunner:
                     if remaining <= 0:
                         timed_out = True
                         break
-                    for key, _ in selector.select(min(remaining, 0.1)):
+                    events = selector.select(min(remaining, 0.1))
+                    if (
+                        next_process_identity_check is not None
+                        and time.monotonic() >= next_process_identity_check
+                        and process.poll() is None
+                    ):
+                        try:
+                            observed = self._check_process_code_identity(
+                                process,
+                                expected_executable_cdhash,
+                                expected_executable_main_path,
+                            )
+                        except BaseException:
+                            self._kill_process_group(process)
+                            raise
+                        if observed is not None:
+                            process_identity_observations += 1
+                        next_process_identity_check = (
+                            time.monotonic() + PROCESS_CODE_IDENTITY_INTERVAL
+                        )
+                    for key, _ in events:
                         chunk = os.read(key.fileobj.fileno(), 65536)
                         if not chunk:
                             selector.unregister(key.fileobj)
@@ -375,10 +401,35 @@ class SandboxRunner:
                     if output_truncated:
                         break
             if not timed_out and not output_truncated:
-                try:
-                    process.wait(timeout=max(0.001, started + timeout - time.monotonic()))
-                except subprocess.TimeoutExpired:
-                    timed_out = True
+                if expected_executable_cdhash is None:
+                    try:
+                        process.wait(timeout=max(0.001, started + timeout - time.monotonic()))
+                    except subprocess.TimeoutExpired:
+                        timed_out = True
+                else:
+                    while process.poll() is None:
+                        remaining = started + timeout - time.monotonic()
+                        if remaining <= 0:
+                            timed_out = True
+                            break
+                        try:
+                            observed = self._check_process_code_identity(
+                                process,
+                                expected_executable_cdhash,
+                                expected_executable_main_path,
+                            )
+                        except BaseException:
+                            self._kill_process_group(process)
+                            raise
+                        if observed is not None:
+                            process_identity_observations += 1
+                        next_process_identity_check = (
+                            time.monotonic() + PROCESS_CODE_IDENTITY_INTERVAL
+                        )
+                        try:
+                            process.wait(timeout=min(0.1, remaining))
+                        except subprocess.TimeoutExpired:
+                            pass
             # Always clean the original process group, including children that
             # retained pipes after the leader exited. Never wait for pipe EOF
             # after timeout: an adversarial descendant could keep it open.
@@ -396,6 +447,7 @@ class SandboxRunner:
             prelaunch_executable_sha256,
             process_code_directory_hash,
             process_executable_path,
+            process_identity_observations,
         )
 
     @staticmethod
@@ -420,7 +472,7 @@ class SandboxRunner:
         *,
         deadline: float,
     ) -> tuple[str, str]:
-        """Observe one matching image; prior, later, and output provenance are unbound."""
+        """Poll for an initial matching process image before reading output."""
         deadline = min(deadline, time.monotonic() + PROCESS_CODE_IDENTITY_TIMEOUT)
         last_observed = None
         while True:
@@ -444,6 +496,23 @@ class SandboxRunner:
                 )
                 raise ConfinementError(message)
             time.sleep(0.01)
+
+    @staticmethod
+    def _check_process_code_identity(
+        process: subprocess.Popen,
+        expected: str,
+        expected_path: Path,
+    ) -> tuple[str, str] | None:
+        """Recheck a live process image while its result is being collected."""
+        try:
+            observed, executable_path = running_code_identity(process.pid)
+        except MacCodeIdentityError:
+            if process.poll() is not None:
+                return None
+            raise ConfinementError("Running executable code identity is unavailable") from None
+        if observed != expected or executable_path != str(expected_path):
+            raise ConfinementError("Running executable code identity does not match pin")
+        return observed, executable_path
 
 
 def qualify_sandbox(
