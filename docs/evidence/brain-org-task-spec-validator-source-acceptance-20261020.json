@@ -1,0 +1,66 @@
+{
+  "schema": "brain-org-task-spec-validator-source-acceptance-v1",
+  "observed_at": 1792464234.879505,
+  "authority": "CEO-20261020-02",
+  "source": {
+    "commit": "9b5c6c97720eda6b1eba482983ebbe3d25d3f3bf",
+    "parent": "b0c747b0a270f5e4d3d3a309b1d972b3821ee317",
+    "files": {
+      "engineering/task_specs.py": "1426f9fb5e7f7434b01ed3f36149d7def88107d407d8cd6349ae3fe375887f6f",
+      "engineering/tests/test_task_specs.py": "a062455f754e9151af18b184ff7fc5235302c45e67193d70c3b953d39e8fb6f4"
+    },
+    "scope": [
+      "engineering/task_specs.py",
+      "engineering/tests/test_task_specs.py"
+    ],
+    "git_object_independently_verified": false
+  },
+  "independent_review": {
+    "thread": "01a1572f-bdea-7013-a92d-48407535349d",
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "approved": true,
+    "findings": [],
+    "content_hashes_verified": true,
+    "manifest_sha256": "b1392418ceb4f5d2018a2e32297377d13870ab3896c7647644154a27eda29a05",
+    "turn_id": "01a1572f-be38-7f31-8919-ff6fee456fc4",
+    "usage": {
+      "totalTokens": 162566,
+      "inputTokens": 158406,
+      "cachedInputTokens": 122752,
+      "cacheWriteInputTokens": 0,
+      "outputTokens": 4160,
+      "reasoningOutputTokens": 1456
+    },
+    "raw_private_receipt": "/Users/root1/Developer/brain-org-state/ceo-resource-20261020/bootstrap-sol/task-specs-review-receipt-input/review.json",
+    "limitations": [
+      "Git commit object and history were unavailable through the read-only broker."
+    ]
+  },
+  "verification": {
+    "frozen_acceptance_checks": 37,
+    "focused_pytest": {
+      "tests": 10,
+      "subtests": 27
+    },
+    "ruff": "passed",
+    "independent_additional_probes": {
+      "state_scope_cases": 504,
+      "malformed_input_cases": 120,
+      "escaped_non_value_errors": 0
+    },
+    "closed_findings": [
+      "unknown existing task states",
+      "invalid or duplicate existing task scopes in non-active states"
+    ]
+  },
+  "acceptance_scope": "Standalone source validator only.",
+  "not_accepted": [
+    "transactional scheduler integration",
+    "trusted verifier mapping",
+    "live task admission",
+    "controller release",
+    "pilot resumption",
+    "operational or unattended qualification"
+  ]
+}

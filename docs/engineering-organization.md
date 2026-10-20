@@ -302,9 +302,13 @@ This is source acceptance, not an operational release. The original pilot remain
 six failures and no accepted tasks.
 The full independent-root Goal remains active; its observed automatic continuation, live
 process custody and next actions are private durable state.
-The source-only structured task validator has separately passed its frozen 37-check acceptance;
-independent source review and transactional scheduler integration remain pending. Full recovery,
-useful tasks and every organization acceptance gate remain in scope.
+The standalone structured task validator is source-accepted at commit
+`9b5c6c97720eda6b1eba482983ebbe3d25d3f3bf`. Independent Sol matched both file hashes and found no
+remaining source findings after 37 frozen checks, 10 focused tests/27 subtests, Ruff and 624
+state/scope/input probes. The reviewer could not read the Git object through its broker. This does
+not accept transactional scheduler integration or trusted verifier mapping. Full recovery, useful
+tasks and every organization acceptance gate remain in scope; see the unique
+[task-spec source receipt](evidence/brain-org-task-spec-validator-source-acceptance-20261020.json).
 The validator is currently a pure function with synthetic test fixtures. `planning.py` still
 admits only fixed catalogue cards, `Store` has no durable task-spec record, and worker/verification
 resolve grants and commands from `config["tasks"][id]`. The validator’s independent acceptance
