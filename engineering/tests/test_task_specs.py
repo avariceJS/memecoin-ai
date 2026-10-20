@@ -132,6 +132,32 @@ class TaskSpecTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "^unknown_dependency$"):
             invoke(tasks=[{**good, "dependencies": ["MISSING-001"]}])
 
+    def test_existing_states_and_scopes_are_validated(self):
+        overlap = {
+            "id": "CTX-001",
+            "state": "RUNNING",
+            "scope": SPEC["scope"][:1],
+            "dependencies": [],
+        }
+        with self.assertRaisesRegex(ValueError, "^invalid_existing_tasks$"):
+            invoke(tasks=[overlap])
+        malformed = {
+            "id": "CTX-001",
+            "state": "pending",
+            "scope": [None],
+            "dependencies": [],
+        }
+        with self.assertRaisesRegex(ValueError, "^invalid_scope$"):
+            invoke(tasks=[malformed])
+        duplicate_scope = {
+            "id": "CTX-001",
+            "state": "pending",
+            "scope": ["src/file.py", "src/file.py"],
+            "dependencies": [],
+        }
+        with self.assertRaisesRegex(ValueError, "^invalid_existing_tasks$"):
+            invoke(tasks=[duplicate_scope])
+
     def test_long_valid_dependency_chain_is_iterative(self):
         tasks = []
         for number in range(1, 1001):

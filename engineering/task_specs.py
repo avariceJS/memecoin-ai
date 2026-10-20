@@ -33,6 +33,15 @@ _SPEC_FIELDS = {
 }
 _RESOURCE_FIELDS = {"max_attempts", "max_turn_seconds", "estimated_wpu"}
 _MAX_INT_BITS = 256
+_EXISTING_TASK_STATES = {
+    "pending",
+    "running",
+    "submitted",
+    "verified",
+    "accepted",
+    "integrated",
+    "failed",
+}
 
 
 def _fail(code: str) -> None:
@@ -330,10 +339,16 @@ def validate_task_spec(
             or type(row.get("id")) is not str
             or type(row.get("state")) is not str
             or type(row.get("scope")) is not list
+            or len(row.get("scope", [])) > 64
         ):
             _fail("invalid_existing_tasks")
         rid = row["id"]
         if not _ID.fullmatch(rid):
+            _fail("invalid_existing_tasks")
+        if row["state"] not in _EXISTING_TASK_STATES:
+            _fail("invalid_existing_tasks")
+        row_scope = [_path(path) for path in row["scope"]]
+        if len(set(row_scope)) != len(row_scope):
             _fail("invalid_existing_tasks")
         if rid in by_id:
             _fail("duplicate_existing_id")
@@ -341,8 +356,7 @@ def validate_task_spec(
         if rid == task_id:
             _fail("duplicate_task_id")
         if row["state"] in {"running", "submitted", "verified", "accepted"}:
-            other_scope = {_path(p) for p in row["scope"]}
-            if set(scope) & other_scope:
+            if set(scope) & set(row_scope):
                 _fail("owned_scope_overlap")
     for dep in deps:
         if dep not in by_id:
