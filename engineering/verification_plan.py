@@ -15,6 +15,11 @@ from typing import Any
 
 from .git_gate import VerificationPolicy
 from .org_state import StateError, Store
+from .verifier_manifest import (
+    VerifierManifestError,
+    load_verifier_manifest,
+    resolve_verifier_manifest,
+)
 
 
 class VerificationPlanError(ValueError):
@@ -31,10 +36,11 @@ class VerificationPlan:
     decision_version: int | None
     acceptance_identities: tuple[str, ...]
     plan_sha256: str
+    verifier_manifest_sha256: str | None = None
 
     def identity(self) -> dict[str, Any]:
         """Return the JSON-safe identity that must travel with an admitted attempt."""
-        return {
+        identity = {
             "plan_sha256": self.plan_sha256,
             "policy_sha256": self.policy.digest,
             "binding_sha256": self.binding_sha256,
@@ -42,6 +48,9 @@ class VerificationPlan:
             "decision_version": self.decision_version,
             "acceptance_identities": list(self.acceptance_identities),
         }
+        if self.verifier_manifest_sha256 is not None:
+            identity["verifier_manifest_sha256"] = self.verifier_manifest_sha256
+        return identity
 
 
 def attempt_plan_matches(plan: VerificationPlan, evidence: Any) -> tuple[bool, str | None]:
@@ -82,9 +91,10 @@ def _digest(body: Any) -> str:
 def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> VerificationPlan:
     """Prepare a fixed-catalogue plan or an explicitly unqualified bound plan.
 
-    A spec-backed task never falls back to the legacy `cfg['tasks']` catalogue. Executable
-    qualification for bound policies remains false until manifest, interpreter, sandbox and result
-    contract verification are qualified in a separate release increment.
+    A spec-backed task never falls back to the legacy `cfg['tasks']` catalogue. When deployment
+    config pins `verifier_manifest_sha256`, the exact controller manifest and trusted harness bytes
+    are resolved and the manifest digest joins the attempt identity. Executable qualification stays
+    false until interpreter, sandbox and result execution are qualified separately.
     """
     task_id = task.get("id") if type(task) is dict else None
     if type(task_id) is not str or not task_id:
@@ -103,6 +113,7 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
         decision_version = None
         binding_sha256 = None
         acceptance_identities: tuple[str, ...] = ()
+        verifier_manifest_sha256 = None
         qualified, reason = True, None
     else:
         release_sha256 = cfg.get("controller_release_sha256")
@@ -117,6 +128,24 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
             raise VerificationPlanError(str(exc)) from None
         if binding.get("integration_policy_sha256") != policy_sha256:
             raise VerificationPlanError("bound_verifier_integration_policy_mismatch")
+        if "verifier_manifest_sha256" not in cfg:
+            verifier_manifest_sha256 = None
+        else:
+            configured_manifest_sha256 = cfg["verifier_manifest_sha256"]
+            if (
+                type(configured_manifest_sha256) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", configured_manifest_sha256) is None
+            ):
+                raise VerificationPlanError("bound_verifier_manifest_hash_invalid")
+            manifest_path = state / "controller" / "verifier-manifest.json"
+            try:
+                manifest = load_verifier_manifest(
+                    manifest_path, expected_sha256=configured_manifest_sha256
+                )
+                resolve_verifier_manifest(binding, manifest, trusted_root=state / "trusted")
+            except VerifierManifestError as exc:
+                raise VerificationPlanError(str(exc)) from None
+            verifier_manifest_sha256 = configured_manifest_sha256
         verifiers = binding.get("verifiers")
         if type(verifiers) is not list or not verifiers:
             raise VerificationPlanError("bound_verifier_policy_missing")
@@ -171,7 +200,12 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
         decision_version = saved_spec["decision"].get("version")
         binding_sha256 = binding["binding_sha256"]
         acceptance_identities = tuple(acceptance_ids)
-        qualified, reason = False, "verifier_manifest_not_qualified"
+        qualified = False
+        reason = (
+            "interpreter_or_sandbox_not_qualified"
+            if verifier_manifest_sha256 is not None
+            else "verifier_manifest_not_qualified"
+        )
 
     plan_body = {
         "task_id": task_id,
@@ -183,6 +217,8 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
         "decision_version": decision_version,
         "acceptance_identities": acceptance_identities,
     }
+    if verifier_manifest_sha256 is not None:
+        plan_body["verifier_manifest_sha256"] = verifier_manifest_sha256
     return VerificationPlan(
         policy,
         qualified,
@@ -192,4 +228,5 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
         decision_version,
         acceptance_identities,
         _digest(plan_body),
+        verifier_manifest_sha256,
     )

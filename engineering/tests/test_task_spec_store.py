@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import sqlite3
 import tempfile
@@ -168,6 +169,77 @@ class TaskSpecStoreTests(unittest.TestCase):
             attempt_plan_matches(plan, {"verification_plan": changed}),
             (False, "attempt_verification_plan_mismatch"),
         )
+
+    def test_bound_plan_resolves_manifest_and_binds_digest_but_stays_unqualified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller, trusted = state / "controller", state / "trusted"
+            controller.mkdir()
+            trusted.mkdir()
+            harness = trusted / "acceptance.py"
+            harness.write_bytes(b"synthetic trusted acceptance harness\n")
+            registry = copy.deepcopy(VERIFIER_REGISTRY)
+            registry["atomic-spec-store"]["harness_sha256"] = hashlib.sha256(
+                harness.read_bytes()
+            ).hexdigest()
+            self.admit(
+                verifier_registry=registry,
+                controller_release_sha256="e" * 64,
+                integration_policy_sha256="f" * 64,
+            )
+            binding = self.store.resolve_task_execution_binding(
+                SPEC["id"], controller_release_sha256="e" * 64
+            )
+            manifest = {
+                "schema": "brain-verifier-manifest-v1",
+                "controller_release_sha256": "e" * 64,
+                "integration_policy_sha256": "f" * 64,
+                "verifiers": [{**binding["verifiers"][0], "harness_path": "acceptance.py"}],
+            }
+            raw = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
+            (controller / "verifier-manifest.json").write_bytes(raw)
+            manifest_sha256 = hashlib.sha256(raw).hexdigest()
+            cfg = {
+                "controller_release_sha256": "e" * 64,
+                "integration_policy_sha256": "f" * 64,
+                "verifier_manifest_sha256": manifest_sha256,
+            }
+            plan = prepare_verification_plan(
+                state, self.store, self.store.get_task(SPEC["id"]), cfg
+            )
+            self.assertFalse(plan.execution_qualified)
+            self.assertEqual(plan.reason, "interpreter_or_sandbox_not_qualified")
+            self.assertEqual(plan.verifier_manifest_sha256, manifest_sha256)
+            self.assertEqual(plan.identity()["verifier_manifest_sha256"], manifest_sha256)
+            self.assertEqual(
+                attempt_plan_matches(plan, {"verification_plan": plan.identity()}),
+                (True, None),
+            )
+            with self.assertRaisesRegex(VerificationPlanError, "manifest_hash_mismatch"):
+                prepare_verification_plan(
+                    state,
+                    self.store,
+                    self.store.get_task(SPEC["id"]),
+                    {**cfg, "verifier_manifest_sha256": "0" * 64},
+                )
+
+    def test_bound_plan_rejects_explicit_null_manifest_pin(self):
+        self.admit(
+            verifier_registry=copy.deepcopy(VERIFIER_REGISTRY),
+            controller_release_sha256="e" * 64,
+            integration_policy_sha256="f" * 64,
+        )
+        with self.assertRaisesRegex(VerificationPlanError, "bound_verifier_manifest_hash_invalid"):
+            prepare_verification_plan(
+                Path("/synthetic/state"),
+                self.store,
+                self.store.get_task(SPEC["id"]),
+                {
+                    "controller_release_sha256": "e" * 64,
+                    "integration_policy_sha256": "f" * 64,
+                    "verifier_manifest_sha256": None,
+                },
+            )
 
     def test_bound_verification_plan_rejects_missing_binding_without_legacy_fallback(self):
         self.admit()
