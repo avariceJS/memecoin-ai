@@ -1,0 +1,159 @@
+"""Build one controller-owned verifier plan for verification and recovery.
+
+This module prepares identities and policy inputs only. It does not execute commands, publish Git
+refs, or confer runtime authority.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from .git_gate import VerificationPolicy
+from .org_state import StateError, Store
+
+
+class VerificationPlanError(ValueError):
+    """A verifier plan is missing or inconsistent with its trusted source."""
+
+
+@dataclass(frozen=True)
+class VerificationPlan:
+    policy: VerificationPolicy
+    execution_qualified: bool
+    reason: str | None
+    binding_sha256: str | None
+    decision_name: str | None
+    decision_version: int | None
+    acceptance_identities: tuple[str, ...]
+    plan_sha256: str
+
+
+def _digest(body: Any) -> str:
+    try:
+        raw = json.dumps(body, sort_keys=True, separators=(",", ":"), allow_nan=False).encode(
+            "utf-8"
+        )
+    except (TypeError, ValueError, OverflowError, RecursionError):
+        raise VerificationPlanError("invalid_verification_plan") from None
+    return hashlib.sha256(raw).hexdigest()
+
+
+def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> VerificationPlan:
+    """Prepare a fixed-catalogue plan or an explicitly unqualified bound plan.
+
+    A spec-backed task never falls back to the legacy `cfg['tasks']` catalogue. Executable
+    qualification for bound policies remains false until manifest, interpreter, sandbox and result
+    contract verification are qualified in a separate release increment.
+    """
+    task_id = task.get("id") if type(task) is dict else None
+    if type(task_id) is not str or not task_id:
+        raise VerificationPlanError("invalid_verification_task")
+    saved_spec = db.get_task_spec(task_id)
+    if saved_spec is None:
+        try:
+            commands = [
+                (cfg["python"], str(state / "trusted/pilot_acceptance.py"), task_id, "{checkout}")
+            ]
+            commands += [tuple(command) for command in cfg["tasks"][task_id]["checks"]]
+        except (KeyError, TypeError):
+            raise VerificationPlanError("legacy_verifier_policy_missing") from None
+        policy = VerificationPolicy(tuple(commands), policy_id="brain-org-pilot-v1:" + task_id)
+        decision_name = None
+        decision_version = None
+        binding_sha256 = None
+        acceptance_identities: tuple[str, ...] = ()
+        qualified, reason = True, None
+    else:
+        release_sha256 = cfg.get("controller_release_sha256")
+        policy_sha256 = cfg.get("integration_policy_sha256")
+        if type(release_sha256) is not str or type(policy_sha256) is not str:
+            raise VerificationPlanError("bound_verifier_release_identity_missing")
+        try:
+            binding = db.resolve_task_execution_binding(
+                task_id, controller_release_sha256=release_sha256
+            )
+        except (StateError, ValueError) as exc:
+            raise VerificationPlanError(str(exc)) from None
+        if binding.get("integration_policy_sha256") != policy_sha256:
+            raise VerificationPlanError("bound_verifier_integration_policy_mismatch")
+        verifiers = binding.get("verifiers")
+        if type(verifiers) is not list or not verifiers:
+            raise VerificationPlanError("bound_verifier_policy_missing")
+        envs = [verifier.get("env") for verifier in verifiers if type(verifier) is dict]
+        if len(envs) != len(verifiers) or any(type(env) is not dict for env in envs):
+            raise VerificationPlanError("bound_verifier_environment_invalid")
+        if any(
+            type(key) is not str or not key or type(value) is not str or "\x00" in key + value
+            for env in envs
+            for key, value in env.items()
+        ):
+            raise VerificationPlanError("bound_verifier_environment_invalid")
+        try:
+            canonical_envs = {
+                json.dumps(env, sort_keys=True, separators=(",", ":"), allow_nan=False)
+                for env in envs
+            }
+        except (TypeError, ValueError, OverflowError, RecursionError):
+            raise VerificationPlanError("bound_verifier_environment_invalid") from None
+        if len(canonical_envs) != 1:
+            raise VerificationPlanError("bound_verifier_environment_mismatch")
+        commands = []
+        acceptance_ids = []
+        for verifier in verifiers:
+            acceptance_id = verifier.get("acceptance_id")
+            acceptance_sha256 = verifier.get("acceptance_sha256")
+            verifier_commands = verifier.get("commands")
+            if (
+                type(acceptance_id) is not str
+                or not acceptance_id
+                or type(acceptance_sha256) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", acceptance_sha256) is None
+                or type(verifier_commands) is not list
+                or not verifier_commands
+            ):
+                raise VerificationPlanError("bound_verifier_record_invalid")
+            acceptance_ids.append(f"{acceptance_id}:{acceptance_sha256}")
+            for command in verifier_commands:
+                if (
+                    type(command) is not list
+                    or not command
+                    or any(type(arg) is not str or not arg or "\x00" in arg for arg in command)
+                ):
+                    raise VerificationPlanError("bound_verifier_command_invalid")
+                commands.append(tuple(command))
+        policy = VerificationPolicy(
+            tuple(commands),
+            tuple(sorted(envs[0].items())),
+            policy_id="brain-task-execution-binding-v1:" + binding["binding_sha256"],
+        )
+        decision_name = "admission/task-spec/" + task_id
+        decision_version = saved_spec["decision"].get("version")
+        binding_sha256 = binding["binding_sha256"]
+        acceptance_identities = tuple(acceptance_ids)
+        qualified, reason = False, "verifier_manifest_not_qualified"
+
+    plan_body = {
+        "task_id": task_id,
+        "policy_sha256": policy.digest,
+        "execution_qualified": qualified,
+        "reason": reason,
+        "binding_sha256": binding_sha256,
+        "decision_name": decision_name,
+        "decision_version": decision_version,
+        "acceptance_identities": acceptance_identities,
+    }
+    return VerificationPlan(
+        policy,
+        qualified,
+        reason,
+        binding_sha256,
+        decision_name,
+        decision_version,
+        acceptance_identities,
+        _digest(plan_body),
+    )

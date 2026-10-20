@@ -19,12 +19,13 @@ from pathlib import Path
 
 from .codex_rpc import Codex
 from .confinement import SandboxRunner, python_runtime_roots
-from .git_gate import GitGate, VerificationPolicy
+from .git_gate import GitGate
 from .metered_codex import metered_client
 from .org_state import StaleAttempt, Store
 from .processes import process_identity, terminate_owned
 from .review_packet import build_review_packet
 from .service import validate_deployment
+from .verification_plan import prepare_verification_plan
 
 SOL = "gpt-6.1-sol"
 LUNA = "gpt-6-luna"
@@ -585,9 +586,30 @@ def verify_one(state, task):
     data = db.get_candidate(task["id"])
     evidence = data["evidence"]
     python = cfg["python"]
-    commands = [(python, str(state / "trusted/pilot_acceptance.py"), task["id"], "{checkout}")]
-    commands += [tuple(x) for x in cfg["tasks"][task["id"]]["checks"]]
-    policy = VerificationPolicy(tuple(commands), policy_id="brain-org-pilot-v1:" + task["id"])
+    try:
+        plan = prepare_verification_plan(state, db, task, cfg)
+    except ValueError as exc:
+        log_event(
+            state,
+            "verification_blocked",
+            task=task["id"],
+            candidate=task["candidate_sha"],
+            reason=str(exc),
+        )
+        db.close()
+        return False
+    if not plan.execution_qualified:
+        log_event(
+            state,
+            "verification_blocked",
+            task=task["id"],
+            candidate=task["candidate_sha"],
+            reason=plan.reason,
+            plan_sha256=plan.plan_sha256,
+        )
+        db.close()
+        return False
+    policy = plan.policy
     gate = GitGate(state / "integration", state / "integration", policy, state / "receipts")
     try:
         candidate = gate.submit(
@@ -596,7 +618,7 @@ def verify_one(state, task):
     except Exception as exc:
         db.verify(task["id"], task["candidate_sha"], False, {"error": str(exc)[:2000]})
         db.close()
-        return
+        return True
     log_event(state, "verification_started", task=task["id"], sha=candidate.sha)
     verify_root = state / "verification" / candidate.sha
     verify_root.mkdir(parents=True, exist_ok=True)
@@ -749,6 +771,7 @@ def verify_one(state, task):
             db.verify(task["id"], task["candidate_sha"], False, {"error": str(exc)[-3000:]})
     finally:
         db.close()
+    return True
 
 
 def reconcile(state, db):
@@ -756,23 +779,34 @@ def reconcile(state, db):
         intent = read(path)
         task = db.get_task(intent["task"])
         if task["candidate_sha"] != intent["submitted_sha"]:
-            raise RuntimeError("stale_integration_intent")
-        if task["state"] == "submitted":
-            policy_commands = [
-                (
-                    config(state)["python"],
-                    str(state / "trusted/pilot_acceptance.py"),
-                    task["id"],
-                    "{checkout}",
+            log_event(state, "reconciliation_blocked", task=intent["task"], reason="stale_intent")
+            continue
+        plan = None
+        if task["state"] in ("submitted", "verified", "accepted"):
+            try:
+                plan = prepare_verification_plan(state, db, task, config(state))
+            except ValueError as exc:
+                log_event(
+                    state,
+                    "reconciliation_blocked",
+                    task=task["id"],
+                    reason=str(exc),
                 )
-            ]
-            policy_commands += [tuple(x) for x in config(state)["tasks"][task["id"]]["checks"]]
+                continue
+            if not plan.execution_qualified:
+                log_event(
+                    state,
+                    "reconciliation_blocked",
+                    task=task["id"],
+                    reason=plan.reason,
+                    plan_sha256=plan.plan_sha256,
+                )
+                continue
+        if task["state"] == "submitted":
             gate = GitGate(
                 state / "integration",
                 state / "integration",
-                VerificationPolicy(
-                    tuple(policy_commands), policy_id="brain-org-pilot-v1:" + task["id"]
-                ),
+                plan.policy,
                 state / "receipts",
             )
             gate._require_receipt(intent["receipt"], intent["candidate_sha"])
@@ -787,21 +821,10 @@ def reconcile(state, db):
                 db.integrate(task["id"], intent["submitted_sha"], tip, intent)
             elif tip == intent["expected_tip"]:
                 # Receipt was recorded in trusted intent and protected store before acceptance.
-                policy_commands = [
-                    (
-                        config(state)["python"],
-                        str(state / "trusted/pilot_acceptance.py"),
-                        task["id"],
-                        "{checkout}",
-                    )
-                ]
-                policy_commands += [tuple(x) for x in config(state)["tasks"][task["id"]]["checks"]]
                 gate = GitGate(
                     state / "integration",
                     state / "integration",
-                    VerificationPolicy(
-                        tuple(policy_commands), policy_id="brain-org-pilot-v1:" + task["id"]
-                    ),
+                    plan.policy,
                     state / "receipts",
                 )
                 gate._require_receipt(intent["receipt"], intent["candidate_sha"])
@@ -849,6 +872,7 @@ def supervise(state: Path, max_seconds=1800):
         end = time.monotonic() + max_seconds
         native = state / "budget-native"
         native.mkdir(exist_ok=True)
+        blocked_verification = set()
         with Codex(native, codex=cfg.get("codex_executable", "codex")) as account:
             last_read, limits = None, None
             while time.monotonic() < end and not (state / "STOP").exists():
@@ -857,9 +881,17 @@ def supervise(state: Path, max_seconds=1800):
                 tasks = db.list_tasks()
                 # Each verifier is serial and may block dispatch briefly; active workers
                 # maintain their own leases independently and continue during verification.
-                submitted = next((t for t in tasks if t["state"] == "submitted"), None)
+                submitted = next(
+                    (
+                        t
+                        for t in tasks
+                        if t["state"] == "submitted" and t["id"] not in blocked_verification
+                    ),
+                    None,
+                )
                 if submitted:
-                    verify_one(state, submitted)
+                    if not verify_one(state, submitted):
+                        blocked_verification.add(submitted["id"])
                     continue
                 if last_read is None or time.monotonic() - last_read > 60:
                     try:

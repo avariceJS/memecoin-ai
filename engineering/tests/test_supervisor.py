@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 from engineering import supervisor
 from engineering.confinement import SandboxResult
+from engineering.git_gate import VerificationPolicy
 from engineering.org_state import Store
 from engineering.tests.test_service import deployment as deployment_fixture
 
@@ -250,7 +251,7 @@ class SupervisorTests(unittest.TestCase):
         gate = MagicMock()
         gate.submit.side_effect = RuntimeError("scope violation")
         with patch.object(supervisor, "GitGate", return_value=gate):
-            supervisor.verify_one(self.state, self.db.get_task("T"))
+            self.assertTrue(supervisor.verify_one(self.state, self.db.get_task("T")))
         self.assertEqual(self.db.get_task("T")["state"], "pending")
         second = self.db.claim("T", "worker")
         self.assertEqual(second["epoch"], 2)
@@ -276,7 +277,7 @@ class SupervisorTests(unittest.TestCase):
         )
         gate = MagicMock()
         gate.submit.return_value = candidate
-        policy = supervisor.VerificationPolicy(((sys.executable, "fixed-acceptance"),))
+        policy = VerificationPolicy(((sys.executable, "fixed-acceptance"),))
         gate.verify.side_effect = lambda value, callback: callback(checkout, "merged", policy)
         result = SandboxResult(("fixed-acceptance",), 0, stdout, "", False, "profile", 0.01)
         box = MagicMock()
@@ -339,6 +340,121 @@ class SupervisorTests(unittest.TestCase):
         )
         model.assert_not_called()
         self.assertFalse((self.state / "verification" / "merged" / "review-packet.json").exists())
+
+    def test_unqualified_bound_verification_stops_before_git_sandbox_or_model(self):
+        class BoundStore:
+            def get_candidate(self, task_id):
+                return {"evidence": {}}
+
+            def get_task_spec(self, task_id):
+                return {"decision": {"name": "admission/task-spec/DYNAMIC", "version": 1}}
+
+            def resolve_task_execution_binding(self, task_id, *, controller_release_sha256):
+                return {
+                    "binding_sha256": "a" * 64,
+                    "integration_policy_sha256": "b" * 64,
+                    "verifiers": [
+                        {
+                            "acceptance_id": "synthetic",
+                            "acceptance_sha256": "c" * 64,
+                            "commands": [["/synthetic/verifier"]],
+                            "env": {},
+                        }
+                    ],
+                }
+
+            def close(self):
+                self.closed = True
+
+        db = BoundStore()
+        task = {
+            "id": "DYNAMIC",
+            "candidate_sha": "d" * 40,
+            "scope": ["src/example.py"],
+            "team": "Platform",
+        }
+        with (
+            patch.object(supervisor, "store", return_value=db),
+            patch.object(
+                supervisor,
+                "config",
+                return_value={
+                    "controller_release_sha256": "e" * 64,
+                    "integration_policy_sha256": "b" * 64,
+                    "python": "/synthetic/python",
+                },
+            ),
+            patch.object(supervisor, "log_event") as log_event,
+            patch.object(supervisor, "GitGate", side_effect=AssertionError("Git must not run")),
+            patch.object(
+                supervisor, "SandboxRunner", side_effect=AssertionError("sandbox must not run")
+            ),
+            patch.object(
+                supervisor, "metered_client", side_effect=AssertionError("model must not run")
+            ),
+        ):
+            self.assertFalse(supervisor.verify_one(self.state, task))
+        log_event.assert_called_once()
+        self.assertEqual(log_event.call_args.args[1], "verification_blocked")
+        self.assertTrue(db.closed)
+
+    def test_reconcile_rejects_unqualified_bound_candidate_before_tip_or_publish(self):
+        intent = {
+            "task": "DYNAMIC",
+            "submitted_sha": "a" * 40,
+            "candidate_sha": "b" * 40,
+            "expected_tip": "c" * 40,
+        }
+        supervisor.atomic(self.state / "intents" / "DYNAMIC.json", intent)
+
+        class BoundStore:
+            accepted = False
+
+            def get_task(self, task_id):
+                return {
+                    "id": task_id,
+                    "state": "verified",
+                    "candidate_sha": "a" * 40,
+                }
+
+            def accept(self, task_id, candidate_sha):
+                self.accepted = True
+
+            def get_task_spec(self, task_id):
+                return {"decision": {"name": "admission/task-spec/DYNAMIC", "version": 1}}
+
+            def resolve_task_execution_binding(self, task_id, *, controller_release_sha256):
+                return {
+                    "binding_sha256": "d" * 64,
+                    "integration_policy_sha256": "e" * 64,
+                    "verifiers": [
+                        {
+                            "acceptance_id": "synthetic",
+                            "acceptance_sha256": "f" * 64,
+                            "commands": [["/synthetic/verifier"]],
+                            "env": {},
+                        }
+                    ],
+                }
+
+        db = BoundStore()
+        with (
+            patch.object(
+                supervisor,
+                "config",
+                return_value={
+                    "controller_release_sha256": "1" * 64,
+                    "integration_policy_sha256": "e" * 64,
+                },
+            ),
+            patch.object(supervisor, "git", side_effect=AssertionError("Git tip must not be read")),
+            patch.object(
+                supervisor, "GitGate", side_effect=AssertionError("publication must not run")
+            ),
+            patch.object(supervisor, "activate_contract"),
+        ):
+            supervisor.reconcile(self.state, db)
+        self.assertFalse(db.accepted)
 
     def test_git_raw_preserves_nul_delimited_path_identity(self):
         process = SimpleNamespace(returncode=0, stdout=b" src/example.py\0", stderr=b"")

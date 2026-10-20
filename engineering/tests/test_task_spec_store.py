@@ -8,7 +8,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
+from engineering.git_gate import VerificationPolicy
 from engineering.org_state import StateError, Store
+from engineering.verification_plan import VerificationPlanError, prepare_verification_plan
 
 H = "a" * 64
 BASE = "b" * 40
@@ -125,6 +127,89 @@ class TaskSpecStoreTests(unittest.TestCase):
             binding["verifiers"][0]["commands"], VERIFIER_REGISTRY["atomic-spec-store"]["commands"]
         )
         self.assertEqual(binding["controller_release_sha256"], "e" * 64)
+
+    def test_bound_verification_plan_never_falls_back_to_catalogue_or_executes(self):
+        self.admit(
+            verifier_registry=copy.deepcopy(VERIFIER_REGISTRY),
+            controller_release_sha256="e" * 64,
+            integration_policy_sha256="f" * 64,
+        )
+        task = self.store.get_task(SPEC["id"])
+        before_events = self.store.events()
+        plan = prepare_verification_plan(
+            Path("/synthetic/state"),
+            self.store,
+            task,
+            {"controller_release_sha256": "e" * 64, "integration_policy_sha256": "f" * 64},
+        )
+        self.assertFalse(plan.execution_qualified)
+        self.assertEqual(plan.reason, "verifier_manifest_not_qualified")
+        self.assertEqual(plan.decision_name, "admission/task-spec/PLAT-010")
+        self.assertEqual(plan.decision_version, 1)
+        self.assertEqual(plan.acceptance_identities, (f"atomic-spec-store:{H}",))
+        self.assertEqual(self.store.get_task(SPEC["id"])["state"], "pending")
+        self.assertEqual(self.store.events(), before_events)
+
+    def test_bound_verification_plan_rejects_missing_binding_without_legacy_fallback(self):
+        self.admit()
+        with self.assertRaisesRegex(VerificationPlanError, "missing_execution_binding"):
+            prepare_verification_plan(
+                Path("/synthetic/state"),
+                self.store,
+                self.store.get_task(SPEC["id"]),
+                {
+                    "controller_release_sha256": "e" * 64,
+                    "integration_policy_sha256": "f" * 64,
+                    "python": "/synthetic/python",
+                    "tasks": {SPEC["id"]: {"checks": [["must-not-be-used"]]}},
+                },
+            )
+
+    def test_bound_verification_plan_rejects_malformed_persisted_command(self):
+        self.admit(
+            verifier_registry=copy.deepcopy(VERIFIER_REGISTRY),
+            controller_release_sha256="e" * 64,
+            integration_policy_sha256="f" * 64,
+        )
+        binding = self.store.resolve_task_execution_binding(
+            SPEC["id"], controller_release_sha256="e" * 64
+        )
+        binding["verifiers"][0]["commands"] = [None]
+        with patch.object(self.store, "resolve_task_execution_binding", return_value=binding):
+            with self.assertRaisesRegex(VerificationPlanError, "bound_verifier_command_invalid"):
+                prepare_verification_plan(
+                    Path("/synthetic/state"),
+                    self.store,
+                    self.store.get_task(SPEC["id"]),
+                    {
+                        "controller_release_sha256": "e" * 64,
+                        "integration_policy_sha256": "f" * 64,
+                    },
+                )
+
+    def test_legacy_verification_plan_keeps_exact_existing_policy_digest(self):
+        self.store.add_task("LEGACY", "Platform", "Legacy fixed catalogue")
+        task = self.store.get_task("LEGACY")
+        cfg = {
+            "python": "/synthetic/python",
+            "tasks": {"LEGACY": {"checks": [["check", "{checkout}"]]}},
+        }
+        plan = prepare_verification_plan(Path("/synthetic/state"), self.store, task, cfg)
+        expected = VerificationPolicy(
+            (
+                (
+                    "/synthetic/python",
+                    "/synthetic/state/trusted/pilot_acceptance.py",
+                    "LEGACY",
+                    "{checkout}",
+                ),
+                ("check", "{checkout}"),
+            ),
+            policy_id="brain-org-pilot-v1:LEGACY",
+        )
+        self.assertTrue(plan.execution_qualified)
+        self.assertEqual(plan.policy.digest, expected.digest)
+        self.assertIsNone(plan.binding_sha256)
 
     def test_execution_binding_rejects_untrusted_command_and_controller_drift(self):
         registry = copy.deepcopy(VERIFIER_REGISTRY)
