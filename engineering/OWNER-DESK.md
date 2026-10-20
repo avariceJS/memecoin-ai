@@ -332,6 +332,10 @@ A04: на macOS 26.7.1 не найден поддержанный public descrip
 доказывают, что `sandbox-exec` запустил тот же inode, который ранее был проверен. Не использовать
 их как замену отсутствующей связи path-to-invocation; A04 остаётся fail-closed. Проба:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-darwin-fd-exec-probe-20261021.json`.
+Отдельный source-only обзор tracked `pilot_acceptance.py` видит импорты stdlib, dynamic import и
+subprocess для candidate кода внутри sandbox. Hash harness и флаги `-I -S -B` не закрепляют
+содержимое stdlib/native extensions и зависимости macOS loader. Deployed manifest и runtime closure
+не исследовались; исполнения не было, A04 остаётся неквалифицированным.
 
 A10 получил read-only readiness report в `57f496f5f74258d00a09dc37b5818e409495dffc`: единый SQLite
 snapshot показывает non-integrated/missing dependencies и несовпадающие версии contracts. Blocked

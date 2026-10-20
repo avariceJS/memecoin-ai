@@ -22,6 +22,9 @@ automatically.
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable
   authorization-generation deduplication. Both remain open; see `docs/engineering-organization.md`.
+- Source-only A04 review of tracked `pilot_acceptance.py` found stdlib imports and sandboxed dynamic
+  candidate loading; interpreter hash plus `-I -S -B` does not pin stdlib/native loader closure.
+  Deployed manifest/runtime were not inspected or executed.
 - A04 scaffold is in isolated worktree
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-execution-binding-checkout`, branch
   `org/a04-execution-binding`, based on `d8b5d5350725564ac2771ed2d67cc97fac6db12b`. It atomically

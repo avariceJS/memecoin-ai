@@ -261,6 +261,15 @@ synthetic host/profile/command tuple only. Exact deployment roots, complete load
 path-to-invocation identity, production default-off admission and full A04 remain open; bound plans
 still have `execution_qualified=False`.
 
+A source-only loader review of tracked `engineering/pilot_acceptance.py` finds direct standard-library
+imports (`argparse`, `copy`, `hashlib`, `importlib`, `json`, `os`, `subprocess`, `sys`, `tempfile`,
+`pathlib`, and `unittest.mock`) plus intentional dynamic loading and subprocess execution of candidate
+code within the caller's sandbox. The harness file itself is hash-checked, but the interpreter digest
+does not enumerate or hash the standard-library modules, Python native extensions, or macOS dynamic
+loader dependencies used at startup. `-I -S -B` narrows startup inputs; it does not close that runtime
+dependency graph. This source review neither inspects a deployed manifest nor executes the harness.
+Exact runtime closure and deployment-root qualification remain open.
+
 A disposable feasibility probe on macOS 26.7.1 / Darwin 25.6.0 (build 25G241) did not find a
 reviewed public descriptor-to-exec path. The installed SDK's `execve` interface takes a pathname;
 the SDK headers and current `libSystem` lookup expose neither `fexecve` nor `execveat`. Although the
