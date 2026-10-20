@@ -156,5 +156,10 @@ terminal usage, конечного STOP-preserving кандидата, неза�
 Первичная read-only квалификация источника usage завершена на закреплённом Codex CLI `0.163.0`:
 уведомление содержит счётчики `threadId`/`turnId`, но не признак terminal/finality; RPC адаптер
 считает его progress. `account/usage/read` возвращает estimated агрегат без привязки к dispatch/turn.
-Финальное списание пока не квалифицировано; Goal сохраняет резервирование неизвестного usage и
-ждёт независимого заключения Sol. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-qualification-20261020.json`.
+Sol принял receipt только как static correlation и отклонил terminal settlement: финальность,
+порядок, полнота и привязка к модели, dispatch и epoch не доказаны. Release остаётся blocked,
+неизвестный usage зарезервирован. Найден отдельный условный parser gap: optional
+`cacheWriteInputTokens` сохраняется в raw receipt, но мешает canonical progress snapshot; реальная
+частота поля неизвестна. В конечном кандидате добавим синтетические варианты на 5 и 6 полей и
+уточним семантику cache-write, не используя его для settlement. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-qualification-20261020.json`; review: Sol thread `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`.

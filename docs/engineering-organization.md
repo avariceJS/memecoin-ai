@@ -82,9 +82,22 @@ notification schema has no terminal/finality field. In the current RPC adapter, 
 persisted as evidence but treated as progress; `turn/completed` returns `usage_terminal=false` and no
 usage delta. `account/usage/read` can report estimated account or thread usage, but the response does
 not bind counters to a dispatch, turn, or attempt epoch. No live model turn or account usage request
-was made. Therefore the source supports per-turn snapshot attribution, but terminal usage settlement
-is not qualified and the release remains blocked until stronger finality evidence and semantics are
-independently established. Unknown usage remains reserved.
+was made. Sol independently accepted the receipt only as static schema/source correlation and
+rejected terminal-settlement qualification: the identifiers do not prove same-epoch dispatch/model
+attribution, finality, event ordering, completeness, or late-correction handling. The release remains
+blocked until an authoritative finality contract and these bindings are established. Unknown usage
+remains reserved.
+
+Sol also identified a conditional parser compatibility gap in `metered_codex.capture`: the generated
+schema permits an optional `cacheWriteInputTokens` counter, but canonicalization currently requires
+the counter object to contain exactly the five other known keys. When the optional sixth key is
+present, the raw receipt is retained while the canonical progressive observation is dropped. Live
+payload frequency and cache-write semantics were not established. Add synthetic five- and six-field
+cases and define whether cache-write tokens contribute to input totals before qualification; this gap
+is separate from terminal finality and must not be used to weaken settlement.
+
+The independent review is recorded in native Sol thread
+`01a15a5e-7fc3-7bf0-9a10-73199636bfcd`.
 
 The immutable read-only schema/source receipt is stored outside Git at
 `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-qualification-20261020.json`

@@ -13,9 +13,10 @@ Native `state_5.sqlite` metadata confirms the successor as `gpt-6-luna/high`. So
   Unknown usage remains reserved. Then form one finite STOP-preserving release candidate for
   bootstrap, ledger initialization, settlement, active quota stop, controller-fault circuit breaker
   and explicit engineering release checks. Sol independently reviews the exact candidate.
-- Initial pinned-schema/source inspection found per-turn `threadId`/`turnId` usage snapshots without
-  a terminal marker; `account/usage/read` is estimated and not dispatch/turn bound. Settlement remains
-  unqualified pending Sol semantics review. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/terminal-usage-source-qualification-20261020.json`.
+- Sol accepted the pinned schema/source receipt only as static correlation and rejected terminal
+  settlement qualification. `thread/tokenUsage/updated` lacks proven finality/order/completeness and
+  dispatch/model/epoch binding; account usage is estimated and aggregate. A conditional six-field
+  parser gap exists for optional `cacheWriteInputTokens`; see the canonical organization document.
 - Prove complete checkpoint and fresh-path restore before any original pilot mutation. Pilot STOP,
   original SQLite and six failures remain frozen. Reopening original tasks requires release acceptance
   and separate founder authorization. Market collection, training, AUTO, trading, protected data,
