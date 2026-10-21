@@ -792,17 +792,24 @@ def test_contract_review_worklist_does_not_hydrate_names_with_embedded_nul(store
         store.contract_review_worklist(limit=1)
 
 
-def test_contract_review_dispatch_rejects_oversized_history_before_body_hydration(store):
+def test_default_contract_review_record_rejects_oversized_history_before_body_hydration(store):
     request_id = "a" * 64
     name = "contract-review/" + request_id
     store.db.executemany(
         "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
-        [(name, version, "{}") for version in range(1, 7)],
+        [(name, version, "{}") for version in range(1, 1001)],
     )
+    traced = []
+    store.db.set_trace_callback(traced.append)
 
-    with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
-        with pytest.raises(StateError, match="contract review history invalid"):
-            store.begin_contract_review_dispatch(request_id, "0" * 64)
+    try:
+        with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
+            with pytest.raises(StateError, match="contract review history invalid"):
+                store._contract_review_record(request_id)
+    finally:
+        store.db.set_trace_callback(None)
+
+    assert any("ORDER BY version LIMIT 6" in statement for statement in traced)
 
 
 def test_contract_review_dispatch_does_not_hydrate_oversized_body(store):

@@ -1576,7 +1576,7 @@ class Store:
                 "SELECT version,CAST(body AS BLOB) AS bounded_body,"
                 "CAST(replaces AS BLOB) AS replaces_blob,typeof(replaces) AS replaces_type,"
                 "replaces_version "
-                "FROM decisions WHERE name=? ORDER BY version",
+                "FROM decisions WHERE name=? ORDER BY version LIMIT 6",
                 (key,),
             ).fetchall()
         if not rows:
