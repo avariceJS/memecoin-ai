@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
+from engineering import org_state
 from engineering.lifecycle import plan_lifecycle
 from engineering.org_state import StateError, Store
 
@@ -232,6 +233,47 @@ class LifecycleStoreTests(unittest.TestCase):
         self.assertEqual(
             self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0], before
         )
+
+    def test_lifecycle_request_discovery_uses_decision_primary_key_range(self):
+        for query, cursor, seek_opcode in (
+            (org_state._LIFECYCLE_REQUEST_FIRST_QUERY, "lifecycle/request/", "SeekGE"),
+            (
+                org_state._LIFECYCLE_REQUEST_NEXT_QUERY,
+                "lifecycle/request/" + "a" * 64,
+                "SeekGT",
+            ),
+        ):
+            plan = self.store.db.execute("EXPLAIN QUERY PLAN " + query, (cursor,)).fetchall()
+            self.assertTrue(
+                any(
+                    "SEARCH decisions USING COVERING INDEX sqlite_autoindex_decisions_1"
+                    in row["detail"]
+                    and "name>? AND name<?" in row["detail"]
+                    for row in plan
+                )
+            )
+            program = self.store.db.execute("EXPLAIN " + query, (cursor,)).fetchall()
+            cursor_register = next(row[3] for row in program if row[1] == "Variable")
+            lower_seek = next(row for row in program if row[1] == seek_opcode)
+            self.assertEqual(lower_seek[4], cursor_register)
+
+    def test_lifecycle_request_name_seek_skips_versions_of_prior_journal(self):
+        bare_prefix = "lifecycle/request/"
+        first_name = "lifecycle/request/" + "a" * 64
+        next_name = "lifecycle/request/" + "b" * 64
+        self.store.db.executemany(
+            "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+            [(bare_prefix, 1, "{}")]
+            + [(first_name, version, "{}") for version in range(1, 1001)]
+            + [(next_name, 1, "{}")],
+        )
+
+        with self.store._read_snapshot():
+            names = self.store._lifecycle_request_names_in_snapshot(limit=100)
+
+        self.assertEqual(names, [bare_prefix, first_name, next_name])
+        with self.assertRaisesRegex(StateError, "lifecycle_request_identity_invalid"):
+            self.store.lifecycle_request_worklist()
 
     def test_request_worklist_rejects_one_oversized_record_before_decoding(self):
         lease = self.store.claim_lifecycle_owner("owner")

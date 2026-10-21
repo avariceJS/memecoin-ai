@@ -67,6 +67,12 @@ _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY = (
 _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY = (
     "SELECT name FROM decisions WHERE name>? AND name<'contract-review0' ORDER BY name LIMIT 1"
 )
+_LIFECYCLE_REQUEST_FIRST_QUERY = (
+    "SELECT name FROM decisions WHERE name>=? AND name<'lifecycle/request0' ORDER BY name LIMIT 1"
+)
+_LIFECYCLE_REQUEST_NEXT_QUERY = (
+    "SELECT name FROM decisions WHERE name>? AND name<'lifecycle/request0' ORDER BY name LIMIT 1"
+)
 _CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY = (
     "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
@@ -3265,11 +3271,8 @@ class Store:
             return self._lifecycle_request_worklist_in_snapshot(limit=limit)
 
     def _lifecycle_request_worklist_in_snapshot(self, *, limit: int) -> dict:
-        rows = self.db.execute(
-            "SELECT name FROM decisions WHERE name GLOB 'lifecycle/request/*' "
-            "GROUP BY name ORDER BY name LIMIT ?",
-            (limit + 1,),
-        ).fetchall()
+        request_names = self._lifecycle_request_names_in_snapshot(limit=limit)
+        rows = [{"name": name} for name in request_names]
         owner_head = self._lifecycle_owner_history_head()
         owner_record = self.get_decision("lifecycle/owner")
         if (owner_record is None) != (owner_head is None) or (
@@ -3472,6 +3475,20 @@ class Store:
             "dispatch_authority": False,
             "consumption_authority": False,
         }
+
+    def _lifecycle_request_names_in_snapshot(self, *, limit: int) -> list[str]:
+        """Seek a bounded number of distinct request journals by primary-key name."""
+        names = []
+        cursor = "lifecycle/request/"
+        query = _LIFECYCLE_REQUEST_FIRST_QUERY
+        while len(names) <= limit:
+            row = self.db.execute(query, (cursor,)).fetchone()
+            if row is None:
+                break
+            cursor = row["name"]
+            names.append(cursor)
+            query = _LIFECYCLE_REQUEST_NEXT_QUERY
+        return names
 
     def open_controller_parse_fault(
         self,
