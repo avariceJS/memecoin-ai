@@ -169,6 +169,22 @@ class ExecutiveTests(unittest.TestCase):
         self.assertEqual([e["body"]["to"] for e in transitions], ["open", "completed"])
         self.executive.obligation(lease, "O2", "Follow-up review")
 
+    def test_generic_obligations_cannot_claim_dependency_reconciler_ids(self):
+        lease = self.lease()
+        before_events = len(self.store.events())
+        before_role = self.executive.snapshot()["role"]
+
+        with self.assertRaisesRegex(ExecutiveError, "prefix is reserved"):
+            self.executive.obligation(lease, "blocked-dependencies/manual", "Generic duty")
+
+        self.assertIsNone(self.executive.get_obligation("blocked-dependencies/manual"))
+        self.assertEqual(len(self.store.events()), before_events)
+        self.assertEqual(self.executive.snapshot()["role"], before_role)
+        adjacent = self.executive.obligation(
+            lease, "blocked-dependencies0/manual", "Adjacent generic duty"
+        )
+        self.assertEqual(adjacent["status"], "open")
+
     def test_completion_and_blockers_require_evidence(self):
         lease = self.lease()
         self.executive.obligation(lease, "O1", "Review")

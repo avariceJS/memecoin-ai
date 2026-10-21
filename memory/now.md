@@ -519,3 +519,8 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   source/test diff `40941b9d`; engineering gate passed Ruff, format, 547 tests and 121 subtests.
   Dependency history/SQLite work remain unbounded; A03 remains release-only blocker. Source commit:
   `6e163cb`.
+- A10 now reserves that ID range from generic obligation creation and fails closed on ambiguous
+  historical rows; exact legacy reconciler-format rows and supported owner transitions remain
+  compatible. Sol accepted diff `f0c585ca`; full gate passed 549 tests/121 subtests with Ruff after
+  one isolated macOS code-identity deadline flake. Ambiguous history needs separate review; no
+  runtime authority.

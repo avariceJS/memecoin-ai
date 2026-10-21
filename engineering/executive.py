@@ -30,6 +30,35 @@ class StaleExecutive(ExecutiveError):
     """The executive episode has expired, been released, or been replaced."""
 
 
+_DEPENDENCY_OBLIGATION_PREFIX = "blocked-dependencies/"
+_DEPENDENCY_OBLIGATION_TITLE = "Resolve blocked dependencies without suppressing ready work."
+
+
+def _dependency_obligation_body(snapshot, snapshot_sha256):
+    snapshot_ref = "dependency-readiness:" + snapshot_sha256
+    blocked_by = [snapshot_ref]
+    for item in snapshot["blocked"][:49]:
+        task_ref = "task:" + item["task_id"]
+        if len(task_ref) > 500:
+            task_ref = "task-sha256:" + hashlib.sha256(item["task_id"].encode("utf-8")).hexdigest()
+        blocked_by.append(task_ref)
+    return {
+        "title": _DEPENDENCY_OBLIGATION_TITLE,
+        "objective_id": None,
+        "owner_role": "CEO",
+        "team": None,
+        "rationale": (
+            f"{len(snapshot['blocked'])} pending tasks have unmet dependency or contract gates; "
+            f"{len(snapshot['ready'])} unrelated pending tasks remain ready."
+        ),
+        "evidence_refs": [snapshot_ref],
+        "blocked_by": blocked_by,
+        "status": "blocked",
+        "completion_evidence": [],
+        "details": {"snapshot_sha256": snapshot_sha256, "snapshot": snapshot},
+    }
+
+
 def _text(value: str, *, required=False, limit=4000) -> str:
     if not isinstance(value, str) or len(value) > limit or (required and not value.strip()):
         raise ExecutiveError(
@@ -1063,6 +1092,9 @@ class Executive:
         blocked_by=(),
         details=None,
     ):
+        _name(obligation_id)
+        if obligation_id.startswith(_DEPENDENCY_OBLIGATION_PREFIX):
+            raise ExecutiveError("dependency obligation ID prefix is reserved")
         if objective_id is not None:
             _name(objective_id)
         if team is not None:
@@ -1146,9 +1178,10 @@ class Executive:
             snapshot_sha256 = hashlib.sha256(snapshot_json.encode("utf-8")).hexdigest()
             snapshot_ref = "dependency-readiness:" + snapshot_sha256
 
-            namespace_start = "blocked-dependencies/"
+            namespace_start = _DEPENDENCY_OBLIGATION_PREFIX
             namespace_end = "blocked-dependencies0"
             rows = []
+            generations = {}
             for record_id, body_json in self.db.execute(
                 "SELECT id, body FROM executive_obligations WHERE id >= ? AND id < ? ORDER BY id",
                 (namespace_start, namespace_end),
@@ -1160,7 +1193,13 @@ class Executive:
                     or type(row.get("status")) is not str
                 ):
                     raise ExecutiveError("dependency obligation history is malformed")
+                digest, generation = self._validate_dependency_obligation_record(row)
+                generations.setdefault(digest, []).append(generation)
                 rows.append(row)
+            if any(
+                sorted(values) != list(range(1, len(values) + 1)) for values in generations.values()
+            ):
+                raise ExecutiveError("dependency obligation generations are malformed")
             for row in rows:
                 if row["status"] not in ("open", "blocked", "completed", "cancelled"):
                     raise ExecutiveError("dependency obligation status is malformed")
@@ -1210,33 +1249,10 @@ class Executive:
 
             obligation_id = kept_id
             if blocked and obligation_id is None:
-                prefix = f"blocked-dependencies/{snapshot_sha256}/"
+                prefix = f"{_DEPENDENCY_OBLIGATION_PREFIX}{snapshot_sha256}/"
                 generation = 1 + sum(row["id"].startswith(prefix) for row in rows)
                 obligation_id = prefix + str(generation)
-                blocked_by = [snapshot_ref]
-                for item in blocked[:49]:
-                    task_ref = "task:" + item["task_id"]
-                    if len(task_ref) > 500:
-                        task_ref = (
-                            "task-sha256:"
-                            + hashlib.sha256(item["task_id"].encode("utf-8")).hexdigest()
-                        )
-                    blocked_by.append(task_ref)
-                body = {
-                    "title": "Resolve blocked dependencies without suppressing ready work.",
-                    "objective_id": None,
-                    "owner_role": "CEO",
-                    "team": None,
-                    "rationale": (
-                        f"{len(blocked)} pending tasks have unmet dependency or contract gates; "
-                        f"{len(ready)} unrelated pending tasks remain ready."
-                    ),
-                    "evidence_refs": [snapshot_ref],
-                    "blocked_by": blocked_by,
-                    "status": "blocked",
-                    "completion_evidence": [],
-                    "details": {"snapshot_sha256": snapshot_sha256, "snapshot": snapshot},
-                }
+                body = _dependency_obligation_body(snapshot, snapshot_sha256)
                 if len(_json(body).encode("utf-8")) > 65_536:
                     raise ExecutiveError("dependency obligation exceeds byte limit")
                 self._create_in_transaction(role, "obligations", obligation_id, body)
@@ -1246,6 +1262,127 @@ class Executive:
                 "ready_task_count": len(ready),
                 "obligation_id": obligation_id,
             }
+
+    def _validate_dependency_obligation_record(self, row):
+        """Accept only duties compatible with the historical reconciler's exact format."""
+        record_id = row["id"]
+        initial = row.get("initial")
+        if type(initial) is not dict:
+            raise ExecutiveError("dependency obligation ownership is ambiguous")
+        details = initial.get("details")
+        if type(details) is not dict or set(details) != {"snapshot_sha256", "snapshot"}:
+            raise ExecutiveError("dependency obligation ownership is ambiguous")
+        snapshot = details["snapshot"]
+        if (
+            type(snapshot) is not dict
+            or set(snapshot) != {"schema", "blocked", "ready"}
+            or snapshot.get("schema") != "dependency-readiness-v1"
+            or type(snapshot.get("blocked")) is not list
+            or not snapshot["blocked"]
+            or type(snapshot.get("ready")) is not list
+            or any(type(task_id) is not str or not task_id.strip() for task_id in snapshot["ready"])
+            or len(set(snapshot["ready"])) != len(snapshot["ready"])
+        ):
+            raise ExecutiveError("dependency obligation ownership is ambiguous")
+        blocked_task_ids = []
+        for item in snapshot["blocked"]:
+            if (
+                type(item) is not dict
+                or set(item) != {"task_id", "blockers"}
+                or type(item.get("task_id")) is not str
+                or not item["task_id"].strip()
+                or type(item.get("blockers")) is not list
+                or not item["blockers"]
+            ):
+                raise ExecutiveError("dependency obligation ownership is ambiguous")
+            blocked_task_ids.append(item["task_id"])
+            for blocker in item["blockers"]:
+                if type(blocker) is not dict:
+                    raise ExecutiveError("dependency obligation ownership is ambiguous")
+                if blocker.get("kind") == "dependency":
+                    valid_blocker = (
+                        set(blocker) == {"kind", "id", "state"}
+                        and type(blocker.get("id")) is str
+                        and bool(blocker["id"].strip())
+                        and (
+                            blocker.get("state") is None
+                            or (
+                                type(blocker.get("state")) is str
+                                and blocker["state"] != "integrated"
+                            )
+                        )
+                    )
+                elif blocker.get("kind") == "contract":
+                    valid_blocker = (
+                        set(blocker) == {"kind", "name", "required_version", "current_version"}
+                        and type(blocker.get("name")) is str
+                        and bool(blocker["name"].strip())
+                        and type(blocker.get("required_version")) is int
+                        and blocker["required_version"] > 0
+                        and (
+                            blocker.get("current_version") is None
+                            or (
+                                type(blocker.get("current_version")) is int
+                                and blocker["current_version"] > 0
+                                and blocker["current_version"] != blocker["required_version"]
+                            )
+                        )
+                    )
+                else:
+                    valid_blocker = False
+                if not valid_blocker:
+                    raise ExecutiveError("dependency obligation ownership is ambiguous")
+        if len(set(blocked_task_ids)) != len(blocked_task_ids) or set(
+            blocked_task_ids
+        ).intersection(snapshot["ready"]):
+            raise ExecutiveError("dependency obligation ownership is ambiguous")
+        try:
+            snapshot_json = _json(snapshot)
+            digest = hashlib.sha256(snapshot_json.encode("utf-8")).hexdigest()
+            expected_body = _dependency_obligation_body(snapshot, digest)
+            expected_body_json = _json(expected_body)
+        except (KeyError, TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise ExecutiveError("dependency obligation ownership is ambiguous") from None
+        if (
+            len(snapshot_json.encode("utf-8")) > 65_536
+            or len(expected_body_json.encode("utf-8")) > 65_536
+            or details["snapshot_sha256"] != digest
+        ):
+            raise ExecutiveError("dependency obligation ownership is ambiguous")
+        prefix = f"{_DEPENDENCY_OBLIGATION_PREFIX}{digest}/"
+        if not record_id.startswith(prefix):
+            raise ExecutiveError("dependency obligation ownership is ambiguous")
+        generation_text = record_id[len(prefix) :]
+        if (
+            not generation_text.isascii()
+            or not generation_text.isdecimal()
+            or len(generation_text) > 19
+        ):
+            raise ExecutiveError("dependency obligation ownership is ambiguous")
+        try:
+            generation = int(generation_text)
+        except ValueError:
+            raise ExecutiveError("dependency obligation ownership is ambiguous") from None
+        if generation < 1 or str(generation) != generation_text or initial != expected_body:
+            raise ExecutiveError("dependency obligation ownership is ambiguous")
+        immutable = set(initial) - {"blocked_by", "completion_evidence", "status"}
+        if any(row.get(key) != initial[key] for key in immutable):
+            raise ExecutiveError("dependency obligation ownership is ambiguous")
+        try:
+            blockers = _refs(row.get("blocked_by"))
+            completion = _refs(row.get("completion_evidence"))
+            cancellation = _refs(row.get("cancellation_evidence", []))
+        except ExecutiveError:
+            raise ExecutiveError("dependency obligation state is malformed") from None
+        if (
+            (row["status"] == "blocked" and not blockers)
+            or (row["status"] != "blocked" and blockers)
+            or (row["status"] == "completed" and not completion)
+            or (row["status"] != "cancelled" and cancellation)
+            or (row["status"] == "cancelled" and not cancellation)
+        ):
+            raise ExecutiveError("dependency obligation state is malformed")
+        return digest, generation
 
     def request(
         self,

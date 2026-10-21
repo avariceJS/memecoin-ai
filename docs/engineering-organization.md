@@ -549,6 +549,17 @@ Reconciliation happens only when a CEO episode runs, so duties may still lag bet
 adds no service, dispatch or runtime authority. Generic contract migration, broad A10 and
 operational acceptance remain open.
 
+Follow-up reserves the dependency-duty ID range from the public generic obligation API. Reconciliation
+accepts historical rows only when their initial body, readiness snapshot/hash, generated ID,
+transition state and contiguous generation history match the former producer format. An ambiguous
+legacy row fails the whole reconciliation before cancellations or creation; it is retained for
+separate review. This establishes semantic format compatibility, not proof of which old caller
+created an exactly matching record. Sol accepted exact source diff
+`f0c585cad833815e1399b32a61a96d2ea8fad5c1842d4369249be03207d2ee07`. Ruff and format passed; the
+first full gate hit a transient macOS code-identity observation deadline, the isolated test passed,
+and the repeated full gate passed 549 tests and 121 subtests. Dependency history and SQLite work
+remain unbounded; STOP and all operational limits remain unchanged.
+
 The A10 quiescence-trigger increment is on `org/development` at `714bb573fc659ba00c849c9b7e0be7c1f470b472`.
 Handoff identity now includes the coherent task/readiness snapshot, and the Store rechecks it under
 `BEGIN IMMEDIATE` before atomically deduplicating or recording the immutable handoff. Fresh eligible

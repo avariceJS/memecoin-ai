@@ -472,6 +472,15 @@ format, 543 tests и 121 subtests. Reconciliation вызывается толь�
 непрерывная свежесть между эпизодами не заявляется; службы, dispatch и runtime не добавлены.
 Generic contract migration, department plans/leases и полный A10 остаются открыты.
 
+Следующий bounded source fix резервирует `blocked-dependencies/` за reconciler: общий API больше
+не может создавать там обязанности, а неоднозначные старые записи останавливают сверку до любых
+записей, сохраняя duty и journal. Канонические старые duties остаются совместимы; это проверка
+формата, а не аттестация автора исторической записи. Sol принял точный diff
+`f0c585cad833815e1399b32a61a96d2ea8fad5c1842d4369249be03207d2ee07`; полный gate прошёл 549 тестов
+и 121 subtest с Ruff/format после изолированного повтора нестабильного macOS code-identity теста.
+Не добавлены runtime или dispatch полномочия; неоднозначные исторические записи требуют отдельного
+разбора.
+
 Следующий A10 increment включён в `org/development` на `714bb573fc659ba00c849c9b7e0be7c1f470b472`:
 идентичность quiescence handoff теперь учитывает coherent task/readiness snapshot, а Store сверяет
 снимок и атомарно записывает или deduplicate-ит immutable handoff под `BEGIN IMMEDIATE`. Если

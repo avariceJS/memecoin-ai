@@ -123,6 +123,14 @@ class ChiefTests(unittest.TestCase):
         self.assertEqual(snapshot["ready"], ["T", "independent"])
         self.assertEqual(self.db.get_task("consumer")["state"], "pending")
 
+        lease = self.executive.claim("owner-reviewer")
+        self.executive.transition_obligation(
+            lease,
+            rows[0]["id"],
+            "open",
+            completion_evidence=["receipt:owner-reviewed"],
+        )
+        self.executive.release(lease)
         chief.chief(self.path, trigger="owner-review")
         rows_after_retry = [
             row
@@ -131,6 +139,8 @@ class ChiefTests(unittest.TestCase):
         ]
         self.assertEqual(len(rows_after_retry), 1)
         self.assertEqual(rows_after_retry[0]["id"], rows[0]["id"])
+        self.assertEqual(rows_after_retry[0]["status"], "open")
+        self.assertEqual(rows_after_retry[0]["completion_evidence"], ["receipt:owner-reviewed"])
 
         self.db.db.execute(
             "UPDATE tasks SET dependencies=? WHERE id='consumer'",
@@ -325,13 +335,6 @@ class ChiefTests(unittest.TestCase):
                 "unrelated-large",
                 json.dumps(unrelated_large, separators=(",", ":")),
             ),
-            (
-                "blocked-dependencies/",
-                json.dumps(
-                    {"id": "blocked-dependencies/", "status": "completed", "details": {}},
-                    separators=(",", ":"),
-                ),
-            ),
         ):
             self.db.db.execute(
                 "INSERT INTO executive_obligations(id, body) VALUES(?, ?)",
@@ -408,16 +411,55 @@ class ChiefTests(unittest.TestCase):
         self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
         lease = self.executive.claim("direct-reconciler")
         first = self.executive.reconcile_dependency_obligations(lease)
-        row = self.executive.get_obligation(first["obligation_id"])
-        row["status"] = "cancelled"
-        self.db.db.execute(
-            "UPDATE executive_obligations SET body=? WHERE id=?",
-            (json.dumps(row, sort_keys=True, separators=(",", ":")), row["id"]),
+        self.executive.transition_obligation(
+            lease,
+            first["obligation_id"],
+            "cancelled",
+            cancellation_evidence=["dependency-readiness:retained-terminal-test"],
         )
 
         second = self.executive.reconcile_dependency_obligations(lease)
 
         self.assertEqual(second["obligation_id"], first["obligation_id"].rsplit("/", 1)[0] + "/2")
+        self.executive.release(lease)
+
+    def test_ambiguous_legacy_dependency_id_blocks_all_reconciliation_writes(self):
+        self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
+        lease = self.executive.claim("legacy-collision")
+        generated = self.executive.reconcile_dependency_obligations(lease)
+        self.db.db.execute("UPDATE tasks SET dependencies='[]' WHERE id='consumer'")
+        legacy_id = "blocked-dependencies/"
+        legacy_body = {
+            "title": "Generic owner duty",
+            "objective_id": None,
+            "owner_role": "CEO",
+            "team": None,
+            "rationale": "Old generic use of the reserved prefix.",
+            "evidence_refs": [],
+            "blocked_by": [],
+            "status": "open",
+            "completion_evidence": [],
+        }
+        self.executive._create(lease, "obligations", legacy_id, legacy_body)
+        prior_events = self.db.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+        prior_role = self.db.db.execute(
+            "SELECT body FROM executive_role WHERE role='CEO'"
+        ).fetchone()[0]
+
+        with self.assertRaisesRegex(ExecutiveError, "ownership is ambiguous"):
+            self.executive.reconcile_dependency_obligations(lease)
+
+        self.assertEqual(
+            self.executive.get_obligation(generated["obligation_id"])["status"], "blocked"
+        )
+        self.assertEqual(self.executive.get_obligation(legacy_id)["status"], "open")
+        self.assertEqual(
+            self.db.db.execute("SELECT COUNT(*) FROM events").fetchone()[0], prior_events
+        )
+        self.assertEqual(
+            self.db.db.execute("SELECT body FROM executive_role WHERE role='CEO'").fetchone()[0],
+            prior_role,
+        )
         self.executive.release(lease)
 
     def test_dossier_bound_preserves_authority_and_total_counts(self):
