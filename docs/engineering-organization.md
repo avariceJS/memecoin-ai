@@ -2036,19 +2036,20 @@ under `src/`, `tests/` and `tools/`; it does not reach later checks. The focused
 gate is clean.
 
 Integrated PLAT-001 producer continuation and controller crash recovery — 2026-10-22: the Experience
-producer enters through the real bounded `supervise` loop, which selects and claims the nominated task,
-launches the pinned worker command, and verifies the submitted candidate on its next iteration. The
-regression binds launcher `--state`/`--attempt`, `stdin=DEVNULL`, and the durable Luna worker identity
-to the exact candidate and verification plan. A separate controller process exits with code 73 after
-Git ref CAS and before `Store.integrate`; the parent reopens SQLite and explicitly starts a fresh
-supervisor episode. That episode integrates the producer once and reaches contract-review preparation;
-the existing regression then completes the contract/dependency path through PLAT-002. The child wait is
-bounded to 15 seconds and timeout cleanup kills/reaps it; recovery planner/provider transports are
-fail-fast disabled. Altered intent/receipt evidence remains rejected. Sol accepted this synthetic scope.
-The launcher intercept runs `run_attempt` inline, so worker child-process isolation is not established.
-This closes the PLAT-001 manual claim/run/verify and caught-only recovery seams in the integrated
-producer/consumer regression; synthetic transport/reviewer, provider identity and settlement, A03,
-A04 deployment qualification and operational release remain open.
+producer enters through the bounded `supervise` loop, which selects and claims the nominated task and
+spawns a fresh exec Python process. A test-only synthetic harness in that child runs the real
+`run_attempt`, durable Store custody and sandbox tool callback; the next controller iteration verifies
+the submitted candidate. The regression binds requested launcher `--state`/`--attempt`,
+`stdin=DEVNULL`, child PID/birth and Store child-start identity. A separate controller process exits
+with code 73 after Git ref CAS and before `Store.integrate`; the parent reopens SQLite and explicitly
+starts a fresh supervisor episode. That episode integrates the producer once and reaches contract-review
+preparation; the same regression then completes the contract/dependency path through PLAT-002. Bounded
+timeouts use birth-bound `terminate_owned` before signaling. Altered intent/receipt evidence remains
+rejected. Sol accepted the exact synthetic test diff; `make engineering-release-check` passes Ruff/format,
+676 tests and 193 subtests. This proves an exec-spawned synthetic producer, not the production
+`engineering attempt` entrypoint, Codex app-server/provider, live usage settlement, or cleanup of every
+independent descendant group during an exceptional hang. PLAT-002 remains inline in this regression;
+A03, A04 deployment qualification and operational release remain open.
 
 Cortex preregistration metadata — 2026-10-22: Store now enforces a strict protocol schema and
 requires the `cortex-research-protocol` v2 A10 transition to be produced by integrated Cortex work

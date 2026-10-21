@@ -100,16 +100,16 @@ A04: Cortex task specs остаются неclaimable. Artifact pins и preregis
 не доказаны. Обучение,
 scoring, pipeline и artifact writers не запускались; научная оценка не заявляется.
 
-2026-10-22: PLAT-001 Experience проходит через controller loop `supervise`: loop сам выбирает и
-claim-ит задачу, запускает привязанный worker command и на следующей итерации вызывает независимую
-проверку. Regression связывает `--state`, `--attempt`, `stdin=DEVNULL` и назначение Luna с
-candidate/verification plan. Отдельный controller process жёстко завершается кодом 73 после Git ref
-CAS, но до `Store.integrate`; после SQLite reopen новый явный supervisor episode интегрирует producer
-ровно один раз и доходит до contract review preparation, далее общий тест продолжает зависимость
-PLAT-002. Ожидание child ограничено 15 секундами, recovery planner/provider transports fail-fast
-закрыты; подмена intent/receipt блокируется. Sol принял synthetic scope. Launcher worker всё ещё
-исполняет `run_attempt` inline под перехваченным `Popen`: OS-изоляция worker не доказана. Provider,
-reviewer и operational qualification не заявляются.
+2026-10-22: PLAT-001 Experience проходит через `supervise`: controller выбирает и claim-ит задачу,
+запускает отдельный exec-процесс с тестовым synthetic harness, где выполняются настоящий `run_attempt`,
+durable Store custody и sandbox tool callback; следующий loop независимо проверяет candidate. Regression
+связывает запрошенные `--state`/`--attempt`, `stdin=DEVNULL`, PID/birth ребёнка и Store child-start
+identity. Controller аварийно завершается после Git ref CAS и до `Store.integrate`; SQLite reopen и
+новая supervisor episode интегрируют producer ровно один раз, затем общий тест проходит зависимость
+PLAT-002. Sol принял diff; полный gate: Ruff/format, 676 тестов и 193 subtests. Доказан exec-child
+только с synthetic harness, не production `engineering attempt` CLI, Codex app-server/provider или
+settlement; полная очистка независимых descendant groups не доказана. PLAT-002 остаётся inline, A03,
+A04 и operational release открыты.
 
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
 reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает

@@ -945,6 +945,8 @@ class SupervisorTests(unittest.TestCase):
     def test_fixed_task_real_git_acceptance_checkpoint_and_next_dependency(self):
         from engineering import planning
         from engineering.planning import eligible
+        from engineering.processes import process_identity as process_birth_identity
+        from engineering.processes import terminate_owned
 
         def run_git(repo, *args):
             result = subprocess.run(
@@ -1192,6 +1194,9 @@ class SupervisorTests(unittest.TestCase):
             controller / "engineering",
             ignore=shutil.ignore_patterns("__pycache__"),
         )
+        self.cfg["controller"] = str(controller.resolve())
+        plan = supervisor.prepare_verification_plan(self.state.resolve(), self.db, task, self.cfg)
+        self.assertTrue(plan.execution_qualified)
         codex = self.state / "synthetic-codex"
         codex.write_text("#!/bin/sh\nexit 0\n")
         codex.chmod(0o700)
@@ -1210,6 +1215,7 @@ class SupervisorTests(unittest.TestCase):
         adapter_sha = controller_manifest["engineering/codex_rpc.py"]
         codex_sha = hashlib.sha256(codex.read_bytes()).hexdigest()
         deployment_cfg = {
+            **self.cfg,
             "schema": "brain-engineering-deployment-v1",
             "python": sys.executable,
             "controller": str(controller.resolve()),
@@ -1321,22 +1327,116 @@ class SupervisorTests(unittest.TestCase):
 
         self_test = self
         producer_launch_record = self.state / "producer-launch.json"
+        child_spec_path = self.state / "synthetic-child-spec.json"
+        child_spec_path.write_text(
+            json.dumps(
+                {
+                    "controller": str(controller.resolve()),
+                    "python": python_executable,
+                    "worker_code": worker_code,
+                    "escape_path": str(escape_path),
+                    "clock": self.now,
+                },
+                sort_keys=True,
+            )
+        )
+        child_harness = self.state / "synthetic-attempt-child.py"
+        child_harness.write_text(
+            "import contextlib, json, pathlib, sys\n"
+            "spec = json.loads(pathlib.Path(sys.argv[3]).read_text())\n"
+            "sys.path.insert(0, spec['controller'])\n"
+            "from engineering import supervisor\n"
+            "from engineering.org_state import Store\n"
+            "def synthetic_store(state, *, controller_catalogue=None):\n"
+            "    return Store(pathlib.Path(state)/'organization.sqlite',"
+            "clock=lambda:spec['clock'],controller_catalogue=controller_catalogue)\n"
+            "supervisor.store = synthetic_store\n"
+            "class SyntheticCodex:\n"
+            "    def __init__(self, role):\n"
+            "        self.role = role\n"
+            "        self.proc = __import__('types').SimpleNamespace("
+            "pid=__import__('os').getpid())\n"
+            "    def __enter__(self): return self\n"
+            "    def __exit__(self, *_args): return None\n"
+            "    def start(self, *_args): return 'synthetic-' + self.role + '-thread'\n"
+            "    def turn(self, *_args, **kwargs):\n"
+            "        if self.role == 'lead':\n"
+            "            text = json.dumps({'decision':'approve','worker_brief':"
+            "'Add the fixed synthetic capability.','rationale':"
+            "'The bounded task and exact contract proposal qualify.','contract_acks':[]})\n"
+            "        elif self.role == 'worker':\n"
+            "            result = kwargs['tool']({'argv':[spec['python'],'-I','-c',"
+            "spec['worker_code']],'timeout':10})\n"
+            "            if result['returncode'] != 0 or "
+            "pathlib.Path(spec['escape_path']).exists():\n"
+            "                raise RuntimeError('synthetic sandbox assertion failed')\n"
+            "            text = json.dumps({'summary':'Added one bounded capability.',"
+            "'tests':['synthetic sandbox write and escape denial'],"
+            "'limitations':['provider and verifier are synthetic']})\n"
+            "        else: raise RuntimeError('unexpected synthetic role')\n"
+            "        return {'text':text,'usage_terminal':True,"
+            "'usage_delta':{'totalTokens':3}}\n"
+            "    def record_outcome(self, *_args, **_kwargs): return None\n"
+            "@contextlib.contextmanager\n"
+            "def synthetic_client(_state, _cwd, *, context, **_kwargs):\n"
+            "    yield SyntheticCodex(context['role'])\n"
+            "supervisor.metered_client = synthetic_client\n"
+            "state, attempt_id = pathlib.Path(sys.argv[1]), int(sys.argv[2])\n"
+            "supervisor.run_attempt(state, attempt_id)\n"
+            "db = supervisor.store(state)\n"
+            "try:\n"
+            "    attempts = [a for a in db.list_attempts() if a['id'] == attempt_id]\n"
+            "    if len(attempts) != 1 or attempts[0]['state'] != 'submitted':\n"
+            "        print(json.dumps({'pid':__import__('os').getpid(),"
+            "'birth':supervisor.process_identity(__import__('os').getpid()),"
+            "'attempts':attempts,'events':db.events()[-20:],"
+            "'operations':(state/'operations.jsonl').read_text()}),flush=True)\n"
+            "        raise SystemExit(41)\n"
+            "finally: db.close()\n"
+        )
 
         real_popen = subprocess.Popen
+        import signal
+        import time
+
+        real_sleep = time.sleep
 
         def run_supervised_producer(args, **kwargs):
             if "engineering" in args and "attempt" in args:
+                attempt_id = args[args.index("--attempt") + 1]
+                state_arg = args[args.index("--state") + 1]
+                exec_args = [
+                    sys.executable,
+                    "-I",
+                    str(child_harness),
+                    state_arg,
+                    str(attempt_id),
+                    str(child_spec_path),
+                ]
+                child = real_popen(exec_args, **kwargs)
+                child_birth = process_birth_identity(child.pid)
                 supervisor.atomic(
                     producer_launch_record,
                     {
-                        "argv": list(args),
+                        "requested_argv": list(args),
+                        "exec_argv": exec_args,
                         "stdin_devnull": kwargs.get("stdin") == subprocess.DEVNULL,
+                        "synthetic_harness": True,
+                        "pid": child.pid,
+                        "birth": child_birth,
                     },
                 )
-                attempt_id = int(args[args.index("--attempt") + 1])
-                attempt_state = Path(args[args.index("--state") + 1])
-                supervisor.run_attempt(attempt_state, attempt_id)
-                return SimpleNamespace(pid=456)
+                try:
+                    returncode = child.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    terminate_owned(child.pid, child_birth)
+                    if child.poll() is None:
+                        child.kill()
+                    child.wait(timeout=5)
+                    raise RuntimeError("synthetic attempt child timed out") from None
+                if returncode != 0:
+                    raise RuntimeError(f"synthetic attempt child failed: {returncode}")
+                return child
             return real_popen(args, **kwargs)
 
         def interrupt_after_producer_cas(*_args, **_kwargs):
@@ -1363,7 +1463,7 @@ class SupervisorTests(unittest.TestCase):
                 },
             ),
             patch.object(supervisor.subprocess, "Popen", side_effect=run_supervised_producer),
-            patch.object(supervisor.time, "sleep"),
+            patch.object(supervisor.time, "sleep", side_effect=lambda _seconds: real_sleep(0.005)),
             patch.object(
                 Store,
                 "integrate",
@@ -1376,30 +1476,39 @@ class SupervisorTests(unittest.TestCase):
             if child_pid == 0:
                 try:
                     self.db = Store(database_path, clock=lambda: self.now)
-                    supervisor.supervise(self.state, max_seconds=10)
+                    supervisor.supervise(self.state, max_seconds=30)
                 except BaseException:
                     import traceback
 
                     traceback.print_exc()
                     os._exit(99)
                 os._exit(0)
-            import signal
-            import time
-
-            child_deadline = time.monotonic() + 15
+            child_deadline = time.monotonic() + 35
             while True:
                 waited_pid, child_status = os.waitpid(child_pid, os.WNOHANG)
                 if waited_pid == child_pid:
                     break
                 if time.monotonic() >= child_deadline:
                     try:
+                        launched = supervisor.read(producer_launch_record)
+                        pid, birth = launched.get("pid"), launched.get("birth")
+                        terminate_owned(pid, birth)
+                    except FileNotFoundError:
+                        pass
+                    try:
                         os.kill(child_pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
                     os.waitpid(child_pid, 0)
-                    self.fail("supervisor hard-crash fixture exceeded 15 seconds")
+                    self.fail("supervisor hard-crash fixture exceeded 35 seconds")
                 threading.Event().wait(0.01)
-            self.assertEqual(os.waitstatus_to_exitcode(child_status), 73)
+            if os.waitstatus_to_exitcode(child_status) != 73:
+                self.db = Store(database_path, clock=lambda: self.now)
+                self.fail(
+                    f"supervisor did not reach the injected post-CAS crash; "
+                    f"tasks={self.db.list_tasks()!r}, attempts={self.db.list_attempts()!r}, "
+                    f"child_log={(self.state / 'attempt-output.log').read_text()!r}"
+                )
             self.db = Store(database_path, clock=lambda: self.now)
             self.addCleanup(self.db.close)
         self.assertFalse(escape_path.exists())
@@ -1410,13 +1519,21 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(len(self.db.list_attempts(admitted)), 1)
         self.assertEqual(attempt["worker"], supervisor.LUNA)
         launch_record = supervisor.read(producer_launch_record)
-        launch_args = launch_record["argv"]
+        launch_args = launch_record["requested_argv"]
         self.assertEqual(launch_args[launch_args.index("--attempt") + 1], str(attempt["id"]))
         self.assertEqual(
             Path(launch_args[launch_args.index("--state") + 1]),
             self.state.resolve(),
         )
         self.assertTrue(launch_record["stdin_devnull"])
+        self.assertTrue(launch_record["synthetic_harness"])
+        self.assertEqual(launch_record["exec_argv"][2], str(child_harness))
+        self.assertNotEqual(launch_record["pid"], os.getpid())
+        child_identity = self.db.attempt_child_start_identity(attempt["id"], attempt["epoch"])
+        self.assertEqual(child_identity["pid"], launch_record["pid"])
+        self.assertEqual(child_identity["birth"], launch_record["birth"])
+        self.assertIsInstance(child_identity["birth"], str)
+        self.assertTrue(child_identity["birth"])
         candidate_record = self.db.get_candidate(admitted)
         self.assertEqual(candidate_record["attempt_id"], attempt["id"])
         self.assertEqual(candidate_record["epoch"], attempt["epoch"])

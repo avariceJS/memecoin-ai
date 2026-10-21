@@ -27,18 +27,17 @@ supervisor claim, worker dispatch, candidate verification and recovery reconcili
 work must use task-spec admission. Supervisor Store instances apply that catalogue inside readiness and
 claim transactions; task-spec IDs cannot collide with fixed cards, including an ID mutation during
 SQLite lock wait. Fresh quiescence durably reports `controller-assignment-required`. Sol accepted the
-boundary and race fix. `make engineering-release-check` passes Ruff/format, 672 tests and 193 subtests.
-The PLAT-001 integrated regression now uses `supervise` for selection/claim, `run_attempt`, next-loop
-`verify_one`, a separate controller hard exit after Git CAS/before Store integration, SQLite reopen,
-explicit fresh-supervisor recovery, intent/receipt negative cases and one producer integration. Launcher
-arguments/state, Luna worker identity and `stdin=DEVNULL` are bound to its candidate. Sol accepted the
-exact hard-exit scope, including bounded child wait and fail-fast transport guards. Focused regression,
-Ruff and format pass; the full gate passes 672 tests and 193 subtests. Pytest reports the expected
-macOS `fork()` warning; a 15-second timeout bounds deadlock risk and kills/reaps a stuck fixture.
-Worker execution remains inline behind intercepted `Popen`; smoke on the previous committed state is
-reproducible with `edge_established=false`. The full loop remains deterministic and injected;
-reviewer/provider identity, A03 settlement, restored-runtime continuation and operational release are
-unqualified.
+boundary and race fix. Latest `make engineering-release-check` passes Ruff/format, 676 tests and 193 subtests.
+The PLAT-001 integrated regression uses `supervise` for selection/claim and launches a fresh exec Python
+child with a test-only synthetic harness running real `run_attempt`, durable Store custody and the
+sandbox tool callback; the next loop calls independent `verify_one`. Requested launcher state/attempt,
+`stdin=DEVNULL`, child PID/birth and Store child-start identity are bound. A separate controller hard-exits
+after Git CAS/before Store integration; SQLite reopen and fresh-supervisor recovery integrate once, then
+the same regression continues PLAT-002. Sol accepted the exact diff; `make engineering-release-check`
+passes Ruff/format, 676 tests and 193 subtests. This proves an exec-spawn synthetic producer, not the
+production attempt CLI, provider/app-server, live usage settlement, complete descendant cleanup, A03,
+A04 or operational release. PLAT-002 remains inline in this regression; smoke on the prior commit has
+`edge_established=false`.
 Unknown outcomes retain their reservations. `make check` was previously blocked by 107 unrelated Ruff
 findings under `src/`, `tests/` and `tools`; this narrow change does not touch those paths.
 

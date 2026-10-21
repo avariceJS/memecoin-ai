@@ -374,9 +374,7 @@ def test_reviewed_protocol_is_admitted_by_exact_hash_after_reopen(tmp_path):
             if store.get_contract_review_request(request_id)["body"]["team"] == first_team
         )
         assert store.get_contract_review_response(first_request_id)["raw_result"]
-        assert store.get_decision(
-            store._contract_ack_key(CONTRACT_NAME, 2, first_team)
-        ) is None
+        assert store.get_decision(store._contract_ack_key(CONTRACT_NAME, 2, first_team)) is None
         store.close()
         store = Store(path)
         replayed_ids = supervisor.activate_contract(state, store)
