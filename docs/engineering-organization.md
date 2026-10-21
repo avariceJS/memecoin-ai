@@ -62,9 +62,10 @@ child harnesses and synthetic reviewers. A separate `CLI-001` path now launches 
 `python -m engineering attempt` command and exercises real `Codex`, `MeteredCodex`, brokered
 `org_exec`, parent verification, receipt persistence, and GitGate integration against a disposable
 hash-bound local JSON-RPC peer. Sol independently accepted this bounded test. Its direct legacy task
-insertion does not exercise trusted nomination/admission, and the peer's reviewer response does not
-establish model judgment. Three completed turns retain unknown usage; a subsequent Sol dispatch is
-refused at the unresolved-reservation limit. Live provider identity and usage settlement, A04
+insertion does not exercise trusted nomination/admission. The peer inspects the review packet's task,
+changed path, diff, and accepted-check result before deterministic approval; this does not establish
+model judgment or reviewer authenticity. Three completed turns retain unknown usage; a subsequent Sol
+dispatch is refused at the unresolved-reservation limit. Live provider identity and usage settlement, A04
 execution/deployment qualification, A05 launch authorization generation and lifecycle consumer, A03,
 remote recovery, and runtime release remain unavailable or unauthorized. Cortex protocol v2 supports metadata preregistration,
 integrated-producer provenance, and exact Cortex/Evaluation ACK admission; Cortex specs remain

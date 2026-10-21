@@ -10,8 +10,9 @@
 точную команду frozen `python -m engineering attempt`; child проходит настоящие `Codex` и
 `MeteredCodex`, brokered `org_exec`, затем parent verifier сохраняет receipt и интегрирует candidate
 во временный Git. Peer локальный, synthetic и hash-bound; три completed turn остаются с неизвестным
-usage, следующий Sol dispatch отказывается по лимиту. Этот отдельный прямой legacy task не доказывает
-trusted nomination/admission или настоящее суждение модели. Штатный engineering gate: Ruff/format,
+usage, следующий Sol dispatch отказывается по лимиту. Synthetic reviewer сверяет task, changed path,
+diff и trusted acceptance до одобрения. Этот отдельный прямой legacy task не доказывает trusted
+nomination/admission, подлинность reviewer или настоящее суждение модели. Штатный engineering gate: Ruff/format,
 677 тестов и 193 subtests. Узкий regression на timeout потомка принят Sol и сохранён в `3a27505`;
 он подтверждает только один уже запущенный дочерний процесс в исходной process group.
 

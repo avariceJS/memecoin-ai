@@ -307,8 +307,20 @@ class SupervisorTests(unittest.TestCase):
             "        elif role == 'lead': answer={'decision':'approve',\n"
             "                    'worker_brief':'Write VALUE = 7.',"
             "'rationale':'The exact task is bounded.','contract_acks':[]}\n"
-            "        else: answer={'approved':True,'findings':[],"
-            "'rationale':'Synthetic independent review accepted the exact candidate.'}\n"
+            "        else:\n"
+            "            prompt=p['input'][0]['text']\n"
+            "            packet=json.loads(prompt.rsplit('\\n',1)[-1])\n"
+            "            accepted=json.loads(packet['checks'][0]['stdout'])\n"
+            "            approved=(packet['schema']=='brain-independent-review-packet-v1' and\n"
+            "                      packet['task']['id']=='CLI-001' and\n"
+            "                      packet['candidate']['submitted_changed_paths']==\n"
+            "                      ['src/result.py'] and\n"
+            "                      accepted['passed'] is True and 'VALUE = 7' in packet['diff'])\n"
+            "            record({'kind':'review_packet','approved':approved})\n"
+            "            answer={'approved':approved,\n"
+            "                    'findings':[] if approved else ['candidate packet mismatch'],\n"
+            "                    'rationale':'Synthetic peer checked task, path, diff and '\n"
+            "                    'acceptance.'}\n"
             "        emit({'method':'item/completed','params':{'threadId':thread,'turnId':turn,"
             "'item':{'type':'agentMessage','phase':'final_answer','text':json.dumps(answer)}}})\n"
             "        emit({'method':'turn/completed','params':{'threadId':thread,"
@@ -434,6 +446,9 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(methods.count("thread/start"), 3)
         self.assertEqual(methods.count("turn/start"), 3)
         self.assertTrue(any(row.get("kind") == "tool_reply" and row["success"] for row in records))
+        self.assertTrue(
+            any(row.get("kind") == "review_packet" and row["approved"] for row in records)
+        )
 
         ledger = UsageLedger(self.state / "usage-ledger.sqlite")
         try:

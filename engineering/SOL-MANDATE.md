@@ -24,7 +24,8 @@ accepted a bounded `CLI-001` synthetic RPC test: the supervisor launches the exa
 which uses real Codex/MeteredCodex and sandbox-tool paths against a local hash-bound peer; the parent
 verifies and integrates a receipt-bound candidate. Three completed turns remain unresolved, and a
 third Sol dispatch is refused. This direct legacy task and deterministic reviewer do not prove trusted
-admission or model judgment. Sol also accepted a narrow macOS timeout regression proving that one
+admission or model judgment; the fake peer checks exact packet task, path, diff and accepted-result
+fields before approving. Sol also accepted a narrow macOS timeout regression proving that one
 started inherited-pipe descendant does not write after its original process group is terminated; it
 does not qualify escaped groups or all descendant cleanup.
 
