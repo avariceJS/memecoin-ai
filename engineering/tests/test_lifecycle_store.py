@@ -104,6 +104,49 @@ class LifecycleStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(StateError, "stale_lifecycle_owner"):
             self.store.renew_lifecycle_owner(lease)
 
+    def test_owner_history_head_validation_uses_constant_memory_summary(self):
+        lease = self.store.claim_lifecycle_owner("owner", lease_seconds=10000)
+        for _ in range(20):
+            lease = self.store.renew_lifecycle_owner(lease, lease_seconds=10000)
+        self.assertEqual(lease["version"], 21)
+
+        statements = []
+        self.store.db.set_trace_callback(statements.append)
+        try:
+            head = self.store._lifecycle_owner_history_head()
+            projection = self.store.lifecycle_request_worklist()
+        finally:
+            self.store.db.set_trace_callback(None)
+
+        self.assertEqual(head, 21)
+        self.assertEqual(projection["owner"]["owner"], "owner")
+        self.assertTrue(any("COUNT(*) AS version_count" in sql for sql in statements))
+        self.assertFalse(
+            any(
+                "SELECT version FROM decisions WHERE name='lifecycle/owner'" in sql
+                for sql in statements
+            )
+        )
+
+    def test_owner_history_head_detects_gaps(self):
+        lease = self.store.claim_lifecycle_owner("owner", lease_seconds=10000)
+        lease = self.store.renew_lifecycle_owner(lease, lease_seconds=10000)
+        self.store.renew_lifecycle_owner(lease, lease_seconds=10000)
+        self.store.db.execute("DELETE FROM decisions WHERE name='lifecycle/owner' AND version=2")
+
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.claim_lifecycle_owner("replacement")
+
+    def test_owner_history_head_handles_empty_and_rejects_noninteger_version(self):
+        self.assertIsNone(self.store._lifecycle_owner_history_head())
+        self.store.db.execute(
+            "INSERT INTO decisions(name,version,body,replaces,replaces_version) "
+            "VALUES('lifecycle/owner','malformed','{}',NULL,NULL)"
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store._lifecycle_owner_history_head()
+
     def test_evaluation_persists_exact_observations_and_computed_plan_idempotently(self):
         lease = self.store.claim_lifecycle_owner("owner")
         observations = launch_observations()
@@ -254,7 +297,11 @@ class LifecycleStoreTests(unittest.TestCase):
         owner_history_read = threading.Event()
 
         def pause_before_owner_history(statement):
-            if statement.strip().upper().startswith("SELECT VERSION FROM DECISIONS WHERE NAME="):
+            if (
+                statement.strip()
+                .upper()
+                .startswith("SELECT COUNT(*) AS VERSION_COUNT, MIN(VERSION) AS FIRST_VERSION")
+            ):
                 owner_history_read.set()
                 continue_owner_read.wait()
 

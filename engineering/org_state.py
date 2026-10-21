@@ -2831,11 +2831,35 @@ class Store:
             raise StateError("lifecycle_decision_history_invalid")
         return versions
 
+    def _lifecycle_owner_history_head(self) -> int | None:
+        """Validate owner version continuity with constant Python-side memory."""
+        row = self.db.execute(
+            "SELECT COUNT(*) AS version_count, MIN(version) AS first_version, "
+            "MAX(version) AS last_version, "
+            "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) AS invalid_versions "
+            "FROM decisions WHERE name='lifecycle/owner'"
+        ).fetchone()
+        count = row["version_count"]
+        if type(count) is not int:
+            raise StateError("lifecycle_decision_history_invalid")
+        if count == 0:
+            return None
+        first, last = row["first_version"], row["last_version"]
+        if (
+            row["invalid_versions"] != 0
+            or type(first) is not int
+            or type(last) is not int
+            or first != 1
+            or last != count
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
+        return last
+
     def _lifecycle_fence(self, lease: Any) -> dict:
         current = self.get_decision("lifecycle/owner")
-        versions = self._lifecycle_decision_versions("lifecycle/owner")
-        if (current is None) != (not versions) or (
-            current is not None and current["version"] != versions[-1]
+        head = self._lifecycle_owner_history_head()
+        if (current is None) != (head is None) or (
+            current is not None and current["version"] != head
         ):
             raise StateError("lifecycle_decision_history_invalid")
         body = self._lifecycle_fence_state(current["body"]) if current is not None else None
@@ -2865,9 +2889,9 @@ class Store:
         lease_seconds = _positive(lease_seconds)
         with self._tx():
             current = self.get_decision("lifecycle/owner")
-            versions = self._lifecycle_decision_versions("lifecycle/owner")
-            if (current is None) != (not versions) or (
-                current is not None and current["version"] != versions[-1]
+            head = self._lifecycle_owner_history_head()
+            if (current is None) != (head is None) or (
+                current is not None and current["version"] != head
             ):
                 raise StateError("lifecycle_decision_history_invalid")
             now = self._lifecycle_now()
@@ -3202,10 +3226,10 @@ class Store:
             "GROUP BY name ORDER BY name LIMIT ?",
             (limit + 1,),
         ).fetchall()
-        owner_versions = self._lifecycle_decision_versions("lifecycle/owner")
+        owner_head = self._lifecycle_owner_history_head()
         owner_record = self.get_decision("lifecycle/owner")
-        if (owner_record is None) != (not owner_versions) or (
-            owner_record is not None and owner_record["version"] != owner_versions[-1]
+        if (owner_record is None) != (owner_head is None) or (
+            owner_record is not None and owner_record["version"] != owner_head
         ):
             raise StateError("lifecycle_decision_history_invalid")
         captured_at = self._lifecycle_now()
