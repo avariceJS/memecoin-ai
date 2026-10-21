@@ -415,6 +415,17 @@ existing timing-sensitive macOS code-identity deadline test; its isolated rerun 
 gate passed. SQLite text-decoding failures, retained-history cost, separate replay/activation
 transactions, provider/usage provenance, A03 and broad A10 remain open.
 
+At `927d19d`, terminal contract-review records with raw-response custody now require canonical
+equality among the strict parsed response, `model_result` and `result`. Inconsistent terminal rows
+fail closed in readers, finalization retries and local replay; legacy terminal rows without retained
+raw responses remain readable. Regressions corrupt each result field alone and together, confirm no
+new version/event or ACK, preserve whitespace-padded raw JSON, and prove a later configured
+transition still activates without provider use. Sol-6.1 High accepted exact diff
+`a3c161d23ba6e22740444260a1c72c47835b8dd838af4d595c730f8587f4d76d`; the engineering release gate
+passed Ruff, 507 tests and 105 subtests. This validates stored-result consistency only; provider
+provenance, complete terminal-schema validation, SQLite text-decoding failures, A03 and broad A10
+remain open.
+
 At `9e6cd7e`, transition-scoped replay discovers review journals through a partial expression index
 on the exact contract name, version, contract hash and proposal digest. It validates each matching
 journal's full append-only history, then applies the existing cap only to latest `response_recorded`
