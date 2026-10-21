@@ -1273,3 +1273,20 @@ acceptance remain open. Review receipt:
 (SHA-256 `7a425375c14660800fbec577f73e9af719c8376082757b0fe8693b76e6e59d99`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replaces-projection-gate-20261021.json`
 (SHA-256 `13577d088633f87645cf986b3a689acabd724134dcc169d3bcf37a1999138866`).
+
+At `6cea96c`, the bounded record query computes a six-row window count and capped serialized-byte
+sum before projecting bodies. Returned Python body bytes are at most 2 MiB; each returned body is
+at most 512 KiB. An oversized individual version is projected as NULL and rejected before JSON
+parsing; because the window sum caps each oversized row at 512 KiB plus one byte, other eligible
+bodies may still be returned within the 2 MiB output ceiling. Sol-6.1 High accepted exact diff
+`55b1729a84eb17b9a460a8ac4a1ada104f5d0eb76e90d7642b372d00a71251af`; independent boundaries
+covered empty history, exact limits, plus-one overflow, oversized rows, and six/seven row histories.
+The focused suite passed 72 tests. The first full gate encountered the existing
+`MacCodeIdentityTests.test_running_identity_survives_path_replacement` observation-deadline flake;
+the isolated test passed and final gate passed Ruff, 466 tests and 101 subtests. SQLite may still
+materialize full bodies internally, so SQLite memory, I/O and execution time remain unbounded. This
+source increment does not close broad A10, A03 or operational acceptance. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-aggregate-projection-review-20261021.json`
+(SHA-256 `d04e406e2cc24836e1122db376061fcbae321ddbd9ab2dbd675dba3d11f98c39`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-aggregate-projection-gate-20261021.json`
+(SHA-256 `b3ff178f171e33deeb2f75c6abff6b0a294e90a9eb3f6740a7165947e7252435`).

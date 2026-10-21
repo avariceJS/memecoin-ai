@@ -400,3 +400,7 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   malformed links before JSON hydration. Sol-6.1 High accepted; independent type/encoding matrix and
   full gate passed (465 tests/101 subtests). SQLite value comparisons, internal work and memory remain
   unbounded; broad A10 and A03 remain open.
+- A10 source `6cea96c` caps bounded-reader body projection to 2 MiB across at most six journal rows;
+  oversized versions fail before JSON parsing. Sol accepted boundary matrix; final gate passed 466/101
+  after isolating an existing Mac code-identity deadline flake. SQLite may still materialize full
+  bodies internally; broad A10 and A03 remain open.
