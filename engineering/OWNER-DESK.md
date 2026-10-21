@@ -17,7 +17,14 @@ policy: bound A04 manifest/executable identity остаются непровер
 Инъекция прерывания после CAS проверяет SQLite close/reopen, восстановление интеграции и claim
 следующей зависимой задачи. Повреждённый
 candidate SHA и отсутствующий receipt блокируют recovery без изменения Store/ref; валидное
-восстановление создаёт ровно одно событие интеграции. Producer Experience, consumer Platform и
+восстановление создаёт ровно одно событие интеграции. После интеграции producer и custody одного
+contract response test ставит STOP и вызывает настоящие `backup_snapshot`/`restore_snapshot` с
+manifest-bound synthetic deployment; обычный, не подменённый deployment preflight проходит.
+Fresh-path restore сохраняет receipt, intent и SQLite-состояние, оставляет STOP и
+host-requalification barrier; обычный preflight восстановленного пути его отклоняет, а restore
+receipt указывает `runtime_ready=false`. Fixture не квалифицирует настоящий runtime или потерю
+хоста; скопированный controller manifest-bound, но не запускается, исходник остаётся доступен во
+время restore. Producer Experience, consumer Platform и
 контрактная версия связаны реально: test запускает обе durable review через idle-loop `supervise`
 с явно инъецированным synthetic transport; после первой ACK consumer остаётся заблокирован,
 после второй точная версия активируется. Затем supervisor планирует зависимую задачу, claim-ит её

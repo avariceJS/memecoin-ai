@@ -28,7 +28,13 @@ reachable through `supervise` only when an in-process transport is explicitly in
 one request per iteration and attempts activation before planning resumes. The ordinary CLI and
 quiescence path pass no transport, preserving the inert Sol handoff. The integrated test uses two
 synthetic reviews, including SQLite reopen after response custody and replay without resend, then
-plans, claims and dispatches the dependent task; live dispatch remains unqualified. Proposal JSON
+plans, claims and dispatches the dependent task; live dispatch remains unqualified. At the quiescent
+point after producer integration and response custody, the integrated test now uses real
+`backup_snapshot`/`restore_snapshot` with an unmocked preflight against a temporary manifest-bound
+controller copy. It verifies STOP, selected artifacts, Git/SQLite readback and the persisted
+host-requalification barrier; the restored path stays inert and the deployment qualification data
+is synthetic only. The manifest-bound controller copy is not executed and source remains available
+during restore, so this does not prove source-loss/host-loss recovery. Proposal JSON
 rejects duplicate keys,
 and task admission plus terminal planning
 decision commit atomically; an injected hard interruption rolls both back, and client cleanup failure

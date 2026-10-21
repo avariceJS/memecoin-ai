@@ -537,7 +537,7 @@ class SupervisorTests(unittest.TestCase):
         )
 
         integration = self.state / "integration"
-        integration.mkdir()
+        integration.mkdir(exist_ok=True)
         run_git(integration, "init", "-b", "main")
         run_git(integration, "config", "user.name", "synthetic")
         run_git(integration, "config", "user.email", "synthetic@example.invalid")
@@ -643,7 +643,6 @@ class SupervisorTests(unittest.TestCase):
             "    raise SystemExit('sandbox allowed an out-of-root write')\n"
         )
         python_executable = str(Path(sys.executable).resolve())
-        (self.state / "config.json").write_text("{}")
         trusted = self.state / "trusted"
         trusted.mkdir()
         (trusted / "pilot_acceptance.py").write_text(
@@ -654,6 +653,72 @@ class SupervisorTests(unittest.TestCase):
             "'case': sys.argv[1], 'passed': passed}))\n"
             "raise SystemExit(0 if passed else 1)\n"
         )
+
+        # Give the real snapshot path a complete, strictly validated synthetic deployment.
+        # Its qualification flags describe only this fixture; no restored runtime is launched.
+        import shutil
+
+        from engineering.service import backup_snapshot, restore_snapshot, validate_deployment
+        from engineering.usage_ledger import UsageLedger
+
+        controller = self.state / "controller"
+        controller.mkdir()
+        shutil.copytree(
+            Path(__file__).resolve().parents[1],
+            controller / "engineering",
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
+        codex = self.state / "synthetic-codex"
+        codex.write_text("#!/bin/sh\nexit 0\n")
+        codex.chmod(0o700)
+        controller_manifest = {
+            f"engineering/{path.relative_to(controller / 'engineering').as_posix()}": (
+                hashlib.sha256(path.read_bytes()).hexdigest()
+            )
+            for path in sorted((controller / "engineering").rglob("*.py"))
+        }
+        controller_manifest["trusted/pilot_acceptance.py"] = hashlib.sha256(
+            (trusted / "pilot_acceptance.py").read_bytes()
+        ).hexdigest()
+        (self.state / "controller-manifest.json").write_text(
+            json.dumps(controller_manifest, sort_keys=True, indent=2)
+        )
+        adapter_sha = controller_manifest["engineering/codex_rpc.py"]
+        codex_sha = hashlib.sha256(codex.read_bytes()).hexdigest()
+        deployment_cfg = {
+            "schema": "brain-engineering-deployment-v1",
+            "python": sys.executable,
+            "controller": str(controller.resolve()),
+            "remote_publication_enabled": False,
+            "codex_executable": str(codex),
+            "codex_executable_sha256": codex_sha,
+        }
+        deployment_cfg_bytes = json.dumps(deployment_cfg, sort_keys=True, indent=2).encode()
+        (self.state / "config.json").write_bytes(deployment_cfg_bytes)
+        (self.state / "config.sha256").write_text(hashlib.sha256(deployment_cfg_bytes).hexdigest())
+        (self.state / "confinement.json").write_text(
+            json.dumps({"qualified": True, "evidence": "synthetic-fixture-only"})
+        )
+        (self.state / "native-profile.json").write_text(
+            json.dumps(
+                {
+                    "qualified": True,
+                    "adapter_sha256": adapter_sha,
+                    "executable_sha256": codex_sha,
+                    "evidence": "synthetic-fixture-only",
+                }
+            )
+        )
+        ledger = UsageLedger(self.state / "usage-ledger.sqlite")
+        ledger.register(
+            "synthetic-checkpoint",
+            "synthetic-epoch",
+            "gpt-6-luna",
+            None,
+            evidence="local synthetic snapshot only",
+        )
+        ledger.close()
+        validate_deployment(self.state)
 
         class SyntheticCodex:
             def __init__(self, role):
@@ -865,6 +930,76 @@ class SupervisorTests(unittest.TestCase):
         self.db.close()
         self.db = Store(self.state / "organization.sqlite", clock=lambda: self.now)
         self.addCleanup(self.db.close)
+
+        # Join the integrated cycle to the real deployment snapshot and fresh-path restore.
+        # This synthetic state is stopped and idle; the restored path remains inert.
+        (self.state / "STOP").touch()
+        artifact_root = Path(tempfile.mkdtemp(prefix="brain-cycle-snapshot-"))
+        self.addCleanup(shutil.rmtree, artifact_root, ignore_errors=True)
+        snapshot_path = backup_snapshot(self.state, artifact_root / "snapshot")
+        snapshot_manifest = json.loads((snapshot_path / "snapshot.json").read_text())
+        restored = restore_snapshot(snapshot_path, artifact_root / "restored")
+        restore_receipt = json.loads((restored / "restore-receipt.json").read_text())
+        self.assertTrue((restored / "STOP").is_file())
+        self.assertFalse(restore_receipt["runtime_ready"])
+        self.assertTrue(restore_receipt["host_requalification_required"])
+        with self.assertRaisesRegex(ValueError, "deployment_requalification_required"):
+            validate_deployment(restored)
+        validate_deployment(restored, allow_requalification=True)
+
+        receipt_relative = f"receipts/{receipt_digest}.json"
+        durable_paths = [
+            "organization.sqlite",
+            f"intents/{admitted}.json",
+            receipt_relative,
+            "integration/.git/HEAD",
+        ]
+        for relative in durable_paths:
+            expected_hash = snapshot_manifest["files"][relative]
+            self.assertEqual(
+                hashlib.sha256((restored / relative).read_bytes()).hexdigest(),
+                expected_hash,
+                relative,
+            )
+        restored_integration_sha = run_git(
+            restored / "integration", "rev-parse", GitGate.ACTIVE_REF
+        )
+        self.assertEqual(restored_integration_sha, candidate_sha)
+        run_git(restored / "integration", "cat-file", "-e", f"{candidate_sha}^{{commit}}")
+        restored_db = Store(restored / "organization.sqlite", clock=lambda: self.now)
+        try:
+            self.assertEqual(restored_db.get_task(admitted)["state"], "integrated")
+            self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
+            restored_review = restored_db.get_contract_review_request(replay_request["request_id"])
+            self.assertEqual(restored_review["body"]["status"], "response_recorded")
+            self.assertIsNotNone(
+                restored_db.get_contract_review_response(replay_request["request_id"])
+            )
+            self.assertEqual(
+                restored_db.get_contract_review_request(prepared_reviews[1]["body"]["request_id"])[
+                    "body"
+                ]["status"],
+                "prepared",
+            )
+            self.assertIsNone(
+                restored_db.db.execute("SELECT 1 FROM attempts WHERE state='running'").fetchone()
+            )
+        finally:
+            restored_db.close()
+        restored_ledger = UsageLedger(restored / "usage-ledger.sqlite")
+        try:
+            self.assertEqual(
+                tuple(
+                    restored_ledger.db.execute(
+                        "SELECT identity,epoch,evidence FROM registrations"
+                    ).fetchone()
+                ),
+                ("synthetic-checkpoint", "synthetic-epoch", "local synthetic snapshot only"),
+            )
+        finally:
+            restored_ledger.close()
+        # Continue only the original disposable test state; the restored copy stays STOPped.
+        (self.state / "STOP").unlink()
 
         class SyntheticContractReviewTransport:
             def __init__(self):

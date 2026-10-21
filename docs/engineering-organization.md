@@ -64,6 +64,16 @@ Store integration, closes and reopens
 SQLite, then recovers and claims a dependent next task. It removes the receipt and confirms recovery
 fails closed, tampers with candidate SHA and confirms exact parent binding rejects publication, then
 restores evidence and confirms one integration event.
+At the quiescent point after producer integration and custody of one contract-review response, the
+test asserts no running attempts, sets STOP, and invokes the real `backup_snapshot` and
+`restore_snapshot` against a temporary deployment whose current controller package is manifest
+bound and whose unmocked deployment preflight passes. The fresh restore preserves STOP and the
+host-requalification barrier; ordinary preflight rejects it and only structural requalification
+validation succeeds. The test checks manifest hashes for the organization DB, intent, receipt and
+Git metadata, plus task/review/ledger readback and the active Git object. Fixture qualification
+evidence is synthetic; the copied controller is manifest-bound but not executed, the source remains
+available during restore, and the restored path stays inert. This does not prove remote or lost-host
+recovery.
 The integrated producer is an Experience task; its Platform consumer remains ineligible until the
 exact contract version is activated. The test prepares one review request for each transition
 participant, then drives the real `supervise` idle loop with an explicitly injected synthetic
