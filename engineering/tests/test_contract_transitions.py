@@ -521,6 +521,58 @@ def test_contract_review_raw_result_is_replayed_after_store_reopen(store, tmp_pa
     recovered.close()
 
 
+def test_contract_review_replay_rechecks_freshness_after_lock_wait(store, tmp_path):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    stored = record_review_result(store, body, review_result())
+
+    other = sqlite3.connect(str(Path(tmp_path) / "org.sqlite"), timeout=30, isolation_level=None)
+    waiting_for_write_lock = threading.Event()
+    store.db.set_trace_callback(
+        lambda statement: (
+            waiting_for_write_lock.set() if statement.strip().upper() == "BEGIN IMMEDIATE" else None
+        )
+    )
+    other.execute("BEGIN IMMEDIATE")
+    try:
+        with ThreadPoolExecutor(1) as pool:
+            future = pool.submit(
+                store.replay_contract_review_response,
+                body["request_id"],
+                body["packet_hash"],
+            )
+            try:
+                assert waiting_for_write_lock.wait(2)
+                with pytest.raises(FutureTimeout):
+                    future.result(timeout=0.05)
+                other.execute("UPDATE tasks SET title=? WHERE id=?", ("changed", "PLAT-1"))
+                other.execute("COMMIT")
+                finished = future.result(timeout=2)
+            finally:
+                if other.in_transaction:
+                    other.execute("ROLLBACK")
+                if not future.done():
+                    future.result(timeout=2)
+        assert finished["body"]["status"] == "blocked"
+        assert any("inventory changed" in item for item in finished["body"]["blocking_reasons"])
+        assert finished["body"]["raw_sha256"] == stored["body"]["raw_sha256"]
+        assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+    finally:
+        store.db.set_trace_callback(None)
+        if other.in_transaction:
+            other.execute("ROLLBACK")
+        other.close()
+
+
 @pytest.mark.parametrize(
     "raw_result",
     [b"{malformed", b'{"decision":"blocked","decision":"approve"}'],
