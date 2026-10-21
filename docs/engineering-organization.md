@@ -80,8 +80,19 @@ blocks dispatch and saved-response finalization while preserving the response an
 key ordering and whitespace remain immaterial. Sol accepted exact diff
 `ef3120dd01547830b844e7547365b2bce7d12d348581b0ecb257470b480c8701`. The full engineering release
 check passed Ruff, format, 533 tests and 112 subtests. Malformed JSON syntax in task fields still
-fails earlier in `_task()` and is outside this increment. General database tamper detection,
-post-ACK freshness, A03 and operational acceptance remain open.
+failed earlier in `_task()` at that checkpoint. The follow-up below normalizes task decoding errors
+at the review-freshness boundary. General database tamper detection, post-ACK freshness, A03 and
+operational acceptance remain open.
+
+Against `org/development` base `e5773be`, A10 review freshness now maps malformed JSON and invalid
+UTF-8 in producer/participant task snapshots to the existing stale-snapshot blockers. Dispatch
+rejects before journal mutation; saved-response replay records a blocked disposition, preserves the
+custodied response and withholds that participant ACK, then continues to unrelated requests. Sol
+accepted scoped source/test diff `2e26d89872276415c60bcf0d2814cbfc2759740be6d16cb6832aa611d0118c4f`.
+The contract-transition module passed 103 tests; `make engineering-release-check` passed Ruff,
+format, 542 tests and 116 subtests. The change catches only task JSON decoding/data errors; missing
+tasks retain `StateError`, SQLite errors propagate, and broader database tamper detection, A03 and
+operational acceptance remain open.
 
 Against `org/development` base `a0ae4dc`, A04 now strictly decodes captured stdout for every bound
 `acceptance_json` command after process-group cleanup. Invalid UTF-8 raises `ConfinementError` before

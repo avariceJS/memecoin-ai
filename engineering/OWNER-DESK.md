@@ -127,6 +127,14 @@ engineering gate прошёл: Ruff, 526 tests и 112 subtests. Snapshot защ�
 последующих DB reads, но не от мутации во время самой сериализации и не создаёт общей generation
 authority между файлом конфигурации и БД.
 
+A10 follow-up в `org/development` после `e5773be` превращает ошибки JSON/UTF-8 при чтении task
+snapshots producer и participant в stale blockers. Повреждённый ответ закрывается статусом blocked,
+сохраняя исходный response и без ACK; global replay продолжает обрабатывать независимые запросы.
+Sol принял точный source/test diff
+`2e26d89872276415c60bcf0d2814cbfc2759740be6d16cb6832aa611d0118c4f`. Transition suite: 103 tests;
+engineering gate: Ruff, format, 542 tests и 116 subtests. Отсутствующая задача и SQLite-ошибки
+сохраняют прежнюю обработку; общий A10, A03 и эксплуатационная приёмка остаются открыты.
+
 ## Исторический план первого эксплуатационного выпуска
 
 1. Luna — единственный владелец реализации; Sol — сложная архитектура и независимая проверка.

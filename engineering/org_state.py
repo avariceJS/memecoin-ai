@@ -2085,10 +2085,17 @@ class Store:
             source_matches = _json_equal(source_body, pinned_source.get("body"))
         if not source_matches:
             blockers.append("source_contract_changed")
-        producer = self._task(proposal["producer_task_id"])
-        if producer["team"] != proposal["producer_team"] or not _json_equal(
-            producer, packet.get("producer_task")
-        ):
+        try:
+            producer = self._task(proposal["producer_task_id"])
+        except StateError:
+            raise
+        except (TypeError, ValueError, OverflowError, RecursionError):
+            producer_matches = False
+        else:
+            producer_matches = producer["team"] == proposal["producer_team"] and _json_equal(
+                producer, packet.get("producer_task")
+            )
+        if not producer_matches:
             blockers.append("producer_snapshot_changed")
         rows = self.db.execute(
             "SELECT id FROM tasks WHERE team=? ORDER BY id LIMIT 101", (body["team"],)
@@ -2096,8 +2103,15 @@ class Store:
         if len(rows) > 100:
             blockers.append("participant_inventory_exceeds_bound")
         else:
-            inventory = [self._task(row["id"]) for row in rows]
-            if not _json_equal(inventory, packet.get("participant_tasks")):
+            try:
+                inventory = [self._task(row["id"]) for row in rows]
+            except StateError:
+                raise
+            except (TypeError, ValueError, OverflowError, RecursionError):
+                inventory_matches = False
+            else:
+                inventory_matches = _json_equal(inventory, packet.get("participant_tasks"))
+            if not inventory_matches:
                 blockers.append("participant_inventory_changed")
         if [task["id"] for task in packet["participant_tasks"]] != packet.get(
             "affected_consumer_task_ids"

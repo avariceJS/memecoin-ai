@@ -30,8 +30,12 @@ decisions and independent review; Astra remains episodic and is never started au
   type-only drift (`1` to `true`) blocks dispatch/replay/finalization without ACK and preserves saved
   results; key-order/whitespace changes remain equivalent. Sol accepted exact diff
   `ef3120dd01547830b844e7547365b2bce7d12d348581b0ecb257470b480c8701`; full gate: Ruff, format,
-  533 tests and 112 subtests. Malformed task JSON fails earlier in `_task()`; broader database
-  tamper detection, post-ACK freshness and A03 remain open.
+  533 tests and 112 subtests. Follow-up at base `e5773be` maps malformed JSON/UTF-8 in producer and
+  participant task snapshots to existing stale blockers, preserving saved responses and continuing
+  global replay. Sol accepted scoped diff
+  `2e26d89872276415c60bcf0d2814cbfc2759740be6d16cb6832aa611d0118c4f`; the transition suite passed
+  103 tests and the full gate passed Ruff, format, 542 tests and 116 subtests. Missing-task
+  `StateError`, SQLite propagation, broader tamper detection, post-ACK freshness and A03 remain open.
 - A04 bound `acceptance_json` stdout now decodes strictly as UTF-8 after process-group cleanup;
   malformed bytes fail before result validation while legacy/`exit_zero` and stderr decoding remain
   compatible. Sol accepted exact diff

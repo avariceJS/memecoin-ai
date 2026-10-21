@@ -1309,6 +1309,105 @@ def test_contract_review_type_only_json_drift_blocks_dispatch(store, snapshot, e
     assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
 
 
+@pytest.mark.parametrize(
+    ("task_id", "expected_blocker"),
+    [
+        ("EXP-1", "producer_snapshot_changed"),
+        ("PLAT-1", "participant_inventory_changed"),
+    ],
+)
+@pytest.mark.parametrize("malformed", ["{", b"\xff"])
+def test_contract_review_malformed_task_json_is_stale_not_a_sweep_error(
+    store, task_id, expected_blocker, malformed
+):
+    request = prepare_review(store)
+    body = request["body"]
+    store.db.execute("UPDATE tasks SET contracts=? WHERE id=?", (malformed, task_id))
+
+    freshness = store.contract_review_currentness(body["request_id"], body["packet_hash"])
+    assert freshness["current"] is False
+    assert freshness["blockers"] == [expected_blocker]
+    event_count = len(store.events())
+    with pytest.raises(StateError, match=expected_blocker):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    assert store.get_decision(request["name"])["version"] == 1
+    assert len(store.events()) == event_count
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_contract_review_replay_sweep_continues_after_malformed_participant_snapshot(store):
+    store.add_task("EXP-1", "Experience", "produce contract", scope=["schema.py"])
+    store.add_task("PLAT-1", "Platform", "consume contract", scope=["cli.py"])
+    store.add_task("RES-1", "Research", "consume contract", scope=["research.py"])
+    store.propose_contract_transition(
+        "sample",
+        1,
+        2,
+        {"schema": "v2"},
+        producer_task_id="EXP-1",
+        producer_team="Experience",
+        consumer_teams=["Platform", "Research"],
+    )
+    requests = [
+        store.prepare_contract_review("sample", 2, team, "c" * 64, review_packet())
+        for team in ("Platform", "Research")
+    ]
+    ordered = sorted(requests, key=lambda request: request["name"])
+    bad, good = ordered
+    for request in ordered:
+        body = request["body"]
+        response_result = review_result(
+            affected_consumers_reviewed=body["packet"]["affected_consumer_task_ids"]
+        )
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+        store.record_contract_review_session(
+            body["request_id"],
+            body["packet_hash"],
+            "thread-" + body["team"],
+            "gpt-6.1-sol",
+            body["dispatch_id"],
+            {"pid": 123, "birth": "synthetic-" + body["team"]},
+        )
+        record_review_result(store, body, response_result)
+
+    bad_body = bad["body"]
+    good_body = good["body"]
+    response_before = store.get_contract_review_response(bad_body["request_id"])
+    bad_team = bad_body["team"]
+    bad_task = "PLAT-1" if bad_team == "Platform" else "RES-1"
+    store.db.execute("UPDATE tasks SET contracts=? WHERE id=?", ("{", bad_task))
+
+    swept = store.replay_pending_contract_review_responses()
+    assert [item["request_id"] for item in swept["replayed"]] == [
+        bad_body["request_id"],
+        good_body["request_id"],
+    ]
+    assert [item["status"] for item in swept["replayed"]] == ["blocked", "approved"]
+    assert swept["failures"] == []
+    assert swept["dispatch_authority"] is False
+    assert swept["provider_dispatch"] is False
+    blocked = store.get_decision(bad["name"])
+    assert blocked["body"]["status"] == "blocked"
+    assert blocked["body"]["raw_sha256"] == response_before["raw_sha256"]
+    assert blocked["body"]["blocking_reasons"] == [
+        "participant task inventory changed after packet preparation"
+    ]
+    retained_response = store.get_contract_review_response(bad_body["request_id"])
+    assert retained_response["raw_result"] == response_before["raw_result"]
+    assert store.get_decision(store._contract_ack_key("sample", 2, bad_team)) is None
+    assert store.get_decision(store._contract_ack_key("sample", 2, good_body["team"])) is not None
+
+    versions = {
+        request["name"]: store.get_decision(request["name"])["version"] for request in ordered
+    }
+    repeated = store.replay_pending_contract_review_responses()
+    assert repeated["replayed"] == []
+    assert repeated["failures"] == []
+    assert {
+        request["name"]: store.get_decision(request["name"])["version"] for request in ordered
+    } == versions
+
+
 def test_contract_review_canonical_comparison_preserves_key_order_equivalence(store):
     old_body = {"schema": "v1", "flag": 1}
     store.db.execute(
