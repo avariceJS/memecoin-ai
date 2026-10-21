@@ -2066,6 +2066,69 @@ class Store:
             raise StateError("contract review response is not replayable") from None
         return self.finish_contract_review(request_id, packet_hash, response["raw_sha256"], result)
 
+    def replay_pending_contract_review_responses(self, *, limit: int = 100) -> dict:
+        """Locally finalize a bounded snapshot of custodied responses; never dispatch."""
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise StateError("contract review replay limit invalid")
+        with self._read_snapshot():
+            worklist = self._contract_review_worklist_in_snapshot(
+                limit=limit, overflow_as_result=True
+            )
+        if worklist.get("overflow") is True:
+            return {
+                "limit": limit,
+                "count": None,
+                "overflow": True,
+                "response_recorded_count": None,
+                "replayed": [],
+                "failures": [],
+                "skipped_count": 0,
+                "dispatch_authority": False,
+                "provider_dispatch": False,
+            }
+
+        response_recorded = [
+            item for item in worklist["items"] if item["status"] == "response_recorded"
+        ]
+        replayed = []
+        failures = []
+        for item in response_recorded:
+            try:
+                finished = self.replay_contract_review_response(
+                    item["request_id"], item["packet_hash"]
+                )
+            except StateError as exc:
+                error = str(exc)
+                failures.append(
+                    {
+                        "request_id": item["request_id"],
+                        "packet_hash": item["packet_hash"],
+                        "error": error[:256],
+                        "error_truncated": len(error) > 256,
+                    }
+                )
+            else:
+                body = finished["body"]
+                replayed.append(
+                    {
+                        "request_id": item["request_id"],
+                        "packet_hash": item["packet_hash"],
+                        "status": body["status"],
+                        "raw_sha256": body.get("raw_sha256"),
+                    }
+                )
+        return {
+            "limit": limit,
+            "count": worklist["count"],
+            "overflow": False,
+            "response_recorded_count": len(response_recorded),
+            "replayed": replayed,
+            "failures": failures,
+            "skipped_count": worklist["count"] - len(response_recorded),
+            "dispatch_authority": False,
+            "provider_dispatch": False,
+        }
+
     def finish_contract_review(
         self, request_id: str, packet_hash: str, raw_sha256: str, result: Any
     ) -> dict:

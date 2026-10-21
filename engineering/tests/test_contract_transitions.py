@@ -573,6 +573,102 @@ def test_contract_review_replay_rechecks_freshness_after_lock_wait(store, tmp_pa
         other.close()
 
 
+def test_contract_review_replay_sweep_preserves_per_request_failures(store):
+    valid = prepare_review(store)
+    malformed = store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+    prepared = store.prepare_contract_review("sample", 2, "Platform", "e" * 64, review_packet())
+    valid_body = valid["body"]
+    malformed_body = malformed["body"]
+
+    valid_result = review_result()
+    for body, raw_result in (
+        (
+            valid_body,
+            json.dumps(valid_result, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+        ),
+        (malformed_body, b'{"decision":"approve","decision":"blocked"}'),
+    ):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+        store.record_contract_review_session(
+            body["request_id"],
+            body["packet_hash"],
+            "thread-1",
+            "gpt-6.1-sol",
+            body["dispatch_id"],
+            {"pid": 123, "birth": "synthetic-birth"},
+        )
+        store.record_contract_review_response(
+            body["request_id"],
+            body["packet_hash"],
+            body["dispatch_id"],
+            "provider-turn-" + body["request_id"],
+            raw_result,
+        )
+
+    malformed_response = store.get_contract_review_response(malformed_body["request_id"])
+    swept = store.replay_pending_contract_review_responses()
+    assert swept["overflow"] is False
+    assert swept["count"] == 3
+    assert swept["response_recorded_count"] == 2
+    assert swept["skipped_count"] == 1
+    assert swept["dispatch_authority"] is False
+    assert swept["provider_dispatch"] is False
+    assert [item["request_id"] for item in swept["replayed"]] == [valid_body["request_id"]]
+    assert swept["replayed"][0]["status"] == "approved"
+    assert swept["failures"] == [
+        {
+            "request_id": malformed_body["request_id"],
+            "packet_hash": malformed_body["packet_hash"],
+            "error": "contract review response is not replayable",
+            "error_truncated": False,
+        }
+    ]
+    assert store.get_decision(valid["name"])["body"]["status"] == "approved"
+    assert store.get_decision(malformed["name"])["body"]["status"] == "response_recorded"
+    assert store.get_contract_review_response(malformed_body["request_id"]) == malformed_response
+    assert store.get_decision(prepared["name"])["body"]["status"] == "prepared"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform"))
+
+    repeated = store.replay_pending_contract_review_responses()
+    assert repeated["response_recorded_count"] == 1
+    assert repeated["replayed"] == []
+    assert repeated["failures"] == swept["failures"]
+
+
+def test_contract_review_replay_sweep_overflow_performs_no_partial_replay(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    record_review_result(store, body, review_result())
+    second = store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+
+    with pytest.raises(StateError, match="replay limit invalid"):
+        store.replay_pending_contract_review_responses(limit=True)
+    overflow = store.replay_pending_contract_review_responses(limit=1)
+    assert overflow == {
+        "limit": 1,
+        "count": None,
+        "overflow": True,
+        "response_recorded_count": None,
+        "replayed": [],
+        "failures": [],
+        "skipped_count": 0,
+        "dispatch_authority": False,
+        "provider_dispatch": False,
+    }
+    assert store.get_decision(request["name"])["body"]["status"] == "response_recorded"
+    assert store.get_decision(second["name"])["body"]["status"] == "prepared"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
 @pytest.mark.parametrize(
     "raw_result",
     [b"{malformed", b'{"decision":"blocked","decision":"approve"}'],
