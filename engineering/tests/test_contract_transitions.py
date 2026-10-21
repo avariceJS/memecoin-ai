@@ -409,6 +409,41 @@ def test_contract_review_worklist_fails_closed_above_bound(store):
         store.contract_review_worklist(limit=1)
 
 
+def test_contract_review_worklist_name_seek_uses_bounded_indexed_discovery(store):
+    first_name = "contract-review/" + "a" * 64
+    next_name = "contract-review/" + "b" * 64
+    store.db.executemany(
+        "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+        [(first_name, version, "{}") for version in range(1, 1001)] + [(next_name, 1, "{}")],
+    )
+    statements = []
+    store.db.set_trace_callback(statements.append)
+    try:
+        with pytest.raises(StateError, match="worklist exceeds bound"):
+            store.contract_review_worklist(limit=1)
+    finally:
+        store.db.set_trace_callback(None)
+
+    discovery = [
+        sql
+        for sql in statements
+        if sql.startswith("SELECT name FROM decisions") and "contract-review0" in sql
+    ]
+    assert len(discovery) == 2
+    assert "name>='contract-review/'" in discovery[0]
+    assert "name>'contract-review/" in discovery[1]
+
+
+def test_contract_review_worklist_keeps_bare_namespace_prefix_fail_closed(store):
+    store.db.execute(
+        "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+        ("contract-review/", 1, "{}"),
+    )
+
+    with pytest.raises(StateError, match="worklist identity invalid"):
+        store.contract_review_worklist()
+
+
 def test_contract_review_worklist_preflights_oversized_legacy_before_hydration(store, monkeypatch):
     request = prepare_review(store)
     body = {**request["body"], "legacy_extra": "x" * 1000}

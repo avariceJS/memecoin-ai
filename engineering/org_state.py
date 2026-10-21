@@ -1926,18 +1926,14 @@ class Store:
         self, *, limit: int, overflow_as_result: bool = False
     ) -> dict:
         """Build the bounded request projection inside an existing read snapshot."""
-        rows = self.db.execute(
-            "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
-            "GROUP BY name ORDER BY name LIMIT ?",
-            (limit + 1,),
-        ).fetchall()
-        if len(rows) > limit:
+        names = self._contract_review_global_replay_names_in_snapshot(limit=limit)
+        if len(names) > limit:
             if overflow_as_result:
                 return self._contract_review_worklist_overflow(limit=limit)
             raise StateError("contract review worklist exceeds bound")
         identities = []
-        for row in rows:
-            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
+        for name in names:
+            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", name)
             if match is None:
                 raise StateError("contract review worklist identity invalid")
             identities.append(match.group(1))
@@ -1992,12 +1988,19 @@ class Store:
             "overflow": True,
         }
 
-    def _contract_review_global_replay_names_in_snapshot(self) -> list[str]:
+    def _contract_review_global_replay_names_in_snapshot(
+        self, *, limit: int | None = None
+    ) -> list[str]:
         """Seek at most the bounded journal count without grouping retained versions."""
         names = []
         cursor = "contract-review/"
         query = _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY
-        while len(names) <= _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+        name_limit = (
+            _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT
+            if limit is None
+            else min(limit, _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT)
+        )
+        while len(names) <= name_limit:
             row = self.db.execute(query, (cursor,)).fetchone()
             if row is None:
                 break
