@@ -67,13 +67,21 @@ _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY = (
 _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY = (
     "SELECT name FROM decisions WHERE name>? AND name<'contract-review0' ORDER BY name LIMIT 1"
 )
-_CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY = (
-    "SELECT DISTINCT name FROM decisions WHERE name GLOB 'contract-review/*' "
+_CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY = (
+    "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
-    "ORDER BY name LIMIT ?"
+    "ORDER BY name LIMIT 1"
+)
+_CONTRACT_REVIEW_TRANSITION_REPLAY_NEXT_QUERY = (
+    "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
+    "AND name>? ORDER BY name LIMIT 1"
 )
 
 
@@ -2027,15 +2035,17 @@ class Store:
         if proposal["contract_hash"] != contract_hash:
             raise StateError("contract review proposal changed")
         proposal_digest = self._contract_review_digest(proposal)
-        rows = self.db.execute(
-            _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
-            (name, version, contract_hash, proposal_digest, _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT + 1),
-        ).fetchall()
-        if len(rows) > _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+        names = self._contract_review_transition_replay_names_in_snapshot(
+            name=name,
+            version=version,
+            contract_hash=contract_hash,
+            proposal_digest=proposal_digest,
+        )
+        if len(names) > _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
             return self._contract_review_replay_overflow()
         identities = []
-        for row in rows:
-            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
+        for journal_name in names:
+            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", journal_name)
             if match is None:
                 raise StateError("contract review worklist identity invalid")
             identities.append(match.group(1))
@@ -2075,6 +2085,24 @@ class Store:
             "skipped_count": skipped_count,
             "overflow": False,
         }
+
+    def _contract_review_transition_replay_names_in_snapshot(
+        self, *, name: str, version: int, contract_hash: str, proposal_digest: str
+    ) -> list[str]:
+        """Seek distinct matching journal names without grouping their retained versions."""
+        names = []
+        query = _CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY
+        params = (name, version, contract_hash, proposal_digest)
+        cursor = None
+        while len(names) <= _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+            query_params = params if cursor is None else (*params, cursor)
+            row = self.db.execute(query, query_params).fetchone()
+            if row is None:
+                break
+            cursor = row["name"]
+            names.append(cursor)
+            query = _CONTRACT_REVIEW_TRANSITION_REPLAY_NEXT_QUERY
+        return names
 
     @staticmethod
     def _contract_review_replay_overflow() -> dict:

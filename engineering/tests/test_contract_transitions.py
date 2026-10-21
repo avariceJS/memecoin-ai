@@ -17,7 +17,8 @@ from engineering import org_state, supervisor
 from engineering.org_state import (
     _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY,
     _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY,
-    _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
+    _CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY,
+    _CONTRACT_REVIEW_TRANSITION_REPLAY_NEXT_QUERY,
     StateError,
     Store,
 )
@@ -1138,17 +1139,21 @@ def test_transition_replay_uses_scoped_index_and_ignores_unrelated_bad_identity(
         ("contract-review/unrelated-malformed-id", 1, "{malformed", None, None),
     )
 
-    plan = store.db.execute(
-        "EXPLAIN QUERY PLAN " + _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
+    params = (body["name"], body["version"], body["contract_hash"], body["proposal_digest"])
+    for query, query_params, requires_cursor_seek in (
+        (_CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY, params, False),
         (
-            body["name"],
-            body["version"],
-            body["contract_hash"],
-            body["proposal_digest"],
-            1001,
+            _CONTRACT_REVIEW_TRANSITION_REPLAY_NEXT_QUERY,
+            (*params, "contract-review/" + "a" * 64),
+            True,
         ),
-    ).fetchall()
-    assert any("idx_contract_review_transition_replay" in row["detail"] for row in plan)
+    ):
+        plan = store.db.execute("EXPLAIN QUERY PLAN " + query, query_params).fetchall()
+        assert any(
+            "idx_contract_review_transition_replay" in row["detail"]
+            and (not requires_cursor_seek or "name>?" in row["detail"])
+            for row in plan
+        )
 
     result = store.replay_contract_review_responses_for_transition(
         body["name"], body["version"], body["contract_hash"]
@@ -1190,6 +1195,40 @@ def test_global_replay_name_seek_skips_versions_of_prior_journal(store):
 
     with store._read_snapshot():
         names = store._contract_review_global_replay_names_in_snapshot()
+
+    assert names == [first_name, next_name]
+
+
+def test_transition_replay_name_seek_skips_versions_of_prior_journal(store):
+    name = "sample"
+    version = 2
+    contract_hash = "a" * 64
+    proposal_digest = "b" * 64
+    first_name = "contract-review/" + "a" * 64
+    next_name = "contract-review/" + "b" * 64
+    body = json.dumps(
+        {
+            "name": name,
+            "version": version,
+            "contract_hash": contract_hash,
+            "proposal_digest": proposal_digest,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    store.db.executemany(
+        "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+        [(first_name, journal_version, body) for journal_version in range(1, 1001)]
+        + [(next_name, 1, body)],
+    )
+
+    with store._read_snapshot():
+        names = store._contract_review_transition_replay_names_in_snapshot(
+            name=name,
+            version=version,
+            contract_hash=contract_hash,
+            proposal_digest=proposal_digest,
+        )
 
     assert names == [first_name, next_name]
 
