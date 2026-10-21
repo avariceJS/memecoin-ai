@@ -1,5 +1,17 @@
 # Founder Desk — Brain Engineering Organization
 
+Новый A10 recovery-срез проверен как синтетическая source-only вертикаль. Четыре дочерних процесса
+жёстко завершаются после durable dispatch intent, после сохранения session, после возврата synthetic
+review до custody ответа и после custody ответа до local replay. Первые три состояния после SQLite
+reopen остаются `hold_no_resend`; параллельный независимый prepared review продвигается. Локальный
+replay разрешён только для уже сохранённого ответа: он создаёт ACK и допускает активацию без вызова
+transport. `provider_usage` остаётся `unknown`, resend authority отсутствует. Sol принял exact diff
+`9de1e75b0409d1bb2e915c34e90848509a5aa8bd91df562a1d36671c1cd47c56`. Полный
+`make engineering-release-check`: Ruff/format, 618 тестов и 189 subtests; `make smoke` воспроизводим,
+`edge_established=false`. Потерянный до custody ответ остаётся unresolved; synthetic transport и
+SQLite child-process crash не подтверждают provider identity/settlement, A03, runtime или live recovery.
+Pilot STOP, запрет `main` и source-only граница сохраняются; работа продолжается.
+
 ### Текущая работа — 2026-10-21
 
 Native Goal `01a15f55-903b-7de2-adec-19733734ac78` проверен как `active` и остаётся единственным

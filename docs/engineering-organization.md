@@ -127,6 +127,23 @@ candidate. Repository-wide `make check` still stops at 107 pre-existing
 Ruff findings in `src/`, `tools/` and `tests/`, before later checks. The integrated organization
 cycle remains in progress.
 
+Current A10 interruption-recovery projection — 2026-10-21: `Store.contract_review_worklist` and the
+quiescence snapshot now expose a bounded, read-only recovery view with exact dispatch identity,
+custodied session/turn identity where present, conservative `provider_usage="unknown"`, and no
+recovery dispatch authority. A subprocess regression hard-exits during the real
+`process_pending_reviews` path at four durable boundaries: immediately after dispatch intent, after
+session custody but before review, after a successful synthetic review return but before response
+custody, and after response custody before local replay. Reopen holds the first three as
+`hold_no_resend`; an independent prepared review proceeds while the stranded ID remains in the
+allowlist, demonstrating that it was not silently resent. Only the already-custodied response takes
+`local_replay`, produces the ACK and permits transition activation with zero transport calls. Sol
+accepted exact diff `9de1e75b0409d1bb2e915c34e90848509a5aa8bd91df562a1d36671c1cd47c56`. The full
+engineering release check passes Ruff/format, 618 tests and 189 subtests; deterministic `make smoke`
+is reproducible with `edge_established=false`. These are synthetic local child-process and SQLite
+checks. A response lost before custody remains unresolved; the increment does not authenticate a
+provider, settle usage, qualify A03, create A05 authorization generations, or prove runtime/host-loss
+recovery. The integrated source-only cycle remains in progress.
+
 A05 now captures source-identified gates from the synthetic fresh-path restored copy through Store:
 the fixture STOP marker, exact restore receipt bound to `snapshot.json`, and controller-parse
 recovery history. Store records its SQLite event sequence and clock time; it double-reads and

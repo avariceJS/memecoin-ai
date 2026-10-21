@@ -26,6 +26,18 @@ passes Ruff/format, 617 tests and 189 subtests; `make smoke` is reproducible wit
 checkout or dispatch. This does not establish off-catalog execution, full A04, provider identity or
 operational readiness.
 
+A10 hard-process recovery projection is now tested at four child-process death points around
+`process_pending_reviews`: after dispatch intent, after session custody, after synthetic review
+returns but before response custody, and after durable response custody. On SQLite reopen, the first
+three remain `hold_no_resend` with `provider_usage=unknown`; an independent prepared review still
+progresses. Only the custodied response locally replays, creates its ACK, and permits contract
+activation with zero transport calls. Sol accepted exact source/test diff
+`9de1e75b0409d1bb2e915c34e90848509a5aa8bd91df562a1d36671c1cd47c56`. `make engineering-release-check`
+passes Ruff/format, 618 tests and 189 subtests; `make smoke` is reproducible with
+`edge_established=false`. This is synthetic local process/SQLite recovery only: pre-custody lost
+responses remain unresolved; it does not prove provider identity, usage settlement, A03, authorization
+generation or runtime recovery. Continue source-only integration.
+
 `make check` still stops before later checks on 107 existing Ruff findings in `src/`, `tools/` and
 `tests/`; repository-wide pytest collection still lacks the historical PumpSwap IDL capture manifest.
 These remain separate from the engineering release gate. ORG-A03 is the external operational-release

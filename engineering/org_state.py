@@ -2408,17 +2408,32 @@ class Store:
                 raise StateError("contract review worklist record missing")
             body = current["body"]
             freshness = self._contract_review_currentness_in_snapshot(current, body["packet_hash"])
+            status = body["status"]
+            recovery_required = status in {"dispatching", "thread_known", "response_recorded"}
+            recovery_action = {
+                "dispatching": "hold_no_resend",
+                "thread_known": "hold_no_resend",
+                "response_recorded": "local_replay",
+            }.get(status)
             items.append(
                 {
                     "request_id": body["request_id"],
                     "journal_version": current["version"],
-                    "status": body["status"],
+                    "status": status,
                     "team": body["team"],
                     "role": body["role"],
                     "packet_hash": body["packet_hash"],
+                    "dispatch_id": body["dispatch_id"],
                     "current": freshness["current"],
                     "blockers": freshness["blockers"],
-                    "dispatch_eligible": (body["status"] == "prepared" and freshness["current"]),
+                    "dispatch_eligible": (status == "prepared" and freshness["current"]),
+                    "recovery_required": recovery_required,
+                    "recovery_action": recovery_action,
+                    "session": body.get("session"),
+                    "provider_turn_id": body.get("provider_turn_id"),
+                    "provider_turn_known": type(body.get("provider_turn_id")) is str,
+                    "provider_usage": "unknown" if status != "prepared" else None,
+                    "recovery_dispatch_authority": False,
                 }
             )
         return {

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
+import subprocess
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
@@ -946,9 +949,17 @@ def test_contract_review_worklist_is_bounded_read_only_and_not_dispatch_authorit
                 "team": "Platform",
                 "role": "consumer",
                 "packet_hash": body["packet_hash"],
+                "dispatch_id": body["dispatch_id"],
                 "current": True,
                 "blockers": [],
                 "dispatch_eligible": True,
+                "recovery_required": False,
+                "recovery_action": None,
+                "session": None,
+                "provider_turn_id": None,
+                "provider_turn_known": False,
+                "provider_usage": None,
+                "recovery_dispatch_authority": False,
             }
         ],
         "count": 1,
@@ -963,9 +974,294 @@ def test_contract_review_worklist_is_bounded_read_only_and_not_dispatch_authorit
     dispatching = store.contract_review_worklist()["items"][0]
     assert dispatching["status"] == "dispatching"
     assert dispatching["dispatch_eligible"] is False
+    assert dispatching["recovery_required"] is True
+    assert dispatching["recovery_action"] == "hold_no_resend"
+    assert dispatching["dispatch_id"] == body["dispatch_id"]
+    assert dispatching["session"] is None
+    assert dispatching["provider_turn_id"] is None
+    assert dispatching["provider_usage"] == "unknown"
+    assert dispatching["recovery_dispatch_authority"] is False
+
+    session = store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "synthetic-recovery-thread",
+        "synthetic-reviewer",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-recovery"},
+    )
+    thread_known = store.contract_review_worklist()["items"][0]
+    assert thread_known["status"] == "thread_known"
+    assert thread_known["recovery_required"] is True
+    assert thread_known["recovery_action"] == "hold_no_resend"
+    assert thread_known["session"]["thread_id"] == session["body"]["session"]["thread_id"]
 
     with pytest.raises(StateError, match="limit invalid"):
         store.contract_review_worklist(limit=True)
+
+
+def test_hard_process_interruption_recovers_only_custodied_contract_review_response(tmp_path):
+    project_root = Path(__file__).resolve().parents[2]
+    stages = (
+        "after_dispatch_intent",
+        "after_session_before_review",
+        "after_review_return_before_custody",
+        "after_response_custody",
+    )
+    child_code = """
+import json, os, sys
+sys.path.insert(0, sys.argv[1])
+from engineering.contract_review_cycle import process_pending_reviews
+from engineering.org_state import Store
+
+payload = json.loads(sys.argv[3])
+db = Store(sys.argv[2])
+stage = payload["stage"]
+
+class SyntheticTransport:
+    def start(self, request):
+        if stage == "after_dispatch_intent":
+            os._exit(71)
+        return {
+            "thread_id": "synthetic-hard-crash-thread",
+            "model": "synthetic-reviewer",
+            "pid": 123,
+            "birth": "synthetic-hard-crash",
+        }
+
+    def review(self, session, request):
+        return {
+            "provider_turn_id": "synthetic-hard-crash-turn",
+            "raw_result": payload["raw_result"].encode("utf-8"),
+        }
+
+guard_calls = 0
+def guard(_request):
+    global guard_calls
+    guard_calls += 1
+    if stage == "after_session_before_review" and guard_calls == 3:
+        os._exit(73)
+
+if stage == "after_response_custody":
+    Store.replay_contract_review_response = lambda *_args, **_kwargs: os._exit(74)
+elif stage == "after_review_return_before_custody":
+    Store.record_contract_review_response = lambda *_args, **_kwargs: os._exit(72)
+
+process_pending_reviews(
+    db,
+    SyntheticTransport(),
+    limit=1,
+    allowed_request_ids=[payload["request_id"]],
+    dispatch_guard=guard,
+)
+os._exit(75)
+"""
+
+    for stage in stages:
+        path = tmp_path / f"{stage}.sqlite"
+        db = Store(path)
+        db.put_contract("sample", 1, {"schema": "v1"})
+        db.add_task("EXP-1", "Experience", "integrated synthetic producer", scope=["schema.py"])
+        db.add_task("PLAT-1", "Platform", "synthetic consumer", scope=["cli.py"])
+        db.propose_contract_transition(
+            "sample",
+            1,
+            2,
+            {"schema": "v2"},
+            producer_task_id="EXP-1",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        )
+        producer_attempt = db.claim("EXP-1", "synthetic-producer", 30)
+        db.submit(
+            producer_attempt["id"],
+            producer_attempt["epoch"],
+            "candidate-sha",
+            {"receipt": "synthetic"},
+        )
+        db.verify("EXP-1", "candidate-sha", True, {"passed": True})
+        db.accept("EXP-1", "candidate-sha")
+        db.integrate("EXP-1", "candidate-sha", "integration-sha", {"merged": True})
+        approve_transition_participant(db, "Experience")
+        request = db.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
+        # A separate proposed interface provides unrelated prepared work during crash recovery.
+        db.put_contract("other", 1, {"schema": "other-v1"})
+        db.add_task("EXP-2", "Experience", "second producer", scope=["other.py"])
+        db.add_task("DATA-2", "Data", "second consumer", scope=["consumer.py"])
+        db.propose_contract_transition(
+            "other",
+            1,
+            2,
+            {"schema": "other-v2"},
+            producer_task_id="EXP-2",
+            producer_team="Experience",
+            consumer_teams=["Data"],
+        )
+        independent = db.prepare_contract_review("other", 2, "Data", "d" * 64, review_packet())
+        result = review_result(
+            reviewed_evidence_refs=request["body"]["packet"]["evidence_refs"],
+            affected_consumers_reviewed=request["body"]["packet"]["affected_consumer_task_ids"],
+            migration_plan=request["body"]["packet"]["migration_plan"],
+        )
+        payload = {
+            "stage": stage,
+            "request_id": request["body"]["request_id"],
+            "raw_result": json.dumps(result, sort_keys=True, separators=(",", ":")),
+        }
+        db.close()
+        child = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                child_code,
+                str(project_root),
+                str(path),
+                json.dumps(payload, separators=(",", ":")),
+            ],
+            cwd=project_root,
+            env={"PATH": os.environ.get("PATH", ""), "LANG": "C"},
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=10,
+        )
+        expected_exit = {
+            "after_dispatch_intent": 71,
+            "after_session_before_review": 73,
+            "after_review_return_before_custody": 72,
+            "after_response_custody": 74,
+        }[stage]
+        assert child.returncode == expected_exit, child.stderr
+
+        recovered = Store(path)
+        try:
+            items = {
+                item["request_id"]: item for item in recovered.contract_review_worklist()["items"]
+            }
+            crashed = items[request["body"]["request_id"]]
+            assert crashed["dispatch_id"] == request["body"]["dispatch_id"]
+            assert crashed["provider_usage"] == "unknown"
+            assert crashed["recovery_dispatch_authority"] is False
+            snapshot = recovered.quiescence_snapshot()
+            snapshot_items = {
+                item["request_id"]: item for item in snapshot["review_requests"]["items"]
+            }
+            assert snapshot_items[request["body"]["request_id"]] == crashed
+
+            class ContinuationTransport:
+                def __init__(self):
+                    self.started = []
+                    self.reviewed = []
+
+                def start(self, next_request):
+                    self.started.append(next_request["body"]["request_id"])
+                    return {
+                        "thread_id": "synthetic-independent-thread",
+                        "model": "synthetic-reviewer",
+                        "pid": 124,
+                        "birth": "synthetic-independent",
+                    }
+
+                def review(self, _session, next_request):
+                    self.reviewed.append(next_request["body"]["request_id"])
+                    next_body = next_request["body"]
+                    response = review_result(
+                        reviewed_evidence_refs=next_body["packet"]["evidence_refs"],
+                        affected_consumers_reviewed=next_body["packet"][
+                            "affected_consumer_task_ids"
+                        ],
+                        migration_plan=next_body["packet"]["migration_plan"],
+                    )
+                    return {
+                        "provider_turn_id": "synthetic-independent-turn",
+                        "raw_result": json.dumps(
+                            response, sort_keys=True, separators=(",", ":")
+                        ).encode(),
+                    }
+
+            transport = ContinuationTransport()
+            if stage == "after_response_custody":
+                assert crashed["status"] == "response_recorded"
+                assert crashed["recovery_required"] is True
+                assert crashed["recovery_action"] == "local_replay"
+                assert crashed["provider_turn_known"] is True
+                assert crashed["provider_turn_id"] == "synthetic-hard-crash-turn"
+                recovered_events = len(recovered.events())
+                replay = process_pending_reviews(
+                    recovered,
+                    transport,
+                    limit=1,
+                    allowed_request_ids=[request["body"]["request_id"]],
+                )
+                assert replay["transport_invocations"] == 0
+                assert replay["processed"] == [
+                    {
+                        "request_id": request["body"]["request_id"],
+                        "status": "approved",
+                        "provider_invoked": False,
+                    }
+                ]
+                assert transport.started == transport.reviewed == []
+                assert len(recovered.events()) > recovered_events
+                assert (
+                    recovered.get_contract_review_request(request["body"]["request_id"])["body"][
+                        "status"
+                    ]
+                    == "approved"
+                )
+                activated = recovered.activate_contract_transition("sample", 2)
+                assert activated["created"] is True
+                assert recovered.get_contract("sample")["version"] == 2
+            else:
+                expected_status = (
+                    "dispatching" if stage == "after_dispatch_intent" else "thread_known"
+                )
+                assert crashed["status"] == expected_status
+                assert crashed["recovery_required"] is True
+                assert crashed["recovery_action"] == "hold_no_resend"
+                assert crashed["provider_turn_known"] is False
+                assert crashed["provider_turn_id"] is None
+                if stage == "after_dispatch_intent":
+                    assert crashed["session"] is None
+                else:
+                    assert crashed["session"]["thread_id"] == "synthetic-hard-crash-thread"
+                assert (
+                    recovered.get_decision(recovered._contract_ack_key("sample", 2, "Platform"))
+                    is None
+                )
+                assert recovered.get_contract("sample")["version"] == 1
+                continued = process_pending_reviews(
+                    recovered,
+                    transport,
+                    limit=1,
+                    allowed_request_ids=[
+                        request["body"]["request_id"],
+                        independent["body"]["request_id"],
+                    ],
+                )
+                assert continued["transport_invocations"] == 1
+                assert (
+                    transport.started == transport.reviewed == [independent["body"]["request_id"]]
+                )
+                assert (
+                    recovered.get_contract_review_request(request["body"]["request_id"])["body"][
+                        "status"
+                    ]
+                    == expected_status
+                )
+                assert (
+                    recovered.get_decision(recovered._contract_ack_key("sample", 2, "Platform"))
+                    is None
+                )
+                assert (
+                    recovered.get_decision(recovered._contract_ack_key("other", 2, "Data"))
+                    is not None
+                )
+        finally:
+            recovered.close()
 
 
 def test_contract_review_worklist_fails_closed_above_bound(store):
