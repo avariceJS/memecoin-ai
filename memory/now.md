@@ -514,3 +514,8 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   regressions pass. Sol accepted exact diff `5373f24d`; focused 80 and full gate 483/101 with Ruff.
   Legacy oversized sessions are not retrofitted; no provider/runtime authority. Receipt:
   `a10-contract-review-session-response-headroom-gate-20261021.json`.
+- A10 dependency reconciliation now reads only the indexed `blocked-dependencies/` ID range,
+  validates PK/body identity before writes, and retains terminal generations. Sol accepted exact
+  source/test diff `40941b9d`; engineering gate passed Ruff, format, 547 tests and 121 subtests.
+  Dependency history/SQLite work remain unbounded; A03 remains release-only blocker. Source commit:
+  `6e163cb`.
