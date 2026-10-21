@@ -552,3 +552,12 @@ hash контракта и участнику; acknowledgement автомати�
 Ruff. Это только видимость: dispatch отзывов и deadlock из-за task readiness остаются открытыми;
 обход ограничен 1,000 proposals/participants и 99 consumers на proposal. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-lane-review-20261021.json`.
+
+Свежий A10 source increment `58a95c5` включает bounded список pending participant reviews в
+coherent quiescence snapshot. Если quota доступна, supervisor сохраняет отдельную причину
+`contract-reviews-pending` для Sol; при недоступной quota сохраняется `quota-unavailable`. SQL
+projection использует те же case-sensitive namespace границы, что reservation и revision triggers.
+Sol принял exact diff `20d1ab3b352574fc7faa20a4c8eb572fe6484d3577070de5aad3e11c23fafea1`; gate: 392
+tests, 96 subtests, Ruff. Это inert routing для handoff, не review dispatch/recovery. A03 settlement,
+полный A10 и operational acceptance остаются открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-aware-quiescence-review-20261021.json`.

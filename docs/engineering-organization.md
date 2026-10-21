@@ -213,9 +213,19 @@ but do not gain raw-response custody retroactively. Sol accepted exact diff
 `5fee1397e07c518d5d047a182c38e7f2f9770543330b9ecc3cca9bca30115957`; focused tests passed 93 tests
 and 9 subtests, and Ruff check/format passed. This is result-byte custody, not the full RPC
 transcript; provider-turn and usage-ledger provenance remain caller assertions. No supervisor dispatch
-or recovery path is wired, pending reviews still do not defer quiescence, and A03 settlement, full A10
-and operational acceptance remain open. Receipt:
+or recovery path is wired, and A03 settlement, full A10 and operational acceptance remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-response-custody-review-20261021.json`.
+
+At `58a95c5`, quiescence snapshots include the bounded pending participant-review projection from the
+same SQLite read snapshot. When quota permits work, the supervisor records
+`contract-reviews-pending` for Sol instead of misclassifying an open review as blocked dependencies
+or an exhausted catalogue; quota-unavailable retains precedence. Projection matching uses the same
+case-sensitive namespace semantics as decision reservation and revision triggers. Sol accepted exact
+diff `20d1ab3b352574fc7faa20a4c8eb572fe6484d3577070de5aad3e11c23fafea1`; the full engineering gate
+passed 392 tests and 96 subtests with Ruff. This makes pending review work visible in the inert
+handoff path; it does not dispatch or recover reviews. A03 settlement, full A10 and operational
+acceptance remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-aware-quiescence-review-20261021.json`.
 
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;

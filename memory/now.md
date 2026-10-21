@@ -227,6 +227,14 @@ automatically.
   passed. This is not full RPC custody and provider/usage provenance remains caller supplied; no
   dispatch path, pending-review quiescence or A03 settlement. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-response-custody-review-20261021.json`.
+- A10 source `58a95c5` adds bounded pending participant reviews to the coherent quiescence snapshot
+  and routes them to an inert `contract-reviews-pending` Sol handoff when quota permits; quota
+  denial keeps precedence. Case-sensitive projection matching aligns with namespace reservation and
+  revision triggers. Sol accepted exact diff
+  `20d1ab3b352574fc7faa20a4c8eb572fe6484d3577070de5aad3e11c23fafea1`; full engineering gate passed
+  392 tests/96 subtests with Ruff. This does not dispatch/recover reviews; A03 settlement and full
+  A10 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-aware-quiescence-review-20261021.json`.
 
 Canonical program, acceptance criteria and limits: `docs/engineering-organization.md`. Founder-facing
 external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receipts remain under
