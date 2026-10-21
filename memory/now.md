@@ -429,3 +429,8 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   subtests; gate passed Ruff, 477 tests/101 subtests. Config reads precede persistence and
   activation/replay remain separate; broad A10/A03 remain open. Receipt:
   `a10-configured-contract-proposal-batch-gate-20261021.json`.
+  Follow-up snapshots caller batch membership before the 1,000-proposal cap, and caps serialized
+  records at 512 KiB each/32 MiB aggregate; oversized config is rejected before Store reads. Sol
+  accepted exact diff `b7720975`; focused tests passed 132/10 subtests and full gate passed Ruff,
+  481/101. Temporary serialization memory, SQLite work, retained history and downstream review
+  capacity remain outside these limits. Receipt: `a10-configured-contract-proposal-bounds-gate-20261021.json`.

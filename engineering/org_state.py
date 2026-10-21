@@ -57,6 +57,9 @@ _LIFECYCLE_OBSERVATION_FIELDS = frozenset(
 )
 _LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
 _LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
+CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS = 1000
+_CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES = 512 * 1024
+_CONTRACT_TRANSITION_BATCH_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT = 1000
 _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES = 512 * 1024
 _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES = 2 * 1024 * 1024
@@ -2750,6 +2753,9 @@ class Store:
         """Persist a set of immutable proposals atomically after detaching caller input."""
         if type(proposals) is not list:
             raise StateError("contract transitions must be a list")
+        proposals = tuple(proposals)
+        if len(proposals) > CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS:
+            raise StateError("contract transition batch exceeds count limit")
         required = {
             "name",
             "from_version",
@@ -2761,6 +2767,7 @@ class Store:
         }
         prepared = []
         keys = set()
+        total_bytes = 0
         for proposal in proposals:
             if type(proposal) is not dict or set(proposal) != required:
                 raise StateError("contract transition proposal shape invalid")
@@ -2811,6 +2818,12 @@ class Store:
                 "consumer_teams": sorted(consumer_teams),
             }
             self._validated_contract_transition(record, name, to_version)
+            record_bytes = len(_json(record).encode("utf-8"))
+            if record_bytes > _CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES:
+                raise StateError("contract transition proposal exceeds byte limit")
+            total_bytes += record_bytes
+            if total_bytes > _CONTRACT_TRANSITION_BATCH_MAX_BYTES:
+                raise StateError("contract transition batch exceeds byte limit")
             prepared.append((key, record))
         if not prepared:
             return []

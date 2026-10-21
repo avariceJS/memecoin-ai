@@ -1286,6 +1286,15 @@ class SupervisorTests(unittest.TestCase):
         self.assertIsNone(self.db.get_contract_transition("alpha-contract", 2))
         self.assertEqual(self.db.events(), events_before)
 
+    def test_contract_configuration_count_limit_precedes_database_reads(self):
+        self.cfg["contracts"] = {"first": {}, "second": {}}
+        with (
+            patch.object(supervisor, "CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS", 1),
+            patch.object(self.db, "get_contract", side_effect=AssertionError("unexpected read")),
+        ):
+            with self.assertRaisesRegex(StateError, "configuration exceeds transition limit"):
+                supervisor._configured_contract_transitions(self.cfg, self.db)
+
     def run_quiescence(
         self, reason, *, pending=False, slots=1, readiness_change=False, review_pending=False
     ):

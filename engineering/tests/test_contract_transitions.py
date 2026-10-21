@@ -178,7 +178,151 @@ def test_contract_transition_batch_detaches_input_before_write_lock_wait(store, 
     assert persisted["body"] == {"schema": "v2"}
     assert persisted["consumer_teams"] == ["Platform"]
     assert persisted["contract_hash"] == hashlib.sha256(b'{"schema":"v2"}').hexdigest()
+
+
+def test_contract_transition_batch_count_limit_uses_detached_list_snapshot(store, monkeypatch):
+    import engineering.org_state as org_state
+
+    monkeypatch.setattr(org_state, "CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS", 1)
+    first = {
+        "name": "sample",
+        "from_version": 1,
+        "to_version": 2,
+        "body": {"schema": "v2"},
+        "producer_task_id": "EXP-1",
+        "producer_team": "Experience",
+        "consumer_teams": ["Platform"],
+    }
+    appended = {
+        **first,
+        "name": "missing-contract",
+    }
+    proposals = [first]
+    validate = store._validated_contract_transition
+    appended_once = False
+
+    def append_during_preparation(body, name, version):
+        nonlocal appended_once
+        result = validate(body, name, version)
+        if not appended_once:
+            appended_once = True
+            proposals.append(appended)
+        return result
+
+    monkeypatch.setattr(store, "_validated_contract_transition", append_during_preparation)
+    result = store.propose_contract_transitions(proposals)
+
+    assert len(result) == 1
+    assert result[0]["body"]["name"] == "sample"
+    assert store.get_contract_transition("sample", 2) is not None
     assert store.get_contract_transition("missing-contract", 2) is None
+
+
+def test_contract_transition_batch_enforces_count_and_record_byte_limits(store, monkeypatch):
+    first = {
+        "name": "first",
+        "from_version": 1,
+        "to_version": 2,
+        "body": {"schema": "v2"},
+        "producer_task_id": "EXP-1",
+        "producer_team": "Experience",
+        "consumer_teams": ["Platform"],
+    }
+    second = {**first, "name": "second"}
+    events_before = store.events()
+    monkeypatch.setattr(org_state, "CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS", 1)
+    with pytest.raises(StateError, match="batch exceeds count limit"):
+        store.propose_contract_transitions([first, second])
+    assert store.events() == events_before
+    assert store.get_contract_transition("first", 2) is None
+
+    record = {
+        "kind": "contract_transition",
+        "status": "proposed",
+        "name": first["name"],
+        "from_version": first["from_version"],
+        "to_version": first["to_version"],
+        "body": first["body"],
+        "contract_hash": hashlib.sha256(org_state._json(first["body"]).encode()).hexdigest(),
+        "producer_task_id": first["producer_task_id"],
+        "producer_team": first["producer_team"],
+        "consumer_teams": first["consumer_teams"],
+    }
+    exact_bytes = len(org_state._json(record).encode("utf-8"))
+    monkeypatch.setattr(org_state, "CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS", 1000)
+    monkeypatch.setattr(org_state, "_CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES", exact_bytes)
+    store.put_contract("first", 1, {"schema": "v1"})
+    accepted = store.propose_contract_transition(
+        "first",
+        1,
+        2,
+        first["body"],
+        producer_task_id=first["producer_task_id"],
+        producer_team=first["producer_team"],
+        consumer_teams=first["consumer_teams"],
+    )
+    assert accepted["body"] == record
+
+    oversized = {**first, "name": "oversized", "body": {"schema": "v" * 100}}
+    store.put_contract("oversized", 1, {"schema": "v1"})
+    events_before = store.events()
+    with pytest.raises(StateError, match="proposal exceeds byte limit"):
+        store.propose_contract_transition(
+            "oversized",
+            1,
+            2,
+            oversized["body"],
+            producer_task_id=oversized["producer_task_id"],
+            producer_team=oversized["producer_team"],
+            consumer_teams=oversized["consumer_teams"],
+        )
+    assert store.events() == events_before
+    assert store.get_contract_transition("oversized", 2) is None
+
+
+def test_contract_transition_batch_enforces_aggregate_byte_limit(store, monkeypatch):
+    proposals = [
+        {
+            "name": name,
+            "from_version": 1,
+            "to_version": 2,
+            "body": {"schema": "v2"},
+            "producer_task_id": "EXP-1",
+            "producer_team": "Experience",
+            "consumer_teams": ["Platform"],
+        }
+        for name in ("alpha", "bravo")
+    ]
+    records = []
+    for proposal in proposals:
+        records.append(
+            {
+                "kind": "contract_transition",
+                "status": "proposed",
+                "name": proposal["name"],
+                "from_version": proposal["from_version"],
+                "to_version": proposal["to_version"],
+                "body": proposal["body"],
+                "contract_hash": hashlib.sha256(
+                    org_state._json(proposal["body"]).encode()
+                ).hexdigest(),
+                "producer_task_id": proposal["producer_task_id"],
+                "producer_team": proposal["producer_team"],
+                "consumer_teams": proposal["consumer_teams"],
+            }
+        )
+    sizes = [len(org_state._json(record).encode("utf-8")) for record in records]
+    assert sizes[0] == sizes[1]
+    monkeypatch.setattr(org_state, "_CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES", sizes[0])
+    monkeypatch.setattr(org_state, "_CONTRACT_TRANSITION_BATCH_MAX_BYTES", sum(sizes) - 1)
+    events_before = store.events()
+
+    with pytest.raises(StateError, match="batch exceeds byte limit"):
+        store.propose_contract_transitions(proposals)
+
+    assert store.events() == events_before
+    assert store.get_contract_transition("alpha", 2) is None
+    assert store.get_contract_transition("bravo", 2) is None
 
 
 def test_proposal_and_ack_retries_are_exact_and_survive_restart(tmp_path):

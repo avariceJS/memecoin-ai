@@ -21,7 +21,7 @@ from .codex_rpc import Codex
 from .confinement import SandboxRunner, python_runtime_roots
 from .git_gate import GitGate
 from .metered_codex import metered_client
-from .org_state import StaleAttempt, StateError, Store
+from .org_state import CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS, StaleAttempt, StateError, Store
 from .processes import process_identity, terminate_owned
 from .review_packet import build_review_packet
 from .service import validate_deployment
@@ -98,7 +98,11 @@ REVIEW_SCHEMA = {
 def _configured_contract_transitions(cfg, db):
     """Persist exact configured proposals and retain their current publication state."""
     contracts = cfg.get("contracts", {})
-    if type(contracts) is not dict or any(type(name) is not str for name in contracts):
+    if type(contracts) is not dict:
+        raise StateError("contract configuration invalid")
+    if len(contracts) > CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS:
+        raise StateError("contract configuration exceeds transition limit")
+    if any(type(name) is not str for name in contracts):
         raise StateError("contract configuration invalid")
     pending = []
     for name, proposal in sorted(contracts.items()):

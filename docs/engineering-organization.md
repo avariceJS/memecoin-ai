@@ -1346,4 +1346,12 @@ Focused tests passed 128 tests/10 subtests; the engineering release gate passed 
 transaction; review replay and activation remain separate. A03, broad A10 and operational
 acceptance remain open. Gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-configured-contract-proposal-batch-gate-20261021.json`
-(SHA-256 `89fe703be05d5bb4796ff42ccc2fc1bf7c9a21b45b5f3ff91460796badf28e66`).
+(SHA-256 `89fe703be05d5bb4796ff42ccc2fc1bf7c9a21b45b5f3ff91460796badf28e66`). A bounded follow-up
+snapshots caller batch membership before enforcing a 1,000-proposal cap, limits serialized records
+to 512 KiB each and 32 MiB per batch, and rejects oversized configurations before Store reads. Sol
+accepted exact diff `b772097534c51c314ac86cf720a79aad919f86e8a8b77a50dfa6d0dc917ca1cc`; focused tests
+passed 132 tests/10 subtests and the engineering gate passed Ruff, 481 tests/101 subtests. These
+limits do not bound temporary serialization memory, SQLite work or retained history, and downstream
+review capacity remains a separate bound. Gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-configured-contract-proposal-bounds-gate-20261021.json`
+(SHA-256 `46f83f067334a1d141ee43d929a4f3e1b7174bcaa015e2bf8635dc21b4fc5d73`).
