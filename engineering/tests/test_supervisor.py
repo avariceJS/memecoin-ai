@@ -538,13 +538,223 @@ class SupervisorTests(unittest.TestCase):
         with (
             patch.object(supervisor, "Codex") as codex,
             patch.object(supervisor, "metered_client") as transport,
+            patch.object(supervisor, "process_identity", return_value="synthetic:owner"),
         ):
             supervisor.run_attempt(self.state, attempt["id"])
         codex.assert_not_called()
         transport.assert_not_called()
         self.assertEqual(self.db.get_task("T")["state"], "pending")
-        self.assertEqual(self.db.list_attempts("T")[0]["state"], "cancelled_before_start")
-        self.assertFalse(self.db.list_attempts("T")[0]["session"])
+        stored = self.db.list_attempts("T")[0]
+        self.assertEqual(stored["state"], "stopped_before_work")
+        self.assertIsNone(stored["session"])
+        self.assertEqual(
+            self.db.attempt_child_start_identity(attempt["id"], attempt["epoch"]),
+            {"pid": os.getpid(), "birth": "synthetic:owner"},
+        )
+        self.assertFalse(
+            any(
+                event["kind"] == "session_stage_recorded"
+                for event in self.db.events()
+                if event["body"].get("attempt_id") == attempt["id"]
+            )
+        )
+        self.assertFalse(self.db.usage_summary()["total"])
+
+    def test_duplicate_same_process_child_start_cannot_repeat_attempt(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker")
+        identity = {"pid": os.getpid(), "birth": "synthetic:owner"}
+        self.db.record_attempt_child_start(attempt["id"], attempt["epoch"], identity)
+        events_before = len(self.db.events())
+        with (
+            patch.object(supervisor, "process_identity", return_value="synthetic:owner"),
+            patch.object(supervisor, "Codex") as codex,
+            patch.object(supervisor, "metered_client") as transport,
+            patch.object(supervisor, "runner") as sandbox,
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+        codex.assert_not_called()
+        transport.assert_not_called()
+        sandbox.assert_not_called()
+        self.assertEqual(len(self.db.events()), events_before)
+        self.assertEqual(self.db.get_task("T")["state"], "running")
+        self.assertEqual(self.db.list_attempts("T")[0]["state"], "running")
+
+    def test_expired_child_start_identity_is_reaped_idempotently(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker", lease_seconds=5)
+        identity = {"pid": 4321, "birth": "darwin:4321:1000:000001:501"}
+        self.db.record_attempt_child_start(attempt["id"], attempt["epoch"], identity)
+        self.now += 5
+        with (
+            patch.object(supervisor.platform, "system", return_value="Darwin"),
+            patch.object(supervisor, "terminate_owned", return_value=True) as terminate,
+            patch.object(supervisor, "process_identity", return_value=None),
+            patch.object(supervisor.os, "kill", side_effect=ProcessLookupError),
+        ):
+            self.assertEqual(supervisor.reap_expired(self.state, self.db), [attempt["id"]])
+            self.assertEqual(supervisor.reap_expired(self.state, self.db), [])
+        self.assertEqual(
+            [call.args for call in terminate.call_args_list],
+            [(identity["pid"], identity["birth"])],
+        )
+        marker = json.loads(
+            (self.state / "attempts" / str(attempt["id"]) / "reaped.json").read_text()
+        )
+        self.assertEqual(marker["attempt_id"], attempt["id"])
+        self.assertEqual(self.db.get_task("T")["state"], "pending")
+
+    def test_live_child_after_failed_termination_has_no_reap_marker(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker", lease_seconds=5)
+        identity = {"pid": 4321, "birth": "darwin:4321:1000:000001:501"}
+        self.db.record_attempt_child_start(attempt["id"], attempt["epoch"], identity)
+        self.now += 5
+        marker = self.state / "attempts" / str(attempt["id"]) / "reaped.json"
+        with (
+            patch.object(supervisor.platform, "system", return_value="Darwin"),
+            patch.object(supervisor, "terminate_owned", return_value=False),
+            patch.object(supervisor, "process_identity", return_value=identity["birth"]),
+        ):
+            with self.assertRaisesRegex(StateError, "expired_process_still_owned"):
+                supervisor.reap_expired(self.state, self.db)
+        self.assertFalse(marker.exists())
+
+    def test_live_pid_with_unreadable_birth_witness_has_no_reap_marker(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker", lease_seconds=5)
+        identity = {"pid": 4321, "birth": "darwin:4321:1000:000001:501"}
+        self.db.record_attempt_child_start(attempt["id"], attempt["epoch"], identity)
+        self.now += 5
+        marker = self.state / "attempts" / str(attempt["id"]) / "reaped.json"
+        with (
+            patch.object(supervisor.platform, "system", return_value="Darwin"),
+            patch.object(supervisor, "terminate_owned", return_value=False),
+            patch.object(supervisor, "process_identity", return_value=None),
+            patch.object(supervisor.os, "kill", return_value=None),
+        ):
+            with self.assertRaisesRegex(StateError, "expired_process_identity_unverifiable"):
+                supervisor.reap_expired(self.state, self.db)
+        self.assertFalse(marker.exists())
+
+    def test_incomplete_session_runner_cannot_hide_child_start_owner(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker", lease_seconds=5)
+        child_identity = {"pid": 4321, "birth": "darwin:4321:1000:000001:501"}
+        self.db.record_attempt_child_start(attempt["id"], attempt["epoch"], child_identity)
+        self.db.record_stage_session(
+            attempt["id"],
+            attempt["epoch"],
+            "synthetic-thread",
+            "synthetic-model",
+            {"stage": "lead"},
+            stage="lead",
+        )
+        self.now += 5
+        marker = self.state / "attempts" / str(attempt["id"]) / "reaped.json"
+        with self.assertRaisesRegex(StateError, "expired_session_process_identity_invalid"):
+            supervisor.reap_expired(self.state, self.db)
+        self.assertFalse(marker.exists())
+
+    def test_malformed_child_start_history_fails_closed_without_reap_marker(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker", lease_seconds=5)
+        self.now += 5
+        with self.db._tx():
+            self.db._event(
+                "attempt_child_started",
+                "T",
+                {
+                    "attempt_id": attempt["id"],
+                    "epoch": attempt["epoch"],
+                    "process_identity": {"pid": 1, "birth": "invalid"},
+                },
+            )
+        marker = self.state / "attempts" / str(attempt["id"]) / "reaped.json"
+        with self.assertRaisesRegex(StateError, "attempt_child_start_history_invalid"):
+            supervisor.reap_expired(self.state, self.db)
+        self.assertFalse(marker.exists())
+
+    def test_duplicate_child_start_history_fails_closed_without_reap_marker(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker", lease_seconds=5)
+        self.now += 5
+        body = {
+            "attempt_id": attempt["id"],
+            "epoch": attempt["epoch"],
+            "process_identity": {"pid": 4321, "birth": "darwin:4321:1000:000001:501"},
+        }
+        with self.db._tx():
+            self.db._event("attempt_child_started", "T", body)
+            self.db._event("attempt_child_started", "T", body)
+        marker = self.state / "attempts" / str(attempt["id"]) / "reaped.json"
+        with self.assertRaisesRegex(StateError, "attempt_child_start_history_invalid"):
+            supervisor.reap_expired(self.state, self.db)
+        self.assertFalse(marker.exists())
+
+    @unittest.skipUnless(platform.system() == "Darwin", "requires macOS process birth identity")
+    def test_real_frozen_child_records_stop_before_work_and_rejects_duplicate(self):
+        from engineering.tests.test_service import deployment_with_frozen_controller
+
+        deployment_root = self.state / "frozen-child"
+        state = deployment_with_frozen_controller(deployment_root)
+        (state / "STOP").touch()
+        db = Store(state / "organization.sqlite")
+        attempt = db.claim("synthetic", "synthetic-supervisor", lease_seconds=30)
+        db.close()
+        command = [
+            sys.executable,
+            "-m",
+            "engineering",
+            "attempt",
+            "--state",
+            str(state),
+            "--attempt",
+            str(attempt["id"]),
+        ]
+        first = subprocess.run(
+            command,
+            cwd=state / "controller",
+            start_new_session=True,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        self.assertEqual(first.returncode, 0, first.stderr)
+        reopened = Store(state / "organization.sqlite")
+        try:
+            stored = reopened.list_attempts("synthetic")[0]
+            self.assertEqual(stored["state"], "stopped_before_work")
+            self.assertEqual(reopened.get_task("synthetic")["state"], "pending")
+            self.assertIsNone(stored["session"])
+            identity = reopened.attempt_child_start_identity(attempt["id"], attempt["epoch"])
+            self.assertNotEqual(identity["pid"], os.getpid())
+            kinds = [event["kind"] for event in reopened.events()]
+            self.assertEqual(kinds.count("attempt_child_started"), 1)
+            self.assertEqual(kinds.count("attempt_stopped_before_work"), 1)
+            self.assertFalse(any(kind == "session_stage_recorded" for kind in kinds))
+            self.assertFalse(reopened.usage_summary()["total"])
+            self.assertFalse((state / "integration").exists())
+            event_count = len(reopened.events())
+        finally:
+            reopened.close()
+
+        duplicate = subprocess.run(
+            command,
+            cwd=state / "controller",
+            start_new_session=True,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        self.assertEqual(duplicate.returncode, 0, duplicate.stderr)
+        reopened = Store(state / "organization.sqlite")
+        try:
+            self.assertEqual(len(reopened.events()), event_count)
+            self.assertEqual(reopened.list_attempts("synthetic")[0]["state"], "stopped_before_work")
+            self.assertEqual(reopened.get_task("synthetic")["state"], "pending")
+        finally:
+            reopened.close()
 
     def test_accepted_intent_before_publish_recovers_once(self):
         self.candidate()
@@ -1500,7 +1710,7 @@ main()
             self.assertTrue((self.state / "STOP").is_file())
             cancelled_attempt = self.db.list_attempts("PLAT-002")
             self.assertEqual(len(cancelled_attempt), 1)
-            self.assertEqual(cancelled_attempt[0]["state"], "cancelled_before_start")
+            self.assertEqual(cancelled_attempt[0]["state"], "cancelled_before_spawn")
             self.assertEqual(self.db.get_task("PLAT-002")["state"], "pending")
             self.assertEqual(spawned, [])
             (self.state / "STOP").unlink()
@@ -1530,8 +1740,8 @@ main()
         self.assertEqual(self.db.get_task("PLAT-002")["dependencies"], ["PLAT-001"])
         dependent_attempts = self.db.list_attempts("PLAT-002")
         self.assertEqual(len(dependent_attempts), 3)
-        self.assertEqual(dependent_attempts[0]["state"], "cancelled_before_start")
-        self.assertEqual(dependent_attempts[1]["state"], "cancelled_before_start")
+        self.assertEqual(dependent_attempts[0]["state"], "cancelled_before_spawn")
+        self.assertEqual(dependent_attempts[1]["state"], "cancelled_before_spawn")
         self.assertEqual(popen_failures, [dependent_attempts[1]["id"]])
         self.assertEqual(len(spawned), 1)
         self.assertIn("--attempt", spawned[0][0])

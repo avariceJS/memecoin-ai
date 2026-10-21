@@ -8,11 +8,13 @@ integrates results. Agent-generated commands execute through Seatbelt.
 from __future__ import annotations
 
 import dataclasses
+import errno
 import fcntl
 import hashlib
 import json
 import math
 import os
+import platform
 import re
 import selectors
 import signal
@@ -650,6 +652,38 @@ def usage_tokens(result):
 
 def reap_expired(state, db):
     expired = db.recover_expired()
+
+    def terminate_and_confirm(pid, birth):
+        if pid is None and birth is None:
+            return True
+        if type(pid) is not int or pid <= 1 or type(birth) is not str or not birth:
+            raise StateError("expired_process_identity_invalid")
+        if platform.system() != "Darwin":
+            raise StateError("expired_process_identity_unverifiable")
+        signalled = terminate_owned(pid, birth)
+        deadline = time.monotonic() + 5.0
+        while True:
+            current = process_identity(pid)
+            if current is not None and current != birth:
+                return True
+            if current is None:
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    return True
+                except PermissionError:
+                    raise StateError("expired_process_identity_unverifiable") from None
+                except OSError as exc:
+                    if exc.errno == errno.ESRCH:
+                        return True
+                    raise StateError("expired_process_identity_unverifiable") from None
+                raise StateError("expired_process_identity_unverifiable")
+            if not signalled:
+                raise StateError("expired_process_still_owned")
+            if time.monotonic() >= deadline:
+                raise StateError("expired_process_termination_unconfirmed")
+            time.sleep(0.05)
+
     for attempt in db.list_attempts():
         if attempt["state"] != "expired":
             continue
@@ -657,16 +691,41 @@ def reap_expired(state, db):
         if marker.exists():
             continue
         session = attempt.get("session") or {}
-        identity = session.get("runner") or {}
+        child_identity = db.attempt_child_start_identity(attempt["id"], attempt["epoch"])
+        runner = session.get("runner")
+        identities = {}
+        if child_identity is not None:
+            identities["attempt"] = child_identity
+        if runner is not None:
+            if (
+                type(runner) is not dict
+                or type(runner.get("pid")) is not int
+                or runner["pid"] <= 1
+                or type(runner.get("birth")) is not str
+                or not runner["birth"]
+            ):
+                raise StateError("expired_session_process_identity_invalid")
+            session_child = {"pid": runner["pid"], "birth": runner["birth"]}
+            if child_identity is not None and child_identity != session_child:
+                raise StateError("expired_session_child_owner_mismatch")
+            identities["attempt"] = session_child
+            app_pid, app_birth = runner.get("app_server_pid"), runner.get("app_server_birth")
+            if app_pid is not None or app_birth is not None:
+                if (
+                    type(app_pid) is not int
+                    or app_pid <= 1
+                    or type(app_birth) is not str
+                    or not app_birth
+                ):
+                    raise StateError("expired_session_process_identity_invalid")
+                identities["app_server"] = {"pid": app_pid, "birth": app_birth}
         killed = {}
-        for prefix in ("app_server_", ""):
-            killed[prefix or "attempt"] = terminate_owned(
-                identity.get(prefix + "pid"), identity.get(prefix + "birth")
-            )
+        for name, identity in identities.items():
+            killed[name] = terminate_and_confirm(identity["pid"], identity["birth"])
         process_file = marker.parent / "processes.json"
         if process_file.exists():
             for item in read(process_file):
-                killed[str(item["pid"])] = terminate_owned(item["pid"], item["birth"])
+                killed[str(item["pid"])] = terminate_and_confirm(item["pid"], item["birth"])
         atomic(marker, {"at": time.time(), "attempt_id": attempt["id"], "killed": killed})
         log_event(state, "expired_processes_reconciled", attempt_id=attempt["id"], killed=killed)
     return expired
@@ -677,13 +736,44 @@ def run_attempt(state: Path, attempt_id: int):
     attempt = next(a for a in db.list_attempts() if a["id"] == attempt_id)
     task = db.get_task(attempt["task_id"])
     epoch = attempt["epoch"]
+    child_identity = {"pid": os.getpid(), "birth": process_identity(os.getpid())}
+    if child_identity["birth"] is None:
+        log_event(
+            state,
+            "attempt_child_start_unidentified",
+            attempt_id=attempt_id,
+            task=task["id"],
+        )
+        db.close()
+        return
+    try:
+        child_started = db.record_attempt_child_start(attempt_id, epoch, child_identity)
+    except (StaleAttempt, StateError) as exc:
+        log_event(
+            state,
+            "attempt_child_start_rejected",
+            attempt_id=attempt_id,
+            task=task["id"],
+            error_type=type(exc).__name__,
+        )
+        db.close()
+        return
+    if not child_started:
+        log_event(
+            state,
+            "attempt_child_start_duplicate",
+            attempt_id=attempt_id,
+            task=task["id"],
+        )
+        db.close()
+        return
     if (state / "STOP").exists():
         try:
-            db.cancel_unstarted_claim(attempt_id, epoch, reason="stop_at_child_start")
+            db.stop_started_child_before_work(attempt_id, epoch, child_identity)
         except (StaleAttempt, StateError) as exc:
             log_event(
                 state,
-                "attempt_stop_cancellation_deferred",
+                "attempt_stop_before_work_deferred",
                 attempt_id=attempt_id,
                 task=task["id"],
                 error_type=type(exc).__name__,
@@ -741,7 +831,7 @@ def run_attempt(state: Path, attempt_id: int):
     checkout, scratch = run / "checkout", run / "scratch"
     native = run / "native"
     native.mkdir(exist_ok=True)
-    processes = [{"pid": os.getpid(), "birth": process_identity(os.getpid())}]
+    processes = [child_identity]
     atomic(run / "processes.json", processes)
 
     def heartbeat():
@@ -824,6 +914,8 @@ def run_attempt(state: Path, attempt_id: int):
         }
         atomic(run / "packet.json", packet)
         readonly_box = runner(state, checkout, run / "lead-scratch", readonly=True)
+        if not db.record_attempt_work_start(attempt_id, epoch, child_identity, stage="lead"):
+            raise StateError("attempt_lead_dispatch_already_started")
         with metered_client(
             state,
             checkout,
@@ -905,6 +997,8 @@ def run_attempt(state: Path, attempt_id: int):
             )
             if plan.get("decision") != "approve":
                 raise RuntimeError("lead_blocked")
+        if not db.record_attempt_work_start(attempt_id, epoch, child_identity, stage="worker"):
+            raise StateError("attempt_worker_dispatch_already_started")
         with metered_client(
             state,
             checkout,

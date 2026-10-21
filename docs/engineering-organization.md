@@ -1923,22 +1923,27 @@ Git/contract checkpoint. This exercises only synthetic source/SQLite recovery: s
 ABA is indistinguishable, host/runtime recovery is unqualified, and no authorization generation or
 lifecycle consumer exists. A03 and operational acceptance remain open.
 
-Integrated supervisor continuation and pre-spawn STOP — 2026-10-21: the PLAT-002 synthetic cycle now
-runs its dependent task through the actual `supervise` loop. A local launcher invokes real
-`run_attempt`; the next controller iteration invokes `verify_one`, runs the fixed acceptance harness,
-reviews the exact candidate, and integrates it through GitGate. The test binds the second candidate to
-the PLAT-001 commit, checks its canonical receipt and expected-tip CAS, confirms `main` stayed fixed,
-and requires exactly two integration events without manual execution or verification calls. STOP is
-checked before each selected-task claim and again immediately before `Popen`; a multi-slot dispatch
-loop stops after the first STOP veto. The attempt is durably marked `cancelled_before_start`, the task
-returns to pending, and no spawn occurs. A child that starts in the check-to-`Popen` race rechecks STOP
-at entry and cancels before lease renewal or work. An OS-level `Popen` error also cancels only that
-synchronous pre-start claim. Retry accounting excludes these explicit cancellations while attempt
-epochs remain monotonic. Store rejects cancellation after session, usage, or candidate custody and
-after lease expiry; an independent SQLite reopen/expiry regression proves an expired old epoch cannot
-mutate its replacement and that canceled claims do not spend one of two actual execution attempts.
-The full engineering release gate passed Ruff/format, 622 tests and 189 subtests; `make smoke` is
-reproducible with `edge_established=false`. This is synthetic controller-loop/Seatbelt/SQLite/Git
-acceptance only; the live worker and reviewer are injected deterministic fakes. STOP observation cannot
-be atomic with process creation, and persistent `Popen` failure has no backoff. A04 executable
-qualification, provider/usage settlement, A03 and operational release remain open.
+Integrated supervisor continuation and process-boundary recovery — 2026-10-21: the PLAT-002 synthetic
+cycle runs its dependent task through the actual `supervise` loop. The next controller iteration calls
+`verify_one`, runs fixed acceptance, reviews the exact candidate, and integrates it through GitGate.
+The second candidate binds to PLAT-001, its canonical receipt and expected-tip CAS; `main` stays fixed,
+and exactly two integration events occur without manual execution or verification calls. STOP is
+checked before each selected-task claim and immediately before `Popen`; a multi-slot loop stops after a
+veto. Known pre-spawn STOP and synchronous `Popen` errors use `cancelled_before_spawn`. A real local
+child from a manifest-bound synthetic deployment first records one immutable PID/birth owner in
+SQLite; a duplicate child cannot re-enter the attempt. It records `attempt_work_started` before each
+metered-client context. A STOP at child entry produces `stopped_before_work` only before any work
+marker, provider session, usage, or candidate exists. SQLite reopen proves that this explicit no-work
+outcome is idempotent and does not spend retry budget; hard exits before child custody or after custody
+remain unknown/expired and do spend an attempt. Expiry reaping reads the child-start identity when no
+provider session exists and writes its marker only after confirming recorded processes are gone or
+their PID has a different birth witness. A failed kill while the same process remains alive raises
+and leaves no marker; if the birth query is unavailable, PID existence is checked and uncertainty
+also leaves no marker. Session runner identity must match the immutable child-start event. The reaper
+requires macOS process witnesses for owned processes; it does not establish global safety against
+direct Store claimers outside the serialized supervisor. The full engineering release gate passed
+Ruff/format, 633 tests and 193 subtests; `make smoke` is reproducible with `edge_established=false`.
+Worker/reviewer responses and Git/contract checks remain synthetic; process identity requires the
+macOS birth witness, and an exit before child registration cannot be assigned an owner. Persistent
+`Popen` failure has no backoff. A04 executable qualification, provider/usage settlement, A03 and
+operational release remain open.

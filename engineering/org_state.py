@@ -326,6 +326,12 @@ class Store:
             ON events(seq) WHERE kind='decision_recorded' AND entity='lifecycle/owner';
           CREATE INDEX IF NOT EXISTS idx_events_task_spec_admitted
             ON events(entity) WHERE kind='task_spec_admitted';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_child_started
+            ON events(entity,seq) WHERE kind='attempt_child_started';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_stopped_before_work
+            ON events(entity,seq) WHERE kind='attempt_stopped_before_work';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_work_started
+            ON events(entity,seq) WHERE kind='attempt_work_started';
           CREATE INDEX IF NOT EXISTS idx_tasks_state_id ON tasks(state,id);
         """)
         self.db.executescript("""
@@ -1053,7 +1059,8 @@ class Store:
 
     def _retry_state(self, task: dict, retryable: bool) -> str:
         used = self.db.execute(
-            "SELECT COUNT(*) FROM attempts WHERE task_id=? AND state!='cancelled_before_start'",
+            "SELECT COUNT(*) FROM attempts WHERE task_id=? AND state NOT IN "
+            "('cancelled_before_start','cancelled_before_spawn','stopped_before_work')",
             (task["id"],),
         ).fetchone()[0]
         return "pending" if retryable and used < task["max_attempts"] else "failed"
@@ -1105,9 +1112,9 @@ class Store:
             return attempt
 
     def cancel_unstarted_claim(self, attempt_id: int, epoch: int, *, reason: str) -> None:
-        """Cancel a just-claimed attempt after STOP or an OS-level spawn failure."""
+        """Cancel only a claim known to remain before process creation."""
         _name(reason)
-        if reason not in {"stop_before_spawn", "stop_at_child_start", "popen_failed"}:
+        if reason not in {"stop_before_spawn", "popen_failed"}:
             raise StateError("invalid unstarted claim cancellation reason")
         with self._tx():
             task, attempt = self._fence(attempt_id, epoch, running=False)
@@ -1121,19 +1128,206 @@ class Store:
             usage = self.db.execute(
                 "SELECT 1 FROM usage WHERE attempt_id=? LIMIT 1", (attempt_id,)
             ).fetchone()
-            if attempt["session"] is not None or candidate is not None or usage is not None:
+            started = self._attempt_child_start_event(task["id"], attempt_id)
+            if (
+                attempt["session"] is not None
+                or candidate is not None
+                or usage is not None
+                or started is not None
+            ):
                 raise StateError("attempt_already_started")
             self.db.execute(
-                "UPDATE attempts SET state='cancelled_before_start' WHERE id=?", (attempt_id,)
+                "UPDATE attempts SET state='cancelled_before_spawn' WHERE id=?", (attempt_id,)
             )
             self.db.execute(
                 "UPDATE tasks SET state='pending',active_attempt=NULL WHERE id=?", (task["id"],)
             )
             self._event(
-                "attempt_cancelled_before_start",
+                "attempt_cancelled_before_spawn",
                 task["id"],
                 {"attempt_id": attempt_id, "epoch": epoch, "reason": reason},
             )
+
+    @staticmethod
+    def _validate_child_identity(identity: Any) -> dict:
+        if (
+            type(identity) is not dict
+            or set(identity) != {"pid", "birth"}
+            or type(identity["pid"]) is not int
+            or identity["pid"] <= 1
+            or type(identity["birth"]) is not str
+            or not identity["birth"].strip()
+            or len(identity["birth"]) > 500
+        ):
+            raise StateError("attempt_child_identity_invalid")
+        return {"pid": identity["pid"], "birth": identity["birth"]}
+
+    def _attempt_child_start_event(self, task_id: str, attempt_id: int) -> dict | None:
+        matches = []
+        try:
+            rows = self.db.execute(
+                "SELECT body FROM events WHERE kind='attempt_child_started' AND entity=?",
+                (task_id,),
+            )
+            for row in rows:
+                body = json.loads(row["body"])
+                if (
+                    type(body) is not dict
+                    or set(body) != {"attempt_id", "epoch", "process_identity"}
+                    or type(body["attempt_id"]) is not int
+                    or type(body["epoch"]) is not int
+                    or body["epoch"] <= 0
+                ):
+                    raise StateError("attempt_child_start_history_invalid")
+                body["process_identity"] = self._validate_child_identity(body["process_identity"])
+                if body["attempt_id"] == attempt_id:
+                    matches.append(body)
+        except (TypeError, ValueError, KeyError, RecursionError):
+            raise StateError("attempt_child_start_history_invalid") from None
+        if len(matches) > 1:
+            raise StateError("attempt_child_start_history_invalid")
+        return matches[0] if matches else None
+
+    def record_attempt_child_start(self, attempt_id: int, epoch: int, identity: Any) -> bool:
+        """Persist the one OS child identity before any worker or provider work."""
+        identity = self._validate_child_identity(identity)
+        with self._tx():
+            task, attempt = self._fence(attempt_id, epoch)
+            previous = self._attempt_child_start_event(task["id"], attempt_id)
+            if previous is not None:
+                if previous.get("process_identity") != identity:
+                    raise StateError("attempt_child_already_owned")
+                return False
+            if attempt["session"] is not None:
+                raise StateError("attempt_session_exists_without_child_start")
+            self._event(
+                "attempt_child_started",
+                task["id"],
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "process_identity": identity,
+                },
+            )
+            return True
+
+    def attempt_child_start_identity(self, attempt_id: int, epoch: int) -> dict | None:
+        """Read the immutable process owner recorded at the child start boundary."""
+        with self._lock:
+            row = self.db.execute(
+                "SELECT task_id,epoch FROM attempts WHERE id=?", (attempt_id,)
+            ).fetchone()
+            if row is None or row["epoch"] != epoch:
+                return None
+            event = self._attempt_child_start_event(row["task_id"], attempt_id)
+            if event is None:
+                return None
+            if event.get("epoch") != epoch:
+                raise StateError("attempt_child_start_history_invalid")
+            return dict(event["process_identity"])
+
+    def record_attempt_work_start(
+        self, attempt_id: int, epoch: int, identity: Any, *, stage: str
+    ) -> bool:
+        """Persist provider-work intent before constructing or starting a provider client."""
+        identity = self._validate_child_identity(identity)
+        if type(stage) is not str or stage not in {"lead", "worker"}:
+            raise StateError("invalid_attempt_work_stage")
+        with self._tx():
+            task, _ = self._fence(attempt_id, epoch)
+            started = self._attempt_child_start_event(task["id"], attempt_id)
+            if started is None or started.get("process_identity") != identity:
+                raise StateError("attempt_child_start_owner_mismatch")
+            for row in self.db.execute(
+                "SELECT body FROM events WHERE kind='attempt_work_started' AND entity=?",
+                (task["id"],),
+            ):
+                body = json.loads(row["body"])
+                if body.get("attempt_id") != attempt_id or body.get("stage") != stage:
+                    continue
+                if body.get("process_identity") != identity or body.get("epoch") != epoch:
+                    raise StateError("attempt_work_start_owner_mismatch")
+                return False
+            self._event(
+                "attempt_work_started",
+                task["id"],
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "process_identity": identity,
+                    "stage": stage,
+                },
+            )
+            return True
+
+    def stop_started_child_before_work(self, attempt_id: int, epoch: int, identity: Any) -> bool:
+        """Record a no-work STOP only for the one durably registered child."""
+        identity = self._validate_child_identity(identity)
+        with self._tx():
+            row = self.db.execute("SELECT * FROM attempts WHERE id=?", (attempt_id,)).fetchone()
+            if row is None:
+                raise StaleAttempt("unknown attempt")
+            attempt = dict(row)
+            task = self._task(attempt["task_id"])
+            previous = next(
+                (
+                    json.loads(event["body"])
+                    for event in self.db.execute(
+                        "SELECT body FROM events WHERE kind='attempt_stopped_before_work' "
+                        "AND entity=?",
+                        (task["id"],),
+                    )
+                    if json.loads(event["body"]).get("attempt_id") == attempt_id
+                ),
+                None,
+            )
+            if previous is not None:
+                if previous.get("process_identity") == identity and previous.get("epoch") == epoch:
+                    return False
+                raise StateError("attempt_stop_owner_mismatch")
+            task, attempt = self._fence(attempt_id, epoch, running=False)
+            if attempt["state"] != "running" or attempt["lease_until"] <= self.clock():
+                raise StaleAttempt("attempt is not running under a valid lease")
+            started = self._attempt_child_start_event(task["id"], attempt_id)
+            session = json.loads(attempt["session"]) if attempt["session"] else None
+            work_started = any(
+                json.loads(event["body"]).get("attempt_id") == attempt_id
+                for event in self.db.execute(
+                    "SELECT body FROM events WHERE kind='attempt_work_started' AND entity=?",
+                    (task["id"],),
+                )
+            )
+            if (
+                started is None
+                or started.get("process_identity") != identity
+                or session is not None
+                or work_started
+            ):
+                raise StateError("attempt_child_start_owner_mismatch")
+            candidate = self.db.execute(
+                "SELECT 1 FROM candidates WHERE attempt_id=? LIMIT 1", (attempt_id,)
+            ).fetchone()
+            usage = self.db.execute(
+                "SELECT 1 FROM usage WHERE attempt_id=? LIMIT 1", (attempt_id,)
+            ).fetchone()
+            if candidate is not None or usage is not None:
+                raise StateError("attempt_work_already_recorded")
+            self.db.execute(
+                "UPDATE attempts SET state='stopped_before_work' WHERE id=?", (attempt_id,)
+            )
+            self.db.execute(
+                "UPDATE tasks SET state='pending',active_attempt=NULL WHERE id=?", (task["id"],)
+            )
+            self._event(
+                "attempt_stopped_before_work",
+                task["id"],
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "process_identity": identity,
+                },
+            )
+            return True
 
     def _fence(self, attempt_id: int, epoch: int, *, running: bool = True) -> tuple[dict, dict]:
         row = self.db.execute("SELECT * FROM attempts WHERE id=?", (attempt_id,)).fetchone()

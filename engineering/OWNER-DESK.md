@@ -5,15 +5,23 @@ launcher вызывает реальный `run_attempt`, следующая и�
 trusted acceptance, reviewer и GitGate integration. Точный receipt, parent PLAT-001, active-ref CAS,
 неизменность `main` и два integration events проверены без ручного вызова execution/verification.
 STOP проверяется перед каждым selected-task claim и ещё раз прямо перед `Popen`; multi-slot loop
-прекращает dispatch после veto. Если STOP появляется в промежутке до старта child, `run_attempt`
-повторно проверяет его при входе и отменяет claim до renew или работы. Запись `cancelled_before_start` возвращает задачу в pending и не
-тратит execution retry, сохраняя монотонный attempt epoch. OS-level `Popen` error отменяет только
-этот синхронный pre-start claim; Store отвергает отмену после session/usage/candidate custody или
-expiry. Отдельный SQLite reopen/expiry regression проверяет fencing заменившей epoch. Release gate
-прошёл Ruff/format, 622 теста и 189 subtests; `make smoke` воспроизводим, `edge_established=false`.
-Все worker/reviewer ответы синтетические; STOP не атомарен с созданием процесса, повторный `Popen`
-failure пока не имеет backoff. Это не qualification A04, provider, usage settlement, A03 или
-operational release.
+прекращает dispatch после veto. Pre-spawn STOP и синхронный `Popen` error сохраняются как
+`cancelled_before_spawn`. Manifest-bound синтетический deployment запускает реальный локальный child:
+он атомарно сохраняет PID/birth owner до любого provider-контекста; повторный child не может
+повторить attempt. Перед каждым metered-client сохраняется `attempt_work_started`. STOP на входе
+child фиксируется как `stopped_before_work` только при отсутствии work marker, provider session,
+usage и candidate; этот явный no-work outcome не расходует retry. Падение до или после записи custody
+остаётся unknown/expired и расходует attempt. Reaper читает child identity из события при отсутствии
+provider session и записывает marker только после подтверждения, что процессы исчезли или PID получил
+другой birth witness; если birth query недоступен, отдельно проверяется наличие PID, а неопределённость
+оставляет marker незаписанным. Runner identity сверяется с immutable child-start event. Неудачный kill
+при живом процессе останавливает этот supervisor до следующего claim. Reaper требует macOS process
+witness и не доказывает общую безопасность при прямом Store claim вне сериализованного supervisor.
+Полный gate: Ruff/format, 633 теста и 193 subtests; `make smoke` воспроизводим,
+`edge_established=false`.
+Worker/reviewer остаются синтетическими; падение до регистрации владельца остаётся неизвестным,
+а постоянный `Popen` failure пока не имеет backoff. Это не qualification A04, provider/usage settlement,
+A03 или operational release.
 
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
 reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает

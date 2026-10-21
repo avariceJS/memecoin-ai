@@ -50,14 +50,18 @@ authorization generation or lifecycle consumer exists. The full PLAT-002 integra
 the copied controller CLI against its integrated Git/contract checkpoint; the focused regression and
 full release gate pass. Continue source-only integration.
 
-The dependent PLAT-002 task now runs through the actual `supervise` loop: synthetic Popen invokes
-`run_attempt`, the next iteration calls `verify_one`, then exact receipt/CAS and second integration
-event are checked. STOP before spawn cancels the claim; a child rechecks STOP at entry to cover the
-check-to-Popen race. Multi-slot dispatch stops after veto; synchronous Popen errors and unstarted
-claims do not spend retry budget, while SQLite lease expiry fences cancellation. Full gate: Ruff/format,
-622 tests and 189 subtests; smoke is reproducible with `edge_established=false`. This remains synthetic
-source-only acceptance, not A04/provider/runtime qualification; STOP and Popen backoff limits are
-documented in the canonical organization record.
+The dependent PLAT-002 task runs through `supervise` to acceptance, receipt/CAS and integration. The
+frozen controller's real local child records one immutable PID/birth identity before work; duplicate
+entry cannot redispatch. A work-start journal record precedes each provider client, and STOP no-work
+cancellation requires the registered owner plus no work/session/usage/candidate. Hard exits before or
+after custody remain expired and consume retry; reaping reads durable child identity and writes its
+marker only after the process is gone or its PID birth witness changed. A failed kill of a still-live
+process leaves no marker; unreadable birth identity is checked against PID existence and uncertainty
+also leaves no marker. Session runner identity must match child-start custody. This relies on macOS
+process witnesses and does not protect direct Store claimers outside the serialized supervisor. Full gate:
+Ruff/format, 633 tests and 193 subtests; smoke is reproducible with `edge_established=false`. This is
+synthetic source-only acceptance, not A04/provider/runtime qualification; remaining limits are in the
+canonical organization record.
 
 `make check` still stops before later checks on 107 existing Ruff findings in `src/`, `tools/` and
 `tests/`; repository-wide pytest collection still lacks the historical PumpSwap IDL capture manifest.

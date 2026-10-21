@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -106,7 +108,7 @@ class LifecycleStoreTests(unittest.TestCase):
         self.assertEqual(task["state"], "pending")
         self.assertEqual(task["epoch"], 1)
         self.assertEqual(
-            self.store.list_attempts("dispatch-window")[0]["state"], "cancelled_before_start"
+            self.store.list_attempts("dispatch-window")[0]["state"], "cancelled_before_spawn"
         )
 
         self.now += 5
@@ -130,8 +132,141 @@ class LifecycleStoreTests(unittest.TestCase):
         attempts = self.store.list_attempts("dispatch-window")
         self.assertEqual(
             [attempt["state"] for attempt in attempts],
-            ["cancelled_before_start", "expired", "failed"],
+            ["cancelled_before_spawn", "expired", "failed"],
         )
+
+    def test_registered_child_has_one_owner_and_STOP_outcome_is_durable(self):
+        self.store.add_task("child-owner", "Platform", "Synthetic child custody", max_attempts=2)
+        attempt = self.store.claim("child-owner", "supervisor", lease_seconds=20)
+        owner = {"pid": 321, "birth": "darwin:321:1000:000001:501"}
+        duplicate = {"pid": 322, "birth": "darwin:322:1000:000002:501"}
+
+        self.assertTrue(
+            self.store.record_attempt_child_start(attempt["id"], attempt["epoch"], owner)
+        )
+        self.assertFalse(
+            self.store.record_attempt_child_start(attempt["id"], attempt["epoch"], owner)
+        )
+        with self.assertRaisesRegex(StateError, "attempt_child_already_owned"):
+            self.store.record_attempt_child_start(attempt["id"], attempt["epoch"], duplicate)
+        with self.assertRaisesRegex(StateError, "attempt_already_started"):
+            self.store.cancel_unstarted_claim(
+                attempt["id"], attempt["epoch"], reason="stop_before_spawn"
+            )
+
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertTrue(
+            self.store.stop_started_child_before_work(attempt["id"], attempt["epoch"], owner)
+        )
+        self.assertFalse(
+            self.store.stop_started_child_before_work(attempt["id"], attempt["epoch"], owner)
+        )
+        self.assertEqual(self.store.get_task("child-owner")["state"], "pending")
+        stored = self.store.list_attempts("child-owner")[0]
+        self.assertEqual(stored["state"], "stopped_before_work")
+        self.assertIsNone(stored["session"])
+        self.assertEqual(
+            self.store.attempt_child_start_identity(attempt["id"], attempt["epoch"]), owner
+        )
+        events = [event for event in self.store.events() if event["entity"] == "child-owner"]
+        self.assertEqual(sum(event["kind"] == "attempt_child_started" for event in events), 1)
+        self.assertEqual(sum(event["kind"] == "attempt_stopped_before_work" for event in events), 1)
+
+        next_attempt = self.store.claim("child-owner", "supervisor", lease_seconds=20)
+        self.assertEqual(next_attempt["epoch"], 2)
+        self.store.fail(next_attempt["id"], next_attempt["epoch"], "synthetic failure")
+        self.assertEqual(self.store.get_task("child-owner")["state"], "pending")
+        final_attempt = self.store.claim("child-owner", "supervisor", lease_seconds=20)
+        self.store.fail(final_attempt["id"], final_attempt["epoch"], "synthetic failure")
+        self.assertEqual(self.store.get_task("child-owner")["state"], "failed")
+
+    def test_child_exit_before_or_after_custody_never_refunds_unknown_attempt(self):
+        self.store.add_task(
+            "before-custody", "Platform", "Crash before child record", max_attempts=2
+        )
+        before = self.store.claim("before-custody", "supervisor", lease_seconds=5)
+        self.store.close()
+        crashed = subprocess.run([sys.executable, "-c", "import os; os._exit(23)"])
+        self.assertEqual(crashed.returncode, 23)
+        self.now += 5
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertEqual(self.store.recover_expired(), [before["id"]])
+        self.assertEqual(self.store.list_attempts("before-custody")[0]["state"], "expired")
+        self.assertIsNone(self.store.list_attempts("before-custody")[0]["session"])
+
+        self.store.add_task("after-custody", "Platform", "Crash after child record", max_attempts=2)
+        after = self.store.claim("after-custody", "supervisor", lease_seconds=5)
+        self.store.close()
+        child = "\n".join(
+            [
+                "import os, sys",
+                "from engineering.org_state import Store",
+                "path, now, attempt, epoch = (",
+                "    sys.argv[1], float(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])",
+                ")",
+                "db = Store(path, clock=lambda: now)",
+                "db.record_attempt_child_start(",
+                '    attempt, epoch, {"pid": os.getpid(), "birth": f"synthetic:{os.getpid()}"}',
+                ")",
+                "os._exit(23)",
+            ]
+        )
+        crashed = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                child,
+                str(self.path),
+                str(self.now),
+                str(after["id"]),
+                str(after["epoch"]),
+            ]
+        )
+        self.assertEqual(crashed.returncode, 23)
+        self.now += 5
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertEqual(self.store.recover_expired(), [after["id"]])
+        stored = self.store.list_attempts("after-custody")[0]
+        self.assertEqual(stored["state"], "expired")
+        self.assertIsNone(stored["session"])
+        identity = self.store.attempt_child_start_identity(after["id"], after["epoch"])
+        self.assertEqual(identity["birth"], f"synthetic:{identity['pid']}")
+        self.assertEqual(self.store.get_task("after-custody")["state"], "pending")
+        replacement = self.store.claim("after-custody", "supervisor", lease_seconds=5)
+        self.store.fail(replacement["id"], replacement["epoch"], "synthetic failure")
+        self.assertEqual(self.store.get_task("after-custody")["state"], "failed")
+
+    def test_started_child_stop_cannot_erase_work_evidence(self):
+        for evidence in ("stage", "dispatch", "usage", "candidate"):
+            with self.subTest(evidence=evidence):
+                task_id = "child-work-" + evidence
+                self.store.add_task(task_id, "Platform", "Work evidence fence")
+                attempt = self.store.claim(task_id, "supervisor")
+                owner = {"pid": 410, "birth": "darwin:410:1000:000010:501"}
+                self.store.record_attempt_child_start(attempt["id"], attempt["epoch"], owner)
+                if evidence == "stage":
+                    self.store.record_stage_session(
+                        attempt["id"],
+                        attempt["epoch"],
+                        "lead-thread",
+                        "Sol",
+                        owner,
+                        stage="lead",
+                    )
+                elif evidence == "dispatch":
+                    self.store.record_attempt_work_start(
+                        attempt["id"], attempt["epoch"], owner, stage="lead"
+                    )
+                elif evidence == "usage":
+                    self.store.record_usage(attempt["id"], attempt["epoch"], {"tokens": 1})
+                else:
+                    self.store.submit(attempt["id"], attempt["epoch"], "candidate", {})
+                with self.assertRaises(StateError):
+                    self.store.stop_started_child_before_work(
+                        attempt["id"], attempt["epoch"], owner
+                    )
+                self.assertNotEqual(self.store.get_task(task_id)["state"], "pending")
 
     def test_unstarted_claim_cancellation_rejects_custodied_execution_evidence(self):
         for evidence in ("session", "usage", "candidate"):
