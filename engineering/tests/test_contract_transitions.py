@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import json
+import sqlite3
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from pathlib import Path
 
 import pytest
@@ -209,9 +213,15 @@ def finish_recorded_review(store, body, result):
     )
 
 
-def prepare_review(store):
+def prepare_review(store, *, consumer_contracts=None):
     store.add_task("EXP-1", "Experience", "produce contract", scope=["schema.py"])
-    store.add_task("PLAT-1", "Platform", "consume contract", scope=["cli.py"])
+    store.add_task(
+        "PLAT-1",
+        "Platform",
+        "consume contract",
+        scope=["cli.py"],
+        contracts=consumer_contracts,
+    )
     propose(store)
     revision = "c" * 64
     return store.prepare_contract_review("sample", 2, "Platform", revision, review_packet())
@@ -292,6 +302,113 @@ def test_task_independent_contract_review_is_durable_and_acknowledges_atomically
         store.finish_contract_review(body["request_id"], body["packet_hash"], receipt_hash, result)
         == finished
     )
+
+
+def test_contract_review_currentness_allows_blocked_consumer_without_send_authority(store):
+    request = prepare_review(store, consumer_contracts={"sample": 2})
+    body = request["body"]
+
+    assert store.claim("PLAT-1", "synthetic") is None
+    assert store.contract_review_currentness(body["request_id"], body["packet_hash"]) == {
+        "request_id": body["request_id"],
+        "packet_hash": body["packet_hash"],
+        "journal_version": 1,
+        "status": "prepared",
+        "current": True,
+        "blockers": [],
+    }
+    dispatching = store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    assert dispatching["body"]["status"] == "dispatching"
+    assert dispatching["version"] == 2
+    with pytest.raises(StateError, match="not sendable"):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+
+
+def test_contract_review_stale_inventory_blocks_dispatch_without_mutation(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.add_task("PLAT-2", "Platform", "new consumer", scope=["other.py"])
+    currentness = store.contract_review_currentness(body["request_id"], body["packet_hash"])
+    events_before = len(store.events())
+
+    assert currentness["current"] is False
+    assert currentness["blockers"] == ["participant_inventory_changed"]
+    with pytest.raises(StateError, match="participant_inventory_changed"):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    assert store.get_decision(request["name"])["version"] == 1
+    assert store.get_decision(request["name"])["body"]["status"] == "prepared"
+    assert len(store.events()) == events_before
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_contract_review_stale_producer_snapshot_blocks_dispatch(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.claim("EXP-1", "synthetic")
+    currentness = store.contract_review_currentness(body["request_id"], body["packet_hash"])
+    events_before = len(store.events())
+
+    assert currentness["current"] is False
+    assert currentness["blockers"] == ["producer_snapshot_changed"]
+    with pytest.raises(StateError, match="producer_snapshot_changed"):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    assert store.get_decision(request["name"])["version"] == 1
+    assert len(store.events()) == events_before
+
+
+def test_contract_review_existing_ack_blocks_dispatch(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.acknowledge_contract_transition("sample", 2, "Platform", body["contract_hash"])
+    currentness = store.contract_review_currentness(body["request_id"], body["packet_hash"])
+    events_before = len(store.events())
+
+    assert currentness["current"] is False
+    assert currentness["blockers"] == ["participant_already_acknowledged"]
+    with pytest.raises(StateError, match="participant_already_acknowledged"):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    assert store.get_decision(request["name"])["version"] == 1
+    assert len(store.events()) == events_before
+
+
+def test_contract_review_begin_rechecks_inventory_after_lock_wait(store, tmp_path):
+    request = prepare_review(store)
+    body = request["body"]
+    assert store.contract_review_currentness(body["request_id"], body["packet_hash"])["current"]
+    other = sqlite3.connect(str(Path(tmp_path) / "org.sqlite"), timeout=30, isolation_level=None)
+    waiting_for_write_lock = threading.Event()
+    store.db.set_trace_callback(
+        lambda statement: (
+            waiting_for_write_lock.set() if statement.strip().upper() == "BEGIN IMMEDIATE" else None
+        )
+    )
+    other.execute("BEGIN IMMEDIATE")
+    try:
+        with ThreadPoolExecutor(1) as pool:
+            future = pool.submit(
+                store.begin_contract_review_dispatch, body["request_id"], body["packet_hash"]
+            )
+            try:
+                assert waiting_for_write_lock.wait(2)
+                with pytest.raises(FutureTimeout):
+                    future.result(timeout=0.05)
+                other.execute("UPDATE tasks SET title=? WHERE id=?", ("changed", "PLAT-1"))
+                other.execute("COMMIT")
+                with pytest.raises(StateError, match="participant_inventory_changed"):
+                    future.result(timeout=2)
+            finally:
+                if other.in_transaction:
+                    other.execute("ROLLBACK")
+                if not future.done():
+                    future.result(timeout=2)
+        assert store.get_decision(request["name"])["version"] == 1
+        assert store.get_decision(request["name"])["body"]["status"] == "prepared"
+        assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+    finally:
+        store.db.set_trace_callback(None)
+        if other.in_transaction:
+            other.execute("ROLLBACK")
+        other.close()
 
 
 def test_contract_review_raw_result_is_replayed_after_store_reopen(store, tmp_path):
@@ -518,7 +635,7 @@ def test_contract_review_ack_race_preserves_response_without_second_ack(store):
     assert any("was acknowledged" in item for item in finished["body"]["blocking_reasons"])
 
 
-def test_contract_review_after_activation_is_terminal_blocked(store):
+def test_contract_review_after_activation_cannot_start_dispatch(store):
     request = prepare_review(store)
     body = request["body"]
     attempt = store.claim("EXP-1", "synthetic", 30)
@@ -529,20 +646,11 @@ def test_contract_review_after_activation_is_terminal_blocked(store):
     store.acknowledge_contract_transition("sample", 2, "Experience", body["contract_hash"])
     store.acknowledge_contract_transition("sample", 2, "Platform", body["contract_hash"])
     store.activate_contract_transition("sample", 2)
-    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
-    store.record_contract_review_session(
-        body["request_id"],
-        body["packet_hash"],
-        "thread-1",
-        "gpt-6.1-sol",
-        body["dispatch_id"],
-        {"pid": 123, "birth": "synthetic-birth"},
-    )
-    result = review_result()
-    finished = finish_recorded_review(store, body, result)
-    assert finished["body"]["status"] == "blocked"
-    assert finished["body"]["model_result"] == result
-    assert any("source version changed" in item for item in finished["body"]["blocking_reasons"])
+    with pytest.raises(StateError, match="source_version_changed"):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    assert store.get_decision(request["name"])["version"] == 1
+    assert store.get_decision(request["name"])["body"]["status"] == "prepared"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is not None
 
 
 def test_contract_review_result_limits_reject_unbounded_output(store):
