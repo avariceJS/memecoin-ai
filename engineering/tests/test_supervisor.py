@@ -890,6 +890,100 @@ class SupervisorTests(unittest.TestCase):
         self.assertNotIn("tokens", self.db.usage_summary()["total"])
         self.assertEqual(self.db.usage_summary()["total"].get("sol_turns"), 1)
 
+    def test_lead_decision_parser_rejects_ambiguous_and_malformed_contracts(self):
+        approved = {
+            "decision": "approve",
+            "worker_brief": "bounded",
+            "rationale": "reviewed",
+            "contract_acks": [],
+        }
+        blocked = {**approved, "decision": "blocked"}
+        self.assertEqual(supervisor.parse_lead_decision(json.dumps(approved)), approved)
+        self.assertEqual(
+            supervisor.parse_lead_decision("```json\n" + json.dumps(blocked) + "\n```"),
+            blocked,
+        )
+        invalid = (
+            '{"decision":"blocked","decision":"approve","worker_brief":"x",'
+            '"rationale":"x","contract_acks":[]}',
+            '{"decision":"approve","decision":"blocked","worker_brief":"x",'
+            '"rationale":"x","contract_acks":[]}',
+            '{"decision":"approve","worker_brief":"x","rationale":"x",'
+            '"contract_acks":[{"name":"schema-validation","name":"other",'
+            '"version":2,"contract_hash":"' + "a" * 64 + '"}]}',
+            '{"decision":"approve","worker_brief":"x","rationale":"x"}',
+            '{"decision":"approve","worker_brief":"x","rationale":"x",'
+            '"contract_acks":[],"extra":true}',
+            '{"decision":true,"worker_brief":"x","rationale":"x","contract_acks":[]}',
+            '{"decision":"approve","worker_brief":null,"rationale":"x","contract_acks":[]}',
+            '{"decision":"approve","worker_brief":"x","rationale":"x",'
+            '"contract_acks":[],"extra":NaN}',
+            '{"decision":"approve","worker_brief":"x","rationale":"x",'
+            '"contract_acks":[],"extra":Infinity}',
+            '{"decision":"approve","worker_brief":"x","rationale":"x",'
+            '"contract_acks":[],"extra":1e9999}',
+            "```json\n" + json.dumps(approved),
+            "```json\n" + json.dumps(approved) + "\n```\ntrailing",
+        )
+        for raw in invalid:
+            with self.subTest(raw=raw), self.assertRaises(ValueError):
+                supervisor.parse_lead_decision(raw)
+
+    def test_duplicate_lead_decision_cannot_persist_ack_or_start_worker(self):
+        self.task("T", "Platform")
+        attempt = self.db.claim("T", "worker", 100)
+        proposal = self.cfg["contracts"]["schema-validation"]
+        contract_hash = hashlib.sha256(
+            json.dumps(proposal, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        raw = (
+            '{"decision":"blocked","decision":"approve","worker_brief":"bounded",'
+            '"rationale":"conflicting decisions","contract_acks":[{"name":'
+            '"schema-validation","version":2,"contract_hash":"' + contract_hash + '"}]}'
+        )
+        FakeCodex.response = raw
+        roles = []
+        git_calls = []
+
+        def fake_metered_client(*_args, **kwargs):
+            roles.append(kwargs["context"]["role"])
+            return FakeCodex()
+
+        def fake_git(_repo, *args):
+            git_calls.append(args)
+            return "base"
+
+        with (
+            patch.object(supervisor, "metered_client", side_effect=fake_metered_client),
+            patch.object(supervisor, "runner", return_value=MagicMock()),
+            patch.object(supervisor, "git", side_effect=fake_git),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+
+        self.assertEqual(roles, ["lead"])
+        stages = [
+            event["body"]["session"]["stage"]
+            for event in self.db.events()
+            if event["kind"] == "session_stage_recorded"
+        ]
+        self.assertEqual(stages, ["lead"])
+        self.assertEqual(self.db.get_task("T")["state"], "failed")
+        self.assertEqual(self.db.list_attempts("T")[0]["state"], "failed")
+        self.assertEqual(self.db.get_decision("circuit/controller-parse")["body"]["status"], "open")
+        self.assertEqual(
+            self.db.get_decision("recovery-obligation/controller-parse")["body"]["status"],
+            "open",
+        )
+        self.assertIsNone(self.db.get_decision("lead-T"))
+        self.assertIsNone(
+            self.db.get_decision(self.db._contract_ack_key("schema-validation", 2, "Platform"))
+        )
+        self.assertTrue((self.state / "attempts" / str(attempt["id"]) / "lead-raw.json").is_file())
+        self.assertFalse((self.state / "attempts" / str(attempt["id"]) / "lead.json").exists())
+        self.assertEqual(self.db.usage_summary()["total"].get("sol_turns"), 1)
+        self.assertFalse(any("commit" in args for args in git_calls))
+
     def test_malformed_worker_output_opens_circuit_before_commit(self):
         self.task()
         attempt = self.db.claim("T", "worker", 100)

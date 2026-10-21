@@ -171,6 +171,73 @@ def parse_independent_review_decision(text):
     return decision
 
 
+class LeadDecisionError(ValueError):
+    """The team lead returned an ambiguous or malformed decision."""
+
+
+def _unique_lead_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise LeadDecisionError("lead_result_duplicate_key")
+        result[key] = value
+    return result
+
+
+def _reject_lead_constant(_value):
+    raise LeadDecisionError("lead_result_nonstandard_number")
+
+
+def _finite_lead_float(value):
+    number = float(value)
+    if not math.isfinite(number):
+        raise LeadDecisionError("lead_result_nonstandard_number")
+    return number
+
+
+def parse_lead_decision(text):
+    """Require one exact, unambiguous lead response before ACK or worker admission."""
+    if type(text) is not str:
+        raise LeadDecisionError("lead_result_invalid_text")
+    value = text.strip()
+    if value.startswith("```"):
+        lines = value.splitlines()
+        opener = lines[0].strip() if lines else ""
+        valid_opener = opener == "```" or (
+            opener.startswith("```") and opener[3:].lower() == "json"
+        )
+        if len(lines) < 3 or not valid_opener or lines[-1].strip() != "```":
+            raise LeadDecisionError("lead_result_invalid_fence")
+        value = "\n".join(lines[1:-1])
+    try:
+        plan = json.loads(
+            value,
+            object_pairs_hook=_unique_lead_object,
+            parse_constant=_reject_lead_constant,
+            parse_float=_finite_lead_float,
+        )
+    except LeadDecisionError:
+        raise
+    except (json.JSONDecodeError, ValueError, RecursionError):
+        raise LeadDecisionError("lead_result_invalid_json") from None
+    if type(plan) is not dict or set(plan) != {
+        "decision",
+        "worker_brief",
+        "rationale",
+        "contract_acks",
+    }:
+        raise LeadDecisionError("lead_result_shape")
+    if (
+        type(plan["decision"]) is not str
+        or plan["decision"] not in ("approve", "blocked")
+        or type(plan["worker_brief"]) is not str
+        or type(plan["rationale"]) is not str
+        or type(plan["contract_acks"]) is not list
+    ):
+        raise LeadDecisionError("lead_result_shape")
+    return plan
+
+
 def _configured_contract_transitions(cfg, db):
     """Persist exact configured proposals and retain their current publication state."""
     contracts = cfg.get("contracts", {})
@@ -704,15 +771,7 @@ def run_attempt(state: Path, attempt_id: int):
                     dispatch_id=f"attempt:{attempt_id}:lead",
                 )
             try:
-                plan = structured(out["text"])
-                if (
-                    not isinstance(plan, dict)
-                    or set(plan) != {"decision", "worker_brief", "rationale", "contract_acks"}
-                    or plan["decision"] not in ("approve", "blocked")
-                    or not isinstance(plan["worker_brief"], str)
-                    or not isinstance(plan["rationale"], str)
-                ):
-                    raise ValueError("lead_result_shape")
+                plan = parse_lead_decision(out["text"])
                 plan["contract_acks"] = _validate_lead_contract_acks(
                     plan["contract_acks"], team=task["team"], transitions=team_transitions
                 )

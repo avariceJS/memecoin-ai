@@ -33,17 +33,20 @@ trading, protected-data access, production or `main` changes, paid resources, or
 The sole implementation owner is successor Goal/thread
 `01a15b1c-c263-71b0-bfca-c5b46d17a89b` (`gpt-6-luna/high`). On 2026-10-21 the founder explicitly
 confirmed that the temporary audit hold is complete and autonomous source work continues under this
-same Goal. Current native readback confirms this same Goal is `active`; preserve its identity,
-history, counters and durable state, and do not create a replacement or competing owner. The earlier
-`paused` readback was a prior state, not a current control-plane limitation. This source authority
-does not grant operational release or runtime authority.
-Predecessor Goal/thread
-`01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` remains blocked and preserved after repeated A03 research;
-the native Goal API cannot resume a blocked Goal. The founder authorized exactly one successor because
-of that API limit. Preserve the predecessor's counters, checkpoints, prior decisions and all six pilot
-failures. The Astra audit thread has no Goal. Continue bounded A05/A10/A04 source development and
-verification under the resumption limits; do not create another Goal, coordinator or worker team. The
-successor Goal is recorded in the external resumption handoff.
+same Goal. Latest native readback still reports this Goal as `paused`; the available Goal API can read
+and update status but cannot resume it. Preserve its identity, history, counters and durable state,
+and do not create a replacement or competing owner. The founder's explicit continuation instruction
+authorizes source work to proceed while the native Goal record remains paused. The earlier blocked
+predecessor `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` and its history remain preserved; it is not the
+current implementation owner. The Astra audit thread has no Goal. Continue bounded A05/A10/A04 source
+development and verification under the resumption limits; do not create another Goal, coordinator or
+worker team. This source authority does not grant operational release or runtime authority.
+
+Latest source checkpoint on 2026-10-21: the lead decision parser rejects duplicate JSON keys,
+non-finite numbers and malformed fences before recording a lead result, persisting contract ACKs or
+admitting a worker. Sol accepted the exact source diff; `make engineering-release-check` passed Ruff,
+format, 576 tests and 185 subtests. Provider authenticity, usage settlement and operational
+qualification remain separate gates.
 
 Independent Sol technical lead `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`
 (`gpt-6.1-sol/high`) verified the current checkout, selected private evidence hashes, pilot STOP,
