@@ -830,6 +830,77 @@ def test_supervisor_transition_overflow_keeps_processing_other_configured_contra
     )
 
 
+def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store, tmp_path):
+    integrate_producer(store, "EXP-1")
+    integrate_producer(store, "EXP-2")
+    sample_proposal = {
+        "schema": "v2",
+        "version": 2,
+        "producer": "Experience",
+        "producer_task_id": "EXP-1",
+        "consumers": ["Platform"],
+    }
+    other_proposal = {
+        "schema": "other-v2",
+        "version": 2,
+        "producer": "Experience",
+        "producer_task_id": "EXP-2",
+        "consumers": ["Platform"],
+    }
+    store.put_contract("z-other", 1, {"schema": "other-v1"})
+    transitions = {
+        "sample": store.propose_contract_transition(
+            "sample",
+            1,
+            2,
+            sample_proposal,
+            producer_task_id="EXP-1",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        ),
+        "z-other": store.propose_contract_transition(
+            "z-other",
+            1,
+            2,
+            other_proposal,
+            producer_task_id="EXP-2",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        ),
+    }
+    for name in ("sample", "z-other"):
+        store.acknowledge_contract_transition(
+            name, 2, "Experience", transitions[name]["body"]["contract_hash"]
+        )
+    store.acknowledge_contract_transition(
+        "z-other", 2, "Platform", transitions["z-other"]["body"]["contract_hash"]
+    )
+    store.db.execute(
+        "INSERT INTO decisions VALUES(?,?,?,?,?)",
+        ("contract-review/malformed-id", 1, "{}", None, None),
+    )
+
+    cfg = {"contracts": {"sample": sample_proposal, "z-other": other_proposal}}
+    with (
+        patch.object(supervisor, "config", return_value=cfg),
+        patch.object(supervisor, "log_event") as log_event,
+        patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
+        patch.object(
+            supervisor,
+            "metered_client",
+            side_effect=AssertionError("provider must not start"),
+        ),
+    ):
+        supervisor.activate_contract(tmp_path, store)
+
+    assert store.get_contract("sample")["version"] == 1
+    assert store.get_contract("z-other")["version"] == 2
+    assert any(
+        call.args[1] == "contract_review_replay_failed" and call.kwargs.get("name") == "sample"
+        for call in log_event.call_args_list
+    )
+
+
 def test_contract_review_replay_sweep_overflow_performs_no_partial_replay(store):
     request = prepare_review(store)
     body = request["body"]

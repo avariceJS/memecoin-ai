@@ -1100,25 +1100,38 @@ def activate_contract(state, db):
     """Reconcile configured contract transitions without coupling names or versions."""
     transitions = _configured_contract_transitions(config(state), db)
     for transition in transitions:
-        replay = db.replay_contract_review_responses_for_transition(
-            transition["name"],
-            transition["version"],
-            transition["body"]["contract_hash"],
-        )
-        if replay["overflow"] or replay["failures"] or replay["replayed"]:
+        try:
+            replay = db.replay_contract_review_responses_for_transition(
+                transition["name"],
+                transition["version"],
+                transition["body"]["contract_hash"],
+            )
+        except StateError as exc:
             log_event(
                 state,
-                "contract_review_replay_reconciled",
+                "contract_review_replay_failed",
                 name=transition["name"],
                 version=transition["version"],
                 contract_hash=transition["body"]["contract_hash"],
-                response_recorded_count=replay["response_recorded_count"],
-                replayed=replay["replayed"],
-                failures=replay["failures"],
-                overflow=replay["overflow"],
-                dispatch_authority=replay["dispatch_authority"],
-                provider_dispatch=replay["provider_dispatch"],
+                error=str(exc)[:256],
+                dispatch_authority=False,
+                provider_dispatch=False,
             )
+        else:
+            if replay["overflow"] or replay["failures"] or replay["replayed"]:
+                log_event(
+                    state,
+                    "contract_review_replay_reconciled",
+                    name=transition["name"],
+                    version=transition["version"],
+                    contract_hash=transition["body"]["contract_hash"],
+                    response_recorded_count=replay["response_recorded_count"],
+                    replayed=replay["replayed"],
+                    failures=replay["failures"],
+                    overflow=replay["overflow"],
+                    dispatch_authority=replay["dispatch_authority"],
+                    provider_dispatch=replay["provider_dispatch"],
+                )
         try:
             activated = db.activate_contract_transition(transition["name"], transition["version"])
         except StateError as exc:
