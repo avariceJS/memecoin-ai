@@ -593,6 +593,27 @@ class LifecycleStoreTests(unittest.TestCase):
         receipt = self.store.record_lifecycle_evaluation(lease, launch_observations())
         self.assertEqual(receipt["body"]["plan"]["action"], "launch_request")
 
+    def test_controller_parse_history_version_summary_handles_long_contiguous_journal(self):
+        name = "circuit/controller-parse"
+        self.store.db.executemany(
+            "INSERT INTO decisions(name,version,body,replaces,replaces_version) VALUES(?,?,?,?,?)",
+            [
+                (
+                    name,
+                    version,
+                    "{}",
+                    None if version == 1 else name,
+                    None if version == 1 else version - 1,
+                )
+                for version in range(1, 1001)
+            ],
+        )
+
+        self.assertEqual(self.store._lifecycle_decision_versions(name), 1000)
+        self.store.db.execute("DELETE FROM decisions WHERE name=? AND version=?", (name, 500))
+        with self.assertRaisesRegex(StateError, "controller_parse_recovery_history_invalid"):
+            self.store._lifecycle_decision_versions(name)
+
     def test_controller_parse_recovery_rejects_broken_journal_links(self):
         lease = self.store.claim_lifecycle_owner("owner")
         for recovery_index in (1, 2):

@@ -3176,24 +3176,37 @@ class Store:
             raise StateError("lifecycle_clock_invalid")
         return float(now)
 
-    def _lifecycle_decision_versions(self, name: str) -> list[int]:
-        rows = self.db.execute(
-            "SELECT version,CASE "
+    def _lifecycle_decision_versions(self, name: str) -> int:
+        row = self.db.execute(
+            "SELECT COUNT(*) AS version_count,MIN(version) AS first_version,"
+            "MAX(version) AS last_version,"
+            "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) "
+            "AS invalid_versions,SUM(CASE "
             "WHEN typeof(version)='integer' AND version=1 "
-            "AND replaces IS NULL AND replaces_version IS NULL THEN 1 "
+            "AND replaces IS NULL AND replaces_version IS NULL THEN 0 "
             "WHEN typeof(version)='integer' AND version>1 "
             "AND typeof(replaces)='text' AND replaces=name "
-            "AND typeof(replaces_version)='integer' AND replaces_version=version-1 THEN 1 "
-            "ELSE 0 END AS links_valid "
-            "FROM decisions WHERE name=? ORDER BY version",
+            "AND typeof(replaces_version)='integer' AND replaces_version=version-1 THEN 0 "
+            "ELSE 1 END) AS invalid_links "
+            "FROM decisions WHERE name=?",
             (name,),
-        ).fetchall()
-        versions = [row["version"] for row in rows]
-        if versions != list(range(1, len(versions) + 1)) or any(
-            row["links_valid"] != 1 for row in rows
+        ).fetchone()
+        count = row["version_count"]
+        if type(count) is not int:
+            raise StateError("controller_parse_recovery_history_invalid")
+        if count == 0:
+            return 0
+        first, last = row["first_version"], row["last_version"]
+        if (
+            row["invalid_versions"] != 0
+            or row["invalid_links"] != 0
+            or type(first) is not int
+            or type(last) is not int
+            or first != 1
+            or last != count
         ):
             raise StateError("controller_parse_recovery_history_invalid")
-        return versions
+        return count
 
     def _lifecycle_owner_history_head(self) -> int | None:
         """Validate owner version continuity with constant Python-side memory."""
@@ -3436,11 +3449,11 @@ class Store:
         """
         circuit_name = "circuit/controller-parse"
         obligation_name = "recovery-obligation/controller-parse"
-        circuit_versions = self._lifecycle_decision_versions(circuit_name)
-        obligation_versions = self._lifecycle_decision_versions(obligation_name)
-        if not circuit_versions and not obligation_versions:
+        circuit_version_count = self._lifecycle_decision_versions(circuit_name)
+        obligation_version_count = self._lifecycle_decision_versions(obligation_name)
+        if not circuit_version_count and not obligation_version_count:
             return
-        if not circuit_versions or circuit_versions != obligation_versions:
+        if not circuit_version_count or circuit_version_count != obligation_version_count:
             raise StateError("controller_parse_recovery_history_invalid")
 
         def valid_open_pair(circuit_body: Any, obligation_body: Any) -> bool:
@@ -3527,7 +3540,7 @@ class Store:
             )
 
         previous_status = None
-        for version in circuit_versions:
+        for version in range(1, circuit_version_count + 1):
             circuit = self.get_decision(circuit_name, version)
             obligation = self.get_decision(obligation_name, version)
             if circuit is None or obligation is None:
