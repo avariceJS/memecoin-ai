@@ -18,6 +18,11 @@ automatically.
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
+- Latest A10 source checkpoint: `906a863` caps the default contract-review history fetch at six rows,
+  so overlong histories reject before unbounded Python row hydration. Sol accepted the exact diff;
+  focused regression passed. Ruff passed; the full gate reported 508 passes and 105 subtests, with
+  one unrelated macOS running-code-identity deadline failure that recurred in isolation. Legacy
+  body/link bytes and SQLite execution work remain unbounded; A03 and broad A10 remain open.
 - Latest A10 source checkpoint: `342f6ca` strictly decodes review-history body/link bytes with the
   SQLite database encoding. Malformed UTF-8 remains transition-isolated; multi-version UTF-16le
   records work, and BLOB-typed links reject in both readers. Sol-6.1 High accepted exact diff

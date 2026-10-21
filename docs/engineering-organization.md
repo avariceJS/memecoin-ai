@@ -436,6 +436,15 @@ path, and reject byte-identical BLOB links. Sol-6.1 High accepted exact diff
 passed Ruff, 509 tests and 105 subtests. This does not bound default-reader hydration, SQLite work,
 provider provenance, A03 or broad A10.
 
+The follow-up default contract-review reader query now returns at most six history rows before the
+existing five-version integrity check, bounding Python row hydration for malformed overlong histories.
+The regression inserts 1,000 versions and confirms the default path issues the limited query without
+JSON hydration. Legacy valid body and link sizes, SQLite work, provider provenance, A03 and broad A10
+remain unbounded. Sol accepted exact source diff `5f00db5162a448399e4a7116517eb94bc4794b7c601910635c326bec683c5352`.
+The focused regression passed. The engineering gate passed Ruff and reported 508 passed/105 subtests,
+with one unrelated macOS running-code-identity deadline failure; an isolated rerun hit the same
+deadline failure.
+
 At `9e6cd7e`, transition-scoped replay discovers review journals through a partial expression index
 on the exact contract name, version, contract hash and proposal digest. It validates each matching
 journal's full append-only history, then applies the existing cap only to latest `response_recorded`
