@@ -6,12 +6,16 @@ import copy
 import hashlib
 import json
 import os
+import stat
 import subprocess
+import sys
+from unittest.mock import patch
 
 import pytest
 
+from engineering import supervisor
 from engineering.contract_review_cycle import process_pending_reviews
-from engineering.git_gate import GitGate, VerificationPolicy
+from engineering.git_gate import GitGate
 from engineering.org_state import StateError, Store
 from engineering.research_protocol import (
     CONTRACT_NAME,
@@ -26,6 +30,7 @@ from engineering.tests.test_task_spec_store import (
     SCOPE,
     SPEC,
 )
+from engineering.verification_plan import prepare_verification_plan
 
 
 def protocol():
@@ -64,10 +69,36 @@ def protocol():
     }
 
 
-def integrate_cortex_producer(store, tmp_path, declared_protocol):
-    integration = tmp_path / "integration"
+def cortex_controller_config(declared_protocol):
+    return {
+        "python": sys.executable,
+        "contracts": {
+            CONTRACT_NAME: {
+                "version": 2,
+                "producer": "Cortex",
+                "producer_task_id": "CORTEX-001",
+                "consumers": ["Evaluation"],
+                "proposal_body": declared_protocol,
+            }
+        },
+        "tasks": {"CORTEX-001": {"checks": []}},
+    }
+
+
+def integrate_cortex_producer(store, state, declared_protocol, cfg):
+    integration = state / "integration"
     integration.mkdir()
-    worker = tmp_path / "worker"
+    store.add_task(
+        "CORTEX-001",
+        "Cortex",
+        "Publish protocol contract",
+        scope=["src/cortex_protocol.py"],
+    )
+    attempt = store.claim("CORTEX-001", "synthetic-cortex-producer", 30)
+    worker = state / "attempts" / str(attempt["id"]) / "checkout"
+    task = store.get_task("CORTEX-001")
+    plan = prepare_verification_plan(state, store, task, cfg)
+    assert plan.execution_qualified
     git_env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     git_env.update(
         {
@@ -100,7 +131,8 @@ def integrate_cortex_producer(store, tmp_path, declared_protocol):
     git(integration, "commit", "-m", "synthetic base")
     base = git(integration, "rev-parse", "HEAD")
     git(integration, "update-ref", GitGate.ACTIVE_REF, base)
-    git(tmp_path, "clone", str(integration), str(worker))
+    worker.parent.mkdir(parents=True)
+    git(state, "clone", str(integration), str(worker))
     git(worker, "config", "user.name", "synthetic-worker")
     git(worker, "config", "user.email", "worker@example.invalid")
     source = worker / "src" / "cortex_protocol.py"
@@ -109,8 +141,7 @@ def integrate_cortex_producer(store, tmp_path, declared_protocol):
     git(worker, "add", "-A")
     git(worker, "commit", "-m", "publish synthetic Cortex protocol contract")
     submitted = git(worker, "rev-parse", "HEAD")
-    policy = VerificationPolicy((("synthetic-protocol-check",),), policy_id="cortex-protocol")
-    gate = GitGate(integration, integration, policy, tmp_path / "receipts")
+    gate = GitGate(integration, integration, plan.policy, state / "receipts")
     candidate = gate.submit(worker, submitted, base, ["src/cortex_protocol.py"])
     receipt = gate.verify(
         candidate,
@@ -124,13 +155,6 @@ def integrate_cortex_producer(store, tmp_path, declared_protocol):
     )
     gate.publish(candidate, receipt.digest, base)
 
-    store.add_task(
-        "CORTEX-001",
-        "Cortex",
-        "Publish protocol contract",
-        scope=["src/cortex_protocol.py"],
-    )
-    attempt = store.claim("CORTEX-001", "synthetic-cortex-producer", 30)
     intent = {
         "task": "CORTEX-001",
         "submitted_sha": candidate.submitted_sha,
@@ -140,24 +164,35 @@ def integrate_cortex_producer(store, tmp_path, declared_protocol):
         "expected_tip": base,
         "receipt": receipt.digest,
     }
-    store.submit(attempt["id"], attempt["epoch"], candidate.submitted_sha, {})
+    evidence = {
+        "checkout": str(worker),
+        "base": base,
+        "verification_plan": plan.identity(),
+    }
+    store.submit(attempt["id"], attempt["epoch"], candidate.submitted_sha, evidence)
     store.verify("CORTEX-001", candidate.submitted_sha, True, intent)
     store.accept("CORTEX-001", candidate.submitted_sha)
     store.integrate("CORTEX-001", candidate.submitted_sha, candidate.sha, intent)
-    return candidate.submitted_sha, receipt.digest
+    return candidate.submitted_sha, candidate.sha, receipt.digest, base
 
 
 class SyntheticResearchProtocolReview:
-    def __init__(self, expected_protocol, expected_hash):
+    def __init__(self, expected_protocol, expected_hash, source_commit, receipt_sha):
         self.expected_protocol = expected_protocol
         self.expected_hash = expected_hash
+        self.source_commit = source_commit
+        self.receipt_sha = receipt_sha
         self.reviewed_teams = []
+        self.started_teams = []
 
     def start(self, request):
         body = request["body"]
         assert body["packet"]["proposed_contract"] == self.expected_protocol
         assert body["contract_hash"] == self.expected_hash
+        assert body["packet"]["source_commit"] == self.source_commit
+        assert body["packet"]["evidence_refs"] == ["git-receipt:" + self.receipt_sha]
         assert body["team"] in {"Cortex", "Evaluation"}
+        self.started_teams.append(body["team"])
         return {
             "thread_id": "synthetic-protocol-review-" + body["team"],
             "model": "synthetic-reviewer",
@@ -227,8 +262,41 @@ def test_protocol_transition_requires_cortex_producer_and_evaluation_consumer(tm
         store.close()
 
 
+def test_controller_cortex_wrapper_separates_body_from_participant_metadata(tmp_path):
+    store = Store(tmp_path / "org.sqlite")
+    try:
+        store.put_contract(
+            CONTRACT_NAME,
+            1,
+            {
+                "schema": "brain-cortex-research-protocol-unreviewed-v1",
+                "version": 1,
+                "status": "unreviewed_baseline",
+            },
+        )
+        value = protocol()
+        cfg = cortex_controller_config(value)
+        transitions = supervisor._configured_contract_transitions(cfg, store)
+        assert len(transitions) == 1
+        transition = transitions[0]["body"]
+        assert transition["body"] == value
+        assert transition["contract_hash"] == protocol_sha256(value, version=2)
+        assert transition["producer_team"] == "Cortex"
+        assert transition["consumer_teams"] == ["Evaluation"]
+
+        bad = copy.deepcopy(cfg)
+        bad["contracts"][CONTRACT_NAME]["unexpected"] = "must fail closed"
+        with pytest.raises(StateError, match="contract configuration invalid"):
+            supervisor._configured_contract_transitions(bad, store)
+        assert store.get_contract_transition(CONTRACT_NAME, 2)["body"] == transition
+    finally:
+        store.close()
+
+
 def test_reviewed_protocol_is_admitted_by_exact_hash_after_reopen(tmp_path):
-    path = tmp_path / "org.sqlite"
+    state = tmp_path / "controller"
+    state.mkdir()
+    path = state / "org.sqlite"
     store = Store(path)
     store.add_objective("offline-brain-engineering", "Synthetic Cortex organization test")
     store.put_contract(
@@ -242,46 +310,99 @@ def test_reviewed_protocol_is_admitted_by_exact_hash_after_reopen(tmp_path):
     )
     value = protocol()
     expected_hash = protocol_sha256(value, version=2)
-    store.propose_contract_transition(
-        CONTRACT_NAME,
-        1,
-        2,
-        value,
-        producer_task_id="CORTEX-001",
-        producer_team="Cortex",
-        consumer_teams=["Evaluation"],
+    cfg = cortex_controller_config(value)
+    with patch.object(supervisor, "config", return_value=cfg):
+        supervisor._configured_contract_transitions(cfg, store)
+    submitted_sha, published_sha, receipt_sha, _base = integrate_cortex_producer(
+        store, state, value, cfg
     )
-    producer_sha, receipt_sha = integrate_cortex_producer(store, tmp_path, value)
-    review_transport = SyntheticResearchProtocolReview(value, expected_hash)
-    for team in ("Cortex", "Evaluation"):
-        evidence_revision = hashlib.sha256(
-            f"synthetic:{team}:{expected_hash}:{producer_sha}:{receipt_sha}".encode()
-        ).hexdigest()
-        store.prepare_contract_review(
-            CONTRACT_NAME,
-            2,
-            team,
-            evidence_revision,
-            {
-                "source_commit": producer_sha,
-                "evidence_refs": [{"ref": "git-receipt:" + receipt_sha, "sha256": receipt_sha}],
-                "compatibility_analysis": "Review the exact synthetic preregistration body.",
-                "migration_plan": None,
-            },
+    review_transport = SyntheticResearchProtocolReview(
+        value, expected_hash, published_sha, receipt_sha
+    )
+    with patch.object(supervisor, "config", return_value=cfg):
+        request_ids = supervisor.activate_contract(state, store)
+        assert len(request_ids) == 2
+
+        def dispatch_guard(request):
+            supervisor._contract_review_dispatch_guard(state, store, cfg, request)
+
+        def process_one():
+            return process_pending_reviews(
+                store,
+                review_transport,
+                limit=1,
+                allowed_request_ids=request_ids,
+                dispatch_guard=dispatch_guard,
+            )
+
+        receipt_path = state / "receipts" / f"{receipt_sha}.json"
+        receipt_bytes = receipt_path.read_bytes()
+        cfg["tasks"]["CORTEX-001"]["checks"] = [["/bin/false"]]
+        stale_plan = process_one()
+        assert stale_plan["transport_invocations"] == 0
+        assert stale_plan["failures"]
+        cfg["tasks"]["CORTEX-001"]["checks"] = []
+
+        receipt_mode = stat.S_IMODE(receipt_path.stat().st_mode)
+        receipt_path.chmod(receipt_mode | stat.S_IWUSR)
+        receipt_path.write_bytes(b"tampered receipt")
+        stale_receipt = process_one()
+        assert stale_receipt["transport_invocations"] == 0
+        assert stale_receipt["failures"]
+        receipt_path.write_bytes(receipt_bytes)
+        receipt_path.chmod(receipt_mode)
+
+        (state / "STOP").touch()
+        stopped = process_one()
+        assert stopped["transport_invocations"] == 0
+        assert stopped["failures"]
+        assert review_transport.started_teams == []
+        (state / "STOP").unlink()
+
+        with patch.object(
+            store,
+            "replay_contract_review_response",
+            side_effect=RuntimeError("synthetic interruption after response custody"),
+        ):
+            interrupted_review = process_one()
+        assert interrupted_review["failures"]
+        assert len(review_transport.started_teams) == 1
+        first_team = review_transport.started_teams[0]
+        first_request_id = next(
+            request_id
+            for request_id in request_ids
+            if store.get_contract_review_request(request_id)["body"]["team"] == first_team
         )
-    with pytest.raises(StateError, match="acknowledgements incomplete"):
-        store.activate_contract_transition(CONTRACT_NAME, 2)
-    first_review = process_pending_reviews(store, review_transport, limit=1)
-    assert len(first_review["processed"]) == 1
-    with pytest.raises(StateError, match="acknowledgements incomplete"):
-        store.activate_contract_transition(CONTRACT_NAME, 2)
-    second_review = process_pending_reviews(store, review_transport, limit=1)
-    assert len(second_review["processed"]) == 1
-    assert sorted(review_transport.reviewed_teams) == ["Cortex", "Evaluation"]
-    activated = store.activate_contract_transition(CONTRACT_NAME, 2)
-    assert activated["body"]["acknowledged_teams"] == ["Cortex", "Evaluation"]
-    assert store.get_contract(CONTRACT_NAME, 2)["body"] == value
-    assert store.get_integration("CORTEX-001")["candidate_sha"] == producer_sha
+        assert store.get_contract_review_response(first_request_id)["raw_result"]
+        assert store.get_decision(
+            store._contract_ack_key(CONTRACT_NAME, 2, first_team)
+        ) is None
+        store.close()
+        store = Store(path)
+        replayed_ids = supervisor.activate_contract(state, store)
+        assert replayed_ids == request_ids
+        assert store.get_decision(store._contract_ack_key(CONTRACT_NAME, 2, first_team)) is not None
+        assert len(review_transport.started_teams) == 1
+
+        second_review = process_pending_reviews(
+            store,
+            review_transport,
+            limit=1,
+            allowed_request_ids=request_ids,
+            dispatch_guard=lambda request: supervisor._contract_review_dispatch_guard(
+                state, store, cfg, request
+            ),
+        )
+        assert len(second_review["processed"]) == 1
+        store.close()
+        store = Store(path)
+        supervisor.activate_contract(state, store)
+        assert sorted(review_transport.reviewed_teams) == ["Cortex", "Evaluation"]
+        assert store.get_contract(CONTRACT_NAME, 2)["body"] == value
+        integration = store.get_integration("CORTEX-001")
+        assert integration["candidate_sha"] == submitted_sha
+        assert integration["integration_sha"] == published_sha
+        assert integration["details"]["receipt"] == receipt_sha
 
     wrong_digest = "0" * 64
     spec = copy.deepcopy(SPEC)

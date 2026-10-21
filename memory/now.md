@@ -1,12 +1,18 @@
 # Current state — 2026-10-22
 
-Latest Cortex source-only increment: strict metadata protocol contracts now flow through the reviewed
-A10 v2 transition (integrated Cortex producer, exact Cortex/Evaluation ACKs) into task-spec admission.
-Objective, role-pin timing, population text hash and protocol digest are revalidated; only offline-code
-and synthetic-test capabilities are allowed. Cortex specs are held from `ready_tasks`/`claim` until
-A04 qualification. Sol accepted; the gate passes 675 tests and 193 subtests. The integration/reviews
-are synthetic; reviewer identity, artifact pins and preregistration-before-evaluation-read timing are
-not proven. No Brain training, scoring, pipeline or artifact writer ran.
+Latest published Cortex checkpoint `56e90de`: strict metadata protocol contracts flow through reviewed A10 v2
+(integrated Cortex producer, exact Cortex/Evaluation ACKs) into task-spec admission. Objective,
+role-pin timing, population hash and protocol digest are revalidated; only offline-code and
+synthetic-test capabilities are allowed. Cortex specs remain held until A04 qualification. Sol
+accepted the follow-up regression: disposable GitGate/CAS plus separately advanced Store identities,
+then two durable participant reviews via injected synthetic transport. The follow-up controller
+increment is accepted by Sol and locally gate-passed: Cortex protocol bytes are separated from
+participant metadata; supervisor source/dispatch checks bind candidate, plan, receipt and STOP; a
+response-custody interruption reopens SQLite and replays the ACK without resend. Store integration
+remains fixture-driven and review dispatch bypasses the idle loop. Latest
+`make engineering-release-check` passes Ruff/format, 676 tests and 193 subtests. Cortex task specs remain
+held by A04. Artifact pins and preregistration-before-evaluation-read timing are not externally
+verified. No Brain training, scoring, pipeline or artifact writer ran.
 
 Native Luna Goal `01a15f55-903b-7de2-adec-19733734ac78` is verified `active` and remains the sole
 implementation owner on `org/development`. It is the controlled successor to paused Goal

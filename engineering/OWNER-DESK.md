@@ -87,13 +87,17 @@ Store без `controller_catalogue` остаётся совместимым; off
 2026-10-22: Добавлена metadata-only Cortex preregistration. Контракт `cortex-research-protocol` v2
 требует интегрированного Cortex producer и A10 review ACK от Cortex и Evaluation по точному телу;
 task-spec проверяет digest и objective, разрешает только `offline_code`/`synthetic_tests`.
-Допущенные Cortex specs остаются неclaimable до A04 qualification. Sol принял срез; gate:
-Ruff/format, 675 тестов и 193 subtests. GitGate выполняет CAS в одноразовом локальном репозитории,
+Допущенные Cortex specs остаются неclaimable до A04 qualification. Sol принял исходный срез и
+controller-review increment; последний gate: Ruff/format, 676 тестов и 193 subtests. GitGate
+выполняет CAS в одноразовом локальном репозитории,
 затем тест отдельно записывает в Store submitted SHA, merge SHA и intent с digest receipt; review
-requests подготавливаются напрямую и обрабатываются синтетическим transport. Controller receipt-custody/
-review-source dispatch не проверяется, reviewer identity не аутентифицирована. Artifact pins не
-проверяются извне, preregistration до чтения
-evaluation data не доказана. Обучение,
+requests теперь создаёт supervisor из проверенных Store candidate, verifier plan и GitGate receipt;
+dispatch guard перепроверяет эти связи и STOP. Crash после response custody, перезапуск SQLite и local
+ACK replay проходят без повторного transport. Producer Store интеграция остаётся fixture-driven;
+review-cycle вызывается напрямую, не через idle loop; transport и identity синтетические. Wrapper
+`proposal_body` отделяет точный protocol от participant metadata. Legacy verifier fixture не снимает
+A04: Cortex task specs остаются неclaimable. Artifact pins и preregistration до чтения evaluation data
+не доказаны. Обучение,
 scoring, pipeline и artifact writers не запускались; научная оценка не заявляется.
 
 2026-10-22: PLAT-001 Experience проходит через controller loop `supervise`: loop сам выбирает и

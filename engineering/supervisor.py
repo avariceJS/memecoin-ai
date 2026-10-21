@@ -30,6 +30,7 @@ from .git_gate import Candidate, GitGate
 from .metered_codex import metered_client
 from .org_state import (
     CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS,
+    CORTEX_RESEARCH_PROTOCOL,
     StaleAttempt,
     StateError,
     Store,
@@ -255,9 +256,26 @@ def _configured_contract_transitions(cfg, db):
     if any(type(name) is not str for name in contracts):
         raise StateError("contract configuration invalid")
     for name, proposal in contracts.items():
+        cortex_wrapper_keys = {
+            "version",
+            "producer",
+            "producer_task_id",
+            "consumers",
+            "proposal_body",
+        }
         if (
             not name.strip()
             or type(proposal) is not dict
+            or (
+                name == CORTEX_RESEARCH_PROTOCOL
+                and (
+                    set(proposal) != cortex_wrapper_keys
+                    or type(proposal.get("proposal_body")) is not dict
+                    or type(proposal.get("proposal_body", {}).get("version")) is not int
+                    or proposal["proposal_body"]["version"] != proposal.get("version")
+                    or type(proposal.get("consumers")) is not list
+                )
+            )
             or type(proposal.get("version")) is not int
             or type(proposal.get("producer")) is not str
             or not proposal["producer"].strip()
@@ -283,6 +301,15 @@ def _configured_contract_transitions(cfg, db):
         raise StateError("contract configuration invalid") from None
     pending = []
     for name, proposal in sorted(contracts.items()):
+        if name == CORTEX_RESEARCH_PROTOCOL and (
+            set(proposal) != cortex_wrapper_keys
+            or type(proposal.get("proposal_body")) is not dict
+            or type(proposal["proposal_body"].get("version")) is not int
+            or proposal["proposal_body"]["version"] != proposal.get("version")
+            or type(proposal.get("consumers")) is not list
+        ):
+            raise StateError("contract configuration invalid")
+        contract_body = proposal["proposal_body"] if name == CORTEX_RESEARCH_PROTOCOL else proposal
         if (
             not name.strip()
             or type(proposal) is not dict
@@ -312,7 +339,7 @@ def _configured_contract_transitions(cfg, db):
         try:
             already_active = current["version"] == proposal["version"] and _json(
                 current["body"]
-            ) == _json(proposal)
+            ) == _json(contract_body)
         except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
             raise StateError("contract configuration invalid") from None
         if transition is None and already_active:
@@ -351,7 +378,7 @@ def _configured_contract_transitions(cfg, db):
                     "name": name,
                     "from_version": proposal["version"] - 1,
                     "to_version": proposal["version"],
-                    "body": proposal,
+                    "body": contract_body,
                     "producer_task_id": producer_task_id,
                     "producer_team": proposal["producer"],
                     "consumer_teams": consumers,

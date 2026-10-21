@@ -2056,10 +2056,17 @@ and reviewed by both Cortex and Evaluation against the exact proposed body. Cort
 admission rechecks protocol content, objective and activation provenance and limits capabilities to
 offline code/synthetic tests; tampering, mismatched objectives and missing ACKs fail closed. Admitted
 Cortex specs remain non-claimable with `cortex_execution_not_qualified` pending A04. Sol accepted the
-bounded source diff; the release gate passes Ruff/format, 675 tests and 193 subtests. The follow-up
-regression exercises GitGate/CAS in a disposable Git repository, then separately advances Store with
-the submitted SHA, published merge SHA, and intent naming the receipt digest; it directly prepares two durable
-review requests and processes them through an injected synthetic transport. It does not run the
-controller's receipt-custody/review-source dispatch path, authenticate Evaluation, or verify external
-artifact pins or preregistration timing. This does not run generations,
+bounded source diff; the latest release gate passes Ruff/format, 676 tests and 193 subtests. The
+follow-up regression exercises GitGate/CAS in a disposable Git repository, then separately advances
+Store with the submitted SHA, published merge SHA, and intent naming the receipt digest; it directly
+prepares two durable review requests and processes them through an injected synthetic transport. The
+current regression
+uses a Cortex-only `proposal_body` controller wrapper so protocol bytes remain separate from
+participant metadata. Supervisor request preparation and dispatch guard validate the Store candidate,
+verification plan, GitGate receipt and STOP; an interruption after response custody reopens SQLite and
+locally replays the ACK without a second transport call. Store integration is fixture-driven and review
+dispatch calls the guarded review-cycle function directly, not the supervisor idle loop. The verifier
+plan is a legacy fixed-card fixture for provenance only; Cortex task specs remain non-claimable under
+A04. Evaluation identity, external artifact pins and preregistration-before-evaluation-read timing are
+not qualified. This does not run generations,
 pipeline, training, scoring, or artifact writers, and does not establish scientific acceptance.
