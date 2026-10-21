@@ -400,6 +400,25 @@ class ConfinementTests(unittest.TestCase):
         with self.assertRaises(ConfinementError):
             self.runner.run([str(PYTHON), "-c", "print('bad')"], cwd=self.task / "outside-link")
 
+    def test_environment_uses_validated_snapshot_when_caller_dict_changes(self):
+        import builtins
+
+        import engineering.confinement as confinement
+
+        overrides = {"LANG": "C"}
+
+        def mutate_after_validation(values):
+            valid = builtins.any(values)
+            overrides["LANG"] = "invalid\x00value"
+            overrides["DYLD_INSERT_LIBRARIES"] = "/tmp/injected.dylib"
+            return valid
+
+        with patch.object(confinement, "any", side_effect=mutate_after_validation, create=True):
+            environment = self.runner.environment(overrides)
+
+        self.assertEqual(environment["LANG"], "C")
+        self.assertNotIn("DYLD_INSERT_LIBRARIES", environment)
+
     def test_readonly_checkout_cwd_does_not_grant_writes(self):
         readonly = self.base / "readonly-checkout"
         readonly.mkdir()

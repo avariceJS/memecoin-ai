@@ -26,6 +26,10 @@ decisions and independent review; Astra remains episodic and is never started au
   Sol accepted exact diff `fe2e69d3b35ebb12bf6593646cc14b11dacac06d6a3a6e1989613c4832c086f1`.
   Full gate passed Ruff, format, 558 tests and 127 subtests. Filesystem replacement, output
   provenance and full A04 remain open; no runtime authority is added.
+- Latest A04 source at `208d827`: environment overrides are detached before allowlist/type checks
+  and only the validated copy reaches the verifier. Sol accepted exact diff
+  `826cee994266453afa0403cb8b9e64f6de6ccb617784e300165f0fe8ca9aadae`; full gate passed Ruff,
+  format, 559 tests and 127 subtests. Loader qualification and environment provenance remain open.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

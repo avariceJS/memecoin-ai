@@ -25,6 +25,12 @@ Sol принял exact diff `fe2e69d3b35ebb12bf6593646cc14b11dacac06d6a3a6e19896
 Ruff, format, 558 тестов и 127 subtests. Замены файлов, provenance вывода и полная квалификация A04
 остаются открыты.
 
+Ещё один A04 increment фиксирует `env_overrides` в отдельном dict до allowlist-проверки и передаёт
+дальше только эту копию. Регрессия после проверки добавляет запрещённый DYLD key и NUL в LANG;
+дочернее окружение сохраняет только исходные допустимые значения. Sol принял exact diff
+`826cee994266453afa0403cb8b9e64f6de6ccb617784e300165f0fe8ca9aadae`; полный gate: Ruff, format,
+559 тестов и 127 subtests. Loader qualification и provenance окружения остаются открыты.
+
 ## Решение директора
 
 Сохранить SQLite, журнал, fencing, изоляцию исполнителей, независимую приёмку и единственного

@@ -335,7 +335,10 @@ class SandboxRunner:
         }
         if overrides is None:
             return environment
-        if type(overrides) is not dict or set(overrides) - VERIFIER_ENV_KEYS:
+        if type(overrides) is not dict:
+            raise ConfinementError("verifier_environment_not_allowed")
+        overrides = dict(overrides)
+        if set(overrides) - VERIFIER_ENV_KEYS:
             raise ConfinementError("verifier_environment_not_allowed")
         if any(
             type(key) is not str or type(value) is not str or "\x00" in key + value

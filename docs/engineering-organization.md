@@ -1648,3 +1648,11 @@ validated script and arguments. Sol-6.1 accepted exact diff
 `fe2e69d3b35ebb12bf6593646cc14b11dacac06d6a3a6e1989613c4832c086f1`; the full gate passed Ruff,
 format, 558 tests and 127 subtests. This closes post-capture caller-list mutation only; filesystem
 replacement, output provenance and full A04 qualification remain open. No runtime authority is added.
+
+At `208d827`, `SandboxRunner.environment` copies a plain `env_overrides` dict before checking it,
+then validates and applies only the detached copy. A deterministic regression mutates the caller
+dict after validation with a NUL-containing value and a forbidden `DYLD_INSERT_LIBRARIES` key; neither
+reaches the child environment. Sol-6.1 accepted exact diff
+`826cee994266453afa0403cb8b9e64f6de6ccb617784e300165f0fe8ca9aadae`; the full gate passed Ruff,
+format, 559 tests and 127 subtests. This closes caller-dict drift only; loader qualification and
+environment provenance remain open.
