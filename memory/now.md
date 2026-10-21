@@ -46,7 +46,9 @@ exactly one hold. Missing STOP and tampered receipt fail closed. Sol accepted th
 `df12b50414bc52abe776b3d861c25aa1d3dbf67fecd6d99011dfa6d4c5fbd562d` at base `97894c8`. Full gate:
 Ruff/format, 619 tests and 189 subtests; smoke is reproducible with `edge_established=false`. This does
 not qualify host/runtime recovery; identical-byte filesystem ABA remains indistinguishable, and no
-authorization generation or lifecycle consumer exists. Continue source-only integration.
+authorization generation or lifecycle consumer exists. The full PLAT-002 integration test also calls
+the copied controller CLI against its integrated Git/contract checkpoint; the focused regression and
+full release gate pass. Continue source-only integration.
 
 `make check` still stops before later checks on 107 existing Ruff findings in `src/`, `tools/` and
 `tests/`; repository-wide pytest collection still lacks the historical PumpSwap IDL capture manifest.

@@ -12,7 +12,9 @@ durable hold и освобождения owner lease, но до readback; пов
 `make engineering-release-check`: Ruff/format, 619 тестов и 189 subtests; `make smoke` воспроизводим,
 `edge_established=false`. Это synthetic source recovery, не host/runtime qualification. Одинаковые
 байты STOP/receipt, удалённые и созданные снова между чтениями, остаются неразличимыми; authorization
-generation и lifecycle consumer отсутствуют. Продолжается source-only интеграция.
+generation и lifecycle consumer отсутствуют. Полный PLAT-002 integrated-cycle test также запускает
+CLI восстановленной копии на уже интегрированном Git/contract checkpoint; focused regression и полный
+release gate проходят. Продолжается source-only интеграция.
 
 Новый A10 recovery-срез проверен как синтетическая source-only вертикаль. Четыре дочерних процесса
 жёстко завершаются после durable dispatch intent, после сохранения session, после возврата synthetic

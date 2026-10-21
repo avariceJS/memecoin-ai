@@ -1149,6 +1149,52 @@ class SupervisorTests(unittest.TestCase):
             )
             self.assertEqual(restored_lifecycle_decision["body"]["source_snapshot"], gate_snapshot)
             self.assertTrue((restored / "STOP").is_file())
+            # Exercise the frozen restored controller CLI against this fully integrated
+            # checkpoint, not only the standalone deployment fixture used by test_service.
+            restored_cli = r"""
+import sys
+sys.path.insert(0, sys.argv[1])
+import engineering.service as service
+real_run = service.subprocess.run
+def checked_run(arguments, *args, **kwargs):
+    if type(arguments) is not list or not arguments or arguments[0] != "git":
+        raise AssertionError("unexpected process launch")
+    return real_run(arguments, *args, **kwargs)
+service.subprocess.run = checked_run
+class ForbidRuntimeImports:
+    def find_spec(self, fullname, *_args):
+        if fullname in {"engineering.supervisor", "engineering.metered_codex"}:
+            raise AssertionError("restore reconcile imported runtime code")
+sys.meta_path.insert(0, ForbidRuntimeImports())
+sys.argv = ["engineering", "restore-reconcile", "--state", sys.argv[2]]
+from engineering.__main__ import main
+main()
+"""
+            cli = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-B",
+                    "-c",
+                    restored_cli,
+                    str(restored / "controller"),
+                    str(restored),
+                ],
+                cwd=restored,
+                env={"PATH": os.environ.get("PATH", ""), "LANG": "C"},
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=10,
+            )
+            self.assertEqual(cli.returncode, 0, cli.stderr)
+            cli_result = json.loads(cli.stdout)
+            self.assertEqual(cli_result["status"], "already_held")
+            self.assertEqual(cli_result["worklist"]["count"], 1)
+            self.assertFalse(cli_result["worklist"]["dispatch_authority"])
+            self.assertFalse(cli_result["worklist"]["consumption_authority"])
+            restored_db.release_lifecycle_owner(restored_lifecycle_lease)
         finally:
             restored_db.close()
         # The passive recovery decision survives Store reopen, while a newer

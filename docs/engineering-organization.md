@@ -1917,7 +1917,8 @@ the durable hold and lease release but before readback; reopening and retrying r
 Removing STOP or tampering with the restore receipt fails closed. Sol accepted exact source/test diff
 `df12b50414bc52abe776b3d861c25aa1d3dbf67fecd6d99011dfa6d4c5fbd562d` at base `97894c8`; review
 required a fresh source recapture after lease release. The full engineering release gate passed
-Ruff/format, 619 tests and 189 subtests; smoke is reproducible with `edge_established=false`. This
-exercises only synthetic source/SQLite recovery: same-content filesystem ABA is indistinguishable,
-host/runtime recovery is unqualified, and no authorization generation or lifecycle consumer exists.
-A03 and operational acceptance remain open.
+Ruff/format, 619 tests and 189 subtests; smoke is reproducible with `edge_established=false`. The full
+PLAT-002 integrated-cycle regression also invokes the copied controller CLI against its integrated
+Git/contract checkpoint. This exercises only synthetic source/SQLite recovery: same-content filesystem
+ABA is indistinguishable, host/runtime recovery is unqualified, and no authorization generation or
+lifecycle consumer exists. A03 and operational acceptance remain open.
