@@ -33,6 +33,7 @@ class BoundVerifier:
     harness_path: Path
     interpreter_path: Path
     interpreter_sha256: str
+    harness_sha256: str
     interpreter_runtime_path: Path
     interpreter_runtime_cdhash: str
     result_schema: str
@@ -224,6 +225,7 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
                     (state / "trusted" / item["harness_path"]).resolve(strict=True),
                     Path(item["interpreter_path"]),
                     item["interpreter_sha256"],
+                    item["harness_sha256"],
                     Path(item["interpreter_runtime_path"]),
                     item["interpreter_runtime_cdhash"],
                     item["result_schema"],

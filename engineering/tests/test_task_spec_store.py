@@ -242,6 +242,9 @@ class TaskSpecStoreTests(unittest.TestCase):
             )
             self.assertEqual(plan.identity()["interpreter_path"], str(interpreter.resolve()))
             self.assertEqual(plan.bound_verifiers[0].interpreter_path, interpreter.resolve())
+            self.assertEqual(
+                plan.bound_verifiers[0].harness_sha256, binding["verifiers"][0]["harness_sha256"]
+            )
             self.assertEqual(len(plan.bound_verifiers), 1)
             self.assertEqual(plan.bound_verifiers[0].acceptance_id, "atomic-spec-store")
             self.assertEqual(plan.bound_verifiers[0].interpreter_runtime_cdhash, "d" * 40)
@@ -403,11 +406,14 @@ class TaskSpecStoreTests(unittest.TestCase):
             expected_executable_sha256=verifier.interpreter_sha256,
             expected_executable_cdhash=verifier.interpreter_runtime_cdhash,
             expected_executable_main_path=verifier.interpreter_runtime_path,
+            expected_script_sha256=verifier.harness_sha256,
+            expected_script_path=verifier.harness_path,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(result.timed_out)
         self.assertFalse(result.output_truncated)
         self.assertEqual(result.prelaunch_executable_sha256, interpreter_sha256)
+        self.assertEqual(result.prelaunch_script_sha256, verifier.harness_sha256)
         self.assertEqual(result.process_code_directory_hash, interpreter_cdhash)
         self.assertEqual(result.process_executable_path, interpreter_runtime_path)
         self.assertGreaterEqual(result.process_identity_observations, 1)

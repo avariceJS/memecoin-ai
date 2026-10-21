@@ -865,6 +865,16 @@ def verify_one(state, task):
                     if verifier is not None and verifier_command_index == 0
                     else None
                 ),
+                expected_script_sha256=(
+                    verifier.harness_sha256
+                    if verifier is not None and verifier_command_index == 0
+                    else None
+                ),
+                expected_script_path=(
+                    verifier.harness_path
+                    if verifier is not None and verifier_command_index == 0
+                    else None
+                ),
             )
             results.append(dataclasses.asdict(result))
             atomic(verify_root / "commands.json", results)

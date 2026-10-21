@@ -31,6 +31,7 @@ DYLD_SUPPORT = Path("/System/Library/Sandbox/Profiles/dyld-support.sb")
 SYSTEM_READ_ROOTS = ("/System/Library", "/usr/lib", "/usr/share", "/usr/bin", "/bin")
 VERIFIER_ENV_KEYS = frozenset({"LANG", "LC_ALL", "TZ", "PYTHONHASHSEED", "PYTHONUTF8"})
 MAX_PINNED_EXECUTABLE_BYTES = 512_000_000
+MAX_PINNED_SCRIPT_BYTES = 16_000_000
 PROCESS_CODE_IDENTITY_TIMEOUT = 2.0
 PROCESS_CODE_IDENTITY_INTERVAL = 0.1
 
@@ -50,6 +51,7 @@ class SandboxResult:
     elapsed_seconds: float
     output_truncated: bool = False
     prelaunch_executable_sha256: str | None = None
+    prelaunch_script_sha256: str | None = None
     process_code_directory_hash: str | None = None
     process_executable_path: str | None = None
     process_identity_observations: int = 0
@@ -119,6 +121,65 @@ def _prelaunch_executable_sha256(path: str | Path, expected_sha256: str) -> str:
         return actual_sha256
     except OSError as exc:
         raise ConfinementError("Pinned executable could not be verified") from exc
+    finally:
+        os.close(descriptor)
+
+
+def _prelaunch_script_sha256(path: str | Path, expected_sha256: str) -> str:
+    """Recheck the exact trusted script bytes immediately before sandbox launch."""
+    if (
+        type(expected_sha256) is not str
+        or len(expected_sha256) != 64
+        or any(char not in "0123456789abcdef" for char in expected_sha256)
+    ):
+        raise ConfinementError("Expected script digest must be lowercase SHA-256")
+    script = Path(path)
+    if not script.is_absolute():
+        raise ConfinementError("Pinned script must be an absolute canonical path")
+    try:
+        if script.resolve(strict=True) != script:
+            raise ConfinementError("Pinned script path is not canonical")
+        descriptor = os.open(script, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except ConfinementError:
+        raise
+    except OSError as exc:
+        raise ConfinementError("Pinned script is unavailable or follows a symlink") from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ConfinementError("Pinned script must be a regular file")
+        if before.st_size > MAX_PINNED_SCRIPT_BYTES:
+            raise ConfinementError("Pinned script exceeds the verification size limit")
+        digest = hashlib.sha256()
+        total = 0
+        while chunk := os.read(descriptor, 1024 * 1024):
+            total += len(chunk)
+            if total > MAX_PINNED_SCRIPT_BYTES:
+                raise ConfinementError("Pinned script exceeds the verification size limit")
+            digest.update(chunk)
+        after = os.fstat(descriptor)
+        identity_before = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        identity_after = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if identity_before != identity_after:
+            raise ConfinementError("Pinned script changed while it was being verified")
+        actual_sha256 = digest.hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise ConfinementError("Pinned script digest changed before sandbox launch")
+        return actual_sha256
+    except OSError as exc:
+        raise ConfinementError("Pinned script could not be verified") from exc
     finally:
         os.close(descriptor)
 
@@ -288,6 +349,8 @@ class SandboxRunner:
         expected_executable_sha256: str | None = None,
         expected_executable_cdhash: str | None = None,
         expected_executable_main_path: str | Path | None = None,
+        expected_script_sha256: str | None = None,
+        expected_script_path: str | Path | None = None,
     ) -> SandboxResult:
         if not argv or not all(isinstance(arg, str) and "\0" not in arg for arg in argv):
             raise ConfinementError("argv must contain non-NUL strings")
@@ -314,6 +377,20 @@ class SandboxRunner:
             prelaunch_executable_sha256 = _prelaunch_executable_sha256(
                 argv[0], expected_executable_sha256
             )
+        if (expected_script_sha256 is None) != (expected_script_path is None):
+            raise ConfinementError("Expected script digest and path must be supplied together")
+        prelaunch_script_sha256 = None
+        if expected_script_sha256 is not None:
+            expected_script_path = Path(expected_script_path)
+            if (
+                not expected_script_path.is_absolute()
+                or str(expected_script_path) != str(expected_script_path.resolve(strict=True))
+                or len(argv) < 5
+                or tuple(argv[1:4]) != ("-I", "-S", "-B")
+                or argv[4] != str(expected_script_path)
+                or argv.count(str(expected_script_path)) != 1
+            ):
+                raise ConfinementError("Pinned script invocation is invalid")
         directory = Path(cwd).resolve(strict=True)
         if not directory.is_dir() or not _inside(directory, self.writable_roots + self.read_roots):
             raise ConfinementError("cwd must be within a granted task read or writable root")
@@ -321,11 +398,16 @@ class SandboxRunner:
             raise ConfinementError("Timeout must be in (0, 3600] seconds")
         if not 1 <= max_output_bytes <= 10_000_000:
             raise ConfinementError("Output limit must be in [1, 10000000] bytes")
+        environment = self.environment(env_overrides)
         started = time.monotonic()
+        if expected_script_sha256 is not None:
+            prelaunch_script_sha256 = _prelaunch_script_sha256(
+                expected_script_path, expected_script_sha256
+            )
         with subprocess.Popen(
             [str(SANDBOX_EXEC), "-p", self.profile, *argv],
             cwd=directory,
-            env=self.environment(env_overrides),
+            env=environment,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -445,6 +527,7 @@ class SandboxRunner:
             time.monotonic() - started,
             output_truncated,
             prelaunch_executable_sha256,
+            prelaunch_script_sha256,
             process_code_directory_hash,
             process_executable_path,
             process_identity_observations,

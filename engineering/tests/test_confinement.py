@@ -168,6 +168,8 @@ class ConfinementTests(unittest.TestCase):
             cwd=checkout,
             env_overrides={"LANG": "C"},
             expected_executable_sha256=expected,
+            expected_script_sha256=hashlib.sha256(harness.read_bytes()).hexdigest(),
+            expected_script_path=harness.resolve(),
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         validate_verifier_result(
@@ -180,8 +182,22 @@ class ConfinementTests(unittest.TestCase):
             },
         )
         self.assertEqual(result.prelaunch_executable_sha256, expected)
+        harness_sha256 = hashlib.sha256(harness.read_bytes()).hexdigest()
+        self.assertEqual(result.prelaunch_script_sha256, harness_sha256)
         self.assertEqual(len(result.profile_sha256), 64)
         self.assertFalse((checkout / "__pycache__").exists())
+
+        harness.write_text("print('changed after plan resolution')\n")
+        with patch("engineering.confinement.subprocess.Popen") as launch:
+            with self.assertRaisesRegex(ConfinementError, "script digest changed"):
+                box.run(
+                    [str(pinned_python), "-I", "-S", "-B", str(harness), "synthetic-acceptance"],
+                    cwd=checkout,
+                    expected_executable_sha256=expected,
+                    expected_script_sha256=harness_sha256,
+                    expected_script_path=harness.resolve(),
+                )
+        launch.assert_not_called()
 
     def test_pinned_executable_rejects_noncanonical_and_nonexecutable_paths(self):
         from engineering.confinement import _prelaunch_executable_sha256
