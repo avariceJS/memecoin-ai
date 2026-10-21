@@ -1319,3 +1319,16 @@ source increment does not close broad A10, A03 or operational acceptance. Review
 (SHA-256 `d04e406e2cc24836e1122db376061fcbae321ddbd9ab2dbd675dba3d11f98c39`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-aggregate-projection-gate-20261021.json`
 (SHA-256 `b3ff178f171e33deeb2f75c6abff6b0a294e90a9eb3f6740a7165947e7252435`).
+
+At the next source checkpoint, configured active contracts without transition proposals now fail
+closed except for initial v1 publication and the exact supported legacy `schema-validation` v2
+publication (Experience to Platform). The legacy exception rejects orphan activation or participant
+ACK decisions. Regressions cover generic v2 and `schema-validation` v3 without proposals, a modern
+proposal deleted while ACK/activation evidence remains, and orphan evidence on the legacy identity.
+Sol-6.1 reviewed exact diff `c591abd557d89596f84b2cf605d26a28a2a517fee43d779d06bcc458affd975d`
+with no P1-P3 findings or merge blocker. Focused supervisor tests passed 52 tests/10 subtests; the
+engineering release gate passed Ruff, 474 tests and 101 subtests. This checks selected publication
+evidence keys, not a complete historical provenance audit or coherent-state proof. A03, broad A10
+and operational acceptance remain open. Gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-configured-contract-missing-transition-evidence-gate-20261021.json`
+(SHA-256 `ef68283fb4aff15941cb5361db00d8978c34861202413dfbdf8844366c0670c1`).

@@ -130,7 +130,25 @@ def _configured_contract_transitions(cfg, db):
         transition = db.get_contract_transition(name, proposal["version"])
         already_active = current["version"] == proposal["version"] and current["body"] == proposal
         if transition is None and already_active:
-            continue  # Exact legacy publication without transition evidence.
+            if proposal["version"] == 1:
+                continue  # Initial publication does not require transition evidence.
+            if (
+                name == "schema-validation"
+                and proposal["version"] == 2
+                and proposal["producer"] == "Experience"
+                and consumers == ["Platform"]
+            ):
+                transition_key = db._contract_transition_key(name, proposal["version"])
+                participant_teams = ["Experience", "Platform"]
+                orphaned = [transition_key + "/activated"]
+                orphaned.extend(
+                    db._contract_ack_key(name, proposal["version"], team)
+                    for team in participant_teams
+                )
+                if any(db.get_decision(key) is not None for key in orphaned):
+                    raise StateError("legacy contract publication has orphan transition evidence")
+                continue  # Exact supported legacy schema-validation v2 publication.
+            raise StateError("contract transition publication evidence missing")
         if not already_active and current["version"] != proposal["version"] - 1:
             raise StateError("contract transition source version is stale")
         producer_task_id = proposal.get("producer_task_id")

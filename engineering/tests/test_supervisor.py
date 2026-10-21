@@ -1150,6 +1150,114 @@ class SupervisorTests(unittest.TestCase):
         supervisor.activate_contract(self.state, self.db)
         self.assertIsNone(self.db.get_contract_transition("schema-validation", 2))
 
+    def test_initial_v1_contract_needs_no_transition_evidence(self):
+        proposal = {"version": 1, "producer": "Research", "consumer": "Platform"}
+        self.cfg["contracts"] = {"research-output": proposal}
+        self.db.put_contract("research-output", 1, proposal)
+
+        self.assertEqual(supervisor._configured_contract_transitions(self.cfg, self.db), [])
+        self.assertIsNone(self.db.get_contract_transition("research-output", 1))
+
+    def test_active_generic_contract_without_transition_fails_closed(self):
+        proposal = {"version": 2, "producer": "Research", "consumer": "Platform"}
+        self.cfg["contracts"] = {"research-output": proposal}
+        self.db.db.execute(
+            "INSERT INTO contracts(name,version,body) VALUES(?,?,?)",
+            ("research-output", 2, json.dumps(proposal, sort_keys=True, separators=(",", ":"))),
+        )
+        contracts_before = self.db.get_contract("research-output")
+        events_before = self.db.events()
+
+        with self.assertRaisesRegex(StateError, "publication evidence missing"):
+            supervisor._configured_contract_transitions(self.cfg, self.db)
+
+        self.assertEqual(self.db.get_contract("research-output"), contracts_before)
+        self.assertEqual(self.db.events(), events_before)
+        self.assertIsNone(self.db.get_contract_transition("research-output", 2))
+
+    def test_published_generic_contract_with_orphan_activation_evidence_fails_closed(self):
+        proposal = {"version": 2, "producer": "Research", "consumer": "Platform"}
+        self.cfg["contracts"] = {"research-output": proposal}
+        self.db.put_contract("research-output", 1, {"version": 1, "producer": "Research"})
+        self.candidate("RESEARCH-1", target_state="integrated", team="Research")
+        transition = self.db.propose_contract_transition(
+            "research-output",
+            1,
+            2,
+            proposal,
+            producer_task_id="RESEARCH-1",
+            producer_team="Research",
+            consumer_teams=["Platform"],
+        )
+        digest = transition["body"]["contract_hash"]
+        self.db.acknowledge_contract_transition("research-output", 2, "Research", digest)
+        self.db.acknowledge_contract_transition("research-output", 2, "Platform", digest)
+        self.db.activate_contract_transition("research-output", 2)
+        self.db.db.execute(
+            "DELETE FROM decisions WHERE name=?",
+            (self.db._contract_transition_key("research-output", 2),),
+        )
+        events_before = self.db.events()
+        acknowledgements_before = [
+            self.db.get_decision(self.db._contract_ack_key("research-output", 2, team))
+            for team in ("Research", "Platform")
+        ]
+
+        with self.assertRaisesRegex(StateError, "publication evidence missing"):
+            supervisor.activate_contract(self.state, self.db)
+
+        self.assertEqual(self.db.get_contract("research-output")["version"], 2)
+        self.assertEqual(self.db.events(), events_before)
+        self.assertEqual(
+            [
+                self.db.get_decision(self.db._contract_ack_key("research-output", 2, team))
+                for team in ("Research", "Platform")
+            ],
+            acknowledgements_before,
+        )
+        activation_key = self.db._contract_transition_key("research-output", 2) + "/activated"
+        self.assertIsNotNone(self.db.get_decision(activation_key))
+
+    def test_schema_validation_v3_without_transition_fails_closed(self):
+        proposal = {**self.cfg["contracts"]["schema-validation"], "version": 3}
+        self.cfg["contracts"]["schema-validation"] = proposal
+        self.db.db.execute(
+            "INSERT INTO contracts(name,version,body) VALUES(?,?,?)",
+            ("schema-validation", 3, json.dumps(proposal, sort_keys=True, separators=(",", ":"))),
+        )
+
+        with self.assertRaisesRegex(StateError, "publication evidence missing"):
+            supervisor._configured_contract_transitions(self.cfg, self.db)
+
+        self.assertEqual(self.db.get_contract("schema-validation")["version"], 3)
+        self.assertIsNone(self.db.get_contract_transition("schema-validation", 3))
+
+    def test_legacy_v2_with_orphan_acknowledgement_fails_closed(self):
+        proposal = self.cfg["contracts"]["schema-validation"]
+        self.db.db.execute(
+            "INSERT INTO contracts(name,version,body) VALUES(?,?,?)",
+            ("schema-validation", 2, json.dumps(proposal, sort_keys=True, separators=(",", ":"))),
+        )
+        ack_key = self.db._contract_ack_key("schema-validation", 2, "Platform")
+        with self.db._tx():
+            self.db._put_decision_in_transaction(
+                ack_key,
+                {
+                    "kind": "contract_acknowledgement",
+                    "name": "schema-validation",
+                    "version": 2,
+                    "team": "Platform",
+                    "contract_hash": hashlib.sha256(
+                        json.dumps(proposal, sort_keys=True, separators=(",", ":")).encode()
+                    ).hexdigest(),
+                },
+            )
+
+        with self.assertRaisesRegex(StateError, "orphan transition evidence"):
+            supervisor._configured_contract_transitions(self.cfg, self.db)
+
+        self.assertIsNotNone(self.db.get_decision(ack_key))
+
     def run_quiescence(
         self, reason, *, pending=False, slots=1, readiness_change=False, review_pending=False
     ):

@@ -416,3 +416,9 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   the engineering gate passed 469 tests/101 subtests with Ruff. Existing terminal approvals and
   direct ACK routes remain unchanged; no migration-completion interface exists. A03 and broad A10
   remain open. Gate receipt: `a10-migration-review-fail-closed-gate-20261021.json`.
+- A10 configured-contract resolution now fails closed when an active nonlegacy version has no
+  transition proposal; exact initial v1 and supported `schema-validation` v2 legacy publication
+  remain compatible, with orphan ACK/activation evidence rejected. Sol-6.1 accepted exact diff
+  `c591abd5` with no blocking findings; focused tests passed 52/10 subtests and full gate passed
+  Ruff, 474 tests/101 subtests. This is not a historical provenance audit. A03, broad A10 and
+  operational acceptance remain open. Gate receipt: `a10-configured-contract-missing-transition-evidence-gate-20261021.json`.
