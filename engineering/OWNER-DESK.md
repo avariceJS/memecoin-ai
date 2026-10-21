@@ -4,12 +4,13 @@
 Пилот остаётся остановлен. Проверенный исходный код аудита: `org/development`, `b2dcd6d`;
 документационный checkpoint: `0054a9e`. Ни эксплуатационный запуск, ни снятие STOP не разрешены.
 
-Текущий source checkpoint `org/development`: lead decision parser отклоняет дубли JSON-ключей,
-не конечные числа и malformed fences до записи результата, ACK контракта или запуска worker. Sol
-принял точный diff `a75c7b7af2531bc60a6fa70c35be57d6be0fb30106a88ed4739ebe5830ad01a4`;
-полный engineering gate прошёл: Ruff, format, 576 тестов и 185 subtests. Native readback той же
-Goal `01a15b1c-c263-71b0-bfca-c5b46d17a89b` остаётся `paused`; основатель разрешил продолжить
-работу без создания Goal-замены. STOP, запрет runtime и блокировка выпуска по A03 сохраняются.
+Текущий source checkpoint `org/development`: Git diff для independent review теперь читается как
+raw bytes и строго декодируется в UTF-8, сохраняя CRLF и завершающие пробелы в тексте и digest
+пакета. Некорректный UTF-8 останавливает проверку до вызова reviewer. Sol принял точный diff
+`891bdcb61e6bbf751424245f42e60437b1a67e7c8c847e39895aa5b0ebbb48eb`; полный engineering gate:
+Ruff, format, 578 тестов и 185 subtests. Native readback той же Goal
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b` остаётся `paused`; основатель разрешил продолжить работу
+без создания Goal-замены. STOP, запрет runtime и блокировка выпуска по A03 сохраняются.
 
 Предыдущий исходный checkpoint A04 на базе `200870b` устраняет неограниченное ожидание verifier
 после ошибок сбора вывода: группа процесса завершается, оба потока закрываются, исходная ошибка

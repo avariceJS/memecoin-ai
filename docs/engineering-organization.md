@@ -42,11 +42,13 @@ current implementation owner. The Astra audit thread has no Goal. Continue bound
 development and verification under the resumption limits; do not create another Goal, coordinator or
 worker team. This source authority does not grant operational release or runtime authority.
 
-Latest source checkpoint on 2026-10-21: the lead decision parser rejects duplicate JSON keys,
-non-finite numbers and malformed fences before recording a lead result, persisting contract ACKs or
-admitting a worker. Sol accepted the exact source diff; `make engineering-release-check` passed Ruff,
-format, 576 tests and 185 subtests. Provider authenticity, usage settlement and operational
-qualification remain separate gates.
+Latest source checkpoint on 2026-10-21: independent-review packets now receive Git diff output via
+binary capture and strict UTF-8 decoding, preserving CRLF and trailing whitespace through the packet
+digest. Invalid UTF-8 blocks reviewer dispatch. Sol accepted exact diff
+`891bdcb61e6bbf751424245f42e60437b1a67e7c8c847e39895aa5b0ebbb48eb`; `make engineering-release-check`
+passed Ruff, format, 578 tests and 185 subtests. This preserves review evidence without qualifying
+provider authenticity, usage settlement, deployment or operational release. The previously accepted
+lead decision parser also continues to fail closed on duplicate keys and malformed JSON.
 
 Independent Sol technical lead `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`
 (`gpt-6.1-sol/high`) verified the current checkout, selected private evidence hashes, pilot STOP,

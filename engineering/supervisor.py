@@ -464,7 +464,7 @@ def git(repo, *args):
 
 
 def git_raw(repo, *args):
-    """Return exact text output for NUL-delimited Git records without normalization."""
+    """Return strict UTF-8 Git output without text-mode newline normalization or trimming."""
     output = _git_output(repo, *args, raw=True)
     try:
         return output.decode("utf-8", errors="strict")
@@ -1098,7 +1098,7 @@ def verify_one(state, task):
                         "passed_field": command_binding.result["passed_field"],
                     },
                 )
-        diff = git(
+        diff = git_raw(
             state / "integration",
             "diff",
             "--no-ext-diff",

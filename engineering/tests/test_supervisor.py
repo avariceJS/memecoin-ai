@@ -507,6 +507,10 @@ class SupervisorTests(unittest.TestCase):
         box.run.return_value = result
         reviewer = FakeCodex()
         reviewer.response = reviewer_text
+
+        def git_raw_output(_repo, *args):
+            return raw_path_output if "--name-only" in args else diff
+
         with (
             patch.object(supervisor, "GitGate", return_value=gate),
             patch.object(supervisor, "runner", return_value=MagicMock()),
@@ -514,8 +518,8 @@ class SupervisorTests(unittest.TestCase):
             patch.object(
                 supervisor, "metered_client", side_effect=lambda *args, **kwargs: reviewer
             ) as model,
-            patch.object(supervisor, "git", return_value=diff),
-            patch.object(supervisor, "git_raw", return_value=raw_path_output),
+            patch.object(supervisor, "git", return_value="normalized output"),
+            patch.object(supervisor, "git_raw", side_effect=git_raw_output),
         ):
             supervisor.verify_one(self.state, self.db.get_task("T"))
         self.assertEqual(self.db.get_task("T")["state"], "pending")
@@ -695,6 +699,18 @@ class SupervisorTests(unittest.TestCase):
         model.assert_not_called()
         self.assertFalse((self.state / "verification" / "merged" / "review-packet.json").exists())
 
+    def test_review_packet_preserves_git_diff_crlf_and_trailing_whitespace(self):
+        diff = "diff --git a/src/example.py b/src/example.py\r\n+value = 1   \r\n"
+        self.verification_failure(
+            json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
+            diff=diff,
+        )
+        packet = json.loads(
+            (self.state / "verification" / "merged" / "review-packet.json").read_text()
+        )
+        self.assertEqual(packet["diff"], diff)
+        self.assertEqual(packet["diff_sha256"], hashlib.sha256(diff.encode()).hexdigest())
+
     def test_leading_whitespace_in_git_path_is_not_trimmed_into_scope(self):
         model = self.verification_failure(
             json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
@@ -827,6 +843,12 @@ class SupervisorTests(unittest.TestCase):
         process = SimpleNamespace(returncode=0, stdout=b"src/a\rb\0", stderr=b"")
         with patch.object(supervisor.subprocess, "run", return_value=process):
             self.assertEqual(supervisor.git_raw(self.state, "diff", "-z"), "src/a\rb\0")
+
+    def test_git_raw_rejects_invalid_utf8(self):
+        process = SimpleNamespace(returncode=0, stdout=b"diff \xff", stderr=b"")
+        with patch.object(supervisor.subprocess, "run", return_value=process):
+            with self.assertRaisesRegex(RuntimeError, "git_path_not_utf8"):
+                supervisor.git_raw(self.state, "diff")
 
     def test_restart_does_not_reissue_running_unexpired_attempt(self):
         self.task()
