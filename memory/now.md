@@ -69,6 +69,11 @@ automatically.
   Sol-6.1 High accepted; focused suite passed 59 and release gate passed 451/101 with Ruff. SQLite
   query/cast/time and total-memory bounds remain open; A03 and broad A10 remain open. Receipt:
   `a10-contract-review-worklist-byte-preflight-review-20261021.json`.
+- A10 source `a2a313f` switches advisory contract-review worklist discovery to bounded primary-key
+  seeks, retaining byte preflight, snapshot and malformed-prefix rejection. Sol-6.1 High accepted;
+  focused suite passed 61 and release gate passed 453/101 with Ruff. B-tree/time/name-length limits,
+  A03 and broad A10 remain open. Receipt:
+  `a10-contract-review-worklist-indexed-seek-review-20261021.json`.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable

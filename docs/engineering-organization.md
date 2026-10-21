@@ -1198,3 +1198,17 @@ A03, provider/usage provenance, broad A10 and operational acceptance remain open
 (SHA-256 `cef13dcbc76bd7287c662e6102e0b259a1ac4ca8bd4910a410e79197e29dc10c`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-byte-preflight-gate-20261021.json`
 (SHA-256 `ef21441eb37adee0721d66f5d22c4fdba48cca433227c1b04b7313d1835c5f5d`).
+
+At `a2a313f`, the contract-review worklist reuses successive primary-key range seeks instead of
+grouping retained decision versions. Discovery now makes at most `limit + 1` seeks and checks
+overflow before identity validation, byte preflight or hydration; the shared BINARY range retains
+the malformed bare namespace prefix for strict rejection. The read snapshot and the preceding
+history/byte bounds are unchanged. Sol-6.1 High accepted exact diff
+`8bd7dcac89b441a637a7c6b4082cf785981cb93da29fc64e7087c731a7d851fa`; the focused transition suite
+passed 61 tests and the engineering release gate passed 453 tests/101 subtests with Ruff. This caps
+seek count/name results, not B-tree work, SQLite time, name length, or currentness reads. A03, broad
+A10 and operational acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-indexed-seek-review-20261021.json`
+(SHA-256 `7a52e724acf9bc8c8a8a376f5bf903aa51555c35485645f513d58a1264f17911`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-indexed-seek-gate-20261021.json`
+(SHA-256 `7bac1301055fc753f9602a441721bd7da84e8787cf5c263397d479b1e7ecec6d`).
