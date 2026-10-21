@@ -1480,7 +1480,7 @@ def activate_contract(state, db):
             )
 
 
-def supervise(state: Path, max_seconds=1800):
+def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
     from .resources import choose_capacity
 
     state = state.resolve()
@@ -1549,6 +1549,23 @@ def supervise(state: Path, max_seconds=1800):
 
                     if decision["slots"] and plan_next(state, db):
                         continue
+                    if decision["slots"] and contract_review_transport is not None:
+                        from .contract_review_cycle import process_pending_reviews
+
+                        review_cycle = process_pending_reviews(
+                            db, contract_review_transport, limit=1
+                        )
+                        if review_cycle["processed"]:
+                            activate_contract(state, db)
+                            log_event(
+                                state,
+                                "contract_reviews_processed",
+                                processed=review_cycle["processed"],
+                                failures=review_cycle["failures"],
+                                transport_invocations=review_cycle["transport_invocations"],
+                                dispatch_authority=review_cycle["dispatch_authority"],
+                            )
+                            continue
                     snapshot = db.quiescence_snapshot()
                     readiness = snapshot["readiness"]
                     if any(

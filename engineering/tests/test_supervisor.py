@@ -501,6 +501,7 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(len(events), 1)
 
     def test_fixed_task_real_git_acceptance_checkpoint_and_next_dependency(self):
+        from engineering import planning
         from engineering.planning import eligible
 
         def run_git(repo, *args):
@@ -811,10 +812,8 @@ class SupervisorTests(unittest.TestCase):
         ]
         self.assertEqual(len(integrated_events), 1)
 
-        self.assertEqual(eligible(self.cfg, self.db), [])
+        self.assertEqual(eligible(self.cfg, self.db), [], self.db.events())
         self.assertEqual(self.db.get_contract("research-output")["version"], 1)
-        from engineering.contract_review_cycle import process_pending_reviews
-
         review_evidence = f"git-receipt:{receipt_digest}"
         transition = self.db.get_contract_transition("research-output", 2)
         contract_hash = transition["body"]["contract_hash"]
@@ -834,6 +833,8 @@ class SupervisorTests(unittest.TestCase):
 
             def start(self, request):
                 body = request["body"]
+                self_test.assertEqual(self_test.db.get_contract("research-output")["version"], 1)
+                self_test.assertEqual(eligible(self_test.cfg, self_test.db), [])
                 self_test.assertEqual(body["name"], "research-output")
                 self_test.assertEqual(body["version"], 2)
                 self_test.assertIn(body["team"], ("Experience", "Platform"))
@@ -869,34 +870,76 @@ class SupervisorTests(unittest.TestCase):
                 }
 
         review_transport = SyntheticContractReviewTransport()
-        first_review = process_pending_reviews(self.db, review_transport, limit=1)
-        self.assertEqual(first_review["transport_invocations"], 1)
-        self.assertEqual(first_review["failures"], [])
-        self.assertEqual([item["status"] for item in first_review["processed"]], ["approved"])
-        supervisor.activate_contract(self.state, self.db)
-        self.assertEqual(self.db.get_contract("research-output")["version"], 1)
-        self.assertEqual(eligible(self.cfg, self.db), [])
-        second_review = process_pending_reviews(self.db, review_transport, limit=1)
-        self.assertEqual(second_review["transport_invocations"], 1)
-        self.assertEqual(second_review["failures"], [])
-        self.assertEqual([item["status"] for item in second_review["processed"]], ["approved"])
+        spawned = []
+        real_popen = subprocess.Popen
+
+        def select_synthetic_capacity(*_args, ready_tasks=(), **_kwargs):
+            return {"slots": 1, "selected_tasks": list(ready_tasks), "reason": "synthetic"}
+
+        def capture_worker(args, **kwargs):
+            if "engineering" in args and "attempt" in args:
+                spawned.append((args, kwargs))
+                return SimpleNamespace(pid=456)
+            return real_popen(args, **kwargs)
+
+        def synthetic_planner_client(*_args, **_kwargs):
+            fake = MagicMock()
+            fake.__enter__.return_value = fake
+            fake.start.return_value = "synthetic-planner-thread"
+
+            def planner_turn(_thread, prompt, **kwargs):
+                dossier = json.loads(prompt.rsplit("\n", 1)[-1])
+                self.assertEqual(list(dossier["available_cards"]), ["PLAT-002"])
+                self.assertEqual(kwargs["dispatch_id"].split(":", 1)[0], "planning-proposal")
+                return {
+                    "text": json.dumps(
+                        {
+                            "card": "PLAT-002",
+                            "rationale": "The exact contract is active after both reviews.",
+                            "evidence": f"{admitted} is integrated at {candidate_sha}.",
+                        }
+                    )
+                }
+
+            fake.turn.side_effect = planner_turn
+            return fake
+
+        with (
+            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
+            patch.object(supervisor, "process_identity", return_value="synthetic-process"),
+            patch.object(supervisor, "available_memory", return_value=10**10),
+            patch.object(supervisor, "status", return_value={}),
+            patch.object(supervisor, "render_desk"),
+            patch.object(
+                supervisor.time,
+                "sleep",
+                side_effect=lambda _seconds: (self.state / "STOP").touch(),
+            ),
+            patch.object(planning, "config", return_value=self.cfg),
+            patch.object(
+                planning,
+                "metered_client",
+                side_effect=synthetic_planner_client,
+            ),
+            patch.object(planning, "git", side_effect=run_git),
+            patch.object(planning, "log_event"),
+            patch("engineering.resources.choose_capacity", side_effect=select_synthetic_capacity),
+            patch.object(supervisor.subprocess, "Popen", side_effect=capture_worker),
+        ):
+            supervisor.supervise(
+                self.state, max_seconds=10, contract_review_transport=review_transport
+            )
         self.assertEqual(len(review_transport.started_teams), 2)
         self.assertEqual(len(set(review_transport.started_teams)), 2)
-        supervisor.activate_contract(self.state, self.db)
         self.assertEqual(self.db.get_contract("research-output")["version"], 2)
-        self.assertEqual(eligible(self.cfg, self.db), ["PLAT-002"])
-        self.assertEqual(
-            synthetic_plan(
-                "PLAT-002",
-                "Continue from the verified integrated dependency.",
-                f"{admitted} is durably integrated at {candidate_sha}.",
-            ),
-            "PLAT-002",
-        )
+        self.assertEqual(eligible(self.cfg, self.db), [], self.db.events())
         self.assertEqual(self.db.get_task("PLAT-002")["base_sha"], candidate_sha)
-        next_attempt = self.db.claim("PLAT-002", "synthetic-worker")
-        self.assertIsNotNone(next_attempt)
+        self.assertEqual(self.db.get_task("PLAT-002")["state"], "running")
         self.assertEqual(self.db.get_task("PLAT-002")["dependencies"], ["PLAT-001"])
+        self.assertEqual(len(self.db.list_attempts("PLAT-002")), 1)
+        self.assertEqual(len(spawned), 1)
+        self.assertIn("--attempt", spawned[0][0])
 
     def test_accepted_intent_after_publish_recovers_without_republish(self):
         self.candidate()

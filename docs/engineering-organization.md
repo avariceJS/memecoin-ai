@@ -66,14 +66,15 @@ fails closed, tampers with candidate SHA and confirms exact parent binding rejec
 restores evidence and confirms one integration event.
 The integrated producer is an Experience task; its Platform consumer remains ineligible until the
 exact contract version is activated. The test prepares one review request for each transition
-participant, then runs the real `process_pending_reviews` durable journal through an injected
-synthetic transport. Its packet contains the candidate SHA and declared GitGate receipt
-reference/digest, which the request hash preserves; Store does not resolve or validate that external
-receipt. Each response is recorded, replayed and acknowledged. The test attempts activation after
-one approval and confirms the consumer remains blocked; it activates only after both. Since
+participant, then drives the real `supervise` idle loop with an explicitly injected synthetic
+transport. It dispatches one durable `process_pending_reviews` item per iteration and attempts
+activation after each: the consumer remains blocked after one approval and becomes eligible only
+after both. Its packet contains the candidate SHA and declared GitGate receipt reference/digest,
+which the request hash preserves; Store does not resolve or validate that external receipt. Since
 `PLAT-002` is not admitted until activation, it is absent from the Platform participant's task
 inventory, so this proves contract-level participant review and readiness gating, not task-specific
-review. The test does not wire the helper into `supervise` or qualify live dispatch. Recovery now binds intent
+review. The ordinary CLI and quiescence path pass no transport, preserving the inert Sol handoff;
+live provider dispatch and runtime integration remain unqualified. Recovery now binds intent
 to Store attempt/epoch and successful verification details; GitGate
 requires the candidate's exact two parents to equal the captured integration tip and submitted SHA.
 The test uses `research/active` only inside a temporary repository and leaves `main` unchanged. The

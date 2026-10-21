@@ -23,8 +23,12 @@ is activated by both participant reviews. The test runs the real durable review 
 explicit injected synthetic transport, recording, replaying and acknowledging receipt-referencing
 responses in two stages, with contract activation attempted after the first ACK. Packets declare the
 candidate SHA and GitGate receipt digest, but Store does not validate the external receipt; the
-unadmitted Platform task is absent from its team review inventory. The helper is not wired into
-`supervise`. Proposal JSON rejects duplicate keys,
+unadmitted Platform task is absent from its team review inventory. The durable review helper is
+reachable through `supervise` only when an in-process transport is explicitly injected: it handles
+one request per iteration and attempts activation before planning resumes. The ordinary CLI and
+quiescence path pass no transport, preserving the inert Sol handoff. The integrated test uses two
+synthetic reviews, then plans, claims and dispatches the dependent task; live dispatch remains
+unqualified. Proposal JSON rejects duplicate keys,
 and task admission plus terminal planning
 decision commit atomically; an injected hard interruption rolls both back, and client cleanup failure
 remains visible to caller without relabeling committed admission. JSON `true` for an integer epoch

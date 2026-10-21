@@ -18,16 +18,19 @@ policy: bound A04 manifest/executable identity остаются непровер
 следующей зависимой задачи. Повреждённый
 candidate SHA и отсутствующий receipt блокируют recovery без изменения Store/ref; валидное
 восстановление создаёт ровно одно событие интеграции. Producer Experience, consumer Platform и
-контрактная версия связаны реально: test запускает durable `process_pending_reviews` в два этапа;
-после первой ACK consumer остаётся заблокирован, после второй точная версия активируется. Packet
+контрактная версия связаны реально: test запускает обе durable review через idle-loop `supervise`
+с явно инъецированным synthetic transport; после первой ACK consumer остаётся заблокирован,
+после второй точная версия активируется. Затем supervisor планирует зависимую задачу, claim-ит её
+и передаёт worker-процессу. Packet
 содержит candidate SHA и declared GitGate receipt ref/digest, но Store не валидирует внешний receipt;
 ещё не admitted `PLAT-002` отсутствует в Platform task inventory review. Это contract-level, не
-task-specific review. Transport synthetic, live dispatch не квалифицирован, helper не встроен в
-`supervise`. Sol независимо проверил recovery-путь, выявил
+task-specific review. Обычный CLI и quiescence path transport не получают и сохраняют inert Sol
+handoff; live provider/runtime dispatch не квалифицирован. Sol независимо проверил recovery-путь, выявил
 и перепроверил исправления точной привязки родителей кандидата, receipt, attempt/epoch и канонической
 записи проверки. В этом bounded source-пути после исправлений обхода не найдено.
 
-Актуальный `make engineering-release-check` прошёл: Ruff, format, 595 тестов и 189 subtests.
+Актуальный `make engineering-release-check` прошёл: Ruff, format, 595 тестов и 189 subtests,
+включая supervisor idle-loop с двумя synthetic contract reviews.
 `make smoke` прошёл на синтетическом временном хранилище. `make check` блокируется 107 существующими Ruff finding в
 `src/`, `tools/`, `tests/` до остальных шагов. Worker теперь запускается через штатный supervisor
 dispatch и Seatbelt tool callback; verification проходит через `verify_one`, выполняя временный
