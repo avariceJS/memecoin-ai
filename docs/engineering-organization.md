@@ -1841,6 +1841,18 @@ gate passed Ruff, format, 571 tests and 161 subtests. The returned packet remain
 dict, and this does not establish reviewer quality, provider provenance, A03 settlement or production
 readiness.
 
+A04 profile-byte custody increment — 2026-10-21: `SandboxRunner.run` now snapshots the profile string
+at entry, hashes it against the construction-time identity, and uses that same local string for
+`sandbox-exec` and `SandboxResult.profile_sha256`. Pre-run profile drift fails before `Popen`; a
+deterministic mutation during executable prelaunch hashing cannot change the launched bytes or
+reported digest. Sol accepted exact diff
+`6f944e39fa3f156b23fc091654b4475730cca2486210b8accc4b4b0908bfedde`; the engineering release gate
+passed Ruff/format, 598 tests and 189 subtests. This binds bytes within the Python object only: its
+private digest remains mutable Python state, and no external immutable policy anchor, macOS sandbox
+qualification, same-inode execution, loader closure, descendant identity or stdout provenance is
+established. `prepare_verification_plan` still leaves spec-backed plans `execution_qualified=False`;
+full A04 and operational release remain open.
+
 At `5be5ec2`, independent reviewer output is now parsed by a review-specific local validator rather
 than the permissive shared JSON helper. It rejects duplicate keys, nonstandard/nonfinite numbers,
 missing or extra fields, wrong exact value types, and malformed fenced framing. Valid plain and

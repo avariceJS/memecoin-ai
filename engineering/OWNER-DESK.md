@@ -83,6 +83,16 @@ Sol принял тестовую семантику после уточнени
 доверенный свежий gate snapshot, lifecycle consumer, restart или operational recovery. A05 остаётся
 открытым.
 
+Bounded A04 source increment: `SandboxRunner.run` captures the profile string at entry, checks it
+against its construction-time digest, and passes that same captured string to `sandbox-exec` and
+`SandboxResult`. Tests prove pre-run drift fails before `Popen` and a mutation during executable
+prelaunch hashing cannot change launched bytes or reported digest. Sol accepted exact diff
+`6f944e39fa3f156b23fc091654b4475730cca2486210b8accc4b4b0908bfedde`; the engineering release gate
+passed Ruff/format, 598 tests and 189 subtests. This is Python-object byte custody only: the private
+digest has no external immutable anchor, and sandbox qualification, same-inode execution, loader
+closure, descendants and stdout provenance remain open. Plans remain `execution_qualified=False`;
+full A04 and operational release are not accepted.
+
 **2026-10-21. Независимый аудит завершён; основатель разрешил продолжить инженерную разработку.**
 Пилот остаётся остановлен. Проверенный исходный код аудита: `org/development`, `b2dcd6d`;
 документационный checkpoint: `0054a9e`. Ни эксплуатационный запуск, ни снятие STOP не разрешены.

@@ -69,6 +69,12 @@ capture, consumer, restart or operational recovery. Sol accepted the exact test 
 `67fbfcfc97ce0363ebac32df6e727598667c43ad351f2a69adf81a655e85490f`; the engineering gate passes
 Ruff/format, 596 tests and 189 subtests.
 
+An A04 profile-byte custody increment snapshots `SandboxRunner`'s profile at run entry, checks it
+against the construction-time digest, and uses the same bytes for `sandbox-exec` and result identity.
+Sol accepted the exact code/test diff; the full engineering release gate passes Ruff/format, 598 tests
+and 189 subtests. This remains in-process Python-object custody with no external immutable policy
+anchor; `execution_qualified` remains false and full A04 is open.
+
 Before the PLAT-002 fake-transport scope fix, one focused run passed with `verify_one` outside the
 mock; an installed Codex reviewer may have been invoked. Attribution and usage settlement are
 unknown, so do not call them zero or settled and do not release any reservation. The subsequent full

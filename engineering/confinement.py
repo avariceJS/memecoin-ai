@@ -300,7 +300,8 @@ class SandboxRunner:
             if _inside(protected, grants) or any(_inside(p, [protected]) for p in grants):
                 raise ConfinementError(f"Protected path is within a granted root: {protected}")
         self.profile = self._profile()
-        self.profile_sha256 = hashlib.sha256(self.profile.encode()).hexdigest()
+        self._profile_sha256 = hashlib.sha256(self.profile.encode()).hexdigest()
+        self.profile_sha256 = self._profile_sha256
 
     def _profile(self) -> str:
         def quote(path):
@@ -375,6 +376,12 @@ class SandboxRunner:
         expected_script_path: str | Path | None = None,
         strict_stdout_utf8: bool = False,
     ) -> SandboxResult:
+        profile = self.profile
+        if type(profile) is not str:
+            raise ConfinementError("Sandbox profile identity changed after construction")
+        profile_sha256 = hashlib.sha256(profile.encode()).hexdigest()
+        if profile_sha256 != self._profile_sha256:
+            raise ConfinementError("Sandbox profile identity changed after construction")
         if type(strict_stdout_utf8) is not bool:
             raise ConfinementError("strict stdout UTF-8 flag must be boolean")
         try:
@@ -446,7 +453,7 @@ class SandboxRunner:
         if time.monotonic() >= deadline:
             raise ConfinementError("Prelaunch verification exceeded command deadline")
         process = subprocess.Popen(
-            [str(SANDBOX_EXEC), "-p", self.profile, *argv],
+            [str(SANDBOX_EXEC), "-p", profile, *argv],
             cwd=directory,
             env=environment,
             stdin=subprocess.DEVNULL,
@@ -581,7 +588,7 @@ class SandboxRunner:
             _decode_captured_stdout(stdout, strict_utf8=strict_stdout_utf8),
             stderr.decode("utf-8", errors="replace"),
             timed_out,
-            self.profile_sha256,
+            profile_sha256,
             time.monotonic() - started,
             output_truncated,
             prelaunch_executable_sha256,

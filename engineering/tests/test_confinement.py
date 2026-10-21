@@ -220,6 +220,91 @@ class ConfinementTests(unittest.TestCase):
             )
         self.assertEqual(protected_roots, [])
 
+    def test_profile_drift_before_run_fails_before_process_launch(self):
+        original_profile = self.runner.profile
+        self.runner.profile = original_profile + "\n(allow default)\n"
+
+        with patch("engineering.confinement.subprocess.Popen") as launch:
+            with self.assertRaisesRegex(ConfinementError, "profile identity changed"):
+                self.runner.run([str(PYTHON), "-I", "-c", "pass"], cwd=self.task)
+
+        launch.assert_not_called()
+
+    def test_profile_mutation_during_prelaunch_hash_cannot_change_launched_profile(self):
+        import engineering.confinement as confinement
+
+        original_profile = self.runner.profile
+        original_digest = self.runner.profile_sha256
+        expected_executable_sha256 = "a" * 64
+        mutated = []
+
+        def mutate_profile_during_hash(*_args):
+            self.runner.profile = original_profile + "\n(allow default)\n"
+            mutated.append(True)
+            return expected_executable_sha256
+
+        class FakeStream:
+            def __init__(self, descriptor):
+                self.descriptor = descriptor
+
+            def fileno(self):
+                return self.descriptor
+
+            @staticmethod
+            def close():
+                pass
+
+        class FakeProcess:
+            pid = 42
+            returncode = 0
+
+            def __init__(self):
+                self.stdout = FakeStream(10)
+                self.stderr = FakeStream(11)
+
+            @staticmethod
+            def wait(timeout):
+                return 0
+
+        class EmptySelector:
+            def __enter__(self):
+                return self
+
+            @staticmethod
+            def __exit__(*_args):
+                return False
+
+            @staticmethod
+            def register(*_args):
+                pass
+
+            @staticmethod
+            def get_map():
+                return {}
+
+        process = FakeProcess()
+        with (
+            patch.object(
+                confinement,
+                "_prelaunch_executable_sha256",
+                side_effect=mutate_profile_during_hash,
+            ),
+            patch.object(confinement.selectors, "DefaultSelector", return_value=EmptySelector()),
+            patch.object(confinement.os, "set_blocking"),
+            patch.object(confinement.subprocess, "Popen", return_value=process) as launch,
+            patch.object(SandboxRunner, "_kill_process_group"),
+        ):
+            result = self.runner.run(
+                [str(PYTHON), "-I", "-c", "pass"],
+                cwd=self.task,
+                expected_executable_sha256=expected_executable_sha256,
+            )
+
+        self.assertEqual(mutated, [True])
+        self.assertEqual(launch.call_args.args[0][2], original_profile)
+        self.assertEqual(result.profile_sha256, original_digest)
+        self.assertEqual(self.runner.profile, original_profile + "\n(allow default)\n")
+
     def test_rejects_unconfined_working_directory_or_implicit_executable(self):
         for executable, cwd in (("python3", self.task), (str(PYTHON), self.outside)):
             with self.subTest(executable=executable, cwd=cwd), self.assertRaises(ConfinementError):
