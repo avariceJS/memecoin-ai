@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import engineering.verifier_manifest as verifier_manifest
 from engineering.verifier_manifest import (
     VerifierManifestError,
     load_verifier_manifest,
@@ -94,6 +95,57 @@ class VerifierManifestTests(unittest.TestCase):
         resolved = self.resolve(self.binding, self.manifest)
         self.assertEqual(resolved[0]["harness_path"], "acceptance.py")
         self.assertEqual(resolved[0]["harness_sha256"], self.harness_sha)
+
+    def test_regular_artifact_read_rejects_same_size_change_during_read(self):
+        artifact = self.trusted / "changing.py"
+        artifact.write_bytes(b"original")
+        actual_fdopen = os.fdopen
+
+        class MutatingStream:
+            def __init__(self, stream):
+                self.stream = stream
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return self.stream.__exit__(*args)
+
+            def read(self, size):
+                raw = self.stream.read(size)
+                artifact.write_bytes(b"mutated!")
+                return raw
+
+        with patch(
+            "engineering.verifier_manifest.os.fdopen",
+            side_effect=lambda *args, **kwargs: MutatingStream(actual_fdopen(*args, **kwargs)),
+        ):
+            with self.assertRaisesRegex(
+                VerifierManifestError, "verifier_harness_changed_while_reading"
+            ):
+                verifier_manifest._read_regular(
+                    artifact,
+                    symlink_code="verifier_harness_symlink",
+                    unavailable_code="verifier_harness_unavailable",
+                    regular_code="verifier_harness_not_regular",
+                    too_large_code="verifier_harness_too_large",
+                    changed_code="verifier_harness_changed_while_reading",
+                    max_bytes=100,
+                )
+
+    def test_regular_artifact_read_classifies_stable_oversize(self):
+        artifact = self.trusted / "oversized.py"
+        artifact.write_bytes(b"x" * 10)
+        with self.assertRaisesRegex(VerifierManifestError, "verifier_harness_too_large"):
+            verifier_manifest._read_regular(
+                artifact,
+                symlink_code="verifier_harness_symlink",
+                unavailable_code="verifier_harness_unavailable",
+                regular_code="verifier_harness_not_regular",
+                too_large_code="verifier_harness_too_large",
+                changed_code="verifier_harness_changed_while_reading",
+                max_bytes=7,
+            )
 
     def test_rejects_release_policy_or_verifier_drift(self):
         for mutate, error in (

@@ -151,6 +151,7 @@ def _read_regular(
     unavailable_code: str,
     regular_code: str,
     too_large_code: str,
+    changed_code: str,
     max_bytes: int,
 ) -> bytes:
     try:
@@ -159,12 +160,34 @@ def _read_regular(
         code = symlink_code if exc.errno == errno.ELOOP else unavailable_code
         raise VerifierManifestError(code) from None
     try:
-        if not stat.S_ISREG(os.fstat(fd).st_mode):
+        before = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode):
             raise VerifierManifestError(regular_code)
         with os.fdopen(fd, "rb", closefd=False) as stream:
             raw = stream.read(max_bytes + 1)
+        after = os.fstat(fd)
+        before_identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_mode,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        after_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_mode,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if before_identity != after_identity:
+            raise VerifierManifestError(changed_code)
         if len(raw) > max_bytes:
             raise VerifierManifestError(too_large_code)
+        if len(raw) != before.st_size:
+            raise VerifierManifestError(changed_code)
         return raw
     except OSError:
         raise VerifierManifestError(unavailable_code) from None
@@ -209,6 +232,7 @@ def load_verifier_manifest(path: str | Path, *, expected_sha256: str) -> dict:
         unavailable_code="verifier_manifest_unavailable",
         regular_code="verifier_manifest_not_regular",
         too_large_code="verifier_manifest_too_large",
+        changed_code="verifier_manifest_changed_while_reading",
         max_bytes=1_000_000,
     )
     if _digest(raw) != expected_sha256:
@@ -353,6 +377,7 @@ def resolve_verifier_manifest(
             unavailable_code="verifier_harness_unavailable",
             regular_code="verifier_harness_not_regular",
             too_large_code="verifier_harness_too_large",
+            changed_code="verifier_harness_changed_while_reading",
             max_bytes=16_000_000,
         )
         if _digest(content) != record["harness_sha256"]:
@@ -450,6 +475,7 @@ def resolve_verifier_manifest(
                         unavailable_code="verifier_harness_unavailable",
                         regular_code="verifier_harness_not_regular",
                         too_large_code="verifier_harness_too_large",
+                        changed_code="verifier_harness_changed_while_reading",
                         max_bytes=16_000_000,
                     )
                     if not _hash(script_sha) or _digest(script_raw) != script_sha:
