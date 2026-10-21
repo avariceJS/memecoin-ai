@@ -1242,3 +1242,20 @@ Review receipt:
 (SHA-256 `891718da32ef20ce5358105ea9546e2664f9ab79eddd442f20a05ae50fcedd4c`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-a10-bounded-journal-name-gate-20261021.json`
 (SHA-256 `4de7f0247e44be290ea586accf7347091ed5e378b351b6ea01864cf2866371fe`).
+
+At `67058bf`, contract-review journal reads used at dispatch, session, response custody and
+finalization now validate at most five versions and project each body only when its serialized
+size is at most 512 KiB, in one SQLite statement before JSON hydration. All five append paths also
+enforce the per-version 512 KiB and cumulative 2 MiB journal limits inside `BEGIN IMMEDIATE`, so a
+successful write cannot create a version that its bounded reader later refuses. General historical
+record and default response reads remain compatible with oversized legacy rows; explicitly bounded
+replay still fails closed. Sol-6.1 High accepted exact diff
+`54cac814657085affa5a56531ac98564fdbda4488cf8f2196c82feddbcc95696`; the focused transition suite
+passed 70 tests and `make engineering-release-check` passed Ruff, 464 tests and 101 subtests. The
+single query can project up to 3 MiB before count/aggregate rejection; SQLite internal memory/work,
+`replaces` scalar bytes, and execution time remain unbounded. Provider/usage provenance, A03, broad
+A10 and operational acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-journal-read-write-bounds-review-20261021.json`
+(SHA-256 `0804f7893d5ce1e943cacac4826488e59a102a2aa5d261bdea448525280a7b84`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-journal-read-write-bounds-gate-20261021.json`
+(SHA-256 `ced0bfadc372a6954a06ee0bdb0eab765ce08677a035cce6412c848d32422533`).

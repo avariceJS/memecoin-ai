@@ -393,3 +393,6 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   regressions fail closed; UTF-16le remains compatible. SQLite internal key work/time/memory and broad
   A05/A10 remain open. Receipts: `a05-a10-bounded-journal-name-review-20261021.json` and
   `a05-a10-bounded-journal-name-gate-20261021.json`.
+- A10 source `67058bf` bounds review-journal body hydration and every append at 512 KiB/version and
+  2 MiB/journal while preserving default legacy readers. Sol-6.1 High accepted; gate passed 464/101
+  with Ruff. SQLite work/memory and `replaces` bytes remain open; A03 and broad A10 remain open.
