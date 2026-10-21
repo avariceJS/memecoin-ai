@@ -58,6 +58,7 @@ class SupervisorTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.state = Path(self.temp.name)
         FakeCodex.response = "{malformed"
+
         FakeCodex.turn_estimates = []
         FakeCodex.turn_calls = []
         FakeCodex.calls = []
@@ -94,6 +95,189 @@ class SupervisorTests(unittest.TestCase):
         for item in self.patches:
             item.start()
             self.addCleanup(item.stop)
+
+    def test_later_bound_command_identity_and_result_contract_reach_verifier_gate(self):
+        command = SimpleNamespace(
+            executable_sha256="a" * 64,
+            runtime_cdhash="b" * 40,
+            runtime_path=Path("/trusted/native-check"),
+            script_sha256="c" * 64,
+            script_path=Path("/trusted/second.py"),
+            result={
+                "kind": "acceptance_json",
+                "acceptance_id": "second-check",
+                "result_schema": "second-result-v1",
+                "case_field": "case",
+                "passed_field": "passed",
+            },
+        )
+        self.assertEqual(
+            supervisor._bound_command_runner_identity(command),
+            {
+                "expected_executable_sha256": "a" * 64,
+                "expected_executable_cdhash": "b" * 40,
+                "expected_executable_main_path": Path("/trusted/native-check"),
+                "expected_script_sha256": "c" * 64,
+                "expected_script_path": Path("/trusted/second.py"),
+            },
+        )
+        with self.assertRaisesRegex(ValueError, "not_passing"):
+            supervisor.validate_verifier_result(
+                json.dumps(
+                    {
+                        "schema": "second-result-v1",
+                        "case": "second-check",
+                        "passed": False,
+                    }
+                ),
+                {key: value for key, value in command.result.items() if key != "kind"},
+            )
+
+    def test_verify_callback_pins_later_command_and_rejects_its_failed_json(self):
+        self.candidate(target_state="submitted")
+        checkout = self.state / "candidate-checkout"
+        checkout.mkdir()
+        commands = (
+            ("{interpreter}", "-I", "-S", "-B", "{harness}"),
+            ("/trusted/native-check", "--check"),
+        )
+        policy = VerificationPolicy(commands)
+        first_result = {
+            "kind": "acceptance_json",
+            "acceptance_id": "first-check",
+            "result_schema": "first-result-v1",
+            "case_field": "case",
+            "passed_field": "passed",
+        }
+        later_result = {
+            "kind": "acceptance_json",
+            "acceptance_id": "later-check",
+            "result_schema": "later-result-v1",
+            "case_field": "case",
+            "passed_field": "passed",
+        }
+        later_binding = SimpleNamespace(
+            executable_path=Path("/trusted/native-check"),
+            executable_sha256="a" * 64,
+            runtime_path=Path("/trusted/native-main"),
+            runtime_cdhash="b" * 40,
+            script_path=Path("/trusted/later.py"),
+            script_sha256="c" * 64,
+            result=later_result,
+        )
+        verifier = SimpleNamespace(
+            commands=commands,
+            command_bindings=(
+                SimpleNamespace(
+                    executable_sha256="d" * 64,
+                    runtime_cdhash="e" * 40,
+                    runtime_path=Path("/trusted/python-main"),
+                    script_sha256="f" * 64,
+                    script_path=Path("/trusted/acceptance.py"),
+                    result=first_result,
+                ),
+                later_binding,
+            ),
+            harness_path=Path("/trusted/acceptance.py"),
+            interpreter_path=Path("/trusted/python"),
+            acceptance_id="first-check",
+            result_schema="first-result-v1",
+            case_field="case",
+            passed_field="passed",
+        )
+        plan = SimpleNamespace(
+            execution_qualified=True,
+            reason=None,
+            binding_sha256="9" * 64,
+            plan_sha256="8" * 64,
+            policy=policy,
+            bound_verifiers=(verifier,),
+        )
+        candidate = SimpleNamespace(
+            submitted_sha="submitted",
+            base_sha="base",
+            integration_tip="base",
+            sha="merged",
+            changed_paths=("src/example.py",),
+            checkout=checkout,
+        )
+        gate = MagicMock()
+        gate.submit.return_value = candidate
+
+        def invoke_verification(_candidate, callback):
+            return callback(checkout, "merged", policy)
+
+        gate.verify.side_effect = invoke_verification
+        box = MagicMock()
+        box.run.side_effect = [
+            SandboxResult(
+                ("/trusted/python",),
+                0,
+                json.dumps(
+                    {
+                        "schema": "first-result-v1",
+                        "case": "first-check",
+                        "passed": True,
+                    }
+                ),
+                "",
+                False,
+                "profile",
+                0.01,
+            ),
+            SandboxResult(
+                ("/trusted/native-check",),
+                0,
+                json.dumps(
+                    {
+                        "schema": "later-result-v1",
+                        "case": "later-check",
+                        "passed": False,
+                    }
+                ),
+                "",
+                False,
+                "profile",
+                0.01,
+            ),
+        ]
+        with (
+            patch.object(supervisor, "prepare_verification_plan", return_value=plan),
+            patch.object(supervisor, "attempt_plan_matches", return_value=(True, None)),
+            patch.object(supervisor, "GitGate", return_value=gate),
+            patch.object(supervisor, "runner", return_value=MagicMock()),
+            patch.object(supervisor, "SandboxRunner", return_value=box),
+            patch.object(supervisor, "metered_client") as review,
+            patch.object(supervisor, "git") as diff,
+            patch.object(supervisor, "git_raw") as paths,
+        ):
+            self.assertTrue(supervisor.verify_one(self.state, self.db.get_task("T")))
+
+        later_call = box.run.call_args_list[1]
+        self.assertEqual(
+            later_call.kwargs["expected_executable_sha256"], later_binding.executable_sha256
+        )
+        self.assertEqual(
+            later_call.kwargs["expected_executable_cdhash"], later_binding.runtime_cdhash
+        )
+        self.assertEqual(
+            later_call.kwargs["expected_executable_main_path"], later_binding.runtime_path
+        )
+        self.assertEqual(later_call.kwargs["expected_script_sha256"], later_binding.script_sha256)
+        self.assertEqual(later_call.kwargs["expected_script_path"], later_binding.script_path)
+        gate.publish.assert_not_called()
+        review.assert_not_called()
+        diff.assert_not_called()
+        paths.assert_not_called()
+        self.assertEqual(self.db.get_task("T")["state"], "pending")
+        verification_event = [
+            event for event in self.db.events() if event["kind"] == "candidate_verified"
+        ][-1]
+        self.assertFalse(verification_event["body"]["passed"])
+        self.assertIn(
+            "verifier_result_not_passing",
+            verification_event["body"]["details"]["error"],
+        )
 
     def task(self, task_id="T", team="team"):
         self.db.add_task(task_id, team, "Synthetic task", scope=["src/example.py"])

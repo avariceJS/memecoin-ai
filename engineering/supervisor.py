@@ -58,6 +58,21 @@ LEAD_SCHEMA = {
     },
     "required": ["decision", "worker_brief", "rationale", "contract_acks"],
 }
+
+
+def _bound_command_runner_identity(command_binding):
+    """Translate one immutable command pin into SandboxRunner identity arguments."""
+    if command_binding is None:
+        return {}
+    return {
+        "expected_executable_sha256": command_binding.executable_sha256,
+        "expected_executable_cdhash": command_binding.runtime_cdhash,
+        "expected_executable_main_path": command_binding.runtime_path,
+        "expected_script_sha256": command_binding.script_sha256,
+        "expected_script_path": command_binding.script_path,
+    }
+
+
 WORKER_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -844,37 +859,16 @@ def verify_one(state, task):
                     harness_path=verifier.harness_path,
                     interpreter_path=verifier.interpreter_path,
                 )
+            command_binding = (
+                verifier.command_bindings[verifier_command_index] if verifier is not None else None
+            )
             result = box.run(
                 argv,
                 cwd=checkout,
                 timeout=90,
                 max_output_bytes=200000,
                 env_overrides=dict(fixed_policy.env),
-                expected_executable_sha256=(
-                    verifier.interpreter_sha256
-                    if verifier is not None and verifier_command_index == 0
-                    else None
-                ),
-                expected_executable_cdhash=(
-                    verifier.interpreter_runtime_cdhash
-                    if verifier is not None and verifier_command_index == 0
-                    else None
-                ),
-                expected_executable_main_path=(
-                    verifier.interpreter_runtime_path
-                    if verifier is not None and verifier_command_index == 0
-                    else None
-                ),
-                expected_script_sha256=(
-                    verifier.harness_sha256
-                    if verifier is not None and verifier_command_index == 0
-                    else None
-                ),
-                expected_script_path=(
-                    verifier.harness_path
-                    if verifier is not None and verifier_command_index == 0
-                    else None
-                ),
+                **_bound_command_runner_identity(command_binding),
             )
             results.append(dataclasses.asdict(result))
             atomic(verify_root / "commands.json", results)
@@ -888,14 +882,16 @@ def verify_one(state, task):
                     or proof.get("passed") is not True
                 ):
                     raise RuntimeError("missing_independent_acceptance_completion")
-            elif verifier is not None and verifier_command_index == 0:
+            elif (
+                command_binding is not None and command_binding.result["kind"] == "acceptance_json"
+            ):
                 validate_verifier_result(
                     result.stdout,
                     {
-                        "acceptance_id": verifier.acceptance_id,
-                        "result_schema": verifier.result_schema,
-                        "case_field": verifier.case_field,
-                        "passed_field": verifier.passed_field,
+                        "acceptance_id": command_binding.result["acceptance_id"],
+                        "result_schema": command_binding.result["result_schema"],
+                        "case_field": command_binding.result["case_field"],
+                        "passed_field": command_binding.result["passed_field"],
                     },
                 )
         diff = git(

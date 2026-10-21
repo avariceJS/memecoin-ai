@@ -27,6 +27,17 @@ class VerificationPlanError(ValueError):
 
 
 @dataclass(frozen=True)
+class BoundCommand:
+    executable_path: Path
+    executable_sha256: str
+    runtime_path: Path
+    runtime_cdhash: str
+    script_path: Path | None
+    script_sha256: str | None
+    result: dict[str, str]
+
+
+@dataclass(frozen=True)
 class BoundVerifier:
     acceptance_id: str
     commands: tuple[tuple[str, ...], ...]
@@ -39,6 +50,7 @@ class BoundVerifier:
     result_schema: str
     case_field: str
     passed_field: str
+    command_bindings: tuple[BoundCommand, ...]
 
 
 @dataclass(frozen=True)
@@ -231,6 +243,20 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
                     item["result_schema"],
                     item["case_field"],
                     item["passed_field"],
+                    tuple(
+                        BoundCommand(
+                            Path(pin["executable_path"]),
+                            pin["executable_sha256"],
+                            Path(pin["runtime_path"]),
+                            pin["runtime_cdhash"],
+                            (state / "trusted" / pin["script_path"]).resolve(strict=True)
+                            if pin["script_path"] is not None
+                            else None,
+                            pin["script_sha256"],
+                            pin["result"],
+                        )
+                        for pin in item["command_bindings"]
+                    ),
                 )
                 for item in resolved
             )

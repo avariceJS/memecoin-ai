@@ -47,6 +47,15 @@ _VERIFIER_FIELDS = {
     "case_field",
     "passed_field",
 }
+_COMMAND_BINDING_FIELDS = {
+    "executable_path",
+    "executable_sha256",
+    "runtime_path",
+    "runtime_cdhash",
+    "script_path",
+    "script_sha256",
+    "result",
+}
 
 
 def _digest(raw: bytes) -> str:
@@ -235,9 +244,10 @@ def resolve_verifier_manifest(
         binding.get("integration_policy_sha256")
     ):
         raise VerifierManifestError("verifier_manifest_binding_invalid")
+    version = manifest.get("schema") if type(manifest) is dict else None
     if (
         set(manifest) != _MANIFEST_FIELDS
-        or manifest.get("schema") != "brain-verifier-manifest-v4"
+        or version not in {"brain-verifier-manifest-v4", "brain-verifier-manifest-v5"}
         or manifest.get("controller_release_sha256") != binding.get("controller_release_sha256")
         or manifest.get("integration_policy_sha256") != binding.get("integration_policy_sha256")
     ):
@@ -290,11 +300,10 @@ def resolve_verifier_manifest(
 
     resolved = []
     for expected, record in zip(bound, records, strict=True):
-        if (
-            type(expected) is not dict
-            or type(record) is not dict
-            or set(record) != _VERIFIER_FIELDS
-        ):
+        record_fields = _VERIFIER_FIELDS | (
+            {"command_bindings"} if version == "brain-verifier-manifest-v5" else set()
+        )
+        if type(expected) is not dict or type(record) is not dict or set(record) != record_fields:
             raise VerifierManifestError("verifier_manifest_record_invalid")
         projection = {
             key: expected.get(key)
@@ -317,7 +326,15 @@ def resolve_verifier_manifest(
         if (
             type(commands) is not list
             or not commands
-            or any(type(command) is not list for command in commands)
+            or any(
+                type(command) is not list
+                or not command
+                or any(
+                    type(argument) is not str or not argument or "\x00" in argument
+                    for argument in command
+                )
+                for command in commands
+            )
             or len(commands[0]) < 5
             or commands[0][0] != "{interpreter}"
             or commands[0][: len(VERIFIER_COMMAND_PREFIX)] != list(VERIFIER_COMMAND_PREFIX)
@@ -325,6 +342,8 @@ def resolve_verifier_manifest(
             or sum(arg == "{interpreter}" for command in commands for arg in command) != 1
         ):
             raise VerifierManifestError("verifier_harness_command_unbound")
+        if version == "brain-verifier-manifest-v4" and len(commands) != 1:
+            raise VerifierManifestError("verifier_command_identity_missing")
         if not _hash(record.get("harness_sha256")):
             raise VerifierManifestError("verifier_harness_hash_invalid")
         harness = _trusted_harness(root, record.get("harness_path"))
@@ -338,6 +357,158 @@ def resolve_verifier_manifest(
         )
         if _digest(content) != record["harness_sha256"]:
             raise VerifierManifestError("verifier_harness_hash_mismatch")
+        command_bindings = []
+        if version == "brain-verifier-manifest-v4":
+            command_bindings = [
+                {
+                    "executable_path": str(interpreter_path),
+                    "executable_sha256": manifest["interpreter_sha256"],
+                    "runtime_path": str(runtime_path),
+                    "runtime_cdhash": runtime_cdhash,
+                    "script_path": record["harness_path"],
+                    "script_sha256": record["harness_sha256"],
+                    "result": {
+                        "kind": "acceptance_json",
+                        "acceptance_id": record["acceptance_id"],
+                        "result_schema": record["result_schema"],
+                        "case_field": record["case_field"],
+                        "passed_field": record["passed_field"],
+                    },
+                }
+            ]
+        else:
+            supplied_command_bindings = record.get("command_bindings")
+            if type(supplied_command_bindings) is not list or len(supplied_command_bindings) != len(
+                commands
+            ):
+                raise VerifierManifestError("verifier_command_bindings_mismatch")
+            for index, (command, pin) in enumerate(
+                zip(commands, supplied_command_bindings, strict=True)
+            ):
+                if type(pin) is not dict or set(pin) != _COMMAND_BINDING_FIELDS:
+                    raise VerifierManifestError("verifier_command_binding_invalid")
+                executable = pin.get("executable_path")
+                if index == 0:
+                    if executable != str(interpreter_path):
+                        raise VerifierManifestError("verifier_command_executable_mismatch")
+                elif (
+                    type(executable) is not str
+                    or not Path(executable).is_absolute()
+                    or str(Path(executable)) != executable
+                ):
+                    raise VerifierManifestError("verifier_command_executable_invalid")
+                if command[0] != ("{interpreter}" if index == 0 else executable):
+                    raise VerifierManifestError("verifier_command_executable_mismatch")
+                exe_path = _interpreter_identity(
+                    executable,
+                    pin.get("executable_sha256"),
+                    configured_interpreter=(interpreter_path if index == 0 else executable),
+                )
+                runtime_value = pin.get("runtime_path")
+                cdhash = pin.get("runtime_cdhash")
+                if (
+                    type(runtime_value) is not str
+                    or not Path(runtime_value).is_absolute()
+                    or str(Path(runtime_value)) != runtime_value
+                    or type(cdhash) is not str
+                    or re.fullmatch(r"[0-9a-f]{40}", cdhash) is None
+                ):
+                    raise VerifierManifestError("verifier_command_runtime_identity_invalid")
+                if index == 0 and (
+                    pin.get("executable_sha256") != manifest["interpreter_sha256"]
+                    or runtime_value != str(runtime_path)
+                    or cdhash != runtime_cdhash
+                ):
+                    raise VerifierManifestError("verifier_command_identity_mismatch")
+                try:
+                    pinned_runtime = Path(runtime_value)
+                    if pinned_runtime.resolve(strict=True) != pinned_runtime:
+                        raise ValueError
+                    if static_code_directory_hash(pinned_runtime) != cdhash:
+                        raise VerifierManifestError("verifier_command_runtime_cdhash_mismatch")
+                except VerifierManifestError:
+                    raise
+                except (MacCodeIdentityError, OSError, ValueError, RuntimeError):
+                    raise VerifierManifestError(
+                        "verifier_command_runtime_identity_invalid"
+                    ) from None
+                script_path = pin.get("script_path")
+                script_sha = pin.get("script_sha256")
+                if index == 0:
+                    if (
+                        script_path != record["harness_path"]
+                        or script_sha != record["harness_sha256"]
+                    ):
+                        raise VerifierManifestError("verifier_command_script_mismatch")
+                elif (script_path is None) != (script_sha is None):
+                    raise VerifierManifestError("verifier_command_script_binding_invalid")
+                if script_path is not None:
+                    trusted_script = _trusted_harness(root, script_path)
+                    script_raw = _read_regular(
+                        trusted_script,
+                        symlink_code="verifier_harness_symlink",
+                        unavailable_code="verifier_harness_unavailable",
+                        regular_code="verifier_harness_not_regular",
+                        too_large_code="verifier_harness_too_large",
+                        max_bytes=16_000_000,
+                    )
+                    if not _hash(script_sha) or _digest(script_raw) != script_sha:
+                        raise VerifierManifestError("verifier_command_script_hash_mismatch")
+                    if (
+                        len(command) < 5
+                        or command[1:4] != ["-I", "-S", "-B"]
+                        or command[4] != ("{harness}" if index == 0 else str(trusted_script))
+                    ):
+                        raise VerifierManifestError("verifier_command_script_unbound")
+                elif "{harness}" in command:
+                    raise VerifierManifestError("verifier_command_script_unbound")
+                result = pin.get("result")
+                if (
+                    type(result) is not dict
+                    or type(result.get("kind")) is not str
+                    or result.get("kind")
+                    not in {
+                        "exit_zero",
+                        "acceptance_json",
+                    }
+                ):
+                    raise VerifierManifestError("verifier_command_result_invalid")
+                if result["kind"] == "exit_zero":
+                    if set(result) != {"kind"} or index == 0:
+                        raise VerifierManifestError("verifier_command_result_invalid")
+                else:
+                    if set(result) != {
+                        "kind",
+                        "acceptance_id",
+                        "result_schema",
+                        "case_field",
+                        "passed_field",
+                    }:
+                        raise VerifierManifestError("verifier_command_result_invalid")
+                    if any(
+                        type(result.get(key)) is not str or not result[key]
+                        for key in ("acceptance_id", "result_schema", "case_field", "passed_field")
+                    ):
+                        raise VerifierManifestError("verifier_command_result_invalid")
+                    if index == 0 and result != {
+                        "kind": "acceptance_json",
+                        "acceptance_id": record["acceptance_id"],
+                        "result_schema": record["result_schema"],
+                        "case_field": record["case_field"],
+                        "passed_field": record["passed_field"],
+                    }:
+                        raise VerifierManifestError("verifier_command_result_mismatch")
+                command_bindings.append(
+                    {
+                        "executable_path": str(exe_path),
+                        "executable_sha256": pin["executable_sha256"],
+                        "runtime_path": str(pinned_runtime),
+                        "runtime_cdhash": cdhash,
+                        "script_path": script_path,
+                        "script_sha256": script_sha,
+                        "result": json.loads(_canonical(result)),
+                    }
+                )
         resolved.append(
             {
                 **json.loads(_canonical(actual)),
@@ -346,6 +517,7 @@ def resolve_verifier_manifest(
                 "interpreter_sha256": manifest["interpreter_sha256"],
                 "interpreter_runtime_path": str(runtime_path),
                 "interpreter_runtime_cdhash": runtime_cdhash,
+                "command_bindings": command_bindings,
             }
         )
     return tuple(resolved)

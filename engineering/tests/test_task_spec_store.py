@@ -248,6 +248,18 @@ class TaskSpecStoreTests(unittest.TestCase):
             self.assertEqual(len(plan.bound_verifiers), 1)
             self.assertEqual(plan.bound_verifiers[0].acceptance_id, "atomic-spec-store")
             self.assertEqual(plan.bound_verifiers[0].interpreter_runtime_cdhash, "d" * 40)
+            self.assertEqual(len(plan.bound_verifiers[0].command_bindings), 1)
+            self.assertEqual(
+                plan.bound_verifiers[0].command_bindings[0].executable_path,
+                interpreter.resolve(),
+            )
+            self.assertEqual(
+                plan.bound_verifiers[0].command_bindings[0].script_path,
+                (trusted / "acceptance.py").resolve(),
+            )
+            self.assertEqual(
+                plan.bound_verifiers[0].command_bindings[0].result["kind"], "acceptance_json"
+            )
             self.assertEqual(plan.bound_verifiers[0].result_schema, "org-acceptance-v1")
             self.assertEqual(
                 expand_bound_verifier_command(

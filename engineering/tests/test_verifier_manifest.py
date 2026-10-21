@@ -208,6 +208,145 @@ class VerifierManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(VerifierManifestError, "harness_command_unbound"):
             self.resolve(binding, candidate)
 
+    def test_v5_binds_every_command_identity_and_result_contract(self):
+        native = self.root / "native-check"
+        native.write_bytes(b"synthetic second verifier executable\n")
+        native.chmod(0o755)
+        native_sha = hashlib.sha256(native.read_bytes()).hexdigest()
+        second_script = self.trusted / "second.py"
+        second_script.write_bytes(b"synthetic second trusted script\n")
+        second_script_sha = hashlib.sha256(second_script.read_bytes()).hexdigest()
+        commands = [
+            ["{interpreter}", "-I", "-S", "-B", "{harness}", "{task_id}", "{checkout}"],
+            [
+                str(self.interpreter.resolve()),
+                "-I",
+                "-S",
+                "-B",
+                str(second_script.resolve()),
+                "--check",
+            ],
+            [str(native.resolve()), "--check", "{checkout}"],
+        ]
+        binding = json.loads(json.dumps(self.binding))
+        binding["verifiers"][0]["commands"] = commands
+        reseal(binding)
+        manifest = json.loads(json.dumps(self.manifest))
+        manifest["schema"] = "brain-verifier-manifest-v5"
+        manifest["verifiers"][0]["commands"] = commands
+        manifest["verifiers"][0]["command_bindings"] = [
+            {
+                "executable_path": str(self.interpreter.resolve()),
+                "executable_sha256": self.interpreter_sha,
+                "runtime_path": str(self.interpreter.resolve()),
+                "runtime_cdhash": "d" * 40,
+                "script_path": "acceptance.py",
+                "script_sha256": self.harness_sha,
+                "result": {
+                    "kind": "acceptance_json",
+                    "acceptance_id": "synthetic-acceptance",
+                    "result_schema": "synthetic-result-v1",
+                    "case_field": "case",
+                    "passed_field": "passed",
+                },
+            },
+            {
+                "executable_path": str(self.interpreter.resolve()),
+                "executable_sha256": self.interpreter_sha,
+                "runtime_path": str(self.interpreter.resolve()),
+                "runtime_cdhash": "d" * 40,
+                "script_path": "second.py",
+                "script_sha256": second_script_sha,
+                "result": {
+                    "kind": "acceptance_json",
+                    "acceptance_id": "second-acceptance",
+                    "result_schema": "second-result-v1",
+                    "case_field": "case",
+                    "passed_field": "passed",
+                },
+            },
+            {
+                "executable_path": str(native.resolve()),
+                "executable_sha256": native_sha,
+                "runtime_path": str(native.resolve()),
+                "runtime_cdhash": "d" * 40,
+                "script_path": None,
+                "script_sha256": None,
+                "result": {"kind": "exit_zero"},
+            },
+        ]
+        resolved = self.resolve(binding, manifest)
+        self.assertEqual(len(resolved[0]["command_bindings"]), 3)
+        self.assertEqual(resolved[0]["command_bindings"][1]["script_path"], "second.py")
+        self.assertEqual(
+            resolved[0]["command_bindings"][2]["executable_path"], str(native.resolve())
+        )
+        self.assertEqual(resolved[0]["command_bindings"][2]["result"], {"kind": "exit_zero"})
+
+        for mutate, error in (
+            (lambda item: item["verifiers"][0]["command_bindings"].pop(), "bindings_mismatch"),
+            (
+                lambda item: item["verifiers"][0]["command_bindings"][1].update(
+                    script_sha256="0" * 64
+                ),
+                "hash_mismatch",
+            ),
+            (
+                lambda item: item["verifiers"][0]["command_bindings"][2].update(
+                    result={"kind": "exit_zero", "extra": True}
+                ),
+                "result_invalid",
+            ),
+            (
+                lambda item: item["verifiers"][0]["command_bindings"][2].update(
+                    result={"kind": []}
+                ),
+                "result_invalid",
+            ),
+            (
+                lambda item: item["verifiers"][0]["command_bindings"][2].update(
+                    result={"kind": {}}
+                ),
+                "result_invalid",
+            ),
+        ):
+            candidate = json.loads(json.dumps(manifest))
+            mutate(candidate)
+            with self.subTest(error=error), self.assertRaisesRegex(VerifierManifestError, error):
+                self.resolve(binding, candidate)
+
+        second_script.write_bytes(b"changed trusted script\n")
+        with self.assertRaisesRegex(VerifierManifestError, "script_hash_mismatch"):
+            self.resolve(binding, manifest)
+
+    def test_v4_multicommand_manifest_fails_closed_without_per_command_pins(self):
+        commands = [
+            ["{interpreter}", "-I", "-S", "-B", "{harness}"],
+            ["/usr/bin/true"],
+        ]
+        binding = json.loads(json.dumps(self.binding))
+        binding["verifiers"][0]["commands"] = commands
+        reseal(binding)
+        manifest = json.loads(json.dumps(self.manifest))
+        manifest["verifiers"][0]["commands"] = commands
+        with self.assertRaisesRegex(VerifierManifestError, "command_identity_missing"):
+            self.resolve(binding, manifest)
+
+    def test_v5_rejects_empty_later_command_as_typed_manifest_error(self):
+        commands = [
+            ["{interpreter}", "-I", "-S", "-B", "{harness}"],
+            [],
+        ]
+        binding = json.loads(json.dumps(self.binding))
+        binding["verifiers"][0]["commands"] = commands
+        reseal(binding)
+        manifest = json.loads(json.dumps(self.manifest))
+        manifest["schema"] = "brain-verifier-manifest-v5"
+        manifest["verifiers"][0]["commands"] = commands
+        manifest["verifiers"][0]["command_bindings"] = [None, None]
+        with self.assertRaisesRegex(VerifierManifestError, "harness_command_unbound"):
+            self.resolve(binding, manifest)
+
     def test_manifest_v3_requires_isolated_no_site_startup(self):
         for prefix in (
             ["{interpreter}", "{harness}"],
