@@ -54,7 +54,11 @@ requires the candidate's exact two parents to equal the captured integration tip
 The test uses `research/active` only inside a temporary repository and leaves `main` unchanged. The
 trusted verifier callback is synthetic and does not execute worker code; this does not qualify the
 Seatbelt worker dispatch path, model review authenticity, provider usage settlement, remote
-checkpointing, runtime or A03. Engineering checks pass Ruff/format and 592 tests plus 189 subtests;
+checkpointing, runtime or A03. On the current Mac a fixed worker script runs through the real
+`SandboxRunner` in the disposable checkout, writes an in-scope file and is denied an out-of-root
+write. Its subsequent verifier callback is synthetic and does not execute worker code, and this
+does not exercise the supervisor's worker-dispatch entry point or qualify A04. Engineering checks
+pass Ruff/format and 592 tests plus 189 subtests;
 `make smoke` is deterministic and synthetic. Repository-wide `make check` currently stops at 107
 pre-existing Ruff findings in `src/`, `tools/` and `tests/`, before its later checks. The integrated
 organization cycle remains in progress.

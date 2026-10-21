@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import platform
 import subprocess
 import sys
 import tempfile
@@ -14,7 +16,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from engineering import supervisor
-from engineering.confinement import SandboxResult
+from engineering.confinement import SandboxResult, SandboxRunner, python_runtime_roots
 from engineering.git_gate import GitGate, VerificationPolicy
 from engineering.org_state import StateError, Store
 from engineering.tests.test_service import deployment as deployment_fixture
@@ -503,14 +505,35 @@ class SupervisorTests(unittest.TestCase):
 
         def run_git(repo, *args):
             result = subprocess.run(
-                ["git", "-C", str(repo), *args],
+                [
+                    "git",
+                    "-c",
+                    "core.hooksPath=/dev/null",
+                    "-c",
+                    "core.fsmonitor=false",
+                    "-C",
+                    str(repo),
+                    *args,
+                ],
                 text=True,
                 capture_output=True,
+                env=git_env,
                 check=False,
             )
             if result.returncode:
                 raise AssertionError(result.stderr)
             return result.stdout.strip()
+
+        git_env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+        git_env.update(
+            {
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_CONFIG_GLOBAL": os.devnull,
+                "GIT_TERMINAL_PROMPT": "0",
+                "GIT_OPTIONAL_LOCKS": "0",
+                "GIT_NO_REPLACE_OBJECTS": "1",
+            }
+        )
 
         integration = self.state / "integration"
         integration.mkdir()
@@ -577,13 +600,52 @@ class SupervisorTests(unittest.TestCase):
 
         worker = self.state / "worker"
         subprocess.run(
-            ["git", "clone", str(integration), str(worker)],
+            [
+                "git",
+                "-c",
+                "core.hooksPath=/dev/null",
+                "-c",
+                "core.fsmonitor=false",
+                "clone",
+                "--template=",
+                "--no-local",
+                str(integration),
+                str(worker),
+            ],
+            env=git_env,
             check=True,
             capture_output=True,
         )
+        if platform.system() != "Darwin":
+            self.skipTest("integrated worker execution requires disposable macOS Seatbelt")
         run_git(worker, "config", "user.name", "worker")
         run_git(worker, "config", "user.email", "worker@example.invalid")
-        (worker / "src" / "capability.py").write_text("VALUE = 7\n")
+        escape_path = integration / "sandbox-escape"
+        worker_code = (
+            "from pathlib import Path\n"
+            "Path('src/capability.py').write_text('VALUE = 7\\n')\n"
+            f"outside = Path({str(escape_path)!r})\n"
+            "try:\n"
+            "    outside.write_text('escape')\n"
+            "except OSError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise SystemExit('sandbox allowed an out-of-root write')\n"
+        )
+        python_executable = str(Path(sys.executable).resolve())
+        sandbox = SandboxRunner(
+            writable_roots=[worker],
+            home=worker,
+            read_roots=python_runtime_roots(python_executable),
+            protected_roots=[integration],
+        )
+        execution = sandbox.run(
+            [python_executable, "-I", "-c", worker_code],
+            cwd=worker,
+            timeout=10,
+        )
+        self.assertEqual(execution.returncode, 0, execution.stderr)
+        self.assertFalse(escape_path.exists())
         run_git(worker, "add", "-A")
         run_git(worker, "commit", "-m", "bounded capability")
         submitted_sha = run_git(worker, "rev-parse", "HEAD")

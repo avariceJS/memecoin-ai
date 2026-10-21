@@ -9,10 +9,11 @@ A synthetic source-only vertical now connects fixed-card selection/admission, cl
 verifier-plan identity, GitGate import/verification receipt, submitted-state recovery, local ref CAS,
 SQLite close/reopen, durable integration and a dependent task. Experience produces a contract consumed
 by Platform; the consumer is blocked until both teams' synthetic durable reviews activate the exact
-contract version. Faults after CAS, missing receipt, changed candidate parents and JSON `true` for an
-integer epoch all fail closed. Sol independently reviewed the recovery binding and found no remaining
-bypass in this bounded path. The worker is committed synthetically; no worker process was run through
-the full supervisor dispatch path.
+contract version. A fixed worker script runs through macOS Seatbelt in the disposable checkout and
+an out-of-root write is denied. Faults after CAS, missing receipt, changed candidate parents and JSON
+`true` for an integer epoch all fail closed. Sol independently reviewed the recovery binding and found
+no remaining bypass in this bounded path. The test does not use the supervisor dispatch entry point,
+and the verifier/reviews remain synthetic.
 
 Engineering validation: Ruff and format pass; `engineering/tests` passes 592 tests and 189 subtests.
 `make smoke` passes with deterministic synthetic fixtures. Repository `make check` stops at 107 Ruff
