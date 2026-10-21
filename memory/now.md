@@ -396,3 +396,7 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
 - A10 source `67058bf` bounds review-journal body hydration and every append at 512 KiB/version and
   2 MiB/journal while preserving default legacy readers. Sol-6.1 High accepted; gate passed 464/101
   with Ruff. SQLite work/memory and `replaces` bytes remain open; A03 and broad A10 remain open.
+- A10 source `fb590e8` bounds `replaces` projection to NULL or the exact journal key and rejects
+  malformed links before JSON hydration. Sol-6.1 High accepted; independent type/encoding matrix and
+  full gate passed (465 tests/101 subtests). SQLite value comparisons, internal work and memory remain
+  unbounded; broad A10 and A03 remain open.

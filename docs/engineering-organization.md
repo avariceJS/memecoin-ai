@@ -1259,3 +1259,17 @@ A10 and operational acceptance remain open. Review receipt:
 (SHA-256 `0804f7893d5ce1e943cacac4826488e59a102a2aa5d261bdea448525280a7b84`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-journal-read-write-bounds-gate-20261021.json`
 (SHA-256 `ced0bfadc372a6954a06ee0bdb0eab765ce08677a035cce6412c848d32422533`).
+
+At `fb590e8`, the bounded review-history query also stops projecting arbitrary `replaces` values:
+it returns only `NULL` or the exact expected journal key, and validates first/later-version link
+shape in SQL before JSON hydration. Sol-6.1 High accepted exact diff
+`1d2682ba79db7eb46a97f521d433b04c58ca14bbeab4e2da808fc8c3bfa3d7ad`; an independent matrix
+covered NULL, valid and wrong keys, oversized text, embedded NUL, BLOB and malformed UTF-8, and
+the engineering release gate passed Ruff, 465 tests and 101 subtests. SQLite still compares and
+reads stored values internally, and the six-row projection can return 3 MiB before rejection;
+unbounded historical readers retain their existing costs. Broad A10, A03 and operational
+acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replaces-projection-review-20261021.json`
+(SHA-256 `7a425375c14660800fbec577f73e9af719c8376082757b0fe8693b76e6e59d99`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replaces-projection-gate-20261021.json`
+(SHA-256 `13577d088633f87645cf986b3a689acabd724134dcc169d3bcf37a1999138866`).
