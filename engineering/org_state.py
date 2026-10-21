@@ -594,7 +594,7 @@ class Store:
             return self._readiness_report_in_snapshot()
 
     def quiescence_snapshot(self) -> dict:
-        """Return task identity and readiness from one coherent read snapshot."""
+        """Return task readiness and pending contract reviews from one SQLite snapshot."""
         with self._read_snapshot():
             revision = self.db.execute(
                 "SELECT value FROM quiescence_revision WHERE id=1"
@@ -611,6 +611,9 @@ class Store:
                     for task in tasks
                 ],
                 "readiness": self._readiness_report_in_snapshot(),
+                "contract_reviews": self._contract_transition_review_projection_in_snapshot(
+                    limit=100
+                ),
             }
             self._issued_quiescence_snapshot_sha256 = hashlib.sha256(
                 _json(snapshot).encode("utf-8")
@@ -620,14 +623,14 @@ class Store:
     def record_quiescence_handoff_if_current(
         self, fingerprint: Any, expected_snapshot: Any, body: Any
     ) -> bool:
-        """Atomically record an inert quiescence handoff only if its task snapshot is current."""
+        """Atomically record an inert quiescence handoff only if its snapshot is current."""
         if type(fingerprint) is not str or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None:
             raise StateError("quiescence handoff fingerprint invalid")
         expected_snapshot = _lifecycle_snapshot(expected_snapshot)
         body = _lifecycle_snapshot(body)
         if (
             type(expected_snapshot) is not dict
-            or set(expected_snapshot) != {"revision", "tasks", "readiness"}
+            or set(expected_snapshot) != {"revision", "tasks", "readiness", "contract_reviews"}
             or type(expected_snapshot.get("revision")) is not int
             or expected_snapshot["revision"] < 0
             or type(body) is not dict
@@ -643,6 +646,7 @@ class Store:
             "quota-unavailable",
             "blocked-dependencies",
             "catalogue-exhausted",
+            "contract-reviews-pending",
         }:
             raise StateError("quiescence handoff reason invalid")
         identity = {
@@ -1131,14 +1135,14 @@ class Store:
         if type(limit) is not int or not 0 <= limit <= 100:
             raise StateError("contract review limit must be between 0 and 100")
         total = self.db.execute(
-            "SELECT COUNT(*) FROM decisions WHERE name LIKE 'contract-transition/%' "
-            "AND name NOT LIKE '%/activated'"
+            "SELECT COUNT(*) FROM decisions WHERE name GLOB 'contract-transition/*' "
+            "AND name NOT GLOB 'contract-transition/*/activated'"
         ).fetchone()[0]
         if total > 1000:
             raise StateError("contract transition review catalogue exceeds bound")
         rows = self.db.execute(
-            "SELECT name,version FROM decisions WHERE name LIKE 'contract-transition/%' "
-            "AND name NOT LIKE '%/activated' "
+            "SELECT name,version FROM decisions WHERE name GLOB 'contract-transition/*' "
+            "AND name NOT GLOB 'contract-transition/*/activated' "
             "ORDER BY name LIMIT 1001"
         ).fetchall()
         pending = []

@@ -117,6 +117,29 @@ def test_public_contract_publication_cannot_bypass_transition_acks(store):
     assert store.get_contract("sample")["version"] == 1
 
 
+def test_quiescence_snapshot_contains_pending_reviews_from_the_same_store_projection(store):
+    propose(store)
+
+    snapshot = store.quiescence_snapshot()
+
+    assert snapshot["contract_reviews"] == store.contract_transition_review_projection()
+    assert snapshot["contract_reviews"]["pending_count"] == 2
+    assert [item["participant_team"] for item in snapshot["contract_reviews"]["items"]] == [
+        "Experience",
+        "Platform",
+    ]
+
+
+def test_quiescence_ignores_case_variant_non_reserved_transition_names(store):
+    before = store.quiescence_snapshot()
+
+    store.put_decision("CONTRACT-TRANSITION/unrelated", {"status": "ordinary"})
+
+    after = store.quiescence_snapshot()
+    assert after["revision"] == before["revision"]
+    assert after["contract_reviews"] == before["contract_reviews"]
+
+
 def test_transition_rejects_skipped_versions_duplicate_participants_and_bad_hash(store):
     with pytest.raises(StateError, match="advance exactly one"):
         store.propose_contract_transition(

@@ -1212,6 +1212,8 @@ def supervise(state: Path, max_seconds=1800):
                     resource_reason = decision.get("reason", "unknown")
                     if decision["slots"] == 0:
                         reason = "quota-unavailable"
+                    elif snapshot["contract_reviews"]["pending_count"]:
+                        reason = "contract-reviews-pending"
                     elif any(row["state"] == "pending" for row in readiness):
                         reason = "blocked-dependencies"
                     else:

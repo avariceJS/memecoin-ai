@@ -966,7 +966,9 @@ class SupervisorTests(unittest.TestCase):
         supervisor.activate_contract(self.state, self.db)
         self.assertIsNone(self.db.get_contract_transition("schema-validation", 2))
 
-    def run_quiescence(self, reason, *, pending=False, slots=1, readiness_change=False):
+    def run_quiescence(
+        self, reason, *, pending=False, slots=1, readiness_change=False, review_pending=False
+    ):
         if pending:
             self.candidate("EXP-001", target_state="integrated", team="Experience")
             self.db.add_task(
@@ -982,6 +984,16 @@ class SupervisorTests(unittest.TestCase):
             self.db.submit(attempt["id"], attempt["epoch"], "sha", {})
             self.db.verify("T", "sha", True, {})
             self.db.accept("T", "sha")
+        if review_pending:
+            self.db.propose_contract_transition(
+                "schema-validation",
+                1,
+                2,
+                self.cfg["contracts"]["schema-validation"],
+                producer_task_id="EXP-001",
+                producer_team="Experience",
+                consumer_teams=["Platform"],
+            )
         decision = {"slots": slots, "selected_tasks": [], "reason": "synthetic"}
         events_before = len(self.db.events())
         with (
@@ -1008,15 +1020,17 @@ class SupervisorTests(unittest.TestCase):
                 # version changes, so a readiness-aware trigger must get a new identity.
                 before = self.db.list_tasks()
                 proposal = self.cfg["contracts"]["schema-validation"]
-                transition = self.db.propose_contract_transition(
-                    "schema-validation",
-                    1,
-                    2,
-                    proposal,
-                    producer_task_id="EXP-001",
-                    producer_team="Experience",
-                    consumer_teams=["Platform"],
-                )
+                transition = self.db.get_contract_transition("schema-validation", 2)
+                if transition is None:
+                    transition = self.db.propose_contract_transition(
+                        "schema-validation",
+                        1,
+                        2,
+                        proposal,
+                        producer_task_id="EXP-001",
+                        producer_team="Experience",
+                        consumer_teams=["Platform"],
+                    )
                 digest = transition["body"]["contract_hash"]
                 self.db.acknowledge_contract_transition(
                     "schema-validation", 2, "Experience", digest
@@ -1038,20 +1052,23 @@ class SupervisorTests(unittest.TestCase):
             bodies = [self.db.get_decision(event["entity"])["body"] for event in handoffs]
             self.assertNotEqual(bodies[0]["fingerprint"], bodies[1]["fingerprint"])
         details = self.db.get_decision(handoffs[-1]["entity"])["body"]
-        self.assertEqual(details["reason"], reason)
+        self.assertEqual(details["reason"], "blocked-dependencies" if readiness_change else reason)
         (self.state / "STOP").unlink(missing_ok=True)
 
     def test_quiescence_catalogue_exhausted_handoff_has_no_chief_call(self):
-        self.run_quiescence("catalogue-exhausted")
+        self.run_quiescence("contract-reviews-pending")
 
     def test_quiescence_blocked_dependencies_handoff_has_no_chief_call(self):
-        self.run_quiescence("blocked-dependencies", pending=True)
+        self.run_quiescence("contract-reviews-pending", pending=True)
 
     def test_quiescence_handoff_identity_tracks_current_contract_readiness(self):
-        self.run_quiescence("blocked-dependencies", pending=True, readiness_change=True)
+        self.run_quiescence("contract-reviews-pending", pending=True, readiness_change=True)
 
     def test_quiescence_unavailable_quota_handoff_has_no_chief_call(self):
         self.run_quiescence("quota-unavailable", slots=0)
+
+    def test_quiescence_routes_pending_contract_reviews_to_sol(self):
+        self.run_quiescence("contract-reviews-pending", review_pending=True)
 
     def test_quiescence_handoff_survives_stable_blocked_verifier(self):
         self.task()
