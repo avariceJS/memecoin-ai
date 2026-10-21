@@ -84,6 +84,16 @@ Store без `controller_catalogue` остаётся совместимым; off
 путь, а прямой SQLite tampering отдельно не аутентифицируется. Это synthetic source-only evidence,
 не qualification reviewer/provider identity, A04/A03 или runtime.
 
+2026-10-22: PLAT-001 Experience теперь тоже проходит через controller loop `supervise`: loop сам
+выбирает и claim-ит задачу, запускает привязанный worker command и на следующей итерации вызывает
+независимую проверку. Regression связывает `--state`, `--attempt`, `stdin=DEVNULL` и назначение Luna
+с candidate/verification plan. После прерывания сразу после Git ref CAS тест переоткрывает SQLite,
+отклоняет изменённые intent/receipt и выполняет одну recovery-интеграцию. Sol принял synthetic
+объём. Launcher исполняет `run_attempt` inline под перехваченным `Popen`: это не native child/OS
+изоляция; RuntimeError — не жёсткое завершение процесса. Это закрывает ручной claim/run/verify шов
+PLAT-001 в интегрированной producer/consumer регрессии; provider/reviewer и operational qualification
+не заявляются.
+
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
 reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает
 только manifest-bound controller и требует присутствующий Pilot STOP, валидный restore receipt и

@@ -2034,3 +2034,14 @@ deployment qualification, runtime and operational release remain open.
 The separate repository-wide `make check` stops in its initial Ruff pass on 107 existing findings
 under `src/`, `tests/` and `tools/`; it does not reach later checks. The focused engineering release
 gate is clean.
+
+Integrated PLAT-001 producer continuation — 2026-10-22: the Experience producer now enters through
+the real bounded `supervise` loop, which selects and claims the nominated task, launches the pinned
+worker command, and verifies the submitted candidate on its next iteration. The regression binds
+launcher `--state`/`--attempt`, `stdin=DEVNULL`, and the durable Luna worker identity to the exact
+candidate and verification plan. It injects a caught interruption after Git ref CAS, reopens SQLite,
+rejects altered intent/receipt evidence, and performs one recovered integration. Sol accepted this
+synthetic scope. The launcher intercept runs `run_attempt` inline; it does not prove a native worker
+child or OS isolation, and the caught exception is not a hard process death. This closes the PLAT-001
+manual claim/run/verify seam in the integrated producer/consumer regression only; synthetic transport,
+reviewer/provider qualification, A03, A04 deployment qualification and operational release remain open.

@@ -13,8 +13,13 @@ supervisor claim, worker dispatch, candidate verification and recovery reconcili
 work must use task-spec admission. Supervisor Store instances apply that catalogue inside readiness and
 claim transactions; task-spec IDs cannot collide with fixed cards, including an ID mutation during
 SQLite lock wait. Fresh quiescence durably reports `controller-assignment-required`. Sol accepted the
-boundary and race fix. `make engineering-release-check` passes Ruff/format, 672 tests and 193 subtests;
-smoke is reproducible with `edge_established=false`. The full loop remains deterministic and injected;
+boundary and race fix. `make engineering-release-check` passes Ruff/format, 672 tests and 193 subtests.
+The PLAT-001 integrated regression now uses `supervise` for selection/claim, `run_attempt`, next-loop
+`verify_one`, post-CAS interruption, SQLite reopen, intent/receipt negative cases and one recovered
+integration. Launcher arguments/state, Luna worker identity and `stdin=DEVNULL` are bound to its
+candidate. Sol accepted the synthetic scope. The full gate after these additional assertions is
+pending; smoke on the previous committed state is reproducible with `edge_established=false`. The full
+loop remains deterministic and injected;
 reviewer/provider identity, A03 settlement, restored-runtime continuation and operational release are
 unqualified.
 Unknown outcomes retain their reservations. `make check` was previously blocked by 107 unrelated Ruff

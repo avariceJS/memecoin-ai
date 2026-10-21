@@ -1139,11 +1139,10 @@ class SupervisorTests(unittest.TestCase):
             )
         )
         task = self.db.get_task(admitted)
-        attempt = self.db.claim(admitted, "synthetic-worker")
-        plan = supervisor.prepare_verification_plan(self.state, self.db, task, self.cfg)
+        plan = supervisor.prepare_verification_plan(self.state.resolve(), self.db, task, self.cfg)
         self.assertTrue(plan.execution_qualified)
         self.assertEqual(task["scope"], ["src/capability.py"])
-        self.assertEqual(attempt["task_id"], admitted)
+        self.assertEqual(task["state"], "pending")
 
         if platform.system() != "Darwin":
             self.skipTest("integrated worker execution requires disposable macOS Seatbelt")
@@ -1321,24 +1320,38 @@ class SupervisorTests(unittest.TestCase):
                 return None
 
         self_test = self
-        with (
-            patch.object(
-                supervisor,
-                "metered_client",
-                side_effect=lambda *_args, **kwargs: SyntheticCodex(kwargs["context"]["role"]),
-            ),
-            patch.object(supervisor, "process_identity", return_value="synthetic-process"),
-        ):
-            supervisor.run_attempt(self.state, attempt["id"])
-        self.assertFalse(escape_path.exists())
-        submitted_task = self.db.get_task(admitted)
-        self.assertEqual(submitted_task["state"], "submitted", self.db.events())
-        candidate_record = self.db.get_candidate(admitted)
-        self.assertEqual(candidate_record["attempt_id"], attempt["id"])
-        self.assertEqual(candidate_record["epoch"], attempt["epoch"])
-        submitted_evidence = candidate_record["evidence"]
-        self.assertEqual(submitted_evidence["verification_plan"], plan.identity())
-        intent_path = self.state / "intents" / f"{admitted}.json"
+        producer_attempt_ids = []
+        producer_launches = []
+        producer_verification_calls = []
+        producer_verification_results = []
+        real_run_attempt = supervisor.run_attempt
+        real_verify_producer = supervisor.verify_one
+
+        def capture_producer_attempt(state, attempt_id):
+            producer_attempt_ids.append(attempt_id)
+            return real_run_attempt(state, attempt_id)
+
+        def capture_producer_verification(state, current_task):
+            producer_verification_calls.append(current_task["id"])
+            result = real_verify_producer(state, current_task)
+            producer_verification_results.append(result)
+            return result
+
+        real_popen = subprocess.Popen
+
+        def run_supervised_producer(args, **kwargs):
+            if "engineering" in args and "attempt" in args:
+                producer_launches.append((list(args), kwargs))
+                attempt_id = int(args[args.index("--attempt") + 1])
+                attempt_state = Path(args[args.index("--state") + 1])
+                supervisor.run_attempt(attempt_state, attempt_id)
+                return SimpleNamespace(pid=456)
+            return real_popen(args, **kwargs)
+
+        def interrupt_after_producer_cas(*_args, **_kwargs):
+            (self.state / "STOP").touch()
+            raise RuntimeError("synthetic interruption after Git ref CAS")
+
         verification_events = []
         with (
             patch.object(
@@ -1347,10 +1360,27 @@ class SupervisorTests(unittest.TestCase):
                 side_effect=lambda *_args, **kwargs: SyntheticCodex(kwargs["context"]["role"]),
             ),
             patch.object(supervisor, "process_identity", return_value="synthetic-process"),
+            patch.object(supervisor, "run_attempt", side_effect=capture_producer_attempt),
+            patch.object(supervisor, "verify_one", side_effect=capture_producer_verification),
+            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
+            patch.object(supervisor, "available_memory", return_value=10**10),
+            patch.object(supervisor, "status", return_value={}),
+            patch.object(supervisor, "render_desk"),
+            patch(
+                "engineering.resources.choose_capacity",
+                side_effect=lambda *args, ready_tasks=(), **kwargs: {
+                    "slots": 1,
+                    "selected_tasks": list(ready_tasks),
+                    "reason": "synthetic",
+                },
+            ),
+            patch.object(supervisor.subprocess, "Popen", side_effect=run_supervised_producer),
+            patch.object(supervisor.time, "sleep"),
             patch.object(
                 Store,
                 "integrate",
-                side_effect=RuntimeError("synthetic interruption after Git ref CAS"),
+                side_effect=interrupt_after_producer_cas,
             ) as crashed_integrate,
             patch.object(
                 supervisor,
@@ -1360,7 +1390,35 @@ class SupervisorTests(unittest.TestCase):
                 ),
             ),
         ):
-            self.assertTrue(supervisor.verify_one(self.state, submitted_task))
+            supervisor.supervise(self.state, max_seconds=10)
+        self.assertFalse(escape_path.exists())
+        submitted_task = self.db.get_task(admitted)
+        self.assertEqual(submitted_task["state"], "accepted", self.db.events())
+        self.assertEqual(len(producer_attempt_ids), 1)
+        self.assertEqual(len(producer_launches), 1)
+        attempt = self.db.list_attempts(admitted)[0]
+        self.assertEqual(attempt["id"], producer_attempt_ids[0])
+        self.assertEqual(attempt["worker"], supervisor.LUNA)
+        launch_args, launch_kwargs = producer_launches[0]
+        self.assertEqual(launch_args[launch_args.index("--attempt") + 1], str(attempt["id"]))
+        self.assertEqual(
+            Path(launch_args[launch_args.index("--state") + 1]),
+            self.state.resolve(),
+        )
+        self.assertEqual(launch_kwargs["stdin"], subprocess.DEVNULL)
+        candidate_record = self.db.get_candidate(admitted)
+        self.assertEqual(candidate_record["attempt_id"], attempt["id"])
+        self.assertEqual(candidate_record["epoch"], attempt["epoch"])
+        submitted_evidence = candidate_record["evidence"]
+        self.assertEqual(submitted_evidence["verification_plan"], plan.identity())
+        self.assertEqual(producer_verification_calls, [admitted])
+        self.assertEqual(
+            producer_verification_results,
+            [True],
+            verification_events,
+        )
+        intent_path = self.state / "intents" / f"{admitted}.json"
+        crashed_integrate.assert_called_once()
         self.assertTrue(intent_path.exists(), verification_events)
         intent = supervisor.read(intent_path)
         candidate_sha = intent["candidate_sha"]
@@ -1376,15 +1434,17 @@ class SupervisorTests(unittest.TestCase):
         self.addCleanup(self.db.close)
         intent_path = self.state / "intents" / f"{admitted}.json"
         supervisor.atomic(intent_path, {**intent, "epoch": True})
-        supervisor.reconcile(self.state, self.db)
+        supervisor.reconcile(self.state.resolve(), self.db)
         self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
         self.assertEqual(run_git(integration, "rev-parse", GitGate.ACTIVE_REF), candidate_sha)
         supervisor.atomic(
             intent_path,
             {**intent, "candidate_sha": base},
         )
+        self.assertNotEqual(base, candidate_sha)
+        self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
         with self.assertRaisesRegex(RuntimeError, "candidate parents"):
-            supervisor.reconcile(self.state, self.db)
+            supervisor.reconcile(self.state.resolve(), self.db)
         self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
         self.assertEqual(run_git(integration, "rev-parse", GitGate.ACTIVE_REF), candidate_sha)
         supervisor.atomic(intent_path, intent)
@@ -1392,7 +1452,7 @@ class SupervisorTests(unittest.TestCase):
         receipt_bytes = receipt_path.read_bytes()
         receipt_path.unlink()
         with self.assertRaisesRegex(RuntimeError, "receipt"):
-            supervisor.reconcile(self.state, self.db)
+            supervisor.reconcile(self.state.resolve(), self.db)
         self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
         self.assertEqual(self.db.contract_review_worklist()["count"], 0)
         forged = json.loads(receipt_bytes)
@@ -1402,12 +1462,15 @@ class SupervisorTests(unittest.TestCase):
         (self.state / "receipts" / f"{forged_digest}.json").write_bytes(forged_bytes)
         supervisor.atomic(intent_path, {**intent, "receipt": forged_digest})
         with self.assertRaisesRegex(RuntimeError, "receipt"):
-            supervisor.reconcile(self.state, self.db)
+            supervisor.reconcile(self.state.resolve(), self.db)
         self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
         self.assertEqual(run_git(integration, "rev-parse", GitGate.ACTIVE_REF), candidate_sha)
         self.assertEqual(self.db.contract_review_worklist()["count"], 0)
         supervisor.atomic(intent_path, intent)
         receipt_path.write_bytes(receipt_bytes)
+        # The first supervisor episode stopped after the post-CAS interruption. Clear
+        # only this disposable fixture's STOP before the recovered controller resumes.
+        (self.state / "STOP").unlink()
         prepare_contract_review = self.db.prepare_contract_review
         failed_after_first_request = False
 
@@ -1423,18 +1486,22 @@ class SupervisorTests(unittest.TestCase):
             "prepare_contract_review",
             side_effect=interrupt_contract_review,
         ):
-            supervisor.reconcile(self.state, self.db)
+            supervisor.reconcile(self.state.resolve(), self.db)
         partial_review_items = self.db.contract_review_worklist()["items"]
         partial_review_ids = [
             item["request_id"]
             for item in partial_review_items
             if item["team"] in {"Experience", "Platform"}
         ]
-        self.assertEqual(len(partial_review_ids), 1)
+        self.assertEqual(
+            len(partial_review_ids),
+            1,
+            (self.db.get_task(admitted), self.db.get_contract("research-output"), self.db.events()),
+        )
         self.db.close()
         self.db = Store(database_path, clock=lambda: self.now)
         self.addCleanup(self.db.close)
-        supervisor.reconcile(self.state, self.db)
+        supervisor.reconcile(self.state.resolve(), self.db)
         recovered_review_items = self.db.contract_review_worklist()["items"]
         recovered_review_ids = [
             item["request_id"]
@@ -1443,7 +1510,7 @@ class SupervisorTests(unittest.TestCase):
         ]
         self.assertEqual(len(recovered_review_ids), 2)
         self.assertIn(partial_review_ids[0], recovered_review_ids)
-        supervisor.reconcile(self.state, self.db)
+        supervisor.reconcile(self.state.resolve(), self.db)
 
         self.assertEqual(self.db.get_task(admitted)["state"], "integrated")
         self.assertEqual(run_git(integration, "rev-parse", "main"), base)
@@ -1739,7 +1806,7 @@ main()
         finally:
             restored_ledger.close()
         # Continue only the original disposable test state; the restored copy stays STOPped.
-        (self.state / "STOP").unlink()
+        (self.state / "STOP").unlink(missing_ok=True)
 
         class SyntheticContractReviewTransport:
             def __init__(self):
