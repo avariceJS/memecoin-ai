@@ -1106,3 +1106,22 @@ acceptance remain open. Review receipt:
 gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-bounds-gate-20261021.json`
 (SHA-256 `b2a9aefbe7cd7f31d9f9f9d33096384227c8e3c53119063d4c077bf50df64a5f`).
+
+At `1f87739`, lifecycle owner-version continuity checks now use SQLite aggregates (`COUNT`, `MIN`,
+`MAX` and stored-type validation) instead of materializing the full version list in Python. With the
+existing unique `(name, version)` key, integer-only versions spanning `1..COUNT` establish the same
+contiguity invariant. The write fence and read snapshot remain unchanged. Tests cover repeated renewals,
+gap detection, empty history, malformed SQLite version type, and the cross-connection snapshot hook.
+Sol-6.1 High accepted exact diff
+`59c47b9589e18ab1d9030a5024123baeea332be551fc847fbce7004594249e7d`; focused lifecycle tests passed
+28 tests/3 subtests and the final engineering gate passed Ruff, 444 tests and 101 subtests. The first
+full gate had one transient existing macOS code-identity deadline mismatch; that test passed alone
+and two subsequent full runs passed. This reduces Python-side memory only: SQLite still scans all
+retained owner versions, so work remains O(N). Owner history bodies/replacement links receive no new
+validation. No A05 authorization generation, consumer, execution authority or runtime wiring was
+added. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-owner-history-head-review-20261021.json`
+(SHA-256 `00b79e6c1fbfd3f9d3e5a7486048521ddbb4d4f488b8bc6c01213691e9b88be9`);
+gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-owner-history-head-gate-20261021.json`
+(SHA-256 `88ac386d694a08cffe670b33f63064401634e6ee8d2d6bf71f66deae99fe8c36`).

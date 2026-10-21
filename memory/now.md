@@ -336,6 +336,10 @@ A10 query-plan regression follow-up at `2c353156`: production replay and `EXPLAI
 
 Source `7591be0` caps each replay inventory at 1,000 journals, 512 KiB/version, 2 MiB/journal and 32 MiB total. Metadata preflight precedes hydration in one read snapshot and is repeated under the finalization write lock. Overflow performs no partial replay; historical readers remain compatible. Independent review accepted exact diff `6309a82fcd0fa7503ee69a6cd73a1233be9d4078bbc3bb6c5b5e55b31d04ea03`; focused suite 54 passed and engineering gate passed 441 tests/101 subtests with Ruff. SQLite work/time and total process memory remain unbounded; STOP active, no provider/runtime.
 
+### 2026-10-21 — A05 owner history memory
+
+At `1f87739`, owner-version continuity checks use SQLite aggregates rather than hydrating all version integers into Python. Sol-6.1 High accepted exact diff `59c47b9589e18ab1d9030a5024123baeea332be551fc847fbce7004594249e7d`; focused tests passed 28/3 subtests and final gate passed 444 tests/101 subtests with Ruff. This bounds Python-side materialization only; SQLite still scans O(N) retained versions. A05 authorization generation/consumer remain open; STOP active, no runtime.
+
 ### 2026-10-21 — A04 per-command identity
 
 At `90f99df`, verifier manifest v5 binds each ordered command's executable/runtime identity and
