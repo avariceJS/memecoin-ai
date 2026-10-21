@@ -130,6 +130,13 @@ class LifecycleStoreTests(unittest.TestCase):
             )
         )
 
+        plan = self.store.db.execute(
+            "EXPLAIN QUERY PLAN SELECT COUNT(*),"
+            "MAX(length(CAST(body AS BLOB))) FROM events "
+            "WHERE kind='decision_recorded' AND entity='lifecycle/owner'"
+        ).fetchall()
+        self.assertTrue(any("idx_events_lifecycle_owner_decision" in row["detail"] for row in plan))
+
     def test_owner_history_head_detects_gaps(self):
         lease = self.store.claim_lifecycle_owner("owner", lease_seconds=10000)
         lease = self.store.renew_lifecycle_owner(lease, lease_seconds=10000)
@@ -226,6 +233,103 @@ class LifecycleStoreTests(unittest.TestCase):
         self.store.claim_lifecycle_owner("owner")
         self.store.db.execute(
             "UPDATE decisions SET body=? WHERE name='lifecycle/owner' AND version=1",
+            (json.dumps({"oversized": "x" * org_state._LIFECYCLE_OWNER_RECORD_MAX_BYTES}),),
+        )
+
+        with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
+            with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+                self.store._lifecycle_owner_history_head()
+
+    def test_owner_history_requires_matching_decision_events_before_mutation(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        owner_event = self.store.db.execute(
+            "SELECT seq,body FROM events "
+            "WHERE kind='decision_recorded' AND entity='lifecycle/owner'"
+        ).fetchone()
+        event_body = json.loads(owner_event["body"])
+        event_body["body"]["owner"] = "tampered"
+        self.store.db.execute(
+            "UPDATE events SET body=? WHERE seq=?",
+            (json.dumps(event_body, sort_keys=True, separators=(",", ":")), owner_event["seq"]),
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.renew_lifecycle_owner(lease)
+
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT COUNT(*) FROM decisions WHERE name='lifecycle/owner'"
+            ).fetchone()[0],
+            1,
+        )
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT COUNT(*) FROM events "
+                "WHERE kind='decision_recorded' AND entity='lifecycle/owner'"
+            ).fetchone()[0],
+            1,
+        )
+
+    def test_missing_owner_decision_event_fails_closed(self):
+        self.store.claim_lifecycle_owner("owner")
+        self.store.db.execute(
+            "DELETE FROM events WHERE kind='decision_recorded' AND entity='lifecycle/owner'"
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.claim_lifecycle_owner("replacement")
+
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT COUNT(*) FROM decisions WHERE name='lifecycle/owner'"
+            ).fetchone()[0],
+            1,
+        )
+
+    def test_orphan_owner_decision_event_fails_closed_without_history(self):
+        self.store.claim_lifecycle_owner("owner")
+        self.store.db.execute("DELETE FROM decisions WHERE name='lifecycle/owner'")
+
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.claim_lifecycle_owner("replacement")
+
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT COUNT(*) FROM decisions WHERE name='lifecycle/owner'"
+            ).fetchone()[0],
+            0,
+        )
+
+    def test_invalid_owner_event_timestamp_is_rejected_without_text_hydration(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        self.store.db.execute(
+            "UPDATE events SET at=CAST(X'80' AS TEXT) "
+            "WHERE kind='decision_recorded' AND entity='lifecycle/owner'"
+        )
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.renew_lifecycle_owner(lease)
+
+        invalid_timestamps = (sqlite3.Binary(b"\x80"), "x" * (256 * 1024))
+        for timestamp in invalid_timestamps:
+            self.store.db.execute(
+                "UPDATE events SET at=? "
+                "WHERE kind='decision_recorded' AND entity='lifecycle/owner'",
+                (timestamp,),
+            )
+            with self.subTest(timestamp_type=type(timestamp).__name__):
+                with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+                    self.store.renew_lifecycle_owner(lease)
+                self.assertEqual(
+                    self.store.db.execute(
+                        "SELECT COUNT(*) FROM decisions WHERE name='lifecycle/owner'"
+                    ).fetchone()[0],
+                    1,
+                )
+
+    def test_oversized_owner_decision_event_fails_before_json_hydration(self):
+        self.store.claim_lifecycle_owner("owner")
+        self.store.db.execute(
+            "UPDATE events SET body=? WHERE kind='decision_recorded' AND entity='lifecycle/owner'",
             (json.dumps({"oversized": "x" * org_state._LIFECYCLE_OWNER_RECORD_MAX_BYTES}),),
         )
 

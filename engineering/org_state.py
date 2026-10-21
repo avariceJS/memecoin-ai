@@ -311,6 +311,8 @@ class Store:
           CREATE TABLE IF NOT EXISTS events(
             seq INTEGER PRIMARY KEY, at REAL NOT NULL, kind TEXT NOT NULL,
             entity TEXT NOT NULL, body TEXT NOT NULL);
+          CREATE INDEX IF NOT EXISTS idx_events_lifecycle_owner_decision
+            ON events(seq) WHERE kind='decision_recorded' AND entity='lifecycle/owner';
           CREATE INDEX IF NOT EXISTS idx_tasks_state_id ON tasks(state,id);
         """)
         self.db.executescript("""
@@ -3245,7 +3247,18 @@ class Store:
         count = row["version_count"]
         if type(count) is not int:
             raise StateError("lifecycle_decision_history_invalid")
+        event_summary = self.db.execute(
+            "SELECT COUNT(*) AS event_count, "
+            "MAX(length(CAST(body AS BLOB))) AS max_body_bytes FROM events "
+            "WHERE kind='decision_recorded' AND entity='lifecycle/owner'"
+        ).fetchone()
+        event_count = event_summary["event_count"]
+        max_event_body_bytes = event_summary["max_body_bytes"]
+        if type(event_count) is not int:
+            raise StateError("lifecycle_decision_history_invalid")
         if count == 0:
+            if event_count != 0:
+                raise StateError("lifecycle_decision_history_invalid")
             return None
         first, last = row["first_version"], row["last_version"]
         max_body_bytes = row["max_body_bytes"]
@@ -3271,9 +3284,30 @@ class Store:
         if text_codec is None:
             raise StateError("lifecycle_decision_history_invalid")
 
+        if max_event_body_bytes is not None and (
+            type(max_event_body_bytes) is not int
+            or max_event_body_bytes < 0
+            or max_event_body_bytes > _LIFECYCLE_OWNER_RECORD_MAX_BYTES
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
+
+        def unique_object(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate lifecycle owner JSON key")
+                result[key] = value
+            return result
+
         cursor = self.db.execute(
             "SELECT version,CAST(body AS BLOB) AS bounded_body "
             "FROM decisions WHERE name='lifecycle/owner' ORDER BY version"
+        )
+        event_cursor = self.db.execute(
+            "SELECT seq,typeof(at) AS at_type, "
+            "CASE WHEN typeof(at) IN ('integer','real') THEN at END AS bounded_at, "
+            "CAST(body AS BLOB) AS bounded_body FROM events "
+            "WHERE kind='decision_recorded' AND entity='lifecycle/owner' ORDER BY seq"
         )
         previous = None
         while current := cursor.fetchone():
@@ -3282,15 +3316,6 @@ class Store:
                 raw_body = current["bounded_body"]
                 if type(raw_body) is not bytes:
                     raise ValueError("owner body is not bytes")
-
-                def unique_object(pairs):
-                    result = {}
-                    for key, value in pairs:
-                        if key in result:
-                            raise ValueError("duplicate owner body key")
-                        result[key] = value
-                    return result
-
                 body = json.loads(raw_body.decode(text_codec), object_pairs_hook=unique_object)
                 body = self._lifecycle_fence_state(body)
             except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError) as exc:
@@ -3318,7 +3343,56 @@ class Store:
                 )
             if not valid_transition:
                 raise StateError("lifecycle_decision_history_invalid")
+
+            event = event_cursor.fetchone()
+            if event is None or type(event["seq"]) is not int:
+                raise StateError("lifecycle_decision_history_invalid")
+            event_at = event["bounded_at"]
+            if (
+                event["at_type"] not in ("integer", "real")
+                or isinstance(event_at, bool)
+                or not isinstance(event_at, (int, float))
+            ):
+                raise StateError("lifecycle_decision_history_invalid")
+            try:
+                if not math.isfinite(event_at):
+                    raise StateError("lifecycle_decision_history_invalid")
+            except OverflowError:
+                raise StateError("lifecycle_decision_history_invalid") from None
+            try:
+                raw_event = event["bounded_body"]
+                if type(raw_event) is not bytes:
+                    raise ValueError("owner event body is not bytes")
+                event_body = json.loads(
+                    raw_event.decode(text_codec), object_pairs_hook=unique_object
+                )
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+                raise StateError("lifecycle_decision_history_invalid") from None
+            if type(event_body) is not dict or set(event_body) != {
+                "version",
+                "body",
+                "replaces",
+                "replaces_version",
+            }:
+                raise StateError("lifecycle_decision_history_invalid")
+            try:
+                event_decision = self._lifecycle_fence_state(event_body["body"])
+            except (KeyError, StateError):
+                raise StateError("lifecycle_decision_history_invalid") from None
+            if (
+                type(event_body["version"]) is not int
+                or event_body["version"] != version
+                or _json(event_decision) != _json(body)
+                or event_body["replaces"] != (None if version == 1 else "lifecycle/owner")
+                or event_body["replaces_version"] != (None if version == 1 else version - 1)
+                or (version > 1 and type(event_body["replaces_version"]) is not int)
+            ):
+                raise StateError("lifecycle_decision_history_invalid")
             previous = body
+        if event_cursor.fetchone() is not None:
+            raise StateError("lifecycle_decision_history_invalid")
+        if event_count != count:
+            raise StateError("lifecycle_decision_history_invalid")
         return last
 
     def _lifecycle_fence(self, lease: Any) -> dict:
