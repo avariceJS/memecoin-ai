@@ -18,6 +18,11 @@ automatically.
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
+- Latest A05 source checkpoint: `4a1d581` validates controller-parse recovery history with SQL
+  aggregates instead of Python version lists, then retains ordered pair-by-pair validation. Sol
+  accepted exact diff; the 1,000-version regression and full gate passed (512 tests/105 subtests,
+  Ruff). SQLite scans/body reads still scale with history; no lifecycle consumer or authorization
+  generation exists.
 - Latest A10 source checkpoint: `00cf162` compares configured publication bodies as canonical finite
   JSON, rejecting bool/integer identity drift for initial and supported legacy contracts while
   preserving key-order independence. Sol accepted the exact diff; focused regressions passed and

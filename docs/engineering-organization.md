@@ -1367,6 +1367,14 @@ authorization generation; A05 runtime and operational acceptance remain open. Re
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-root-link-gate-20261021.json`
 (SHA-256 `5dad98bdb42da7510ef2dead297a7c02c6caef06227614af39c64b3029f625f8`).
 
+At `4a1d581`, controller-parse recovery history continuity and root/self-link validity are summarized
+with SQL aggregates rather than materializing every version number into Python lists. Equal validated
+counts still drive the full ordered circuit/obligation pair validation, and a 1,000-version regression
+checks acceptance plus interior-gap rejection. Sol accepted exact diff
+`cf95cd512a112c4eb4b477ead0bfc5d2da4fc036ad59f750c04228bb754a60ab`; Ruff and the engineering gate
+passed 512 tests and 105 subtests. SQLite scans and per-version body reads still scale with retained
+cycles; A05 has no consumer or authorization generation, and operational acceptance remains open.
+
 At `67058bf`, contract-review journal reads used at dispatch, session, response custody and
 finalization now validate at most five versions and project each body only when its serialized
 size is at most 512 KiB, in one SQLite statement before JSON hydration. All five append paths also
