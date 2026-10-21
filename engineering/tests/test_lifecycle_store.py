@@ -192,6 +192,71 @@ class LifecycleStoreTests(unittest.TestCase):
             2,
         )
 
+    def test_owner_history_rejects_invalid_intermediate_owner_transition(self):
+        lease = self.store.claim_lifecycle_owner("owner", lease_seconds=100)
+        self.store.release_lifecycle_owner(lease)
+        self.store.claim_lifecycle_owner("replacement", lease_seconds=100)
+        self.store.db.execute(
+            "UPDATE decisions SET body=? WHERE name='lifecycle/owner' AND version=2",
+            (
+                json.dumps(
+                    {
+                        "status": "active",
+                        "owner": "intruder",
+                        "epoch": 1,
+                        "lease_until": 1100.0,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+            ),
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.claim_lifecycle_owner("next")
+
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT MAX(version) FROM decisions WHERE name='lifecycle/owner'"
+            ).fetchone()[0],
+            3,
+        )
+
+    def test_oversized_owner_history_fails_before_json_hydration(self):
+        self.store.claim_lifecycle_owner("owner")
+        self.store.db.execute(
+            "UPDATE decisions SET body=? WHERE name='lifecycle/owner' AND version=1",
+            (json.dumps({"oversized": "x" * org_state._LIFECYCLE_OWNER_RECORD_MAX_BYTES}),),
+        )
+
+        with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
+            with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+                self.store._lifecycle_owner_history_head()
+
+    def test_utf16_owner_history_validates_storage_bytes_and_transitions(self):
+        utf16_path = Path(self.temp.name) / "owner-utf16.sqlite"
+        connection = sqlite3.connect(utf16_path)
+        connection.execute("PRAGMA encoding='UTF-16le'")
+        connection.execute("CREATE TABLE encoding_seed(value TEXT)")
+        connection.close()
+        utf16_store = Store(utf16_path, clock=lambda: self.now)
+        try:
+            lease = utf16_store.claim_lifecycle_owner("owner", lease_seconds=100)
+            lease = utf16_store.renew_lifecycle_owner(lease, lease_seconds=100)
+            utf16_store.release_lifecycle_owner(lease)
+            self.assertEqual(utf16_store._lifecycle_owner_history_head(), 3)
+            utf16_store.db.execute(
+                "UPDATE decisions SET body=? WHERE name='lifecycle/owner' AND version=1",
+                (json.dumps({"oversized": "x" * 33_000}, separators=(",", ":")),),
+            )
+            with patch(
+                "engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")
+            ):
+                with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+                    utf16_store._lifecycle_owner_history_head()
+        finally:
+            utf16_store.close()
+
     def test_owner_history_head_handles_empty_and_rejects_noninteger_version(self):
         self.assertIsNone(self.store._lifecycle_owner_history_head())
         self.store.db.execute(

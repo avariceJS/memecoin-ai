@@ -57,6 +57,7 @@ _LIFECYCLE_OBSERVATION_FIELDS = frozenset(
 )
 _LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
 _LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
+_LIFECYCLE_OWNER_RECORD_MAX_BYTES = 64 * 1024
 _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES = 64 * 1024
 CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS = 1000
 _CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES = 512 * 1024
@@ -3226,10 +3227,11 @@ class Store:
         return size
 
     def _lifecycle_owner_history_head(self) -> int | None:
-        """Validate owner version continuity with constant Python-side memory."""
+        """Validate owner version links, bodies, and transitions with constant memory."""
         row = self.db.execute(
             "SELECT COUNT(*) AS version_count, MIN(version) AS first_version, "
             "MAX(version) AS last_version, "
+            "MAX(length(CAST(body AS BLOB))) AS max_body_bytes, "
             "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) AS invalid_versions, "
             "SUM(CASE "
             "WHEN typeof(version)='integer' AND version=1 "
@@ -3246,15 +3248,77 @@ class Store:
         if count == 0:
             return None
         first, last = row["first_version"], row["last_version"]
+        max_body_bytes = row["max_body_bytes"]
         if (
             row["invalid_versions"] != 0
             or row["invalid_links"] != 0
             or type(first) is not int
             or type(last) is not int
+            or type(max_body_bytes) is not int
+            or max_body_bytes < 0
+            or max_body_bytes > _LIFECYCLE_OWNER_RECORD_MAX_BYTES
             or first != 1
             or last != count
         ):
             raise StateError("lifecycle_decision_history_invalid")
+
+        database_encoding = self.db.execute("PRAGMA encoding").fetchone()[0]
+        text_codec = {
+            "UTF-8": "utf-8",
+            "UTF-16le": "utf-16le",
+            "UTF-16be": "utf-16be",
+        }.get(database_encoding)
+        if text_codec is None:
+            raise StateError("lifecycle_decision_history_invalid")
+
+        cursor = self.db.execute(
+            "SELECT version,CAST(body AS BLOB) AS bounded_body "
+            "FROM decisions WHERE name='lifecycle/owner' ORDER BY version"
+        )
+        previous = None
+        while current := cursor.fetchone():
+            version = current["version"]
+            try:
+                raw_body = current["bounded_body"]
+                if type(raw_body) is not bytes:
+                    raise ValueError("owner body is not bytes")
+
+                def unique_object(pairs):
+                    result = {}
+                    for key, value in pairs:
+                        if key in result:
+                            raise ValueError("duplicate owner body key")
+                        result[key] = value
+                    return result
+
+                body = json.loads(raw_body.decode(text_codec), object_pairs_hook=unique_object)
+                body = self._lifecycle_fence_state(body)
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError) as exc:
+                if version == last and isinstance(exc, StateError):
+                    raise
+                if version == last:
+                    raise StateError("lifecycle_owner_state_invalid") from None
+                raise StateError("lifecycle_decision_history_invalid") from None
+
+            if previous is None:
+                valid_transition = body["status"] == "active" and body["epoch"] == 1
+            elif previous["status"] == "active" and body["status"] == "active":
+                valid_transition = (
+                    body["owner"] == previous["owner"] and body["epoch"] == previous["epoch"]
+                ) or body["epoch"] == previous["epoch"] + 1
+            elif previous["status"] == "active" and body["status"] == "released":
+                valid_transition = (
+                    body["owner"] == previous["owner"] and body["epoch"] == previous["epoch"]
+                )
+            else:
+                valid_transition = (
+                    previous["status"] == "released"
+                    and body["status"] == "active"
+                    and body["epoch"] == previous["epoch"] + 1
+                )
+            if not valid_transition:
+                raise StateError("lifecycle_decision_history_invalid")
+            previous = body
         return last
 
     def _lifecycle_fence(self, lease: Any) -> dict:
