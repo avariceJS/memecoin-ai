@@ -1664,3 +1664,12 @@ helpers, descriptor closure and mode drift. Sol-6.1 accepted exact diff
 `a8af8365a603d0d4a99c8b29a9daf3d7210be1a89b3b89ad5249192f8a70af51`; the engineering release gate
 passed Ruff, format, 561 tests and 131 subtests. This is a descriptor-read check; it does not bind
 later path execution to the opened descriptor or qualify continuous process identity.
+
+At `cdf9b37`, `SandboxRunner.run` now accepts only finite exact `int` or `float` timeouts in
+`(0, 3600]` and exact integer output limits in `[1, 10_000_000]`. Regressions reject NaN,
+infinities, booleans, strings and invalid bounds before hashing or `Popen`, and preserve the valid
+edges. Sol-6.1 accepted the repaired exact diff
+`0eeac99fce04a92cd61c60c6073a72ab52d7bef2cbdc341c73704bc7c24bd06c`; the full gate passed Ruff,
+format, 563 tests and 158 subtests. A custom metaclass equality spoof is explicitly rejected. This
+validates the runner input contract; native Security calls remain non-interruptible and execution
+provenance remains open.

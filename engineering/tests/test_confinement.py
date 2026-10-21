@@ -164,6 +164,103 @@ class ConfinementTests(unittest.TestCase):
             with self.subTest(executable=executable, cwd=cwd), self.assertRaises(ConfinementError):
                 self.runner.run([executable, "-c", "print('bad')"], cwd=cwd)
 
+    def test_invalid_command_bounds_fail_before_hashing_or_launch(self):
+        import math
+
+        import engineering.confinement as confinement
+
+        class EqualIntMetaclass(type):
+            def __eq__(cls, other):
+                return other is int or super().__eq__(other)
+
+            __hash__ = type.__hash__
+
+        class NumericTypeImpostor(metaclass=EqualIntMetaclass):
+            def __le__(self, _other):
+                return False
+
+            def __gt__(self, _other):
+                return False
+
+        invalid_timeouts = (
+            math.nan,
+            math.inf,
+            -math.inf,
+            True,
+            False,
+            "1",
+            None,
+            0,
+            -1,
+            3600.1,
+            NumericTypeImpostor(),
+        )
+        for timeout in invalid_timeouts:
+            with (
+                self.subTest(timeout=timeout),
+                patch.object(confinement, "_prelaunch_executable_sha256") as hash_executable,
+                patch("engineering.confinement.subprocess.Popen") as launch,
+                self.assertRaisesRegex(ConfinementError, "Timeout must be"),
+            ):
+                self.runner.run(
+                    [str(PYTHON.resolve()), "-c", "pass"],
+                    cwd=self.task,
+                    timeout=timeout,
+                    expected_executable_sha256="a" * 64,
+                )
+            hash_executable.assert_not_called()
+            launch.assert_not_called()
+
+        invalid_output_limits = (
+            True,
+            False,
+            1.0,
+            math.nan,
+            math.inf,
+            "1",
+            None,
+            0,
+            -1,
+            10_000_001,
+        )
+        for max_output_bytes in invalid_output_limits:
+            with (
+                self.subTest(max_output_bytes=max_output_bytes),
+                patch.object(confinement, "_prelaunch_executable_sha256") as hash_executable,
+                patch("engineering.confinement.subprocess.Popen") as launch,
+                self.assertRaisesRegex(ConfinementError, "Output limit must be"),
+            ):
+                self.runner.run(
+                    [str(PYTHON.resolve()), "-c", "pass"],
+                    cwd=self.task,
+                    max_output_bytes=max_output_bytes,
+                    expected_executable_sha256="a" * 64,
+                )
+            hash_executable.assert_not_called()
+            launch.assert_not_called()
+
+    def test_command_bounds_accept_numeric_and_integer_edges(self):
+        valid_timeouts = (0.000001, 3600, 3600.0)
+        valid_output_limits = (1, 10_000_000)
+        for timeout in valid_timeouts:
+            for max_output_bytes in valid_output_limits:
+                with (
+                    self.subTest(timeout=timeout, max_output_bytes=max_output_bytes),
+                    patch("engineering.confinement.time.monotonic", return_value=0.0),
+                    patch(
+                        "engineering.confinement.subprocess.Popen",
+                        side_effect=OSError("synthetic launch stop"),
+                    ) as launch,
+                    self.assertRaisesRegex(OSError, "synthetic launch stop"),
+                ):
+                    self.runner.run(
+                        [str(PYTHON.resolve()), "-c", "pass"],
+                        cwd=self.task,
+                        timeout=timeout,
+                        max_output_bytes=max_output_bytes,
+                    )
+                launch.assert_called_once()
+
     def test_pinned_executable_is_rechecked_immediately_before_launch(self):
         pinned_python = PYTHON.resolve(strict=True)
         expected = hashlib.sha256(pinned_python.read_bytes()).hexdigest()

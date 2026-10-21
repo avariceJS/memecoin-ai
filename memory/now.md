@@ -1,12 +1,10 @@
 # Current state
 
-Safe stop requested by the founder on 2026-10-21. Source work is paused at clean `org/development`
-HEAD `cdf9b3729dd91c81408266524989f6fe50cd4473`; `main` remains
-`2f8da5f92da521b511e0d4fb20205981a000cab5`. No supervisor/runtime or test process remains active.
-The local branch is 232 commits ahead of `origin/org/development`; changes are committed locally and
-were not pushed. The next read-only scan found a NaN command-timeout validation gap, but no source
-change was started. Preserve the existing Goal identity and durable state; pause its native Goal on
-this founder stop request.
+The founder resumed source work on 2026-10-21 using existing Goal
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b`; no replacement Goal. Native readback still reports `paused`
+because status changes are user/system controlled. Work continues from `org/development` after
+checkpoint `82a3383`; `main` remains `2f8da5f92da521b511e0d4fb20205981a000cab5`. The branch is
+233 commits ahead of `origin/org/development`; changes remain locally committed and unpublished.
 
 As of **2026-10-21**, the founder reconfirmed that the temporary 2026-10-20 audit hold is complete and
 authorized continued autonomous source development. Luna-6 High remains the sole implementation owner
@@ -43,6 +41,10 @@ decisions and independent review; Astra remains episodic and is never started au
   `a8af8365a603d0d4a99c8b29a9daf3d7210be1a89b3b89ad5249192f8a70af51`; full gate passed Ruff,
   format, 561 tests and 131 subtests. Later pathname execution and continuous process identity remain
   open.
+- Latest A04 source at `cdf9b37`: command timeout accepts finite exact int/float values in
+  `(0, 3600]`, and output limits require exact integers in `[1, 10_000_000]`. Sol accepted repaired
+  diff `0eeac99fce04a92cd61c60c6073a72ab52d7bef2cbdc341c73704bc7c24bd06c`; full gate passed Ruff,
+  format, 563 tests and 158 subtests. A03 remains an operational release blocker only; STOP remains.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import platform
 import re
@@ -381,9 +382,14 @@ class SandboxRunner:
             raise ConfinementError("argv must contain non-NUL strings")
         if not Path(argv[0]).is_absolute():
             raise ConfinementError("Executable must be absolute; shell resolution is forbidden")
-        if timeout <= 0 or timeout > 3600:
+        if (
+            (type(timeout) is not int and type(timeout) is not float)
+            or (type(timeout) is float and not math.isfinite(timeout))
+            or timeout <= 0
+            or timeout > 3600
+        ):
             raise ConfinementError("Timeout must be in (0, 3600] seconds")
-        if not 1 <= max_output_bytes <= 10_000_000:
+        if type(max_output_bytes) is not int or not 1 <= max_output_bytes <= 10_000_000:
             raise ConfinementError("Output limit must be in [1, 10000000] bytes")
         if expected_executable_cdhash is not None and (
             expected_executable_sha256 is None

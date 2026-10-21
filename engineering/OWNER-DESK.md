@@ -38,6 +38,13 @@ Ruff, format, 558 тестов и 127 subtests. Замены файлов, prove
 561 тест и 131 subtest. Последующее выполнение по пути и continuous process identity остаются
 отдельными незакрытыми границами.
 
+Исправлена валидация границ A04: timeout допускает только конечный exact `int`/`float` в `(0, 3600]`,
+лимит вывода — только exact `int` в `[1, 10_000_000]`. NaN, infinities, bool, строки и выход за границы
+отклоняются до hash/Popen; отдельно проверен custom metaclass, сравнивающийся как `int`. Sol принял
+исправленный exact diff `0eeac99fce04a92cd61c60c6073a72ab52d7bef2cbdc341c73704bc7c24bd06c`; полный gate:
+Ruff, format, 563 теста и 158 subtests. Нативные Security-вызовы остаются непрерываемыми; execution
+provenance не подтверждён.
+
 ## Решение директора
 
 Сохранить SQLite, журнал, fencing, изоляцию исполнителей, независимую приёмку и единственного
