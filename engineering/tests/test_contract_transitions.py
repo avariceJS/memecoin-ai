@@ -424,11 +424,7 @@ def test_contract_review_worklist_name_seek_uses_bounded_indexed_discovery(store
     finally:
         store.db.set_trace_callback(None)
 
-    discovery = [
-        sql
-        for sql in statements
-        if sql.startswith("SELECT name FROM decisions") and "contract-review0" in sql
-    ]
+    discovery = [sql for sql in statements if "FROM decisions" in sql and "contract-review0" in sql]
     assert len(discovery) == 2
     assert "name>='contract-review/'" in discovery[0]
     assert "name>'contract-review/" in discovery[1]
@@ -442,6 +438,83 @@ def test_contract_review_worklist_keeps_bare_namespace_prefix_fail_closed(store)
 
     with pytest.raises(StateError, match="worklist identity invalid"):
         store.contract_review_worklist()
+
+
+def test_contract_review_worklist_does_not_hydrate_oversized_journal_names(store):
+    name = "contract-review/" + "a" * 64 + "x" * (256 * 1024)
+    store.db.execute("INSERT INTO decisions(name,version,body) VALUES(?,?,?)", (name, 1, "{}"))
+
+    row = store.db.execute(
+        _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY, ("contract-review/",)
+    ).fetchone()
+    assert row["journal_name"] is None
+    assert row["journal_name_length"] == len(name)
+    with pytest.raises(StateError, match="worklist identity invalid"):
+        store.contract_review_worklist(limit=1)
+
+
+def test_contract_review_worklist_does_not_hydrate_names_with_embedded_nul(store):
+    name = "contract-review/" + "a" * 64 + "\0" + "x" * (256 * 1024)
+    store.db.execute("INSERT INTO decisions(name,version,body) VALUES(?,?,?)", (name, 1, "{}"))
+
+    row = store.db.execute(
+        _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY, ("contract-review/",)
+    ).fetchone()
+    assert row["journal_name"] is None
+    with pytest.raises(StateError, match="worklist identity invalid"):
+        store.contract_review_worklist(limit=1)
+
+
+def test_contract_review_worklist_does_not_hydrate_malformed_utf8_names(store):
+    raw_name = b"contract-review/" + b"a" * 62 + b"\xc2" + b"\x80" * (256 * 1024)
+    store.db.execute(
+        "INSERT INTO decisions(name,version,body) VALUES(CAST(? AS TEXT),?,?)",
+        (sqlite3.Binary(raw_name), 1, "{}"),
+    )
+
+    row = store.db.execute(
+        _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY, ("contract-review/",)
+    ).fetchone()
+    assert row["journal_name"] is None
+    assert row["journal_name_storage_bytes"] == len(raw_name)
+    with pytest.raises(StateError, match="worklist identity invalid"):
+        store.contract_review_worklist(limit=1)
+
+
+def test_contract_review_worklist_accepts_utf16_database_encoding(tmp_path):
+    path = Path(tmp_path) / "utf16.sqlite"
+    db = sqlite3.connect(path)
+    db.execute("PRAGMA encoding='UTF-16le'")
+    db.execute("CREATE TABLE seed(value)")
+    db.commit()
+    db.close()
+    utf16_store = Store(path, clock=lambda: 1000.0)
+    try:
+        utf16_store.put_contract("sample", 1, {"schema": "v1"})
+        request = prepare_review(utf16_store)
+        assert utf16_store.db.execute("PRAGMA encoding").fetchone()[0] == "UTF-16le"
+        projection = utf16_store.contract_review_worklist()
+        assert projection["count"] == 1
+        assert projection["items"][0]["request_id"] == request["body"]["request_id"]
+    finally:
+        utf16_store.close()
+
+
+def test_transition_replay_does_not_hydrate_oversized_journal_names(store):
+    request = prepare_review(store)
+    body = request["body"]
+    record_pending_review_response(store, body, suffix="oversized-journal-name")
+    oversized_name = request["name"] + "x" * (256 * 1024)
+    store.db.execute("UPDATE decisions SET name=? WHERE name=?", (oversized_name, request["name"]))
+
+    with pytest.raises(StateError, match="worklist identity invalid"):
+        store.replay_contract_review_responses_for_transition(
+            body["name"], body["version"], body["contract_hash"]
+        )
+    assert (
+        store.get_decision(store._contract_ack_key(body["name"], body["version"], body["team"]))
+        is None
+    )
 
 
 def test_contract_review_worklist_preflights_oversized_legacy_before_hydration(store, monkeypatch):

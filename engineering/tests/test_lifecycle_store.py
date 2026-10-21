@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -233,6 +234,35 @@ class LifecycleStoreTests(unittest.TestCase):
         self.assertEqual(
             self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0], before
         )
+
+    def test_request_worklist_does_not_hydrate_oversized_journal_names(self):
+        name = "lifecycle/request/" + "a" * 64 + "x" * (256 * 1024)
+        self.store.db.execute(
+            "INSERT INTO decisions(name,version,body) VALUES(?,?,?)", (name, 1, "{}")
+        )
+
+        row = self.store.db.execute(
+            org_state._LIFECYCLE_REQUEST_FIRST_QUERY, ("lifecycle/request/",)
+        ).fetchone()
+        self.assertIsNone(row["journal_name"])
+        self.assertEqual(row["journal_name_length"], len(name))
+        with self.assertRaisesRegex(StateError, "lifecycle_request_identity_invalid"):
+            self.store.lifecycle_request_worklist(limit=1)
+
+    def test_request_worklist_does_not_hydrate_malformed_utf8_journal_names(self):
+        raw_name = b"lifecycle/request/" + b"a" * 62 + b"\xc2" + b"\x80" * (256 * 1024)
+        self.store.db.execute(
+            "INSERT INTO decisions(name,version,body) VALUES(CAST(? AS TEXT),?,?)",
+            (sqlite3.Binary(raw_name), 1, "{}"),
+        )
+
+        row = self.store.db.execute(
+            org_state._LIFECYCLE_REQUEST_FIRST_QUERY, ("lifecycle/request/",)
+        ).fetchone()
+        self.assertIsNone(row["journal_name"])
+        self.assertEqual(row["journal_name_storage_bytes"], len(raw_name))
+        with self.assertRaisesRegex(StateError, "lifecycle_request_identity_invalid"):
+            self.store.lifecycle_request_worklist(limit=1)
 
     def test_lifecycle_request_discovery_uses_decision_primary_key_range(self):
         for query, cursor, seek_opcode in (

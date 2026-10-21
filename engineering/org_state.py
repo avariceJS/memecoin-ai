@@ -62,20 +62,52 @@ _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES = 512 * 1024
 _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES = 2 * 1024 * 1024
 _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_WORKLIST_MAX_BYTES = 32 * 1024 * 1024
+_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS = len("contract-review/") + 64
+_LIFECYCLE_REQUEST_NAME_MAX_CHARS = len("lifecycle/request/") + 64
 _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY = (
-    "SELECT name FROM decisions WHERE name>=? AND name<'contract-review0' ORDER BY name LIMIT 1"
+    "SELECT CASE WHEN length(name)<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name>=? AND name<'contract-review0' ORDER BY decisions.name LIMIT 1"
 )
 _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY = (
-    "SELECT name FROM decisions WHERE name>? AND name<'contract-review0' ORDER BY name LIMIT 1"
+    "SELECT CASE WHEN length(name)<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name>? AND name<'contract-review0' ORDER BY decisions.name LIMIT 1"
 )
 _LIFECYCLE_REQUEST_FIRST_QUERY = (
-    "SELECT name FROM decisions WHERE name>=? AND name<'lifecycle/request0' ORDER BY name LIMIT 1"
+    "SELECT CASE WHEN length(name)<="
+    f"{_LIFECYCLE_REQUEST_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_LIFECYCLE_REQUEST_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name>=? AND name<'lifecycle/request0' ORDER BY decisions.name LIMIT 1"
 )
 _LIFECYCLE_REQUEST_NEXT_QUERY = (
-    "SELECT name FROM decisions WHERE name>? AND name<'lifecycle/request0' ORDER BY name LIMIT 1"
+    "SELECT CASE WHEN length(name)<="
+    f"{_LIFECYCLE_REQUEST_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_LIFECYCLE_REQUEST_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name>? AND name<'lifecycle/request0' ORDER BY decisions.name LIMIT 1"
 )
 _CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY = (
-    "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
+    "SELECT CASE WHEN length(name)<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name GLOB 'contract-review/*' "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
@@ -83,7 +115,13 @@ _CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY = (
     "ORDER BY name LIMIT 1"
 )
 _CONTRACT_REVIEW_TRANSITION_REPLAY_NEXT_QUERY = (
-    "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
+    "SELECT CASE WHEN length(name)<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name GLOB 'contract-review/*' "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
@@ -94,6 +132,27 @@ _CONTRACT_REVIEW_TRANSITION_REPLAY_NEXT_QUERY = (
 
 def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def _bounded_index_name(row: sqlite3.Row, max_chars: int, error: str) -> str:
+    """Accept only a small indexed name returned by a bounded namespace seek."""
+    name = row["journal_name"]
+    size = row["journal_name_length"]
+    storage_bytes = row["journal_name_storage_bytes"]
+    if (
+        type(size) is not int
+        or size < 0
+        or size > max_chars
+        or type(storage_bytes) is not int
+        or storage_bytes < 0
+        or storage_bytes > max_chars * 4
+        or type(name) is not str
+        or len(name) != size
+        or "\0" in name
+        or len(name.encode("utf-8")) > max_chars * 4
+    ):
+        raise StateError(error)
+    return name
 
 
 def _strict_contract_review_result(raw_result: bytes) -> dict:
@@ -2004,7 +2063,11 @@ class Store:
             row = self.db.execute(query, (cursor,)).fetchone()
             if row is None:
                 break
-            cursor = row["name"]
+            cursor = _bounded_index_name(
+                row,
+                _CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS,
+                "contract review worklist identity invalid",
+            )
             names.append(cursor)
             query = _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY
         return names
@@ -2130,7 +2193,11 @@ class Store:
             row = self.db.execute(query, query_params).fetchone()
             if row is None:
                 break
-            cursor = row["name"]
+            cursor = _bounded_index_name(
+                row,
+                _CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS,
+                "contract review worklist identity invalid",
+            )
             names.append(cursor)
             query = _CONTRACT_REVIEW_TRANSITION_REPLAY_NEXT_QUERY
         return names
@@ -3510,7 +3577,11 @@ class Store:
             row = self.db.execute(query, (cursor,)).fetchone()
             if row is None:
                 break
-            cursor = row["name"]
+            cursor = _bounded_index_name(
+                row,
+                _LIFECYCLE_REQUEST_NAME_MAX_CHARS,
+                "lifecycle_request_identity_invalid",
+            )
             names.append(cursor)
             query = _LIFECYCLE_REQUEST_NEXT_QUERY
         return names
