@@ -826,3 +826,13 @@ model work. Sol принял точный diff `d029f6483feaf29b479e78e2aaf2c962
 engineering gate прошёл: Ruff, формат, 553 теста и 123 subtests. Это только source guard. SQLite
 operational errors продолжают распространяться; recovery provenance, A05 consumer/generation,
 A03 и operational acceptance остаются открыты.
+
+A05 follow-up: lead decision и связанные contract ACK теперь записываются одним Store transaction,
+привязанным к текущим `attempt_id` и `epoch`. План отделяется от caller до lock wait; task/team
+берутся из свежего fence. Если attempt устарел после записи usage, lead/ACK не появляются и worker
+не запускается; неверный поздний ACK откатывает весь пакет. Sol принял final diff
+`583b9a2e2ee46ad00732c1700b4f65b6378bb45a3910aa9fff1dd2ed6ae723d8`. Focused suite: 68 тестов,
+10 subtests; финальный gate: Ruff/format, 555 тестов, 123 subtests. Известная macOS code-identity
+deadline гонка сначала проявилась в полном запуске, но изолированный повтор и финальный gate прошли.
+Это commit-time fencing, а не постоянная свежесть; прямой trusted ACK, A03, release и operational
+acceptance остаются открыты.

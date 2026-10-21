@@ -656,16 +656,16 @@ def run_attempt(state: Path, attempt_id: int):
                 )
                 controller_parse_fault("lead", exc)
             atomic(run / "lead.json", {**out, "plan": plan, "thread": thread})
-            db.put_decision(
-                "lead-" + task["id"],
-                {"team": task["team"], "thread": thread, "model": SOL, "base": base, "plan": plan},
+            db.record_lead_result(
+                attempt_id,
+                epoch,
+                thread=thread,
+                model=SOL,
+                base=base,
+                plan=plan,
             )
             if plan.get("decision") != "approve":
                 raise RuntimeError("lead_blocked")
-            for ack in plan["contract_acks"]:
-                db.acknowledge_contract_transition(
-                    ack["name"], ack["version"], task["team"], ack["contract_hash"]
-                )
         with metered_client(
             state,
             checkout,

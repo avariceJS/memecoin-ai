@@ -1240,11 +1240,117 @@ class SupervisorTests(unittest.TestCase):
 
         transition = self.db.get_contract_transition("schema-validation", 2)
         self.assertIsNotNone(transition)
+        self.assertEqual(self.db.get_decision("lead-T")["body"]["plan"]["decision"], "approve")
         ack = self.db.db.execute(
             "SELECT body FROM decisions WHERE name LIKE 'contract-ack/%'"
         ).fetchone()
         self.assertIsNotNone(ack)
         self.assertEqual(json.loads(ack[0])["team"], "Platform")
+
+    def test_superseded_attempt_cannot_persist_lead_acknowledgement(self):
+        self.task("T", "Platform")
+        attempt = self.db.claim("T", "worker", 100)
+        proposal = self.cfg["contracts"]["schema-validation"]
+        contract_hash = hashlib.sha256(
+            json.dumps(proposal, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        lead, worker = FakeCodex(), FakeCodex()
+        lead.response = json.dumps(
+            {
+                "decision": "approve",
+                "worker_brief": "bounded",
+                "rationale": "reviewed v2",
+                "contract_acks": [
+                    {
+                        "name": "schema-validation",
+                        "version": 2,
+                        "contract_hash": contract_hash,
+                    }
+                ],
+            }
+        )
+        roles = []
+        replacement_attempts = []
+        original = Store.record_lead_result
+
+        def supersede_before_lead_commit(store, attempt_id, epoch, **kwargs):
+            self.now = 1101.0
+            store.recover_expired()
+            replacement_attempts.append(store.claim("T", "replacement", 100))
+            return original(store, attempt_id, epoch, **kwargs)
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def fake_metered_client(*args, **kwargs):
+            role = kwargs["context"]["role"]
+            roles.append(role)
+            yield lead if role == "lead" else worker
+
+        with (
+            patch.object(supervisor, "metered_client", side_effect=fake_metered_client),
+            patch.object(supervisor, "runner", return_value=MagicMock()),
+            patch.object(supervisor, "git", return_value="base"),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+            patch.object(Store, "record_lead_result", new=supersede_before_lead_commit),
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+
+        self.assertEqual(roles, ["lead"])
+        attempts = self.db.list_attempts("T")
+        self.assertEqual(attempts[0]["state"], "expired")
+        replacement = self.db.get_task("T")
+        self.assertEqual(replacement["state"], "running")
+        self.assertEqual(replacement["epoch"], 2)
+        self.assertEqual(len(replacement_attempts), 1)
+        self.assertEqual(replacement_attempts[0]["epoch"], 2)
+        self.assertEqual(self.db.usage_summary()["total"], {"sol_turns": 1})
+        self.assertIsNone(self.db.get_decision("lead-T"))
+        self.assertIsNone(
+            self.db.get_decision(self.db._contract_ack_key("schema-validation", 2, "Platform"))
+        )
+
+    def test_fenced_lead_result_rolls_back_all_writes_on_later_invalid_ack(self):
+        self.task("T", "Platform")
+        attempt = self.db.claim("T", "worker", 100)
+        proposal = self.cfg["contracts"]["schema-validation"]
+        transition = self.db.propose_contract_transition(
+            "schema-validation",
+            1,
+            2,
+            proposal,
+            producer_task_id="EXP-001",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        )
+        digest = transition["body"]["contract_hash"]
+        events_before = self.db.events()
+        plan = {
+            "decision": "approve",
+            "worker_brief": "bounded",
+            "rationale": "reviewed",
+            "contract_acks": [
+                {"name": "schema-validation", "version": 2, "contract_hash": digest},
+                {"name": "missing-transition", "version": 2, "contract_hash": "a" * 64},
+            ],
+        }
+
+        with self.assertRaisesRegex(StateError, "contract transition proposal missing"):
+            self.db.record_lead_result(
+                attempt["id"],
+                attempt["epoch"],
+                thread="lead-thread",
+                model="sol-test",
+                base="base-sha",
+                plan=plan,
+            )
+
+        self.assertEqual(self.db.events(), events_before)
+        self.assertIsNone(self.db.get_decision("lead-T"))
+        self.assertIsNone(
+            self.db.get_decision(self.db._contract_ack_key("schema-validation", 2, "Platform"))
+        )
+        self.assertEqual(self.db.get_task("T")["state"], "running")
 
     def test_lead_ack_routes_generic_contract_by_exact_identity_and_team(self):
         proposal = {

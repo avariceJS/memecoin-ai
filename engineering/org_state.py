@@ -2994,33 +2994,102 @@ class Store:
             raise StateError("contract transition version must be an integer >= 2")
         if type(contract_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", contract_hash):
             raise StateError("contract hash must be lowercase SHA-256")
+        with self._tx():
+            return self._acknowledge_contract_transition_in_transaction(
+                name, version, team, contract_hash
+            )
+
+    def _acknowledge_contract_transition_in_transaction(
+        self, name: str, version: int, team: str, contract_hash: str
+    ) -> dict:
         key = self._contract_transition_key(name, version)
         ack_key = self._contract_ack_key(name, version, team)
+        transition = self._single_contract_decision(key)
+        if transition is None:
+            raise StateError("contract transition proposal missing")
+        proposal = self._validated_contract_transition(transition["body"], name, version)
+        if proposal["contract_hash"] != contract_hash or team not in [
+            proposal["producer_team"],
+            *proposal["consumer_teams"],
+        ]:
+            raise StateError("contract acknowledgement does not match proposal")
+        record = {
+            "kind": "contract_acknowledgement",
+            "name": name,
+            "version": version,
+            "team": team,
+            "contract_hash": contract_hash,
+        }
+        existing = self._single_contract_decision(ack_key)
+        if existing is not None:
+            self._validated_contract_ack(existing["body"], name, version, team, contract_hash)
+            if existing["body"] != record:
+                raise StateError("contract acknowledgement is immutable")
+            return {"name": existing["name"], "version": existing["version"], "body": record}
+        ack_version = self._put_decision_in_transaction(ack_key, record)
+        return {"name": ack_key, "version": ack_version, "body": record}
+
+    def record_lead_result(
+        self,
+        attempt_id: int,
+        epoch: int,
+        *,
+        thread: str,
+        model: str,
+        base: str,
+        plan: dict,
+    ) -> int:
+        """Atomically persist the fenced lead result and its exact proposal acknowledgements."""
+        if any(
+            type(value) is not str or not value.strip() or "\x00" in value
+            for value in (thread, model, base)
+        ):
+            raise StateError("lead result identity invalid")
+        try:
+            plan = json.loads(_json(plan))
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("lead result plan invalid") from None
+        if (
+            type(plan) is not dict
+            or set(plan) != {"decision", "worker_brief", "rationale", "contract_acks"}
+            or plan["decision"] not in ("approve", "blocked")
+            or type(plan["worker_brief"]) is not str
+            or type(plan["rationale"]) is not str
+            or type(plan["contract_acks"]) is not list
+        ):
+            raise StateError("lead result plan invalid")
+        ack_identities = set()
+        for ack in plan["contract_acks"]:
+            if (
+                type(ack) is not dict
+                or set(ack) != {"name", "version", "contract_hash"}
+                or type(ack["name"]) is not str
+                or type(ack["version"]) is not int
+                or type(ack["contract_hash"]) is not str
+                or not re.fullmatch(r"[0-9a-f]{64}", ack["contract_hash"])
+            ):
+                raise StateError("lead result acknowledgement invalid")
+            identity = (ack["name"], ack["version"], ack["contract_hash"])
+            if identity in ack_identities:
+                raise StateError("lead result acknowledgement duplicated")
+            ack_identities.add(identity)
+
         with self._tx():
-            transition = self._single_contract_decision(key)
-            if transition is None:
-                raise StateError("contract transition proposal missing")
-            proposal = self._validated_contract_transition(transition["body"], name, version)
-            if proposal["contract_hash"] != contract_hash or team not in [
-                proposal["producer_team"],
-                *proposal["consumer_teams"],
-            ]:
-                raise StateError("contract acknowledgement does not match proposal")
-            record = {
-                "kind": "contract_acknowledgement",
-                "name": name,
-                "version": version,
-                "team": team,
-                "contract_hash": contract_hash,
+            task, _ = self._fence(attempt_id, epoch)
+            lead_body = {
+                "team": task["team"],
+                "thread": thread,
+                "model": model,
+                "base": base,
+                "plan": plan,
             }
-            existing = self._single_contract_decision(ack_key)
-            if existing is not None:
-                self._validated_contract_ack(existing["body"], name, version, team, contract_hash)
-                if existing["body"] != record:
-                    raise StateError("contract acknowledgement is immutable")
-                return {"name": existing["name"], "version": existing["version"], "body": record}
-            ack_version = self._put_decision_in_transaction(ack_key, record)
-            return {"name": ack_key, "version": ack_version, "body": record}
+            version = self._put_decision_in_transaction("lead-" + task["id"], lead_body)
+            if plan["decision"] == "approve":
+                for ack in plan["contract_acks"]:
+                    self._acknowledge_contract_transition_in_transaction(
+                        ack["name"], ack["version"], task["team"], ack["contract_hash"]
+                    )
+            return version
 
     def activate_contract_transition(self, name: str, version: int) -> dict:
         """Atomically publish a proposed version after producer integration and all exact acks."""

@@ -1609,3 +1609,14 @@ verifier, Git, sandbox or model work. Sol-6.1 accepted exact diff
 passed Ruff, format, 553 tests and 123 subtests. This is a point-in-time source guard; SQLite
 operational errors still propagate, and recovery-reference provenance, lifecycle consumption,
 authorization generation, full A05, A03 and operational acceptance remain open.
+
+At `d670c17`, lead-result persistence is now fenced by the current attempt and atomically records
+its lead decision with its exact contract acknowledgements. `run_attempt` uses this Store API after
+usage settlement. The plan is detached before the write-lock wait; task/team identity comes from the
+fence, and any invalid later ACK rolls back the lead decision and every earlier ACK in the batch.
+Sol-6.1 accepted final diff `583b9a2e2ee46ad00732c1700b4f65b6378bb45a3910aa9fff1dd2ed6ae723d8`.
+Focused supervisor tests passed 68 tests/10 subtests; the final engineering release gate passed
+Ruff, format, 555 tests and 123 subtests. An initial full run hit the known transient macOS code
+identity deadline race; its isolated rerun and the final full gate passed. This fences persistence at
+commit only; direct trusted ACK calls remain, payload/transaction-time bounds and reviewer
+provenance remain outside scope, and A03/release/operational acceptance remain open.
