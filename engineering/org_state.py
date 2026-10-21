@@ -64,6 +64,24 @@ _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_WORKLIST_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS = len("contract-review/") + 64
 _LIFECYCLE_REQUEST_NAME_MAX_CHARS = len("lifecycle/request/") + 64
+_CONTRACT_REVIEW_BOUNDED_RECORD_QUERY = (
+    "WITH history AS ("
+    "SELECT version,body,length(CAST(body AS BLOB)) AS body_bytes,replaces,replaces_version "
+    "FROM decisions WHERE name=? ORDER BY version LIMIT 6"
+    "), budgeted AS ("
+    "SELECT *,count(*) OVER () AS history_count,"
+    "sum(CASE WHEN body_bytes>"
+    f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES} THEN "
+    f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES + 1} ELSE body_bytes END) OVER () "
+    "AS capped_history_bytes FROM history"
+    ") SELECT version,CASE WHEN history_count<=5 AND capped_history_bytes<="
+    f"{_CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES} AND body_bytes<="
+    f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES} THEN body END AS bounded_body,body_bytes,"
+    "CASE WHEN replaces IS NULL OR replaces=? THEN replaces END AS bounded_replaces,"
+    "CASE WHEN (version=1 AND replaces IS NULL) OR (version>1 AND replaces=?) "
+    "THEN 1 ELSE 0 END AS replaces_valid,replaces_version,history_count,"
+    "capped_history_bytes AS bounded_history_bytes FROM budgeted ORDER BY version"
+)
 _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY = (
     "SELECT CASE WHEN length(name)<="
     f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS} "
@@ -1524,16 +1542,10 @@ class Store:
         key = self._contract_review_key(request_id)
         if bounded_replay:
             # Keep count, byte checks, and bounded body projection in one statement so a
-            # writer cannot add rows between preflight and an unbounded body fetch.
+            # writer cannot add rows between preflight and an unbounded body fetch. The
+            # window budget also suppresses every body when aggregate bytes overflow.
             rows = self.db.execute(
-                "SELECT version, CASE WHEN length(CAST(body AS BLOB))<="
-                f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES} THEN body END AS bounded_body, "
-                "length(CAST(body AS BLOB)) AS body_bytes, "
-                "CASE WHEN replaces IS NULL OR replaces=? THEN replaces END AS bounded_replaces, "
-                "CASE WHEN (version=1 AND replaces IS NULL) "
-                "OR (version>1 AND replaces=?) THEN 1 ELSE 0 END AS replaces_valid, "
-                "replaces_version "
-                "FROM decisions WHERE name=? ORDER BY version LIMIT 6",
+                _CONTRACT_REVIEW_BOUNDED_RECORD_QUERY,
                 (key, key, key),
             ).fetchall()
         else:
@@ -1547,7 +1559,11 @@ class Store:
         if len(rows) > 5 or [row["version"] for row in rows] != list(range(1, len(rows) + 1)):
             raise StateError("contract review history invalid")
         if bounded_replay:
-            history_bytes = 0
+            history_bytes = rows[0]["bounded_history_bytes"]
+            if type(history_bytes) is not int or history_bytes < 0:
+                raise StateError("contract review replay request byte limit exceeded")
+            if history_bytes > _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES:
+                raise StateError("contract review replay request byte limit exceeded")
             for row in rows:
                 if row["replaces_valid"] != 1:
                     raise StateError("contract review history invalid")
@@ -1558,9 +1574,6 @@ class Store:
                     or size > _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES
                 ):
                     raise StateError("contract review replay history byte limit exceeded")
-                history_bytes += size
-                if history_bytes > _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES:
-                    raise StateError("contract review replay request byte limit exceeded")
                 if type(row["bounded_body"]) is not str:
                     raise StateError("contract review replay history byte limit exceeded")
         previous = None

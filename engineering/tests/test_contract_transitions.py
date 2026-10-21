@@ -15,6 +15,7 @@ import pytest
 
 from engineering import org_state, supervisor
 from engineering.org_state import (
+    _CONTRACT_REVIEW_BOUNDED_RECORD_QUERY,
     _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY,
     _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY,
     _CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY,
@@ -502,6 +503,49 @@ def test_bounded_contract_review_rejects_oversized_replaces_before_hydration(sto
 
     with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
         with pytest.raises(StateError, match="contract review history invalid"):
+            store._contract_review_record(body["request_id"], bounded_replay=True)
+
+
+def test_bounded_contract_review_suppresses_bodies_on_aggregate_overflow(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-aggregate-overflow",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-aggregate-overflow"},
+    )
+    response = record_review_result(store, body, review_result())
+    store.finish_contract_review(
+        body["request_id"], body["packet_hash"], response["body"]["raw_sha256"], review_result()
+    )
+    with store._tx():
+        rows = store.db.execute(
+            "SELECT version,body FROM decisions WHERE name=? ORDER BY version", (request["name"],)
+        ).fetchall()
+        for row in rows:
+            oversized = json.loads(row["body"])
+            oversized["legacy_extra"] = "x" * 430000
+            store.db.execute(
+                "UPDATE decisions SET body=? WHERE name=? AND version=?",
+                (json.dumps(oversized), request["name"], row["version"]),
+            )
+
+    rows = store.db.execute(
+        _CONTRACT_REVIEW_BOUNDED_RECORD_QUERY,
+        (request["name"], request["name"], request["name"]),
+    ).fetchall()
+    assert rows[0]["bounded_history_bytes"] > org_state._CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES
+    assert all(row["bounded_body"] is None for row in rows)
+    assert all(
+        row["body_bytes"] <= org_state._CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES for row in rows
+    )
+
+    with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
+        with pytest.raises(StateError, match="replay request byte limit exceeded"):
             store._contract_review_record(body["request_id"], bounded_replay=True)
 
 
