@@ -940,7 +940,8 @@ class SupervisorTests(unittest.TestCase):
         self.addCleanup(self.db.close)
 
         # Join the integrated cycle to the real deployment snapshot and fresh-path restore.
-        # This synthetic state is stopped and idle; the restored path remains inert.
+        # This synthetic state is stopped and idle; restore may only replay already
+        # custodied contract evidence and record a passive lifecycle hold.
         (self.state / "STOP").touch()
         artifact_root = Path(tempfile.mkdtemp(prefix="brain-cycle-snapshot-"))
         self.addCleanup(shutil.rmtree, artifact_root, ignore_errors=True)
@@ -988,6 +989,25 @@ class SupervisorTests(unittest.TestCase):
             self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
             self.assertEqual(eligible(self.cfg, restored_db), [])
             self.assertTrue((restored / "STOP").is_file())
+            # Recovery replays saved bytes locally. It has no transport and must not
+            # prepare or send a new review while the fixture STOP remains present.
+            with patch.object(
+                supervisor,
+                "metered_client",
+                side_effect=AssertionError("restored replay attempted provider dispatch"),
+            ):
+                supervisor.activate_contract(restored, restored_db)
+            replayed_review = restored_db.get_contract_review_request(replay_request["request_id"])
+            self.assertEqual(replayed_review["body"]["status"], "approved")
+            response = restored_db.get_contract_review_response(replay_request["request_id"])
+            ack = restored_db.get_decision(
+                restored_db._contract_ack_key("research-output", 2, replay_request["team"])
+            )
+            self.assertEqual(ack["body"]["review_request_id"], replay_request["request_id"])
+            self.assertEqual(ack["body"]["review_packet_hash"], replay_request["packet_hash"])
+            self.assertEqual(ack["body"]["review_raw_sha256"], response["raw_sha256"])
+            self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
+            self.assertEqual(eligible(self.cfg, restored_db), [])
             self.assertEqual(
                 restored_db.get_contract_review_request(prepared_reviews[1]["body"]["request_id"])[
                     "body"

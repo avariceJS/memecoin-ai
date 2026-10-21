@@ -32,15 +32,19 @@ plans, claims and dispatches the dependent task; live dispatch remains unqualifi
 point after producer integration and response custody, the integrated test now uses real
 `backup_snapshot`/`restore_snapshot` with an unmocked preflight against a temporary manifest-bound
 controller copy. It verifies STOP, selected artifacts, Git/SQLite readback and the persisted
-host-requalification barrier; the restored path stays inert and the deployment qualification data
-is synthetic only. The manifest-bound controller copy is not executed and source remains available
-during restore, so this does not prove source-loss/host-loss recovery. Proposal JSON
+host-requalification barrier. On the restored copy, a test-only `activate_contract` locally replays
+the already-custodied response with provider dispatch explicitly guarded off; one ACK leaves contract
+v2 inactive and the consumer blocked. Deployment qualification data is synthetic; the manifest-bound
+controller copy is not executed and source remains available during restore, so this does not prove
+runtime, source-loss or host-loss recovery. Sol accepted the exact replay extension
+`de478694421f7c5b5f490d68c5dd0d161720537b701c918369adad9f326c777a`; the full gate passes Ruff/format,
+596 tests and 189 subtests. Proposal JSON
 rejects duplicate keys,
 and task admission plus terminal planning
 decision commit atomically; an injected hard interruption rolls both back, and client cleanup failure
 remains visible to caller without relabeling committed admission. JSON `true` for an integer epoch
-fails closed. The restored copy is validation/readback only: its custodied review stays pending,
-STOP remains, and the consumer is blocked; no post-restore supervisor helper runs. After the second participant review activates
+fails closed. The restored copy remains STOPped and does not dispatch workers. After the second
+participant review activates
 the exact contract, the same test now manually completes PLAT-002 after intercepting the supervisor
 spawn: a Seatbelt worker reads integrated PLAT-001 output and writes only `src/consumer.py`, trusted
 acceptance executes the consumer, and a synthetic independent reviewer checks its exact packet.
