@@ -950,6 +950,23 @@ class SupervisorTests(unittest.TestCase):
             },
         }
         self.db.add_objective("offline-brain-engineering", "Synthetic integrated cycle")
+        from engineering.executive import Executive
+
+        executive = Executive(self.db)
+        department_leases = {}
+        for team, card_id in (("Experience", "PLAT-001"), ("Platform", "PLAT-002")):
+            lease = executive.claim_department(team, "sol-" + team.lower())
+            department_leases[team] = lease
+            executive.record_department_plan(
+                lease,
+                1,
+                "offline-brain-engineering",
+                "Advance the synthetic producer-consumer cycle",
+                ["catalogue-card:" + card_id],
+                self.db.clock() + 3600,
+                rationale="Keep the task within the fixed trusted catalogue and active objective.",
+                evidence_refs=["test:department-plan:" + team],
+            )
         self.assertEqual(eligible(self.cfg, self.db), ["PLAT-001"])
 
         def synthetic_plan(expected_card, rationale, evidence):
@@ -966,6 +983,10 @@ class SupervisorTests(unittest.TestCase):
             def turn(_thread, prompt, **kwargs):
                 dossier = json.loads(prompt.rsplit("\n", 1)[-1])
                 self.assertEqual(list(dossier["available_cards"]), [expected_card])
+                nomination = dossier["department_nominations"][expected_card]
+                self.assertEqual(nomination["card_id"], expected_card)
+                self.assertEqual(nomination["team"], self.cfg["tasks"][expected_card]["team"])
+                self.assertEqual(nomination["plan_revision"], 1)
                 self.assertEqual(kwargs["model"], planning.SOL)
                 self.assertEqual(kwargs["dispatch_id"].split(":", 1)[0], "planning-proposal")
                 return {
@@ -991,6 +1012,13 @@ class SupervisorTests(unittest.TestCase):
             "The isolated synthetic repository starts from the recorded base.",
         )
         self.assertEqual(admitted, "PLAT-001")
+        producer_nomination = self.db.get_decision("admission/PLAT-001")["body"][
+            "department_nomination"
+        ]
+        self.assertEqual(
+            producer_nomination["owner_epoch"], department_leases["Experience"]["epoch"]
+        )
+        self.assertEqual(producer_nomination["evidence_refs"], ["test:department-plan:Experience"])
         task = self.db.get_task(admitted)
         attempt = self.db.claim(admitted, "synthetic-worker")
         plan = supervisor.prepare_verification_plan(self.state, self.db, task, self.cfg)
@@ -1398,6 +1426,13 @@ class SupervisorTests(unittest.TestCase):
         restored_lifecycle_lease = None
         restored_lifecycle_decision = None
         try:
+            restored_executive = Executive(restored_db)
+            restored_plans = restored_executive.department_plan_nominations(
+                {"PLAT-001": "Experience", "PLAT-002": "Platform"},
+                "offline-brain-engineering",
+            )
+            self.assertEqual(restored_plans["nominations"]["PLAT-001"], producer_nomination)
+            self.assertEqual(restored_executive.get_department_plan("Platform")["revision"], 1)
             self.assertEqual(restored_db.get_task(admitted)["state"], "integrated")
             self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
             restored_review = restored_db.get_contract_review_request(replay_request["request_id"])
@@ -1766,6 +1801,9 @@ main()
             def planner_turn(_thread, prompt, **kwargs):
                 dossier = json.loads(prompt.rsplit("\n", 1)[-1])
                 self.assertEqual(list(dossier["available_cards"]), ["PLAT-002"])
+                nomination = dossier["department_nominations"]["PLAT-002"]
+                self.assertEqual(nomination["team"], "Platform")
+                self.assertEqual(nomination["owner_epoch"], department_leases["Platform"]["epoch"])
                 self.assertEqual(kwargs["dispatch_id"].split(":", 1)[0], "planning-proposal")
                 return {
                     "text": json.dumps(
@@ -1857,6 +1895,11 @@ main()
         self.assertEqual(verification_calls, [("PLAT-002", True)], supervisor_events)
         self.assertEqual(eligible(self.cfg, self.db), [], self.db.events())
         self.assertEqual(self.db.get_task("PLAT-002")["base_sha"], candidate_sha)
+        consumer_nomination = self.db.get_decision("admission/PLAT-002")["body"][
+            "department_nomination"
+        ]
+        self.assertEqual(consumer_nomination["plan_revision"], 1)
+        self.assertEqual(consumer_nomination["evidence_refs"], ["test:department-plan:Platform"])
         self.assertEqual(
             self.db.get_task("PLAT-002")["state"], "integrated", self.db.events()[-12:]
         )

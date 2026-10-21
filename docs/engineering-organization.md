@@ -127,6 +127,26 @@ candidate. Repository-wide `make check` still stops at 107 pre-existing
 Ruff findings in `src/`, `tools/` and `tests/`, before later checks. The integrated organization
 cycle remains in progress.
 
+Current A10 department-plan admission link — 2026-10-21: fixed-card planning now exposes a card only
+when its owning department has an active fenced lease and a current, unexpired plan for the same
+objective that names `catalogue-card:<id>` in its priorities. Open conflicts bound to the plan
+revisions suppress those nominations; they do not alter Store readiness or hold unrelated ready
+tasks. The planner receives the exact nomination, and admission revalidates its team, objective,
+lease epoch, current plan revision/digest, evidence references and conflict state in the same SQLite
+transaction that inserts the fixed trusted card and planning decision. The public fixed-card `admit`
+boundary also requires a nomination and performs the same validation, so callers cannot bypass the
+department-plan fence. A stale plan during the model turn rejects admission; a new plan revision
+produces a new planning fingerprint. Department plans cannot supply scope, dependencies, contract
+versions, verifier commands or execution permission. Synthetic PLAT-001 Experience → PLAT-002
+Platform contract/dependency flow preserves both admission provenance records through integration
+and STOP-preserving snapshot/restore; reviewer packets do not currently include that provenance.
+Snapshot schema validation accepts the precise Executive tables while retaining prior Store-only
+schema support. Sol accepted the exact five-file source candidate with no material blockers. The full
+gate passes Ruff/format, 650 tests and 193 subtests; reproducible smoke remains `edge_established=false`.
+Nomination digests are derived from validated current plan rows; direct SQLite row tampering is not
+independently prevented. This is local synthetic source evidence and does not qualify A04 off-catalog
+execution, A03, dispatch authority or runtime recovery.
+
 Current A10 interruption-recovery projection — 2026-10-21: `Store.contract_review_worklist` and the
 quiescence snapshot now expose a bounded, read-only recovery view with exact dispatch identity,
 custodied session/turn identity where present, conservative `provider_usage="unknown"`, and no

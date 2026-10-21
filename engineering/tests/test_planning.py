@@ -2,9 +2,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from engineering.executive import Executive
 from engineering.org_state import StateError, Store
 from engineering.planning import admit, eligible
 from engineering.tests.contract_review_helpers import approve_participant
+
+_UNSET = object()
 
 
 def advance_contract(db, name, from_version, to_version, body):
@@ -35,6 +38,20 @@ class PlanningTests(unittest.TestCase):
             db = Store(Path(tmp) / "state.db")
             self.addCleanup(db.close)
             db.add_objective("offline-brain-engineering", "Offline work")
+            executive = Executive(db)
+            lease = executive.claim_department("Platform", "sol-platform")
+            executive.record_department_plan(
+                lease,
+                1,
+                "offline-brain-engineering",
+                "Strict input",
+                ["catalogue-card:NEXT"],
+                db.clock() + 3600,
+                evidence_refs=["test:planning-admission"],
+            )
+            nomination = executive.department_plan_nominations(
+                {"NEXT": "Platform"}, "offline-brain-engineering"
+            )["nominations"]["NEXT"]
             cfg = {
                 "catalogue": ["NEXT"],
                 "tasks": {
@@ -54,14 +71,28 @@ class PlanningTests(unittest.TestCase):
                 "evidence": "Prior integrated CLI exists",
             }
             with self.assertRaises(StateError):
-                admit(cfg, db, {**proposal, "checks": ["evil"]}, "base")
+                admit(
+                    cfg,
+                    db,
+                    {**proposal, "checks": ["evil"]},
+                    "base",
+                    department_nomination=nomination,
+                )
             with self.assertRaises(StateError):
-                admit(cfg, db, {**proposal, "card": "UNAUTHORIZED"}, "base")
+                admit(
+                    cfg,
+                    db,
+                    {**proposal, "card": "UNAUTHORIZED"},
+                    "base",
+                    department_nomination=nomination,
+                )
             self.assertEqual(eligible(cfg, db), ["NEXT"])
-            self.assertEqual(admit(cfg, db, proposal, "base"), "NEXT")
+            self.assertEqual(
+                admit(cfg, db, proposal, "base", department_nomination=nomination), "NEXT"
+            )
             self.assertEqual(db.get_task("NEXT")["scope"], ["tools/check.py"])
             with self.assertRaises(StateError):
-                admit(cfg, db, proposal, "base")
+                admit(cfg, db, proposal, "base", department_nomination=nomination)
 
     def test_dependent_work_not_admitted_early(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -82,6 +113,20 @@ class PlanningAdmissionTests(unittest.TestCase):
         self.db = Store(self.root / "state.sqlite")
         self.addCleanup(self.db.close)
         self.db.add_objective("offline-brain-engineering", "Bounded offline work")
+        self.executive = Executive(self.db)
+        self.platform_lease = self.executive.claim_department("Platform", "sol-platform")
+        self.executive.record_department_plan(
+            self.platform_lease,
+            1,
+            "offline-brain-engineering",
+            "Reject ambiguous JSON",
+            ["catalogue-card:PLAT-002"],
+            self.db.clock() + 3600,
+            evidence_refs=["test:planning-admission"],
+        )
+        self.nomination = self.executive.department_plan_nominations(
+            {"PLAT-002": "Platform"}, "offline-brain-engineering"
+        )["nominations"]["PLAT-002"]
         self.cfg = {
             "catalogue": ["PLAT-002"],
             "tasks": {
@@ -102,6 +147,15 @@ class PlanningAdmissionTests(unittest.TestCase):
             "evidence": "Prior integrated CLI evidence",
         }
 
+    def admission(self, db=None, proposal=_UNSET, base="base", nomination=None):
+        return admit(
+            self.cfg,
+            db or self.db,
+            self.proposal if proposal is _UNSET else proposal,
+            base,
+            department_nomination=nomination or self.nomination,
+        )
+
     def test_injected_crash_after_task_event_rolls_back_task_and_decision(self):
         from unittest.mock import patch
 
@@ -115,11 +169,11 @@ class PlanningAdmissionTests(unittest.TestCase):
         before = self.db.events()
         with patch.object(self.db, "_event", side_effect=crash):
             with self.assertRaises(RuntimeError):
-                admit(self.cfg, self.db, self.proposal, "base")
+                self.admission()
         self.assertEqual(self.db.list_tasks(), [])
         self.assertIsNone(self.db.get_decision("admission/PLAT-002"))
         self.assertEqual(self.db.events(), before)
-        self.assertEqual(admit(self.cfg, self.db, self.proposal, "base"), "PLAT-002")
+        self.assertEqual(self.admission(), "PLAT-002")
 
     def test_crash_after_decision_insert_also_rolls_back_journal_and_task(self):
         from unittest.mock import patch
@@ -134,7 +188,7 @@ class PlanningAdmissionTests(unittest.TestCase):
         before = self.db.events()
         with patch.object(self.db, "_event", side_effect=crash):
             with self.assertRaises(RuntimeError):
-                admit(self.cfg, self.db, self.proposal, "base")
+                self.admission()
         self.assertEqual(self.db.list_tasks(), [])
         self.assertIsNone(self.db.get_decision("admission/PLAT-002"))
         self.assertEqual(self.db.events(), before)
@@ -147,7 +201,7 @@ class PlanningAdmissionTests(unittest.TestCase):
 
             def run(db):
                 try:
-                    return admit(self.cfg, db, self.proposal, "base")
+                    return self.admission(db=db)
                 except StateError:
                     return None
 
@@ -177,12 +231,12 @@ class PlanningAdmissionTests(unittest.TestCase):
         ]
         for proposal in malformed:
             with self.subTest(proposal=proposal), self.assertRaises(StateError):
-                admit(self.cfg, self.db, proposal, "base")
+                self.admission(proposal=proposal)
         self.assertEqual(self.db.list_tasks(), [])
         self.assertIsNone(self.db.get_decision("admission/PLAT-002"))
 
     def test_admission_copies_only_frozen_card_and_hardcoded_objective(self):
-        admit(self.cfg, self.db, self.proposal, "immutable-base")
+        self.admission(base="immutable-base")
         task = self.db.get_task("PLAT-002")
         self.assertEqual(task["objective_id"], "offline-brain-engineering")
         self.assertEqual(task["scope"], ["tools/check.py", "tests/test_check.py"])
@@ -190,7 +244,22 @@ class PlanningAdmissionTests(unittest.TestCase):
         self.assertEqual(task["base_sha"], "immutable-base")
         self.assertEqual(task["max_attempts"], 3)
         decision = self.db.get_decision("admission/PLAT-002")
-        self.assertEqual(decision["body"], {"proposal": self.proposal, "base": "immutable-base"})
+        self.assertEqual(
+            decision["body"],
+            {
+                "proposal": self.proposal,
+                "base": "immutable-base",
+                "department_nomination": self.nomination,
+            },
+        )
+
+    def test_public_admission_requires_department_nomination(self):
+        before = self.db.events()
+        with self.assertRaises(TypeError):
+            admit(self.cfg, self.db, self.proposal, "base")
+        self.assertEqual(self.db.list_tasks(), [])
+        self.assertIsNone(self.db.get_decision("admission/PLAT-002"))
+        self.assertEqual(self.db.events(), before)
 
     def test_missing_or_superseded_contract_is_ineligible_without_exception(self):
         self.cfg["tasks"]["PLAT-002"]["contracts"] = {"api": 2}
@@ -202,7 +271,7 @@ class PlanningAdmissionTests(unittest.TestCase):
         advance_contract(self.db, "api", 2, 3, {})
         self.assertEqual(eligible(self.cfg, self.db), [])
         with self.assertRaises(StateError):
-            admit(self.cfg, self.db, self.proposal, "base")
+            self.admission()
 
     def test_accepted_dependency_is_insufficient_until_integrated(self):
         self.cfg["tasks"]["PLAT-002"]["dependencies"] = ["PLAT-001"]
@@ -214,7 +283,7 @@ class PlanningAdmissionTests(unittest.TestCase):
         self.assertEqual(eligible(self.cfg, self.db), [])
         self.db.integrate("PLAT-001", "candidate", "merged")
         self.assertEqual(eligible(self.cfg, self.db), ["PLAT-002"])
-        admit(self.cfg, self.db, self.proposal, "base")
+        self.admission()
         self.assertEqual(self.db.get_task("PLAT-002")["dependencies"], ["PLAT-001"])
 
     def planning(self, text):
@@ -245,6 +314,99 @@ class PlanningAdmissionTests(unittest.TestCase):
             self.assertIsNone(plan_next(self.root, self.db))
         fake.turn.assert_called_once()
         self.assertEqual(len(self.db.list_tasks()), 1)
+        admission = self.db.get_decision("admission/PLAT-002")
+        nomination = admission["body"]["department_nomination"]
+        self.assertEqual(nomination["team"], "Platform")
+        self.assertEqual(nomination["card_id"], "PLAT-002")
+        self.assertEqual(nomination["plan_revision"], 1)
+        self.assertEqual(nomination["owner_epoch"], self.platform_lease["epoch"])
+
+    def test_stale_department_plan_cannot_finalize_and_new_revision_can_retry(self):
+        import json
+
+        from engineering.planning import plan_next
+
+        fake, cfg, codex, git, log = self.planning(json.dumps(self.proposal))
+        original_turn = fake.turn
+
+        def replace_plan(*args, **kwargs):
+            self.executive.record_department_plan(
+                self.platform_lease,
+                2,
+                "offline-brain-engineering",
+                "Reconfirm the bounded task",
+                ["catalogue-card:PLAT-002"],
+                self.db.clock() + 3600,
+                evidence_refs=["test:planning-admission-revised"],
+            )
+            return original_turn.return_value
+
+        fake.turn.side_effect = replace_plan
+        with cfg, codex, git, log:
+            self.assertIsNone(plan_next(self.root, self.db))
+            self.assertEqual(self.db.list_tasks(), [])
+            first = [event for event in self.db.events() if event["entity"].startswith("planning/")]
+            self.assertEqual(first[-1]["body"]["body"]["status"], "interrupted")
+            fake.turn.side_effect = None
+            self.assertEqual(plan_next(self.root, self.db), "PLAT-002")
+        self.assertEqual(fake.turn.call_count, 2)
+        admission = self.db.get_decision("admission/PLAT-002")["body"]["department_nomination"]
+        self.assertEqual(admission["plan_revision"], 2)
+        self.assertEqual(admission["evidence_refs"], ["test:planning-admission-revised"])
+
+    def test_department_conflict_holds_nominations_without_blocking_ready_work(self):
+        experience = self.executive.claim_department("Experience", "sol-experience")
+        self.executive.record_department_plan(
+            experience,
+            1,
+            "offline-brain-engineering",
+            "Preserve the output contract",
+            ["catalogue-card:EXP-READY"],
+            self.db.clock() + 3600,
+            evidence_refs=["test:experience-plan"],
+        )
+        self.executive.escalate_department_conflict(
+            experience,
+            "C-PLAN-1",
+            "Platform",
+            "Coordinate the shared contract boundary",
+            own_plan_revision=1,
+            other_plan_revision=1,
+            rationale="The two active plans require review before either nomination proceeds.",
+            evidence_refs=["plan:Experience/1", "plan:Platform/1"],
+        )
+        snapshot = self.executive.department_plan_nominations(
+            {"PLAT-002": "Platform", "EXP-READY": "Experience"},
+            "offline-brain-engineering",
+        )
+        self.assertEqual(snapshot["nominations"], {})
+        self.db.add_task(
+            "already-ready",
+            "Research",
+            "Unrelated ready task",
+            objective_id="offline-brain-engineering",
+        )
+        self.assertEqual([task["id"] for task in self.db.ready_tasks()], ["already-ready"])
+
+        import json
+
+        from engineering.planning import plan_next
+
+        fake, cfg, codex, git, log = self.planning(json.dumps(self.proposal))
+        with cfg, codex, git, log:
+            self.assertIsNone(plan_next(self.root, self.db))
+        fake.start.assert_not_called()
+        self.assertEqual([task["id"] for task in self.db.ready_tasks()], ["already-ready"])
+
+    def test_card_team_change_cannot_reuse_another_departments_nomination(self):
+        from engineering.planning import plan_next
+
+        self.cfg["tasks"]["PLAT-002"]["team"] = "Experience"
+        fake, cfg, codex, git, log = self.planning("unused")
+        with cfg, codex, git, log:
+            self.assertIsNone(plan_next(self.root, self.db))
+        fake.start.assert_not_called()
+        self.assertEqual(self.db.list_tasks(), [])
 
     def test_rejected_generated_policy_is_persisted_and_not_retried_for_same_dossier(self):
         import json

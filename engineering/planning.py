@@ -49,7 +49,7 @@ def _proposal(proposal, *, allow_defer=False):
         raise StateError("planning_requires_bounded_reason_and_evidence")
 
 
-def _admit_in_transaction(cfg, db, proposal, base):
+def _admit_in_transaction(cfg, db, proposal, base, *, department_nomination, executive):
     """Append an already-validated trusted card inside the caller's transaction."""
     _proposal(proposal)
     name = proposal["card"]
@@ -58,6 +58,11 @@ def _admit_in_transaction(cfg, db, proposal, base):
     if db.get_decision("admission/" + name) is not None:
         raise StateError("admission_record_already_exists")
     card = cfg["tasks"][name]
+    executive.validate_department_plan_nomination(
+        department_nomination, name, "offline-brain-engineering"
+    )
+    if department_nomination["team"] != card["team"]:
+        raise StateError("department plan nomination team mismatch")
     db.db.execute(
         "INSERT INTO tasks(id,team,title,brief,scope,acceptance,dependencies,contracts,"
         "base_sha,objective_id,max_attempts) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
@@ -77,6 +82,7 @@ def _admit_in_transaction(cfg, db, proposal, base):
     )
     db._event("task_added", name, db.get_task(name))
     body = {"proposal": proposal, "base": base}
+    body["department_nomination"] = department_nomination
     db.db.execute(
         "INSERT INTO decisions VALUES(?,?,?,?,?)",
         ("admission/" + name, 1, _json(body), None, None),
@@ -89,7 +95,7 @@ def _admit_in_transaction(cfg, db, proposal, base):
     return name
 
 
-def admit(cfg, db, proposal, base):
+def admit(cfg, db, proposal, base, *, department_nomination):
     """Atomically append the trusted card and its admission rationale.
 
     Store's public writers own their transactions and cannot be nested. This is a
@@ -97,8 +103,18 @@ def admit(cfg, db, proposal, base):
     proposal except bounded rationale/evidence and a validated catalogue key.
     """
     _proposal(proposal)
+    from .executive import Executive
+
+    executive = Executive(db)
     with db._tx():
-        return _admit_in_transaction(cfg, db, proposal, base)
+        return _admit_in_transaction(
+            cfg,
+            db,
+            proposal,
+            base,
+            department_nomination=department_nomination,
+            executive=executive,
+        )
 
 
 def _unique_proposal_object(pairs):
@@ -117,12 +133,24 @@ def _parse_proposal(text):
     return json.loads(value, object_pairs_hook=_unique_proposal_object)
 
 
-def _finish_plan(cfg, db, key, proposal, base, thread):
+def _finish_plan(cfg, db, key, proposal, base, thread, *, nominations, executive):
     """Commit fixed-card admission and its terminal planning decision together."""
     _proposal(proposal, allow_defer=True)
     with db._tx():
+        nomination = nominations.get(proposal["card"])
+        if proposal["card"] is not None and nomination is None:
+            raise StateError("task card has no current department nomination")
         admitted = (
-            _admit_in_transaction(cfg, db, proposal, base) if proposal["card"] is not None else None
+            _admit_in_transaction(
+                cfg,
+                db,
+                proposal,
+                base,
+                department_nomination=nomination,
+                executive=executive,
+            )
+            if proposal["card"] is not None
+            else None
         )
         db._put_decision_in_transaction(
             key,
@@ -131,6 +159,7 @@ def _finish_plan(cfg, db, key, proposal, base, thread):
                 "model": SOL,
                 "proposal": proposal,
                 "admitted": admitted,
+                "department_nomination": nomination,
                 "requires_executive_review": False,
                 "status": "admitted" if admitted else "deferred",
             },
@@ -140,11 +169,27 @@ def _finish_plan(cfg, db, key, proposal, base, thread):
 
 def plan_next(state: Path, db):
     cfg = config(state)
-    cards = eligible(cfg, db)
+    eligible_cards = eligible(cfg, db)
+    if not eligible_cards:
+        return None
+    from .executive import Executive
+
+    executive = Executive(db)
+    card_teams = {name: cfg["tasks"][name]["team"] for name in eligible_cards}
+    nomination_snapshot = executive.department_plan_nominations(
+        card_teams, "offline-brain-engineering"
+    )
+    nominations = nomination_snapshot["nominations"]
+    cards = [name for name in eligible_cards if name in nominations]
     if not cards:
         return None
     tasks = [{k: t[k] for k in ("id", "title", "state", "candidate_sha")} for t in db.list_tasks()]
-    dossier = {"results": tasks, "available_cards": {k: cfg["tasks"][k] for k in cards}}
+    dossier = {
+        "results": tasks,
+        "available_cards": {k: cfg["tasks"][k] for k in cards},
+        "department_nominations": {k: nominations[k] for k in cards},
+        "department_state_sha256": nomination_snapshot["state_sha256"],
+    }
     fingerprint = hashlib.sha256(json.dumps(dossier, sort_keys=True).encode()).hexdigest()
     key = "planning/" + fingerprint
     # At most one model episode per evidence fingerprint, even if two trusted
@@ -228,6 +273,8 @@ def plan_next(state: Path, db):
                 if proposal["card"] is not None
                 else None,
                 thread,
+                nominations=nominations,
+                executive=executive,
             )
             finalized = True
             log_event(state, "planning_completed", thread=thread, admitted=admitted)

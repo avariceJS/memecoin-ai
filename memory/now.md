@@ -73,10 +73,20 @@ retry. Unknown runtime/accounting/quota/process gates remain `hold`; read-only s
 recheck but never starts another episode. Synthetic process exits before the checkpoint call and after
 its committed return, plus explicit cross-episode PLAT-002 continuation, cover local SQLite recovery
 only. Full gate: Ruff/format,
-646 tests and 193 subtests; smoke is
+649 tests and 193 subtests; smoke is
 reproducible with `edge_established=false`. This is
 synthetic source-only acceptance, not A04/provider/runtime qualification; remaining limits are in the
 canonical organization record.
+
+The A10 department-plan admission link now requires a current team lease/plan nomination for the active
+objective at both `plan_next` and public fixed-card `admit`; admission rechecks exact revision/digest
+and conflict state in one transaction. The Experience→Platform synthetic contract/dependency cycle
+preserves both admission provenance records through integration and STOP-preserving snapshot/restore;
+reviewer packets do not include that provenance. Open conflicts do not change readiness for unrelated
+Store-ready tasks. Snapshot validation supports Executive tables and previous Store-only schemas. Full
+gate after API change: 650 tests/193 subtests; reproducible smoke, `edge_established=false`; Sol
+accepted the exact five-file candidate. Reviewer packets omit nomination provenance, and a digest from
+the current plan row does not independently prevent direct SQLite tampering.
 
 `make check` still stops before later checks on 107 existing Ruff findings in `src/`, `tools/` and
 `tests/`; repository-wide pytest collection still lacks the historical PumpSwap IDL capture manifest.

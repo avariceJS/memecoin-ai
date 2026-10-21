@@ -36,12 +36,27 @@ projection может показать `due_for_recheck`, но не вызыва
 `launch_request` как право запуска и не выдаёт dispatch authority. Новый episode — только явный вызов
 `supervise`, который заново проверяет обычные gates. Synthetic process exit до checkpoint call и после подтверждённого commit, STOP, stale readiness/revision
 и отдельный повторный episode с прохождением cooldown и интеграцией PLAT-002 покрыты.
-Полный gate: Ruff/format, 646 тестов и 193 subtests; `make smoke` воспроизводим,
+Полный gate: Ruff/format, 649 тестов и 193 subtests; `make smoke` воспроизводим,
 `edge_established=false`.
 Worker/reviewer остаются синтетическими; падение до регистрации владельца остаётся неизвестным,
 это покрывает только синхронную ошибку до создания процесса; неоднозначный child start требует custody
 recovery. Это не qualification A04, provider/usage settlement,
 A03 или operational release.
+
+A10 теперь связывает department planning с реальным fixed-card admission: planner видит карточку только
+если текущий fenced plan её команды ссылается на `catalogue-card:<id>` в рамках той же цели. Открытый
+конфликт по точным plan revisions удерживает nomination, но не меняет readiness уже существующих
+независимых задач. Admission в одной SQLite-транзакции повторно сверяет team, objective, owner epoch,
+plan revision/digest, evidence refs и conflict state; scope, контракты, verifier и полномочия остаются
+из trusted card/controller. Публичный `admit()` также требует nomination и повторяет проверки, поэтому
+фиксированную карточку нельзя провести в обход department-plan boundary. Тест PLAT-001 Experience →
+contract reviews → PLAT-002 Platform проверяет provenance в admission и интеграцию, а snapshot/restore
+сохраняет department plans; reviewer packet пока provenance не включает, прежние Store-only схемы
+продолжают приниматься. Sol принял точный пятифайловый кандидат без существенных блокеров. Full gate
+после изменения API: Ruff/format, 650 тестов и 193 subtests; smoke воспроизводим,
+`edge_established=false`. Plan digest вычисляется из текущей валидированной строки; независимой защиты
+от прямой SQLite-подмены нет. Это synthetic source-only evidence, не qualification операционного
+A04/A03/runtime.
 
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
 reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает

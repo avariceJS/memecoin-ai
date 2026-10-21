@@ -202,6 +202,41 @@ _ORGANIZATION_SCHEMA = {
         ("details", "TEXT", 1, 0, None),
     ),
 }
+_ORGANIZATION_SCHEMA_WITH_EXECUTIVE = {
+    **_ORGANIZATION_SCHEMA,
+    "executive_conflict_adjudications": (
+        ("conflict_id", "TEXT", 1, 1, None),
+        ("revision", "INTEGER", 1, 2, None),
+        ("disposition", "TEXT", 1, 0, None),
+        ("body", "TEXT", 1, 0, None),
+    ),
+    "executive_decisions": (("id", "TEXT", 0, 1, None), ("body", "TEXT", 1, 0, None)),
+    "executive_department_conflicts": (
+        ("id", "TEXT", 0, 1, None),
+        ("team_a", "TEXT", 1, 0, None),
+        ("team_a_revision", "INTEGER", 1, 0, None),
+        ("team_b", "TEXT", 1, 0, None),
+        ("team_b_revision", "INTEGER", 1, 0, None),
+        ("supersedes_id", "TEXT", 0, 0, None),
+        ("body", "TEXT", 1, 0, None),
+    ),
+    "executive_department_leases": (
+        ("team", "TEXT", 0, 1, None),
+        ("epoch", "INTEGER", 1, 0, None),
+        ("lease_until", "REAL", 1, 0, None),
+        ("status", "TEXT", 1, 0, None),
+        ("body", "TEXT", 1, 0, None),
+    ),
+    "executive_department_plans": (
+        ("team", "TEXT", 1, 1, None),
+        ("revision", "INTEGER", 1, 2, None),
+        ("review_at", "REAL", 1, 0, None),
+        ("body", "TEXT", 1, 0, None),
+    ),
+    "executive_obligations": (("id", "TEXT", 0, 1, None), ("body", "TEXT", 1, 0, None)),
+    "executive_requests": (("id", "TEXT", 0, 1, None), ("body", "TEXT", 1, 0, None)),
+    "executive_role": (("role", "TEXT", 0, 1, None), ("body", "TEXT", 1, 0, None)),
+}
 _ORGANIZATION_FOREIGN_KEYS = {
     "acceptances": {("tasks", (("task_id", "id"),))},
     "attempts": {("tasks", (("task_id", "id"),))},
@@ -210,6 +245,15 @@ _ORGANIZATION_FOREIGN_KEYS = {
     "task_specs": {("tasks", (("task_id", "id"),))},
     "tasks": {("objectives", (("objective_id", "id"),))},
     "usage": {("attempts", (("attempt_id", "id"),))},
+}
+_ORGANIZATION_FOREIGN_KEYS_WITH_EXECUTIVE = {
+    **_ORGANIZATION_FOREIGN_KEYS,
+    "executive_conflict_adjudications": {
+        ("executive_department_conflicts", (("conflict_id", "id"),))
+    },
+    "executive_department_conflicts": {
+        ("executive_department_conflicts", (("supersedes_id", "id"),))
+    },
 }
 _ORGANIZATION_UNIQUE = {
     "acceptances": {("task_id",)},
@@ -221,6 +265,17 @@ _ORGANIZATION_UNIQUE = {
     "objectives": {("id",)},
     "task_specs": {("task_id",)},
     "tasks": {("id",)},
+}
+_ORGANIZATION_UNIQUE_WITH_EXECUTIVE = {
+    **_ORGANIZATION_UNIQUE,
+    "executive_conflict_adjudications": {("conflict_id", "revision")},
+    "executive_decisions": {("id",)},
+    "executive_department_conflicts": {("id",), ("supersedes_id",)},
+    "executive_department_leases": {("team",)},
+    "executive_department_plans": {("team", "revision")},
+    "executive_obligations": {("id",)},
+    "executive_requests": {("id",)},
+    "executive_role": {("role",)},
 }
 _LEGACY_ORGANIZATION_SCHEMA_V2 = {
     table: columns
@@ -234,8 +289,16 @@ def _assert_no_running_attempts(database: Path) -> None:
         tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if tables == set(_ORGANIZATION_SCHEMA):
             schema = _ORGANIZATION_SCHEMA
+            foreign_key_expectations = _ORGANIZATION_FOREIGN_KEYS
+            unique_expectations = _ORGANIZATION_UNIQUE
+        elif tables == set(_ORGANIZATION_SCHEMA_WITH_EXECUTIVE):
+            schema = _ORGANIZATION_SCHEMA_WITH_EXECUTIVE
+            foreign_key_expectations = _ORGANIZATION_FOREIGN_KEYS_WITH_EXECUTIVE
+            unique_expectations = _ORGANIZATION_UNIQUE_WITH_EXECUTIVE
         elif tables == set(_LEGACY_ORGANIZATION_SCHEMA_V2):
             schema = _LEGACY_ORGANIZATION_SCHEMA_V2
+            foreign_key_expectations = _ORGANIZATION_FOREIGN_KEYS
+            unique_expectations = _ORGANIZATION_UNIQUE
         else:
             raise ValueError("snapshot_organization_schema")
         for table, expected_columns in schema.items():
@@ -248,14 +311,14 @@ def _assert_no_running_attempts(database: Path) -> None:
             grouped = {}
             for row in db.execute(f"PRAGMA foreign_key_list({table})"):
                 grouped.setdefault(row[0], []).append((row[1], row[2], row[3], row[4]))
-            foreign_keys = {
+            actual_foreign_keys = {
                 (
                     rows[0][1],
                     tuple((row[2], row[3]) for row in sorted(rows, key=lambda item: item[0])),
                 )
                 for rows in grouped.values()
             }
-            if foreign_keys != _ORGANIZATION_FOREIGN_KEYS.get(table, set()):
+            if actual_foreign_keys != foreign_key_expectations.get(table, set()):
                 raise ValueError("snapshot_organization_schema")
             unique_indexes = set()
             for index in db.execute(f"PRAGMA index_list({table})"):
@@ -269,7 +332,7 @@ def _assert_no_running_attempts(database: Path) -> None:
                             if row[2] is not None
                         )
                     )
-            if unique_indexes != _ORGANIZATION_UNIQUE.get(table, set()):
+            if unique_indexes != unique_expectations.get(table, set()):
                 raise ValueError("snapshot_organization_schema")
         try:
             if db.execute("PRAGMA foreign_key_check").fetchone():

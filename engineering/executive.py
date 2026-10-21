@@ -601,6 +601,153 @@ class Executive:
             return record
 
     @staticmethod
+    def _department_card_ref(card_id):
+        return f"catalogue-card:{card_id}"
+
+    def department_plan_nominations(self, cards, objective_id):
+        """Project current, conflict-free department nominations for fixed cards only."""
+        if (
+            type(cards) is not dict
+            or len(cards) > 100
+            or any(
+                type(card_id) is not str
+                or not card_id.strip()
+                or type(team) is not str
+                or not team.strip()
+                for card_id, team in cards.items()
+            )
+        ):
+            raise ExecutiveError("department nomination catalogue is invalid")
+        _text(objective_id, required=True, limit=200)
+        with self.store._read_snapshot():
+            team_states = {}
+            nominations = {}
+            for team in sorted(set(cards.values())):
+                state, plan, conflict_blocked = self._department_planning_state_in_snapshot(
+                    team, objective_id
+                )
+                team_states[team] = state
+                if plan is None or conflict_blocked:
+                    continue
+                for card_id, card_team in cards.items():
+                    if (
+                        card_team != team
+                        or self._department_card_ref(card_id) not in plan["priorities"]
+                    ):
+                        continue
+                    nominations[card_id] = {
+                        **self._department_plan_nomination(plan),
+                        "card_id": card_id,
+                    }
+            state_sha256 = hashlib.sha256(_json(team_states).encode("utf-8")).hexdigest()
+            return {"nominations": nominations, "state_sha256": state_sha256}
+
+    def _department_planning_state_in_snapshot(self, team, objective_id):
+        now = self.store.clock()
+        lease = self._department_lease(team)
+        plan_row = self.db.execute(
+            "SELECT revision,review_at,body FROM executive_department_plans "
+            "WHERE team=? ORDER BY revision DESC LIMIT 1",
+            (team,),
+        ).fetchone()
+        plan = (
+            self._department_plan_record(team, plan_row[0], plan_row[1], plan_row[2])
+            if plan_row is not None
+            else None
+        )
+        conflict_rows = self.db.execute(
+            "SELECT id FROM executive_department_conflicts "
+            "WHERE team_a=? OR team_b=? ORDER BY id LIMIT 101",
+            (team, team),
+        ).fetchall()
+        conflicts = [self._department_conflict_view_in_snapshot(row[0]) for row in conflict_rows]
+        state = {
+            "team": team,
+            "lease": lease,
+            "plan": plan,
+            "conflicts": conflicts,
+        }
+        valid_plan = (
+            lease is not None
+            and lease["status"] == "active"
+            and lease["lease_until"] > now
+            and plan is not None
+            and plan["owner"] == lease["owner"]
+            and plan["owner_epoch"] == lease["epoch"]
+            and plan["objective_id"] == objective_id
+            and plan["review_at"] > now
+            and len(conflict_rows) <= 100
+        )
+        conflict_blocked = bool(
+            valid_plan
+            and any(
+                conflict is not None
+                and conflict["status"] == "open"
+                and (
+                    (conflict["team_a"] == team and conflict["team_a_revision"] == plan["revision"])
+                    or (
+                        conflict["team_b"] == team
+                        and conflict["team_b_revision"] == plan["revision"]
+                    )
+                )
+                for conflict in conflicts
+            )
+        )
+        return state, plan if valid_plan else None, conflict_blocked
+
+    @staticmethod
+    def _department_plan_nomination(plan):
+        return {
+            "schema": "department-plan-nomination-v1",
+            "team": plan["team"],
+            "objective_id": plan["objective_id"],
+            "card_id": None,
+            "plan_revision": plan["revision"],
+            "plan_sha256": hashlib.sha256(_json(plan).encode("utf-8")).hexdigest(),
+            "owner": plan["owner"],
+            "owner_epoch": plan["owner_epoch"],
+            "evidence_refs": plan["evidence_refs"],
+            "summary": plan["summary"],
+        }
+
+    def validate_department_plan_nomination(self, nomination, card_id, objective_id):
+        """Recheck a planner nomination while the caller owns the Store write transaction."""
+        expected_shape = {
+            "schema",
+            "team",
+            "objective_id",
+            "card_id",
+            "plan_revision",
+            "plan_sha256",
+            "owner",
+            "owner_epoch",
+            "evidence_refs",
+            "summary",
+        }
+        if (
+            type(nomination) is not dict
+            or set(nomination) != expected_shape
+            or nomination.get("schema") != "department-plan-nomination-v1"
+            or nomination.get("objective_id") != objective_id
+            or nomination.get("card_id") != card_id
+            or type(nomination.get("team")) is not str
+        ):
+            raise ExecutiveError("department plan nomination is invalid")
+        _, plan, conflict_blocked = self._department_planning_state_in_snapshot(
+            nomination["team"], objective_id
+        )
+        fresh = self._department_plan_nomination(plan) if plan is not None else None
+        if fresh is not None:
+            fresh["card_id"] = card_id
+        if (
+            fresh is None
+            or conflict_blocked
+            or self._department_card_ref(card_id) not in plan["priorities"]
+            or {**fresh, "card_id": card_id} != nomination
+        ):
+            raise ExecutiveError("department plan nomination is stale")
+
+    @staticmethod
     def _department_conflict_record(body):
         try:
             conflict = json.loads(body)
