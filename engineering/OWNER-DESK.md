@@ -65,6 +65,19 @@ acceptance harness. Worker/lead transport, reviewer, acceptance fixture и contr
 экспертизу, провайдера или эксплуатацию. A03, Pilot STOP, запрет
 runtime и запрет `main` сохраняются; цель организации остаётся открытой.
 
+Восстановленный snapshot теперь соединён с пассивным A05 lifecycle решением: тест читает STOP и
+restore receipt отдельной синтетической копии, сохраняет fenced `hold` при неизвестной готовности
+runtime/accounting/quota/process, закрывает и снова открывает SQLite, затем проверяет отказ старой
+lease после claim владельца с новым epoch. Worklist возвращает только сохранённый `hold` без
+dispatch/consumption authority; STOP не снимается. `snapshot_stop` — STOP из disposable fixture,
+не исторический Pilot STOP; `host_requalification_required` используется только как осторожный
+fixture proxy, а accounting/quota/process/authorization остаются синтетическими caller observations.
+Sol принял тестовую семантику после уточнения происхождения STOP; финальный отформатированный diff:
+`67fbfcfc97ce0363ebac32df6e727598667c43ad351f2a69adf81a655e85490f`. Focused интеграционный тест
+и полный engineering gate прошли: Ruff/format, 596 тестов и 189 subtests. Это не доказывает
+доверенный свежий gate snapshot, lifecycle consumer, restart или operational recovery. A05 остаётся
+открытым.
+
 **2026-10-21. Независимый аудит завершён; основатель разрешил продолжить инженерную разработку.**
 Пилот остаётся остановлен. Проверенный исходный код аудита: `org/development`, `b2dcd6d`;
 документационный checkpoint: `0054a9e`. Ни эксплуатационный запуск, ни снятие STOP не разрешены.

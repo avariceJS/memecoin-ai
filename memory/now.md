@@ -55,6 +55,14 @@ no remaining bypass in this bounded path. Lead, worker and reviewer transports, 
 harness and both review transports remain synthetic. This does not qualify real provider identity/settlement,
 reviewer judgment/authenticity, full A04, remote checkpointing or operations.
 
+The synthetic fresh-restore path now records a passive A05 `hold` using the copied STOP and restore
+receipt, preserves it across SQLite reopen, and rejects a later optimistic write from the old owner
+epoch. The worklist reports no dispatch/consumption authority. `snapshot_stop`, host requalification,
+accounting and quota are conservative fixture inputs; this adds no trusted freshness-bound gate
+capture, consumer, restart or operational recovery. Sol accepted the exact test diff
+`67fbfcfc97ce0363ebac32df6e727598667c43ad351f2a69adf81a655e85490f`; the engineering gate passes
+Ruff/format, 596 tests and 189 subtests.
+
 Before the PLAT-002 fake-transport scope fix, one focused run passed with `verify_one` outside the
 mock; an installed Codex reviewer may have been invoked. Attribution and usage settlement are
 unknown, so do not call them zero or settled and do not release any reservation. The subsequent full

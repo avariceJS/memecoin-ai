@@ -975,6 +975,8 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(restored_integration_sha, candidate_sha)
         run_git(restored / "integration", "cat-file", "-e", f"{candidate_sha}^{{commit}}")
         restored_db = Store(restored / "organization.sqlite", clock=lambda: self.now)
+        restored_lifecycle_lease = None
+        restored_lifecycle_decision = None
         try:
             self.assertEqual(restored_db.get_task(admitted)["state"], "integrated")
             self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
@@ -995,7 +997,87 @@ class SupervisorTests(unittest.TestCase):
             self.assertIsNone(
                 restored_db.db.execute("SELECT 1 FROM attempts WHERE state='running'").fetchone()
             )
+            # Recovery on the restored copy records only a passive hold. This is
+            # fixture STOP, not the historical Pilot STOP; unavailable runtime,
+            # accounting and quota inputs remain conservative fixture values.
+            restored_lifecycle_lease = restored_db.claim_lifecycle_owner(
+                "synthetic-restored-controller", lease_seconds=30
+            )
+            self.assertIsNotNone(restored_lifecycle_lease)
+            restored_lifecycle_observations = {
+                "desired_state": "enabled",
+                "stop_reasons": ["snapshot_stop"] if (restored / "STOP").is_file() else [],
+                "runtime_ready": restore_receipt["runtime_ready"],
+                "accounting_ready": False,
+                "quota_ready": False,
+                "process_state": "unknown",
+                "process_owner": None,
+                "lease_owner": None,
+                "active_attempt_id": None,
+                "recovery_open": restore_receipt["host_requalification_required"],
+                "backoff_until": None,
+                "now": self.now,
+                "launch_authorized": False,
+            }
+            restored_lifecycle_decision = restored_db.record_lifecycle_evaluation(
+                restored_lifecycle_lease, restored_lifecycle_observations
+            )
+            self.assertEqual(restored_lifecycle_decision["body"]["plan"]["action"], "hold")
+            self.assertEqual(
+                restored_lifecycle_decision["body"]["plan"]["reason"], "stop_reason_active"
+            )
+            self.assertFalse(
+                restored_lifecycle_decision["body"]["observations"]["accounting_ready"]
+            )
+            self.assertFalse(restored_lifecycle_decision["body"]["observations"]["runtime_ready"])
+            self.assertFalse(
+                restored_lifecycle_decision["body"]["observations"]["launch_authorized"]
+            )
+            self.assertTrue((restored / "STOP").is_file())
         finally:
+            restored_db.close()
+        # The passive recovery decision survives Store reopen, while a newer
+        # owner epoch fences the lease that wrote it. Nothing consumes a request.
+        restored_db = Store(restored / "organization.sqlite", clock=lambda: self.now)
+        replacement_db = Store(restored / "organization.sqlite", clock=lambda: self.now + 30)
+        try:
+            persisted_lifecycle_decision = restored_db.get_decision(
+                restored_lifecycle_decision["id"]
+            )
+            self.assertEqual(
+                persisted_lifecycle_decision["body"], restored_lifecycle_decision["body"]
+            )
+            replacement_lease = replacement_db.claim_lifecycle_owner(
+                "synthetic-recovery-reader", lease_seconds=30
+            )
+            self.assertEqual(replacement_lease["epoch"], restored_lifecycle_lease["epoch"] + 1)
+            with self.assertRaisesRegex(StateError, "stale_lifecycle_owner"):
+                restored_db.record_lifecycle_evaluation(
+                    restored_lifecycle_lease,
+                    {
+                        "desired_state": "enabled",
+                        "stop_reasons": [],
+                        "runtime_ready": True,
+                        "accounting_ready": True,
+                        "quota_ready": True,
+                        "process_state": "stopped",
+                        "process_owner": None,
+                        "lease_owner": None,
+                        "active_attempt_id": None,
+                        "recovery_open": False,
+                        "backoff_until": None,
+                        "now": self.now,
+                        "launch_authorized": True,
+                    },
+                )
+            projection = restored_db.lifecycle_request_worklist()
+            self.assertEqual(projection["count"], 1)
+            self.assertEqual(projection["items"][0]["action"], "hold")
+            self.assertFalse(projection["dispatch_authority"])
+            self.assertFalse(projection["consumption_authority"])
+            self.assertTrue((restored / "STOP").is_file())
+        finally:
+            replacement_db.close()
             restored_db.close()
         restored_ledger = UsageLedger(restored / "usage-ledger.sqlite")
         try:
