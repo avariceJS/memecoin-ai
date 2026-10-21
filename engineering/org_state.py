@@ -11,6 +11,7 @@ Use one Store per process (multiple instances safely contend through SQLite).
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import math
@@ -1358,7 +1359,10 @@ class Store:
             None: {"prepared"},
             "prepared": {"dispatching"},
             "dispatching": {"thread_known"},
-            "thread_known": {"approved", "blocked"},
+            # Pre-custody terminal records remain readable. New finalization is
+            # still gated on response_recorded in finish_contract_review().
+            "thread_known": {"response_recorded", "approved", "blocked"},
+            "response_recorded": {"approved", "blocked"},
         }
         for row in rows:
             body = json.loads(row["body"])
@@ -1367,7 +1371,14 @@ class Store:
                 or body.get("kind") != "contract_review_request"
                 or body.get("request_id") != request_id
                 or body.get("status")
-                not in {"prepared", "dispatching", "thread_known", "approved", "blocked"}
+                not in {
+                    "prepared",
+                    "dispatching",
+                    "thread_known",
+                    "response_recorded",
+                    "approved",
+                    "blocked",
+                }
                 or row["replaces"] != (key if previous is not None else None)
                 or row["replaces_version"] != (row["version"] - 1 if previous is not None else None)
             ):
@@ -1399,12 +1410,40 @@ class Store:
                 and body.get("session") != previous["session"]
             ):
                 raise StateError("contract review session identity changed")
+            if (
+                previous is not None
+                and previous["status"]
+                in {
+                    "response_recorded",
+                    "approved",
+                    "blocked",
+                }
+                and any(
+                    body.get(field) != previous.get(field)
+                    for field in ("raw_sha256", "raw_result_base64", "provider_turn_id")
+                )
+            ):
+                raise StateError("contract review response custody changed")
             if body["status"] == "prepared" and any(
-                field in body for field in ("session", "raw_sha256", "result")
+                field in body
+                for field in (
+                    "session",
+                    "raw_sha256",
+                    "raw_result_base64",
+                    "provider_turn_id",
+                    "result",
+                )
             ):
                 raise StateError("contract review prepared state invalid")
             if body["status"] == "dispatching" and any(
-                field in body for field in ("session", "raw_sha256", "result")
+                field in body
+                for field in (
+                    "session",
+                    "raw_sha256",
+                    "raw_result_base64",
+                    "provider_turn_id",
+                    "result",
+                )
             ):
                 raise StateError("contract review dispatch state invalid")
             if body["status"] == "thread_known":
@@ -1423,18 +1462,60 @@ class Store:
                     or session["process_identity"]["pid"] <= 0
                     or type(session["process_identity"]["birth"]) is not str
                     or "raw_sha256" in body
+                    or "raw_result_base64" in body
+                    or "provider_turn_id" in body
                     or "result" in body
                 ):
                     raise StateError("contract review session state invalid")
-            if body["status"] in ("approved", "blocked") and (
-                "session" not in body
+            if body["status"] == "response_recorded" and (
+                type(body.get("session")) is not dict
                 or type(body.get("raw_sha256")) is not str
                 or not re.fullmatch(r"[0-9a-f]{64}", body["raw_sha256"])
-                or type(body.get("result")) is not dict
-                or type(body.get("model_result")) is not dict
-                or type(body.get("blocking_reasons")) is not list
+                or type(body.get("raw_result_base64")) is not str
+                or type(body.get("provider_turn_id")) is not str
+                or not body["provider_turn_id"]
+                or len(body["provider_turn_id"]) > 256
+                or body["session"].get("turn_dispatch_id") != body.get("dispatch_id")
             ):
-                raise StateError("contract review result state invalid")
+                raise StateError("contract review response custody invalid")
+            if body["status"] in ("response_recorded", "approved", "blocked") and (
+                "raw_result_base64" in body or "provider_turn_id" in body
+            ):
+                if (
+                    type(body.get("session")) is not dict
+                    or type(body.get("raw_sha256")) is not str
+                    or not re.fullmatch(r"[0-9a-f]{64}", body["raw_sha256"])
+                    or type(body.get("raw_result_base64")) is not str
+                    or type(body.get("provider_turn_id")) is not str
+                    or not body["provider_turn_id"]
+                    or len(body["provider_turn_id"]) > 256
+                    or body["session"].get("turn_dispatch_id") != body.get("dispatch_id")
+                ):
+                    raise StateError("contract review response custody invalid")
+                try:
+                    raw_result = base64.b64decode(body["raw_result_base64"], validate=True)
+                except (ValueError, TypeError):
+                    raise StateError("contract review response custody invalid") from None
+                if (
+                    len(raw_result) > 65536
+                    or hashlib.sha256(raw_result).hexdigest() != body["raw_sha256"]
+                ):
+                    raise StateError("contract review response custody invalid")
+            if body["status"] in ("approved", "blocked"):
+                if (
+                    type(body.get("raw_sha256")) is not str
+                    or not re.fullmatch(r"[0-9a-f]{64}", body["raw_sha256"])
+                    or type(body.get("result")) is not dict
+                    or type(body.get("model_result")) is not dict
+                    or type(body.get("blocking_reasons")) is not list
+                    or (("raw_result_base64" in body) != ("provider_turn_id" in body))
+                    or (
+                        "raw_result_base64" not in body
+                        and previous is not None
+                        and previous["status"] != "thread_known"
+                    )
+                ):
+                    raise StateError("contract review result state invalid")
             previous, record = body, {"name": key, "version": row["version"], "body": body}
         return record
 
@@ -1651,6 +1732,8 @@ class Store:
             body = current["body"]
             if body["packet_hash"] != packet_hash:
                 raise StateError("contract review session is stale")
+            if turn_dispatch_id != body["dispatch_id"]:
+                raise StateError("contract review turn dispatch identity mismatch")
             if "session" in body:
                 if body["session"] != session:
                     raise StateError("contract review session identity changed")
@@ -1660,6 +1743,89 @@ class Store:
             updated = {**body, "status": "thread_known", "session": session}
             self._put_decision_in_transaction(current["name"], updated)
             return {"name": current["name"], "version": current["version"] + 1, "body": updated}
+
+    def record_contract_review_response(
+        self,
+        request_id: str,
+        packet_hash: str,
+        turn_dispatch_id: str,
+        provider_turn_id: str,
+        raw_result: bytes,
+    ) -> dict:
+        """Custody exact bounded review-result bytes before parsing or finalization.
+
+        This is not the full RPC transcript and does not authenticate provider-turn or
+        usage-ledger identity; the caller must qualify those separately.
+        """
+        if (
+            type(packet_hash) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", packet_hash)
+            or type(turn_dispatch_id) is not str
+            or not turn_dispatch_id
+            or type(provider_turn_id) is not str
+            or not provider_turn_id
+            or len(provider_turn_id) > 256
+            or type(raw_result) is not bytes
+            or len(raw_result) > 65536
+        ):
+            raise StateError("contract review response invalid")
+        raw_sha256 = hashlib.sha256(raw_result).hexdigest()
+        encoded = base64.b64encode(raw_result).decode("ascii")
+        with self._tx():
+            current = self._contract_review_record(request_id)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if body["packet_hash"] != packet_hash:
+                raise StateError("contract review response is stale")
+            if body["dispatch_id"] != turn_dispatch_id:
+                raise StateError("contract review turn dispatch identity mismatch")
+            response_identity = {
+                "raw_sha256": raw_sha256,
+                "raw_result_base64": encoded,
+                "provider_turn_id": provider_turn_id,
+            }
+            if body["status"] in ("response_recorded", "approved", "blocked"):
+                if any(body.get(key) != value for key, value in response_identity.items()):
+                    raise StateError("contract review response custody changed")
+                return current
+            if body["status"] != "thread_known":
+                raise StateError("contract review response has no durable session")
+            session = body.get("session")
+            if type(session) is not dict or session.get("turn_dispatch_id") != turn_dispatch_id:
+                raise StateError("contract review response session mismatch")
+            updated = {**body, "status": "response_recorded", **response_identity}
+            self._put_decision_in_transaction(current["name"], updated)
+            return {"name": current["name"], "version": current["version"] + 1, "body": updated}
+
+    def get_contract_review_response(self, request_id: str) -> dict:
+        """Read and rehash the immutable stored result bytes for local recovery."""
+        with self._lock:
+            current = self._contract_review_record(request_id)
+            if current is None or current["body"]["status"] not in {
+                "response_recorded",
+                "approved",
+                "blocked",
+            }:
+                raise StateError("contract review response unavailable")
+            body = current["body"]
+            if "raw_result_base64" not in body:
+                raise StateError("legacy contract review has no retained raw response")
+            try:
+                raw_result = base64.b64decode(body["raw_result_base64"], validate=True)
+            except (ValueError, TypeError):
+                raise StateError("contract review response custody invalid") from None
+            if hashlib.sha256(raw_result).hexdigest() != body["raw_sha256"]:
+                raise StateError("contract review response custody invalid")
+            return {
+                "request_id": request_id,
+                "packet_hash": body["packet_hash"],
+                "dispatch_id": body["dispatch_id"],
+                "thread_id": body["session"]["thread_id"],
+                "provider_turn_id": body["provider_turn_id"],
+                "raw_sha256": body["raw_sha256"],
+                "raw_result": raw_result,
+            }
 
     def finish_contract_review(
         self, request_id: str, packet_hash: str, raw_sha256: str, result: Any
@@ -1728,8 +1894,30 @@ class Store:
                 if body.get("raw_sha256") != raw_sha256 or completed != detached:
                     raise StateError("contract review result is immutable")
                 return current
-            if body["status"] != "thread_known":
-                raise StateError("contract review response has no durable session")
+            if body["status"] != "response_recorded":
+                raise StateError("contract review response is not durably recorded")
+            if body.get("raw_sha256") != raw_sha256:
+                raise StateError("contract review response hash mismatch")
+            response = self.get_contract_review_response(request_id)
+            try:
+
+                def unique_object(pairs):
+                    value = {}
+                    for key, item in pairs:
+                        if key in value:
+                            raise ValueError("duplicate JSON key")
+                        value[key] = item
+                    return value
+
+                raw_result = json.loads(
+                    response["raw_result"].decode("utf-8"), object_pairs_hook=unique_object
+                )
+                if type(raw_result) is not dict or _json(raw_result) != _json(detached):
+                    raise ValueError("stored response differs from parsed result")
+            except (TypeError, ValueError, UnicodeDecodeError, OverflowError, RecursionError):
+                raise StateError(
+                    "contract review raw result does not match parsed result"
+                ) from None
             allowed_refs = body["packet"].get("evidence_refs", [])
             allowed_consumers = body["packet"].get("affected_consumer_task_ids", [])
             if (

@@ -167,6 +167,25 @@ def review_result(**overrides):
     return result
 
 
+def record_review_result(store, body, result, raw_result=None):
+    if raw_result is None:
+        raw_result = json.dumps(result, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return store.record_contract_review_response(
+        body["request_id"],
+        body["packet_hash"],
+        body["dispatch_id"],
+        "provider-turn-" + body["request_id"],
+        raw_result,
+    )
+
+
+def finish_recorded_review(store, body, result):
+    response = record_review_result(store, body, result)
+    return store.finish_contract_review(
+        body["request_id"], body["packet_hash"], response["body"]["raw_sha256"], result
+    )
+
+
 def prepare_review(store):
     store.add_task("EXP-1", "Experience", "produce contract", scope=["schema.py"])
     store.add_task("PLAT-1", "Platform", "consume contract", scope=["cli.py"])
@@ -196,7 +215,7 @@ def test_task_independent_contract_review_is_durable_and_acknowledges_atomically
             body["packet_hash"],
             "thread-1",
             "gpt-6.1-sol",
-            "turn-1",
+            body["dispatch_id"],
             {"pid": True, "birth": None},
         )
     assert store.get_decision(request["name"])["body"]["status"] == "dispatching"
@@ -207,7 +226,7 @@ def test_task_independent_contract_review_is_durable_and_acknowledges_atomically
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
     assert session["body"]["status"] == "thread_known"
@@ -217,13 +236,23 @@ def test_task_independent_contract_review_is_durable_and_acknowledges_atomically
             body["packet_hash"],
             "thread-1",
             "gpt-6.1-sol",
-            "turn-1",
+            body["dispatch_id"],
             {"pid": 123, "birth": "synthetic-birth"},
         )
         == session
     )
     result = review_result()
-    receipt_hash = "d" * 64
+    with pytest.raises(StateError, match="not durably recorded"):
+        store.finish_contract_review(body["request_id"], body["packet_hash"], "0" * 64, result)
+    with pytest.raises(StateError, match="dispatch identity mismatch"):
+        store.record_contract_review_response(
+            body["request_id"], body["packet_hash"], "wrong-dispatch", "provider-turn", b"{}"
+        )
+    response = record_review_result(store, body, result)
+    receipt_hash = response["body"]["raw_sha256"]
+    altered = review_result(decision="blocked", compatibility="insufficient")
+    with pytest.raises(StateError, match="does not match parsed result"):
+        store.finish_contract_review(body["request_id"], body["packet_hash"], receipt_hash, altered)
     finished = store.finish_contract_review(
         body["request_id"], body["packet_hash"], receipt_hash, result
     )
@@ -242,7 +271,7 @@ def test_task_independent_contract_review_is_durable_and_acknowledges_atomically
     )
 
 
-def test_contract_review_rejects_forged_scope_and_keeps_blocked_result_without_ack(store):
+def test_contract_review_raw_result_is_replayed_after_store_reopen(store, tmp_path):
     request = prepare_review(store)
     body = request["body"]
     store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
@@ -251,30 +280,124 @@ def test_contract_review_rejects_forged_scope_and_keeps_blocked_result_without_a
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
-    with pytest.raises(StateError, match="evidence coverage"):
-        store.finish_contract_review(
-            body["request_id"],
-            body["packet_hash"],
-            "d" * 64,
-            review_result(reviewed_evidence_refs=["invented:receipt"]),
+    result = review_result()
+    stored = record_review_result(store, body, result)
+    store.close()
+
+    recovered = Store(tmp_path / "org.sqlite", clock=lambda: 1000.0)
+    response = recovered.get_contract_review_response(body["request_id"])
+    assert response["raw_sha256"] == stored["body"]["raw_sha256"]
+    assert json.loads(response["raw_result"]) == result
+    finished = recovered.finish_contract_review(
+        body["request_id"], body["packet_hash"], response["raw_sha256"], result
+    )
+    assert finished["body"]["status"] == "approved"
+    assert recovered.get_decision(recovered._contract_ack_key("sample", 2, "Platform"))
+    assert (
+        recovered.finish_contract_review(
+            body["request_id"], body["packet_hash"], response["raw_sha256"], result
         )
-    blocked = review_result(
-        decision="blocked",
-        compatibility="insufficient",
-        rationale="No compatibility evidence.",
-        reviewed_evidence_refs=[],
-        findings=["consumer behavior is unverified"],
+        == finished
     )
-    stored = store.finish_contract_review(
-        body["request_id"], body["packet_hash"], "e" * 64, blocked
+    recovered.close()
+
+
+@pytest.mark.parametrize(
+    "raw_result",
+    [b"{malformed", b'{"decision":"blocked","decision":"approve"}'],
+)
+def test_contract_review_malformed_raw_is_durable_and_non_sendable(store, raw_result):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-birth"},
     )
-    assert stored["body"]["status"] == "blocked"
-    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+    recorded = store.record_contract_review_response(
+        body["request_id"],
+        body["packet_hash"],
+        body["dispatch_id"],
+        "provider-turn-malformed",
+        raw_result,
+    )
+    with pytest.raises(StateError, match="does not match parsed result"):
+        store.finish_contract_review(
+            body["request_id"], body["packet_hash"], recorded["body"]["raw_sha256"], review_result()
+        )
+    assert store.get_contract_review_response(body["request_id"])["raw_result"] == raw_result
+    assert store.get_decision(request["name"])["body"]["status"] == "response_recorded"
     with pytest.raises(StateError, match="not sendable"):
         store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+
+
+def test_legacy_terminal_contract_review_history_remains_readable(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    legacy_result = review_result(decision="blocked", compatibility="insufficient")
+    legacy = {
+        **store.get_decision(request["name"])["body"],
+        "status": "blocked",
+        "raw_sha256": "a" * 64,
+        "model_result": legacy_result,
+        "result": legacy_result,
+        "blocking_reasons": [],
+    }
+    with store._tx():
+        store._put_decision_in_transaction(request["name"], legacy)
+
+    recovered = store._contract_review_record(body["request_id"])
+    assert recovered["body"]["status"] == "blocked"
+    assert recovered["body"]["model_result"] == legacy_result
+    with pytest.raises(StateError, match="legacy contract review"):
+        store.get_contract_review_response(body["request_id"])
+    assert (
+        store.finish_contract_review(
+            body["request_id"], body["packet_hash"], "a" * 64, legacy_result
+        )
+        == recovered
+    )
+
+
+def test_contract_review_preserves_forged_raw_result_without_ack(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    forged = review_result(reviewed_evidence_refs=["invented:receipt"])
+    response = record_review_result(store, body, forged)
+    with pytest.raises(StateError, match="evidence coverage"):
+        store.finish_contract_review(
+            body["request_id"], body["packet_hash"], response["body"]["raw_sha256"], forged
+        )
+    assert store.get_decision(request["name"])["body"]["status"] == "response_recorded"
+    blocked = review_result(decision="blocked", compatibility="insufficient")
+    with pytest.raises(StateError, match="custody changed"):
+        record_review_result(store, body, blocked)
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
 
 
 def test_contract_review_packet_and_proposal_are_fenced(store):
@@ -313,14 +436,12 @@ def test_contract_review_stale_inventory_is_terminal_blocked_and_not_retried(sto
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
     store.add_task("PLAT-2", "Platform", "new consumer", scope=["other.py"])
     result = review_result()
-    finished = store.finish_contract_review(
-        body["request_id"], body["packet_hash"], "d" * 64, result
-    )
+    finished = finish_recorded_review(store, body, result)
     assert finished["body"]["status"] == "blocked"
     assert finished["body"]["model_result"] == result
     assert any("inventory changed" in item for item in finished["body"]["blocking_reasons"])
@@ -338,7 +459,7 @@ def test_blocked_review_can_record_partial_consumer_coverage(store):
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
     blocked = review_result(
@@ -349,9 +470,7 @@ def test_blocked_review_can_record_partial_consumer_coverage(store):
         affected_consumers_reviewed=[],
         findings=["not reviewed"],
     )
-    finished = store.finish_contract_review(
-        body["request_id"], body["packet_hash"], "e" * 64, blocked
-    )
+    finished = finish_recorded_review(store, body, blocked)
     assert finished["body"]["status"] == "blocked"
     assert finished["body"]["result"]["affected_consumers_reviewed"] == []
 
@@ -365,14 +484,12 @@ def test_contract_review_ack_race_preserves_response_without_second_ack(store):
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
     store.acknowledge_contract_transition("sample", 2, "Platform", body["contract_hash"])
     result = review_result()
-    finished = store.finish_contract_review(
-        body["request_id"], body["packet_hash"], "f" * 64, result
-    )
+    finished = finish_recorded_review(store, body, result)
     assert finished["body"]["status"] == "blocked"
     assert finished["body"]["model_result"] == result
     assert any("was acknowledged" in item for item in finished["body"]["blocking_reasons"])
@@ -395,13 +512,11 @@ def test_contract_review_after_activation_is_terminal_blocked(store):
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
     result = review_result()
-    finished = store.finish_contract_review(
-        body["request_id"], body["packet_hash"], "a" * 64, result
-    )
+    finished = finish_recorded_review(store, body, result)
     assert finished["body"]["status"] == "blocked"
     assert finished["body"]["model_result"] == result
     assert any("source version changed" in item for item in finished["body"]["blocking_reasons"])
@@ -416,16 +531,11 @@ def test_contract_review_result_limits_reject_unbounded_output(store):
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
     with pytest.raises(StateError, match="result exceeds bound"):
-        store.finish_contract_review(
-            body["request_id"],
-            body["packet_hash"],
-            "b" * 64,
-            review_result(rationale="x" * 4001),
-        )
+        finish_recorded_review(store, body, review_result(rationale="x" * 4001))
 
 
 def test_contract_review_rechecks_producer_snapshot_before_ack(store):
@@ -437,14 +547,12 @@ def test_contract_review_rechecks_producer_snapshot_before_ack(store):
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
     store.claim("EXP-1", "synthetic", 30)
     result = review_result()
-    finished = store.finish_contract_review(
-        body["request_id"], body["packet_hash"], "b" * 64, result
-    )
+    finished = finish_recorded_review(store, body, result)
     assert finished["body"]["status"] == "blocked"
     assert any(
         "producer task evidence changed" in item for item in finished["body"]["blocking_reasons"]
@@ -466,14 +574,12 @@ def test_contract_review_task_growth_past_bound_is_terminal_blocked(store):
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
     store.add_task("PLAT-100", "Platform", "new consumer", scope=["other.py"])
     result = review_result(affected_consumers_reviewed=body["packet"]["affected_consumer_task_ids"])
-    finished = store.finish_contract_review(
-        body["request_id"], body["packet_hash"], "c" * 64, result
-    )
+    finished = finish_recorded_review(store, body, result)
     assert finished["body"]["status"] == "blocked"
     assert any("exceeds bound" in item for item in finished["body"]["blocking_reasons"])
     assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
@@ -492,13 +598,11 @@ def test_contract_review_accepts_legacy_task_id_within_result_byte_bound(store):
         body["packet_hash"],
         "thread-1",
         "gpt-6.1-sol",
-        "turn-1",
+        body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
     result = review_result(affected_consumers_reviewed=[task_id])
-    finished = store.finish_contract_review(
-        body["request_id"], body["packet_hash"], "d" * 64, result
-    )
+    finished = finish_recorded_review(store, body, result)
     assert finished["body"]["status"] == "approved"
 
 
