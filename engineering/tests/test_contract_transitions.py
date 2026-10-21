@@ -513,8 +513,10 @@ def review_result_at_serialized_size(target_bytes):
     return result
 
 
-def prepare_review(store, *, consumer_contracts=None):
-    store.add_task("EXP-1", "Experience", "produce contract", scope=["schema.py"])
+def prepare_review(store, *, consumer_contracts=None, producer_contracts=None):
+    store.add_task(
+        "EXP-1", "Experience", "produce contract", scope=["schema.py"], contracts=producer_contracts
+    )
     store.add_task(
         "PLAT-1",
         "Platform",
@@ -1255,6 +1257,73 @@ def test_contract_review_stale_producer_snapshot_blocks_dispatch(store):
     assert len(store.events()) == events_before
 
 
+@pytest.mark.parametrize(
+    ("snapshot", "expected_blocker"),
+    [
+        ("source", "source_contract_changed"),
+        ("producer", "producer_snapshot_changed"),
+        ("participant", "participant_inventory_changed"),
+        ("participant_nonfinite", "participant_inventory_changed"),
+    ],
+)
+def test_contract_review_type_only_json_drift_blocks_dispatch(store, snapshot, expected_blocker):
+    if snapshot == "source":
+        old_body = {"schema": "v1", "flag": 1}
+        store.db.execute(
+            "UPDATE contracts SET body=? WHERE name='sample' AND version=1",
+            (org_state._json(old_body),),
+        )
+        request = prepare_review(store)
+        new_body = {"schema": "v1", "flag": True}
+        store.db.execute(
+            "UPDATE contracts SET body=? WHERE name='sample' AND version=1",
+            (org_state._json(new_body),),
+        )
+    elif snapshot == "producer":
+        request = prepare_review(store, producer_contracts={"marker": 1})
+        store.db.execute(
+            "UPDATE tasks SET contracts=? WHERE id='EXP-1'",
+            (org_state._json({"marker": True}),),
+        )
+    else:
+        request = prepare_review(store, consumer_contracts={"sample": 1})
+        replacement = (
+            '{"sample":NaN}'
+            if snapshot == "participant_nonfinite"
+            else org_state._json({"sample": True})
+        )
+        store.db.execute(
+            "UPDATE tasks SET contracts=? WHERE id='PLAT-1'",
+            (replacement,),
+        )
+    body = request["body"]
+    events_before = len(store.events())
+
+    freshness = store.contract_review_currentness(body["request_id"], body["packet_hash"])
+    assert freshness["current"] is False
+    assert freshness["blockers"] == [expected_blocker]
+    with pytest.raises(StateError, match=expected_blocker):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    assert store.get_decision(request["name"])["version"] == 1
+    assert len(store.events()) == events_before
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_contract_review_canonical_comparison_preserves_key_order_equivalence(store):
+    old_body = {"schema": "v1", "flag": 1}
+    store.db.execute(
+        "UPDATE contracts SET body=? WHERE name='sample' AND version=1",
+        (org_state._json(old_body),),
+    )
+    request = prepare_review(store)
+    reordered_body = '{ "flag" : 1, "schema" : "v1" }'
+    store.db.execute(
+        "UPDATE contracts SET body=? WHERE name='sample' AND version=1", (reordered_body,)
+    )
+    body = request["body"]
+    assert store.contract_review_currentness(body["request_id"], body["packet_hash"])["current"]
+
+
 def test_contract_review_existing_ack_blocks_dispatch(store):
     request = prepare_review(store)
     body = request["body"]
@@ -1271,7 +1340,7 @@ def test_contract_review_existing_ack_blocks_dispatch(store):
 
 
 def test_contract_review_begin_rechecks_inventory_after_lock_wait(store, tmp_path):
-    request = prepare_review(store)
+    request = prepare_review(store, consumer_contracts={"sample": 1})
     body = request["body"]
     assert store.contract_review_currentness(body["request_id"], body["packet_hash"])["current"]
     other = sqlite3.connect(str(Path(tmp_path) / "org.sqlite"), timeout=30, isolation_level=None)
@@ -1291,7 +1360,10 @@ def test_contract_review_begin_rechecks_inventory_after_lock_wait(store, tmp_pat
                 assert waiting_for_write_lock.wait(2)
                 with pytest.raises(FutureTimeout):
                     future.result(timeout=0.05)
-                other.execute("UPDATE tasks SET title=? WHERE id=?", ("changed", "PLAT-1"))
+                other.execute(
+                    "UPDATE tasks SET contracts=? WHERE id=?",
+                    (org_state._json({"sample": True}), "PLAT-1"),
+                )
                 other.execute("COMMIT")
                 with pytest.raises(StateError, match="participant_inventory_changed"):
                     future.result(timeout=2)
@@ -1345,7 +1417,7 @@ def test_contract_review_raw_result_is_replayed_after_store_reopen(store, tmp_pa
 
 
 def test_contract_review_replay_rechecks_freshness_after_lock_wait(store, tmp_path):
-    request = prepare_review(store)
+    request = prepare_review(store, consumer_contracts={"sample": 1})
     body = request["body"]
     store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
     store.record_contract_review_session(
@@ -1377,7 +1449,10 @@ def test_contract_review_replay_rechecks_freshness_after_lock_wait(store, tmp_pa
                 assert waiting_for_write_lock.wait(2)
                 with pytest.raises(FutureTimeout):
                     future.result(timeout=0.05)
-                other.execute("UPDATE tasks SET title=? WHERE id=?", ("changed", "PLAT-1"))
+                other.execute(
+                    "UPDATE tasks SET contracts=? WHERE id=?",
+                    (org_state._json({"sample": True}), "PLAT-1"),
+                )
                 other.execute("COMMIT")
                 finished = future.result(timeout=2)
             finally:
@@ -2496,6 +2571,46 @@ def test_contract_review_stale_inventory_is_terminal_blocked_and_not_retried(sto
     assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
     with pytest.raises(StateError, match="identity conflict"):
         store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
+
+
+def test_contract_review_type_only_drift_blocks_saved_response_without_ack(store):
+    request = prepare_review(store, consumer_contracts={"sample": 1})
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    result = review_result()
+    response = record_review_result(store, body, result)
+    store.db.execute(
+        "UPDATE tasks SET contracts=? WHERE id='PLAT-1'",
+        (org_state._json({"sample": True}),),
+    )
+
+    finished = store.finish_contract_review(
+        body["request_id"],
+        body["packet_hash"],
+        response["body"]["raw_sha256"],
+        result,
+    )
+    assert finished["body"]["status"] == "blocked"
+    assert finished["body"]["model_result"] == result
+    assert any("inventory changed" in item for item in finished["body"]["blocking_reasons"])
+    version = finished["version"]
+    repeated = store.finish_contract_review(
+        body["request_id"],
+        body["packet_hash"],
+        response["body"]["raw_sha256"],
+        result,
+    )
+    assert repeated == finished
+    assert store.get_decision(request["name"])["version"] == version
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
 
 
 def test_blocked_review_can_record_partial_consumer_coverage(store):

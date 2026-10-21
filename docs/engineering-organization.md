@@ -74,6 +74,15 @@ witness only: later file changes, path races, the separately read digest file, a
 SQLite/config-generation authority remain outside scope. It does not qualify deployment, runtime,
 release or A10 completion.
 
+Against `org/development` base `702819a`, A10 review freshness now compares canonical JSON for
+source-contract, producer-task and participant-task snapshots. Type-only drift such as `1` to `true`
+blocks dispatch and saved-response finalization while preserving the response and withholding ACK;
+key ordering and whitespace remain immaterial. Sol accepted exact diff
+`ef3120dd01547830b844e7547365b2bce7d12d348581b0ecb257470b480c8701`. The full engineering release
+check passed Ruff, format, 533 tests and 112 subtests. Malformed JSON syntax in task fields still
+fails earlier in `_task()` and is outside this increment. General database tamper detection,
+post-ACK freshness, A03 and operational acceptance remain open.
+
 Treat A03 as a tracked external release dependency, not a company-wide engineering stop. Continue
 independent source work while that interface is unavailable. Its ranked program was updated after
 source review:

@@ -177,6 +177,14 @@ def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
+def _json_equal(left: Any, right: Any) -> bool:
+    """Compare canonical JSON values without Python's bool/int equality coercion."""
+    try:
+        return _json(left) == _json(right)
+    except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+        return False
+
+
 def _bounded_index_name(row: sqlite3.Row, max_chars: int, error: str) -> str:
     """Accept only a small indexed name returned by a bounded namespace seek."""
     name = row["journal_name"]
@@ -2069,10 +2077,18 @@ class Store:
         ).fetchone()
         if exact_source is None:
             raise StateError("contract review source contract is unavailable")
-        if json.loads(exact_source["body"]) != pinned_source.get("body"):
+        try:
+            source_body = json.loads(exact_source["body"])
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            source_matches = False
+        else:
+            source_matches = _json_equal(source_body, pinned_source.get("body"))
+        if not source_matches:
             blockers.append("source_contract_changed")
         producer = self._task(proposal["producer_task_id"])
-        if producer["team"] != proposal["producer_team"] or producer != packet.get("producer_task"):
+        if producer["team"] != proposal["producer_team"] or not _json_equal(
+            producer, packet.get("producer_task")
+        ):
             blockers.append("producer_snapshot_changed")
         rows = self.db.execute(
             "SELECT id FROM tasks WHERE team=? ORDER BY id LIMIT 101", (body["team"],)
@@ -2081,7 +2097,7 @@ class Store:
             blockers.append("participant_inventory_exceeds_bound")
         else:
             inventory = [self._task(row["id"]) for row in rows]
-            if inventory != packet.get("participant_tasks"):
+            if not _json_equal(inventory, packet.get("participant_tasks")):
                 blockers.append("participant_inventory_changed")
         if [task["id"] for task in packet["participant_tasks"]] != packet.get(
             "affected_consumer_task_ids"

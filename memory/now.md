@@ -26,6 +26,12 @@ decisions and independent review; Astra remains episodic and is never started au
   Full engineering release check: Ruff, format, 527 tests and 112 subtests passed. Later pathname
   changes, digest-file races, and shared SQLite/config-generation authority remain open; no
   deployment/runtime authority follows.
+- A10 review freshness now uses canonical JSON for source, producer and participant snapshots, so
+  type-only drift (`1` to `true`) blocks dispatch/replay/finalization without ACK and preserves saved
+  results; key-order/whitespace changes remain equivalent. Sol accepted exact diff
+  `ef3120dd01547830b844e7547365b2bce7d12d348581b0ecb257470b480c8701`; full gate: Ruff, format,
+  533 tests and 112 subtests. Malformed task JSON fails earlier in `_task()`; broader database
+  tamper detection, post-ACK freshness and A03 remain open.
 - Latest A10 source checkpoint: `6919e8e` validates plain configured proposal/participant types for
   the whole batch, then canonically detaches the complete contracts mapping before SQLite reads.
   Mutations during later DB reads cannot mix contract bodies with producer/consumer metadata. Sol

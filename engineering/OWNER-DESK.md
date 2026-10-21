@@ -29,6 +29,12 @@ publisher. Они образуют пригодный фундамент. Сле
   полный engineering release-check прошёл: Ruff, format, 527 тестов и 112 subtests. Последующие
   изменения файла, отдельная гонка `config.sha256` и общая генерация конфигурации в SQLite не
   закрыты. Выпуск/запуск не разрешены.
+- Следующий A10 increment сравнивает review snapshots как canonical JSON: дрейф `1` → `true` в
+  source/producer/participant данных блокирует dispatch и ACK, но сохраняет полученный response;
+  порядок ключей и пробелы не меняют идентичность. Sol принял exact diff
+  `ef3120dd01547830b844e7547365b2bce7d12d348581b0ecb257470b480c8701`; release-check: Ruff,
+  format, 533 tests, 112 subtests. Некорректный JSON task field разбирается раньше в `_task()` и
+  остаётся отдельным дефектом. A03 и operational acceptance остаются открыты.
 - Пилот сохранил STOP, конфигурацию, manifest, SQLite и все шесть неудачных попыток.
   Состояние: 3 задачи, 106 событий, **0 acceptances, 0 integrations**. Engineering LaunchAgent не загружен.
 - В локальном наборе: **216 тестов и 42 subtests прошли, 2 старые проверки упали** на обязательном Permit.
