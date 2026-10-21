@@ -30,11 +30,12 @@ automatically.
   provider dispatch/resend. Sol accepted exact diff; full gate passed 404 tests/96 subtests with Ruff.
   The sweep is not atomic across requests and does not choose a newest opaque evidence revision.
   Full A10 and A03 remain open. Receipt: `a10-contract-review-replay-sweep-review-20261021.json`.
-- Current A10 source `org/development` adds a replay-only inventory, so the 100-item bound counts
-  latest `response_recorded` requests; 101 terminal journals no longer starve one pending replay.
-  Sol accepted exact diff; Python 3.13.6 engineering gate passed 411 tests/96 subtests with Ruff.
-  Discovery still scans retained histories and replay is non-atomic across requests. Receipt:
-  `a10-contract-review-replay-capacity-review-20261021.json`.
+- A10 source `7a1aaba` wires transition-scoped local replay into configured supervisor activation:
+  saved approvals can finalize/activate without a provider call, and overflow in one transition does
+  not starve the next. Sol accepted the exact diff; focused suite passed 44 tests and the Python
+  3.13.6 engineering gate passed 423 tests/96 subtests with Ruff. Global history scans, separate
+  replay/activation transactions, provider/usage provenance, A03 and broad A10 remain open. Receipt:
+  `a10-contract-review-supervisor-replay-review-20261021.json`.
 - A05 source `6691a2f` adds a read-only bounded lifecycle request projection with coherent owner state,
   identity/history checks, and no launch/consumption authority. Sol accepted; full gate passed 408/96
   subtests with Ruff. Work/byte cost can still scale with retained history. Independent Sol review found

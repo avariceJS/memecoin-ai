@@ -318,6 +318,23 @@ A10 and operational acceptance remain open. Review receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-capacity-gate-20261021.json`
 (SHA-256 `2c1ff6a3a57720680ab528c1b04eeb3c9e2a332e026b4150c05e4fcb3cc7c375`).
 
+At `7a1aaba`, `supervisor.activate_contract` invokes transition-scoped local replay for each exact
+configured proposal before the existing activation check. This lets already custodied approvals
+complete their existing transactional acknowledgement and activation path without another provider
+request. Each transition's 100-response overflow is isolated so later configured transitions still
+reconcile. Sol accepted the exact source diff `5f1ea425dc8c6d1c2e2152fd9219584c35a1ef2d63bd64794f03d1b5f7fafc05`;
+the focused transition suite passed 44 tests and the full engineering gate passed 423 tests/96
+subtests with Ruff. The supervisor fairness regression covers 101 responses for one transition
+followed by one response for another. Discovery still scans all retained histories, unrelated
+malformed history can abort later scopes, replay and activation are separate transactions, and
+repeated deterministic failures may recur on later passes. Provider/usage provenance, A03 settlement,
+broad A10 and operational acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-supervisor-replay-review-20261021.json`
+(SHA-256 `5c316756f565c4dc94d9f608115e840fd6f7558e5069c440815c4f22afafe49e`);
+gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-supervisor-replay-gate-20261021.json`
+(SHA-256 `96150e6162c14aa6b269d7dedfc7c1206be32ac378bb731cc09d4a270053689f`).
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
