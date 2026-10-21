@@ -8,7 +8,8 @@
 на точном tip PLAT-001. Проверены STOP-cancelled claim и ошибка spawn с cooldown перед retry. Sol
 независимо проверил `bd57f14` и считает достижимую source-only вертикаль достаточной для ограниченной
 приёмки; A03/A04/A05 не закрываются безопасным дополнительным source increment. Штатный gate: Ruff/
-format, 676 тестов и 193 subtests.
+format, 676 тестов и 193 subtests. Узкий regression на timeout потомка принят Sol и сохранён в
+`3a27505`; он подтверждает только один уже запущенный дочерний процесс в исходной process group.
 
 Это синтетическая source acceptance, не эксплуатационная автономность: worker child использует
 test-only harness после тестовой подмены Store/transport; live provider/reviewer/usage identity,
@@ -16,6 +17,13 @@ test-only harness после тестовой подмены Store/transport; li
 не подтверждены или не разрешены. Cortex умеет metadata preregistration, проверку protocol digest и
 review ACK Cortex/Evaluation; Cortex задачи остаются held до A04. Эксперименты, обучение, scoring,
 model/market-perception изменения и независимая научная оценка в этом цикле не выполнялись.
+
+Для следующего этапа эксплуатационной готовности нужны: поддерживаемый upstream-контракт A03 с
+полным связыванием terminal outcome/usage с dispatch, turn, model и attempt epoch, включая потерянные,
+отменённые и поздно исправленные ответы; квалифицированная macOS/A04 граница запуска с доказуемой
+идентичностью executable и loader; и controller-owned generation для A05, вместе с отдельным
+решением основателя о праве lifecycle consumer запускать новый runtime episode. Пока этих оснований
+нет, A03 остаётся fail-closed, а A05 projection не запускает supervisor.
 
 Новый A10 вертикальный путь принят Sol в source-only synthetic объёме. Controller создаёт планы
 отделов только по eligible fixed-card меню через явно инъецируемый transport; полный trusted card

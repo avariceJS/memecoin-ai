@@ -53,6 +53,8 @@ synchronous spawn failure/cooldown before retry. Snapshot/restore, contract-revi
 selected process interruptions have separate synthetic coverage. The exact integrated regression is
 in `engineering/tests/test_supervisor.py`; Sol reviewed the latest exact test increments.
 `make engineering-release-check` passes Ruff/format, 676 tests, and 193 subtests.
+A follow-up at `3a27505` adds a Sol-accepted, macOS-only regression proving that one confirmed-start
+descendant in the original process group does not write after timeout cleanup.
 
 This is bounded source-only acceptance, not autonomous operational execution. The supervisor's
 requested production CLI is replaced by a test-only child harness, and reviewer/provider responses
