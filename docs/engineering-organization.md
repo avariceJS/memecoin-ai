@@ -1386,6 +1386,16 @@ reads for records within the cap remain separate costs; historical oversized rec
 A05 still has no lifecycle consumer or authorization generation, and operational acceptance remains
 open.
 
+At `db779e6`, lifecycle owner history validation now preflights every retained decision body at
+64 KiB in SQLite storage bytes, then decodes one body at a time using the database encoding. It
+rejects malformed or duplicate-key bodies and invalid owner/epoch transitions before fencing or
+reclaiming the current owner. Sol accepted exact diff
+`9209743ee9aa8cd2cc49ac43760de91212a9205ca62d53fcf7ffa1e31f43c181`; focused owner-history tests
+passed, including UTF-16le over-limit rejection before hydration, and the engineering release gate
+passed Ruff, 518 tests and 110 subtests. Each check still scans and parses retained owner history;
+SQLite work and total execution time remain unbounded, and decision-event provenance is not checked.
+No lifecycle consumer or authorization generation was added; operational acceptance remains open.
+
 At `67058bf`, contract-review journal reads used at dispatch, session, response custody and
 finalization now validate at most five versions and project each body only when its serialized
 size is at most 512 KiB, in one SQLite statement before JSON hydration. All five append paths also

@@ -18,11 +18,11 @@ automatically.
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
-- Latest A05 source checkpoint: `b4f134e` caps controller-parse recovery records at 64 KiB in the
-  SQLite storage encoding, checks before journal/task/event writes, and rejects oversized history
-  before JSON hydration. Sol accepted exact diff; UTF-16le boundary/round-trip regression and the
-  full gate passed (515 tests/110 subtests, Ruff). SQL scans and per-record serialization remain;
-  A05 has no lifecycle consumer or authorization generation.
+- Latest A05 source checkpoint: `db779e6` validates every lifecycle owner body and epoch transition,
+  after a 64 KiB SQLite-storage-byte preflight and one-at-a-time decoding. Sol accepted exact diff;
+  UTF-16le over-limit rejection and owner-history regressions passed, as did the full gate (518 tests,
+  110 subtests, Ruff). Each fence still scans/parses retained history; event provenance and the A05
+  consumer/authorization generation remain open.
 - Latest A10 source checkpoint: `00cf162` compares configured publication bodies as canonical finite
   JSON, rejecting bool/integer identity drift for initial and supported legacy contracts while
   preserving key-order independence. Sol accepted the exact diff; focused regressions passed and
