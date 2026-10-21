@@ -204,6 +204,21 @@ consumer, controller-owned authorization generation or runtime qualification. Re
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-byte-bounds-gate-20261021.json`
 (SHA-256 `c08221ea42077fa90ebda351c096a279a5e2483ffecf8725bd94cac8586391ec`).
 
+At `9bb0fb5`, lifecycle request worklist discovery replaces grouped namespace enumeration with
+successive primary-key name seeks, capped at `limit + 1`. It preserves the exact BINARY namespace,
+including the malformed bare prefix for fail-closed identity validation, and keeps discovery,
+owner-state reads and request checks in one snapshot. Sol-6.1 High accepted the exact source diff
+`81ac117dcad0e9df466df1856a3be4bebc6818ab8b4c42853f9ddfcb5af88531`; the focused lifecycle Store
+suite passed 30 tests/3 subtests and the engineering release gate passed 449 tests/101 subtests with
+Ruff. The seek count is bounded, but B-tree work, wall time, owner-history aggregation, historical
+name length and total memory are not hard bounded. SQL planner/opcode assertions are SQLite-version
+sensitive. No lifecycle consumer, controller-owned authorization generation or runtime qualification
+was added. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-indexed-seek-review-20261021.json`
+(SHA-256 `ec72170d340328e037f5cfb7bf871a53096af69c2376fcde0efe7c60debd582f`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-indexed-seek-gate-20261021.json`
+(SHA-256 `a79d78682143cbef0bb80af18476bc9bed5bbfeb56b09df6040bb20193bba119`).
+
 A10 now also has a bounded readiness-report scaffold at
 `57f496f5f74258d00a09dc37b5818e409495dffc`. Its read-only SQLite snapshot exposes each task's
 non-integrated or missing dependency and mismatched contract version without hiding unrelated ready

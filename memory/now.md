@@ -59,6 +59,11 @@ automatically.
   test rerun. Historical oversized rows and aggregate overflow fail closed; owner-history and SQL scan
   costs remain open. A05 consumer/generation remain absent. Receipt:
   `a05-lifecycle-request-byte-bounds-review-20261021.json`.
+- A05 source `9bb0fb5` changes lifecycle request discovery to bounded primary-key name seeks while
+  preserving bare-prefix fail-closed validation and snapshot semantics. Sol-6.1 High accepted; the
+  focused suite passed 30/3 subtests and the release gate passed 449/101 with Ruff. B-tree/time/memory
+  and owner-history bounds, consumer/generation and runtime qualification remain open. Receipt:
+  `a05-lifecycle-request-indexed-seek-review-20261021.json`.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable
