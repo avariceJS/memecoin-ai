@@ -18,14 +18,19 @@ legacy fixed-policy path-only harness, not manifest-bound A04. An injected crash
 after CAS exercises SQLite close/reopen and durable reconciliation; missing receipt and tampered
 candidate ancestry fail closed before successful recovery and dependent task claim. Planning binds
 the next task to GitGate's active ref, and the test asserts its base is the integrated candidate.
-Experience produces a contract consumed by Platform; the consumer is blocked until both teams'
-synthetic durable reviews activate the exact contract version. Proposal JSON rejects duplicate keys,
+Experience produces a contract consumed by Platform; the consumer is blocked until the exact version
+is activated by both participant reviews. The test runs the real durable review journal with an
+explicit injected synthetic transport, recording, replaying and acknowledging receipt-referencing
+responses in two stages, with contract activation attempted after the first ACK. Packets declare the
+candidate SHA and GitGate receipt digest, but Store does not validate the external receipt; the
+unadmitted Platform task is absent from its team review inventory. The helper is not wired into
+`supervise`. Proposal JSON rejects duplicate keys,
 and task admission plus terminal planning
 decision commit atomically; an injected hard interruption rolls both back, and client cleanup failure
 remains visible to caller without relabeling committed admission. JSON `true` for an integer epoch
 fails closed. Sol independently reviewed the recovery binding and found
 no remaining bypass in this bounded path. Lead, worker and reviewer transports, trusted acceptance
-harness and contract reviews remain synthetic. This does not qualify real provider identity/settlement,
+harness and both review transports remain synthetic. This does not qualify real provider identity/settlement,
 reviewer judgment/authenticity, full A04, remote checkpointing or operations.
 
 The current engineering gate passes Ruff/format and 595 tests plus 189 subtests.

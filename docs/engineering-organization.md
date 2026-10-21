@@ -64,13 +64,21 @@ Store integration, closes and reopens
 SQLite, then recovers and claims a dependent next task. It removes the receipt and confirms recovery
 fails closed, tampers with candidate SHA and confirms exact parent binding rejects publication, then
 restores evidence and confirms one integration event.
-The integrated producer is an Experience task; its Platform consumer remains ineligible until
-both teams' synthetic durable reviews activate the exact contract version. Recovery now binds intent
+The integrated producer is an Experience task; its Platform consumer remains ineligible until the
+exact contract version is activated. The test prepares one review request for each transition
+participant, then runs the real `process_pending_reviews` durable journal through an injected
+synthetic transport. Its packet contains the candidate SHA and declared GitGate receipt
+reference/digest, which the request hash preserves; Store does not resolve or validate that external
+receipt. Each response is recorded, replayed and acknowledged. The test attempts activation after
+one approval and confirms the consumer remains blocked; it activates only after both. Since
+`PLAT-002` is not admitted until activation, it is absent from the Platform participant's task
+inventory, so this proves contract-level participant review and readiness gating, not task-specific
+review. The test does not wire the helper into `supervise` or qualify live dispatch. Recovery now binds intent
 to Store attempt/epoch and successful verification details; GitGate
 requires the candidate's exact two parents to equal the captured integration tip and submitted SHA.
 The test uses `research/active` only inside a temporary repository and leaves `main` unchanged. The
-injected lead/worker/reviewer transport and trusted acceptance harness are synthetic; no live
-provider is called. The acceptance command is the legacy fixed-policy path-only harness, not a
+injected lead/worker/reviewer and contract-review transports plus the trusted acceptance fixture are
+synthetic; no live provider is called. The acceptance command is the legacy fixed-policy path-only harness, not a
 manifest-bound A04 verifier. This exercises controller dispatch, worker and verifier Seatbelt paths,
 review packet binding, Git integration and recovery without qualifying real Codex identity, reviewer
 judgment/authenticity, provider usage settlement, A04 as a whole, remote checkpointing, runtime or A03.

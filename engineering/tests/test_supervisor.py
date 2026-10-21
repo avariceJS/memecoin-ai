@@ -813,8 +813,75 @@ class SupervisorTests(unittest.TestCase):
 
         self.assertEqual(eligible(self.cfg, self.db), [])
         self.assertEqual(self.db.get_contract("research-output")["version"], 1)
-        self.approve_contract_review("research-output", 2, "Experience")
-        self.approve_contract_review("research-output", 2, "Platform")
+        from engineering.contract_review_cycle import process_pending_reviews
+
+        review_evidence = f"git-receipt:{receipt_digest}"
+        transition = self.db.get_contract_transition("research-output", 2)
+        contract_hash = transition["body"]["contract_hash"]
+        for team in ("Experience", "Platform"):
+            packet = {
+                "source_commit": candidate_sha,
+                "evidence_refs": [{"ref": review_evidence, "sha256": receipt_digest}],
+                "compatibility_analysis": "Synthetic participant reviewed the integrated schema.",
+                "migration_plan": None,
+            }
+            evidence_revision = hashlib.sha256(f"{candidate_sha}:{team}".encode()).hexdigest()
+            self.db.prepare_contract_review("research-output", 2, team, evidence_revision, packet)
+
+        class SyntheticContractReviewTransport:
+            def __init__(self):
+                self.started_teams = []
+
+            def start(self, request):
+                body = request["body"]
+                self_test.assertEqual(body["name"], "research-output")
+                self_test.assertEqual(body["version"], 2)
+                self_test.assertIn(body["team"], ("Experience", "Platform"))
+                self_test.assertEqual(body["packet"]["contract_hash"], contract_hash)
+                self_test.assertEqual(body["packet"]["source_commit"], candidate_sha)
+                self_test.assertEqual(body["packet"]["evidence_refs"], [review_evidence])
+                if body["team"] == "Platform":
+                    self_test.assertEqual(body["packet"]["participant_tasks"], [])
+                self.started_teams.append(body["team"])
+                return {
+                    "thread_id": "synthetic-contract-review-" + body["team"],
+                    "model": "synthetic-reviewer",
+                    "pid": 123,
+                    "birth": "synthetic",
+                }
+
+            def review(self, _session, request):
+                body = request["body"]
+                result = {
+                    "decision": "approve",
+                    "compatibility": "compatible",
+                    "rationale": "Synthetic evidence review passed.",
+                    "findings": [],
+                    "reviewed_evidence_refs": body["packet"]["evidence_refs"],
+                    "affected_consumers_reviewed": body["packet"]["affected_consumer_task_ids"],
+                    "migration_plan": body["packet"]["migration_plan"],
+                }
+                return {
+                    "provider_turn_id": "synthetic-turn-" + body["team"],
+                    "raw_result": json.dumps(
+                        result, sort_keys=True, separators=(",", ":")
+                    ).encode(),
+                }
+
+        review_transport = SyntheticContractReviewTransport()
+        first_review = process_pending_reviews(self.db, review_transport, limit=1)
+        self.assertEqual(first_review["transport_invocations"], 1)
+        self.assertEqual(first_review["failures"], [])
+        self.assertEqual([item["status"] for item in first_review["processed"]], ["approved"])
+        supervisor.activate_contract(self.state, self.db)
+        self.assertEqual(self.db.get_contract("research-output")["version"], 1)
+        self.assertEqual(eligible(self.cfg, self.db), [])
+        second_review = process_pending_reviews(self.db, review_transport, limit=1)
+        self.assertEqual(second_review["transport_invocations"], 1)
+        self.assertEqual(second_review["failures"], [])
+        self.assertEqual([item["status"] for item in second_review["processed"]], ["approved"])
+        self.assertEqual(len(review_transport.started_teams), 2)
+        self.assertEqual(len(set(review_transport.started_teams)), 2)
         supervisor.activate_contract(self.state, self.db)
         self.assertEqual(self.db.get_contract("research-output")["version"], 2)
         self.assertEqual(eligible(self.cfg, self.db), ["PLAT-002"])
