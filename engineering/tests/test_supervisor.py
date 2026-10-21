@@ -56,6 +56,32 @@ class FakeCodex:
         pass
 
 
+def existing_review_allowlist(db, transitions):
+    """Inject a prepared source gate for focused contract replay unit tests."""
+    rows = db.db.execute(
+        "SELECT d.name,d.body FROM decisions d WHERE d.name LIKE 'contract-review/%' "
+        "AND d.version=(SELECT MAX(latest.version) FROM decisions latest WHERE latest.name=d.name)"
+    ).fetchall()
+    requests = []
+    for row in rows:
+        try:
+            body = json.loads(row["body"])["body"]
+            if type(body) is dict:
+                requests.append(body)
+        except (TypeError, ValueError, KeyError):
+            continue
+    return {
+        (transition["name"], transition["version"]): tuple(
+            body["request_id"]
+            for body in requests
+            if body.get("name") == transition["name"]
+            and body.get("version") == transition["version"]
+            and body.get("contract_hash") == transition["body"]["contract_hash"]
+        )
+        for transition in transitions
+    }
+
+
 class SupervisorTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -427,9 +453,26 @@ class SupervisorTests(unittest.TestCase):
         with (
             patch.object(supervisor, "git", side_effect=fake_git),
             patch.object(supervisor, "GitGate", return_value=gate),
+            patch.object(
+                supervisor,
+                "_prepare_contract_review_requests",
+                side_effect=lambda _state, db, _cfg, transitions: existing_review_allowlist(
+                    db, transitions
+                ),
+            ),
         ):
             supervisor.reconcile(self.state, self.db)
         return calls, gate
+
+    def activate_existing_reviews(self):
+        with patch.object(
+            supervisor,
+            "_prepare_contract_review_requests",
+            side_effect=lambda _state, db, _cfg, transitions: existing_review_allowlist(
+                db, transitions
+            ),
+        ):
+            return supervisor.activate_contract(self.state, self.db)
 
     def _use_real_preflight(self):
         self.patches[0].stop()
@@ -871,6 +914,7 @@ class SupervisorTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "receipt"):
             supervisor.reconcile(self.state, self.db)
         self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
+        self.assertEqual(self.db.contract_review_worklist()["count"], 0)
         forged = json.loads(receipt_bytes)
         forged["commands"] = []
         forged_bytes = json.dumps(forged, sort_keys=True, separators=(",", ":")).encode()
@@ -881,9 +925,44 @@ class SupervisorTests(unittest.TestCase):
             supervisor.reconcile(self.state, self.db)
         self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
         self.assertEqual(run_git(integration, "rev-parse", GitGate.ACTIVE_REF), candidate_sha)
+        self.assertEqual(self.db.contract_review_worklist()["count"], 0)
         supervisor.atomic(intent_path, intent)
         receipt_path.write_bytes(receipt_bytes)
+        prepare_contract_review = self.db.prepare_contract_review
+        failed_after_first_request = False
+
+        def interrupt_contract_review(name, version, team, evidence_revision, packet):
+            nonlocal failed_after_first_request
+            if team == "Platform" and not failed_after_first_request:
+                failed_after_first_request = True
+                raise RuntimeError("synthetic controller interruption after first review request")
+            return prepare_contract_review(name, version, team, evidence_revision, packet)
+
+        with patch.object(
+            self.db,
+            "prepare_contract_review",
+            side_effect=interrupt_contract_review,
+        ):
+            supervisor.reconcile(self.state, self.db)
+        partial_review_items = self.db.contract_review_worklist()["items"]
+        partial_review_ids = [
+            item["request_id"]
+            for item in partial_review_items
+            if item["team"] in {"Experience", "Platform"}
+        ]
+        self.assertEqual(len(partial_review_ids), 1)
+        self.db.close()
+        self.db = Store(database_path, clock=lambda: self.now)
+        self.addCleanup(self.db.close)
         supervisor.reconcile(self.state, self.db)
+        recovered_review_items = self.db.contract_review_worklist()["items"]
+        recovered_review_ids = [
+            item["request_id"]
+            for item in recovered_review_items
+            if item["team"] in {"Experience", "Platform"}
+        ]
+        self.assertEqual(len(recovered_review_ids), 2)
+        self.assertIn(partial_review_ids[0], recovered_review_ids)
         supervisor.reconcile(self.state, self.db)
 
         self.assertEqual(self.db.get_task(admitted)["state"], "integrated")
@@ -901,19 +980,21 @@ class SupervisorTests(unittest.TestCase):
         review_evidence = f"git-receipt:{receipt_digest}"
         transition = self.db.get_contract_transition("research-output", 2)
         contract_hash = transition["body"]["contract_hash"]
-        prepared_reviews = []
-        for team in ("Experience", "Platform"):
-            packet = {
-                "source_commit": candidate_sha,
-                "evidence_refs": [{"ref": review_evidence, "sha256": receipt_digest}],
-                "compatibility_analysis": "Synthetic participant reviewed the integrated schema.",
-                "migration_plan": None,
-            }
-            evidence_revision = hashlib.sha256(f"{candidate_sha}:{team}".encode()).hexdigest()
-            prepared_reviews.append(
-                self.db.prepare_contract_review(
-                    "research-output", 2, team, evidence_revision, packet
-                )
+        review_items = self.db.contract_review_worklist()["items"]
+        prepared_reviews = [
+            self.db.get_contract_review_request(item["request_id"])
+            for item in review_items
+            if item["team"] in {"Experience", "Platform"}
+        ]
+        self.assertEqual(
+            {item["body"]["team"] for item in prepared_reviews}, {"Experience", "Platform"}
+        )
+        for request in prepared_reviews:
+            packet = request["body"]["packet"]
+            self.assertEqual(packet["source_commit"], candidate_sha)
+            self.assertEqual(packet["evidence_refs"], [review_evidence])
+            self.assertIn(
+                "not yet been independently established", packet["compatibility_analysis"]
             )
 
         # Simulate a controller interruption after response custody but before local replay.
@@ -1000,8 +1081,16 @@ class SupervisorTests(unittest.TestCase):
             self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
             self.assertEqual(eligible(self.cfg, restored_db), [])
             self.assertTrue((restored / "STOP").is_file())
+            self.assertEqual(supervisor.activate_contract(restored, restored_db), ())
+            self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
+            self.assertEqual(
+                restored_db.get_contract_review_request(replay_request["request_id"])["body"][
+                    "status"
+                ],
+                "response_recorded",
+            )
             # Recovery replays saved bytes through the passive Store API only.
-            # Contract activation and provider dispatch are outside this STOPped copy.
+            # Provider dispatch remains outside this STOPped copy.
             transition = restored_db.get_contract_transition("research-output", 2)
             replay = restored_db.replay_contract_review_responses_for_transition(
                 "research-output", 2, transition["body"]["contract_hash"]
@@ -2511,11 +2600,91 @@ class SupervisorTests(unittest.TestCase):
         for team in ("Experience", "Platform", "Research"):
             self.approve_contract_review("research-output", 2, team)
 
-        supervisor.activate_contract(self.state, self.db)
+        self.activate_existing_reviews()
 
         self.assertEqual(self.db.get_contract("research-output")["version"], 2)
         # An unrelated configured contract stays pending until its own producer and acks exist.
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
+
+    def test_contract_review_identity_survives_unrelated_active_tip_advance_and_ack(self):
+        proposal = {
+            "version": 2,
+            "producer": "Experience",
+            "producer_task_id": "EXP-003",
+            "consumers": ["Platform"],
+            "schema": "research-output-v2",
+        }
+        self.cfg["contracts"] = {"research-output": proposal}
+        self.db.put_contract("research-output", 1, {"schema": "research-output-v1"})
+        self.candidate("EXP-003", target_state="integrated", team="Experience")
+        self.db.propose_contract_transition(
+            "research-output",
+            1,
+            2,
+            proposal,
+            producer_task_id="EXP-003",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        )
+        source = {
+            "source_commit": "a" * 40,
+            "receipt": "b" * 64,
+            "policy_sha256": "c" * 64,
+            "plan_sha256": "d" * 64,
+            "active_tip": "e" * 40,
+        }
+        with (
+            patch.object(supervisor, "config", return_value=self.cfg),
+            patch.object(supervisor, "_contract_review_source", return_value=source),
+        ):
+            initial_ids = supervisor.activate_contract(self.state, self.db)
+        self.assertEqual(len(initial_ids), 2)
+        producer_request = next(
+            self.db.get_contract_review_request(request_id)
+            for request_id in initial_ids
+            if self.db.get_contract_review_request(request_id)["body"]["team"] == "Experience"
+        )
+        producer_body = producer_request["body"]
+        self.db.begin_contract_review_dispatch(
+            producer_body["request_id"], producer_body["packet_hash"]
+        )
+        self.db.record_contract_review_session(
+            producer_body["request_id"],
+            producer_body["packet_hash"],
+            "synthetic-tip-advance-review",
+            "synthetic-reviewer",
+            producer_body["dispatch_id"],
+            {"pid": 123, "birth": "synthetic"},
+        )
+        result = {
+            "decision": "approve",
+            "compatibility": "compatible",
+            "rationale": "Synthetic exact request approval.",
+            "findings": [],
+            "reviewed_evidence_refs": producer_body["packet"]["evidence_refs"],
+            "affected_consumers_reviewed": producer_body["packet"]["affected_consumer_task_ids"],
+            "migration_plan": producer_body["packet"]["migration_plan"],
+        }
+        raw = json.dumps(result, sort_keys=True, separators=(",", ":")).encode()
+        self.db.record_contract_review_response(
+            producer_body["request_id"],
+            producer_body["packet_hash"],
+            producer_body["dispatch_id"],
+            "synthetic-tip-advance-turn",
+            raw,
+        )
+        self.db.replay_contract_review_response(
+            producer_body["request_id"], producer_body["packet_hash"]
+        )
+
+        advanced_source = {**source, "active_tip": "f" * 40}
+        with (
+            patch.object(supervisor, "config", return_value=self.cfg),
+            patch.object(supervisor, "_contract_review_source", return_value=advanced_source),
+        ):
+            resumed_ids = supervisor.activate_contract(self.state, self.db)
+        self.assertEqual(resumed_ids, initial_ids)
+        self.assertEqual(self.db.contract_review_worklist()["count"], 2)
 
     def test_configured_contracts_are_detached_before_database_reads(self):
         configured = {
@@ -2632,13 +2801,40 @@ class SupervisorTests(unittest.TestCase):
         )
         for team in ("Experience", "Platform"):
             self.approve_contract_review("schema-validation", 2, team)
-        supervisor.activate_contract(self.state, self.db)
+        self.activate_existing_reviews()
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 2)
 
         ack_key = self.db._contract_ack_key("schema-validation", 2, "Platform")
+        ack = self.db.get_decision(ack_key)
+        tampered = {
+            **ack["body"],
+            "review_packet_hash": "1" * 64,
+            "review_raw_sha256": "2" * 64,
+        }
+        tampered_event = json.dumps(
+            {
+                "version": ack["version"],
+                "body": tampered,
+                "replaces": None,
+                "replaces_version": None,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        tampered_body = json.dumps(tampered, sort_keys=True, separators=(",", ":"))
+        self.db.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=?",
+            (tampered_body, ack_key, ack["version"]),
+        )
+        self.db.db.execute(
+            "UPDATE events SET body=? WHERE kind='decision_recorded' AND entity=?",
+            (tampered_event, ack_key),
+        )
+        with self.assertRaisesRegex(StateError, "review provenance invalid"):
+            self.activate_existing_reviews()
         self.db.db.execute("DELETE FROM decisions WHERE name=?", (ack_key,))
         with self.assertRaisesRegex(StateError, "activation evidence incomplete"):
-            supervisor.activate_contract(self.state, self.db)
+            self.activate_existing_reviews()
 
     def test_integrated_producer_without_two_lead_ack_keeps_contract_v1(self):
         self.candidate("EXP-001", target_state="integrated")
@@ -2911,7 +3107,7 @@ class SupervisorTests(unittest.TestCase):
             "INSERT INTO contracts(name,version,body) VALUES(?,?,?)",
             ("schema-validation", 2, json.dumps(proposal, sort_keys=True, separators=(",", ":"))),
         )
-        supervisor.activate_contract(self.state, self.db)
+        self.activate_existing_reviews()
         self.assertIsNone(self.db.get_contract_transition("schema-validation", 2))
 
     def test_initial_v1_contract_needs_no_transition_evidence(self):
@@ -3018,7 +3214,7 @@ class SupervisorTests(unittest.TestCase):
         ]
 
         with self.assertRaisesRegex(StateError, "publication evidence missing"):
-            supervisor.activate_contract(self.state, self.db)
+            self.activate_existing_reviews()
 
         self.assertEqual(self.db.get_contract("research-output")["version"], 2)
         self.assertEqual(self.db.events(), events_before)

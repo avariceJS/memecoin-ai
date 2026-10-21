@@ -38,17 +38,26 @@ receipt и связывает его с candidate SHA, проверяет пер
 стык: planner брал базу с `research/active`, а GitGate доверял только `HEAD`; теперь GitGate
 разрешает active-ref историю при неизменном `main`. Это ручное синтетическое продолжение после
 перехваченного spawn, не доказательство lifecycle restart. В restored copy STOP сохраняется,
-worker dispatch отсутствует, а тест вызывает только `Store.replay_contract_review_responses_for_transition`
-по точному transition hash. API подтверждает отсутствие provider dispatch и dispatch authority;
-восстановлена одна ACK, activation не вызывается, contract v2 и Platform consumer остаются
-заблокированы. Это не квалифицирует STOP guard у `activate_contract`. Copied controller не исполняется,
-исходник остаётся доступен во время restore. Packet содержит candidate SHA и declared GitGate receipt ref/digest, но Store не валидирует внешний
+worker dispatch отсутствует. Вызов `activate_contract` на STOP возвращает без изменения review state
+и не публикует contract v2; отдельный Store replay сохраняет локальную ACK без provider dispatch.
+Это source-level STOP regression, но copied controller не исполняется и исходник остаётся доступен
+во время restore. Packet содержит candidate SHA и declared GitGate receipt ref/digest, но Store не валидирует внешний
 receipt; не admitted на момент contract review `PLAT-002` отсутствует в Platform task inventory,
 поэтому тот review contract-level, а не task-specific. Обычный CLI и quiescence path transport не
 получают и сохраняют inert Sol handoff; test также закрывает/переоткрывает SQLite после durable
 response custody и проверяет локальный replay без повторной отправки до dispatch второго review.
 Sol отдельно принял восстановительный replay test diff `f8a3f9da4fbdf7db68567690e103c84e7f886ce829f065b8b9dab97feb4b81a6`;
 focused integrated test и полный gate прошли: Ruff/format, 596 тестов и 189 subtests.
+Теперь controller сам готовит participant review только из integrated Store row, совпадающих attempt/epoch,
+успешной verifier записи и строгой GitGate receipt; dispatch получает точный request allowlist и
+повторно проверяет STOP/source непосредственно до transport start и review. Evidence revision не
+меняется при появлении unrelated descendant active tip; после ACK controller повторно проверяет
+request/packet/raw hashes перед признанием уже опубликованного контракта. Synthetic regressions
+покрывают SQLite close/reopen между подготовкой participant requests, возобновление с тем же request
+ID, STOP после записи session и самосогласованную подмену ACK hashes. RuntimeError перехватывается
+контроллером: проверено durable retry после переоткрытия Store, не жёсткий crash процесса. При STOP
+между begin/start или после session состояние остаётся unresolved и не посылается повторно; отдельный
+repair path не квалифицирован. Sol принял точный source/test diff `960e4ed5e2614de432d21b0c43babb9389154f428b3949cddb42e2fb3fd9a81a6`; gate: Ruff/format, 609 тестов и 189 subtests.
 Live provider/runtime dispatch не квалифицирован. Sol независимо проверил recovery-путь, выявил
 и перепроверил исправления точной привязки родителей кандидата, receipt, attempt/epoch и канонической
 записи проверки. В этом bounded source-пути после исправлений обхода не найдено.

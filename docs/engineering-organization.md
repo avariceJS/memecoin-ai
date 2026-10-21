@@ -74,12 +74,10 @@ This exposed and fixed a GitGate mismatch: a dependent task planned from
 `research/active` was rejected because trusted-source ancestry considered only `HEAD`; GitGate now
 uses the active ref when present while leaving `main` unchanged. This is an explicit synthetic
 continuation after a mocked spawn, not lifecycle restart or unattended execution. The restored copy
-keeps STOP and is never used for worker dispatch. The test calls only
-`Store.replay_contract_review_responses_for_transition` for the exact transition hash; its result
-asserts no provider dispatch or dispatch authority. The saved response restores one exact ACK, but
-activation is not invoked, version 2 stays inactive, and the consumer remains blocked. This does not
-qualify a STOP guard on `activate_contract`; the copied controller is not executed and source remains
-available during restore.
+keeps STOP and is never used for worker dispatch. `activate_contract` is called against that copy and
+returns without changing review state or publishing v2; a separate Store replay then restores one
+exact ACK without provider dispatch. This exercises the source STOP guard but not an executed restored
+controller; source remains available during restore.
 At the quiescent point after producer integration and custody of one contract-review response, the
 test asserts no running attempts, sets STOP, and invokes the real `backup_snapshot` and
 `restore_snapshot` against a temporary deployment whose current controller package is manifest
@@ -93,16 +91,22 @@ not prove runtime restart or remote/lost-host recovery. Sol accepted the exact t
 `f8a3f9da4fbdf7db68567690e103c84e7f886ce829f065b8b9dab97feb4b81a6`; the focused integrated test
 and combined engineering gate passed (Ruff/format, 596 tests and 189 subtests).
 The integrated producer is an Experience task; its Platform consumer remains ineligible until the
-exact contract version is activated. The test prepares one review request for each transition
-participant, then drives the real `supervise` idle loop with an explicitly injected synthetic
-transport. One review response is durably recorded, SQLite is closed/reopened, and supervisor
-reconciliation replays that saved response without resending it before the idle loop dispatches the
-other review. The test checks both acknowledgement request/packet bindings and the stored raw
-response hash. The loop processes one durable `process_pending_reviews` item per iteration and
-attempts activation after each: the consumer remains blocked after one approval and becomes
-eligible only after both. Its packet
-contains the candidate SHA and declared GitGate receipt reference/digest,
-which the request hash preserves; Store does not resolve or validate that external receipt. Since
+exact contract version is activated. The controller creates one durable review request per
+participant only after binding the integrated Store row, attempt/epoch, successful verifier details,
+candidate ancestry, active ref and strict GitGate receipt. It checks source freshness again at the
+dispatch boundary; `active_tip` is a freshness observation but is excluded from deterministic request
+identity, so an unrelated descendant does not duplicate a request after an ACK. Already-active
+contracts revalidate each ACK against its exact approved request, packet hash and raw-result hash.
+The real `supervise` idle loop uses an explicitly injected synthetic transport; one response is
+durably recorded, SQLite is closed/reopened, and reconciliation replays it without resending before
+dispatching the other review. A failure after creating the first request is retried after another
+SQLite close/reopen and reuses that request. STOP is rechecked before transport start and before the
+review call; a stop after session custody leaves the request unresolved without a second call. The
+test checks both acknowledgement bindings and the stored raw response hash. The loop processes one
+durable `process_pending_reviews` item per iteration and attempts activation after each: the consumer
+remains blocked after one approval and becomes eligible only after both. Its packet contains the
+candidate SHA and declared GitGate receipt reference/digest, which the request hash preserves; Store
+does not resolve or validate that external receipt. Since
 `PLAT-002` is not admitted until activation, it is absent from the Platform participant's task
 inventory, so this proves contract-level participant review and readiness gating, not task-specific
 review. The ordinary CLI and quiescence path pass no transport, preserving the inert Sol handoff;
@@ -115,7 +119,7 @@ synthetic; no live provider is called. The acceptance command is the legacy fixe
 manifest-bound A04 verifier. This exercises controller dispatch, worker and verifier Seatbelt paths,
 review packet binding, Git integration and recovery without qualifying real Codex identity, reviewer
 judgment/authenticity, provider usage settlement, A04 as a whole, remote checkpointing, runtime or A03.
-The current PLAT-002 candidate passes Ruff/format, 596 tests plus 189 subtests, and deterministic
+The current PLAT-002 candidate passes Ruff/format, 609 tests plus 189 subtests, and deterministic
 synthetic `make smoke`. Before its mock-scope fix, one full gate was interrupted after 451 tests when
 review found that the synthetic metered-client patch did not yet cover the dependent verifier; it
 now covers lead, worker and reviewer and asserts that role trace. Sol accepted the exact source

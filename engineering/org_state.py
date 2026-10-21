@@ -1280,6 +1280,27 @@ class Store:
                 {"sha": candidate_sha, "integration_sha": integration_sha, "details": details},
             )
 
+    def get_integration(self, task_id: str) -> dict | None:
+        """Read the immutable integration row for controller evidence binding."""
+        _name(task_id)
+        with self._lock:
+            row = self.db.execute(
+                "SELECT sha,integration_sha,details FROM integrations WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            try:
+                details = json.loads(row["details"])
+            except (TypeError, ValueError, RecursionError):
+                raise StateError("integration details are invalid") from None
+            return {
+                "task_id": task_id,
+                "candidate_sha": row["sha"],
+                "integration_sha": row["integration_sha"],
+                "details": details,
+            }
+
     def put_contract(self, name: str, version: int, body: Any) -> None:
         _name(name)
         if type(version) is not int or version < 1:
@@ -3132,6 +3153,7 @@ class Store:
                     self._validated_contract_ack(
                         ack["body"], name, version, team, proposal["contract_hash"]
                     )
+                    self._validate_ack_review_provenance(ack["body"], name, version, team)
                 published = self.db.execute(
                     "SELECT version,body FROM contracts WHERE name=? AND version=?",
                     (name, version),

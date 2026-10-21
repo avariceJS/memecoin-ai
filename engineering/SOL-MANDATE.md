@@ -11,12 +11,22 @@ acceptance of task selection, trusted assignment, isolation, independent review,
 durable checkpoint, continuation and interruption recovery. Sol remains the independent technical
 lead; Astra is not invoked automatically. STOP and all operational restrictions below remain in force.
 
-Current source review target — 2026-10-21: contract transitions now reject direct ACK API calls and
-task-lead acknowledgements. New activation requires review-request, packet and raw-response hash
-provenance resolving to an approved journal record. Synthetic dispatch tests use an explicitly
-injected fake transport; this is not a live provider route, and the supervisor does not dispatch
-contract reviews. Review packet preparation, integrated task/acceptance/Git/continuation and crash
-recovery still need end-to-end proof.
+Current source review target — 2026-10-21 at `430b46f`: the controller prepares A10 participant
+requests only from a durably integrated producer, matching attempt/epoch and successful verification,
+candidate ancestry, active ref and strict GitGate receipt. It returns an exact request allowlist to the
+supervisor and rechecks STOP and source evidence at the injected transport boundary. Request identity
+excludes moving descendant-tip observations; already-published ACKs are revalidated against their
+approved request, packet and raw-response hashes. Synthetic regressions cover partial preparation
+across Store reopen, ACK plus descendant-tip idempotence, STOP after session custody, and a
+self-consistent altered ACK event/decision. Sol reviewed exact diff
+`960e4ed5e2614de432d21b0c43babb9389154f428b3949cddb42e2fb3fd9a81a6` and found no bypass in this
+bounded source path. `make engineering-release-check` passes Ruff/format and 609 tests plus 189
+subtests; `make smoke` passes. `make check` remains stopped by 107 existing Ruff findings outside
+`engineering/`; repository-wide pytest collection requires a missing historical IDL manifest.
+RuntimeError recovery is durable retry after SQLite reopen, not hard process-crash proof. If STOP is
+observed after durable dispatch/session custody, the request remains unresolved and is not resent; a
+separate repair path is not qualified. The synthetic transport is not a live provider route, and A03,
+full A04, runtime and operational release remain open.
 
 ## Independent audit outcome — 2026-10-20
 

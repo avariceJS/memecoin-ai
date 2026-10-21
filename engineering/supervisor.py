@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import selectors
 import signal
 import subprocess
@@ -1422,13 +1423,257 @@ def reconcile(state, db):
             # the first publish and recovery after a publish-before-Store crash.
             published = gate.publish(gate_candidate, intent["receipt"], tip)
             db.integrate(task["id"], intent["submitted_sha"], published, intent)
-    activate_contract(state, db)
+    return activate_contract(state, db)
+
+
+def _contract_review_source(state, db, cfg, transition):
+    """Resolve an integrated producer's exact candidate, verifier policy and receipt."""
+    proposal = transition["body"]
+    producer_id = proposal["producer_task_id"]
+    task = db.get_task(producer_id)
+    integration = db.get_integration(producer_id)
+    if task["state"] != "integrated" or integration is None:
+        raise StateError("contract producer is not durably integrated")
+    if integration["candidate_sha"] != task["candidate_sha"]:
+        raise StateError("contract producer integration candidate changed")
+    verification = db.get_verification(producer_id, integration["candidate_sha"])
+    candidate = db.get_candidate(producer_id, integration["candidate_sha"])
+    if (
+        verification is None
+        or not verification["passed"]
+        or candidate is None
+        or type(candidate["evidence"]) is not dict
+        or verification["attempt_id"] != candidate["attempt_id"]
+        or verification["epoch"] != candidate["epoch"]
+        or _json(verification["details"]) != _json(integration["details"])
+    ):
+        raise StateError("contract producer verification binding is invalid")
+    intent = integration["details"]
+    required_intent = {
+        "task",
+        "submitted_sha",
+        "attempt_id",
+        "epoch",
+        "candidate_sha",
+        "expected_tip",
+        "receipt",
+    }
+    if (
+        type(intent) is not dict
+        or set(intent) != required_intent
+        or intent["task"] != producer_id
+        or intent["submitted_sha"] != integration["candidate_sha"]
+        or intent["candidate_sha"] != integration["integration_sha"]
+        or intent["attempt_id"] != candidate["attempt_id"]
+        or type(intent["attempt_id"]) is not int
+        or intent["epoch"] != candidate["epoch"]
+        or type(intent["epoch"]) is not int
+        or type(intent["candidate_sha"]) is not str
+        or not GitGate.SHA_RE.fullmatch(intent["candidate_sha"])
+        or type(intent["expected_tip"]) is not str
+        or not GitGate.SHA_RE.fullmatch(intent["expected_tip"])
+        or type(intent["receipt"]) is not str
+        or not re.fullmatch(r"[0-9a-f]{64}", intent["receipt"])
+    ):
+        raise StateError("contract producer integration intent is invalid")
+    checkout_value = candidate["evidence"].get("checkout")
+    if type(checkout_value) is not str or not Path(checkout_value).is_absolute():
+        raise StateError("contract producer checkout identity is invalid")
+    checkout = Path(checkout_value)
+    if (
+        len(checkout.parents) < 3
+        or checkout.resolve()
+        != (state.resolve() / "attempts" / str(candidate["attempt_id"]) / "checkout").resolve()
+    ):
+        raise StateError("contract producer checkout is outside its attempt state")
+    plan_state = checkout.parents[2]
+    plan = prepare_verification_plan(plan_state, db, task, cfg)
+    matches, reason = attempt_plan_matches(plan, candidate["evidence"])
+    if not matches or not plan.execution_qualified:
+        raise StateError("contract producer verifier plan is unavailable: " + str(reason))
+    candidate_base = candidate["evidence"].get("base")
+    if type(candidate_base) is not str or not GitGate.SHA_RE.fullmatch(candidate_base):
+        raise StateError("contract producer base identity is invalid")
+    gate = GitGate(
+        state / "integration",
+        state / "integration",
+        plan.policy,
+        state / "receipts",
+    )
+    gate_candidate = Candidate(
+        intent["submitted_sha"],
+        candidate_base,
+        intent["expected_tip"],
+        intent["candidate_sha"],
+        Path(),
+        (),
+    )
+    gate.validate_candidate(gate_candidate)
+    active_tip = git(state / "integration", "rev-parse", GitGate.ACTIVE_REF)
+    git(state / "integration", "merge-base", "--is-ancestor", intent["candidate_sha"], active_tip)
+    gate.load_receipt(intent["receipt"], intent["candidate_sha"])
+    if git(state / "integration", "rev-parse", GitGate.ACTIVE_REF) != active_tip:
+        raise StateError("contract producer active ref moved during evidence validation")
+    return {
+        "source_commit": intent["candidate_sha"],
+        "receipt": intent["receipt"],
+        "policy_sha256": plan.policy.digest,
+        "plan_sha256": plan.plan_sha256,
+        "active_tip": active_tip,
+    }
+
+
+def _contract_review_evidence_revision(db, proposal, source):
+    identity = {key: value for key, value in source.items() if key != "active_tip"}
+    return hashlib.sha256(
+        _json(
+            {
+                "proposal_digest": db._contract_review_digest(proposal),
+                **identity,
+            }
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _contract_review_dispatch_guard(state, db, cfg, request):
+    """Revalidate STOP and source evidence at the provider invocation boundary."""
+    if (state / "STOP").exists():
+        raise StateError("contract review dispatch blocked by STOP")
+    body = request["body"]
+    transitions = _configured_contract_transitions(cfg, db)
+    transition = next(
+        (
+            item
+            for item in transitions
+            if item["name"] == body["name"]
+            and item["version"] == body["version"]
+            and not item["already_active"]
+        ),
+        None,
+    )
+    if transition is None:
+        raise StateError("contract review transition is no longer current")
+    participants = [transition["body"]["producer_team"], *transition["body"]["consumer_teams"]]
+    if body["team"] not in participants:
+        raise StateError("contract review participant is no longer current")
+    source = _contract_review_source(state, db, cfg, transition)
+    expected_revision = _contract_review_evidence_revision(db, transition["body"], source)
+    evidence_ref = "git-receipt:" + source["receipt"]
+    if (
+        body["evidence_revision"] != expected_revision
+        or body["contract_hash"] != transition["body"]["contract_hash"]
+        or body["packet"]["source_commit"] != source["source_commit"]
+        or body["packet"]["evidence_refs"] != [evidence_ref]
+    ):
+        raise StateError("contract review source changed before dispatch")
+
+
+def _prepare_contract_review_requests(state, db, cfg, transitions):
+    """Create idempotent review requests only from a current integrated producer receipt."""
+    if (state / "STOP").exists():
+        return {}
+    prepared = {}
+    for transition in transitions:
+        if transition["already_active"]:
+            continue
+        name, version = transition["name"], transition["version"]
+        key = (name, version)
+        try:
+            source = _contract_review_source(state, db, cfg, transition)
+            proposal = transition["body"]
+            evidence_revision = _contract_review_evidence_revision(db, proposal, source)
+            evidence = {
+                "ref": "git-receipt:" + source["receipt"],
+                "sha256": source["receipt"],
+            }
+            analysis = (
+                f"Controller evidence binds producer task {proposal['producer_task_id']} to "
+                f"integrated commit {source['source_commit']} and verifier receipt "
+                f"{source['receipt']} under policy {source['policy_sha256']}. This is source "
+                "evidence only; participant compatibility and affected-consumer readiness have "
+                "not yet been independently established."
+            )
+            requests = []
+            for team in [proposal["producer_team"], *proposal["consumer_teams"]]:
+                try:
+                    request = db.prepare_contract_review(
+                        name,
+                        version,
+                        team,
+                        evidence_revision,
+                        {
+                            "source_commit": source["source_commit"],
+                            "evidence_refs": [evidence],
+                            "compatibility_analysis": analysis,
+                            "migration_plan": None,
+                        },
+                    )
+                    requests.append(request["body"]["request_id"])
+                    continue
+                except StateError as exc:
+                    if str(exc) != "contract participant already acknowledged":
+                        raise
+                ack = db.get_decision(db._contract_ack_key(name, version, team))
+                if ack is None:
+                    raise StateError("acknowledged contract review request is missing")
+                worklist = db.contract_review_worklist(limit=100)
+                if worklist.get("overflow"):
+                    raise StateError("contract review worklist exceeds bound")
+                matches = []
+                for item in worklist["items"]:
+                    if item["team"] != team:
+                        continue
+                    existing = db.get_contract_review_request(item["request_id"])
+                    body = existing["body"]
+                    packet = body["packet"]
+                    if (
+                        body["name"] == name
+                        and body["version"] == version
+                        and body["evidence_revision"] == evidence_revision
+                        and body["contract_hash"] == proposal["contract_hash"]
+                        and packet["source_commit"] == source["source_commit"]
+                        and packet["evidence_refs"] == [evidence["ref"]]
+                        and ack["body"].get("review_request_id") == body["request_id"]
+                        and ack["body"].get("review_packet_hash") == body["packet_hash"]
+                    ):
+                        matches.append(body["request_id"])
+                if len(matches) != 1:
+                    raise StateError("acknowledged contract review evidence is ambiguous")
+                requests.append(matches[0])
+            prepared[key] = tuple(requests)
+        except (OSError, RuntimeError, StateError, TypeError, ValueError) as exc:
+            log_event(
+                state,
+                "contract_review_preparation_blocked",
+                name=name,
+                version=version,
+                producer_task=transition["body"]["producer_task_id"],
+                error=str(exc)[:256],
+                dispatch_authority=False,
+                provider_dispatch=False,
+            )
+    return prepared
 
 
 def activate_contract(state, db):
-    """Reconcile configured contract transitions without coupling names or versions."""
-    transitions = _configured_contract_transitions(config(state), db)
+    """Prepare evidence-bound reviews, then replay and activate current transitions."""
+    if (state / "STOP").exists():
+        return ()
+    cfg = config(state)
+    transitions = _configured_contract_transitions(cfg, db)
+    prepared = _prepare_contract_review_requests(state, db, cfg, transitions)
+    allowed_request_ids = set()
     for transition in transitions:
+        key = (transition["name"], transition["version"])
+        if transition["already_active"]:
+            # Revalidate published acknowledgement provenance on every pass even though
+            # no review dispatch is eligible for an already active contract.
+            db.activate_contract_transition(transition["name"], transition["version"])
+            continue
+        request_ids = prepared.get(key)
+        if request_ids is None:
+            continue
+        allowed_request_ids.update(request_ids)
         try:
             replay = db.replay_contract_review_responses_for_transition(
                 transition["name"],
@@ -1478,6 +1723,7 @@ def activate_contract(state, db):
                 version=transition["version"],
                 agreement_hash=activated["body"]["contract_hash"],
             )
+    return tuple(sorted(allowed_request_ids))
 
 
 def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
@@ -1495,7 +1741,7 @@ def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
         with Codex(native, codex=cfg.get("codex_executable", "codex")) as account:
             last_read, limits = None, None
             while time.monotonic() < end and not (state / "STOP").exists():
-                reconcile(state, db)
+                allowed_contract_reviews = reconcile(state, db)
                 reap_expired(state, db)
                 tasks = db.list_tasks()
                 # Each verifier is serial and may block dispatch briefly; active workers
@@ -1553,7 +1799,13 @@ def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
                         from .contract_review_cycle import process_pending_reviews
 
                         review_cycle = process_pending_reviews(
-                            db, contract_review_transport, limit=1
+                            db,
+                            contract_review_transport,
+                            limit=1,
+                            allowed_request_ids=allowed_contract_reviews,
+                            dispatch_guard=lambda request: _contract_review_dispatch_guard(
+                                state, db, cfg, request
+                            ),
                         )
                         if review_cycle["processed"]:
                             activate_contract(state, db)

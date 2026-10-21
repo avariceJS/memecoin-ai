@@ -8,6 +8,7 @@ controls before it is supplied.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .org_state import StateError, Store
@@ -18,6 +19,8 @@ def process_pending_reviews(
     transport: Any,
     *,
     limit: int = 2,
+    allowed_request_ids=None,
+    dispatch_guard=None,
 ) -> dict:
     """Replay saved responses and send bounded current reviews through an injected transport.
 
@@ -32,6 +35,17 @@ def process_pending_reviews(
         getattr(transport, "review", None)
     ):
         raise StateError("contract review transport incomplete")
+    if allowed_request_ids is not None and (
+        type(allowed_request_ids) not in (tuple, list, set, frozenset)
+        or any(
+            type(request_id) is not str or not re.fullmatch(r"[0-9a-f]{64}", request_id)
+            for request_id in allowed_request_ids
+        )
+    ):
+        raise StateError("contract review source allowlist invalid")
+    if dispatch_guard is not None and not callable(dispatch_guard):
+        raise StateError("contract review dispatch guard invalid")
+    allowed = None if allowed_request_ids is None else frozenset(allowed_request_ids)
 
     worklist = db.contract_review_worklist(limit=100)
     items = worklist["items"]
@@ -43,6 +57,8 @@ def process_pending_reviews(
         if handled >= limit:
             break
         request_id = item["request_id"]
+        if allowed is not None and request_id not in allowed:
+            continue
         if item["status"] == "response_recorded":
             handled += 1
             try:
@@ -65,7 +81,11 @@ def process_pending_reviews(
             handled += 1
             request = db.get_contract_review_request(request_id)
             body = request["body"]
+            if dispatch_guard is not None:
+                dispatch_guard(request)
             db.begin_contract_review_dispatch(request_id, item["packet_hash"])
+            if dispatch_guard is not None:
+                dispatch_guard(db.get_contract_review_request(request_id))
             invoked += 1
             session = transport.start(request)
             if (
@@ -84,6 +104,8 @@ def process_pending_reviews(
                 body["dispatch_id"],
                 identity,
             )
+            if dispatch_guard is not None:
+                dispatch_guard(db.get_contract_review_request(request_id))
             response = transport.review(session, request)
             if (
                 type(response) is not dict

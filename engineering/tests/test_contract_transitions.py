@@ -57,6 +57,35 @@ def integrate_producer(db, task_id="EXP-1"):
     db.integrate(task_id, "candidate-sha", "integration-sha", {"merged": True})
 
 
+def existing_review_allowlist(db, transitions):
+    """Keep transition unit tests focused on replay/activation behind an injected source gate."""
+    rows = db.db.execute(
+        "SELECT d.name,d.body FROM decisions d WHERE d.name LIKE 'contract-review/%' "
+        "AND d.version=(SELECT MAX(latest.version) FROM decisions latest WHERE latest.name=d.name)"
+    ).fetchall()
+    requests = []
+    for row in rows:
+        try:
+            envelope = json.loads(row["body"])
+            body = envelope["body"]
+            if type(body) is dict:
+                requests.append((row["name"], body))
+        except (TypeError, ValueError, KeyError):
+            continue
+    allowed = {}
+    for transition in transitions:
+        name, version = transition["name"], transition["version"]
+        proposal = transition["body"]
+        allowed[(name, version)] = tuple(
+            body["request_id"]
+            for _, body in requests
+            if body.get("name") == name
+            and body.get("version") == version
+            and body.get("contract_hash") == proposal["contract_hash"]
+        )
+    return allowed
+
+
 def test_transition_requires_integrated_producer_and_review_provenance_for_each_participant(store):
     transition = propose(store)
     digest = transition["body"]["contract_hash"]
@@ -827,6 +856,58 @@ def test_injected_review_cycle_never_resends_dispatch_without_saved_response(sto
     second = process_pending_reviews(store, InterruptedTransport(), limit=1)
     assert second["transport_invocations"] == 0
     assert second["processed"] == []
+
+
+def test_injected_review_cycle_rechecks_stop_after_session_before_review(store):
+    request = prepare_review(store)
+
+    class SyntheticTransport:
+        def __init__(self):
+            self.starts = 0
+            self.reviews = 0
+
+        def start(self, _request):
+            self.starts += 1
+            return {
+                "thread_id": "synthetic-stop-thread",
+                "model": "synthetic:independent-reviewer",
+                "pid": 123,
+                "birth": "synthetic-process",
+            }
+
+        def review(self, _session, _request):
+            self.reviews += 1
+            raise AssertionError("STOP guard must prevent review invocation")
+
+    transport = SyntheticTransport()
+    guard_calls = 0
+
+    def stop_after_session(_request):
+        nonlocal guard_calls
+        guard_calls += 1
+        if guard_calls == 3:
+            raise StateError("contract review dispatch blocked by STOP")
+
+    result = process_pending_reviews(
+        store,
+        transport,
+        limit=1,
+        allowed_request_ids=[request["body"]["request_id"]],
+        dispatch_guard=stop_after_session,
+    )
+    assert result["transport_invocations"] == 1
+    assert result["failures"] == [
+        {
+            "request_id": request["body"]["request_id"],
+            "error": "contract review dispatch blocked by STOP",
+        }
+    ]
+    assert transport.starts == 1
+    assert transport.reviews == 0
+    assert (
+        store.get_contract_review_request(request["body"]["request_id"])["body"]["status"]
+        == "thread_known"
+    )
 
 
 def test_contract_review_currentness_allows_blocked_consumer_without_send_authority(store):
@@ -1841,6 +1922,13 @@ def test_configured_activation_replays_saved_approval_without_provider_or_resend
     cfg = {"contracts": {"sample": proposal}}
     with (
         patch.object(supervisor, "config", return_value=cfg),
+        patch.object(
+            supervisor,
+            "_prepare_contract_review_requests",
+            side_effect=lambda _state, _db, _cfg, transitions: existing_review_allowlist(
+                store, transitions
+            ),
+        ),
         patch.object(supervisor, "log_event"),
         patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
         patch.object(
@@ -2188,6 +2276,13 @@ def test_supervisor_transition_overflow_keeps_processing_other_configured_contra
     cfg = {"contracts": {"sample": sample_proposal, "z-other": other_proposal}}
     with (
         patch.object(supervisor, "config", return_value=cfg),
+        patch.object(
+            supervisor,
+            "_prepare_contract_review_requests",
+            side_effect=lambda _state, _db, _cfg, transitions: existing_review_allowlist(
+                store, transitions
+            ),
+        ),
         patch.object(supervisor, "log_event") as log_event,
         patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
         patch.object(
@@ -2264,6 +2359,13 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
     cfg = {"contracts": {"sample": sample_proposal, "z-other": other_proposal}}
     with (
         patch.object(supervisor, "config", return_value=cfg),
+        patch.object(
+            supervisor,
+            "_prepare_contract_review_requests",
+            side_effect=lambda _state, _db, _cfg, transitions: existing_review_allowlist(
+                store, transitions
+            ),
+        ),
         patch.object(supervisor, "log_event") as log_event,
         patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
         patch.object(
@@ -2442,6 +2544,13 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
     cfg = {"contracts": {"sample": sample_proposal, "z-other": other_proposal}}
     with (
         patch.object(supervisor, "config", return_value=cfg),
+        patch.object(
+            supervisor,
+            "_prepare_contract_review_requests",
+            side_effect=lambda _state, _db, _cfg, transitions: existing_review_allowlist(
+                store, transitions
+            ),
+        ),
         patch.object(supervisor, "log_event") as log_event,
         patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
         patch.object(
