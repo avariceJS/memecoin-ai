@@ -61,6 +61,7 @@ _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT = 1000
 _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES = 512 * 1024
 _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES = 2 * 1024 * 1024
 _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES = 32 * 1024 * 1024
+_CONTRACT_REVIEW_WORKLIST_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY = (
     "SELECT name FROM decisions WHERE name>=? AND name<'contract-review0' ORDER BY name LIMIT 1"
 )
@@ -1932,20 +1933,31 @@ class Store:
         ).fetchall()
         if len(rows) > limit:
             if overflow_as_result:
-                return {
-                    "items": [],
-                    "count": None,
-                    "limit": limit,
-                    "dispatch_authority": False,
-                    "overflow": True,
-                }
+                return self._contract_review_worklist_overflow(limit=limit)
             raise StateError("contract review worklist exceeds bound")
-        items = []
+        identities = []
         for row in rows:
             match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
             if match is None:
                 raise StateError("contract review worklist identity invalid")
-            current = self._contract_review_record(match.group(1))
+            identities.append(match.group(1))
+        byte_total = 0
+        try:
+            for request_id in identities:
+                byte_total += self._contract_review_replay_history_size(request_id)
+                if byte_total > _CONTRACT_REVIEW_WORKLIST_MAX_BYTES:
+                    if overflow_as_result:
+                        return self._contract_review_worklist_overflow(limit=limit)
+                    raise StateError("contract review worklist byte limit exceeded")
+        except StateError as exc:
+            if "byte limit exceeded" in str(exc):
+                if overflow_as_result:
+                    return self._contract_review_worklist_overflow(limit=limit)
+                raise StateError("contract review worklist byte limit exceeded") from None
+            raise
+        items = []
+        for request_id in identities:
+            current = self._contract_review_record(request_id)
             if current is None:
                 raise StateError("contract review worklist record missing")
             body = current["body"]
@@ -1968,6 +1980,16 @@ class Store:
             "count": len(items),
             "limit": limit,
             "dispatch_authority": False,
+        }
+
+    @staticmethod
+    def _contract_review_worklist_overflow(*, limit: int) -> dict:
+        return {
+            "items": [],
+            "count": None,
+            "limit": limit,
+            "dispatch_authority": False,
+            "overflow": True,
         }
 
     def _contract_review_global_replay_names_in_snapshot(self) -> list[str]:

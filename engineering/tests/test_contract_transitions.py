@@ -409,6 +409,68 @@ def test_contract_review_worklist_fails_closed_above_bound(store):
         store.contract_review_worklist(limit=1)
 
 
+def test_contract_review_worklist_preflights_oversized_legacy_before_hydration(store, monkeypatch):
+    request = prepare_review(store)
+    body = {**request["body"], "legacy_extra": "x" * 1000}
+    store.db.execute(
+        "UPDATE decisions SET body=? WHERE name=?",
+        (json.dumps(body), request["name"]),
+    )
+    events_before = len(store.events())
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES", 100)
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            store,
+            "_contract_review_record",
+            lambda *_args, **_kwargs: pytest.fail("worklist hydrated before byte preflight"),
+        )
+        with pytest.raises(StateError, match="worklist byte limit exceeded"):
+            store.contract_review_worklist()
+        overflow = store.quiescence_snapshot()["review_requests"]
+
+    assert overflow == {
+        "items": [],
+        "count": None,
+        "limit": 100,
+        "dispatch_authority": False,
+        "overflow": True,
+    }
+    assert store._contract_review_record(body["request_id"])["body"]["legacy_extra"] == "x" * 1000
+    assert len(store.events()) == events_before
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_contract_review_worklist_aggregate_byte_budget_exact_and_plus_one(store, monkeypatch):
+    first = prepare_review(store)
+    second = store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+    names = (first["name"], second["name"])
+    total = sum(
+        store.db.execute(
+            "SELECT SUM(length(CAST(body AS BLOB))) FROM decisions WHERE name=?", (name,)
+        ).fetchone()[0]
+        for name in names
+    )
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_WORKLIST_MAX_BYTES", total)
+
+    exact = store.contract_review_worklist()
+    assert exact["count"] == 2
+
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_WORKLIST_MAX_BYTES", total - 1)
+    with pytest.raises(StateError, match="worklist byte limit exceeded"):
+        store.contract_review_worklist()
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            store,
+            "_contract_review_record",
+            lambda *_args, **_kwargs: pytest.fail("worklist hydrated before aggregate preflight"),
+        )
+        overflow = store.quiescence_snapshot()["review_requests"]
+    assert overflow["overflow"] is True
+    assert overflow["items"] == []
+    assert overflow["count"] is None
+
+
 def test_contract_review_stale_inventory_blocks_dispatch_without_mutation(store):
     request = prepare_review(store)
     body = request["body"]
