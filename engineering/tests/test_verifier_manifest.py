@@ -163,6 +163,22 @@ class VerifierManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(VerifierManifestError, "interpreter_path_not_canonical"):
             self.resolve(self.binding, candidate, configured_interpreter=symlink)
 
+    def test_interpreter_identity_rejects_mutation_during_descriptor_read(self):
+        original_read = os.read
+        changed = False
+
+        def read_then_mutate(fd, size):
+            nonlocal changed
+            data = original_read(fd, size)
+            if data and not changed:
+                changed = True
+                self.interpreter.write_bytes(b"X" * len(data))
+            return data
+
+        with patch("engineering.verifier_manifest.os.read", side_effect=read_then_mutate):
+            with self.assertRaisesRegex(VerifierManifestError, "interpreter_changed_while_reading"):
+                self.resolve(self.binding, self.manifest)
+
     def test_manifest_command_must_reference_harness_in_result_command(self):
         candidate = json.loads(json.dumps(self.manifest))
         binding = json.loads(json.dumps(self.binding))

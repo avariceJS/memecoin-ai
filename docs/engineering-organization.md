@@ -540,6 +540,19 @@ continuous identity, descendants, output provenance, or sandbox policy. Fixed pr
 can fail on a heavily stalled host, and synchronous Security API calls remain uninterruptible.
 Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-sandbox-integration-review-20261021.json`.
 
+The interpreter manifest resolver now compares descriptor identity metadata before and after
+hashing and requires the bytes read to equal the initial descriptor size. A controlled same-size
+overwrite during the descriptor read is rejected. The independent A04 review accepted the exact
+source diff `415857999494287bc3b65f2e7d7035c4ecd6babbaaa187d90d9f23e361badeaf`. Its focused
+regression passed and Ruff check/format passed on the two changed files. The full manifest test file
+could not run under the available Python 3.9.6 environment: existing tests require `zip(strict=)`
+and newer JSON decoder behavior; those failures do not establish a failure on the pinned project
+interpreter. Descriptor stability narrows read-time mutation evidence only. It does not bind later
+execution to the descriptor, close parent-path races, or qualify loader/import closure; plans remain
+`execution_qualified=False`. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-stability-review-20261021.json`
+(SHA-256 `3d9f73874c37bd0992e96e8292bc9d2df246481087f3f2a873802ddb8090ff76`).
+
 Before any future A05 request consumer is designed, its inputs must come from one coherent,
 source-identified gate snapshot with capture time or sequence. Consumption must reject unknown or
 stale observations and re-evaluate database gates under the current owner fence using the Store

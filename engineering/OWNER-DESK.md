@@ -674,3 +674,14 @@ commit. `evidence_revision` остаётся opaque: newest-revision selection �
 A10 и operational acceptance открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-sweep-review-20261021.json`
 (SHA-256 `3e776872f8c928c0b265c931caa5721510c29f0545064364761ba41c42c6e90f`).
+
+A04 source `verifier_manifest.py` теперь сверяет descriptor metadata до и после хеширования
+interpreter и проверяет, что прочитан точный начальный размер. Regression с изменением файла во
+время чтения прошёл; Sol принял exact diff `415857999494287bc3b65f2e7d7035c4ecd6babbaaa187d90d9f23e361badeaf`.
+Ruff check/format прошёл для двух файлов. Полный manifest test file недоступен на имеющемся Python
+3.9.6: окружение не поддерживает `zip(strict=)` и более новую защиту JSON decoder. Это уменьшает
+уверенность в проверке всего набора, но не меняет вывод focused regression. Descriptor-read
+стабильность не доказывает, что позже был исполнен тот же inode; loader/import closure остаётся
+открытым, `execution_qualified=false`. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-stability-review-20261021.json`
+(SHA-256 `3d9f73874c37bd0992e96e8292bc9d2df246481087f3f2a873802ddb8090ff76`).

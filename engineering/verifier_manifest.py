@@ -107,6 +107,25 @@ def _interpreter_identity(
             if total > 512_000_000:
                 raise VerifierManifestError("verifier_interpreter_too_large")
             digest.update(chunk)
+        after = os.fstat(fd)
+        before_identity = (
+            info.st_dev,
+            info.st_ino,
+            info.st_mode,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+        after_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_mode,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if total != info.st_size or before_identity != after_identity:
+            raise VerifierManifestError("verifier_interpreter_changed_while_reading")
         if digest.hexdigest() != expected_sha256:
             raise VerifierManifestError("verifier_interpreter_hash_mismatch")
         return path
