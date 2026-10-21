@@ -4281,6 +4281,7 @@ class Store:
             or name.startswith("contract-transition/")
             or name.startswith("contract-ack/")
             or name.startswith("contract-review/")
+            or name.startswith("admission/")
             or name.startswith("sol-handoff/")
             or name.startswith(_SUPERVISOR_EPISODE_CHECKPOINT_PREFIX)
         ):

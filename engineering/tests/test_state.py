@@ -112,6 +112,10 @@ class StateTests(unittest.TestCase):
         self.assertEqual(len(self.store.events()), events)
         with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
             self.store.put_decision("sol-handoff/" + digest, exact_body)
+        before = len(self.store.events())
+        with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
+            self.store.put_decision("admission/PLAT-001", exact_body)
+        self.assertEqual(len(self.store.events()), before)
 
     def test_quiescence_revision_rechecks_without_rebuilding_retained_task_snapshot(self):
         self.task("stable")

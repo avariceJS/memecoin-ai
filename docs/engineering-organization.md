@@ -57,9 +57,13 @@ stages only the declared scope and records the candidate against the attempt, ep
 identity. The test calls the real `supervisor.verify_one` path: a temporary trusted acceptance
 harness validates the candidate, `SandboxRunner` executes the registered verifier command, and
 `GitGate` imports and receipts the result. An injected deterministic reviewer receives the exact
-packet; the test asserts its task, scoped path, candidate diff and passing acceptance result before
-returning approval. This exercises the review call and packet binding, not reviewer judgment,
-identity or independence. The test injects a crash after the real ref compare-and-swap but before
+packet; for admitted fixed cards it now includes the persisted department nomination, bound by the
+canonical packet digest, alongside task, scope, candidate diff and passing acceptance result. The
+test compares both Experience and Platform nominations to their durable admission decisions. The
+generic public decision writer cannot append to the reserved `admission/` namespace. A legacy or
+directly-created task with no admission nomination still projects `null`; this is not a blanket
+requirement on every review path. This exercises the review call and packet binding, not reviewer
+judgment, identity or independence. The test injects a crash after the real ref compare-and-swap but before
 Store integration, closes and reopens
 SQLite, then recovers and claims a dependent next task. It removes the receipt and confirms recovery
 fails closed, tampers with candidate SHA and confirms exact parent binding rejects publication, then
@@ -135,14 +139,18 @@ tasks. The planner receives the exact nomination, and admission revalidates its 
 lease epoch, current plan revision/digest, evidence references and conflict state in the same SQLite
 transaction that inserts the fixed trusted card and planning decision. The public fixed-card `admit`
 boundary also requires a nomination and performs the same validation, so callers cannot bypass the
-department-plan fence. A stale plan during the model turn rejects admission; a new plan revision
+department-plan fence. Generic `put_decision` cannot replace or introduce records in the reserved
+`admission/` namespace. A stale plan during the model turn rejects admission; a new plan revision
 produces a new planning fingerprint. Department plans cannot supply scope, dependencies, contract
 versions, verifier commands or execution permission. Synthetic PLAT-001 Experience → PLAT-002
 Platform contract/dependency flow preserves both admission provenance records through integration
-and STOP-preserving snapshot/restore; reviewer packets do not currently include that provenance.
+and STOP-preserving snapshot/restore; the independent-review packet binds each persisted nomination
+by its canonical digest. The reviewer sees the admission-record projection, not the source plan row
+or a fresh plan-currentness check.
 Snapshot schema validation accepts the precise Executive tables while retaining prior Store-only
-schema support. Sol accepted the exact five-file source candidate with no material blockers. The full
-gate passes Ruff/format, 650 tests and 193 subtests; reproducible smoke remains `edge_established=false`.
+schema support. Sol accepted the exact six-file source/test candidate with no material blockers. The
+full gate passes Ruff/format, 651 tests and 193 subtests; reproducible smoke remains
+`edge_established=false`.
 Nomination digests are derived from validated current plan rows; direct SQLite row tampering is not
 independently prevented. This is local synthetic source evidence and does not qualify A04 off-catalog
 execution, A03, dispatch authority or runtime recovery.

@@ -81,12 +81,17 @@ canonical organization record.
 The A10 department-plan admission link now requires a current team lease/plan nomination for the active
 objective at both `plan_next` and public fixed-card `admit`; admission rechecks exact revision/digest
 and conflict state in one transaction. The Experience→Platform synthetic contract/dependency cycle
-preserves both admission provenance records through integration and STOP-preserving snapshot/restore;
-reviewer packets do not include that provenance. Open conflicts do not change readiness for unrelated
+preserves both admission provenance records through integration and STOP-preserving snapshot/restore.
+Open conflicts do not change readiness for unrelated
 Store-ready tasks. Snapshot validation supports Executive tables and previous Store-only schemas. Full
-gate after API change: 650 tests/193 subtests; reproducible smoke, `edge_established=false`; Sol
-accepted the exact five-file candidate. Reviewer packets omit nomination provenance, and a digest from
-the current plan row does not independently prevent direct SQLite tampering.
+gate after API change: 651 tests/193 subtests; reproducible smoke, `edge_established=false`. The
+review packet now binds each admitted fixed card's exact persisted nomination in its canonical digest;
+the integrated test checks Experience and Platform against durable admission decisions. Reviewer sees
+the admission projection, not a source plan row or renewed-currentness check. Generic `put_decision`
+is fenced from `admission/`; legacy/direct-created tasks without nomination carry null. Previous
+five-file A10 candidate and packet-binding increment were accepted by Sol; review of this latest
+namespace fence is pending. Digests from current plan rows do not independently prevent direct SQLite
+tampering.
 
 `make check` still stops before later checks on 107 existing Ruff findings in `src/`, `tools/` and
 `tests/`; repository-wide pytest collection still lacks the historical PumpSwap IDL capture manifest.

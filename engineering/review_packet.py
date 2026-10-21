@@ -24,6 +24,7 @@ TASK_PACKET_FIELDS = (
     "acceptance",
     "dependencies",
     "contracts",
+    "department_nomination",
     "capabilities",
     "resources",
 )

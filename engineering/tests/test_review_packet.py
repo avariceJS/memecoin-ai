@@ -83,12 +83,39 @@ def test_packet_contains_complete_candidate_identity_diff_and_policy():
     assert packet["verifier_policy"]["policy_sha256"] == policy().digest
     assert packet["task"]["acceptance"] == task()["acceptance"]
     assert packet["task"]["brief"] == task()["brief"]
+    assert packet["task"]["department_nomination"] is None
     assert packet["limits"]["diff_complete"] is True
     assert len(packet["packet_sha256"]) == 64
     assert (
         len(__import__("json").dumps(packet, sort_keys=True, separators=(",", ":")).encode())
         <= MAX_PACKET_BYTES
     )
+
+
+def test_packet_binds_department_nomination_into_review_digest():
+    provenance = {
+        "schema": "department-plan-nomination-v1",
+        "team": "Experience",
+        "objective_id": "offline-brain-engineering",
+        "card_id": "PLAT-001",
+        "plan_revision": 1,
+        "plan_sha256": "f" * 64,
+        "owner": "sol-experience",
+        "owner_epoch": 2,
+        "evidence_refs": ["test:department-plan:Experience"],
+        "summary": "Advance the synthetic producer-consumer cycle",
+    }
+    admitted_task = {**task(), "department_nomination": provenance}
+    packet = build_review_packet(
+        admitted_task,
+        candidate(),
+        policy(),
+        checks(),
+        "diff content",
+        ("src/example.py", "tests/test_example.py"),
+    )
+    assert packet["task"]["department_nomination"] == provenance
+    assert packet["packet_sha256"] == packet_digest(packet)
 
 
 def test_packet_detaches_task_and_check_inputs_after_construction():

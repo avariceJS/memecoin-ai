@@ -1173,6 +1173,12 @@ class SupervisorTests(unittest.TestCase):
                     self_test.assertEqual(packet["schema"], "brain-independent-review-packet-v1")
                     self_test.assertEqual(packet["task"]["id"], "PLAT-001")
                     self_test.assertEqual(
+                        packet["task"]["department_nomination"],
+                        self_test.db.get_decision("admission/PLAT-001")["body"][
+                            "department_nomination"
+                        ],
+                    )
+                    self_test.assertEqual(
                         packet["candidate"]["submitted_changed_paths"], ["src/capability.py"]
                     )
                     self_test.assertIn("VALUE = 7", packet["diff"])
@@ -1721,6 +1727,12 @@ main()
                 else:
                     packet = json.loads(_args[1].rsplit("\n", 1)[-1])
                     self_test.assertEqual(packet["task"]["id"], "PLAT-002")
+                    self_test.assertEqual(
+                        packet["task"]["department_nomination"],
+                        self_test.db.get_decision("admission/PLAT-002")["body"][
+                            "department_nomination"
+                        ],
+                    )
                     self_test.assertEqual(
                         packet["candidate"]["submitted_changed_paths"], ["src/consumer.py"]
                     )
@@ -2617,6 +2629,9 @@ main()
 
     def test_unqualified_bound_verification_stops_before_git_sandbox_or_model(self):
         class BoundStore:
+            def get_decision(self, _name):
+                return None
+
             def get_candidate(self, task_id):
                 return {"evidence": {}}
 

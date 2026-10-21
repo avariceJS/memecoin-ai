@@ -1221,6 +1221,20 @@ def verify_one(state, task):
     evidence = data["evidence"]
     python = cfg["python"]
     try:
+        admission = db.get_decision("admission/" + task["id"])
+        nomination = None
+        if admission is not None:
+            admission_body = admission.get("body")
+            if type(admission_body) is not dict:
+                raise ValueError("invalid_task_admission_record")
+            nomination = admission_body.get("department_nomination")
+            if nomination is not None and (
+                type(nomination) is not dict
+                or nomination.get("card_id") != task["id"]
+                or nomination.get("team") != task.get("team")
+            ):
+                raise ValueError("invalid_task_department_nomination")
+        task = {**task, "department_nomination": nomination}
         plan = prepare_verification_plan(state, db, task, cfg)
     except ValueError as exc:
         log_event(

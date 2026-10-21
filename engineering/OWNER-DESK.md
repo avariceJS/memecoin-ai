@@ -51,9 +51,13 @@ plan revision/digest, evidence refs и conflict state; scope, контракты
 из trusted card/controller. Публичный `admit()` также требует nomination и повторяет проверки, поэтому
 фиксированную карточку нельзя провести в обход department-plan boundary. Тест PLAT-001 Experience →
 contract reviews → PLAT-002 Platform проверяет provenance в admission и интеграцию, а snapshot/restore
-сохраняет department plans; reviewer packet пока provenance не включает, прежние Store-only схемы
-продолжают приниматься. Sol принял точный пятифайловый кандидат без существенных блокеров. Full gate
-после изменения API: Ruff/format, 650 тестов и 193 subtests; smoke воспроизводим,
+сохраняет department plans; exact persisted nomination теперь включается в независимый review packet
+под canonical packet digest и сверяется с admission record для обеих команд в интеграционном тесте.
+Reviewer не получает исходную plan row или повторную проверку её currentness. Прежние Store-only
+схемы продолжают приниматься; generic `put_decision()` больше не может писать в namespace
+`admission/`. Legacy/direct-created task без nomination остаётся с `null` в packet, поэтому это не
+универсальное требование всех review путей. Sol принял точный пятифайловый предыдущий кандидат без
+существенных блокеров. Full gate после изменения API: Ruff/format, 651 тест и 193 subtests; smoke воспроизводим,
 `edge_established=false`. Plan digest вычисляется из текущей валидированной строки; независимой защиты
 от прямой SQLite-подмены нет. Это synthetic source-only evidence, не qualification операционного
 A04/A03/runtime.
