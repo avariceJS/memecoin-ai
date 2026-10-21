@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -68,6 +71,21 @@ def verifier(checkout: Path, sha: str, policy: VerificationPolicy):
     return {"status": "passed"}
 
 
+def valid_receipt_bytes(gate: GitGate, candidate) -> bytes:
+    body = {
+        "candidate_sha": candidate.sha,
+        "policy_hash": gate.policy.digest,
+        "commands": gate.policy.commands,
+        "env": gate.policy.env,
+        "result": {"status": "passed"},
+    }
+    return json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+
+
+def valid_receipt_digest(gate: GitGate, candidate) -> str:
+    return hashlib.sha256(valid_receipt_bytes(gate, candidate)).hexdigest()
+
+
 def test_verified_candidate_publishes_once_and_duplicate_is_recoverable(setup_gate):
     _, integration, _, _, gate = setup_gate
     candidate = submit(setup_gate)
@@ -96,6 +114,122 @@ def test_tampered_receipt_is_rejected(setup_gate):
     path.write_text('{"candidate_sha":"forged"}')
     with pytest.raises(GitGateError, match="altered"):
         gate.publish(candidate, receipt.digest, "0" * 40)
+
+
+def test_receipt_fifo_is_rejected_without_blocking(setup_gate):
+    _, integration, _, _, gate = setup_gate
+    digest = "a" * 64
+    os.mkfifo(gate.receipt_store / f"{digest}.json")
+    script = """
+import sys
+from pathlib import Path
+from engineering.git_gate import GitGate, GitGateError, VerificationPolicy
+repo, receipts, digest = sys.argv[1:]
+gate = GitGate(Path(repo), Path(repo), VerificationPolicy(((\"python\",),)), Path(receipts))
+try:
+    gate.load_receipt(digest, \"b\" * 40)
+except GitGateError:
+    raise SystemExit(0)
+raise SystemExit(3)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(integration), str(gate.receipt_store), digest],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=2,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_receipt_loader_fails_closed_without_no_follow_flag(setup_gate, monkeypatch):
+    *_, gate = setup_gate
+    monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+    with pytest.raises(GitGateError, match="no-follow non-blocking open is unavailable"):
+        gate.load_receipt("a" * 64, "b" * 40)
+
+
+@pytest.mark.parametrize("kind", ["fifo", "symlink"])
+def test_verify_rejects_existing_non_regular_receipt_without_blocking(setup_gate, kind):
+    _, integration, _, _, gate = setup_gate
+    candidate = submit(setup_gate)
+    digest = valid_receipt_digest(gate, candidate)
+    path = gate.receipt_store / f"{digest}.json"
+    if kind == "fifo":
+        os.mkfifo(path)
+    else:
+        target = gate.receipt_store / "outside-receipt.json"
+        target.write_bytes(valid_receipt_bytes(gate, candidate))
+        path.symlink_to(target)
+
+    script = """
+import sys
+from pathlib import Path
+from engineering.git_gate import Candidate, GitGate, GitGateError, VerificationPolicy
+integration, receipts, submitted, base, tip, sha, checkout = sys.argv[1:]
+policy = VerificationPolicy(
+    ((\"python\", \"-m\", \"pytest\"),),
+    ((\"PYTHONDONTWRITEBYTECODE\", \"1\"),),
+    \"pilot\",
+)
+gate = GitGate(Path(integration), Path(integration), policy, Path(receipts))
+candidate = Candidate(submitted, base, tip, sha, Path(checkout), (\"src/module.py\",))
+try:
+    gate.verify(candidate, lambda *_args: {\"status\": \"passed\"})
+except GitGateError:
+    raise SystemExit(0)
+raise SystemExit(3)
+"""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            script,
+            str(integration),
+            str(gate.receipt_store),
+            candidate.submitted_sha,
+            candidate.base_sha,
+            candidate.integration_tip,
+            candidate.sha,
+            str(candidate.checkout),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=2,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        lambda body: body.update(commands=[]),
+        lambda body: body.update(env=[["OTHER", "1"]]),
+        lambda body: body["result"].update(status="failed"),
+        lambda body: body["result"].update(extra=1),
+        lambda body: body.update(extra="unexpected"),
+    ],
+    ids=["commands", "environment", "failed-result", "result-type", "extra-field"],
+)
+def test_self_consistent_but_invalid_receipt_cannot_publish(setup_gate, tamper):
+    _, integration, _, _, gate = setup_gate
+    candidate = submit(setup_gate)
+    gate.verify(candidate, verifier)
+    valid_path = next(gate.receipt_store.glob("*.json"))
+    body = json.loads(valid_path.read_bytes())
+    tamper(body)
+    canonical = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    forged_digest = hashlib.sha256(canonical).hexdigest()
+    (gate.receipt_store / f"{forged_digest}.json").write_bytes(canonical)
+
+    with pytest.raises(GitGateError, match="receipt"):
+        gate.publish(candidate, forged_digest, "0" * 40)
+    result = subprocess.run(
+        ["git", "-C", str(integration), "show-ref", "--verify", "--quiet", gate.ACTIVE_REF],
+        check=False,
+    )
+    assert result.returncode == 1
 
 
 def test_candidate_refuses_stale_integration_tip(setup_gate):

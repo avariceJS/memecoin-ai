@@ -75,6 +75,17 @@ Sol accepted the exact code/test diff; the full engineering release gate passes 
 and 189 subtests. This remains in-process Python-object custody with no external immutable policy
 anchor; `execution_qualified` remains false and full A04 is open.
 
+The A11 receipt reader is now shared by GitGate publication and supervisor recovery. It bounds local
+reads, rejects symlinks/non-regular files, and validates canonical bytes, exact schema, candidate and
+policy identity, exact commands/environment, and a string-valued passing result before ref or Store
+changes. Five self-consistent rehashed invalid-receipt cases fail; crash-after-CAS recovery remains
+accepted until the valid receipt is restored, then integrates once. Existing receipt digests during
+`verify` also use the shared reader after exclusive-create collision. Child-process timeout
+regressions cover FIFO paths in both loader and `verify`, plus valid-digest symlink rejection. The
+loader requires `O_NOFOLLOW|O_NONBLOCK` and rejects hosts lacking either flag. Full engineering gate
+passes Ruff/format, 607 tests and 189 subtests. This is local custody, not a signature or external
+trust anchor. Sol accepted exact code/test diff `ddc68f2b69812b2b3c1fd78f735dd00a4999dfeaf4c3c945d0480e640ec1d17e` at base `71b3aeb`. A concurrent duplicate verification can fail closed if it reads the first exclusive writer before completion; unsafe acceptance is not possible.
+
 Before the PLAT-002 fake-transport scope fix, one focused run passed with `verify_one` outside the
 mock; an installed Codex reviewer may have been invoked. Attribution and usage settlement are
 unknown, so do not call them zero or settled and do not release any reservation. The subsequent full

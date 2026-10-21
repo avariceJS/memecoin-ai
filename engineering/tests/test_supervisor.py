@@ -494,7 +494,7 @@ class SupervisorTests(unittest.TestCase):
         calls, gate = self.reconcile("base")
         self.assertEqual(self.db.get_task("T")["state"], "integrated")
         self.assertEqual(sum(call[0] == "update-ref" for call in calls), 1)
-        gate._require_receipt.assert_called_once_with("receipt", "merged")
+        gate.load_receipt.assert_called_once_with("receipt", "merged")
         again, _ = self.reconcile("merged")
         self.assertFalse(any(call[0] == "update-ref" for call in again))
         events = [event for event in self.db.events() if event["kind"] == "candidate_integrated"]
@@ -871,6 +871,17 @@ class SupervisorTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "receipt"):
             supervisor.reconcile(self.state, self.db)
         self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
+        forged = json.loads(receipt_bytes)
+        forged["commands"] = []
+        forged_bytes = json.dumps(forged, sort_keys=True, separators=(",", ":")).encode()
+        forged_digest = hashlib.sha256(forged_bytes).hexdigest()
+        (self.state / "receipts" / f"{forged_digest}.json").write_bytes(forged_bytes)
+        supervisor.atomic(intent_path, {**intent, "receipt": forged_digest})
+        with self.assertRaisesRegex(RuntimeError, "receipt"):
+            supervisor.reconcile(self.state, self.db)
+        self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
+        self.assertEqual(run_git(integration, "rev-parse", GitGate.ACTIVE_REF), candidate_sha)
+        supervisor.atomic(intent_path, intent)
         receipt_path.write_bytes(receipt_bytes)
         supervisor.reconcile(self.state, self.db)
         supervisor.reconcile(self.state, self.db)

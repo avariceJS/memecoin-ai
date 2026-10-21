@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
@@ -57,6 +58,8 @@ class Receipt:
 
 
 Verifier = Callable[[Path, str, VerificationPolicy], Mapping[str, str]]
+
+MAX_RECEIPT_BYTES = 256_000
 
 
 class GitGate:
@@ -186,12 +189,15 @@ class GitGate:
             "env": self.policy.env,
             "result": dict(sorted(result.items())),
         }
-        digest = _digest(_canonical(body))
+        canonical = _canonical(body)
+        if len(canonical) > MAX_RECEIPT_BYTES:
+            raise GitGateError("receipt exceeds byte limit")
+        digest = _digest(canonical)
         path = self.receipt_store / f"{digest}.json"
-        if path.exists() and path.read_bytes() != _canonical(body):
-            raise GitGateError("receipt digest collision or tampered receipt store")
-        if not path.exists():
-            _write_exclusive(path, _canonical(body))
+        try:
+            _write_exclusive(path, canonical)
+        except FileExistsError:
+            self.load_receipt(digest, candidate.sha)
         return Receipt(
             digest,
             candidate.sha,
@@ -212,7 +218,7 @@ class GitGate:
         expected_remote_main: str | None = None,
     ) -> str:
         """CAS-publish a verified candidate to local active ref and optionally fixed remote."""
-        self._require_receipt(receipt_hash, candidate.sha)
+        self.load_receipt(receipt_hash, candidate.sha)
         self.validate_candidate(candidate)
         if publish_remote:
             self._check_remote(expected_remote_tip, expected_remote_main, candidate.sha)
@@ -305,22 +311,53 @@ class GitGate:
             refs[name] = sha
         return refs.get(self.ACTIVE_REF), refs.get("refs/heads/main")
 
-    def _require_receipt(self, receipt_hash: str, candidate_sha: str) -> None:
-        if not re.fullmatch(r"[0-9a-f]{64}", receipt_hash):
+    def load_receipt(self, receipt_hash: str, candidate_sha: str) -> dict:
+        """Load and strictly validate the content-addressed verifier receipt."""
+        if type(receipt_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", receipt_hash):
             raise GitGateError("invalid receipt hash")
         path = self.receipt_store / f"{receipt_hash}.json"
+        no_follow = getattr(os, "O_NOFOLLOW", None)
+        non_blocking = getattr(os, "O_NONBLOCK", None)
+        if no_follow is None or non_blocking is None:
+            raise GitGateError("receipt no-follow non-blocking open is unavailable")
         try:
-            raw = path.read_bytes()
+            descriptor = os.open(path, os.O_RDONLY | non_blocking | no_follow)
+            with os.fdopen(descriptor, "rb") as stream:
+                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                    raise GitGateError("verified receipt is not a regular file")
+                raw = stream.read(MAX_RECEIPT_BYTES + 1)
+            if len(raw) > MAX_RECEIPT_BYTES:
+                raise GitGateError("verified receipt exceeds byte limit")
             body = json.loads(raw)
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise GitGateError("verified receipt is missing or unreadable") from exc
-        if _digest(_canonical(body)) != receipt_hash or raw != _canonical(body):
+        try:
+            canonical = _canonical(body)
+        except (TypeError, ValueError, OverflowError, RecursionError):
+            raise GitGateError("verified receipt schema is invalid") from None
+        if _digest(canonical) != receipt_hash or raw != canonical:
             raise GitGateError("verified receipt was altered")
+        required = {"candidate_sha", "policy_hash", "commands", "env", "result"}
+        if type(body) is not dict or set(body) != required:
+            raise GitGateError("verified receipt schema is invalid")
+        commands = [list(command) for command in self.policy.commands]
+        environment = [list(item) for item in self.policy.env]
+        result = body["result"]
         if (
-            body.get("candidate_sha") != candidate_sha
-            or body.get("policy_hash") != self.policy.digest
+            type(body["candidate_sha"]) is not str
+            or not self.SHA_RE.fullmatch(body["candidate_sha"])
+            or body["candidate_sha"] != candidate_sha
+            or type(body["policy_hash"]) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", body["policy_hash"])
+            or body["policy_hash"] != self.policy.digest
+            or body["commands"] != commands
+            or body["env"] != environment
+            or type(result) is not dict
+            or any(type(key) is not str or type(value) is not str for key, value in result.items())
+            or result.get("status") != "passed"
         ):
             raise GitGateError("receipt does not verify this candidate under the current policy")
+        return body
 
     def _check_paths(
         self, repo: Path, base: str, commit: str, paths: tuple[str, ...], allowed: Sequence[str]

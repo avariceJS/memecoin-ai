@@ -139,6 +139,26 @@ the exact formatted test diff is
 `67fbfcfc97ce0363ebac32df6e727598667c43ad351f2a69adf81a655e85490f`. The combined engineering gate
 passed Ruff/format, 596 tests and 189 subtests.
 
+Current A11 receipt-replay increment — 2026-10-21: `GitGate.load_receipt` is the shared reader for
+publication and supervisor recovery. It bounds reads, rejects symlinks/non-regular files, enforces
+canonical content-addressed bytes and the exact receipt schema, and rechecks candidate SHA, current
+policy hash, commands, environment and a string-only result with `status="passed"`. Self-consistent
+receipts with recomputed digests but changed commands/environment, failed status, malformed result or
+extra fields fail before ref publication; the crash-after-CAS synthetic recovery also remains
+`accepted` with the active ref unchanged until the valid receipt is restored, then integrates once.
+Receipt creation uses exclusive writes; an existing digest is revalidated through the same bounded
+reader. Opens require `O_NOFOLLOW|O_NONBLOCK`; hosts without those flags fail closed. A FIFO reader
+regression uses an arbitrary digest; `verify` regressions use FIFO and symlink entries at the computed
+valid digest, with the symlink target containing the exact valid canonical receipt bytes. Child
+processes bound FIFO cases. The combined engineering gate passes Ruff/format, 607 tests and 189
+subtests. Sol accepted exact code/test diff
+`ddc68f2b69812b2b3c1fd78f735dd00a4999dfeaf4c3c945d0480e640ec1d17e` at base
+`71b3aeb3181c5a61e4a9ad11782fc004e761a9f4`. This is local receipt custody and replay validation,
+not a signature or an external trust anchor: an actor able to replace the receipt, intent and Store
+together can still forge the local record. Concurrent duplicate verification can fail closed if it
+sees the exclusive first writer's incomplete file; this is a reliability edge, not unsafe acceptance.
+Reviewer/provider authenticity, A03 and operational acceptance remain open.
+
 Current A10 integration correction — 2026-10-21: independent review is the sole source of participant
 acknowledgements for new contract transitions. Task-lead results must carry an empty legacy
 `contract_acks` field, the public direct-ack API rejects writes, and activation checks that each new

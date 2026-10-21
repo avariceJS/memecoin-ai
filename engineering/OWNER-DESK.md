@@ -83,15 +83,33 @@ Sol принял тестовую семантику после уточнени
 доверенный свежий gate snapshot, lifecycle consumer, restart или operational recovery. A05 остаётся
 открытым.
 
-Bounded A04 source increment: `SandboxRunner.run` captures the profile string at entry, checks it
-against its construction-time digest, and passes that same captured string to `sandbox-exec` and
-`SandboxResult`. Tests prove pre-run drift fails before `Popen` and a mutation during executable
-prelaunch hashing cannot change launched bytes or reported digest. Sol accepted exact diff
-`6f944e39fa3f156b23fc091654b4475730cca2486210b8accc4b4b0908bfedde`; the engineering release gate
-passed Ruff/format, 598 tests and 189 subtests. This is Python-object byte custody only: the private
-digest has no external immutable anchor, and sandbox qualification, same-inode execution, loader
-closure, descendants and stdout provenance remain open. Plans remain `execution_qualified=False`;
-full A04 and operational release are not accepted.
+Ограниченный A04 source increment: `SandboxRunner.run` фиксирует строку профиля в начале вызова,
+сверяет её с digest при создании runner и передаёт те же байты в `sandbox-exec` и
+`SandboxResult`. Тесты подтверждают, что drift до запуска останавливается до `Popen`, а изменение
+профиля во время проверки executable не меняет запущенные байты или digest результата. Sol принял
+точный diff `6f944e39fa3f156b23fc091654b4475730cca2486210b8accc4b4b0908bfedde`; engineering release
+gate прошёл Ruff/format, 598 тестов и 189 subtests. Это только custody байтов внутри Python-объекта:
+у private digest нет внешнего immutable anchor. Квалификация sandbox, запуск того же inode, loader
+closure, descendants и stdout provenance остаются открыты. Планы сохраняют
+`execution_qualified=False`; A04 и эксплуатационный выпуск не приняты.
+
+Ограниченный A11 source increment: общий `GitGate.load_receipt` используется перед публикацией и
+восстановлением supervisor. Он ограничивает объём чтения, отвергает symlink/non-regular receipt,
+проверяет canonical content-address, точную схему, candidate/policy identity, commands, environment
+и строковый результат со `status="passed"`. Открытие требует `O_NOFOLLOW|O_NONBLOCK`: FIFO по
+digest-пути отвергается без зависания; при отсутствии этих флагов loader закрывается. Синтетическая
+recovery-регрессия оставляет задачу `accepted` и ref без изменений для receipt с новым корректным
+digest, но изменёнными командами; после возврата исходного receipt интеграция происходит один раз.
+Повторная проверка уже существующего digest при создании теперь тоже использует общий loader:
+попытка эксклюзивной записи при занятом пути переходит к bounded no-follow валидации. Child-process
+регрессии с timeout проверяют FIFO и symlink именно по вычисленному valid digest на пути `verify`,
+а также FIFO при recovery reader. Общий gate прошёл Ruff/format, 607 тестов и 189 subtests. Это
+локальная проверка custody/replay, не подпись и не внешний trust anchor: обладатель совместного
+контроля receipt, intent и Store может подделать запись. Sol принял точный code/test diff
+`ddc68f2b69812b2b3c1fd78f735dd00a4999dfeaf4c3c945d0480e640ec1d17e` на базе `71b3aeb`. При
+одновременной выдаче того же receipt второй поток может fail closed, если увидит первую ещё не
+дописанную запись; это предел надёжности, не обход проверки. Подлинность reviewer/provider, A03 и
+operational acceptance открыты.
 
 **2026-10-21. Независимый аудит завершён; основатель разрешил продолжить инженерную разработку.**
 Пилот остаётся остановлен. Проверенный исходный код аудита: `org/development`, `b2dcd6d`;

@@ -1395,7 +1395,7 @@ def reconcile(state, db):
             # particular, an already-moved active ref is not proof that verification
             # happened: the process may have stopped after CAS, or the intent may be
             # damaged. Keep receipt and policy binding ahead of all Store transitions.
-            gate._require_receipt(intent["receipt"], intent["candidate_sha"])
+            gate.load_receipt(intent["receipt"], intent["candidate_sha"])
             if task["state"] in ("verified", "accepted"):
                 verification = db.get_verification(task["id"], intent["submitted_sha"])
                 if (
