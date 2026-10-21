@@ -1153,3 +1153,18 @@ broad A10 and operational acceptance remain open. Review receipt:
 (SHA-256 `40bb3924f0849c607eb8dc792922aa22b6a40c7b42aa661b8985eeb952d7e5a4`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-global-replay-indexed-seek-gate-20261021.json`
 (SHA-256 `3f646f8bb350099d1c5415c7688390de8a610e400f98a71929f4d929a3199a5c`).
+
+At `e26fed1`, transition-scoped contract-review replay now finds distinct journals with successive
+seeks over the existing partial expression index. Exact proposal predicates remain the index equality
+prefix; the next-name cursor drives the indexed name range. Reads stay in one snapshot, matching
+journals still undergo complete history/identity checks, and scan, byte, or candidate overflow still
+returns before replay. Sol-6.1 High accepted exact diff
+`d1e40736c046daf90212e799218e89469b495502d0fa56cd14f2e7088fb8f7cc`; the focused transition suite
+passed 57 tests and `make engineering-release-check` passed Ruff, 447 tests and 101 subtests. A
+synthetic 1,000-version journal confirms discovery proceeds to the next distinct name. This caps
+calls/returned names but does not hard-bound expression-index work, SQLite time, or memory. Review
+receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-transition-replay-indexed-seek-review-20261021.json`
+(SHA-256 `cec854567d1f30c79de418bd415cdef8361912bffdc8eb456739a8ed3b81930d`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-transition-replay-indexed-seek-gate-20261021.json`
+(SHA-256 `30ce4655892aa903eecdd3fd906cc3a96a0a8a23d97879b232d32705d73d43ea`).

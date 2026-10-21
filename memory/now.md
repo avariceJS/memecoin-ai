@@ -362,3 +362,8 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   bounds discovery calls/names, not B-tree work/time/memory. Full A10 and A03 remain open; receipts:
   `a10-global-replay-indexed-seek-review-20261021.json`,
   `a10-global-replay-indexed-seek-gate-20261021.json`.
+- A10 source `e26fed1` replaces transition-scoped DISTINCT journal discovery with successive seeks on
+  the existing expression index. Focused suite passed 57; engineering gate passed 447 tests/101
+  subtests with Ruff. Sol accepted exact diff. This retains a 1001-name cap; index work/time/memory
+  remain unbounded. Receipts: `a10-transition-replay-indexed-seek-review-20261021.json`,
+  `a10-transition-replay-indexed-seek-gate-20261021.json`.
