@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from engineering import supervisor
+from engineering import org_state, supervisor
 from engineering.org_state import (
     _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
     StateError,
@@ -747,6 +747,229 @@ def test_transition_scoped_replay_overflow_does_not_starve_another_transition(st
     assert store.get_decision(store._contract_ack_key("other", 2, "Platform")) is not None
 
 
+def test_transition_replay_scan_limit_counts_non_candidate_journals(store, monkeypatch):
+    first = prepare_review(store)
+    second = store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+    record_pending_review_response(store, first["body"], suffix="scan-limit")
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_SCAN_LIMIT", 1)
+
+    result = store.replay_contract_review_responses_for_transition(
+        "sample", 2, first["body"]["contract_hash"], limit=100
+    )
+
+    assert result["overflow"] is True
+    assert result["replayed"] == []
+    assert store.get_decision(first["name"])["body"]["status"] == "response_recorded"
+    assert store.get_decision(second["name"])["body"]["status"] == "prepared"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_global_replay_scan_limit_counts_terminal_only_journals(store, monkeypatch):
+    first = prepare_review(store)
+    store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+    record_pending_review_response(store, first["body"], suffix="global-scan-limit")
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_SCAN_LIMIT", 1)
+
+    result = store.replay_pending_contract_review_responses(limit=100)
+
+    assert result["overflow"] is True
+    assert result["replayed"] == []
+    assert store.get_decision(first["name"])["body"]["status"] == "response_recorded"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_review_replay_history_byte_limit_exact_and_plus_one(store, monkeypatch):
+    request = prepare_review(store)
+    size = store.db.execute(
+        "SELECT length(CAST(body AS BLOB)) FROM decisions WHERE name=?",
+        (request["name"],),
+    ).fetchone()[0]
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES", size)
+
+    assert store._contract_review_replay_history_size(request["body"]["request_id"]) == size
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES", size - 1)
+    with pytest.raises(StateError, match="byte limit exceeded"):
+        store._contract_review_replay_history_size(request["body"]["request_id"])
+
+
+def test_replay_inventory_byte_budget_exact_and_plus_one_prevents_partial_ack(store, monkeypatch):
+    first = prepare_review(store)
+    second = store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+    record_pending_review_response(store, first["body"], suffix="aggregate-byte-budget")
+    names = (first["name"], second["name"])
+    byte_total = sum(
+        store.db.execute(
+            "SELECT SUM(length(CAST(body AS BLOB))) FROM decisions WHERE name=?", (name,)
+        ).fetchone()[0]
+        for name in names
+    )
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES", byte_total)
+
+    with store._read_snapshot():
+        exact = store._contract_review_transition_replay_inventory_in_snapshot(
+            name="sample",
+            version=2,
+            contract_hash=first["body"]["contract_hash"],
+            limit=100,
+        )
+    assert exact["overflow"] is False
+    assert exact["items"] == [
+        {"request_id": first["body"]["request_id"], "packet_hash": first["body"]["packet_hash"]}
+    ]
+
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES", byte_total - 1)
+    overflow = store.replay_contract_review_responses_for_transition(
+        "sample", 2, first["body"]["contract_hash"], limit=100
+    )
+    assert overflow["overflow"] is True
+    assert overflow["replayed"] == []
+    assert store.get_decision(first["name"])["body"]["status"] == "response_recorded"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_replay_request_byte_budget_exact_and_plus_one(store, monkeypatch):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-request-budget",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-request-budget"},
+    )
+    response = record_review_result(store, body, review_result())
+    store.finish_contract_review(
+        body["request_id"],
+        body["packet_hash"],
+        response["body"]["raw_sha256"],
+        review_result(),
+    )
+    rows = store.db.execute(
+        "SELECT version,body FROM decisions WHERE name=? ORDER BY version", (request["name"],)
+    ).fetchall()
+    with store._tx():
+        for row in rows:
+            mutated = json.loads(row["body"])
+            mutated["legacy_extra"] = "x" * 420000
+            store.db.execute(
+                "UPDATE decisions SET body=? WHERE name=? AND version=?",
+                (json.dumps(mutated), request["name"], row["version"]),
+            )
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES", 450 * 1024)
+    sizes = store.db.execute(
+        "SELECT length(CAST(body AS BLOB)) FROM decisions WHERE name=? ORDER BY version",
+        (request["name"],),
+    ).fetchall()
+    total = sum(row[0] for row in sizes)
+    assert max(row[0] for row in sizes) <= 450 * 1024
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES", total)
+
+    assert store._contract_review_replay_history_size(body["request_id"]) == total
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES", total - 1)
+    with pytest.raises(StateError, match="request byte limit exceeded"):
+        store._contract_review_replay_history_size(body["request_id"])
+
+
+def test_replay_history_rejects_sixth_version_before_body_hydration(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-six-version",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-six-version"},
+    )
+    response = record_review_result(store, body, review_result())
+    store.finish_contract_review(
+        body["request_id"],
+        body["packet_hash"],
+        response["body"]["raw_sha256"],
+        review_result(),
+    )
+    key = request["name"]
+    store.db.execute(
+        "INSERT INTO decisions(name,version,body,replaces,replaces_version) "
+        "SELECT name,6,body,name,5 FROM decisions WHERE name=? AND version=5",
+        (key,),
+    )
+
+    with pytest.raises(StateError, match="history invalid"):
+        store._contract_review_replay_history_size(body["request_id"])
+
+
+def test_oversized_legacy_review_remains_readable_but_replay_fails_closed(store, monkeypatch):
+    request = prepare_review(store)
+    body = request["body"]
+    body["legacy_extra"] = "x" * 1000
+    store.db.execute(
+        "UPDATE decisions SET body=? WHERE name=?", (json.dumps(body), request["name"])
+    )
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES", 100)
+
+    assert store._contract_review_record(body["request_id"])["body"]["legacy_extra"] == "x" * 1000
+    result = store.replay_contract_review_responses_for_transition(
+        "sample", 2, body["contract_hash"], limit=100
+    )
+
+    assert result["overflow"] is True
+    assert result["replayed"] == []
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_replay_byte_budget_is_rechecked_under_finalization_lock(store, tmp_path, monkeypatch):
+    request = prepare_review(store)
+    body = request["body"]
+    record_pending_review_response(store, body, suffix="bounded-lock")
+    current_bytes = store.db.execute(
+        "SELECT MAX(length(CAST(body AS BLOB))) FROM decisions WHERE name=?",
+        (request["name"],),
+    ).fetchone()[0]
+    byte_limit = current_bytes + 100
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES", byte_limit)
+    finish = store.finish_contract_review
+    mutation_executed = False
+
+    def append_oversized_legacy_field(
+        request_id, packet_hash, raw_sha256, result, *, _bounded_replay=False
+    ):
+        nonlocal mutation_executed
+        mutation_executed = True
+        with sqlite3.connect(tmp_path / "org.sqlite") as other:
+            raw = other.execute(
+                "SELECT body FROM decisions WHERE name=? ORDER BY version DESC LIMIT 1",
+                (request["name"],),
+            ).fetchone()[0]
+            mutated = json.loads(raw)
+            mutated["legacy_extra"] = "x" * (byte_limit + 1)
+            other.execute(
+                "UPDATE decisions SET body=? WHERE name=? AND version=(SELECT MAX(version) "
+                "FROM decisions WHERE name=?)",
+                (json.dumps(mutated), request["name"], request["name"]),
+            )
+        return finish(
+            request_id,
+            packet_hash,
+            raw_sha256,
+            result,
+            _bounded_replay=_bounded_replay,
+        )
+
+    with store._read_snapshot():
+        assert store._contract_review_record(body["request_id"], bounded_replay=True) is not None
+    monkeypatch.setattr(store, "finish_contract_review", append_oversized_legacy_field)
+    with pytest.raises(StateError, match="byte limit exceeded"):
+        store.replay_contract_review_response(body["request_id"], body["packet_hash"])
+
+    assert mutation_executed is True
+    assert store.get_decision(request["name"])["body"]["status"] == "response_recorded"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
 def test_supervisor_transition_overflow_keeps_processing_other_configured_contracts(
     store, tmp_path
 ):
@@ -915,7 +1138,13 @@ def test_transition_replay_uses_scoped_index_and_ignores_unrelated_bad_identity(
 
     plan = store.db.execute(
         "EXPLAIN QUERY PLAN " + _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
-        (body["name"], body["version"], body["contract_hash"], body["proposal_digest"]),
+        (
+            body["name"],
+            body["version"],
+            body["contract_hash"],
+            body["proposal_digest"],
+            1001,
+        ),
     ).fetchall()
     assert any("idx_contract_review_transition_replay" in row["detail"] for row in plan)
 

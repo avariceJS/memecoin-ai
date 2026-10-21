@@ -57,13 +57,17 @@ _LIFECYCLE_OBSERVATION_FIELDS = frozenset(
 )
 _LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
 _LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
+_CONTRACT_REVIEW_REPLAY_SCAN_LIMIT = 1000
+_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES = 512 * 1024
+_CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES = 2 * 1024 * 1024
+_CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY = (
     "SELECT DISTINCT name FROM decisions WHERE name GLOB 'contract-review/*' "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
-    "ORDER BY name"
+    "ORDER BY name LIMIT ?"
 )
 
 
@@ -1397,8 +1401,36 @@ class Store:
     def _contract_review_digest(value: Any) -> str:
         return hashlib.sha256(_json(value).encode("utf-8")).hexdigest()
 
-    def _contract_review_record(self, request_id: str) -> dict | None:
+    def _contract_review_replay_history_size(self, request_id: str) -> int:
+        """Preflight retained bytes without hydrating JSON bodies."""
         key = self._contract_review_key(request_id)
+        rows = self.db.execute(
+            "SELECT version,length(CAST(body AS BLOB)) AS body_bytes FROM decisions "
+            "WHERE name=? ORDER BY version LIMIT 6",
+            (key,),
+        ).fetchall()
+        if len(rows) > 5 or [row["version"] for row in rows] != list(range(1, len(rows) + 1)):
+            raise StateError("contract review history invalid")
+        total = 0
+        for row in rows:
+            size = row["body_bytes"]
+            if (
+                type(size) is not int
+                or size < 0
+                or size > _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES
+            ):
+                raise StateError("contract review replay history byte limit exceeded")
+            total += size
+        if total > _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES:
+            raise StateError("contract review replay request byte limit exceeded")
+        return total
+
+    def _contract_review_record(
+        self, request_id: str, *, bounded_replay: bool = False
+    ) -> dict | None:
+        key = self._contract_review_key(request_id)
+        if bounded_replay:
+            self._contract_review_replay_history_size(request_id)
         rows = self.db.execute(
             "SELECT version,body,replaces,replaces_version FROM decisions "
             "WHERE name=? ORDER BY version",
@@ -1922,15 +1954,31 @@ class Store:
         """Select only current custodied responses for bounded local replay."""
         rows = self.db.execute(
             "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
-            "GROUP BY name ORDER BY name"
-        )
-        items = []
-        skipped_count = 0
-        while row := rows.fetchone():
+            "GROUP BY name ORDER BY name LIMIT ?",
+            (_CONTRACT_REVIEW_REPLAY_SCAN_LIMIT + 1,),
+        ).fetchall()
+        if len(rows) > _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+            return self._contract_review_replay_overflow()
+        identities = []
+        for row in rows:
             match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
             if match is None:
                 raise StateError("contract review worklist identity invalid")
-            current = self._contract_review_record(match.group(1))
+            identities.append(match.group(1))
+        byte_total = 0
+        try:
+            for request_id in identities:
+                byte_total += self._contract_review_replay_history_size(request_id)
+                if byte_total > _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES:
+                    return self._contract_review_replay_overflow()
+        except StateError as exc:
+            if "byte limit exceeded" in str(exc):
+                return self._contract_review_replay_overflow()
+            raise
+        items = []
+        skipped_count = 0
+        for request_id in identities:
+            current = self._contract_review_record(request_id)
             if current is None:
                 raise StateError("contract review worklist record missing")
             body = current["body"]
@@ -1944,12 +1992,7 @@ class Store:
                 }
             )
             if len(items) > limit:
-                return {
-                    "items": [],
-                    "count": None,
-                    "skipped_count": None,
-                    "overflow": True,
-                }
+                return self._contract_review_replay_overflow()
         return {
             "items": items,
             "count": len(items),
@@ -1970,15 +2013,30 @@ class Store:
         proposal_digest = self._contract_review_digest(proposal)
         rows = self.db.execute(
             _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
-            (name, version, contract_hash, proposal_digest),
-        )
-        items = []
-        skipped_count = 0
-        while row := rows.fetchone():
+            (name, version, contract_hash, proposal_digest, _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT + 1),
+        ).fetchall()
+        if len(rows) > _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+            return self._contract_review_replay_overflow()
+        identities = []
+        for row in rows:
             match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
             if match is None:
                 raise StateError("contract review worklist identity invalid")
-            current = self._contract_review_record(match.group(1))
+            identities.append(match.group(1))
+        byte_total = 0
+        try:
+            for request_id in identities:
+                byte_total += self._contract_review_replay_history_size(request_id)
+                if byte_total > _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES:
+                    return self._contract_review_replay_overflow()
+        except StateError as exc:
+            if "byte limit exceeded" in str(exc):
+                return self._contract_review_replay_overflow()
+            raise
+        items = []
+        skipped_count = 0
+        for request_id in identities:
+            current = self._contract_review_record(request_id)
             if current is None:
                 raise StateError("contract review worklist record missing")
             body = current["body"]
@@ -1994,18 +2052,17 @@ class Store:
                 continue
             items.append({"request_id": body["request_id"], "packet_hash": body["packet_hash"]})
             if len(items) > limit:
-                return {
-                    "items": [],
-                    "count": None,
-                    "skipped_count": None,
-                    "overflow": True,
-                }
+                return self._contract_review_replay_overflow()
         return {
             "items": items,
             "count": len(items),
             "skipped_count": skipped_count,
             "overflow": False,
         }
+
+    @staticmethod
+    def _contract_review_replay_overflow() -> dict:
+        return {"items": [], "count": None, "skipped_count": None, "overflow": True}
 
     def begin_contract_review_dispatch(self, request_id: str, packet_hash: str) -> dict:
         """Write the one-shot dispatch intent before any metered provider call."""
@@ -2131,10 +2188,12 @@ class Store:
             self._put_decision_in_transaction(current["name"], updated)
             return {"name": current["name"], "version": current["version"] + 1, "body": updated}
 
-    def get_contract_review_response(self, request_id: str) -> dict:
+    def get_contract_review_response(
+        self, request_id: str, *, _bounded_replay: bool = False
+    ) -> dict:
         """Read and rehash the immutable stored result bytes for local recovery."""
         with self._lock:
-            current = self._contract_review_record(request_id)
+            current = self._contract_review_record(request_id, bounded_replay=_bounded_replay)
             if current is None or current["body"]["status"] not in {
                 "response_recorded",
                 "approved",
@@ -2164,14 +2223,36 @@ class Store:
         """Finalize one already-custodied response locally, without contacting a provider."""
         if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
             raise StateError("contract review packet hash invalid")
-        response = self.get_contract_review_response(request_id)
+        with self._read_snapshot():
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review response unavailable")
+            body = current["body"]
+            if body["status"] not in {"response_recorded", "approved", "blocked"}:
+                raise StateError("contract review response unavailable")
+            if "raw_result_base64" not in body:
+                raise StateError("legacy contract review has no retained raw response")
+            try:
+                raw_result = base64.b64decode(body["raw_result_base64"], validate=True)
+            except (ValueError, TypeError):
+                raise StateError("contract review response custody invalid") from None
+            if hashlib.sha256(raw_result).hexdigest() != body["raw_sha256"]:
+                raise StateError("contract review response custody invalid")
+            response = {
+                "request_id": request_id,
+                "packet_hash": body["packet_hash"],
+                "raw_sha256": body["raw_sha256"],
+                "raw_result": raw_result,
+            }
         if response["packet_hash"] != packet_hash:
             raise StateError("contract review response is stale")
         try:
             result = _strict_contract_review_result(response["raw_result"])
         except (TypeError, ValueError, UnicodeDecodeError, OverflowError, RecursionError):
             raise StateError("contract review response is not replayable") from None
-        return self.finish_contract_review(request_id, packet_hash, response["raw_sha256"], result)
+        return self.finish_contract_review(
+            request_id, packet_hash, response["raw_sha256"], result, _bounded_replay=True
+        )
 
     def replay_pending_contract_review_responses(self, *, limit: int = 100) -> dict:
         """Locally finalize a bounded snapshot of custodied responses; never dispatch."""
@@ -2261,7 +2342,13 @@ class Store:
         }
 
     def finish_contract_review(
-        self, request_id: str, packet_hash: str, raw_sha256: str, result: Any
+        self,
+        request_id: str,
+        packet_hash: str,
+        raw_sha256: str,
+        result: Any,
+        *,
+        _bounded_replay: bool = False,
     ) -> dict:
         """Commit immutable review evidence and any exact acknowledgement atomically."""
         if (
@@ -2316,7 +2403,7 @@ class Store:
         ):
             raise StateError("contract review result exceeds bound")
         with self._tx():
-            current = self._contract_review_record(request_id)
+            current = self._contract_review_record(request_id, bounded_replay=_bounded_replay)
             if current is None:
                 raise StateError("contract review request missing")
             body = current["body"]
@@ -2331,7 +2418,9 @@ class Store:
                 raise StateError("contract review response is not durably recorded")
             if body.get("raw_sha256") != raw_sha256:
                 raise StateError("contract review response hash mismatch")
-            response = self.get_contract_review_response(request_id)
+            response = self.get_contract_review_response(
+                request_id, _bounded_replay=_bounded_replay
+            )
             try:
                 raw_result = _strict_contract_review_result(response["raw_result"])
                 if _json(raw_result) != _json(detached):
