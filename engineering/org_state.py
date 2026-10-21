@@ -1602,6 +1602,7 @@ class Store:
                 type(body) is not dict
                 or body.get("kind") != "contract_review_request"
                 or body.get("request_id") != request_id
+                or type(body.get("status")) is not str
                 or body.get("status")
                 not in {
                     "prepared",

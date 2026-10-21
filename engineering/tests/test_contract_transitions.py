@@ -1921,7 +1921,10 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
     )
 
 
-def test_supervisor_malformed_review_history_does_not_skip_later_activation(store, tmp_path):
+@pytest.mark.parametrize("corruption", ["malformed_json", "list_status", "object_status"])
+def test_supervisor_malformed_review_history_does_not_skip_later_activation(
+    store, tmp_path, corruption
+):
     integrate_producer(store, "EXP-1")
     integrate_producer(store, "EXP-2")
     store.add_task("PLAT-1", "Platform", "review contract", scope=["cli.py"])
@@ -1969,14 +1972,26 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(stor
     )
     request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
     record_pending_review_response(store, request["body"], suffix="corrupt-history")
+    latest = store.db.execute(
+        "SELECT body FROM decisions WHERE name=? ORDER BY version DESC LIMIT 1",
+        (request["name"],),
+    ).fetchone()
+    if corruption == "malformed_json":
+        persisted_body = "{malformed"
+    else:
+        invalid_body = json.loads(latest["body"])
+        invalid_body["status"] = [] if corruption == "list_status" else {}
+        persisted_body = json.dumps(invalid_body, sort_keys=True, separators=(",", ":"))
     store.db.execute(
-        "UPDATE decisions SET body='{malformed' WHERE name=? "
+        "UPDATE decisions SET body=? WHERE name=? "
         "AND version=(SELECT MAX(version) FROM decisions WHERE name=?)",
-        (request["name"], request["name"]),
+        (persisted_body, request["name"], request["name"]),
     )
 
     with pytest.raises(StateError, match="contract review history invalid"):
         store._contract_review_record(request["body"]["request_id"], bounded_replay=True)
+    with pytest.raises(StateError, match="contract review history invalid"):
+        store._contract_review_record(request["body"]["request_id"])
 
     cfg = {"contracts": {"sample": sample_proposal, "z-other": other_proposal}}
     with (
@@ -2000,7 +2015,7 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(stor
             "SELECT body FROM decisions WHERE name=? ORDER BY version DESC LIMIT 1",
             (request["name"],),
         ).fetchone()["body"]
-        == "{malformed"
+        == persisted_body
     )
     assert any(
         call.args[1] == "contract_review_replay_failed"
