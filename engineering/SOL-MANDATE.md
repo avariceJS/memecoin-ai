@@ -19,14 +19,19 @@ spawn-failure, snapshot/restore, and hard-process recovery paths. The producer's
 exit is recovered after SQLite reopen; the consumer then integrates against the exact producer tip.
 Sol's read-only audit of `bd57f14` recommends bounded acceptance rather than another functional
 source increment: no safe source-only change closes the remaining A03/A04/A05 authority boundaries.
-The current engineering gate passes Ruff/format, 676 tests, and 193 subtests. Sol independently
-accepted a narrow macOS timeout regression proving that one started inherited-pipe descendant does
-not write after its original process group is terminated. This does not qualify escaped groups or all
-descendant cleanup.
+The current engineering gate passes Ruff/format, 677 tests, and 193 subtests. Sol independently
+accepted a bounded `CLI-001` synthetic RPC test: the supervisor launches the exact frozen CLI,
+which uses real Codex/MeteredCodex and sandbox-tool paths against a local hash-bound peer; the parent
+verifies and integrates a receipt-bound candidate. Three completed turns remain unresolved, and a
+third Sol dispatch is refused. This direct legacy task and deterministic reviewer do not prove trusted
+admission or model judgment. Sol also accepted a narrow macOS timeout regression proving that one
+started inherited-pipe descendant does not write after its original process group is terminated; it
+does not qualify escaped groups or all descendant cleanup.
 
-This does not qualify the production CLI child path, provider/reviewer identity or judgment, live usage
-settlement, all descendant groups, A04 execution/deployment, A05 lifecycle-consumer authorization,
-A03, runtime, remote recovery, or operational release. Cortex task specs remain held under A04.
+This does not qualify a live provider/reviewer identity or judgment, live usage settlement, all
+descendant groups, trusted assignment within the real CLI path, A04 execution/deployment,
+A05 lifecycle-consumer authorization, A03, runtime, remote recovery, or operational release. Cortex
+task specs remain held under A04.
 `make check` still encounters 107 pre-existing Ruff findings outside `engineering/`; repository-wide
 pytest collection still needs the historical IDL manifest. These broader checks do not supersede the
 focused engineering gate or confer operational acceptance.

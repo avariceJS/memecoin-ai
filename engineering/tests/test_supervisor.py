@@ -157,6 +157,309 @@ class SupervisorTests(unittest.TestCase):
             first_token, supervisor._spawn_backoff_plan_token(readiness, revision=5)
         )
 
+    def test_supervisor_cli_uses_real_rpc_metering_and_keeps_unknown_usage_reserved(self):
+        """Run the frozen CLI against a local protocol peer, never a live provider."""
+        if platform.system() != "Darwin":
+            self.skipTest("integrated worker execution requires disposable macOS Seatbelt")
+
+        import shutil
+        import time
+
+        from engineering import planning
+        from engineering.metered_codex import metered_client
+        from engineering.processes import process_identity, terminate_owned
+        from engineering.usage_ledger import UsageLedger
+
+        self.now = time.time()
+        integration = self.state / "integration"
+        integration.mkdir()
+        git_env = {
+            **{key: value for key, value in os.environ.items() if not key.startswith("GIT_")},
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_OPTIONAL_LOCKS": "0",
+            "GIT_NO_REPLACE_OBJECTS": "1",
+        }
+
+        def git(*args):
+            result = subprocess.run(
+                ["git", "-c", "core.hooksPath=/dev/null", "-C", str(integration), *args],
+                check=False,
+                text=True,
+                capture_output=True,
+                env=git_env,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return result.stdout.strip()
+
+        empty_template = self.state / "empty-git-template"
+        empty_template.mkdir()
+        git("init", "--template=" + str(empty_template), "-b", "main")
+        git("config", "user.name", "synthetic")
+        git("config", "user.email", "synthetic@example.invalid")
+        (integration / "src").mkdir()
+        (integration / "src/base.py").write_text("BASE = True\n")
+        git("add", "-A")
+        git("commit", "-m", "synthetic base")
+        base = git("rev-parse", "HEAD")
+        git("update-ref", "refs/heads/research/active", base)
+
+        self.db.add_objective("offline-cli-cycle", "One synthetic CLI integration")
+        self.db.add_task(
+            "CLI-001",
+            "Experience",
+            "Add one synthetic capability",
+            "Write one in-scope module through the brokered tool.",
+            scope=["src/result.py"],
+            objective_id="offline-cli-cycle",
+        )
+        self.cfg.update(
+            {
+                "schema": "brain-engineering-deployment-v1",
+                "integration": str(integration.resolve()),
+                "tasks": {
+                    "CLI-001": {
+                        "team": "Experience",
+                        "title": "Add one synthetic capability",
+                        "brief": "Write one in-scope module through the brokered tool.",
+                        "scope": ["src/result.py"],
+                        "checks": [],
+                    }
+                },
+                "remote_publication_enabled": False,
+                "resources": {
+                    "max_workers": 1,
+                    "per_worker_tokens": 4000,
+                    "min_available_memory_bytes": 1,
+                },
+            }
+        )
+        trusted = self.state / "trusted"
+        trusted.mkdir()
+        acceptance = trusted / "pilot_acceptance.py"
+        acceptance.write_text(
+            "import json, pathlib, sys\n"
+            "passed = (pathlib.Path(sys.argv[2]) / 'src/result.py').read_text() == 'VALUE = 7\\n'\n"
+            "print(json.dumps({'schema':'org-pilot-acceptance-v1','case':sys.argv[1],"
+            "'passed':passed}))\n"
+            "raise SystemExit(0 if passed else 1)\n"
+        )
+
+        controller = self.state / "controller"
+        controller.mkdir()
+        shutil.copytree(
+            Path(__file__).resolve().parents[1],
+            controller / "engineering",
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
+        self.cfg["controller"] = str(controller.resolve())
+        trace = self.state / "appserver-trace.jsonl"
+        worker_code = "from pathlib import Path\nPath('src/result.py').write_text('VALUE = 7\\n')\n"
+        codex = self.state / "synthetic-codex"
+        codex.write_text(
+            f"#!{sys.executable}\n"
+            "import json, sys, time\n"
+            f"trace = {str(trace)!r}\n"
+            "def emit(value):\n"
+            "    sys.stdout.write(json.dumps(value,separators=(',',':'))+'\\n')\n"
+            "    sys.stdout.flush()\n"
+            "def record(value):\n"
+            "    with open(trace,'a') as stream: stream.write(json.dumps(value)+'\\n')\n"
+            "argv = sys.argv[1:]\n"
+            "record({'kind':'argv','argv':argv})\n"
+            "if len(argv)<2 or argv[:2] != ['app-server','--stdio'] or "
+            "any(argv[i] != '-c' for i in range(2,len(argv),2)) or len(argv[2:])%2:\n"
+            "    raise SystemExit(64)\n"
+            "roles = {}\n"
+            "for raw in sys.stdin:\n"
+            "    msg=json.loads(raw); method=msg.get('method'); ident=msg.get('id')\n"
+            "    record({'kind':'rpc','method':method})\n"
+            "    if method == 'initialized': continue\n"
+            "    if method == 'initialize': result={}\n"
+            "    elif method == 'account/rateLimits/read': result={'ordinaryUsageAllowed':True,"
+            "'rateLimitsByLimitId':{'codex':{'primary':{'usedPercent':20,"
+            "'resetsAt':int(time.time())+3600},'secondary':None,'rateLimitReachedType':None,"
+            "'spendControlReached':False,'credits':{'hasCredits':False,'unlimited':False,"
+            "'balance':'0'}}}}\n"
+            "    elif method == 'thread/start':\n"
+            "        instructions=msg['params'].get('developerInstructions','')\n"
+            "        role=('worker' if 'implementation worker' in instructions else "
+            "'verifier' if 'verification reviewer' in instructions else 'lead')\n"
+            "        thread=role+'-'+str(len(roles)+1)\n"
+            "        roles[thread]=role; result={'thread':{'id':thread}}\n"
+            "    elif method == 'turn/start':\n"
+            "        p=msg['params']; thread=p['threadId']; role=roles[thread]\n"
+            "        turn=thread+'-turn'\n"
+            "        emit({'id':ident,'result':{'turn':{'id':turn}}})\n"
+            "        if role == 'worker':\n"
+            f"            toolargs={{'argv':[{sys.executable!r},'-I','-c',\n"
+            f"                       {worker_code!r}],'timeout':10}}\n"
+            "            emit({'method':'item/tool/call','id':9001,'params':{'tool':'org_exec',"
+            "'threadId':thread,'turnId':turn,'arguments':toolargs}})\n"
+            "            reply=json.loads(sys.stdin.readline())\n"
+            "            record({'kind':'tool_reply','success':\n"
+            "                    reply.get('result',{}).get('success')})\n"
+            "            if not reply.get('result',{}).get('success'): raise SystemExit(65)\n"
+            "            answer={'summary':'Added the bounded capability.',\n"
+            "                    'tests':['sandboxed write'],"
+            "'limitations':['synthetic local app-server; terminal usage remains unknown']}\n"
+            "        elif role == 'lead': answer={'decision':'approve',\n"
+            "                    'worker_brief':'Write VALUE = 7.',"
+            "'rationale':'The exact task is bounded.','contract_acks':[]}\n"
+            "        else: answer={'approved':True,'findings':[],"
+            "'rationale':'Synthetic independent review accepted the exact candidate.'}\n"
+            "        emit({'method':'item/completed','params':{'threadId':thread,'turnId':turn,"
+            "'item':{'type':'agentMessage','phase':'final_answer','text':json.dumps(answer)}}})\n"
+            "        emit({'method':'turn/completed','params':{'threadId':thread,"
+            "'turn':{'id':turn,'status':'completed'}}})\n"
+            "        continue\n"
+            "    elif method == 'turn/interrupt': result={}\n"
+            "    else:\n"
+            "        if ident is not None:\n"
+            "            emit({'id':ident,'error':{'code':-32601,\n"
+            "                 'message':'unsupported'}})\n"
+            "        continue\n"
+            "    if ident is not None: emit({'id':ident,'result':result})\n"
+        )
+        codex.chmod(0o700)
+        self.cfg["codex_executable"] = str(codex.resolve())
+        executable_sha = hashlib.sha256(codex.read_bytes()).hexdigest()
+        self.cfg["codex_executable_sha256"] = executable_sha
+        config_bytes = json.dumps(self.cfg, sort_keys=True, indent=2).encode()
+        (self.state / "config.json").write_bytes(config_bytes)
+        (self.state / "config.sha256").write_text(hashlib.sha256(config_bytes).hexdigest())
+        (self.state / "confinement.json").write_text(
+            json.dumps({"qualified": True, "evidence": "synthetic-fixture-only"})
+        )
+        (self.state / "native-profile.json").write_text(
+            json.dumps(
+                {
+                    "qualified": True,
+                    "adapter_sha256": hashlib.sha256(
+                        (controller / "engineering/codex_rpc.py").read_bytes()
+                    ).hexdigest(),
+                    "executable_sha256": executable_sha,
+                    "evidence": "synthetic-fixture-only",
+                }
+            )
+        )
+        manifest = {
+            f"engineering/{path.relative_to(controller / 'engineering').as_posix()}": (
+                hashlib.sha256(path.read_bytes()).hexdigest()
+            )
+            for path in sorted((controller / "engineering").rglob("*.py"))
+        }
+        manifest["trusted/pilot_acceptance.py"] = hashlib.sha256(
+            acceptance.read_bytes()
+        ).hexdigest()
+        (self.state / "controller-manifest.json").write_text(
+            json.dumps(manifest, sort_keys=True, indent=2)
+        )
+        ledger = UsageLedger(self.state / "usage-ledger.sqlite")
+        ledger.close()
+
+        self.cfg["integration"] = str(integration.resolve())
+        # The test runner's parent uses the same in-memory config/store; the frozen
+        # child independently loads and validates the hash-bound deployment above.
+        self.cfg["controller"] = str(controller.resolve())
+        launched = []
+        real_popen = subprocess.Popen
+
+        def record_real_attempt(args, **kwargs):
+            process = real_popen(args, **kwargs)
+            if args[:3] == [sys.executable, "-m", "engineering"] and args[3] == "attempt":
+                birth = process_identity(process.pid)
+                launched.append((args, process, birth))
+            return process
+
+        (self.state / "synthetic-home").mkdir()
+        try:
+            with (
+                patch.object(supervisor, "available_memory", return_value=10**10),
+                patch.object(supervisor, "status", return_value={}),
+                patch.object(supervisor, "render_desk"),
+                patch.object(supervisor.subprocess, "Popen", side_effect=record_real_attempt),
+                patch.object(planning, "config", return_value=self.cfg),
+                patch.dict(os.environ, {"HOME": str(self.state / "synthetic-home")}),
+            ):
+                supervisor.supervise(self.state, max_seconds=20)
+        finally:
+            for _args, process, birth in launched:
+                if process.poll() is None:
+                    terminate_owned(process.pid, birth)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self.fail("owned synthetic attempt did not exit after identity-bound cleanup")
+
+        self.assertEqual(len(launched), 1)
+        args, process, child_birth = launched[0]
+        child_pid = process.pid
+        self.assertEqual(process.returncode, 0)
+        self.assertIsNotNone(child_birth)
+        self.assertEqual(
+            args,
+            [
+                sys.executable,
+                "-m",
+                "engineering",
+                "attempt",
+                "--state",
+                str(self.state.resolve()),
+                "--attempt",
+                str(self.db.list_attempts("CLI-001")[0]["id"]),
+            ],
+        )
+        self.assertGreater(child_pid, 0)
+        task = self.db.get_task("CLI-001")
+        self.assertEqual(task["state"], "integrated")
+        attempt = self.db.list_attempts("CLI-001")[0]
+        child_identity = self.db.attempt_child_start_identity(attempt["id"], attempt["epoch"])
+        self.assertEqual(child_identity["pid"], child_pid)
+        self.assertEqual(child_identity["birth"], child_birth)
+        intent = json.loads((self.state / "intents/CLI-001.json").read_text())
+        receipt_path = self.state / "receipts" / (intent["receipt"] + ".json")
+        receipt_bytes = receipt_path.read_bytes()
+        receipt = json.loads(receipt_bytes)
+        self.assertEqual(hashlib.sha256(receipt_bytes).hexdigest(), intent["receipt"])
+        self.assertEqual(receipt["candidate_sha"], intent["candidate_sha"])
+        self.assertEqual(git("show", "refs/heads/research/active:src/result.py"), "VALUE = 7")
+        records = [json.loads(line) for line in trace.read_text().splitlines()]
+        argv_records = [row for row in records if row["kind"] == "argv"]
+        self.assertGreaterEqual(len(argv_records), 7)
+        self.assertTrue(all(row["argv"][:2] == ["app-server", "--stdio"] for row in argv_records))
+        methods = [row.get("method") for row in records if row["kind"] == "rpc"]
+        self.assertIn("account/rateLimits/read", methods)
+        self.assertEqual(methods.count("thread/start"), 3)
+        self.assertEqual(methods.count("turn/start"), 3)
+        self.assertTrue(any(row.get("kind") == "tool_reply" and row["success"] for row in records))
+
+        ledger = UsageLedger(self.state / "usage-ledger.sqlite")
+        try:
+            reservations = ledger.db.execute(
+                "SELECT model,status,outcome FROM dispatches "
+                "WHERE status NOT IN ('covered','settled') ORDER BY model,dispatch_id"
+            ).fetchall()
+            self.assertEqual(sum(row["model"] == supervisor.SOL for row in reservations), 2)
+            self.assertEqual(sum(row["model"] == "gpt-6-luna" for row in reservations), 1)
+            self.assertTrue(all(row["status"] == "completed" for row in reservations))
+            outcomes = [json.loads(row["outcome"]) for row in reservations]
+            self.assertTrue(all(outcome.get("usage_end") is None for outcome in outcomes))
+        finally:
+            ledger.close()
+
+        # A third Sol reservation is refused while both completed turns remain unresolved.
+        with patch.dict(os.environ, {"HOME": str(self.state / "synthetic-home")}):
+            with metered_client(
+                self.state,
+                integration,
+                cfg=self.cfg,
+                context={"role": "lead", "team": "Platform", "task": "CLI-002"},
+            ) as blocked:
+                with self.assertRaisesRegex(RuntimeError, "model_dispatch_slots_full"):
+                    blocked.start(supervisor.SOL, "synthetic third Sol dispatch must fail closed")
+
     def test_later_bound_command_identity_and_result_contract_reach_verifier_gate(self):
         command = SimpleNamespace(
             executable_sha256="a" * 64,

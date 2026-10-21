@@ -57,16 +57,23 @@ A follow-up at `3a27505` adds a Sol-accepted, macOS-only regression proving that
 descendant in the original process group does not write after timeout cleanup.
 
 This is bounded source-only acceptance, not autonomous operational execution. The supervisor's
-requested production CLI is replaced by a test-only child harness, and reviewer/provider responses
-are synthetic. Live provider identity and usage settlement, A04 execution/deployment qualification,
-A05 launch authorization generation and lifecycle consumer, A03, remote recovery, and runtime release
-remain unavailable or unauthorized. Cortex protocol v2 supports metadata preregistration,
+task-selection, two-task continuation, and interruption-recovery regression still uses test-only
+child harnesses and synthetic reviewers. A separate `CLI-001` path now launches the exact frozen
+`python -m engineering attempt` command and exercises real `Codex`, `MeteredCodex`, brokered
+`org_exec`, parent verification, receipt persistence, and GitGate integration against a disposable
+hash-bound local JSON-RPC peer. Sol independently accepted this bounded test. Its direct legacy task
+insertion does not exercise trusted nomination/admission, and the peer's reviewer response does not
+establish model judgment. Three completed turns retain unknown usage; a subsequent Sol dispatch is
+refused at the unresolved-reservation limit. Live provider identity and usage settlement, A04
+execution/deployment qualification, A05 launch authorization generation and lifecycle consumer, A03,
+remote recovery, and runtime release remain unavailable or unauthorized. Cortex protocol v2 supports metadata preregistration,
 integrated-producer provenance, and exact Cortex/Evaluation ACK admission; Cortex specs remain
 non-claimable under A04, and experiments, training, scoring, artifact writing, and independent
 scientific evaluation are not implemented. Pilot STOP and all protected-data, market, training,
 AUTO/trading, production, paid API, Astra, and `main` restrictions remain in force. The detailed dated
-increments below preserve evidence boundaries; current acceptance is limited to the integrated
-synthetic cycle described here.
+increments below preserve evidence boundaries; the engineering gate passes Ruff/format, 677 tests,
+and 193 subtests. Current acceptance is the integrated synthetic cycle plus the separately bounded
+real-child CLI/RPC path described here, not an operational system qualification.
 
 Current A10 department-plan admission link — 2026-10-21: fixed-card planning now exposes a card only
 when its owning department has an active fenced lease and a current, unexpired plan for the same
