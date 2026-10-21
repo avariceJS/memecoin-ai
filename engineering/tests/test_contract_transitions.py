@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import threading
@@ -132,6 +133,35 @@ def test_quiescence_snapshot_contains_pending_reviews_from_the_same_store_projec
         "Experience",
         "Platform",
     ]
+
+
+def test_quiescence_handoff_carries_exact_prepared_review_ids_without_packets(store):
+    request = prepare_review(store)
+    snapshot = store.quiescence_snapshot()
+    worklist = snapshot["review_requests"]
+    assert worklist["items"][0]["request_id"] == request["body"]["request_id"]
+    assert worklist["items"][0]["packet_hash"] == request["body"]["packet_hash"]
+    assert "packet" not in worklist["items"][0]
+
+    identity = {
+        "snapshot": snapshot,
+        "resource_reason": "synthetic",
+        "reason": "contract-reviews-pending",
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    body = {
+        "owner": "Sol",
+        "status": "requested",
+        "reason": "contract-reviews-pending",
+        "resource_reason": "synthetic",
+        "fingerprint": fingerprint,
+        "review_requests": worklist,
+    }
+
+    assert store.record_quiescence_handoff_if_current(fingerprint, snapshot, body)
+    assert store.get_decision("sol-handoff/" + fingerprint)["body"]["review_requests"] == worklist
 
 
 def test_quiescence_ignores_case_variant_non_reserved_transition_names(store):

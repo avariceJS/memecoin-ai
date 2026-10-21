@@ -75,6 +75,7 @@ class StateTests(unittest.TestCase):
             "status": "requested",
             "reason": "catalogue-exhausted",
             "resource_reason": "synthetic",
+            "review_requests": snapshot["review_requests"],
         }
 
         def fingerprint(current_snapshot):
@@ -121,6 +122,7 @@ class StateTests(unittest.TestCase):
             "status": "requested",
             "reason": "catalogue-exhausted",
             "resource_reason": "synthetic",
+            "review_requests": snapshot["review_requests"],
         }
         identity = {
             "snapshot": snapshot,
@@ -143,12 +145,38 @@ class StateTests(unittest.TestCase):
         self.assertEqual(after, before + 1)
 
     def test_contract_review_decisions_advance_quiescence_revision(self):
-        before = self.store.quiescence_snapshot()["revision"]
+        before = self.store.db.execute(
+            "SELECT value FROM quiescence_revision WHERE id=1"
+        ).fetchone()[0]
         self.store.db.execute(
             "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
             ("contract-review/" + "a" * 64, 1, "{}"),
         )
-        self.assertEqual(self.store.quiescence_snapshot()["revision"], before + 1)
+        after = self.store.db.execute(
+            "SELECT value FROM quiescence_revision WHERE id=1"
+        ).fetchone()[0]
+        self.assertEqual(after, before + 1)
+
+    def test_quiescence_worklist_overflow_is_explicit_and_bounded(self):
+        for index in range(101):
+            request_id = f"{index:064x}"
+            self.store.db.execute(
+                "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+                ("contract-review/" + request_id, 1, "{}"),
+            )
+
+        snapshot = self.store.quiescence_snapshot()
+
+        self.assertEqual(
+            snapshot["review_requests"],
+            {
+                "items": [],
+                "count": None,
+                "limit": 100,
+                "dispatch_authority": False,
+                "overflow": True,
+            },
+        )
 
     def test_quiescence_handoff_rejects_modified_issued_snapshot(self):
         snapshot = self.store.quiescence_snapshot()
@@ -158,6 +186,7 @@ class StateTests(unittest.TestCase):
             "status": "requested",
             "reason": "catalogue-exhausted",
             "resource_reason": "synthetic",
+            "review_requests": forged["review_requests"],
         }
         identity = {
             "snapshot": forged,
@@ -180,6 +209,7 @@ class StateTests(unittest.TestCase):
             "status": "requested",
             "reason": "catalogue-exhausted",
             "resource_reason": "synthetic",
+            "review_requests": snapshot["review_requests"],
         }
 
         def fingerprint(current_snapshot):
@@ -269,6 +299,7 @@ class StateTests(unittest.TestCase):
             "status": "requested",
             "reason": "catalogue-exhausted",
             "resource_reason": "synthetic",
+            "review_requests": snapshot["review_requests"],
         }
         identity = {
             "snapshot": snapshot,

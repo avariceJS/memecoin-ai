@@ -1235,6 +1235,7 @@ def supervise(state: Path, max_seconds=1800):
                             "reason": reason,
                             "resource_reason": resource_reason,
                             "fingerprint": fingerprint,
+                            "review_requests": snapshot["review_requests"],
                         },
                     )
                     if not recorded:

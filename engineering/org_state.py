@@ -614,6 +614,9 @@ class Store:
                 "contract_reviews": self._contract_transition_review_projection_in_snapshot(
                     limit=100
                 ),
+                "review_requests": self._contract_review_worklist_in_snapshot(
+                    limit=100, overflow_as_result=True
+                ),
             }
             self._issued_quiescence_snapshot_sha256 = hashlib.sha256(
                 _json(snapshot).encode("utf-8")
@@ -630,16 +633,26 @@ class Store:
         body = _lifecycle_snapshot(body)
         if (
             type(expected_snapshot) is not dict
-            or set(expected_snapshot) != {"revision", "tasks", "readiness", "contract_reviews"}
+            or set(expected_snapshot)
+            != {"revision", "tasks", "readiness", "contract_reviews", "review_requests"}
             or type(expected_snapshot.get("revision")) is not int
             or expected_snapshot["revision"] < 0
             or type(body) is not dict
-            or set(body) != {"owner", "status", "reason", "resource_reason", "fingerprint"}
+            or set(body)
+            != {
+                "owner",
+                "status",
+                "reason",
+                "resource_reason",
+                "fingerprint",
+                "review_requests",
+            }
             or body.get("owner") != "Sol"
             or body.get("status") != "requested"
             or body.get("fingerprint") != fingerprint
             or type(body.get("reason")) is not str
             or type(body.get("resource_reason")) is not str
+            or body.get("review_requests") != expected_snapshot.get("review_requests")
         ):
             raise StateError("quiescence handoff body invalid")
         if body["reason"] not in {
@@ -1816,46 +1829,56 @@ class Store:
         if type(limit) is not int or not 1 <= limit <= 100:
             raise StateError("contract review worklist limit invalid")
         with self._read_snapshot():
-            rows = self.db.execute(
-                "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
-                "GROUP BY name ORDER BY name LIMIT ?",
-                (limit + 1,),
-            ).fetchall()
-            if len(rows) > limit:
-                raise StateError("contract review worklist exceeds bound")
-            items = []
-            for row in rows:
-                match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
-                if match is None:
-                    raise StateError("contract review worklist identity invalid")
-                current = self._contract_review_record(match.group(1))
-                if current is None:
-                    raise StateError("contract review worklist record missing")
-                body = current["body"]
-                freshness = self._contract_review_currentness_in_snapshot(
-                    current, body["packet_hash"]
-                )
-                items.append(
-                    {
-                        "request_id": body["request_id"],
-                        "journal_version": current["version"],
-                        "status": body["status"],
-                        "team": body["team"],
-                        "role": body["role"],
-                        "packet_hash": body["packet_hash"],
-                        "current": freshness["current"],
-                        "blockers": freshness["blockers"],
-                        "dispatch_eligible": (
-                            body["status"] == "prepared" and freshness["current"]
-                        ),
-                    }
-                )
-            return {
-                "items": items,
-                "count": len(items),
-                "limit": limit,
-                "dispatch_authority": False,
-            }
+            return self._contract_review_worklist_in_snapshot(limit=limit)
+
+    def _contract_review_worklist_in_snapshot(
+        self, *, limit: int, overflow_as_result: bool = False
+    ) -> dict:
+        """Build the bounded request projection inside an existing read snapshot."""
+        rows = self.db.execute(
+            "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
+            "GROUP BY name ORDER BY name LIMIT ?",
+            (limit + 1,),
+        ).fetchall()
+        if len(rows) > limit:
+            if overflow_as_result:
+                return {
+                    "items": [],
+                    "count": None,
+                    "limit": limit,
+                    "dispatch_authority": False,
+                    "overflow": True,
+                }
+            raise StateError("contract review worklist exceeds bound")
+        items = []
+        for row in rows:
+            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
+            if match is None:
+                raise StateError("contract review worklist identity invalid")
+            current = self._contract_review_record(match.group(1))
+            if current is None:
+                raise StateError("contract review worklist record missing")
+            body = current["body"]
+            freshness = self._contract_review_currentness_in_snapshot(current, body["packet_hash"])
+            items.append(
+                {
+                    "request_id": body["request_id"],
+                    "journal_version": current["version"],
+                    "status": body["status"],
+                    "team": body["team"],
+                    "role": body["role"],
+                    "packet_hash": body["packet_hash"],
+                    "current": freshness["current"],
+                    "blockers": freshness["blockers"],
+                    "dispatch_eligible": (body["status"] == "prepared" and freshness["current"]),
+                }
+            )
+        return {
+            "items": items,
+            "count": len(items),
+            "limit": limit,
+            "dispatch_authority": False,
+        }
 
     def begin_contract_review_dispatch(self, request_id: str, packet_hash: str) -> dict:
         """Write the one-shot dispatch intent before any metered provider call."""
