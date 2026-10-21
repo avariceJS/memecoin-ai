@@ -9,9 +9,11 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+from engineering import supervisor
 from engineering.org_state import StateError, Store
 
 
@@ -646,6 +648,186 @@ def record_pending_review_response(store, body, *, suffix, result=None):
         {"pid": 123, "birth": "synthetic-birth-" + suffix},
     )
     record_review_result(store, body, review_result() if result is None else result)
+
+
+def test_configured_activation_replays_saved_approval_without_provider_or_resend(store, tmp_path):
+    integrate_producer(store)
+    store.add_task(
+        "PLAT-1",
+        "Platform",
+        "consume v2 contract",
+        scope=["cli.py"],
+        contracts={"sample": 2},
+    )
+    proposal = {
+        "schema": "v2",
+        "version": 2,
+        "producer": "Experience",
+        "producer_task_id": "EXP-1",
+        "consumers": ["Platform"],
+    }
+    transition = store.propose_contract_transition(
+        "sample",
+        1,
+        2,
+        proposal,
+        producer_task_id="EXP-1",
+        producer_team="Experience",
+        consumer_teams=["Platform"],
+    )
+    request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
+    body = request["body"]
+    record_pending_review_response(store, body, suffix="activate")
+    store.acknowledge_contract_transition(
+        "sample", 2, "Experience", transition["body"]["contract_hash"]
+    )
+    assert [item["task_id"] for item in store.readiness_report() if item["eligible"]] == []
+
+    cfg = {"contracts": {"sample": proposal}}
+    with (
+        patch.object(supervisor, "config", return_value=cfg),
+        patch.object(supervisor, "log_event"),
+        patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
+        patch.object(
+            supervisor,
+            "metered_client",
+            side_effect=AssertionError("provider must not start"),
+        ),
+    ):
+        supervisor.activate_contract(tmp_path, store)
+
+    assert store.get_decision(request["name"])["body"]["status"] == "approved"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is not None
+    assert store.get_contract("sample")["version"] == 2
+    assert [item["task_id"] for item in store.readiness_report() if item["eligible"]] == ["PLAT-1"]
+
+
+def test_transition_scoped_replay_overflow_does_not_starve_another_transition(store):
+    first = prepare_review(store)
+    first_body = first["body"]
+    record_pending_review_response(store, first_body, suffix="sample-1")
+    second = store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+    second_body = second["body"]
+    record_pending_review_response(store, second_body, suffix="sample-2")
+
+    store.add_task("EXP-2", "Experience", "produce other contract", scope=["other.py"])
+    store.put_contract("other", 1, {"schema": "other-v1"})
+    other = store.propose_contract_transition(
+        "other",
+        1,
+        2,
+        {"schema": "other-v2"},
+        producer_task_id="EXP-2",
+        producer_team="Experience",
+        consumer_teams=["Platform"],
+    )
+    other_request = store.prepare_contract_review("other", 2, "Platform", "e" * 64, review_packet())
+    record_pending_review_response(store, other_request["body"], suffix="other")
+
+    overflow = store.replay_contract_review_responses_for_transition(
+        "sample", 2, first_body["contract_hash"], limit=1
+    )
+    assert overflow["overflow"] is True
+    assert overflow["replayed"] == []
+    assert store.get_decision(first["name"])["body"]["status"] == "response_recorded"
+    assert store.get_decision(second["name"])["body"]["status"] == "response_recorded"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+    replayed_other = store.replay_contract_review_responses_for_transition(
+        "other", 2, other["body"]["contract_hash"], limit=1
+    )
+    assert replayed_other["overflow"] is False
+    assert [item["request_id"] for item in replayed_other["replayed"]] == [
+        other_request["body"]["request_id"]
+    ]
+    assert store.get_decision(store._contract_ack_key("other", 2, "Platform")) is not None
+
+
+def test_supervisor_transition_overflow_keeps_processing_other_configured_contracts(
+    store, tmp_path
+):
+    integrate_producer(store, "EXP-1")
+    integrate_producer(store, "EXP-2")
+    store.add_task("PLAT-1", "Platform", "review both contract transitions", scope=["cli.py"])
+    sample_proposal = {
+        "schema": "v2",
+        "version": 2,
+        "producer": "Experience",
+        "producer_task_id": "EXP-1",
+        "consumers": ["Platform"],
+    }
+    other_proposal = {
+        "schema": "other-v2",
+        "version": 2,
+        "producer": "Experience",
+        "producer_task_id": "EXP-2",
+        "consumers": ["Platform"],
+    }
+    store.put_contract("z-other", 1, {"schema": "other-v1"})
+    transitions = {
+        "sample": store.propose_contract_transition(
+            "sample",
+            1,
+            2,
+            sample_proposal,
+            producer_task_id="EXP-1",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        ),
+        "z-other": store.propose_contract_transition(
+            "z-other",
+            1,
+            2,
+            other_proposal,
+            producer_task_id="EXP-2",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        ),
+    }
+    for name in ("sample", "z-other"):
+        store.acknowledge_contract_transition(
+            name, 2, "Experience", transitions[name]["body"]["contract_hash"]
+        )
+    sample_requests = []
+    for index in range(101):
+        request = store.prepare_contract_review(
+            "sample", 2, "Platform", f"{index:064x}", review_packet()
+        )
+        sample_requests.append(request)
+        record_pending_review_response(store, request["body"], suffix=f"sample-{index}")
+    other_request = store.prepare_contract_review(
+        "z-other", 2, "Platform", "f" * 64, review_packet()
+    )
+    record_pending_review_response(store, other_request["body"], suffix="other-transition")
+
+    cfg = {"contracts": {"sample": sample_proposal, "z-other": other_proposal}}
+    with (
+        patch.object(supervisor, "config", return_value=cfg),
+        patch.object(supervisor, "log_event") as log_event,
+        patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
+        patch.object(
+            supervisor,
+            "metered_client",
+            side_effect=AssertionError("provider must not start"),
+        ),
+    ):
+        supervisor.activate_contract(tmp_path, store)
+
+    assert store.get_contract("sample")["version"] == 1
+    assert store.get_contract("z-other")["version"] == 2
+    assert all(
+        store.get_decision(request["name"])["body"]["status"] == "response_recorded"
+        for request in sample_requests
+    )
+    assert store.get_decision(other_request["name"])["body"]["status"] == "approved"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+    assert store.get_decision(store._contract_ack_key("z-other", 2, "Platform")) is not None
+    assert any(
+        call.args[1] == "contract_review_replay_reconciled"
+        and call.kwargs.get("name") == "sample"
+        and call.kwargs.get("overflow") is True
+        for call in log_event.call_args_list
+    )
 
 
 def test_contract_review_replay_sweep_overflow_performs_no_partial_replay(store):

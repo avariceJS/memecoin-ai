@@ -1939,6 +1939,56 @@ class Store:
             "overflow": False,
         }
 
+    def _contract_review_transition_replay_inventory_in_snapshot(
+        self, *, name: str, version: int, contract_hash: str, limit: int
+    ) -> dict:
+        """Select bounded response journals for one exact current proposal."""
+        transition = self._single_contract_decision(self._contract_transition_key(name, version))
+        if transition is None:
+            raise StateError("contract transition proposal missing")
+        proposal = self._validated_contract_transition(transition["body"], name, version)
+        if proposal["contract_hash"] != contract_hash:
+            raise StateError("contract review proposal changed")
+        proposal_digest = self._contract_review_digest(proposal)
+        rows = self.db.execute(
+            "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
+            "GROUP BY name ORDER BY name"
+        )
+        items = []
+        skipped_count = 0
+        while row := rows.fetchone():
+            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
+            if match is None:
+                raise StateError("contract review worklist identity invalid")
+            current = self._contract_review_record(match.group(1))
+            if current is None:
+                raise StateError("contract review worklist record missing")
+            body = current["body"]
+            if (
+                body["name"] != name
+                or body["version"] != version
+                or body["contract_hash"] != contract_hash
+                or body["proposal_digest"] != proposal_digest
+            ):
+                continue
+            if body["status"] != "response_recorded":
+                skipped_count += 1
+                continue
+            items.append({"request_id": body["request_id"], "packet_hash": body["packet_hash"]})
+            if len(items) > limit:
+                return {
+                    "items": [],
+                    "count": None,
+                    "skipped_count": None,
+                    "overflow": True,
+                }
+        return {
+            "items": items,
+            "count": len(items),
+            "skipped_count": skipped_count,
+            "overflow": False,
+        }
+
     def begin_contract_review_dispatch(self, request_id: str, packet_hash: str) -> dict:
         """Write the one-shot dispatch intent before any metered provider call."""
         if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
@@ -2111,6 +2161,34 @@ class Store:
             raise StateError("contract review replay limit invalid")
         with self._read_snapshot():
             inventory = self._contract_review_replay_inventory_in_snapshot(limit=limit)
+        return self._replay_contract_review_inventory(inventory, limit=limit)
+
+    def replay_contract_review_responses_for_transition(
+        self, name: str, version: int, contract_hash: str, *, limit: int = 100
+    ) -> dict:
+        """Locally replay bounded custodied responses for one exact transition only."""
+        if (
+            type(name) is not str
+            or not name.strip()
+            or type(version) is not int
+            or version < 2
+            or type(contract_hash) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", contract_hash) is None
+            or type(limit) is not int
+            or not 1 <= limit <= 100
+        ):
+            raise StateError("contract review transition replay request invalid")
+        with self._read_snapshot():
+            inventory = self._contract_review_transition_replay_inventory_in_snapshot(
+                name=name,
+                version=version,
+                contract_hash=contract_hash,
+                limit=limit,
+            )
+        result = self._replay_contract_review_inventory(inventory, limit=limit)
+        return {**result, "name": name, "version": version, "contract_hash": contract_hash}
+
+    def _replay_contract_review_inventory(self, inventory: dict, *, limit: int) -> dict:
         if inventory["overflow"]:
             return {
                 "limit": limit,
