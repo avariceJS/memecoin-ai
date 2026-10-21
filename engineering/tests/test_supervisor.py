@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 import sys
 import tempfile
 import threading
@@ -512,6 +513,12 @@ class SupervisorTests(unittest.TestCase):
         def git_raw_output(_repo, *args):
             return raw_path_output if "--name-only" in args else diff
 
+        def git_raw_limited_output(_repo, max_bytes, *args, **_kwargs):
+            encoded = diff.encode("utf-8")
+            if len(encoded) > max_bytes:
+                raise RuntimeError("git_output_exceeds_limit")
+            return diff
+
         with (
             patch.object(supervisor, "GitGate", return_value=gate),
             patch.object(supervisor, "runner", return_value=MagicMock()),
@@ -521,6 +528,7 @@ class SupervisorTests(unittest.TestCase):
             ) as model,
             patch.object(supervisor, "git", return_value="normalized output"),
             patch.object(supervisor, "git_raw", side_effect=git_raw_output),
+            patch.object(supervisor, "git_raw_limited", side_effect=git_raw_limited_output),
         ):
             supervisor.verify_one(self.state, self.db.get_task("T"))
         self.assertEqual(self.db.get_task("T")["state"], "pending")
@@ -637,6 +645,7 @@ class SupervisorTests(unittest.TestCase):
             ),
             patch.object(supervisor, "git", return_value="normalized output"),
             patch.object(supervisor, "git_raw", side_effect=git_raw_output),
+            patch.object(supervisor, "git_raw_limited", return_value="synthetic diff"),
             patch.object(supervisor, "activate_contract"),
         ):
             first = threading.Thread(
@@ -1013,6 +1022,74 @@ class SupervisorTests(unittest.TestCase):
         with patch.object(supervisor.subprocess, "run", return_value=process):
             with self.assertRaisesRegex(RuntimeError, "git_path_not_utf8"):
                 supervisor.git_raw(self.state, "diff")
+
+    def test_git_raw_limited_accepts_exact_limit_and_rejects_limit_plus_one(self):
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run(["git", "-C", directory, "init", "-q"], check=True)
+            payload = b"x" * 64
+            written = subprocess.run(
+                ["git", "-C", directory, "hash-object", "-w", "--stdin"],
+                input=payload,
+                capture_output=True,
+                check=True,
+            )
+            object_id = written.stdout.decode("ascii").strip()
+            self.assertEqual(
+                supervisor.git_raw_limited(directory, len(payload), "cat-file", "blob", object_id),
+                payload.decode("ascii"),
+            )
+            with self.assertRaisesRegex(RuntimeError, "git_output_exceeds_limit"):
+                supervisor.git_raw_limited(
+                    directory, len(payload) - 1, "cat-file", "blob", object_id
+                )
+
+    def test_git_raw_limited_rejects_invalid_timeout_before_spawn(self):
+        for timeout in (True, 0, float("inf"), 301):
+            with (
+                self.subTest(timeout=timeout),
+                patch.object(supervisor.subprocess, "Popen") as popen,
+            ):
+                with self.assertRaisesRegex(ValueError, "timeout"):
+                    supervisor.git_raw_limited(self.state, 10, "diff", timeout=timeout)
+                popen.assert_not_called()
+
+    def test_git_raw_limited_selector_allocation_failure_precedes_spawn(self):
+        with (
+            patch.object(
+                supervisor.selectors,
+                "DefaultSelector",
+                side_effect=OSError("selector allocation failed"),
+            ),
+            patch.object(supervisor.subprocess, "Popen") as popen,
+        ):
+            with self.assertRaisesRegex(OSError, "selector allocation failed"):
+                supervisor.git_raw_limited(self.state, 10, "diff")
+        popen.assert_not_called()
+
+    def test_git_raw_limited_cleans_process_and_pipes_after_selector_read_error(self):
+        selector = MagicMock()
+        selector.get_map.return_value = {1: object()}
+        selector.select.side_effect = OSError("synthetic read failure")
+        process = MagicMock()
+        process.pid = 321
+        process.stdout.fileno.return_value = 11
+        process.stderr.fileno.return_value = 12
+
+        with (
+            patch.object(supervisor.selectors, "DefaultSelector", return_value=selector),
+            patch.object(supervisor.subprocess, "Popen", return_value=process) as popen,
+            patch.object(supervisor.os, "set_blocking"),
+            patch.object(supervisor.os, "killpg") as killpg,
+        ):
+            with self.assertRaisesRegex(OSError, "synthetic read failure"):
+                supervisor.git_raw_limited(self.state, 10, "diff")
+
+        popen.assert_called_once()
+        selector.close.assert_called_once()
+        killpg.assert_called_once_with(321, supervisor.signal.SIGKILL)
+        process.wait.assert_called_once_with(timeout=5)
+        process.stdout.close.assert_called_once()
+        process.stderr.close.assert_called_once()
 
     def test_verification_runs_get_distinct_artifact_directories(self):
         first = supervisor._verification_run_dir(self.state, "merged")

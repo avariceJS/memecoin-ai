@@ -13,6 +13,8 @@ import hashlib
 import json
 import math
 import os
+import selectors
+import signal
 import subprocess
 import tempfile
 import threading
@@ -31,7 +33,7 @@ from .org_state import (
     _json,
 )
 from .processes import process_identity, terminate_owned
-from .review_packet import build_review_packet
+from .review_packet import MAX_DIFF_BYTES, build_review_packet
 from .service import validate_deployment
 from .verification_plan import (
     attempt_plan_matches,
@@ -471,6 +473,119 @@ def git_raw(repo, *args):
         return output.decode("utf-8", errors="strict")
     except UnicodeDecodeError:
         raise RuntimeError("git_path_not_utf8") from None
+
+
+def git_raw_limited(repo, max_bytes, *args, timeout=30):
+    """Capture strict UTF-8 Git output with bounded stdout, stderr and runtime."""
+    if type(max_bytes) is not int or max_bytes < 0:
+        raise ValueError("max_bytes must be a nonnegative integer")
+    if (
+        type(timeout) not in (int, float)
+        or (type(timeout) is float and not math.isfinite(timeout))
+        or timeout <= 0
+        or timeout > 300
+    ):
+        raise ValueError("timeout must be in (0, 300]")
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(
+        GIT_CONFIG_NOSYSTEM="1",
+        GIT_CONFIG_GLOBAL="/dev/null",
+        GIT_TERMINAL_PROMPT="0",
+        GIT_NO_REPLACE_OBJECTS="1",
+    )
+    command = [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "core.fsmonitor=false",
+        "-C",
+        str(repo),
+        *args,
+    ]
+    deadline = time.monotonic() + timeout
+    selector = selectors.DefaultSelector()
+    process = None
+    output = bytearray()
+    diagnostic = bytearray()
+    failure = None
+    try:
+        process = subprocess.Popen(
+            command,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=0,
+            start_new_session=True,
+        )
+        for stream, label in ((process.stdout, "stdout"), (process.stderr, "stderr")):
+            os.set_blocking(stream.fileno(), False)
+            selector.register(stream, selectors.EVENT_READ, label)
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError("git_output_timeout")
+            for key, _ in selector.select(min(remaining, 0.1)):
+                chunk = os.read(key.fileobj.fileno(), 65536)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                if key.data == "stdout":
+                    if len(output) + len(chunk) > max_bytes:
+                        raise RuntimeError("git_output_exceeds_limit")
+                    output.extend(chunk)
+                else:
+                    diagnostic.extend(chunk[: max(0, 1500 - len(diagnostic))])
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError("git_output_timeout")
+        try:
+            returncode = process.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("git_output_timeout") from None
+        if returncode:
+            message = bytes(diagnostic[-1500:]).decode("utf-8", errors="replace")
+            raise RuntimeError(message)
+        try:
+            return bytes(output).decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            raise RuntimeError("git_path_not_utf8") from None
+    except BaseException as exc:
+        failure = exc
+        raise
+    finally:
+        cleanup_error = None
+        try:
+            selector.close()
+        except BaseException as exc:
+            cleanup_error = exc
+        try:
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                except OSError:
+                    if process.poll() is None:
+                        process.kill()
+                    else:
+                        raise
+                process.wait(timeout=5)
+        except BaseException as exc:
+            cleanup_error = cleanup_error or exc
+        finally:
+            if process is not None:
+                for stream in (process.stdout, process.stderr):
+                    if stream is not None:
+                        try:
+                            stream.close()
+                        except BaseException as exc:
+                            cleanup_error = cleanup_error or exc
+        if cleanup_error is not None:
+            if failure is not None:
+                failure.add_note("Git capture cleanup also failed: " + type(cleanup_error).__name__)
+            else:
+                raise RuntimeError("git_process_cleanup_failed") from cleanup_error
 
 
 def _verification_run_dir(state: Path, candidate_sha: str) -> Path:
@@ -1105,8 +1220,9 @@ def verify_one(state, task):
                         "passed_field": command_binding.result["passed_field"],
                     },
                 )
-        diff = git_raw(
+        diff = git_raw_limited(
             state / "integration",
+            MAX_DIFF_BYTES,
             "diff",
             "--no-ext-diff",
             "--no-textconv",

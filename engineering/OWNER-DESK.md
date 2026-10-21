@@ -4,12 +4,13 @@
 Пилот остаётся остановлен. Проверенный исходный код аудита: `org/development`, `b2dcd6d`;
 документационный checkpoint: `0054a9e`. Ни эксплуатационный запуск, ни снятие STOP не разрешены.
 
-Текущий source checkpoint `org/development`: артефакты каждой verifier-попытки сохраняются в
-отдельном каталоге под candidate SHA; receipt связывает каталог и хэши command/review файлов.
-Конкурентная регрессия проверяет наложение двух проверок одного SHA и раздельное сохранение raw
-ответов. Sol принял точный diff `f0c322997dd55b5eecec89ae76a96252c4f93e8e721ffd0b8c1ab5ff6d98dd14`;
-полный engineering gate: Ruff, format, 580 тестов и 185 subtests. Git diff также передаётся в review
-без нормализации переводов строк и обрезки пробелов. Native readback той же Goal
+Текущий source checkpoint `org/development`: merged review diff собирается с ограничением 50 КБ;
+stderr ограничен 1,500 байтами, время capture — 30 секундами; при ошибке группа Git завершается и
+процессы собираются до вызова reviewer. Допустимые байты строго декодируются как UTF-8 без
+нормализации CRLF и пробелов.
+Sol принял точный diff `799a844a51b7e806c8aa9a6111c6120f4714111145bfa27706318d286356709d`; полный
+engineering gate: Ruff, format, 584 теста и 189 subtests. Артефакты каждой verifier-попытки уже
+разделены по invocation и привязаны к receipt. Native readback той же Goal
 `01a15b1c-c263-71b0-bfca-c5b46d17a89b` остаётся `paused`; основатель разрешил продолжить работу
 без создания Goal-замены. STOP, запрет runtime и блокировка выпуска по A03 сохраняются.
 
