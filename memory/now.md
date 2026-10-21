@@ -63,6 +63,11 @@ decisions and independent review; Astra remains episodic and is never started au
   exact diff `080d085c6ddd7aac64b7c5bdc1bc9354122225ec459024fd6af845b3fe885bef`; the full gate passed
   Ruff, format, 571 tests and 161 subtests. The returned packet remains mutable; this is source-only
   evidence, with A03/release/runtime gates still closed. Not yet committed.
+- Current A11 candidate validates independent reviewer decisions locally with duplicate-key,
+  nonfinite-number, exact-schema and closed-fence checks. Sol accepted exact diff
+  `3ee0c37fc8ac1986e1351eea06f10d09428cfe1ee79fdec605bce6c17c90b00c`; the full gate passed Ruff,
+  format, 574 tests and 173 subtests. Reviewer authenticity/quality and operational authority remain
+  unqualified. Not yet committed.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

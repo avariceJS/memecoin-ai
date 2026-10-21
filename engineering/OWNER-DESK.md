@@ -909,3 +909,13 @@ command results. Scope, хеш, wire limit и возвращённые данн�
 `080d085c6ddd7aac64b7c5bdc1bc9354122225ec459024fd6af845b3fe885bef`; полный gate: Ruff, format,
 571 тест и 161 subtest. Возвращённый dict сам остаётся изменяемым; это не подтверждает качество
 independent review, provenance, A03 settlement или readiness к эксплуатации.
+
+Следующий A11 guard на базе `5be5ec2`: independent-review decision теперь парсится отдельным
+локальным parser. Он требует ровно `approved` (точный bool), `findings` (list строк), `rationale`
+(строка), отклоняет duplicate keys, NaN/Infinity/exponent overflow и неверное fenced framing.
+Callback regressions подтверждают, что conflicting `false`/`true` или unclosed fence сохраняют
+`review-raw.json`, записывают отказ, не создают `review.json` и не принимают/публикуют candidate.
+Sol принял exact diff
+`3ee0c37fc8ac1986e1351eea06f10d09428cfe1ee79fdec605bce6c17c90b00c`; полный gate: Ruff, format,
+574 теста и 173 subtest. Это локальная проверка формы решения; reviewer authenticity, качество
+review, usage settlement, A03 и operational readiness остаются отдельными воротами.

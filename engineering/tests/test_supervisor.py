@@ -613,6 +613,80 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(packet["candidate"]["merged_changed_paths"], ["src/example.py"])
         self.assertEqual(packet["task"]["brief"], "")
 
+    def test_independent_review_decision_requires_exact_local_schema(self):
+        valid_approval = json.dumps(
+            {"approved": True, "findings": [], "rationale": "Checks passed."}
+        )
+        valid_rejection = json.dumps(
+            {"approved": False, "findings": ["defect"], "rationale": "Found a defect."}
+        )
+        self.assertTrue(supervisor.parse_independent_review_decision(valid_approval)["approved"])
+        self.assertFalse(supervisor.parse_independent_review_decision(valid_rejection)["approved"])
+        self.assertTrue(
+            supervisor.parse_independent_review_decision("```json\n" + valid_approval + "\n```")[
+                "approved"
+            ]
+        )
+
+        invalid = (
+            '{"approved":false,"approved":true,"findings":[],"rationale":"conflict"}',
+            '{"approved":true,"approved":false,"findings":[],"rationale":"conflict"}',
+            '{"approved":true,"findings":[]}',
+            '{"approved":true,"findings":[],"rationale":"ok","extra":1}',
+            '{"approved":1,"findings":[],"rationale":"ok"}',
+            '{"approved":true,"findings":[1],"rationale":"ok"}',
+            '{"approved":true,"findings":[],"rationale":1}',
+            '{"approved":true,"findings":[],"rationale":"ok","extra":NaN}',
+            '{"approved":true,"findings":[],"rationale":"ok","extra":Infinity}',
+            '{"approved":true,"findings":[],"rationale":"ok","extra":1e9999}',
+            '```json\n{"approved":true,"findings":[],"rationale":"ok"}',
+            '```json\n{"approved":true,"findings":[],"rationale":"ok"}\n```\ntrailing',
+        )
+        for raw in invalid:
+            with self.subTest(raw=raw), self.assertRaises(ValueError):
+                supervisor.parse_independent_review_decision(raw)
+
+    def test_ambiguous_independent_review_approval_fails_in_callback(self):
+        model = self.verification_failure(
+            json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
+            reviewer_text=(
+                '{"approved":false,"approved":true,"findings":[],'
+                '"rationale":"conflicting decisions"}'
+            ),
+        )
+        model.assert_called_once()
+        events = self.db.events()
+        verification_event = [event for event in events if event["kind"] == "candidate_verified"][
+            -1
+        ]
+        self.assertFalse(verification_event["body"]["passed"])
+        self.assertIn(
+            "review_decision_duplicate_key",
+            verification_event["body"]["details"]["error"],
+        )
+        self.assertTrue((self.state / "verification" / "merged" / "review-raw.json").is_file())
+        self.assertFalse((self.state / "verification" / "merged" / "review.json").exists())
+
+    def test_unclosed_review_fence_cannot_hide_conflicting_decision_in_callback(self):
+        model = self.verification_failure(
+            json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
+            reviewer_text=(
+                '```json\n{"approved":true,"findings":[],"rationale":"ok"}\n'
+                '{"approved":false,"findings":["defect"],"rationale":"reject"}'
+            ),
+        )
+        model.assert_called_once()
+        verification_event = [
+            event for event in self.db.events() if event["kind"] == "candidate_verified"
+        ][-1]
+        self.assertFalse(verification_event["body"]["passed"])
+        self.assertIn(
+            "review_decision_invalid_fence",
+            verification_event["body"]["details"]["error"],
+        )
+        self.assertTrue((self.state / "verification" / "merged" / "review-raw.json").is_file())
+        self.assertFalse((self.state / "verification" / "merged" / "review.json").exists())
+
     def test_oversized_diff_blocks_before_independent_review_call(self):
         model = self.verification_failure(
             json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),

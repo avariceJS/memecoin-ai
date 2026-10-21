@@ -1711,3 +1711,14 @@ error. Sol-6.1 accepted exact diff
 gate passed Ruff, format, 571 tests and 161 subtests. The returned packet remains an ordinary mutable
 dict, and this does not establish reviewer quality, provider provenance, A03 settlement or production
 readiness.
+
+At `5be5ec2`, independent reviewer output is now parsed by a review-specific local validator rather
+than the permissive shared JSON helper. It rejects duplicate keys, nonstandard/nonfinite numbers,
+missing or extra fields, wrong exact value types, and malformed fenced framing. Valid plain and
+fenced approval/rejection objects retain their semantics. Callback regressions verify ambiguous
+approval and an unclosed fence containing a conflicting rejection retain `review-raw.json`, record a
+failed outcome, and stop before `review.json`, acceptance or publication. Sol-6.1 accepted exact diff
+`3ee0c37fc8ac1986e1351eea06f10d09428cfe1ee79fdec605bce6c17c90b00c`; the engineering release gate
+passed Ruff, format, 574 tests and 173 subtests. This proves local shape/ambiguity rejection only; it
+does not authenticate the provider or establish review quality, usage settlement, A03 closure or
+operational readiness.

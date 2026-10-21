@@ -11,6 +11,7 @@ import dataclasses
 import fcntl
 import hashlib
 import json
+import math
 import os
 import subprocess
 import threading
@@ -103,6 +104,71 @@ REVIEW_SCHEMA = {
     },
     "required": ["approved", "rationale", "findings"],
 }
+
+
+class IndependentReviewDecisionError(ValueError):
+    """The independent reviewer returned an ambiguous or malformed decision."""
+
+
+def _unique_review_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise IndependentReviewDecisionError("review_decision_duplicate_key")
+        result[key] = value
+    return result
+
+
+def _reject_review_constant(_value):
+    raise IndependentReviewDecisionError("review_decision_nonstandard_number")
+
+
+def _finite_review_float(value):
+    number = float(value)
+    if not math.isfinite(number):
+        raise IndependentReviewDecisionError("review_decision_nonstandard_number")
+    return number
+
+
+def parse_independent_review_decision(text):
+    """Require one unambiguous decision object matching the local review contract."""
+    if type(text) is not str:
+        raise IndependentReviewDecisionError("review_decision_invalid_text")
+    value = text.strip()
+    if value.startswith("```"):
+        lines = value.splitlines()
+        opener = lines[0].strip() if lines else ""
+        valid_opener = opener == "```" or (
+            opener.startswith("```") and opener[3:].lower() == "json"
+        )
+        if len(lines) < 3 or not valid_opener or lines[-1].strip() != "```":
+            raise IndependentReviewDecisionError("review_decision_invalid_fence")
+        value = "\n".join(lines[1:-1])
+    try:
+        decision = json.loads(
+            value,
+            object_pairs_hook=_unique_review_object,
+            parse_constant=_reject_review_constant,
+            parse_float=_finite_review_float,
+        )
+    except IndependentReviewDecisionError:
+        raise
+    except (json.JSONDecodeError, ValueError, RecursionError):
+        raise IndependentReviewDecisionError("review_decision_invalid_json") from None
+    if type(decision) is not dict or set(decision) != {
+        "approved",
+        "findings",
+        "rationale",
+    }:
+        raise IndependentReviewDecisionError("review_decision_schema_invalid")
+    if (
+        type(decision["approved"]) is not bool
+        or type(decision["findings"]) is not list
+        or any(type(item) is not str for item in decision["findings"])
+        or type(decision["rationale"]) is not str
+    ):
+        raise IndependentReviewDecisionError("review_decision_schema_invalid")
+    return decision
 
 
 def _configured_contract_transitions(cfg, db):
@@ -1043,7 +1109,7 @@ def verify_one(state, task):
             )
             atomic(verify_root / "review-raw.json", review)
             try:
-                decision = structured(review["text"])
+                decision = parse_independent_review_decision(review["text"])
             except Exception as exc:
                 reviewer.record_outcome(
                     f"verify:{task['id']}:{sha}", "failed", {"parser_error": type(exc).__name__}
