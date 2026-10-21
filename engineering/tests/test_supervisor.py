@@ -1637,6 +1637,11 @@ main()
         dependent_transport_roles = []
         stop_injected_after_claim = []
         popen_failures = []
+        episode_clock = [0.0]
+
+        def advance_episode_clock(seconds):
+            self.now += seconds
+            episode_clock[0] += seconds
 
         class SyntheticDependentCodex:
             def __init__(self, role):
@@ -1788,8 +1793,9 @@ main()
             patch.object(
                 supervisor.time,
                 "sleep",
-                side_effect=lambda seconds: setattr(self, "now", self.now + seconds),
+                side_effect=advance_episode_clock,
             ),
+            patch.object(supervisor.time, "monotonic", side_effect=lambda: episode_clock[0]),
             patch.object(
                 supervisor,
                 "metered_client",
@@ -1815,10 +1821,26 @@ main()
             self.assertEqual(cancelled_attempt[0]["state"], "cancelled_before_spawn")
             self.assertEqual(self.db.get_task("PLAT-002")["state"], "pending")
             self.assertEqual(spawned, [])
+            first_episode = self.db.supervisor_episode_checkpoint_status(self.state)
+            self.assertEqual(first_episode["status"], "stop_active")
+            self.assertEqual(first_episode["action"], "hold")
+            self.assertFalse(first_episode["dispatch_authority"])
             (self.state / "STOP").unlink()
+            supervisor.supervise(
+                self.state, max_seconds=1, contract_review_transport=review_transport
+            )
+            cooling_episode = self.db.supervisor_episode_checkpoint_status(self.state)
+            self.assertEqual(cooling_episode["status"], "waiting_until_retry")
+            self.assertEqual(cooling_episode["action"], "hold")
+            self.assertFalse(cooling_episode["dispatch_authority"])
+            self.now = cooling_episode["checkpoint"]["body"]["next_retry_at"]
             supervisor.supervise(
                 self.state, max_seconds=10, contract_review_transport=review_transport
             )
+            resumed_episode = self.db.supervisor_episode_checkpoint_status(self.state)
+            self.assertEqual(resumed_episode["status"], "due_for_recheck")
+            self.assertEqual(resumed_episode["action"], "hold")
+            self.assertFalse(resumed_episode["dispatch_authority"])
         self.assertEqual(len(review_transport.started_teams), 1)
         self.assertEqual(review_transport.reviewed_teams, review_transport.started_teams)
         self.assertNotIn(replay_request["team"], review_transport.started_teams)
@@ -4043,6 +4065,10 @@ main()
             patch.object(supervisor, "status", return_value={}),
         ):
             supervisor.supervise(self.state, max_seconds=10)
+        checkpoint = self.db.supervisor_episode_checkpoint_status(self.state)
+        self.assertEqual(checkpoint["status"], "stop_active")
+        self.assertEqual(checkpoint["action"], "hold")
+        self.assertFalse(checkpoint["dispatch_authority"])
         account_call.assert_not_called()
         capacity.assert_not_called()
         executive.assert_not_called()

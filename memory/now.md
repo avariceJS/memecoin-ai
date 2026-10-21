@@ -67,8 +67,13 @@ remain held for positive reconciliation. Synchronous `Popen` failures atomically
 attempt and persist capped exponential task cooldown; claim/readiness enforce it, unrelated tasks
 continue, and child custody resets the streak without spending retry budget. During cooldown, planning
 runs once per changed durable revision and pending contract reviews can progress; the earliest cooldown
-is observed even with unrelated dependency blockers. Full gate: Ruff/format,
-642 tests and 193 subtests; smoke is
+is observed even with unrelated dependency blockers. Each normal bounded/STOP episode exit now writes
+an idempotent passive checkpoint bound to deployment root, STOP, readiness revision/digest and earliest
+retry. Unknown runtime/accounting/quota/process gates remain `hold`; read-only status can report due for
+recheck but never starts another episode. Synthetic process exits before the checkpoint call and after
+its committed return, plus explicit cross-episode PLAT-002 continuation, cover local SQLite recovery
+only. Full gate: Ruff/format,
+646 tests and 193 subtests; smoke is
 reproducible with `edge_established=false`. This is
 synthetic source-only acceptance, not A04/provider/runtime qualification; remaining limits are in the
 canonical organization record.

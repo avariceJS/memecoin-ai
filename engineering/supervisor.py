@@ -2144,6 +2144,22 @@ def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
                 time.sleep(2)
         atomic(state / "status.json", status(state, db))
         render_desk(state, db)
+        if (state / "STOP").exists():
+            exit_reason = "stop_requested"
+        elif time.monotonic() >= end:
+            exit_reason = "episode_deadline"
+        else:
+            exit_reason = "quiescent"
+        checkpoint_snapshot = db.capture_supervisor_episode_snapshot(state)
+        checkpoint = db.record_supervisor_episode_checkpoint(
+            state, checkpoint_snapshot, exit_reason=exit_reason
+        )
+        log_event(
+            state,
+            "supervisor_episode_checkpointed",
+            checkpoint_id=checkpoint["body"]["checkpoint_id"],
+            exit_reason=exit_reason,
+        )
         log_event(state, "supervisor_stopped")
     db.close()
 

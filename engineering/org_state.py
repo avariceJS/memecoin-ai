@@ -61,6 +61,7 @@ _LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
 _LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
 _LIFECYCLE_OWNER_RECORD_MAX_BYTES = 64 * 1024
 _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS = 30.0
+_SUPERVISOR_EPISODE_CHECKPOINT_PREFIX = "supervisor/episode-checkpoint/"
 _SPAWN_FAILURE_BACKOFF_BASE_SECONDS = 5.0
 _SPAWN_FAILURE_BACKOFF_MAX_SECONDS = 300.0
 _SPAWN_FAILURE_BACKOFF_MAX_FAILURES = 8
@@ -925,6 +926,318 @@ class Store:
                 _json(snapshot).encode("utf-8")
             ).digest()
             return snapshot
+
+    def capture_supervisor_episode_snapshot(self, deployment_root: Path) -> dict:
+        """Capture Store readiness and STOP for a passive bounded-episode checkpoint."""
+        root = Path(deployment_root)
+        try:
+            if not stat.S_ISDIR(root.lstat().st_mode):
+                raise StateError("supervisor_episode_root_invalid")
+        except OSError:
+            raise StateError("supervisor_episode_root_invalid") from None
+        store_snapshot = self.quiescence_snapshot()
+        stop = self._lifecycle_file_source(root / "STOP", optional=True)
+        return {
+            "schema": "supervisor-episode-input-v1",
+            "captured_at": self._lifecycle_now(),
+            "deployment_root_sha256": self._supervisor_episode_root_sha256(root),
+            "store": store_snapshot,
+            "stop": {"present": stop["present"], "sha256": stop["sha256"]},
+        }
+
+    def record_supervisor_episode_checkpoint(
+        self, deployment_root: Path, snapshot: Any, *, exit_reason: str
+    ) -> dict:
+        """Persist a source-bound passive checkpoint; unknown gates always hold."""
+        snapshot = _lifecycle_snapshot(snapshot)
+        if (
+            type(snapshot) is not dict
+            or set(snapshot) != {"schema", "captured_at", "deployment_root_sha256", "store", "stop"}
+            or snapshot["schema"] != "supervisor-episode-input-v1"
+            or type(snapshot["captured_at"]) not in (int, float)
+            or isinstance(snapshot["captured_at"], bool)
+            or type(snapshot["deployment_root_sha256"]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", snapshot["deployment_root_sha256"]) is None
+            or type(exit_reason) is not str
+            or exit_reason not in {"stop_requested", "episode_deadline", "quiescent"}
+        ):
+            raise StateError("supervisor_episode_snapshot_invalid")
+        try:
+            captured_at_valid = math.isfinite(snapshot["captured_at"])
+        except OverflowError:
+            captured_at_valid = False
+        store_snapshot = snapshot["store"]
+        stop = snapshot["stop"]
+        if (
+            not captured_at_valid
+            or type(store_snapshot) is not dict
+            or set(store_snapshot)
+            != {"revision", "tasks", "readiness", "contract_reviews", "review_requests"}
+            or type(store_snapshot["revision"]) is not int
+            or store_snapshot["revision"] < 0
+            or type(stop) is not dict
+            or set(stop) != {"present", "sha256"}
+            or type(stop["present"]) is not bool
+            or (stop["present"] and type(stop["sha256"]) is not str)
+            or (not stop["present"] and stop["sha256"] is not None)
+        ):
+            raise StateError("supervisor_episode_snapshot_invalid")
+        snapshot_digest = hashlib.sha256(_json(store_snapshot).encode("utf-8")).hexdigest()
+        readiness_digest = self._supervisor_episode_readiness_sha256(store_snapshot["readiness"])
+        root = Path(deployment_root)
+        if snapshot["deployment_root_sha256"] != self._supervisor_episode_root_sha256(root):
+            raise StateError("supervisor_episode_root_changed")
+        with self._tx():
+            now = self._lifecycle_now()
+            if (
+                now < snapshot["captured_at"]
+                or now - snapshot["captured_at"] > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+            ):
+                raise StateError("supervisor_episode_snapshot_stale")
+            current_revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            current_stop = self._lifecycle_file_source(root / "STOP", optional=True)
+            if (
+                self._issued_quiescence_snapshot_sha256
+                != hashlib.sha256(_json(store_snapshot).encode("utf-8")).digest()
+                or current_revision != store_snapshot["revision"]
+                or self._supervisor_episode_readiness_sha256(self._readiness_report_in_snapshot())
+                != readiness_digest
+                or (current_stop["present"], current_stop["sha256"])
+                != (stop["present"], stop["sha256"])
+            ):
+                raise StateError("supervisor_episode_snapshot_changed")
+            retry_deadlines = []
+            for row in store_snapshot["readiness"]:
+                if row.get("state") != "pending":
+                    continue
+                for blocker in row.get("blockers", []):
+                    if blocker.get("kind") != "attempt_spawn_backoff":
+                        continue
+                    retry_at = blocker.get("retry_at")
+                    if (
+                        isinstance(retry_at, bool)
+                        or not isinstance(retry_at, (int, float))
+                        or not math.isfinite(retry_at)
+                    ):
+                        raise StateError("supervisor_episode_retry_invalid")
+                    retry_deadlines.append(retry_at)
+            next_retry_at = min(retry_deadlines) if retry_deadlines else None
+            identity = {
+                "deployment_root_sha256": snapshot["deployment_root_sha256"],
+                "store_revision": store_snapshot["revision"],
+                "store_snapshot_sha256": snapshot_digest,
+                "readiness_sha256": readiness_digest,
+                "stop": stop,
+                "exit_reason": exit_reason,
+                "next_retry_at": next_retry_at,
+            }
+            checkpoint_id = hashlib.sha256(_json(identity).encode("utf-8")).hexdigest()
+            name = _SUPERVISOR_EPISODE_CHECKPOINT_PREFIX + checkpoint_id
+            existing = self.get_decision(name)
+            if existing is not None:
+                self._validate_supervisor_episode_checkpoint(name, existing["body"])
+                return existing
+            body = {
+                "schema": "supervisor-episode-checkpoint-v1",
+                "checkpoint_id": checkpoint_id,
+                **identity,
+                "recorded_at": now,
+                "action": "hold",
+                "unknown_gates": {
+                    "runtime": "unknown",
+                    "accounting": "unknown",
+                    "quota": "unknown",
+                    "process": "unknown",
+                },
+                "dispatch_authority": False,
+            }
+            self._put_decision_in_transaction(name, body)
+            return {"name": name, "version": 1, "body": body}
+
+    def supervisor_episode_checkpoint_status(self, deployment_root: Path) -> dict:
+        """Read the latest episode checkpoint without scheduling or consuming work."""
+        root = Path(deployment_root)
+        try:
+            if not stat.S_ISDIR(root.lstat().st_mode):
+                raise StateError("supervisor_episode_root_invalid")
+        except OSError:
+            raise StateError("supervisor_episode_root_invalid") from None
+        with self._read_snapshot():
+            row = self.db.execute(
+                "SELECT entity,body FROM events WHERE kind='decision_recorded' "
+                "AND entity GLOB ? ORDER BY seq DESC LIMIT 1",
+                (_SUPERVISOR_EPISODE_CHECKPOINT_PREFIX + "*",),
+            ).fetchone()
+            if row is None:
+                return {
+                    "schema": "supervisor-episode-status-v1",
+                    "status": "none",
+                    "action": "hold",
+                    "due_for_recheck": False,
+                    "dispatch_authority": False,
+                }
+            try:
+                event = json.loads(row["body"])
+                decision = self.get_decision(row["entity"])
+                if (
+                    type(event) is not dict
+                    or set(event) != {"version", "body", "replaces", "replaces_version"}
+                    or decision is None
+                    or event["version"] != decision["version"]
+                    or event["body"] != decision["body"]
+                    or event["replaces"] != decision["replaces"]
+                    or event["replaces_version"] != decision["replaces_version"]
+                ):
+                    raise StateError("supervisor_episode_history_invalid")
+                body = decision["body"]
+            except (TypeError, ValueError, KeyError, RecursionError):
+                raise StateError("supervisor_episode_history_invalid") from None
+            self._validate_supervisor_episode_checkpoint(row["entity"], body)
+            current_stop = self._lifecycle_file_source(root / "STOP", optional=True)
+            current_revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            current_readiness_digest = self._supervisor_episode_readiness_sha256(
+                self._readiness_report_in_snapshot()
+            )
+            now = self._lifecycle_now()
+            if current_stop["present"]:
+                status = "stop_active"
+            elif (
+                self._supervisor_episode_root_sha256(root) != body["deployment_root_sha256"]
+                or current_revision != body["store_revision"]
+                or current_readiness_digest != body["readiness_sha256"]
+                or current_stop["sha256"] != body["stop"]["sha256"]
+            ):
+                status = "stale"
+            elif body["next_retry_at"] is not None and now < body["next_retry_at"]:
+                status = "waiting_until_retry"
+            else:
+                status = "due_for_recheck"
+            return {
+                "schema": "supervisor-episode-status-v1",
+                "status": status,
+                "action": "hold",
+                "due_for_recheck": status == "due_for_recheck",
+                "dispatch_authority": False,
+                "checkpoint": {"name": row["entity"], "body": body},
+            }
+
+    @staticmethod
+    def _supervisor_episode_root_sha256(root: Path) -> str:
+        try:
+            canonical = str(Path(root).resolve(strict=True))
+        except OSError:
+            raise StateError("supervisor_episode_root_invalid") from None
+        return hashlib.sha256(os.fsencode(canonical)).hexdigest()
+
+    @staticmethod
+    def _supervisor_episode_readiness_sha256(readiness: Any) -> str:
+        # Spawn cooldown is event-backed in the checkpoint's next_retry_at field and
+        # expires as a function of the injected clock. Normalize only that projection
+        # so passing its deadline can make a checkpoint due without making it stale.
+        normalized = []
+        for row in readiness:
+            blockers = [
+                blocker for blocker in row["blockers"] if blocker["kind"] != "attempt_spawn_backoff"
+            ]
+            normalized.append(
+                {
+                    **row,
+                    "eligible": row["state"] == "pending" and not blockers,
+                    "blockers": blockers,
+                }
+            )
+        return hashlib.sha256(_json(normalized).encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _validate_supervisor_episode_checkpoint(name: str, body: Any) -> None:
+        if type(body) is not dict:
+            raise StateError("supervisor_episode_history_invalid")
+        try:
+            recorded_at_valid = (
+                type(body.get("recorded_at")) in (int, float)
+                and not isinstance(body.get("recorded_at"), bool)
+                and math.isfinite(body["recorded_at"])
+            )
+            retry_at = body.get("next_retry_at")
+            retry_at_valid = retry_at is None or (
+                not isinstance(retry_at, bool)
+                and isinstance(retry_at, (int, float))
+                and math.isfinite(retry_at)
+            )
+        except (OverflowError, TypeError):
+            recorded_at_valid = False
+            retry_at_valid = False
+        required = {
+            "schema",
+            "checkpoint_id",
+            "deployment_root_sha256",
+            "store_revision",
+            "store_snapshot_sha256",
+            "readiness_sha256",
+            "stop",
+            "exit_reason",
+            "next_retry_at",
+            "recorded_at",
+            "action",
+            "unknown_gates",
+            "dispatch_authority",
+        }
+        if (
+            type(body) is not dict
+            or set(body) != required
+            or body.get("schema") != "supervisor-episode-checkpoint-v1"
+            or body.get("action") != "hold"
+            or body.get("dispatch_authority") is not False
+            or body.get("exit_reason") not in {"stop_requested", "episode_deadline", "quiescent"}
+            or body.get("unknown_gates")
+            != {
+                "runtime": "unknown",
+                "accounting": "unknown",
+                "quota": "unknown",
+                "process": "unknown",
+            }
+            or type(body.get("deployment_root_sha256")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", body["deployment_root_sha256"]) is None
+            or type(body.get("store_revision")) is not int
+            or body["store_revision"] < 0
+            or type(body.get("store_snapshot_sha256")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", body["store_snapshot_sha256"]) is None
+            or type(body.get("readiness_sha256")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", body["readiness_sha256"]) is None
+            or not recorded_at_valid
+            or type(body.get("stop")) is not dict
+            or set(body["stop"]) != {"present", "sha256"}
+            or type(body["stop"].get("present")) is not bool
+            or (
+                body["stop"]["present"]
+                and (
+                    type(body["stop"].get("sha256")) is not str
+                    or re.fullmatch(r"[0-9a-f]{64}", body["stop"]["sha256"]) is None
+                )
+            )
+            or (not body["stop"]["present"] and body["stop"].get("sha256") is not None)
+            or not retry_at_valid
+        ):
+            raise StateError("supervisor_episode_history_invalid")
+        identity = {
+            "deployment_root_sha256": body["deployment_root_sha256"],
+            "store_revision": body["store_revision"],
+            "store_snapshot_sha256": body["store_snapshot_sha256"],
+            "readiness_sha256": body["readiness_sha256"],
+            "stop": body["stop"],
+            "exit_reason": body["exit_reason"],
+            "next_retry_at": body["next_retry_at"],
+        }
+        expected = hashlib.sha256(_json(identity).encode("utf-8")).hexdigest()
+        if (
+            body["checkpoint_id"] != expected
+            or name != _SUPERVISOR_EPISODE_CHECKPOINT_PREFIX + expected
+        ):
+            raise StateError("supervisor_episode_history_invalid")
 
     def record_quiescence_handoff_if_current(
         self, fingerprint: Any, expected_snapshot: Any, body: Any
@@ -3969,6 +4282,7 @@ class Store:
             or name.startswith("contract-ack/")
             or name.startswith("contract-review/")
             or name.startswith("sol-handoff/")
+            or name.startswith(_SUPERVISOR_EPISODE_CHECKPOINT_PREFIX)
         ):
             raise StateError("decision_namespace_reserved")
         with self._tx():

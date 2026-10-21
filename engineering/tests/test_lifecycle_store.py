@@ -191,6 +191,186 @@ class LifecycleStoreTests(unittest.TestCase):
             ["cancelled_before_spawn"] * 10 + ["running"],
         )
 
+    def test_supervisor_episode_checkpoint_is_durable_passive_and_revision_bound(self):
+        root = self.path.parent
+        self.store.add_task("episode-cooldown", "Platform", "Wait for the next episode")
+        attempt = self.store.claim("episode-cooldown", "supervisor", lease_seconds=20)
+        self.store.cancel_unstarted_claim(attempt["id"], attempt["epoch"], reason="popen_failed")
+        snapshot = self.store.capture_supervisor_episode_snapshot(root)
+        checkpoint = self.store.record_supervisor_episode_checkpoint(
+            root, snapshot, exit_reason="episode_deadline"
+        )
+        retry_at = checkpoint["body"]["next_retry_at"]
+        self.assertEqual(retry_at, self.now + 5)
+        self.assertEqual(checkpoint["body"]["action"], "hold")
+        self.assertFalse(checkpoint["body"]["dispatch_authority"])
+        self.assertEqual(
+            checkpoint["body"]["unknown_gates"],
+            {
+                "runtime": "unknown",
+                "accounting": "unknown",
+                "quota": "unknown",
+                "process": "unknown",
+            },
+        )
+        self.assertEqual(
+            self.store.supervisor_episode_checkpoint_status(root)["status"],
+            "waiting_until_retry",
+        )
+
+        repeated = self.store.record_supervisor_episode_checkpoint(
+            root,
+            self.store.capture_supervisor_episode_snapshot(root),
+            exit_reason="episode_deadline",
+        )
+        self.assertEqual(repeated["name"], checkpoint["name"])
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT COUNT(*) FROM decisions WHERE name LIKE 'supervisor/episode-checkpoint/%'"
+            ).fetchone()[0],
+            1,
+        )
+
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.now = retry_at
+        status = self.store.supervisor_episode_checkpoint_status(root)
+        self.assertEqual(status["status"], "due_for_recheck")
+        self.assertTrue(status["due_for_recheck"])
+        self.assertEqual(status["action"], "hold")
+        self.assertFalse(status["dispatch_authority"])
+
+        (root / "STOP").write_text("synthetic stop\n")
+        self.assertEqual(
+            self.store.supervisor_episode_checkpoint_status(root)["status"], "stop_active"
+        )
+        (root / "STOP").unlink()
+        self.store.add_task("changed-after-checkpoint", "Research", "Invalidate the old snapshot")
+        self.assertEqual(self.store.supervisor_episode_checkpoint_status(root)["status"], "stale")
+
+    def test_supervisor_episode_readback_detects_event_only_readiness_change(self):
+        root = self.path.parent
+        self.store.add_task("episode-reap", "Platform", "Await process recovery receipt")
+        attempt = self.store.claim("episode-reap", "supervisor", lease_seconds=1)
+        self.now += 1
+        self.assertEqual(self.store.recover_expired(), [attempt["id"]])
+        checkpoint = self.store.record_supervisor_episode_checkpoint(
+            root,
+            self.store.capture_supervisor_episode_snapshot(root),
+            exit_reason="episode_deadline",
+        )
+        self.assertEqual(
+            self.store.supervisor_episode_checkpoint_status(root)["status"], "due_for_recheck"
+        )
+
+        revision = self.store.quiescence_snapshot()["revision"]
+        self.store.record_attempt_process_reaped(
+            attempt["id"], attempt["epoch"], [], disposition="no_work_before_custody"
+        )
+        self.assertEqual(self.store.quiescence_snapshot()["revision"], revision)
+        status = self.store.supervisor_episode_checkpoint_status(root)
+        self.assertEqual(status["status"], "stale")
+        self.assertFalse(status["due_for_recheck"])
+        self.assertEqual(status["checkpoint"]["name"], checkpoint["name"])
+
+    def test_supervisor_episode_record_rechecks_readiness_after_second_connection_lock_wait(self):
+        root = self.path.parent
+        self.store.add_task("episode-lock-wait", "Platform", "Await process recovery receipt")
+        attempt = self.store.claim("episode-lock-wait", "supervisor", lease_seconds=1)
+        self.now += 1
+        self.assertEqual(self.store.recover_expired(), [attempt["id"]])
+        snapshot = self.store.capture_supervisor_episode_snapshot(root)
+
+        other = Store(self.path, clock=lambda: self.now)
+        waiting_for_write_lock = threading.Event()
+        self.store.db.set_trace_callback(
+            lambda statement: (
+                waiting_for_write_lock.set()
+                if statement.strip().upper() == "BEGIN IMMEDIATE"
+                else None
+            )
+        )
+        other.db.execute("BEGIN IMMEDIATE")
+        try:
+            with ThreadPoolExecutor(1) as pool:
+                future = pool.submit(
+                    self.store.record_supervisor_episode_checkpoint,
+                    root,
+                    snapshot,
+                    exit_reason="episode_deadline",
+                )
+                try:
+                    self.assertTrue(waiting_for_write_lock.wait(2))
+                    with self.assertRaises(TimeoutError):
+                        future.result(timeout=0.05)
+                    other._event(
+                        "attempt_process_reaped",
+                        "episode-lock-wait",
+                        {
+                            "attempt_id": attempt["id"],
+                            "epoch": attempt["epoch"],
+                            "disposition": "no_work_before_custody",
+                            "process_identities": [],
+                        },
+                    )
+                    other.db.execute("COMMIT")
+                    with self.assertRaisesRegex(StateError, "supervisor_episode_snapshot_changed"):
+                        future.result(timeout=2)
+                finally:
+                    if other.db.in_transaction:
+                        other.db.execute("ROLLBACK")
+        finally:
+            other.close()
+            self.store.db.set_trace_callback(None)
+        self.assertEqual(self.store.supervisor_episode_checkpoint_status(root)["status"], "none")
+
+    def test_supervisor_episode_checkpoint_survives_process_exit_boundaries(self):
+        root = self.path.parent
+        self.store.close()
+        child = """
+import os, sys
+from engineering.org_state import Store
+database, root, mode = sys.argv[1:]
+store = Store(database, clock=lambda: 1000.0)
+snapshot = store.capture_supervisor_episode_snapshot(root)
+if mode == 'before_commit':
+    os._exit(81)
+store.record_supervisor_episode_checkpoint(root, snapshot, exit_reason='episode_deadline')
+os._exit(82)
+"""
+
+        before = subprocess.run(
+            [sys.executable, "-c", child, str(self.path), str(root), "before_commit"],
+            cwd=Path.cwd(),
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
+        self.assertEqual(before.returncode, 81, before.stderr)
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertEqual(self.store.supervisor_episode_checkpoint_status(root)["status"], "none")
+        self.store.close()
+
+        after = subprocess.run(
+            [sys.executable, "-c", child, str(self.path), str(root), "after_commit"],
+            cwd=Path.cwd(),
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
+        self.assertEqual(after.returncode, 82, after.stderr)
+        self.store = Store(self.path, clock=lambda: self.now)
+        status = self.store.supervisor_episode_checkpoint_status(root)
+        self.assertEqual(status["status"], "due_for_recheck")
+        self.assertEqual(status["action"], "hold")
+        self.assertFalse(status["dispatch_authority"])
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT COUNT(*) FROM decisions WHERE name LIKE 'supervisor/episode-checkpoint/%'"
+            ).fetchone()[0],
+            1,
+        )
+
     def test_registered_child_has_one_owner_and_STOP_outcome_is_durable(self):
         self.store.add_task("child-owner", "Platform", "Synthetic child custody", max_attempts=2)
         attempt = self.store.claim("child-owner", "supervisor", lease_seconds=20)

@@ -1962,3 +1962,16 @@ macOS birth witness, and an exit before child registration cannot be assigned an
 Popen backoff covers only synchronous failures before process creation; ambiguous child starts still
 require process-custody recovery. A04 executable qualification, provider/usage settlement, A03 and
 operational release remain open.
+
+Bounded `supervise` exit now records an idempotent passive episode checkpoint bound to the deployment
+root identity, STOP bytes, current quiescence revision/readiness digest, exit reason and earliest
+pending spawn retry. Runtime, accounting, quota and process gates are stored as `unknown`; the only
+action is `hold`. A read-only Store projection reports `stop_active`, `stale`, `waiting_until_retry`
+or `due_for_recheck`, always with dispatch authority false. Nothing consumes lifecycle requests or
+starts another episode; a caller must explicitly invoke `supervise`, which rechecks its normal gates.
+Synthetic tests cover STOP, revision and event-only readiness staleness (including a second-connection
+write-lock interleaving), cooldown expiry, process exits before the checkpoint call and after its
+committed return, and a separate explicit episode that completes the dependent task through review
+and GitGate integration.
+This is local SQLite/file recovery evidence, not a scheduler, service wake, launch authorization
+generation or operational recovery qualification.

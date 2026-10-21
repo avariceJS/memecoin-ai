@@ -29,7 +29,14 @@ exponential cooldown до пяти минут. Claim, readiness и supervisor с
 готовая задача продолжает работу, planning вызывается один раз на изменившееся durable state, а
 pending contract reviews обрабатываются до ожидания ближайшего cooldown даже при отдельных dependency
 blockers. Child custody сбрасывает streak, бюджет attempts не расходуется.
-Полный gate: Ruff/format, 642 теста и 193 subtests; `make smoke` воспроизводим,
+Каждый нормальный bounded exit или выход по STOP теперь сохраняет idempotent passive episode
+checkpoint: identity deployment root, STOP bytes, quiescence revision/readiness digest, exit reason и
+ближайший retry. Runtime/accounting/quota/process остаются `unknown`, действие всегда `hold`; read-only
+projection может показать `due_for_recheck`, но не вызывает следующий episode, не читает
+`launch_request` как право запуска и не выдаёт dispatch authority. Новый episode — только явный вызов
+`supervise`, который заново проверяет обычные gates. Synthetic process exit до checkpoint call и после подтверждённого commit, STOP, stale readiness/revision
+и отдельный повторный episode с прохождением cooldown и интеграцией PLAT-002 покрыты.
+Полный gate: Ruff/format, 646 тестов и 193 subtests; `make smoke` воспроизводим,
 `edge_established=false`.
 Worker/reviewer остаются синтетическими; падение до регистрации владельца остаётся неизвестным,
 это покрывает только синхронную ошибку до создания процесса; неоднозначный child start требует custody
