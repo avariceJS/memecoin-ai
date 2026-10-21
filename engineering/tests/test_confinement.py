@@ -8,6 +8,7 @@ import os
 import platform
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -101,6 +102,21 @@ class ProcessIdentityDeadlineTests(unittest.TestCase):
                 "a" * 40,
                 Path("/trusted/python"),
                 deadline=10.0,
+            )
+
+    def test_wrong_running_identity_is_rejected_as_a_pin_mismatch(self):
+        with (
+            patch(
+                "engineering.confinement.running_code_identity",
+                return_value=("b" * 40, "/untrusted/python"),
+            ),
+            self.assertRaisesRegex(ConfinementError, "code identity does not match pin"),
+        ):
+            SandboxRunner._check_process_code_identity(
+                self.FakeProcess(),
+                "a" * 40,
+                Path("/trusted/python"),
+                deadline=time.monotonic() + 10.0,
             )
 
 

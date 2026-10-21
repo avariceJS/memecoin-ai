@@ -209,6 +209,7 @@ class GitGate:
     ) -> str:
         """CAS-publish a verified candidate to local active ref and optionally fixed remote."""
         self._require_receipt(receipt_hash, candidate.sha)
+        self.validate_candidate(candidate)
         if publish_remote:
             self._check_remote(expected_remote_tip, expected_remote_main, candidate.sha)
         if expected_tip == "0" * 40 or expected_tip == "0" * 64:
@@ -238,6 +239,18 @@ class GitGate:
         if publish_remote:
             self._publish_remote(candidate.sha, expected_remote_tip, expected_remote_main)
         return candidate.sha
+
+    def validate_candidate(self, candidate: Candidate) -> None:
+        """Bind a candidate object to the exact integration tip and submitted commit."""
+        sha = self._resolve_sha(self.repo, candidate.sha)
+        integration_tip = self._resolve_sha(self.repo, candidate.integration_tip)
+        submitted_sha = self._resolve_sha(self.repo, candidate.submitted_sha)
+        result = self._run(self.repo, ["rev-list", "--parents", "-n", "1", sha])
+        parents = result.stdout.decode("ascii", errors="strict").split()
+        if parents != [sha, integration_tip, submitted_sha]:
+            raise GitGateError(
+                "candidate parents do not match its bound integration and submission"
+            )
 
     def archive_active(self, tag: str) -> str:
         """Retain the current active target under a new immutable archive tag."""

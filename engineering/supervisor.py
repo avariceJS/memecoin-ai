@@ -23,7 +23,7 @@ from pathlib import Path
 
 from .codex_rpc import Codex
 from .confinement import SandboxRunner, python_runtime_roots
-from .git_gate import GitGate
+from .git_gate import Candidate, GitGate
 from .metered_codex import metered_client
 from .org_state import (
     CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS,
@@ -31,6 +31,7 @@ from .org_state import (
     StateError,
     Store,
     _json,
+    _json_equal,
 )
 from .processes import process_identity, terminate_owned
 from .review_packet import MAX_DIFF_BYTES, MAX_PACKET_BYTES, build_review_packet
@@ -1350,6 +1351,21 @@ def reconcile(state, db):
                 )
                 continue
             candidate = db.get_candidate(task["id"])
+            if (
+                intent["task"] != task["id"]
+                or intent["submitted_sha"] != task["candidate_sha"]
+                or type(intent.get("attempt_id")) is not int
+                or type(intent.get("epoch")) is not int
+                or intent["attempt_id"] != candidate["attempt_id"]
+                or intent["epoch"] != candidate["epoch"]
+            ):
+                log_event(
+                    state,
+                    "reconciliation_blocked",
+                    task=task["id"],
+                    reason="intent_attempt_binding_mismatch",
+                )
+                continue
             matches, reason = attempt_plan_matches(plan, candidate["evidence"])
             if not matches:
                 log_event(
@@ -1360,14 +1376,41 @@ def reconcile(state, db):
                     plan_sha256=plan.plan_sha256,
                 )
                 continue
-        if task["state"] == "submitted":
             gate = GitGate(
                 state / "integration",
                 state / "integration",
                 plan.policy,
                 state / "receipts",
             )
+            gate_candidate = Candidate(
+                intent["submitted_sha"],
+                candidate["evidence"].get("base", intent["expected_tip"]),
+                intent["expected_tip"],
+                intent["candidate_sha"],
+                Path(),
+                (),
+            )
+            gate.validate_candidate(gate_candidate)
+            # Every recovery phase consumes the same immutable verifier receipt. In
+            # particular, an already-moved active ref is not proof that verification
+            # happened: the process may have stopped after CAS, or the intent may be
+            # damaged. Keep receipt and policy binding ahead of all Store transitions.
             gate._require_receipt(intent["receipt"], intent["candidate_sha"])
+            if task["state"] in ("verified", "accepted"):
+                verification = db.get_verification(task["id"], intent["submitted_sha"])
+                if (
+                    verification is None
+                    or not verification["passed"]
+                    or not _json_equal(verification["details"], intent)
+                ):
+                    log_event(
+                        state,
+                        "reconciliation_blocked",
+                        task=task["id"],
+                        reason="verification_intent_binding_mismatch",
+                    )
+                    continue
+        if task["state"] == "submitted":
             db.verify(task["id"], task["candidate_sha"], True, intent)
             task = db.get_task(task["id"])
         if task["state"] == "verified":
@@ -1375,27 +1418,10 @@ def reconcile(state, db):
             task = db.get_task(task["id"])
         if task["state"] == "accepted":
             tip = git(state / "integration", "rev-parse", "refs/heads/research/active")
-            if tip == intent["candidate_sha"]:
-                db.integrate(task["id"], intent["submitted_sha"], tip, intent)
-            elif tip == intent["expected_tip"]:
-                # Receipt was recorded in trusted intent and protected store before acceptance.
-                gate = GitGate(
-                    state / "integration",
-                    state / "integration",
-                    plan.policy,
-                    state / "receipts",
-                )
-                gate._require_receipt(intent["receipt"], intent["candidate_sha"])
-                git(
-                    state / "integration",
-                    "update-ref",
-                    "refs/heads/research/active",
-                    intent["candidate_sha"],
-                    tip,
-                )
-                db.integrate(task["id"], intent["submitted_sha"], intent["candidate_sha"], intent)
-            else:
-                raise RuntimeError("integration_intent_requires_reconciliation")
+            # Reuse GitGate's receipt, ancestry, and compare-and-swap checks on both
+            # the first publish and recovery after a publish-before-Store crash.
+            published = gate.publish(gate_candidate, intent["receipt"], tip)
+            db.integrate(task["id"], intent["submitted_sha"], published, intent)
     activate_contract(state, db)
 
 

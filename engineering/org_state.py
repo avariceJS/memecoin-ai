@@ -1195,6 +1195,21 @@ class Store:
             ).fetchone()
             return None if row is None else {**dict(row), "evidence": json.loads(row["evidence"])}
 
+    def get_verification(self, task_id: str, candidate_sha: str) -> dict | None:
+        """Read the latest immutable verification record for recovery binding."""
+        with self._lock:
+            row = self.db.execute(
+                "SELECT * FROM verifications WHERE task_id=? AND sha=? ORDER BY id DESC LIMIT 1",
+                (task_id, candidate_sha),
+            ).fetchone()
+            if row is None:
+                return None
+            return {
+                **dict(row),
+                "passed": bool(row["passed"]),
+                "details": json.loads(row["details"]),
+            }
+
     def verify(self, task_id: str, candidate_sha: str, passed: bool, details: Any) -> None:
         if not isinstance(passed, bool):
             raise StateError("verification result must be boolean")

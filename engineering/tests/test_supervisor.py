@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 from engineering import supervisor
 from engineering.confinement import SandboxResult
-from engineering.git_gate import VerificationPolicy
+from engineering.git_gate import GitGate, VerificationPolicy
 from engineering.org_state import StateError, Store
 from engineering.tests.test_service import deployment as deployment_fixture
 from engineering.verification_plan import BoundCommand, prepare_verification_plan
@@ -214,6 +214,7 @@ class SupervisorTests(unittest.TestCase):
             checkout=checkout,
         )
         gate = MagicMock()
+
         gate.submit.return_value = candidate
 
         def invoke_verification(_candidate, callback):
@@ -322,7 +323,16 @@ class SupervisorTests(unittest.TestCase):
             {"checkout": str(self.state / "worker"), "base": "base"},
         )
         if target_state in ("verified", "accepted", "integrated"):
-            self.db.verify(task_id, sha, True, {"receipt": "receipt"})
+            details = {
+                "task": task_id,
+                "submitted_sha": sha,
+                "attempt_id": attempt["id"],
+                "epoch": attempt["epoch"],
+                "candidate_sha": "merged",
+                "expected_tip": "base",
+                "receipt": "receipt",
+            }
+            self.db.verify(task_id, sha, True, details)
         if target_state in ("accepted", "integrated"):
             self.db.accept(task_id, sha)
         if target_state == "integrated":
@@ -377,9 +387,12 @@ class SupervisorTests(unittest.TestCase):
         return self.db.get_decision(key)
 
     def intent(self, task_id="T", submitted="submitted"):
+        candidate = self.db.get_candidate(task_id)
         intent = {
             "task": task_id,
             "submitted_sha": submitted,
+            "attempt_id": candidate["attempt_id"],
+            "epoch": candidate["epoch"],
             "candidate_sha": "merged",
             "expected_tip": "base",
             "receipt": "receipt",
@@ -399,6 +412,16 @@ class SupervisorTests(unittest.TestCase):
             raise AssertionError(f"unexpected Git command: {args}")
 
         gate = MagicMock()
+
+        def publish(candidate, receipt_hash, expected_tip):
+            if tip == candidate.sha:
+                return candidate.sha
+            if tip != candidate.integration_tip or expected_tip != tip:
+                raise RuntimeError("integration_intent_requires_reconciliation")
+            calls.append(("update-ref", candidate.sha, tip))
+            return candidate.sha
+
+        gate.publish.side_effect = publish
         with (
             patch.object(supervisor, "git", side_effect=fake_git),
             patch.object(supervisor, "GitGate", return_value=gate),
@@ -474,6 +497,201 @@ class SupervisorTests(unittest.TestCase):
         self.assertFalse(any(call[0] == "update-ref" for call in again))
         events = [event for event in self.db.events() if event["kind"] == "candidate_integrated"]
         self.assertEqual(len(events), 1)
+
+    def test_fixed_task_real_git_acceptance_checkpoint_and_next_dependency(self):
+        from engineering.planning import admit, eligible
+
+        def run_git(repo, *args):
+            result = subprocess.run(
+                ["git", "-C", str(repo), *args],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if result.returncode:
+                raise AssertionError(result.stderr)
+            return result.stdout.strip()
+
+        integration = self.state / "integration"
+        integration.mkdir()
+        run_git(integration, "init", "-b", "main")
+        run_git(integration, "config", "user.name", "synthetic")
+        run_git(integration, "config", "user.email", "synthetic@example.invalid")
+        (integration / "src").mkdir()
+        (integration / "src" / "base.py").write_text("BASE = True\n")
+        run_git(integration, "add", "-A")
+        run_git(integration, "commit", "-m", "base")
+        base = run_git(integration, "rev-parse", "HEAD")
+        run_git(integration, "update-ref", "refs/heads/research/active", base)
+
+        self.cfg["contracts"] = {
+            "research-output": {
+                "version": 2,
+                "producer": "Experience",
+                "producer_task_id": "PLAT-001",
+                "consumers": ["Platform"],
+                "schema": "research-output-v2",
+            }
+        }
+        self.db.put_contract("research-output", 1, {"schema": "research-output-v1"})
+        self.cfg["catalogue"] = ["PLAT-001", "PLAT-002"]
+        self.cfg["tasks"] = {
+            "PLAT-001": {
+                "team": "Experience",
+                "title": "Add the synthetic capability",
+                "brief": "Implement one bounded, testable source change.",
+                "scope": ["src"],
+                "checks": [],
+                "dependencies": [],
+                "contracts": {},
+            },
+            "PLAT-002": {
+                "team": "Platform",
+                "title": "Continue from the accepted capability",
+                "brief": "Consume the integrated first task.",
+                "scope": ["src"],
+                "checks": [],
+                "dependencies": ["PLAT-001"],
+                "contracts": {"research-output": 2},
+            },
+        }
+        self.db.add_objective("offline-brain-engineering", "Synthetic integrated cycle")
+        self.assertEqual(eligible(self.cfg, self.db), ["PLAT-001"])
+        admitted = admit(
+            self.cfg,
+            self.db,
+            {
+                "card": "PLAT-001",
+                "rationale": "This fixed task provides the first bounded capability.",
+                "evidence": "The isolated synthetic repository starts from the recorded base.",
+            },
+            base,
+        )
+        self.assertEqual(admitted, "PLAT-001")
+        task = self.db.get_task(admitted)
+        attempt = self.db.claim(admitted, "synthetic-worker")
+        plan = supervisor.prepare_verification_plan(self.state, self.db, task, self.cfg)
+        self.assertTrue(plan.execution_qualified)
+        self.assertEqual(task["scope"], ["src"])
+        self.assertEqual(attempt["task_id"], admitted)
+
+        worker = self.state / "worker"
+        subprocess.run(
+            ["git", "clone", str(integration), str(worker)],
+            check=True,
+            capture_output=True,
+        )
+        run_git(worker, "config", "user.name", "worker")
+        run_git(worker, "config", "user.email", "worker@example.invalid")
+        (worker / "src" / "capability.py").write_text("VALUE = 7\n")
+        run_git(worker, "add", "-A")
+        run_git(worker, "commit", "-m", "bounded capability")
+        submitted_sha = run_git(worker, "rev-parse", "HEAD")
+
+        policy = plan.policy
+        gate = GitGate(integration, integration, policy, self.state / "receipts")
+        candidate = gate.submit(worker, submitted_sha, base, ["src"])
+
+        def independent_check(checkout, sha, checked_policy):
+            self.assertEqual(run_git(checkout, "rev-parse", "HEAD"), sha)
+            self.assertEqual((checkout / "src" / "capability.py").read_text(), "VALUE = 7\n")
+            self.assertEqual(checked_policy.digest, policy.digest)
+            return {"status": "passed", "check": "synthetic-independent-acceptance"}
+
+        receipt = gate.verify(candidate, independent_check)
+        self.db.submit(
+            attempt["id"],
+            attempt["epoch"],
+            submitted_sha,
+            {
+                "attempt_id": attempt["id"],
+                "epoch": attempt["epoch"],
+                "verification_plan": plan.identity(),
+            },
+        )
+        intent = {
+            "task": admitted,
+            "submitted_sha": submitted_sha,
+            "attempt_id": attempt["id"],
+            "epoch": attempt["epoch"],
+            "candidate_sha": candidate.sha,
+            "expected_tip": candidate.integration_tip,
+            "receipt": receipt.digest,
+        }
+        supervisor.atomic(self.state / "intents" / f"{admitted}.json", intent)
+        with (
+            patch.object(
+                Store,
+                "integrate",
+                side_effect=RuntimeError("synthetic interruption after Git ref CAS"),
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "after Git ref CAS"):
+                supervisor.reconcile(self.state, self.db)
+
+        self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
+        self.assertEqual(run_git(integration, "rev-parse", gate.ACTIVE_REF), candidate.sha)
+        database_path = self.state / "organization.sqlite"
+        self.db.close()
+        self.db = Store(database_path, clock=lambda: self.now)
+        self.addCleanup(self.db.close)
+        intent_path = self.state / "intents" / f"{admitted}.json"
+        supervisor.atomic(intent_path, {**intent, "epoch": True})
+        supervisor.reconcile(self.state, self.db)
+        self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
+        self.assertEqual(run_git(integration, "rev-parse", gate.ACTIVE_REF), candidate.sha)
+        supervisor.atomic(
+            intent_path,
+            {**intent, "candidate_sha": base},
+        )
+        with self.assertRaisesRegex(RuntimeError, "candidate parents"):
+            supervisor.reconcile(self.state, self.db)
+        self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
+        self.assertEqual(run_git(integration, "rev-parse", gate.ACTIVE_REF), candidate.sha)
+        supervisor.atomic(intent_path, intent)
+        receipt_path = self.state / "receipts" / f"{receipt.digest}.json"
+        receipt_bytes = receipt_path.read_bytes()
+        receipt_path.unlink()
+        with self.assertRaisesRegex(RuntimeError, "receipt"):
+            supervisor.reconcile(self.state, self.db)
+        self.assertEqual(self.db.get_task(admitted)["state"], "accepted")
+        receipt_path.write_bytes(receipt_bytes)
+        supervisor.reconcile(self.state, self.db)
+        supervisor.reconcile(self.state, self.db)
+
+        self.assertEqual(self.db.get_task(admitted)["state"], "integrated")
+        self.assertEqual(run_git(integration, "rev-parse", "main"), base)
+        self.assertEqual(run_git(integration, "rev-parse", gate.ACTIVE_REF), candidate.sha)
+        integrated_events = [
+            event
+            for event in self.db.events()
+            if event["kind"] == "candidate_integrated" and event["entity"] == admitted
+        ]
+        self.assertEqual(len(integrated_events), 1)
+
+        self.assertEqual(eligible(self.cfg, self.db), [])
+        self.assertEqual(self.db.get_contract("research-output")["version"], 1)
+        self.approve_contract_review("research-output", 2, "Experience")
+        self.approve_contract_review("research-output", 2, "Platform")
+        supervisor.activate_contract(self.state, self.db)
+        self.assertEqual(self.db.get_contract("research-output")["version"], 2)
+        self.assertEqual(eligible(self.cfg, self.db), ["PLAT-002"])
+        self.assertEqual(
+            admit(
+                self.cfg,
+                self.db,
+                {
+                    "card": "PLAT-002",
+                    "rationale": "Continue from the verified integrated dependency.",
+                    "evidence": f"{admitted} is durably integrated at {candidate.sha}.",
+                },
+                candidate.sha,
+            ),
+            "PLAT-002",
+        )
+        next_attempt = self.db.claim("PLAT-002", "synthetic-worker")
+        self.assertIsNotNone(next_attempt)
+        self.assertEqual(self.db.get_task("PLAT-002")["dependencies"], ["PLAT-001"])
 
     def test_accepted_intent_after_publish_recovers_without_republish(self):
         self.candidate()

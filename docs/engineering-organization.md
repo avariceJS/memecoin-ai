@@ -41,6 +41,24 @@ integration, durable checkpointing, task continuation and interruption recovery.
 independent direction and substantial exact-candidate review; Astra remains episodic and is never
 invoked automatically. This source authority does not grant operational release or runtime authority.
 
+Current integrated-cycle checkpoint — 2026-10-21: a disposable Git/SQLite test now drives a fixed
+catalogue choice through admission, claim, a real prepared verifier-plan identity, worker commit,
+GitGate import and receipt, submitted-state reconciliation, local ref CAS, durable integration,
+SQLite close/reopen, recovery, and a dependent next-task claim. It injects a crash after ref CAS,
+removes the receipt and confirms recovery fails closed, tampers with the candidate SHA and confirms
+its exact parent binding rejects publication, then restores evidence and confirms one integration
+event. The integrated producer is an Experience task; its Platform consumer remains ineligible until
+both teams' synthetic durable reviews activate the exact contract version. Recovery now binds intent
+to Store attempt/epoch and successful verification details; GitGate
+requires the candidate's exact two parents to equal the captured integration tip and submitted SHA.
+The test uses `research/active` only inside a temporary repository and leaves `main` unchanged. The
+trusted verifier callback is synthetic and does not execute worker code; this does not qualify the
+Seatbelt worker dispatch path, model review authenticity, provider usage settlement, remote
+checkpointing, runtime or A03. Engineering checks pass Ruff/format and 592 tests plus 189 subtests;
+`make smoke` is deterministic and synthetic. Repository-wide `make check` currently stops at 107
+pre-existing Ruff findings in `src/`, `tools/` and `tests/`, before its later checks. The integrated
+organization cycle remains in progress.
+
 Current A10 integration correction — 2026-10-21: independent review is the sole source of participant
 acknowledgements for new contract transitions. Task-lead results must carry an empty legacy
 `contract_acks` field, the public direct-ack API rejects writes, and activation checks that each new
