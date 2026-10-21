@@ -61,6 +61,9 @@ _LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
 _LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
 _LIFECYCLE_OWNER_RECORD_MAX_BYTES = 64 * 1024
 _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS = 30.0
+_SPAWN_FAILURE_BACKOFF_BASE_SECONDS = 5.0
+_SPAWN_FAILURE_BACKOFF_MAX_SECONDS = 300.0
+_SPAWN_FAILURE_BACKOFF_MAX_FAILURES = 8
 _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES = 64 * 1024
 CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS = 1000
 _CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES = 512 * 1024
@@ -334,6 +337,8 @@ class Store:
             ON events(entity,seq) WHERE kind='attempt_work_started';
           CREATE INDEX IF NOT EXISTS idx_events_attempt_process_reaped
             ON events(entity,seq) WHERE kind='attempt_process_reaped';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_spawn_backoff
+            ON events(entity,seq) WHERE kind IN ('attempt_spawn_backoff','attempt_child_started');
           CREATE INDEX IF NOT EXISTS idx_tasks_state_id ON tasks(state,id);
         """)
         self.db.executescript("""
@@ -1027,6 +1032,16 @@ class Store:
                         "attempt_ids": unreaped,
                     }
                 )
+            spawn_backoff = self._task_spawn_backoff(task["id"])
+            if spawn_backoff is not None:
+                blockers.append(
+                    {
+                        "kind": "attempt_spawn_backoff",
+                        "attempt_id": spawn_backoff["attempt_id"],
+                        "failure_count": spawn_backoff["failure_count"],
+                        "retry_at": spawn_backoff["retry_at"],
+                    }
+                )
             spec_row = self.db.execute(
                 "SELECT body FROM task_specs WHERE task_id=?", (task["id"],)
             ).fetchone()
@@ -1065,8 +1080,63 @@ class Store:
                 if t["state"] == "pending"
                 and (team is None or t["team"] == team)
                 and not self._unreaped_expired_attempt_ids(t["id"])
+                and self._task_spawn_backoff(t["id"]) is None
                 and self._ready(t)
             ]
+
+    def _task_spawn_backoff_state(self, task_id: str) -> dict | None:
+        row = self.db.execute(
+            "SELECT kind,body FROM events WHERE entity=? "
+            "AND kind IN ('attempt_spawn_backoff','attempt_child_started') "
+            "ORDER BY seq DESC LIMIT 1",
+            (task_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            body = json.loads(row["body"])
+        except (TypeError, ValueError, RecursionError):
+            raise StateError("attempt_spawn_backoff_history_invalid") from None
+        if row["kind"] == "attempt_child_started":
+            if type(body) is not dict or type(body.get("attempt_id")) is not int:
+                raise StateError("attempt_spawn_backoff_history_invalid")
+            child = self._attempt_child_start_event(task_id, body["attempt_id"])
+            if child is None or child["epoch"] != body.get("epoch"):
+                raise StateError("attempt_spawn_backoff_history_invalid")
+            return None
+        if (
+            type(body) is not dict
+            or set(body) != {"attempt_id", "epoch", "failure_count", "retry_at"}
+            or type(body["attempt_id"]) is not int
+            or body["attempt_id"] <= 0
+            or type(body["epoch"]) is not int
+            or body["epoch"] <= 0
+            or type(body["failure_count"]) is not int
+            or not 1 <= body["failure_count"] <= _SPAWN_FAILURE_BACKOFF_MAX_FAILURES
+            or isinstance(body["retry_at"], bool)
+            or not isinstance(body["retry_at"], (int, float))
+        ):
+            raise StateError("attempt_spawn_backoff_history_invalid")
+        try:
+            if not math.isfinite(body["retry_at"]):
+                raise StateError("attempt_spawn_backoff_history_invalid")
+        except OverflowError:
+            raise StateError("attempt_spawn_backoff_history_invalid") from None
+        attempt = self.db.execute(
+            "SELECT task_id,epoch,state FROM attempts WHERE id=?", (body["attempt_id"],)
+        ).fetchone()
+        if (
+            attempt is None
+            or attempt["task_id"] != task_id
+            or attempt["epoch"] != body["epoch"]
+            or attempt["state"] != "cancelled_before_spawn"
+        ):
+            raise StateError("attempt_spawn_backoff_history_invalid")
+        return dict(body)
+
+    def _task_spawn_backoff(self, task_id: str) -> dict | None:
+        state = self._task_spawn_backoff_state(task_id)
+        return state if state is not None and state["retry_at"] > self.clock() else None
 
     def _unreaped_expired_attempt_ids(self, task_id: str) -> list[int]:
         unreaped = []
@@ -1115,6 +1185,7 @@ class Store:
             if (
                 task["state"] != "pending"
                 or self._unreaped_expired_attempt_ids(task_id)
+                or self._task_spawn_backoff(task_id) is not None
                 or not self._ready(task)
             ):
                 return None
@@ -1177,6 +1248,26 @@ class Store:
                 task["id"],
                 {"attempt_id": attempt_id, "epoch": epoch, "reason": reason},
             )
+            if reason == "popen_failed":
+                previous = self._task_spawn_backoff_state(task["id"])
+                failure_count = min(
+                    (previous["failure_count"] if previous is not None else 0) + 1,
+                    _SPAWN_FAILURE_BACKOFF_MAX_FAILURES,
+                )
+                delay = min(
+                    _SPAWN_FAILURE_BACKOFF_BASE_SECONDS * 2 ** (failure_count - 1),
+                    _SPAWN_FAILURE_BACKOFF_MAX_SECONDS,
+                )
+                self._event(
+                    "attempt_spawn_backoff",
+                    task["id"],
+                    {
+                        "attempt_id": attempt_id,
+                        "epoch": epoch,
+                        "failure_count": failure_count,
+                        "retry_at": self.clock() + delay,
+                    },
+                )
 
     @staticmethod
     def _validate_child_identity(identity: Any) -> dict:

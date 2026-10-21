@@ -126,6 +126,35 @@ class SupervisorTests(unittest.TestCase):
             item.start()
             self.addCleanup(item.stop)
 
+    def test_spawn_backoff_wait_uses_earliest_cooldown_with_mixed_pending_blockers(self):
+        readiness = [
+            {
+                "task_id": "first",
+                "state": "pending",
+                "blockers": [{"kind": "attempt_spawn_backoff", "retry_at": 1030.0}],
+            },
+            {
+                "task_id": "second",
+                "state": "pending",
+                "blockers": [{"kind": "attempt_spawn_backoff", "retry_at": 1020.0}],
+            },
+            {"task_id": "done", "state": "integrated", "blockers": []},
+        ]
+        self.assertEqual(supervisor._spawn_backoff_deadline(readiness), 1020.0)
+        readiness[1] = {
+            "task_id": "dependency-blocked",
+            "state": "pending",
+            "blockers": [{"kind": "dependency", "id": "producer", "state": "failed"}],
+        }
+        self.assertEqual(supervisor._spawn_backoff_deadline(readiness), 1030.0)
+        readiness[1]["blockers"].append({"kind": "attempt_spawn_backoff", "retry_at": 1020.0})
+        self.assertEqual(supervisor._spawn_backoff_deadline(readiness), 1020.0)
+        first_token = supervisor._spawn_backoff_plan_token(readiness, revision=4)
+        self.assertEqual(first_token, supervisor._spawn_backoff_plan_token(readiness, revision=4))
+        self.assertNotEqual(
+            first_token, supervisor._spawn_backoff_plan_token(readiness, revision=5)
+        )
+
     def test_later_bound_command_identity_and_result_contract_reach_verifier_gate(self):
         command = SimpleNamespace(
             executable_sha256="a" * 64,
@@ -1759,7 +1788,7 @@ main()
             patch.object(
                 supervisor.time,
                 "sleep",
-                side_effect=lambda _seconds: None,
+                side_effect=lambda seconds: setattr(self, "now", self.now + seconds),
             ),
             patch.object(
                 supervisor,

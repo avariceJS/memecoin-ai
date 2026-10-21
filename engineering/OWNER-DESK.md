@@ -24,10 +24,16 @@ marker, reopen восстанавливает marker и допускает од�
 witness. Receipt — доверенное утверждение локального reaper, не аутентифицированное доказательство:
 прямой Store/SQLite writer может его подделать. Legacy expired attempts без receipt остаются на hold
 до подтверждённого reconciliation.
-Полный gate: Ruff/format, 640 тестов и 193 subtests; `make smoke` воспроизводим,
+Синхронный `Popen` failure теперь атомарно отменяет unstarted attempt и сохраняет per-task
+exponential cooldown до пяти минут. Claim, readiness и supervisor соблюдают deadline; независимая
+готовая задача продолжает работу, planning вызывается один раз на изменившееся durable state, а
+pending contract reviews обрабатываются до ожидания ближайшего cooldown даже при отдельных dependency
+blockers. Child custody сбрасывает streak, бюджет attempts не расходуется.
+Полный gate: Ruff/format, 642 теста и 193 subtests; `make smoke` воспроизводим,
 `edge_established=false`.
 Worker/reviewer остаются синтетическими; падение до регистрации владельца остаётся неизвестным,
-а постоянный `Popen` failure пока не имеет backoff. Это не qualification A04, provider/usage settlement,
+это покрывает только синхронную ошибку до создания процесса; неоднозначный child start требует custody
+recovery. Это не qualification A04, provider/usage settlement,
 A03 или operational release.
 
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной

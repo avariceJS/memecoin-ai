@@ -1874,6 +1874,39 @@ def activate_contract(state, db):
     return tuple(sorted(allowed_request_ids))
 
 
+def _spawn_backoff_deadline(readiness):
+    pending = [item for item in readiness if item["state"] == "pending"]
+    if not pending:
+        return None
+    deadlines = []
+    for item in pending:
+        for blocker in item["blockers"]:
+            if blocker.get("kind") != "attempt_spawn_backoff":
+                continue
+            retry_at = blocker.get("retry_at")
+            if (
+                isinstance(retry_at, bool)
+                or not isinstance(retry_at, (int, float))
+                or not math.isfinite(retry_at)
+            ):
+                raise StateError("attempt_spawn_backoff_readiness_invalid")
+            deadlines.append(retry_at)
+    return min(deadlines) if deadlines else None
+
+
+def _spawn_backoff_plan_token(readiness, revision):
+    backoff_tasks = tuple(
+        sorted(
+            (item["task_id"], blocker["retry_at"])
+            for item in readiness
+            if item["state"] == "pending"
+            for blocker in item["blockers"]
+            if blocker.get("kind") == "attempt_spawn_backoff"
+        )
+    )
+    return revision, backoff_tasks
+
+
 def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
     from .resources import choose_capacity
 
@@ -1886,6 +1919,7 @@ def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
         native = state / "budget-native"
         native.mkdir(exist_ok=True)
         blocked_verification = set()
+        backoff_plan_token = None
         with Codex(native, codex=cfg.get("codex_executable", "codex")) as account:
             last_read, limits = None, None
             while time.monotonic() < end and not (state / "STOP").exists():
@@ -1939,9 +1973,26 @@ def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
                     active_scopes=[s for t in active for s in t["scope"]],
                 )
                 if not active and not ready:
+                    readiness = db.readiness_report()
+                    backoff_deadline = _spawn_backoff_deadline(readiness)
+                    cooling_down = (
+                        decision["slots"]
+                        and backoff_deadline is not None
+                        and backoff_deadline > db.clock()
+                    )
+                    if cooling_down:
+                        # Give planning one opportunity for each changed durable state,
+                        # then keep waiting without repeatedly spending planner calls.
+                        revision = db.quiescence_snapshot()["revision"]
+                        token = _spawn_backoff_plan_token(readiness, revision)
+                        should_plan = token != backoff_plan_token
+                        backoff_plan_token = token
+                    else:
+                        backoff_plan_token = None
+                        should_plan = True
                     from .planning import plan_next
 
-                    if decision["slots"] and plan_next(state, db):
+                    if decision["slots"] and should_plan and plan_next(state, db):
                         continue
                     if decision["slots"] and contract_review_transport is not None:
                         from .contract_review_cycle import process_pending_reviews
@@ -1966,6 +2017,11 @@ def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
                                 dispatch_authority=review_cycle["dispatch_authority"],
                             )
                             continue
+                    if cooling_down:
+                        wait_seconds = min(2.0, max(0.0, backoff_deadline - db.clock()))
+                        if wait_seconds:
+                            time.sleep(wait_seconds)
+                        continue
                     snapshot = db.quiescence_snapshot()
                     readiness = snapshot["readiness"]
                     if any(

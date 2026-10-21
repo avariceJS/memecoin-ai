@@ -139,6 +139,58 @@ class LifecycleStoreTests(unittest.TestCase):
             ["cancelled_before_spawn", "expired", "failed"],
         )
 
+    def test_popen_failure_backoff_is_durable_bounded_and_budget_neutral(self):
+        self.store.add_task("popen-backoff", "Platform", "Wait after spawn error", max_attempts=1)
+        self.store.add_task("unrelated-ready", "Research", "Continue unrelated work")
+        attempt = self.store.claim("popen-backoff", "supervisor", lease_seconds=20)
+        self.store.cancel_unstarted_claim(attempt["id"], attempt["epoch"], reason="popen_failed")
+        first = next(
+            row for row in self.store.readiness_report() if row["task_id"] == "popen-backoff"
+        )
+        blocker = first["blockers"][-1]
+        self.assertEqual(blocker["kind"], "attempt_spawn_backoff")
+        self.assertEqual(blocker["failure_count"], 1)
+        self.assertEqual(blocker["retry_at"], self.now + 5)
+        self.assertNotIn("popen-backoff", [row["id"] for row in self.store.ready_tasks()])
+        self.assertIsNone(self.store.claim("popen-backoff", "too-early", lease_seconds=20))
+        self.assertIsNotNone(self.store.claim("unrelated-ready", "other-team", lease_seconds=20))
+        event_count = len(self.store.events())
+        with self.assertRaises(StaleAttempt):
+            self.store.cancel_unstarted_claim(
+                attempt["id"], attempt["epoch"], reason="popen_failed"
+            )
+        self.assertEqual(len(self.store.events()), event_count)
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertIsNone(self.store.claim("popen-backoff", "after-reopen-too-early", 20))
+
+        for expected_count in range(2, 11):
+            self.now = next(
+                row["retry_at"]
+                for row in self.store.readiness_report()
+                if row["task_id"] == "popen-backoff"
+                for row in row["blockers"]
+                if row["kind"] == "attempt_spawn_backoff"
+            )
+            retry = self.store.claim("popen-backoff", "supervisor", lease_seconds=20)
+            self.assertIsNotNone(retry)
+            self.store.cancel_unstarted_claim(retry["id"], retry["epoch"], reason="popen_failed")
+            state = self.store._task_spawn_backoff_state("popen-backoff")
+            self.assertEqual(state["failure_count"], min(expected_count, 8))
+            self.assertLessEqual(state["retry_at"] - self.now, 300)
+
+        self.now = self.store._task_spawn_backoff_state("popen-backoff")["retry_at"]
+        recovered = self.store.claim("popen-backoff", "supervisor", lease_seconds=20)
+        self.assertEqual(recovered["epoch"], 11)
+        self.store.record_attempt_child_start(
+            recovered["id"], recovered["epoch"], {"pid": 980001, "birth": "synthetic:child"}
+        )
+        self.assertIsNone(self.store._task_spawn_backoff_state("popen-backoff"))
+        self.assertEqual(
+            [row["state"] for row in self.store.list_attempts("popen-backoff")],
+            ["cancelled_before_spawn"] * 10 + ["running"],
+        )
+
     def test_registered_child_has_one_owner_and_STOP_outcome_is_durable(self):
         self.store.add_task("child-owner", "Platform", "Synthetic child custody", max_attempts=2)
         attempt = self.store.claim("child-owner", "supervisor", lease_seconds=20)

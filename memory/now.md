@@ -63,7 +63,12 @@ disappearance or PID birth change, commits SQLite receipt, then writes a recover
 or uncertain identity leaves the receipt absent. Reopen recovers both the hold before receipt and marker
 after receipt. The receipt is a trusted local reaper assertion, not authenticated against direct
 Store/SQLite writers. This relies on macOS process witnesses; expired legacy attempts without receipt
-remain held for positive reconciliation. Full gate: Ruff/format, 640 tests and 193 subtests; smoke is
+remain held for positive reconciliation. Synchronous `Popen` failures atomically cancel the unstarted
+attempt and persist capped exponential task cooldown; claim/readiness enforce it, unrelated tasks
+continue, and child custody resets the streak without spending retry budget. During cooldown, planning
+runs once per changed durable revision and pending contract reviews can progress; the earliest cooldown
+is observed even with unrelated dependency blockers. Full gate: Ruff/format,
+642 tests and 193 subtests; smoke is
 reproducible with `edge_established=false`. This is
 synthetic source-only acceptance, not A04/provider/runtime qualification; remaining limits are in the
 canonical organization record.

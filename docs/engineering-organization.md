@@ -1948,9 +1948,17 @@ forge it. A failed kill, unreadable live PID or conflicting/malformed identity l
 no receipt and keeps claims blocked. Reopening after process exit but before receipt stays blocked;
 reopening after receipt but before marker reconstructs the marker and permits exactly one next epoch.
 The reaper requires macOS process witnesses for owned processes. Legacy expired attempts without a
-receipt remain held until positively reconciled. The full engineering release gate passed Ruff/format,
-640 tests and 193 subtests; `make smoke` is reproducible with `edge_established=false`.
+receipt remain held until positively reconciled. Synchronous `Popen` failures now atomically cancel
+the unstarted attempt and persist an exponential per-task cooldown, capped at five minutes. Claim,
+readiness and the supervisor loop respect the deadline; unrelated ready work can proceed, a recorded
+child start resets the streak, and cancellation still does not consume attempt budget. While waiting,
+the supervisor attempts planning once per changed durable state, processes pending contract reviews,
+and waits on the earliest cooldown even when another pending task has separate dependency blockers.
+The full
+engineering release gate passed Ruff/format, 642 tests and 193 subtests; `make smoke` is reproducible
+with `edge_established=false`.
 Worker/reviewer responses and Git/contract checks remain synthetic; process identity requires the
 macOS birth witness, and an exit before child registration cannot be assigned an owner. Persistent
-`Popen` failure has no backoff. A04 executable qualification, provider/usage settlement, A03 and
+Popen backoff covers only synchronous failures before process creation; ambiguous child starts still
+require process-custody recovery. A04 executable qualification, provider/usage settlement, A03 and
 operational release remain open.
