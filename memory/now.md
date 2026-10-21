@@ -26,6 +26,10 @@ automatically.
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable
   authorization-generation deduplication. Both remain open; see `docs/engineering-organization.md`.
+- Follow-up inspection of the installed macOS 27.0 SDK found no public `fexecve`/`execveat` declaration
+  or export; only pathname `execv`/`execve` surfaced. This narrows the supported host interface but
+  proves neither universal impossibility nor A04 execution qualification. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-macos-sdk-descriptor-exec-surface-20261021.json`.
 - A04 source `62ab4ce` adds a Sol-accepted synthetic macOS joined-path test from persisted admission
   through manifest v4, bound Seatbelt execution and strict result parsing; engineering gate passed
   370 tests/96 subtests with Ruff. It is plumbing evidence only: bound plans remain

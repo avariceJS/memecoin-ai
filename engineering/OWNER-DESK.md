@@ -332,6 +332,12 @@ A04: на macOS 26.7.1 не найден поддержанный public descrip
 доказывают, что `sandbox-exec` запустил тот же inode, который ранее был проверен. Не использовать
 их как замену отсутствующей связи path-to-invocation; A04 остаётся fail-closed. Проба:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-darwin-fd-exec-probe-20261021.json`.
+Повторный read-only осмотр установленного macOS 27.0 SDK на macOS 26.7.1 подтвердил: публичный
+`unistd.h` объявляет только pathname `execv`/`execve`, а SDK text stubs не экспортируют
+`fexecve`/`execveat`. Это сужает доступный поддерживаемый интерфейс данного host, но не исключает
+все альтернативы и не квалифицирует запуск. Hash-bound receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-macos-sdk-descriptor-exec-surface-20261021.json`
+(SHA-256 `b80848f7fdea1898e5e00d2496c73f80f7b121d1c4c0b7a3bdb5c8d250345a8b`).
 Отдельный source-only обзор tracked `pilot_acceptance.py` видит импорты stdlib, dynamic import и
 subprocess для candidate кода внутри sandbox. Hash harness и флаги `-I -S -B` не закрепляют
 содержимое stdlib/native extensions и зависимости macOS loader. Deployed manifest и runtime closure

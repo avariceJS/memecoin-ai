@@ -409,6 +409,14 @@ Apple's [`execve(2)` reference](https://developer.apple.com/library/archive/docu
 [XNU `kern_exec.c`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_exec.c).
 This does not address Python loader/import dependency closure.
 
+A follow-up read-only inspection of the installed macOS 27.0 SDK on macOS 26.7.1 confirms that its
+public `unistd.h` declares pathname-based `execve`/`execv` but no `fexecve` or `execveat`; the SDK
+text stubs likewise expose `_execve` without either descriptor form. Header and stub hashes are in
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-macos-sdk-descriptor-exec-surface-20261021.json`
+(SHA-256 `b80848f7fdea1898e5e00d2496c73f80f7b121d1c4c0b7a3bdb5c8d250345a8b`). This narrows the
+supported public interface available on this host; it does not rule out every alternative mechanism
+or establish execution qualification.
+
 Apple's launch environment/library constraints are a separate code-signing policy, not a way for
 the current `sandbox-exec` path to execute the already hashed descriptor. Apple documents
 `SpawnConstraint` for launchd agents/daemons and launch environment constraints embedded in the
