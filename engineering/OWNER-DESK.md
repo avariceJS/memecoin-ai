@@ -76,10 +76,9 @@ publisher. Они образуют пригодный фундамент. Сле
 - На момент предыдущей проверки оба прежних Goal через `thread/goal/get` имели статус `paused`;
   последняя запись `active` в старом rollout была устаревшей. Позднее основатель явно подтвердил
   завершение audit hold и продолжение работы в рамках той же Goal
-  `01a15b1c-c263-71b0-bfca-c5b46d17a89b`.
-  Текущий native readback подтверждает статус `active` у той же Goal. Не создавать замену;
-  сохранять её историю, счётчики и durable state. Предыдущий readback `paused` относился к
-  прежнему состоянию. Продолжать разрешённую исходную работу с тем же владельцем.
+  `01a15b1c-c263-71b0-bfca-c5b46d17a89b`. Текущий native readback снова показывает `paused`;
+  доступный Goal API не возобновляет эту Goal. Основатель разрешил продолжать source работу с тем же
+  владельцем, не создавая замену и сохраняя историю, счётчики и durable state.
 - В A10 исправлен split-read `config.json`: deployment validator читает одни и те же UTF-8-байты,
   разбирает и хэширует их; синтетический тест проверяет замену файла и digest между чтениями.
   Sol принял точный diff `9113f9f41660bd052b30257216c17d959184ba3906b9ca04f19aa2f311353390`;
@@ -390,9 +389,10 @@ Luna параллельно продолжает A04 trusted execution binding, 
 A05 пассивный lifecycle, A10 durable contract/dependency flow и A12 bounded history projection.
 Синтетическая source-проверка не разрешает pilot, supervisor runtime, market collection, обучение,
 AUTO или торговлю. Для supervisor, pilot и полного эксплуатационного приёма обязательны отдельные
-независимые release gates. Native Goal пока отображается как `blocked`: доступный Goal API позволяет
-читать и менять статус, но не менять objective и не возобновляет blocked Goal. Существующий ID,
-счётчики и история сохранены; новый Goal не создавался.
+независимые release gates. Последний native readback показывает Goal
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b` как `paused`; доступный Goal API её не возобновляет. Явное
+разрешение основателя на source работу сохраняется. ID, счётчики и история Goal защищены; замена не
+создавалась.
 
 Source-продолжение уже дало отдельный прогресс: A04 persistence/resolver scaffold принят Sol в
 ограниченной области; supervisor/recovery wiring и A04 operational acceptance остаются открыты.
