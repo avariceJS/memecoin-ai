@@ -1630,3 +1630,13 @@ error. Sol-6.1 accepted exact diff
 engineering-release-check` passed Ruff, format, 556 tests and 127 subtests. A failed OS-level kill
 can still leave a process alive, Security API calls remain non-interruptible, and process/descendant
 provenance and full A04 qualification remain open. A03 continues to block operational release only.
+
+At `609e922`, `Store.open_controller_parse_fault` no longer leaves a later active faulting attempt
+running when the parser circuit is already open. It preserves the first circuit/recovery records,
+while fencing and atomically failing the current attempt/task with its own failure event. The
+regression checks two active attempts, both failure records, retained usage, unchanged first-fault
+versions and stale duplicate rejection. Sol-6.1 accepted exact diff
+`0000787d1d13c17471651fb73b120b99f82ff14046943ee8f2814d7a955ccfe0`; `make
+engineering-release-check` passed Ruff, format, 557 tests and 127 subtests. This does not cancel all
+other active work or add recovery scheduling, execution or runtime authority; A03 remains an
+operational-release blocker only.

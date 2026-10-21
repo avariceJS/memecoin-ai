@@ -482,6 +482,41 @@ class StateTests(unittest.TestCase):
             "resolved",
         )
 
+    def test_later_controller_fault_fails_current_attempt_without_replacing_first_fault(self):
+        self.task("first", max_attempts=2)
+        self.task("second", max_attempts=2)
+        first = self.store.claim("first", "worker")
+        second = self.store.claim("second", "worker")
+        self.store.record_usage(first["id"], first["epoch"], {"tokens": 3})
+        self.store.open_controller_parse_fault(
+            first["id"], first["epoch"], stage="lead", exception_type="ValueError"
+        )
+        self.store.record_usage(second["id"], second["epoch"], {"tokens": 5})
+
+        self.store.open_controller_parse_fault(
+            second["id"], second["epoch"], stage="worker", exception_type="TypeError"
+        )
+
+        self.assertEqual(self.store.get_task("first")["state"], "failed")
+        self.assertEqual(self.store.get_task("second")["state"], "failed")
+        attempts = {item["task_id"]: item for item in self.store.list_attempts()}
+        self.assertEqual(attempts["first"]["state"], "failed")
+        self.assertEqual(attempts["second"]["state"], "failed")
+        circuit = self.store.get_decision("circuit/controller-parse")
+        obligation = self.store.get_decision("recovery-obligation/controller-parse")
+        self.assertEqual((circuit["version"], obligation["version"]), (1, 1))
+        self.assertEqual(circuit["body"]["first_attempt_id"], first["id"])
+        self.assertEqual(obligation["body"]["first_attempt_id"], first["id"])
+        self.assertEqual(self.store.usage_summary()["total"]["tokens"], 8)
+        failures = [event for event in self.store.events() if event["kind"] == "attempt_failed"]
+        self.assertEqual(
+            {event["body"]["attempt_id"] for event in failures}, {first["id"], second["id"]}
+        )
+        with self.assertRaises(StaleAttempt):
+            self.store.open_controller_parse_fault(
+                second["id"], second["epoch"], stage="worker", exception_type="TypeError"
+            )
+
     def test_recovery_is_durable_idempotent_and_bounded(self):
         self.task(max_attempts=2)
         first = self.store.claim("a", "worker", 1)

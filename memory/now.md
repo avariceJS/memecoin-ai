@@ -15,6 +15,12 @@ decisions and independent review; Astra remains episodic and is never started au
   `652f72acd610caaa82e1b5ca2e3ccaec5f426acf16db1f868f40cd842480df25`; the full gate passed Ruff,
   format, 556 tests and 127 subtests. Failed OS-level kill can leave a process; provenance and full
   A04 remain open. STOP remains active; A03 blocks release, not source development.
+- Latest A05 source at `609e922`: a later parser fault under an already-open circuit now fails its
+  currently fenced attempt/task and journals the event atomically, while retaining the first
+  circuit/recovery pair. Sol accepted exact diff
+  `0000787d1d13c17471651fb73b120b99f82ff14046943ee8f2814d7a955ccfe0`; full gate passed Ruff,
+  format, 557 tests and 127 subtests. This does not cancel other active attempts or add recovery
+  scheduling; STOP remains active and A03 blocks release only.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

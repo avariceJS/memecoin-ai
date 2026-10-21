@@ -4163,36 +4163,37 @@ class Store:
         with self._tx():
             task, _attempt = self._fence(attempt_id, epoch)
             current = self.get_decision("circuit/controller-parse")
-            if current is not None and current["body"].get("status") == "open":
-                return
-            circuit = {
-                "status": "open",
-                "fault": "structured_response",
-                "first_attempt_id": attempt_id,
-                "task_id": task["id"],
-                "stage": stage,
-                "exception_type": exception_type,
-            }
-            obligation = {
-                "status": "open",
-                "fault": "structured_response",
-                "first_attempt_id": attempt_id,
-                "task_id": task["id"],
-                "stage": stage,
-                "required_evidence": [
-                    "qualified parser/controller fix",
-                    "independent release review",
-                    "separate bounded recovery authorization",
-                ],
-            }
-            if any(
-                self._controller_parse_recovery_record_bytes(body)
-                > _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES
-                for body in (circuit, obligation)
-            ):
-                raise StateError("controller_parse_recovery_record_byte_limit")
-            self._put_decision_in_transaction("circuit/controller-parse", circuit)
-            self._put_decision_in_transaction("recovery-obligation/controller-parse", obligation)
+            if current is None or current["body"].get("status") != "open":
+                circuit = {
+                    "status": "open",
+                    "fault": "structured_response",
+                    "first_attempt_id": attempt_id,
+                    "task_id": task["id"],
+                    "stage": stage,
+                    "exception_type": exception_type,
+                }
+                obligation = {
+                    "status": "open",
+                    "fault": "structured_response",
+                    "first_attempt_id": attempt_id,
+                    "task_id": task["id"],
+                    "stage": stage,
+                    "required_evidence": [
+                        "qualified parser/controller fix",
+                        "independent release review",
+                        "separate bounded recovery authorization",
+                    ],
+                }
+                if any(
+                    self._controller_parse_recovery_record_bytes(body)
+                    > _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES
+                    for body in (circuit, obligation)
+                ):
+                    raise StateError("controller_parse_recovery_record_byte_limit")
+                self._put_decision_in_transaction("circuit/controller-parse", circuit)
+                self._put_decision_in_transaction(
+                    "recovery-obligation/controller-parse", obligation
+                )
             state = self._retry_state(task, False)
             self.db.execute("UPDATE attempts SET state='failed' WHERE id=?", (attempt_id,))
             self.db.execute("UPDATE tasks SET state=? WHERE id=?", (state, task["id"]))
