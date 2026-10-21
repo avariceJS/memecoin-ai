@@ -110,6 +110,80 @@ class TaskSpecStoreTests(unittest.TestCase):
         args.update(kwargs)
         return self.store.admit_task_spec(copy.deepcopy(SPEC), **args)
 
+    def test_controller_catalogue_id_cannot_be_admitted_as_task_spec(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = Store(
+                Path(directory) / "state.sqlite",
+                controller_catalogue=[SPEC["id"]],
+            )
+            try:
+                store.add_objective(SPEC["objective_id"], "Synthetic objective")
+                store.put_contract("store-api", 1, {"synthetic": True})
+                with self.assertRaisesRegex(StateError, "task_spec_fixed_catalogue_collision"):
+                    store.admit_task_spec(
+                        copy.deepcopy(SPEC),
+                        envelope=copy.deepcopy(ENVELOPE),
+                        acceptance_registry=copy.deepcopy(REGISTRY),
+                        policy_sha256=POLICY,
+                        admission=copy.deepcopy(ADMISSION),
+                    )
+                self.assertEqual(store.list_tasks(), [])
+                self.assertEqual(
+                    store.db.execute("SELECT COUNT(*) FROM task_specs").fetchone()[0], 0
+                )
+                self.assertFalse(store._controller_assignment_admitted({"id": SPEC["id"]}))
+            finally:
+                store.close()
+
+    def test_controller_catalogue_collision_is_rechecked_after_write_lock_wait(self):
+        store = Store(self.path, controller_catalogue=[SPEC["id"]])
+        writer = Store(self.path)
+        self.addCleanup(writer.close)
+        writer.db.execute("BEGIN IMMEDIATE")
+        entered_tx = threading.Event()
+        release = threading.Event()
+        original_tx = store._tx
+        candidate = copy.deepcopy(SPEC)
+        candidate["id"] = "OFF-010"
+        errors = []
+
+        @contextmanager
+        def gated_tx():
+            entered_tx.set()
+            if not release.wait(5):
+                raise AssertionError("test timed out before releasing task-spec admission")
+            with original_tx():
+                yield
+
+        def admit():
+            try:
+                store.admit_task_spec(
+                    candidate,
+                    envelope=copy.deepcopy(ENVELOPE),
+                    acceptance_registry=copy.deepcopy(REGISTRY),
+                    policy_sha256=POLICY,
+                    admission=copy.deepcopy(ADMISSION),
+                )
+            except BaseException as exc:
+                errors.append(exc)
+
+        thread = threading.Thread(target=admit, daemon=True)
+        with patch.object(store, "_tx", gated_tx):
+            thread.start()
+            self.assertTrue(entered_tx.wait(3), "admission did not reach the write lock")
+            candidate["id"] = SPEC["id"]
+            release.set()
+            writer.db.execute("COMMIT")
+            thread.join(10)
+
+        self.assertFalse(thread.is_alive(), "admission thread did not finish")
+        store.close()
+        self.assertEqual(len(errors), 1)
+        self.assertIsInstance(errors[0], StateError)
+        self.assertEqual(str(errors[0]), "task_spec_fixed_catalogue_collision")
+        self.assertEqual(self.store.list_tasks(), [])
+        self.assertEqual(self.store.db.execute("SELECT COUNT(*) FROM task_specs").fetchone()[0], 0)
+
     def test_admission_rejects_digest_consistent_envelope_for_wrong_store_contract(self):
         forged = copy.deepcopy(SPEC)
         forged_digest = "9" * 64

@@ -116,8 +116,10 @@ class SupervisorTests(unittest.TestCase):
             patch.object(
                 supervisor,
                 "store",
-                side_effect=lambda state: Store(
-                    self.state / "organization.sqlite", clock=lambda: self.now
+                side_effect=lambda state, **kwargs: Store(
+                    self.state / "organization.sqlite",
+                    clock=lambda: self.now,
+                    controller_catalogue=kwargs.get("controller_catalogue"),
                 ),
             ),
             patch.object(supervisor, "log_event"),

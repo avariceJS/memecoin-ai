@@ -64,11 +64,14 @@ generic public decision writer cannot append to the reserved `admission/` namesp
 now requires a fixed-catalogue task's persisted nomination and exact trusted-card projection before
 supervisor claim, again before worker dispatch, and before candidate verification. Off-catalogue work
 must carry the separate task-spec admission. Directly-created tasks remain usable by Store-only
-compatibility fixtures, but a controller deployment with a catalogue will not select them for worker
-spawn; a directly claimed child fails before provider work, and verifier/recovery acceptance stays
-blocked. Idle handoff records `controller-assignment-required` while preserving the raw Store readiness
-snapshot. The nomination is checked against its durable admission-time card digest; the department lease need
-not remain live throughout execution. This exercises the review call and packet binding, not reviewer
+compatibility fixtures. The supervisor opens Store with its frozen catalogue, and Store rechecks
+admission inside `ready_tasks` and the claim transaction for those card IDs. Directly claimed children
+still fail before provider work; verifier/recovery acceptance stays blocked. Store instances opened
+without controller catalogue policy remain permissive for historical and isolated use. Idle handoff
+records `controller-assignment-required` while preserving the raw Store readiness snapshot. The
+nomination is checked against its durable admission-time card digest; the department lease need not
+remain live throughout execution. Task-spec admission rejects IDs that collide with the frozen fixed
+catalogue and rechecks the canonical ID inside the write transaction. This exercises the review call and packet binding, not reviewer
 judgment, identity or independence. The test injects a crash after the real ref compare-and-swap but before
 Store integration, closes and reopens
 SQLite, then recovers and claims a dependent next task. It removes the receipt and confirms recovery

@@ -583,8 +583,11 @@ def config(state):
     return deployment["config"]
 
 
-def store(state):
-    return Store(state / "organization.sqlite")
+def store(state, *, controller_catalogue=None):
+    return Store(
+        state / "organization.sqlite",
+        controller_catalogue=controller_catalogue,
+    )
 
 
 def log_event(state, kind, **values):
@@ -773,7 +776,8 @@ def reap_expired(state, db):
 
 
 def run_attempt(state: Path, attempt_id: int):
-    cfg, db = config(state), store(state)
+    cfg = config(state)
+    db = store(state, controller_catalogue=cfg.get("catalogue"))
     attempt = next(a for a in db.list_attempts() if a["id"] == attempt_id)
     task = db.get_task(attempt["task_id"])
     epoch = attempt["epoch"]
@@ -1233,7 +1237,8 @@ def resolve_controller_parse_fault(
 
 
 def verify_one(state, task):
-    cfg, db = config(state), store(state)
+    cfg = config(state)
+    db = store(state, controller_catalogue=cfg.get("catalogue"))
     task = db.get_task(task["id"])
     data = db.get_candidate(task["id"])
     evidence = data["evidence"]
@@ -1964,7 +1969,8 @@ def supervise(
     from .resources import choose_capacity
 
     state = state.resolve()
-    cfg, db = config(state), store(state)
+    cfg = config(state)
+    db = store(state, controller_catalogue=cfg.get("catalogue"))
     with (state / "supervisor.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         log_event(state, "supervisor_started", birth=process_identity(os.getpid()))
@@ -2143,7 +2149,14 @@ def supervise(
                     if decision["slots"] == 0:
                         reason = "quota-unavailable"
                     elif any(
-                        row["state"] == "pending" and row["task_id"] in fresh_assignment_blocked
+                        row["state"] == "pending"
+                        and (
+                            row["task_id"] in fresh_assignment_blocked
+                            or any(
+                                blocker.get("kind") == "controller_assignment"
+                                for blocker in row["blockers"]
+                            )
+                        )
                         for row in readiness
                     ):
                         reason = "controller-assignment-required"

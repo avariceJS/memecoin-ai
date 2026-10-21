@@ -264,8 +264,22 @@ class Store:
     A controller, separate from worker execution, owns verify/accept/integrate calls.
     """
 
-    def __init__(self, path: str | Path, clock: Callable[[], float] = time.time):
+    def __init__(
+        self,
+        path: str | Path,
+        clock: Callable[[], float] = time.time,
+        *,
+        controller_catalogue: list[str] | tuple[str, ...] | None = None,
+    ):
+        if controller_catalogue is not None and (
+            type(controller_catalogue) not in (list, tuple)
+            or any(type(task_id) is not str or not task_id for task_id in controller_catalogue)
+        ):
+            raise StateError("controller_assignment_policy_invalid")
         self.clock = clock
+        self.controller_catalogue = (
+            None if controller_catalogue is None else frozenset(controller_catalogue)
+        )
         self._lock = threading.RLock()
         self.db = sqlite3.connect(
             str(path), timeout=30, isolation_level=None, check_same_thread=False
@@ -437,6 +451,12 @@ class Store:
         with self._tx():
             if (
                 proposed_id
+                and self.controller_catalogue is not None
+                and proposed_id in self.controller_catalogue
+            ):
+                raise StateError("task_spec_fixed_catalogue_collision")
+            if (
+                proposed_id
                 and self.db.execute("SELECT 1 FROM tasks WHERE id=?", (proposed_id,)).fetchone()
             ):
                 raise StateError("task_spec_duplicate")
@@ -468,6 +488,8 @@ class Store:
                     raise StateError("task_spec_duplicate") from None
                 raise
             task_id = canonical["id"]
+            if self.controller_catalogue is not None and task_id in self.controller_catalogue:
+                raise StateError("task_spec_fixed_catalogue_collision")
             execution_binding = None
             binding_requested = any(
                 value is not None
@@ -866,6 +888,12 @@ class Store:
             self._event("task_added", task_id, self._task(task_id))
 
     def _ready(self, task: dict) -> bool:
+        if (
+            self.controller_catalogue is not None
+            and task["id"] in self.controller_catalogue
+            and not self._controller_assignment_admitted(task)
+        ):
+            return False
         if not all(self._task(d)["state"] == "integrated" for d in task["dependencies"]):
             return False
         if not all(
@@ -887,6 +915,41 @@ class Store:
             except (StateError, TypeError, ValueError):
                 return False
         return True
+
+    def _controller_assignment_admitted(self, task: dict) -> bool:
+        """Recheck controller-owned assignment inside readiness and claim transactions."""
+        if self.controller_catalogue is None or task["id"] not in self.controller_catalogue:
+            return True
+        task_id = task["id"]
+        row = self.db.execute(
+            "SELECT version,body FROM decisions WHERE name=? ORDER BY version DESC LIMIT 1",
+            ("admission/" + task_id,),
+        ).fetchone()
+        if row is None or row["version"] != 1:
+            return False
+        try:
+            body = json.loads(row["body"])
+        except (TypeError, ValueError, RecursionError):
+            return False
+        if (
+            type(body) is not dict
+            or set(body) != {"proposal", "base", "department_nomination"}
+            or type(body["proposal"]) is not dict
+            or body["proposal"].get("card") != task_id
+            or type(body["base"]) is not str
+            or body["base"] != task["base_sha"]
+        ):
+            return False
+        nomination = body["department_nomination"]
+        return (
+            type(nomination) is dict
+            and nomination.get("schema") == "department-plan-nomination-v1"
+            and nomination.get("card_id") == task_id
+            and nomination.get("team") == task["team"]
+            and nomination.get("objective_id") == task["objective_id"]
+            and type(nomination.get("owner_epoch")) is int
+            and nomination["owner_epoch"] > 0
+        )
 
     def readiness_report(self) -> list[dict]:
         """Return one coherent, read-only snapshot of pending work and explicit blockers.
@@ -1313,6 +1376,18 @@ class Store:
         report = []
         for task in tasks:
             blockers = []
+            if (
+                task["state"] == "pending"
+                and self.controller_catalogue is not None
+                and task["id"] in self.controller_catalogue
+                and not self._controller_assignment_admitted(task)
+            ):
+                blockers.append(
+                    {
+                        "kind": "controller_assignment",
+                        "reason": "fixed_card_admission_missing",
+                    }
+                )
             for dependency_id in task["dependencies"]:
                 dependency = by_id.get(dependency_id)
                 state = None if dependency is None else dependency["state"]

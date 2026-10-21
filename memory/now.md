@@ -10,11 +10,11 @@ Current A10 department planning selects fixed cards only from current objectives
 unknown injected transport outcomes held without resend or usage release. A new controller boundary
 requires a fixed card's persisted department nomination and exact trusted-card projection before
 supervisor claim, worker dispatch, candidate verification and recovery reconciliation; off-catalogue
-work must use task-spec admission. Fresh quiescence rechecks assignment and durably reports
-`controller-assignment-required` without losing newly admitted ready work. Direct Store-only callers
-remain compatible, so `Store.claim` is not a universal admission fence. `make engineering-release-check`
-passes Ruff/format, 670 tests and 193 subtests; smoke is reproducible with `edge_established=false`.
-Sol accepted the exact controller-boundary candidate. The full loop remains deterministic and injected;
+work must use task-spec admission. Supervisor Store instances apply that catalogue inside readiness and
+claim transactions; task-spec IDs cannot collide with fixed cards, including an ID mutation during
+SQLite lock wait. Fresh quiescence durably reports `controller-assignment-required`. Sol accepted the
+boundary and race fix. `make engineering-release-check` passes Ruff/format, 672 tests and 193 subtests;
+smoke is reproducible with `edge_established=false`. The full loop remains deterministic and injected;
 reviewer/provider identity, A03 settlement, restored-runtime continuation and operational release are
 unqualified.
 Unknown outcomes retain their reservations. `make check` was previously blocked by 107 unrelated Ruff

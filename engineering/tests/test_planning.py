@@ -108,7 +108,7 @@ class PlanningTests(unittest.TestCase):
 
     def test_controller_dispatch_rejects_direct_fixed_card_insertion(self):
         with tempfile.TemporaryDirectory() as tmp:
-            db = Store(Path(tmp) / "state.db")
+            db = Store(Path(tmp) / "state.db", controller_catalogue=["NEXT"])
             self.addCleanup(db.close)
             cfg = {
                 "catalogue": ["NEXT"],
@@ -140,6 +140,14 @@ class PlanningTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(StateError, "fixed_card_admission_missing"):
                 require_controller_assignment(cfg, db, db.get_task("NEXT"))
+            self.assertEqual(db.ready_tasks(), [])
+            self.assertIsNone(db.claim("NEXT", "synthetic-worker"))
+            readiness = db.readiness_report()[0]
+            self.assertFalse(readiness["eligible"])
+            self.assertIn(
+                "controller_assignment",
+                [blocker["kind"] for blocker in readiness["blockers"]],
+            )
 
     def test_dependent_work_not_admitted_early(self):
         with tempfile.TemporaryDirectory() as tmp:

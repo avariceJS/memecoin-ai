@@ -71,14 +71,18 @@ Reviewer не получает исходную plan row или повторну
 требует для fixed-catalogue task persisted nomination и точное совпадение trusted-card полей до
 claim, до worker dispatch и до acceptance/recovery; off-catalogue task требует отдельный task-spec
 admission. Прямые Store-only fixtures сохраняют совместимость. Controller с catalogue не выбирает
-их для spawn; direct-claimed child блокируется до provider work, verifier и recovery не принимают
-candidate. Idle handoff фиксирует `controller-assignment-required` с исходным Store readiness snapshot.
+их: Store повторно проверяет nomination в `ready_tasks` и транзакции `claim` для ID своего frozen
+catalogue. Direct-claimed child всё равно блокируется до provider work; verifier и recovery не
+принимают candidate. Store без controller catalogue остаётся permissive для legacy/isolated callers.
+Idle handoff фиксирует `controller-assignment-required` с исходным Store readiness snapshot.
 Проверяется зафиксированный при admission card digest, а не live lease отдела.
-Sol независимо принял этот controller-boundary candidate на базе `36a2834`. Full gate: Ruff/format,
-670 тестов и 193 subtests; smoke воспроизводим, `edge_established=false`. Generic `Store.claim` и
-`ready_tasks` остаются Store-only совместимыми API, не универсальными admission fences; конфигурации
-без `catalogue` сохраняют legacy-поведение. Прямой SQLite tampering отдельно не аутентифицируется.
-Это synthetic source-only evidence, не qualification операционного A04/A03/runtime.
+Store также отклоняет task-spec ID, совпадающий с fixed catalogue ID, и повторно проверяет уже
+канонизированный ID после ожидания SQLite write-lock; regression проверяет отсутствие task/spec rows.
+Sol независимо принял controller/Store boundary и race fix. `make engineering-release-check`:
+Ruff/format, 672 теста и 193 subtests; `make smoke` воспроизводим, `edge_established=false`. Generic
+Store без `controller_catalogue` остаётся совместимым; off-catalog task-spec admission — отдельный
+путь, а прямой SQLite tampering отдельно не аутентифицируется. Это synthetic source-only evidence,
+не qualification reviewer/provider identity, A04/A03 или runtime.
 
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
 reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает
