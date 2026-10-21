@@ -242,6 +242,14 @@ automatically.
   A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-aware-quiescence-review-20261021.json`.
 
+- A10 source `8a68dd1` adds a bounded read-only contract-review worklist in one SQLite snapshot. It
+  returns IDs/status/hash/freshness without packets; only current prepared requests are advisory
+  eligible, with no dispatch authority. Overflow fails closed at max 100; terminal records count and
+  query cost can still scale with retained decisions. Sol accepted exact diff
+  `043e73f781be21ad93390ea516b0fb19707fdd3601c840e16e618cee1dbaecc5`; gate passed 399 tests/96
+  subtests with Ruff. No supervisor/provider dispatch; A03 and broad A10 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-review-20261021.json`.
+
 Canonical program, acceptance criteria and limits: `docs/engineering-organization.md`. Founder-facing
 external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receipts remain under
 `/Users/root1/Developer/brain-org-state/resumption-20261020/`.

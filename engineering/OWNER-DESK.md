@@ -571,3 +571,14 @@ acknowledgement после получения `BEGIN IMMEDIATE`; устарев�
 и operational acceptance открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-currentness-review-20261021.json`
 (SHA-256 `f9c5cf1be1181d4309132c467abe318cd306ddc609aa3f3611edb6171ec8f04e`).
+
+A10 source `8a68dd1` добавляет read-only worklist уже подготовленных review requests: один snapshot
+проверяет журнал и freshness, выдаёт только ID, статус, hash и blockers; packet не раскрывается,
+dispatch intent не создаётся. `dispatch_eligible` означает лишь current prepared state в момент чтения
+и не даёт права отправки. Переполнение заданного предела (максимум 100 записей) отклоняется;
+завершённые записи также учитываются, стоимость запроса может зависеть от истории. Sol принял exact
+diff `043e73f781be21ad93390ea516b0fb19707fdd3601c840e16e618cee1dbaecc5`; gate: 399 тестов,
+96 subtests, Ruff. Supervisor/provider dispatch и recovery не подключены; A03 и полный A10 открыты.
+Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-review-20261021.json`
+(SHA-256 `be7ca8ca9cd92c890227f363da874c5979ec1694598ebe6a50b99d7479adcc2e`).
