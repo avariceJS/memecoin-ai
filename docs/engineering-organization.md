@@ -352,6 +352,21 @@ gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-supervisor-replay-gate-20261021.json`
 (SHA-256 `96150e6162c14aa6b269d7dedfc7c1206be32ac378bb731cc09d4a270053689f`).
 
+At `8fb3840`, replay integrity `StateError` is isolated to its configured transition: the supervisor
+records a bounded `contract_review_replay_failed` event with dispatch authority and provider dispatch
+false, then still runs the existing strict activation check and proceeds to later transitions. The
+activation transaction independently requires the immutable proposal, integrated producer and exact
+participant ACKs, so a malformed replay journal cannot supply an ACK. Sol accepted the exact source
+diff `fa1e9d5a436484a2f898fe1208d5bc8f993f24d6e8c9a9eee3d15352ed9bbaea`; the focused transition
+suite passed 45 tests and the full engineering gate passed 427 tests/96 subtests with Ruff. The
+regression proves the affected transition stays at v1 while a later fully acknowledged transition
+activates. Retained-history scans, separate replay/activation transactions, provider/usage provenance,
+A03 settlement, broad A10 and operational acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-integrity-fairness-review-20261021.json`
+(SHA-256 `59a1d68d9e789577f6365296033caf63faf4618e50adcb92ab82e6ee451e2893`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-integrity-fairness-gate-20261021.json`
+(SHA-256 `01d5627489783134a9f09822b59d8069ff9abb17c4021eaa41d3526b2fe1e6f9`).
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
