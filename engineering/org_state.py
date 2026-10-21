@@ -1260,11 +1260,7 @@ class Store:
         ).fetchall()
         if not rows:
             return None
-        if (
-            len(rows) != 1
-            or rows[0]["version"] != 1
-            or rows[0]["root_valid"] != 1
-        ):
+        if len(rows) != 1 or rows[0]["version"] != 1 or rows[0]["root_valid"] != 1:
             raise StateError("contract decision history invalid")
         row = self.get_decision(name, 1)
         if row is None:
@@ -3117,7 +3113,14 @@ class Store:
         row = self.db.execute(
             "SELECT COUNT(*) AS version_count, MIN(version) AS first_version, "
             "MAX(version) AS last_version, "
-            "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) AS invalid_versions "
+            "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) AS invalid_versions, "
+            "SUM(CASE "
+            "WHEN typeof(version)='integer' AND version=1 "
+            "AND replaces IS NULL AND replaces_version IS NULL THEN 0 "
+            "WHEN typeof(version)='integer' AND version>1 "
+            "AND typeof(replaces)='text' AND replaces='lifecycle/owner' "
+            "AND typeof(replaces_version)='integer' AND replaces_version=version-1 THEN 0 "
+            "ELSE 1 END) AS invalid_links "
             "FROM decisions WHERE name='lifecycle/owner'"
         ).fetchone()
         count = row["version_count"]
@@ -3128,6 +3131,7 @@ class Store:
         first, last = row["first_version"], row["last_version"]
         if (
             row["invalid_versions"] != 0
+            or row["invalid_links"] != 0
             or type(first) is not int
             or type(last) is not int
             or first != 1
@@ -3137,8 +3141,8 @@ class Store:
         return last
 
     def _lifecycle_fence(self, lease: Any) -> dict:
-        current = self.get_decision("lifecycle/owner")
         head = self._lifecycle_owner_history_head()
+        current = self.get_decision("lifecycle/owner")
         if (current is None) != (head is None) or (
             current is not None and current["version"] != head
         ):
@@ -3169,8 +3173,8 @@ class Store:
             raise StateError("lifecycle_owner_invalid")
         lease_seconds = _positive(lease_seconds)
         with self._tx():
-            current = self.get_decision("lifecycle/owner")
             head = self._lifecycle_owner_history_head()
+            current = self.get_decision("lifecycle/owner")
             if (current is None) != (head is None) or (
                 current is not None and current["version"] != head
             ):

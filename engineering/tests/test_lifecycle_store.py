@@ -139,6 +139,59 @@ class LifecycleStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
             self.store.claim_lifecycle_owner("replacement")
 
+    def test_owner_history_rejects_malformed_root_link_before_reclaim(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        self.store.release_lifecycle_owner(lease)
+        self.store.db.execute(
+            "UPDATE decisions SET replaces=CAST(X'80' AS TEXT) "
+            "WHERE name='lifecycle/owner' AND version=1"
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.claim_lifecycle_owner("replacement")
+
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT MAX(version) FROM decisions WHERE name='lifecycle/owner'"
+            ).fetchone()[0],
+            2,
+        )
+
+    def test_owner_history_rejects_malformed_latest_link_before_decode(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        self.store.release_lifecycle_owner(lease)
+        self.store.db.execute(
+            "UPDATE decisions SET replaces=CAST(X'80' AS TEXT) "
+            "WHERE name='lifecycle/owner' AND version=2"
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.claim_lifecycle_owner("replacement")
+
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT MAX(version) FROM decisions WHERE name='lifecycle/owner'"
+            ).fetchone()[0],
+            2,
+        )
+
+    def test_owner_history_rejects_dangling_replaces_version_before_reclaim(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        self.store.release_lifecycle_owner(lease)
+        self.store.db.execute(
+            "UPDATE decisions SET replaces_version=9 WHERE name='lifecycle/owner' AND version=2"
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.claim_lifecycle_owner("replacement")
+
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT MAX(version) FROM decisions WHERE name='lifecycle/owner'"
+            ).fetchone()[0],
+            2,
+        )
+
     def test_owner_history_head_handles_empty_and_rejects_noninteger_version(self):
         self.assertIsNone(self.store._lifecycle_owner_history_head())
         self.store.db.execute(

@@ -1180,9 +1180,10 @@ Sol-6.1 High accepted exact diff
 28 tests/3 subtests and the final engineering gate passed Ruff, 444 tests and 101 subtests. The first
 full gate had one transient existing macOS code-identity deadline mismatch; that test passed alone
 and two subsequent full runs passed. This reduces Python-side memory only: SQLite still scans all
-retained owner versions, so work remains O(N). Owner history bodies/replacement links receive no new
-validation. No A05 authorization generation, consumer, execution authority or runtime wiring was
-added. Review receipt:
+retained owner versions, so work remains O(N). A later owner-history check now validates the root
+`replaces`/`replaces_version` chain in the same aggregate query without projecting raw links; owner
+bodies and decision-event provenance remain unvalidated. No A05 authorization generation, consumer,
+execution authority or runtime wiring was added. Review receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-owner-history-head-review-20261021.json`
 (SHA-256 `00b79e6c1fbfd3f9d3e5a7486048521ddbb4d4f488b8bc6c01213691e9b88be9`);
 gate receipt:
