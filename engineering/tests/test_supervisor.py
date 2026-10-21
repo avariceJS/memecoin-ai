@@ -531,6 +531,21 @@ class SupervisorTests(unittest.TestCase):
                     codex.assert_not_called()
                     spawn.assert_not_called()
 
+    def test_run_attempt_entry_STOP_cancels_claim_before_execution(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker")
+        (self.state / "STOP").touch()
+        with (
+            patch.object(supervisor, "Codex") as codex,
+            patch.object(supervisor, "metered_client") as transport,
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+        codex.assert_not_called()
+        transport.assert_not_called()
+        self.assertEqual(self.db.get_task("T")["state"], "pending")
+        self.assertEqual(self.db.list_attempts("T")[0]["state"], "cancelled_before_start")
+        self.assertFalse(self.db.list_attempts("T")[0]["session"])
+
     def test_accepted_intent_before_publish_recovers_once(self):
         self.candidate()
         self.intent()
@@ -1300,92 +1315,6 @@ main()
                 }
 
         review_transport = SyntheticContractReviewTransport()
-        spawned = []
-        real_popen = subprocess.Popen
-
-        def select_synthetic_capacity(*_args, ready_tasks=(), **_kwargs):
-            return {"slots": 1, "selected_tasks": list(ready_tasks), "reason": "synthetic"}
-
-        def capture_worker(args, **kwargs):
-            if "engineering" in args and "attempt" in args:
-                spawned.append((args, kwargs))
-                return SimpleNamespace(pid=456)
-            return real_popen(args, **kwargs)
-
-        def synthetic_planner_client(*_args, **_kwargs):
-            fake = MagicMock()
-            fake.__enter__.return_value = fake
-            fake.start.return_value = "synthetic-planner-thread"
-
-            def planner_turn(_thread, prompt, **kwargs):
-                dossier = json.loads(prompt.rsplit("\n", 1)[-1])
-                self.assertEqual(list(dossier["available_cards"]), ["PLAT-002"])
-                self.assertEqual(kwargs["dispatch_id"].split(":", 1)[0], "planning-proposal")
-                return {
-                    "text": json.dumps(
-                        {
-                            "card": "PLAT-002",
-                            "rationale": "The exact contract is active after both reviews.",
-                            "evidence": f"{admitted} is integrated at {candidate_sha}.",
-                        }
-                    )
-                }
-
-            fake.turn.side_effect = planner_turn
-            return fake
-
-        with (
-            patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
-            patch.object(supervisor, "process_identity", return_value="synthetic-process"),
-            patch.object(supervisor, "available_memory", return_value=10**10),
-            patch.object(supervisor, "status", return_value={}),
-            patch.object(supervisor, "render_desk"),
-            patch.object(
-                supervisor.time,
-                "sleep",
-                side_effect=lambda _seconds: (self.state / "STOP").touch(),
-            ),
-            patch.object(planning, "config", return_value=self.cfg),
-            patch.object(
-                planning,
-                "metered_client",
-                side_effect=synthetic_planner_client,
-            ),
-            patch.object(planning, "git", side_effect=run_git),
-            patch.object(planning, "log_event"),
-            patch("engineering.resources.choose_capacity", side_effect=select_synthetic_capacity),
-            patch.object(supervisor.subprocess, "Popen", side_effect=capture_worker),
-        ):
-            supervisor.supervise(
-                self.state, max_seconds=10, contract_review_transport=review_transport
-            )
-        self.assertEqual(len(review_transport.started_teams), 1)
-        self.assertEqual(review_transport.reviewed_teams, review_transport.started_teams)
-        self.assertNotIn(replay_request["team"], review_transport.started_teams)
-        for request in prepared_reviews:
-            body = request["body"]
-            ack = self.db.get_decision(
-                self.db._contract_ack_key("research-output", 2, body["team"])
-            )
-            response = self.db.get_contract_review_response(body["request_id"])
-            self.assertEqual(ack["body"]["review_request_id"], body["request_id"])
-            self.assertEqual(ack["body"]["review_packet_hash"], body["packet_hash"])
-            self.assertEqual(ack["body"]["review_raw_sha256"], response["raw_sha256"])
-        self.assertEqual(self.db.get_contract("research-output")["version"], 2)
-        self.assertEqual(eligible(self.cfg, self.db), [], self.db.events())
-        self.assertEqual(self.db.get_task("PLAT-002")["base_sha"], candidate_sha)
-        self.assertEqual(self.db.get_task("PLAT-002")["state"], "running")
-        self.assertEqual(self.db.get_task("PLAT-002")["dependencies"], ["PLAT-001"])
-        dependent_attempts = self.db.list_attempts("PLAT-002")
-        self.assertEqual(len(dependent_attempts), 1)
-        self.assertEqual(len(spawned), 1)
-        self.assertIn("--attempt", spawned[0][0])
-
-        # Complete the selected dependent task explicitly after the synthetic supervisor spawn.
-        # This proves the activated contract leads to accepted work, not automatic restart.
-        (self.state / "STOP").unlink()
-        dependent_attempt = dependent_attempts[0]
         dependent_worker_code = (
             "from pathlib import Path\n"
             "if Path('src/capability.py').read_text() != 'VALUE = 7\\n':\n"
@@ -1394,6 +1323,8 @@ main()
             "'from capability import VALUE\\nCONSUMED = VALUE + 1\\n')\n"
         )
         dependent_transport_roles = []
+        stop_injected_after_claim = []
+        popen_failures = []
 
         class SyntheticDependentCodex:
             def __init__(self, role):
@@ -1466,20 +1397,147 @@ main()
             dependent_transport_roles.append(role)
             return SyntheticDependentCodex(role)
 
+        spawned = []
+        real_popen = subprocess.Popen
+
+        def select_synthetic_capacity(*_args, ready_tasks=(), **_kwargs):
+            selected = list(ready_tasks)
+            if len(selected) == 1 and selected[0]["id"] == "PLAT-002":
+                # Model multiple available slots so a STOP break is required after
+                # canceling the first selected claim.
+                selected.append(dict(selected[0]))
+            return {"slots": 2, "selected_tasks": selected, "reason": "synthetic"}
+
+        def capture_worker(args, **kwargs):
+            if "engineering" in args and "attempt" in args:
+                attempt_id = int(args[args.index("--attempt") + 1])
+                if not popen_failures:
+                    popen_failures.append(attempt_id)
+                    raise OSError("synthetic exec failure")
+                spawned.append((args, kwargs))
+                attempt_state = Path(args[args.index("--state") + 1])
+                supervisor.run_attempt(attempt_state, attempt_id)
+                return SimpleNamespace(pid=456)
+            return real_popen(args, **kwargs)
+
+        real_store_claim = Store.claim
+
+        def claim_with_interruption(store, task_id, worker, lease_seconds=300):
+            attempt = real_store_claim(store, task_id, worker, lease_seconds)
+            if attempt and task_id == "PLAT-002" and not stop_injected_after_claim:
+                (self.state / "STOP").touch()
+                stop_injected_after_claim.append(attempt["id"])
+            return attempt
+
+        verification_calls = []
+        supervisor_events = []
+        real_verify_one = supervisor.verify_one
+
+        def capture_supervisor_event(state, kind, **values):
+            supervisor_events.append((kind, values))
+
+        def capture_verification(state, task):
+            result = real_verify_one(state, task)
+            verification_calls.append((task["id"], result))
+            return result
+
+        def synthetic_planner_client(*_args, **_kwargs):
+            fake = MagicMock()
+            fake.__enter__.return_value = fake
+            fake.start.return_value = "synthetic-planner-thread"
+
+            def planner_turn(_thread, prompt, **kwargs):
+                dossier = json.loads(prompt.rsplit("\n", 1)[-1])
+                self.assertEqual(list(dossier["available_cards"]), ["PLAT-002"])
+                self.assertEqual(kwargs["dispatch_id"].split(":", 1)[0], "planning-proposal")
+                return {
+                    "text": json.dumps(
+                        {
+                            "card": "PLAT-002",
+                            "rationale": "The exact contract is active after both reviews.",
+                            "evidence": f"{admitted} is integrated at {candidate_sha}.",
+                        }
+                    )
+                }
+
+            fake.turn.side_effect = planner_turn
+            return fake
+
         with (
+            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
+            patch.object(supervisor, "process_identity", return_value="synthetic-process"),
+            patch.object(supervisor, "available_memory", return_value=10**10),
+            patch.object(supervisor, "status", return_value={}),
+            patch.object(supervisor, "render_desk"),
+            patch.object(supervisor, "verify_one", side_effect=capture_verification),
+            patch.object(supervisor, "log_event", side_effect=capture_supervisor_event),
+            patch.object(Store, "claim", autospec=True, side_effect=claim_with_interruption),
+            patch.object(
+                supervisor.time,
+                "sleep",
+                side_effect=lambda _seconds: None,
+            ),
             patch.object(
                 supervisor,
                 "metered_client",
                 side_effect=synthetic_dependent_client,
             ),
-            patch.object(supervisor, "process_identity", return_value="synthetic-dependent"),
+            patch.object(planning, "config", return_value=self.cfg),
+            patch.object(
+                planning,
+                "metered_client",
+                side_effect=synthetic_planner_client,
+            ),
+            patch.object(planning, "git", side_effect=run_git),
+            patch.object(planning, "log_event"),
+            patch("engineering.resources.choose_capacity", side_effect=select_synthetic_capacity),
+            patch.object(supervisor.subprocess, "Popen", side_effect=capture_worker),
         ):
-            supervisor.run_attempt(self.state, dependent_attempt["id"])
-            self.assertEqual(
-                self.db.get_task("PLAT-002")["state"], "submitted", self.db.events()[-1]
+            supervisor.supervise(
+                self.state, max_seconds=10, contract_review_transport=review_transport
             )
-            self.assertTrue(supervisor.verify_one(self.state, self.db.get_task("PLAT-002")))
+            self.assertTrue((self.state / "STOP").is_file())
+            cancelled_attempt = self.db.list_attempts("PLAT-002")
+            self.assertEqual(len(cancelled_attempt), 1)
+            self.assertEqual(cancelled_attempt[0]["state"], "cancelled_before_start")
+            self.assertEqual(self.db.get_task("PLAT-002")["state"], "pending")
+            self.assertEqual(spawned, [])
+            (self.state / "STOP").unlink()
+            supervisor.supervise(
+                self.state, max_seconds=10, contract_review_transport=review_transport
+            )
+        self.assertEqual(len(review_transport.started_teams), 1)
+        self.assertEqual(review_transport.reviewed_teams, review_transport.started_teams)
+        self.assertNotIn(replay_request["team"], review_transport.started_teams)
+        for request in prepared_reviews:
+            body = request["body"]
+            ack = self.db.get_decision(
+                self.db._contract_ack_key("research-output", 2, body["team"])
+            )
+            response = self.db.get_contract_review_response(body["request_id"])
+            self.assertEqual(ack["body"]["review_request_id"], body["request_id"])
+            self.assertEqual(ack["body"]["review_packet_hash"], body["packet_hash"])
+            self.assertEqual(ack["body"]["review_raw_sha256"], response["raw_sha256"])
+        self.assertEqual(self.db.get_contract("research-output")["version"], 2)
+        self.assertEqual(verification_calls, [("PLAT-002", True)], supervisor_events)
+        self.assertEqual(eligible(self.cfg, self.db), [], self.db.events())
+        self.assertEqual(self.db.get_task("PLAT-002")["base_sha"], candidate_sha)
+        self.assertEqual(
+            self.db.get_task("PLAT-002")["state"], "integrated", self.db.events()[-12:]
+        )
         self.assertEqual(dependent_transport_roles, ["lead", "worker", "verifier"])
+        self.assertEqual(self.db.get_task("PLAT-002")["dependencies"], ["PLAT-001"])
+        dependent_attempts = self.db.list_attempts("PLAT-002")
+        self.assertEqual(len(dependent_attempts), 3)
+        self.assertEqual(dependent_attempts[0]["state"], "cancelled_before_start")
+        self.assertEqual(dependent_attempts[1]["state"], "cancelled_before_start")
+        self.assertEqual(popen_failures, [dependent_attempts[1]["id"]])
+        self.assertEqual(len(spawned), 1)
+        self.assertIn("--attempt", spawned[0][0])
+
+        # The actual supervisor loop dispatched, executed, independently verified, and
+        # integrated the dependent task without a manual run_attempt/verify_one call.
         dependent_task = self.db.get_task("PLAT-002")
         self.assertEqual(dependent_task["state"], "integrated", self.db.events()[-1])
         dependent_intent = supervisor.read(self.state / "intents/PLAT-002.json")

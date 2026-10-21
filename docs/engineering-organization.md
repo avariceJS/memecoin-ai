@@ -1922,3 +1922,23 @@ PLAT-002 integrated-cycle regression also invokes the copied controller CLI agai
 Git/contract checkpoint. This exercises only synthetic source/SQLite recovery: same-content filesystem
 ABA is indistinguishable, host/runtime recovery is unqualified, and no authorization generation or
 lifecycle consumer exists. A03 and operational acceptance remain open.
+
+Integrated supervisor continuation and pre-spawn STOP — 2026-10-21: the PLAT-002 synthetic cycle now
+runs its dependent task through the actual `supervise` loop. A local launcher invokes real
+`run_attempt`; the next controller iteration invokes `verify_one`, runs the fixed acceptance harness,
+reviews the exact candidate, and integrates it through GitGate. The test binds the second candidate to
+the PLAT-001 commit, checks its canonical receipt and expected-tip CAS, confirms `main` stayed fixed,
+and requires exactly two integration events without manual execution or verification calls. STOP is
+checked before each selected-task claim and again immediately before `Popen`; a multi-slot dispatch
+loop stops after the first STOP veto. The attempt is durably marked `cancelled_before_start`, the task
+returns to pending, and no spawn occurs. A child that starts in the check-to-`Popen` race rechecks STOP
+at entry and cancels before lease renewal or work. An OS-level `Popen` error also cancels only that
+synchronous pre-start claim. Retry accounting excludes these explicit cancellations while attempt
+epochs remain monotonic. Store rejects cancellation after session, usage, or candidate custody and
+after lease expiry; an independent SQLite reopen/expiry regression proves an expired old epoch cannot
+mutate its replacement and that canceled claims do not spend one of two actual execution attempts.
+The full engineering release gate passed Ruff/format, 622 tests and 189 subtests; `make smoke` is
+reproducible with `edge_established=false`. This is synthetic controller-loop/Seatbelt/SQLite/Git
+acceptance only; the live worker and reviewer are injected deterministic fakes. STOP observation cannot
+be atomic with process creation, and persistent `Popen` failure has no backoff. A04 executable
+qualification, provider/usage settlement, A03 and operational release remain open.

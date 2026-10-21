@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from engineering import org_state
 from engineering.lifecycle import plan_lifecycle
-from engineering.org_state import StateError, Store
+from engineering.org_state import StaleAttempt, StateError, Store
 
 
 def launch_plan(owner: str, epoch: int, digest="a" * 64):
@@ -95,6 +95,63 @@ class LifecycleStoreTests(unittest.TestCase):
                 "lease_until": 1020.0,
             },
         )
+
+    def test_unstarted_claim_does_not_spend_retry_and_expiry_fences_replacement(self):
+        self.store.add_task(
+            "dispatch-window", "Platform", "Synthetic dispatch window", max_attempts=2
+        )
+        first = self.store.claim("dispatch-window", "worker", lease_seconds=5)
+        self.store.cancel_unstarted_claim(first["id"], first["epoch"], reason="stop_before_spawn")
+        task = self.store.get_task("dispatch-window")
+        self.assertEqual(task["state"], "pending")
+        self.assertEqual(task["epoch"], 1)
+        self.assertEqual(
+            self.store.list_attempts("dispatch-window")[0]["state"], "cancelled_before_start"
+        )
+
+        self.now += 5
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        second = self.store.claim("dispatch-window", "worker", lease_seconds=5)
+        self.assertEqual(second["epoch"], 2)
+        self.now += 5
+        with self.assertRaisesRegex(StateError, "unstarted_claim_lease_expired"):
+            self.store.cancel_unstarted_claim(
+                second["id"], second["epoch"], reason="stop_before_spawn"
+            )
+        self.assertEqual(self.store.recover_expired(), [second["id"]])
+        self.assertEqual(self.store.get_task("dispatch-window")["state"], "pending")
+        third = self.store.claim("dispatch-window", "worker", lease_seconds=5)
+        self.assertEqual(third["epoch"], 3)
+        with self.assertRaisesRegex(StaleAttempt, "superseded attempt fence"):
+            self.store.fail(second["id"], second["epoch"], "stale", retryable=True)
+        self.store.fail(third["id"], third["epoch"], "synthetic failure", retryable=True)
+        self.assertEqual(self.store.get_task("dispatch-window")["state"], "failed")
+        attempts = self.store.list_attempts("dispatch-window")
+        self.assertEqual(
+            [attempt["state"] for attempt in attempts],
+            ["cancelled_before_start", "expired", "failed"],
+        )
+
+    def test_unstarted_claim_cancellation_rejects_custodied_execution_evidence(self):
+        for evidence in ("session", "usage", "candidate"):
+            task_id = "started-" + evidence
+            self.store.add_task(task_id, "Platform", "Started synthetic attempt")
+            attempt = self.store.claim(task_id, "worker")
+            if evidence == "session":
+                self.store.record_session(attempt["id"], attempt["epoch"], "thread", "model")
+            elif evidence == "usage":
+                self.store.record_usage(attempt["id"], attempt["epoch"], {"tokens": 1})
+            else:
+                self.store.submit(attempt["id"], attempt["epoch"], "candidate-sha", {})
+            with self.assertRaisesRegex(StateError, "attempt_already_started"):
+                self.store.cancel_unstarted_claim(
+                    attempt["id"], attempt["epoch"], reason="stop_before_spawn"
+                )
+            self.assertEqual(
+                self.store.get_task(task_id)["state"],
+                "submitted" if evidence == "candidate" else "running",
+            )
 
     def test_current_owner_can_renew_and_release_but_cannot_revive_expired_epoch(self):
         lease = self.store.claim_lifecycle_owner("owner", lease_seconds=5)

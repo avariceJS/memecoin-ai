@@ -1052,7 +1052,11 @@ class Store:
             ]
 
     def _retry_state(self, task: dict, retryable: bool) -> str:
-        return "pending" if retryable and task["epoch"] < task["max_attempts"] else "failed"
+        used = self.db.execute(
+            "SELECT COUNT(*) FROM attempts WHERE task_id=? AND state!='cancelled_before_start'",
+            (task["id"],),
+        ).fetchone()[0]
+        return "pending" if retryable and used < task["max_attempts"] else "failed"
 
     def _recover(self) -> list[int]:
         expired = list(
@@ -1099,6 +1103,37 @@ class Store:
             )
             self._event("attempt_claimed", task_id, attempt)
             return attempt
+
+    def cancel_unstarted_claim(self, attempt_id: int, epoch: int, *, reason: str) -> None:
+        """Cancel a just-claimed attempt after STOP or an OS-level spawn failure."""
+        _name(reason)
+        if reason not in {"stop_before_spawn", "stop_at_child_start", "popen_failed"}:
+            raise StateError("invalid unstarted claim cancellation reason")
+        with self._tx():
+            task, attempt = self._fence(attempt_id, epoch, running=False)
+            if attempt["state"] != "running":
+                raise StateError("attempt_already_started")
+            if attempt["lease_until"] <= self.clock():
+                raise StateError("unstarted_claim_lease_expired")
+            candidate = self.db.execute(
+                "SELECT 1 FROM candidates WHERE attempt_id=? LIMIT 1", (attempt_id,)
+            ).fetchone()
+            usage = self.db.execute(
+                "SELECT 1 FROM usage WHERE attempt_id=? LIMIT 1", (attempt_id,)
+            ).fetchone()
+            if attempt["session"] is not None or candidate is not None or usage is not None:
+                raise StateError("attempt_already_started")
+            self.db.execute(
+                "UPDATE attempts SET state='cancelled_before_start' WHERE id=?", (attempt_id,)
+            )
+            self.db.execute(
+                "UPDATE tasks SET state='pending',active_attempt=NULL WHERE id=?", (task["id"],)
+            )
+            self._event(
+                "attempt_cancelled_before_start",
+                task["id"],
+                {"attempt_id": attempt_id, "epoch": epoch, "reason": reason},
+            )
 
     def _fence(self, attempt_id: int, epoch: int, *, running: bool = True) -> tuple[dict, dict]:
         row = self.db.execute("SELECT * FROM attempts WHERE id=?", (attempt_id,)).fetchone()

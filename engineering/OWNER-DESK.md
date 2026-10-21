@@ -1,5 +1,20 @@
 # Founder Desk — Brain Engineering Organization
 
+Новый integrated-cycle checkpoint доводит PLAT-002 через настоящий loop `supervise`: synthetic
+launcher вызывает реальный `run_attempt`, следующая итерация сама выполняет независимую `verify_one`,
+trusted acceptance, reviewer и GitGate integration. Точный receipt, parent PLAT-001, active-ref CAS,
+неизменность `main` и два integration events проверены без ручного вызова execution/verification.
+STOP проверяется перед каждым selected-task claim и ещё раз прямо перед `Popen`; multi-slot loop
+прекращает dispatch после veto. Если STOP появляется в промежутке до старта child, `run_attempt`
+повторно проверяет его при входе и отменяет claim до renew или работы. Запись `cancelled_before_start` возвращает задачу в pending и не
+тратит execution retry, сохраняя монотонный attempt epoch. OS-level `Popen` error отменяет только
+этот синхронный pre-start claim; Store отвергает отмену после session/usage/candidate custody или
+expiry. Отдельный SQLite reopen/expiry regression проверяет fencing заменившей epoch. Release gate
+прошёл Ruff/format, 622 теста и 189 subtests; `make smoke` воспроизводим, `edge_established=false`.
+Все worker/reviewer ответы синтетические; STOP не атомарен с созданием процесса, повторный `Popen`
+failure пока не имеет backoff. Это не qualification A04, provider, usage settlement, A03 или
+operational release.
+
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
 reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает
 только manifest-bound controller и требует присутствующий Pilot STOP, валидный restore receipt и

@@ -50,6 +50,15 @@ authorization generation or lifecycle consumer exists. The full PLAT-002 integra
 the copied controller CLI against its integrated Git/contract checkpoint; the focused regression and
 full release gate pass. Continue source-only integration.
 
+The dependent PLAT-002 task now runs through the actual `supervise` loop: synthetic Popen invokes
+`run_attempt`, the next iteration calls `verify_one`, then exact receipt/CAS and second integration
+event are checked. STOP before spawn cancels the claim; a child rechecks STOP at entry to cover the
+check-to-Popen race. Multi-slot dispatch stops after veto; synchronous Popen errors and unstarted
+claims do not spend retry budget, while SQLite lease expiry fences cancellation. Full gate: Ruff/format,
+622 tests and 189 subtests; smoke is reproducible with `edge_established=false`. This remains synthetic
+source-only acceptance, not A04/provider/runtime qualification; STOP and Popen backoff limits are
+documented in the canonical organization record.
+
 `make check` still stops before later checks on 107 existing Ruff findings in `src/`, `tools/` and
 `tests/`; repository-wide pytest collection still lacks the historical PumpSwap IDL capture manifest.
 These remain separate from the engineering release gate. ORG-A03 is the external operational-release

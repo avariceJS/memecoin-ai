@@ -677,6 +677,19 @@ def run_attempt(state: Path, attempt_id: int):
     attempt = next(a for a in db.list_attempts() if a["id"] == attempt_id)
     task = db.get_task(attempt["task_id"])
     epoch = attempt["epoch"]
+    if (state / "STOP").exists():
+        try:
+            db.cancel_unstarted_claim(attempt_id, epoch, reason="stop_at_child_start")
+        except (StaleAttempt, StateError) as exc:
+            log_event(
+                state,
+                "attempt_stop_cancellation_deferred",
+                attempt_id=attempt_id,
+                task=task["id"],
+                error_type=type(exc).__name__,
+            )
+        db.close()
+        return
     # A queued OS child may start after its lease was already replaced.
     db.renew(attempt_id, epoch, LEASE)
     try:
@@ -1884,27 +1897,49 @@ def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
                     break
                 free = decision["slots"]
                 for task in decision["selected_tasks"][:free]:
+                    if (state / "STOP").exists():
+                        break
                     attempt = db.claim(task["id"], LUNA, LEASE)
                     if not attempt:
                         continue
                     log = (state / "attempt-output.log").open("ab")
-                    p = subprocess.Popen(
-                        [
-                            cfg["python"],
-                            "-m",
-                            "engineering",
-                            "attempt",
-                            "--state",
-                            str(state),
-                            "--attempt",
-                            str(attempt["id"]),
-                        ],
-                        cwd=cfg["controller"],
-                        stdin=subprocess.DEVNULL,
-                        stdout=log,
-                        stderr=log,
-                        start_new_session=True,
-                    )
+                    if (state / "STOP").exists():
+                        log.close()
+                        db.cancel_unstarted_claim(
+                            attempt["id"], attempt["epoch"], reason="stop_before_spawn"
+                        )
+                        break
+                    try:
+                        p = subprocess.Popen(
+                            [
+                                cfg["python"],
+                                "-m",
+                                "engineering",
+                                "attempt",
+                                "--state",
+                                str(state),
+                                "--attempt",
+                                str(attempt["id"]),
+                            ],
+                            cwd=cfg["controller"],
+                            stdin=subprocess.DEVNULL,
+                            stdout=log,
+                            stderr=log,
+                            start_new_session=True,
+                        )
+                    except OSError as exc:
+                        log.close()
+                        db.cancel_unstarted_claim(
+                            attempt["id"], attempt["epoch"], reason="popen_failed"
+                        )
+                        log_event(
+                            state,
+                            "attempt_spawn_failed",
+                            attempt_id=attempt["id"],
+                            task=task["id"],
+                            error_type=type(exc).__name__,
+                        )
+                        continue
                     log.close()
                     log_event(
                         state,
