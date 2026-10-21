@@ -55,6 +55,8 @@ _LIFECYCLE_OBSERVATION_FIELDS = frozenset(
         "launch_authorized",
     }
 )
+_LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
+_LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
 
 
 def _json(value: Any) -> str:
@@ -3062,6 +3064,8 @@ class Store:
         body = {"owner": owner["owner"], "epoch": owner["epoch"], "plan": plan}
         if observations is not None:
             body["observations"] = observations
+        if len(_json(body).encode("utf-8")) > _LIFECYCLE_REQUEST_MAX_BYTES:
+            raise StateError("lifecycle_request_byte_limit")
         versions = self._lifecycle_decision_versions(name)
         old = self.get_decision(name)
         if old is not None:
@@ -3115,6 +3119,8 @@ class Store:
                 "items": [],
                 "count": None,
                 "limit": limit,
+                "payload_bytes": None,
+                "payload_bytes_limit": _LIFECYCLE_WORKLIST_MAX_BYTES,
                 "overflow": True,
                 "captured_at": captured_at,
                 "owner": owner,
@@ -3122,19 +3128,37 @@ class Store:
                 "consumption_authority": False,
             }
 
+        request_sizes = {}
+        payload_bytes = 0
+        for row in rows:
+            name = row["name"]
+            if re.fullmatch(r"lifecycle/request/[0-9a-f]{64}", name) is None:
+                raise StateError("lifecycle_request_identity_invalid")
+            history = self.db.execute(
+                "SELECT version, length(CAST(body AS BLOB)) AS body_bytes FROM decisions "
+                "WHERE name=? ORDER BY version LIMIT 2",
+                (name,),
+            ).fetchall()
+            if [item["version"] for item in history] != [1]:
+                raise StateError("lifecycle_request_history_invalid")
+            request_bytes = history[0]["body_bytes"]
+            if type(request_bytes) is not int or request_bytes < 0:
+                raise StateError("lifecycle_request_invalid")
+            if request_bytes > _LIFECYCLE_REQUEST_MAX_BYTES:
+                raise StateError("lifecycle_request_byte_limit")
+            payload_bytes += request_bytes
+            if payload_bytes > _LIFECYCLE_WORKLIST_MAX_BYTES:
+                raise StateError("lifecycle_worklist_byte_limit")
+            request_sizes[name] = request_bytes
+
         items = []
         for row in rows:
             name = row["name"]
             match = re.fullmatch(r"lifecycle/request/([0-9a-f]{64})", name)
             if match is None:
                 raise StateError("lifecycle_request_identity_invalid")
-            history = self.db.execute(
-                "SELECT version FROM decisions WHERE name=? ORDER BY version", (name,)
-            ).fetchall()
-            if [item["version"] for item in history] != [1]:
-                raise StateError("lifecycle_request_history_invalid")
             record = self.get_decision(name)
-            if record is None or record["version"] != 1:
+            if record is None or record["version"] != 1 or request_sizes.get(name) is None:
                 raise StateError("lifecycle_request_history_invalid")
             body = record["body"]
             if type(body) is not dict or set(body) not in (
@@ -3267,6 +3291,8 @@ class Store:
             "items": items,
             "count": len(items),
             "limit": limit,
+            "payload_bytes": payload_bytes,
+            "payload_bytes_limit": _LIFECYCLE_WORKLIST_MAX_BYTES,
             "overflow": False,
             "captured_at": captured_at,
             "owner": owner,

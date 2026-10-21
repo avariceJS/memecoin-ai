@@ -190,6 +190,49 @@ class LifecycleStoreTests(unittest.TestCase):
             self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0], before
         )
 
+    def test_request_worklist_rejects_one_oversized_record_before_decoding(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        request = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        oversized = json.dumps("x" * (64 * 1024), separators=(",", ":"))
+        self.store.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=1",
+            (oversized, request["id"]),
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_request_byte_limit"):
+            self.store.lifecycle_request_worklist()
+
+    def test_lifecycle_evaluation_rejects_oversized_request_before_persistence(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        observations = launch_observations(stop_reasons=["x" * (64 * 1024)])
+
+        with self.assertRaisesRegex(StateError, "lifecycle_request_byte_limit"):
+            self.store.record_lifecycle_evaluation(lease, observations)
+
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT COUNT(*) FROM decisions WHERE name GLOB 'lifecycle/request/*'"
+            ).fetchone()[0],
+            0,
+        )
+
+    def test_request_worklist_rejects_aggregate_payload_overflow(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        requests = [
+            self.store.record_lifecycle_evaluation(
+                lease, launch_observations(backoff_until=2000.0 + index)
+            )
+            for index in range(18)
+        ]
+        large_body = json.dumps("x" * 59_999, separators=(",", ":"))
+        self.store.db.executemany(
+            "UPDATE decisions SET body=? WHERE name=? AND version=1",
+            [(large_body, request["id"]) for request in requests],
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_worklist_byte_limit"):
+            self.store.lifecycle_request_worklist()
+
     def test_request_projection_marks_replaced_owner_epoch_noncurrent(self):
         lease = self.store.claim_lifecycle_owner("owner", lease_seconds=5)
         first = self.store.record_lifecycle_evaluation(lease, launch_observations())
