@@ -721,7 +721,17 @@ A04 `98f4ace` включает хеширование pinned executable и scrip
 `f3ed047e15fe4287b19fb63d1046ec34734b46c268b29064622c26a80b8346ff`; Python 3.13.6 gate прошёл:
 419 тестов, 96 subtests, Ruff check/format на 58 файлах. Синхронный Security/filesystem-вызов
 нельзя прервать, поэтому это fail-closed классификация после возврата, без гарантии prompt return;
-отдельного теста позднего normal completion нет. `execution_qualified=false`; loader, inode,
-descendants, stdout provenance и полный A04 остаются открыты. Receipt:
+прямой регрессии позднего normal completion не было в этом checkpoint. `execution_qualified=false`;
+loader, inode, descendants, stdout provenance и полный A04 остаются открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-deadline-review-20261021.json`
 (SHA-256 `f96992390067dd843fdbdd6077674e811f2672219ac224fbe71511d9fe32f18c`).
+
+
+A04 regression `dacd393` добавляет controlled-clock тест: fake process завершает `wait()` с кодом 0,
+но после deadline; результат обязан иметь `timed_out=true`. Sol принял exact test diff
+`d426704b4eda1a8c069c5c2bb51398444c4d19a8f0ba06020d8ac1583ee18ed2`. После одного известного
+flaky `killpg PermissionError` в `test_running_identity_survives_path_replacement` его отдельный
+повтор прошёл; окончательный Python 3.13.6 gate прошёл: 420 тестов, 96 subtests и Ruff check/format
+на 58 файлах. Тест подтверждает классификацию на synthetic clock, не реальное время процесса или
+cleanup. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-late-completion-regression-20261021.json`
+(SHA-256 `09b4a823acc077d626ae4b1bf93f7f38bf6ed3190303f3a797bfee6fc1ba3c3e`).

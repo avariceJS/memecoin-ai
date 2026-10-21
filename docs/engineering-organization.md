@@ -986,3 +986,16 @@ executed inode, descendants, loader closure or stdout provenance; plans remain
 `execution_qualified=False` and full A04 remains open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-deadline-review-20261021.json`
 (SHA-256 `f96992390067dd843fdbdd6077674e811f2672219ac224fbe71511d9fe32f18c`).
+
+A04 regression checkpoint `dacd393` directly covers the final late-completion branch: a controlled
+monotonic clock lets the fake process return code zero after the deadline, and `SandboxResult` must
+report `timed_out=True`. The independent process-monitor reviewer accepted exact test diff
+`d426704b4eda1a8c069c5c2bb51398444c4d19a8f0ba06020d8ac1583ee18ed2`. The focused regression passed.
+The first full gate had one intermittent existing `MacCodeIdentityTests.test_running_identity_survives_path_replacement`
+`killpg` `PermissionError` (419 tests passed, 96 subtests); isolated rerun passed. Final Python 3.13.6
+engineering release gate passed Ruff check/format on 58 files, 420 tests and 96 subtests. This
+synthetic clock test proves classification only, not real process duration or cleanup. Synchronous
+Security/filesystem calls remain uninterruptible; sampled identity, loader closure, descendants, stdout
+provenance, deployment and full A04 remain open. Plans remain `execution_qualified=False`. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-late-completion-regression-20261021.json`
+(SHA-256 `09b4a823acc077d626ae4b1bf93f7f38bf6ed3190303f3a797bfee6fc1ba3c3e`).
