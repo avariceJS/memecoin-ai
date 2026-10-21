@@ -1333,11 +1333,12 @@ and operational acceptance remain open. Gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-configured-contract-missing-transition-evidence-gate-20261021.json`
 (SHA-256 `ef68283fb4aff15941cb5361db00d8978c34861202413dfbdf8844366c0670c1`).
 
-Configured contract proposals now validate as a set before persistence and are inserted or exact-
-retried atomically by `Store.propose_contract_transitions`; the existing single-proposal method
-uses the same transaction path. If a later configured entry fails validation, supervisor creates
-no earlier proposal. Regressions cover late resolver rejection, rollback after an earlier staged
-insert conflicts with immutable history, and input/body/list mutation while the batch waits on a
+At `a22b423`, configured contract proposals now validate as a set before persistence and are
+inserted or exact-retried atomically by `Store.propose_contract_transitions`. The existing
+single-proposal API uses this same transaction path. If a later configured entry fails validation,
+supervisor creates no earlier proposal. Regressions cover late resolver rejection and rollback
+after an earlier staged insert conflicts with immutable history. A lock-wait regression mutates
+the input body, participant list and outer proposal list while the batch waits on a
 second connection's SQLite write lock. Sol's read-only review accepted exact diff
 `c656515f140f47eac42aee3f6761a32c1784934b3a559d2679fe7aa3d05e0a78` with no P1-P3 findings.
 Focused tests passed 128 tests/10 subtests; the engineering release gate passed Ruff, 477 tests and
