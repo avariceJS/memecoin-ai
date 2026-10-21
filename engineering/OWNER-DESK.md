@@ -561,3 +561,13 @@ Sol принял exact diff `20d1ab3b352574fc7faa20a4c8eb572fe6484d3577070de5aad
 tests, 96 subtests, Ruff. Это inert routing для handoff, не review dispatch/recovery. A03 settlement,
 полный A10 и operational acceptance остаются открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-aware-quiescence-review-20261021.json`.
+
+Новый A10 source increment `a386bd4` добавляет проверку currentness review request перед записью
+одноразового dispatch intent. Store повторно сверяет proposal, producer snapshot, участников и
+acknowledgement после получения `BEGIN IMMEDIATE`; устаревшая заявка отклоняется без записи, в том
+числе при гонке с другой SQLite connection. Sol принял точный diff; engineering gate: 397 тестов,
+96 subtests, Ruff. Это только проверка состояния в точке намерения: последующий drift проверяется
+при завершении. Supervisor/provider dispatch и recovery не подключены; A03 settlement, полный A10
+и operational acceptance открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-currentness-review-20261021.json`
+(SHA-256 `f9c5cf1be1181d4309132c467abe318cd306ddc609aa3f3611edb6171ec8f04e`).

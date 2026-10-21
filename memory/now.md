@@ -207,6 +207,12 @@ automatically.
 - Original worktree `/Users/root1/Developer/brain-org-build` stays on `org/development`; `main` and
   protected state remain untouched. Pilot, supervisor runtime, services, market collection, training,
   AUTO, trading, protected datasets and STOP remain untouched.
+- A10 source `a386bd4` adds Store-owned review currentness and rechecks under `BEGIN IMMEDIATE`
+  before one-shot dispatch intent; stale state rejects without mutation, including a cross-connection
+  lock-wait race. Sol accepted exact diff `2eb7797849c01ce236151c4664803e8399c9bbbac4ef4303dd59ef14f6adbdf0`;
+  full gate passed 397 tests/96 subtests with Ruff. The check is point-in-time and finalization still
+  rechecks drift. No dispatch/recovery wiring; A03 and broad A10 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-currentness-review-20261021.json`.
 - Same successor Goal ID and prior history are preserved. Native Goal remains active. The durable
   handoff carries the latest API counters and review receipt; predecessor history and the
   single-owner identity remain intact.
