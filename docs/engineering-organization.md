@@ -1066,3 +1066,22 @@ Security/filesystem calls remain uninterruptible; sampled identity, loader closu
 provenance, deployment and full A04 remain open. Plans remain `execution_qualified=False`. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-late-completion-regression-20261021.json`
 (SHA-256 `09b4a823acc077d626ae4b1bf93f7f38bf6ed3190303f3a797bfee6fc1ba3c3e`).
+
+At source `90f99df`, manifest v5 binds each verifier command to its own canonical executable path,
+file SHA-256, runtime main path and code-directory hash, optional trusted-script path/hash, and
+declared result mode. The supervisor passes those pins to every `SandboxRunner` call and enforces
+strict JSON contracts for every command that declares one. Manifest v4 still adapts a single command;
+multi-command v4 fails closed without command pins. Synthetic tests exercise a later Python script,
+a native command, identity argument forwarding, and rejection of an exit-zero command with a failed
+JSON result before review or publication. Sol accepted exact six-file diff
+`25088ae44b2ee84a73ccbbf8139eb7ab4d7bd5279bbb5f86e5340282714c6f36`; Python 3.13.6
+`engineering-release-check` passed Ruff check/format, 433 tests and 101 subtests. Earlier full runs
+had intermittent existing macOS identity/cleanup failures; the final full run passed, and the cleanup
+failure cause remains unknown. This closes the gap where only command 0 received pins; it does not
+bind execution to the hashed inode, continuously prove process identity, cover descendants, close
+loader/import dependencies or establish stdout provenance. Sandbox/deployment qualification and full
+A04 remain open, and spec-backed plans stay `execution_qualified=False`. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-all-command-binding-review-20261021.json`
+(SHA-256 `cadbff90b91805a92efeb1969ece19c50f572044378b2a7497b7fa64328e217f`). Gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-all-command-binding-gate-20261021.json`
+(SHA-256 `a31e33887732cb43d39a9edff83d6894f1d7236642b377c708f366e795bef098`).

@@ -331,3 +331,14 @@ external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receip
 At base `9e6cd7e`, scoped contract replay now seeks exact transition identity through a guarded SQLite expression index and skips unrelated malformed review history while validating every matching journal. Sol accepted exact diff `b7fc426e`; focused suite 46 passed; final Python 3.13.6 engineering gate passed Ruff, 428 tests and 96 subtests. First full run hit the intermittent macOS code-identity deadline test; isolated and final full reruns passed. Index build/storage and matching-transition history costs still grow; public global worklist/sweep are unchanged. A03, broad A10 and operational acceptance remain open; STOP active, no runtime/providers.
 
 A10 query-plan regression follow-up at `2c353156`: production replay and `EXPLAIN QUERY PLAN` test now share the same SQL constant, preventing test/query drift. Focused transition suite 46 passed; Ruff and diff checks passed. Handoff records diff SHA-256 `8e7175123fca94df283a8989fa145a758b123613da9fc80749b0d079d90709ad`.
+
+### 2026-10-21 — A04 per-command identity
+
+At `90f99df`, verifier manifest v5 binds each ordered command's executable/runtime identity and
+result contract; optional trusted scripts are hash-pinned. Manifest v4 remains single-command only.
+Sol accepted exact diff `25088ae4`. Final engineering gate passed 433 tests/101 subtests with Ruff.
+Later-command callback regression proves pins reach `SandboxRunner` and failed JSON blocks before
+review/publication. Same-inode launch, continuous/descendant identity, loader closure, stdout
+provenance, deployment and full A04 remain open; spec plans stay `execution_qualified=False`. STOP
+remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
+`a04-all-command-binding-gate-20261021.json`.
