@@ -1,5 +1,22 @@
 # Founder Desk — Brain Engineering Organization
 
+## Текущий сквозной результат — 2026-10-22
+
+На `bd57f14` интегрированный synthetic source-only цикл проходит от планирования Experience PLAT-001
+через отдельный exec-child, проверку/приёмку и GitGate до восстановления после падения контроллера;
+после контрактных и dependency gates тот же цикл продолжает Platform PLAT-002 и интегрирует результат
+на точном tip PLAT-001. Проверены STOP-cancelled claim и ошибка spawn с cooldown перед retry. Sol
+независимо проверил `bd57f14` и считает достижимую source-only вертикаль достаточной для ограниченной
+приёмки; A03/A04/A05 не закрываются безопасным дополнительным source increment. Штатный gate: Ruff/
+format, 676 тестов и 193 subtests.
+
+Это синтетическая source acceptance, не эксплуатационная автономность: worker child использует
+test-only harness после тестовой подмены Store/transport; live provider/reviewer/usage identity,
+полный A04, A05 launch authorization generation/consumer, A03, remote recovery и operational release
+не подтверждены или не разрешены. Cortex умеет metadata preregistration, проверку protocol digest и
+review ACK Cortex/Evaluation; Cortex задачи остаются held до A04. Эксперименты, обучение, scoring,
+model/market-perception изменения и независимая научная оценка в этом цикле не выполнялись.
+
 Новый A10 вертикальный путь принят Sol в source-only synthetic объёме. Controller создаёт планы
 отделов только по eligible fixed-card меню через явно инъецируемый transport; полный trusted card
 hash (включая scope/verifier) проходит через nomination и повторно проверяется при admission.

@@ -11,22 +11,25 @@ acceptance of task selection, trusted assignment, isolation, independent review,
 durable checkpoint, continuation and interruption recovery. Sol remains the independent technical
 lead; Astra is not invoked automatically. STOP and all operational restrictions below remain in force.
 
-Current source review target — 2026-10-21 at `430b46f`: the controller prepares A10 participant
-requests only from a durably integrated producer, matching attempt/epoch and successful verification,
-candidate ancestry, active ref and strict GitGate receipt. It returns an exact request allowlist to the
-supervisor and rechecks STOP and source evidence at the injected transport boundary. Request identity
-excludes moving descendant-tip observations; already-published ACKs are revalidated against their
-approved request, packet and raw-response hashes. Synthetic regressions cover partial preparation
-across Store reopen, ACK plus descendant-tip idempotence, STOP after session custody, and a
-self-consistent altered ACK event/decision. Sol reviewed exact diff
-`960e4ed5e2614de432d21b0c43babb9389154f428b3949cddb42e2fb3fd9a81a6` and found no bypass in this
-bounded source path. `make engineering-release-check` passes Ruff/format and 609 tests plus 189
-subtests; `make smoke` passes. `make check` remains stopped by 107 existing Ruff findings outside
-`engineering/`; repository-wide pytest collection requires a missing historical IDL manifest.
-RuntimeError recovery is durable retry after SQLite reopen, not hard process-crash proof. If STOP is
-observed after durable dispatch/session custody, the request remains unresolved and is not resent; a
-separate repair path is not qualified. The synthetic transport is not a live provider route, and A03,
-full A04, runtime and operational release remain open.
+Current bounded source-only acceptance — 2026-10-22 at `bd57f14`: a disposable Git/SQLite
+Experience PLAT-001 → Platform PLAT-002 cycle now covers controller planning, trusted assignment,
+fresh exec-child attempts under a test-only synthetic harness, parent-side verification/review,
+GitGate receipt/CAS, durable Store integration, contract/dependency continuation, and selected STOP,
+spawn-failure, snapshot/restore, and hard-process recovery paths. The producer's post-CAS controller
+exit is recovered after SQLite reopen; the consumer then integrates against the exact producer tip.
+Sol's read-only audit of `bd57f14` recommends bounded acceptance rather than another functional
+source increment: no safe source-only change closes the remaining A03/A04/A05 authority boundaries.
+The current engineering gate passes Ruff/format, 676 tests, and 193 subtests. Sol independently
+accepted a narrow macOS timeout regression proving that one started inherited-pipe descendant does
+not write after its original process group is terminated. This does not qualify escaped groups or all
+descendant cleanup.
+
+This does not qualify the production CLI child path, provider/reviewer identity or judgment, live usage
+settlement, all descendant groups, A04 execution/deployment, A05 lifecycle-consumer authorization,
+A03, runtime, remote recovery, or operational release. Cortex task specs remain held under A04.
+`make check` still encounters 107 pre-existing Ruff findings outside `engineering/`; repository-wide
+pytest collection still needs the historical IDL manifest. These broader checks do not supersede the
+focused engineering gate or confer operational acceptance.
 
 ## Independent audit outcome — 2026-10-20
 

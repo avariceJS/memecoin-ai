@@ -951,18 +951,33 @@ class ConfinementTests(unittest.TestCase):
         self.assertLess(result.elapsed_seconds, 3)
 
     def test_timeout_does_not_wait_for_descendant_pipe_eof(self):
+        ready = self.task / "descendant-ready"
+        marker = self.task / "descendant-survived-timeout"
         result = self.runner.run(
             [
                 str(PYTHON),
                 "-I",
                 "-c",
-                "import os,time; p=os.fork(); time.sleep(30) if p==0 else None",
+                "import os,time; p=os.fork()\n"
+                "if p == 0:\n"
+                f" open({str(ready)!r},'w').write('ready')\n"
+                " time.sleep(1)\n"
+                f" open({str(marker)!r},'w').write('alive')\n"
+                " time.sleep(30)\n"
+                "else:\n"
+                " deadline=time.monotonic()+0.4\n"
+                f" while not os.path.exists({str(ready)!r}):\n"
+                "  if time.monotonic() >= deadline: raise SystemExit(2)\n"
+                "  time.sleep(0.001)\n",
             ],
             cwd=self.task,
-            timeout=0.2,
+            timeout=0.5,
         )
         self.assertTrue(result.timed_out)
         self.assertLess(result.elapsed_seconds, 3)
+        self.assertTrue(ready.exists(), "descendant did not start before command timeout")
+        time.sleep(1.1)
+        self.assertFalse(marker.exists(), "timed-out process group left its descendant running")
 
     def test_nested_sandbox_cannot_remove_inherited_restrictions(self):
         canary = self.outside / "canary"

@@ -41,104 +41,30 @@ integration, durable checkpointing, task continuation and interruption recovery.
 independent direction and substantial exact-candidate review; Astra remains episodic and is never
 invoked automatically. This source authority does not grant operational release or runtime authority.
 
-Current integrated-cycle checkpoint — 2026-10-21: a disposable Git/SQLite test now drives both
-catalogue choices through the real `plan_next` path using deterministic local model-turn responses;
-no live Codex/provider is called. The planner now admits against GitGate's active integration ref,
-and the dependent task's base SHA is asserted to equal the just-integrated candidate rather than
-the checkout's possibly stale `HEAD`. Admission and the terminal planning decision commit in one
-SQLite transaction; a hard-interruption regression verifies that no task survives if finalization
-cannot commit, duplicate JSON proposal keys are rejected, and client cleanup failure cannot relabel
-a committed admission; that cleanup failure remains visible to the caller. The test then claims the
-task, prepares its verifier-plan identity, and uses the actual `supervisor.run_attempt` path through
-an injected local lead/worker transport. Its worker calls the issued tool callback; the real
-`SandboxRunner` executes a fixed script that writes the scoped source file. Seatbelt grants that
-file's parent directory and denies a write into the protected integration repository; the controller
-stages only the declared scope and records the candidate against the attempt, epoch and verifier
-identity. The test calls the real `supervisor.verify_one` path: a temporary trusted acceptance
-harness validates the candidate, `SandboxRunner` executes the registered verifier command, and
-`GitGate` imports and receipts the result. An injected deterministic reviewer receives the exact
-packet; for admitted fixed cards it now includes the persisted department nomination, bound by the
-canonical packet digest, alongside task, scope, candidate diff and passing acceptance result. The
-test compares both Experience and Platform nominations to their durable admission decisions. The
-generic public decision writer cannot append to the reserved `admission/` namespace. The controller
-now requires a fixed-catalogue task's persisted nomination and exact trusted-card projection before
-supervisor claim, again before worker dispatch, and before candidate verification. Off-catalogue work
-must carry the separate task-spec admission. Directly-created tasks remain usable by Store-only
-compatibility fixtures. The supervisor opens Store with its frozen catalogue, and Store rechecks
-admission inside `ready_tasks` and the claim transaction for those card IDs. Directly claimed children
-still fail before provider work; verifier/recovery acceptance stays blocked. Store instances opened
-without controller catalogue policy remain permissive for historical and isolated use. Idle handoff
-records `controller-assignment-required` while preserving the raw Store readiness snapshot. The
-nomination is checked against its durable admission-time card digest; the department lease need not
-remain live throughout execution. Task-spec admission rejects IDs that collide with the frozen fixed
-catalogue and rechecks the canonical ID inside the write transaction. This exercises the review call and packet binding, not reviewer
-judgment, identity or independence. The test injects a crash after the real ref compare-and-swap but before
-Store integration, closes and reopens
-SQLite, then recovers and claims a dependent next task. It removes the receipt and confirms recovery
-fails closed, tampers with candidate SHA and confirms exact parent binding rejects publication, then
-restores evidence and confirms one integration event.
-The synthetic consumer now has scope `src/consumer.py`, reads the integrated producer result, and
-passes trusted acceptance only when its computed value is correct. The test drives its real
-`run_attempt` and `verify_one` paths after the supervisor's worker spawn is intercepted, then checks
-the exact PLAT-002 review packet, rehashes its canonical GitGate receipt, verifies Store integration,
-the exact final active ref and one integration event per task. A negative regression moves an
-already-existing active ref after candidate construction and confirms publication fails closed.
-This exposed and fixed a GitGate mismatch: a dependent task planned from
-`research/active` was rejected because trusted-source ancestry considered only `HEAD`; GitGate now
-uses the active ref when present while leaving `main` unchanged. This is an explicit synthetic
-continuation after a mocked spawn, not lifecycle restart or unattended execution. The restored copy
-keeps STOP and is never used for worker dispatch. `activate_contract` is called against that copy and
-returns without changing review state or publishing v2; a separate Store replay then restores one
-exact ACK without provider dispatch. This exercises the source STOP guard but not an executed restored
-controller; source remains available during restore.
-At the quiescent point after producer integration and custody of one contract-review response, the
-test asserts no running attempts, sets STOP, and invokes the real `backup_snapshot` and
-`restore_snapshot` against a temporary deployment whose current controller package is manifest
-bound and whose unmocked deployment preflight passes. The fresh restore preserves STOP and the
-host-requalification barrier; ordinary preflight rejects it and only structural requalification
-validation succeeds. The test checks manifest hashes for the organization DB, intent, receipt and
-Git metadata, plus task/review/ledger readback and the active Git object. Fixture qualification
-evidence is synthetic; the copied controller is manifest-bound but not executed, the source remains
-available during restore. The local replay above proves use of saved response bytes only; this does
-not prove runtime restart or remote/lost-host recovery. Sol accepted the exact test extension
-`f8a3f9da4fbdf7db68567690e103c84e7f886ce829f065b8b9dab97feb4b81a6`; the focused integrated test
-and combined engineering gate passed (Ruff/format, 596 tests and 189 subtests).
-The integrated producer is an Experience task; its Platform consumer remains ineligible until the
-exact contract version is activated. The controller creates one durable review request per
-participant only after binding the integrated Store row, attempt/epoch, successful verifier details,
-candidate ancestry, active ref and strict GitGate receipt. It checks source freshness again at the
-dispatch boundary; `active_tip` is a freshness observation but is excluded from deterministic request
-identity, so an unrelated descendant does not duplicate a request after an ACK. Already-active
-contracts revalidate each ACK against its exact approved request, packet hash and raw-result hash.
-The real `supervise` idle loop uses an explicitly injected synthetic transport; one response is
-durably recorded, SQLite is closed/reopened, and reconciliation replays it without resending before
-dispatching the other review. A failure after creating the first request is retried after another
-SQLite close/reopen and reuses that request. STOP is rechecked before transport start and before the
-review call; a stop after session custody leaves the request unresolved without a second call. The
-test checks both acknowledgement bindings and the stored raw response hash. The loop processes one
-durable `process_pending_reviews` item per iteration and attempts activation after each: the consumer
-remains blocked after one approval and becomes eligible only after both. Its packet contains the
-candidate SHA and declared GitGate receipt reference/digest, which the request hash preserves; Store
-does not resolve or validate that external receipt. Since
-`PLAT-002` is not admitted until activation, it is absent from the Platform participant's task
-inventory, so this proves contract-level participant review and readiness gating, not task-specific
-review. The ordinary CLI and quiescence path pass no transport, preserving the inert Sol handoff;
-live provider dispatch and runtime integration remain unqualified. Recovery now binds intent
-to Store attempt/epoch and successful verification details; GitGate
-requires the candidate's exact two parents to equal the captured integration tip and submitted SHA.
-The test uses `research/active` only inside a temporary repository and leaves `main` unchanged. The
-injected lead/worker/reviewer and contract-review transports plus the trusted acceptance fixture are
-synthetic; no live provider is called. The acceptance command is the legacy fixed-policy path-only harness, not a
-manifest-bound A04 verifier. This exercises controller dispatch, worker and verifier Seatbelt paths,
-review packet binding, Git integration and recovery without qualifying real Codex identity, reviewer
-judgment/authenticity, provider usage settlement, A04 as a whole, remote checkpointing, runtime or A03.
-The current PLAT-002 candidate passes Ruff/format, 609 tests plus 189 subtests, and deterministic
-synthetic `make smoke`. Before its mock-scope fix, one full gate was interrupted after 451 tests when
-review found that the synthetic metered-client patch did not yet cover the dependent verifier; it
-now covers lead, worker and reviewer and asserts that role trace. Sol accepted the exact source
-candidate. Repository-wide `make check` still stops at 107 pre-existing
-Ruff findings in `src/`, `tools/` and `tests/`, before later checks. The integrated organization
-cycle remains in progress.
+Integrated synthetic source-only checkpoint — 2026-10-22 (`bd57f14`): the Experience PLAT-001
+producer and dependent Platform PLAT-002 consumer pass through the controller's bounded supervisor
+cycle in a disposable Git/SQLite environment. Department planning and trusted assignment select the
+tasks; fresh exec children run a test-only harness around the real attempt path after synthetic
+Store/transport injection. The parent independently verifies and reviews candidates, publishes strict
+GitGate receipts with expected-tip CAS, and integrates durable Store results. A child-process hard
+exit after producer ref publication is recovered after SQLite reopen, then contract review and
+dependency planning continue to PLAT-002. The consumer path preserves STOP cancellation and
+synchronous spawn failure/cooldown before retry. Snapshot/restore, contract-review custody/replay, and
+selected process interruptions have separate synthetic coverage. The exact integrated regression is
+in `engineering/tests/test_supervisor.py`; Sol reviewed the latest exact test increments.
+`make engineering-release-check` passes Ruff/format, 676 tests, and 193 subtests.
+
+This is bounded source-only acceptance, not autonomous operational execution. The supervisor's
+requested production CLI is replaced by a test-only child harness, and reviewer/provider responses
+are synthetic. Live provider identity and usage settlement, A04 execution/deployment qualification,
+A05 launch authorization generation and lifecycle consumer, A03, remote recovery, and runtime release
+remain unavailable or unauthorized. Cortex protocol v2 supports metadata preregistration,
+integrated-producer provenance, and exact Cortex/Evaluation ACK admission; Cortex specs remain
+non-claimable under A04, and experiments, training, scoring, artifact writing, and independent
+scientific evaluation are not implemented. Pilot STOP and all protected-data, market, training,
+AUTO/trading, production, paid API, Astra, and `main` restrictions remain in force. The detailed dated
+increments below preserve evidence boundaries; current acceptance is limited to the integrated
+synthetic cycle described here.
 
 Current A10 department-plan admission link — 2026-10-21: fixed-card planning now exposes a card only
 when its owning department has an active fenced lease and a current, unexpired plan for the same
@@ -179,7 +105,8 @@ engineering release check passes Ruff/format, 618 tests and 189 subtests; determ
 is reproducible with `edge_established=false`. These are synthetic local child-process and SQLite
 checks. A response lost before custody remains unresolved; the increment does not authenticate a
 provider, settle usage, qualify A03, create A05 authorization generations, or prove runtime/host-loss
-recovery. The integrated source-only cycle remains in progress.
+recovery. At that checkpoint the integrated source-only cycle remained in progress; the 2026-10-22
+checkpoint above records the later bounded synthetic acceptance.
 
 A05 now captures source-identified gates from the synthetic fresh-path restored copy through Store:
 the fixture STOP marker, exact restore receipt bound to `snapshot.json`, and controller-parse
