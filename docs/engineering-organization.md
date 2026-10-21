@@ -74,10 +74,12 @@ This exposed and fixed a GitGate mismatch: a dependent task planned from
 `research/active` was rejected because trusted-source ancestry considered only `HEAD`; GitGate now
 uses the active ref when present while leaving `main` unchanged. This is an explicit synthetic
 continuation after a mocked spawn, not lifecycle restart or unattended execution. The restored copy
-keeps STOP and is never used for worker dispatch. A test-only `activate_contract` call locally
-replays the already-custodied review response with provider dispatch guarded off; one ACK remains
-insufficient, contract v2 stays inactive, and the consumer stays blocked. The copied controller is
-not executed and source remains available during restore.
+keeps STOP and is never used for worker dispatch. The test calls only
+`Store.replay_contract_review_responses_for_transition` for the exact transition hash; its result
+asserts no provider dispatch or dispatch authority. The saved response restores one exact ACK, but
+activation is not invoked, version 2 stays inactive, and the consumer remains blocked. This does not
+qualify a STOP guard on `activate_contract`; the copied controller is not executed and source remains
+available during restore.
 At the quiescent point after producer integration and custody of one contract-review response, the
 test asserts no running attempts, sets STOP, and invokes the real `backup_snapshot` and
 `restore_snapshot` against a temporary deployment whose current controller package is manifest
@@ -88,7 +90,7 @@ Git metadata, plus task/review/ledger readback and the active Git object. Fixtur
 evidence is synthetic; the copied controller is manifest-bound but not executed, the source remains
 available during restore. The local replay above proves use of saved response bytes only; this does
 not prove runtime restart or remote/lost-host recovery. Sol accepted the exact test extension
-`de478694421f7c5b5f490d68c5dd0d161720537b701c918369adad9f326c777a`; the focused integrated test
+`f8a3f9da4fbdf7db68567690e103c84e7f886ce829f065b8b9dab97feb4b81a6`; the focused integrated test
 and combined engineering gate passed (Ruff/format, 596 tests and 189 subtests).
 The integrated producer is an Experience task; its Platform consumer remains ineligible until the
 exact contract version is activated. The test prepares one review request for each transition

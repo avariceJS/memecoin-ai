@@ -38,15 +38,16 @@ receipt и связывает его с candidate SHA, проверяет пер
 стык: planner брал базу с `research/active`, а GitGate доверял только `HEAD`; теперь GitGate
 разрешает active-ref историю при неизменном `main`. Это ручное синтетическое продолжение после
 перехваченного spawn, не доказательство lifecycle restart. В restored copy STOP сохраняется,
-worker dispatch отсутствует, а test-only `activate_contract` локально replay-ит уже custodied review
-response с запрещённым provider dispatch: одна ACK не активирует contract v2, Platform consumer
-остаётся заблокирован. Copied controller не исполняется, исходник остаётся доступен во время
-restore. Packet содержит candidate SHA и declared GitGate receipt ref/digest, но Store не валидирует внешний
+worker dispatch отсутствует, а тест вызывает только `Store.replay_contract_review_responses_for_transition`
+по точному transition hash. API подтверждает отсутствие provider dispatch и dispatch authority;
+восстановлена одна ACK, activation не вызывается, contract v2 и Platform consumer остаются
+заблокированы. Это не квалифицирует STOP guard у `activate_contract`. Copied controller не исполняется,
+исходник остаётся доступен во время restore. Packet содержит candidate SHA и declared GitGate receipt ref/digest, но Store не валидирует внешний
 receipt; не admitted на момент contract review `PLAT-002` отсутствует в Platform task inventory,
 поэтому тот review contract-level, а не task-specific. Обычный CLI и quiescence path transport не
 получают и сохраняют inert Sol handoff; test также закрывает/переоткрывает SQLite после durable
 response custody и проверяет локальный replay без повторной отправки до dispatch второго review.
-Sol отдельно принял восстановительный replay extension `de478694421f7c5b5f490d68c5dd0d161720537b701c918369adad9f326c777a`;
+Sol отдельно принял восстановительный replay test diff `f8a3f9da4fbdf7db68567690e103c84e7f886ce829f065b8b9dab97feb4b81a6`;
 focused integrated test и полный gate прошли: Ruff/format, 596 тестов и 189 subtests.
 Live provider/runtime dispatch не квалифицирован. Sol независимо проверил recovery-путь, выявил
 и перепроверил исправления точной привязки родителей кандидата, receipt, attempt/epoch и канонической

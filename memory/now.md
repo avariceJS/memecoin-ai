@@ -32,12 +32,14 @@ plans, claims and dispatches the dependent task; live dispatch remains unqualifi
 point after producer integration and response custody, the integrated test now uses real
 `backup_snapshot`/`restore_snapshot` with an unmocked preflight against a temporary manifest-bound
 controller copy. It verifies STOP, selected artifacts, Git/SQLite readback and the persisted
-host-requalification barrier. On the restored copy, a test-only `activate_contract` locally replays
-the already-custodied response with provider dispatch explicitly guarded off; one ACK leaves contract
-v2 inactive and the consumer blocked. Deployment qualification data is synthetic; the manifest-bound
+host-requalification barrier. On the restored copy, the test calls only
+`Store.replay_contract_review_responses_for_transition` for the exact transition hash; the API returns
+no provider dispatch or dispatch authority. One ACK is restored, activation is not invoked, and
+contract v2 and the consumer remain blocked. This does not qualify a STOP guard on
+`activate_contract`. Deployment qualification data is synthetic; the manifest-bound
 controller copy is not executed and source remains available during restore, so this does not prove
 runtime, source-loss or host-loss recovery. Sol accepted the exact replay extension
-`de478694421f7c5b5f490d68c5dd0d161720537b701c918369adad9f326c777a`; the full gate passes Ruff/format,
+`f8a3f9da4fbdf7db68567690e103c84e7f886ce829f065b8b9dab97feb4b81a6`; the full gate passes Ruff/format,
 596 tests and 189 subtests. Proposal JSON
 rejects duplicate keys,
 and task admission plus terminal planning

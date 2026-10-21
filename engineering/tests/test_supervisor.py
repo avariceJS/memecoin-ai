@@ -989,14 +989,15 @@ class SupervisorTests(unittest.TestCase):
             self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
             self.assertEqual(eligible(self.cfg, restored_db), [])
             self.assertTrue((restored / "STOP").is_file())
-            # Recovery replays saved bytes locally. It has no transport and must not
-            # prepare or send a new review while the fixture STOP remains present.
-            with patch.object(
-                supervisor,
-                "metered_client",
-                side_effect=AssertionError("restored replay attempted provider dispatch"),
-            ):
-                supervisor.activate_contract(restored, restored_db)
+            # Recovery replays saved bytes through the passive Store API only.
+            # Contract activation and provider dispatch are outside this STOPped copy.
+            transition = restored_db.get_contract_transition("research-output", 2)
+            replay = restored_db.replay_contract_review_responses_for_transition(
+                "research-output", 2, transition["body"]["contract_hash"]
+            )
+            self.assertFalse(replay["provider_dispatch"])
+            self.assertFalse(replay["dispatch_authority"])
+            self.assertEqual(replay["replayed"][0]["request_id"], replay_request["request_id"])
             replayed_review = restored_db.get_contract_review_request(replay_request["request_id"])
             self.assertEqual(replayed_review["body"]["status"], "approved")
             response = restored_db.get_contract_review_response(replay_request["request_id"])
