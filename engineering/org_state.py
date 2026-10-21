@@ -61,9 +61,11 @@ _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT = 1000
 _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES = 512 * 1024
 _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES = 2 * 1024 * 1024
 _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES = 32 * 1024 * 1024
-_CONTRACT_REVIEW_GLOBAL_REPLAY_QUERY = (
-    "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
-    "GROUP BY name ORDER BY name LIMIT ?"
+_CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY = (
+    "SELECT name FROM decisions WHERE name>=? AND name<'contract-review0' ORDER BY name LIMIT 1"
+)
+_CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY = (
+    "SELECT name FROM decisions WHERE name>? AND name<'contract-review0' ORDER BY name LIMIT 1"
 )
 _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY = (
     "SELECT DISTINCT name FROM decisions WHERE name GLOB 'contract-review/*' "
@@ -1954,17 +1956,28 @@ class Store:
             "dispatch_authority": False,
         }
 
+    def _contract_review_global_replay_names_in_snapshot(self) -> list[str]:
+        """Seek at most the bounded journal count without grouping retained versions."""
+        names = []
+        cursor = "contract-review/"
+        query = _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY
+        while len(names) <= _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+            row = self.db.execute(query, (cursor,)).fetchone()
+            if row is None:
+                break
+            cursor = row["name"]
+            names.append(cursor)
+            query = _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY
+        return names
+
     def _contract_review_replay_inventory_in_snapshot(self, *, limit: int) -> dict:
         """Select only current custodied responses for bounded local replay."""
-        rows = self.db.execute(
-            _CONTRACT_REVIEW_GLOBAL_REPLAY_QUERY,
-            (_CONTRACT_REVIEW_REPLAY_SCAN_LIMIT + 1,),
-        ).fetchall()
-        if len(rows) > _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+        names = self._contract_review_global_replay_names_in_snapshot()
+        if len(names) > _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
             return self._contract_review_replay_overflow()
         identities = []
-        for row in rows:
-            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
+        for name in names:
+            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", name)
             if match is None:
                 raise StateError("contract review worklist identity invalid")
             identities.append(match.group(1))

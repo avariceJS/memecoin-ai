@@ -15,7 +15,8 @@ import pytest
 
 from engineering import org_state, supervisor
 from engineering.org_state import (
-    _CONTRACT_REVIEW_GLOBAL_REPLAY_QUERY,
+    _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY,
+    _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY,
     _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
     StateError,
     Store,
@@ -1159,16 +1160,38 @@ def test_transition_replay_uses_scoped_index_and_ignores_unrelated_bad_identity(
 
 
 def test_global_replay_discovery_uses_decision_primary_key_range(store):
-    plan = store.db.execute(
-        "EXPLAIN QUERY PLAN " + _CONTRACT_REVIEW_GLOBAL_REPLAY_QUERY,
-        (1001,),
-    ).fetchall()
+    for query, cursor, seek_opcode in (
+        (_CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY, "contract-review/", "SeekGE"),
+        (
+            _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY,
+            "contract-review/" + "a" * 64,
+            "SeekGT",
+        ),
+    ):
+        plan = store.db.execute("EXPLAIN QUERY PLAN " + query, (cursor,)).fetchall()
+        assert any(
+            "SEARCH decisions USING COVERING INDEX sqlite_autoindex_decisions_1" in row["detail"]
+            and "name>? AND name<?" in row["detail"]
+            for row in plan
+        )
+        program = store.db.execute("EXPLAIN " + query, (cursor,)).fetchall()
+        cursor_register = next(row[3] for row in program if row[1] == "Variable")
+        lower_seek = next(row for row in program if row[1] == seek_opcode)
+        assert lower_seek[4] == cursor_register
 
-    assert any(
-        "SEARCH decisions USING COVERING INDEX sqlite_autoindex_decisions_1" in row["detail"]
-        and "name>? AND name<?" in row["detail"]
-        for row in plan
+
+def test_global_replay_name_seek_skips_versions_of_prior_journal(store):
+    first_name = "contract-review/" + "a" * 64
+    next_name = "contract-review/" + "b" * 64
+    store.db.executemany(
+        "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+        [(first_name, version, "{}") for version in range(1, 1001)] + [(next_name, 1, "{}")],
     )
+
+    with store._read_snapshot():
+        names = store._contract_review_global_replay_names_in_snapshot()
+
+    assert names == [first_name, next_name]
 
 
 def test_contract_review_replay_sweep_overflow_performs_no_partial_replay(store):
