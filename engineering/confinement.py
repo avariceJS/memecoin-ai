@@ -105,10 +105,13 @@ def _prelaunch_executable_sha256(path: str | Path, expected_sha256: str) -> str:
             if total > MAX_PINNED_EXECUTABLE_BYTES:
                 raise ConfinementError("Pinned executable exceeds the verification size limit")
             digest.update(chunk)
+        if total != before.st_size:
+            raise ConfinementError("Pinned executable read was incomplete")
         after = os.fstat(descriptor)
         identity_before = (
             before.st_dev,
             before.st_ino,
+            before.st_mode,
             before.st_size,
             before.st_mtime_ns,
             before.st_ctime_ns,
@@ -116,6 +119,7 @@ def _prelaunch_executable_sha256(path: str | Path, expected_sha256: str) -> str:
         identity_after = (
             after.st_dev,
             after.st_ino,
+            after.st_mode,
             after.st_size,
             after.st_mtime_ns,
             after.st_ctime_ns,
@@ -164,10 +168,13 @@ def _prelaunch_script_sha256(path: str | Path, expected_sha256: str) -> str:
             if total > MAX_PINNED_SCRIPT_BYTES:
                 raise ConfinementError("Pinned script exceeds the verification size limit")
             digest.update(chunk)
+        if total != before.st_size:
+            raise ConfinementError("Pinned script read was incomplete")
         after = os.fstat(descriptor)
         identity_before = (
             before.st_dev,
             before.st_ino,
+            before.st_mode,
             before.st_size,
             before.st_mtime_ns,
             before.st_ctime_ns,
@@ -175,6 +182,7 @@ def _prelaunch_script_sha256(path: str | Path, expected_sha256: str) -> str:
         identity_after = (
             after.st_dev,
             after.st_ino,
+            after.st_mode,
             after.st_size,
             after.st_mtime_ns,
             after.st_ctime_ns,

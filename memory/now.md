@@ -30,6 +30,11 @@ decisions and independent review; Astra remains episodic and is never started au
   and only the validated copy reaches the verifier. Sol accepted exact diff
   `826cee994266453afa0403cb8b9e64f6de6ccb617784e300165f0fe8ca9aadae`; full gate passed Ruff,
   format, 559 tests and 127 subtests. Loader qualification and environment provenance remain open.
+- Latest A04 source at `fba468a`: executable/script descriptor readers require a complete read and
+  compare mode before/after hashing. Sol accepted exact diff
+  `a8af8365a603d0d4a99c8b29a9daf3d7210be1a89b3b89ad5249192f8a70af51`; full gate passed Ruff,
+  format, 561 tests and 131 subtests. Later pathname execution and continuous process identity remain
+  open.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

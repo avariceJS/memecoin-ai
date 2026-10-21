@@ -1656,3 +1656,11 @@ reaches the child environment. Sol-6.1 accepted exact diff
 `826cee994266453afa0403cb8b9e64f6de6ccb617784e300165f0fe8ca9aadae`; the full gate passed Ruff,
 format, 559 tests and 127 subtests. This closes caller-dict drift only; loader qualification and
 environment provenance remain open.
+
+At `fba468a`, both prelaunch executable and script hash readers reject a descriptor read whose byte
+count differs from its initial `st_size`, even if the observed prefix matches the expected digest.
+Their before/after stability tuple now also includes `st_mode`. Regressions cover early EOF for both
+helpers, descriptor closure and mode drift. Sol-6.1 accepted exact diff
+`a8af8365a603d0d4a99c8b29a9daf3d7210be1a89b3b89ad5249192f8a70af51`; the engineering release gate
+passed Ruff, format, 561 tests and 131 subtests. This is a descriptor-read check; it does not bind
+later path execution to the opened descriptor or qualify continuous process identity.

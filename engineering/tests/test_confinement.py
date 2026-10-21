@@ -388,6 +388,84 @@ class ConfinementTests(unittest.TestCase):
         ):
             confinement._prelaunch_executable_sha256(executable, "0" * 64)
 
+    def test_prelaunch_hash_rejects_incomplete_descriptor_reads_and_closes_fd(self):
+        import engineering.confinement as confinement
+
+        for kind in ("executable", "script"):
+            with self.subTest(kind=kind):
+                path = self.task / ("incomplete-" + kind)
+                path.write_bytes(b"verified-prefix-unread-suffix")
+                if kind == "executable":
+                    path.chmod(0o700)
+                    verify = confinement._prelaunch_executable_sha256
+                    message = "Pinned executable read was incomplete"
+                else:
+                    verify = confinement._prelaunch_script_sha256
+                    message = "Pinned script read was incomplete"
+                expected = hashlib.sha256(b"verified-prefix").hexdigest()
+                original_open = os.open
+                original_close = os.close
+                opened = []
+                closed = []
+
+                def tracked_open(
+                    *args,
+                    original_open=original_open,
+                    opened=opened,
+                    **kwargs,
+                ):
+                    descriptor = original_open(*args, **kwargs)
+                    opened.append(descriptor)
+                    return descriptor
+
+                def tracked_close(descriptor, closed=closed, original_close=original_close):
+                    closed.append(descriptor)
+                    original_close(descriptor)
+
+                with (
+                    patch.object(confinement.os, "open", side_effect=tracked_open),
+                    patch.object(confinement.os, "close", side_effect=tracked_close),
+                    patch.object(confinement.os, "read", side_effect=[b"verified-prefix", b""]),
+                    self.assertRaisesRegex(ConfinementError, message),
+                ):
+                    verify(path.resolve(), expected)
+
+                self.assertEqual(len(opened), 1)
+                self.assertEqual(closed, opened)
+
+    def test_prelaunch_hash_rejects_mode_changes_during_read(self):
+        from types import SimpleNamespace
+
+        import engineering.confinement as confinement
+
+        content = b"pass\n"
+        for kind in ("executable", "script"):
+            with self.subTest(kind=kind):
+                path = self.task / ("mode-changing-" + kind)
+                path.write_bytes(content)
+                if kind == "executable":
+                    path.chmod(0o700)
+                    verify = confinement._prelaunch_executable_sha256
+                    message = "Pinned executable changed while"
+                else:
+                    verify = confinement._prelaunch_script_sha256
+                    message = "Pinned script changed while"
+                metadata = os.stat(path)
+                stable = SimpleNamespace(
+                    st_dev=metadata.st_dev,
+                    st_ino=metadata.st_ino,
+                    st_mode=metadata.st_mode,
+                    st_size=metadata.st_size,
+                    st_mtime_ns=metadata.st_mtime_ns,
+                    st_ctime_ns=metadata.st_ctime_ns,
+                )
+                changed = SimpleNamespace(**{**vars(stable), "st_mode": stable.st_mode ^ 0o100})
+                with (
+                    patch.object(confinement.os, "fstat", side_effect=[stable, changed]),
+                    self.assertRaisesRegex(ConfinementError, message),
+                ):
+                    verify(path.resolve(), hashlib.sha256(content).hexdigest())
+
     def test_verifier_environment_overrides_are_allowlisted(self):
         environment = self.runner.environment({"LANG": "C", "PYTHONHASHSEED": "0"})
         self.assertEqual(environment["LANG"], "C")

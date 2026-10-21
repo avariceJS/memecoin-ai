@@ -31,6 +31,13 @@ Ruff, format, 558 тестов и 127 subtests. Замены файлов, prove
 `826cee994266453afa0403cb8b9e64f6de6ccb617784e300165f0fe8ca9aadae`; полный gate: Ruff, format,
 559 тестов и 127 subtests. Loader qualification и provenance окружения остаются открыты.
 
+Последний A04 increment требует полного чтения закреплённого executable/script до EOF и включает
+режим файла в сравнение metadata дескриптора. Регрессии проверяют ранний EOF с правильным хэшем
+префикса, закрытие fd и изменение mode для обоих readers. Sol принял exact diff
+`a8af8365a603d0d4a99c8b29a9daf3d7210be1a89b3b89ad5249192f8a70af51`; полный gate: Ruff, format,
+561 тест и 131 subtest. Последующее выполнение по пути и continuous process identity остаются
+отдельными незакрытыми границами.
+
 ## Решение директора
 
 Сохранить SQLite, журнал, fencing, изоляцию исполнителей, независимую приёмку и единственного
