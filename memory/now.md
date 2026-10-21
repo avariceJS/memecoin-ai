@@ -404,3 +404,9 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   oversized versions fail before JSON parsing. Sol accepted boundary matrix; final gate passed 466/101
   after isolating an existing Mac code-identity deadline flake. SQLite may still materialize full
   bodies internally; broad A10 and A03 remain open.
+- A04 source `f9dc873` checks descriptor metadata and complete bounded reads for pinned verifier
+  manifest, harness, and script files. Sol accepted exact diff; final engineering gate passed Ruff,
+  468 tests/101 subtests after isolating an existing process-identity observation failure. This does
+  not bind later invocation to the verified inode; plans remain `execution_qualified=False`. Review
+  and gate receipts: `a04-verifier-artifact-read-stability-review-20261021.json` and
+  `a04-verifier-artifact-read-stability-gate-20261021.json`.

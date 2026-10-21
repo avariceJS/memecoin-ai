@@ -1101,6 +1101,21 @@ A04 remain open, and spec-backed plans stay `execution_qualified=False`. Review 
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-all-command-binding-gate-20261021.json`
 (SHA-256 `a31e33887732cb43d39a9edff83d6894f1d7236642b377c708f366e795bef098`).
 
+At `f9dc873`, bounded manifest, harness and trusted-script reads compare descriptor device, inode,
+mode, size, modification time and change time before and after reading, and reject metadata drift or
+incomplete reads before hashing. Regression coverage forces a same-size overwrite during the read
+and confirms stable oversized files retain the `too_large` classification. Sol accepted exact diff
+`897da669b9c92904fe112d074bcf1157a83e953af5aef087041773f8ca65dd9d`; the focused suite passed
+21 tests/29 subtests and the final engineering gate passed Ruff, 468 tests and 101 subtests. One
+earlier full run hit the existing process-identity observation failure; the isolated test and final
+full gate passed. This checks read-time descriptor stability only; it does not bind later invocation
+to the verified inode or qualify loaders, sandbox behavior, output provenance, deployment, or A04.
+Plans remain `execution_qualified=False`. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-artifact-read-stability-review-20261021.json`
+(SHA-256 `423e76fc1ed1dea94caa4ef60ed25876a3e85bec5f92ebc167fcc720a12bdaca`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-artifact-read-stability-gate-20261021.json`
+(SHA-256 `bbfbe0f82fba028112e1d39d97f12990ea16a82c3ffe84c8c241df1e13713ab0`).
+
 At `7591be0`, contract-review replay bounds discovery to 1,000 distinct journals, separately from
 the existing 100-response candidate limit. In one read snapshot it checks each retained version's
 serialized byte length before hydrating any history: at most 512 KiB per version, 2 MiB per journal,
