@@ -33,7 +33,7 @@ from .org_state import (
     _json,
 )
 from .processes import process_identity, terminate_owned
-from .review_packet import MAX_DIFF_BYTES, build_review_packet
+from .review_packet import MAX_DIFF_BYTES, MAX_PACKET_BYTES, build_review_packet
 from .service import validate_deployment
 from .verification_plan import (
     attempt_plan_matches,
@@ -1229,8 +1229,9 @@ def verify_one(state, task):
             candidate.integration_tip,
             sha,
         )
-        merged_path_output = git_raw(
+        merged_path_output = git_raw_limited(
             state / "integration",
+            MAX_PACKET_BYTES,
             "diff",
             "--no-ext-diff",
             "--no-textconv",

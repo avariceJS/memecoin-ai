@@ -7,14 +7,14 @@ agent cannot change native Goal status. Work continues from `org/development`; `
 `2f8da5f92da521b511e0d4fb20205981a000cab5`. The branch remains ahead of `origin/org/development`;
 changes are locally committed and unpublished.
 
-Latest source checkpoint bounds raw Git capture for merged review diffs at 50,000 stdout bytes,
-1,500 stderr bytes and 30 seconds. Overflow is detected before excess bytes are stored; timeout and
-read errors fail before reviewer dispatch. The Git process group is terminated/reaped and its streams
-closed. Sol accepted exact diff
-`799a844a51b7e806c8aa9a6111c6120f4714111145bfa27706318d286356709d`; the full engineering gate
-passed Ruff, format, 584 tests and 189 subtests. This does not bound Git's internal work or the
-changed-path inventory capture. Earlier commits preserve exact raw diff bytes and isolate concurrent
-verification artifacts by invocation. No provider, supervisor/runtime, service or worker was started.
+Latest source checkpoint bounds raw Git capture for merged review diffs at 50,000 stdout bytes and
+changed-path inventory at 256,000 bytes; stderr is limited to 1,500 bytes and runtime to 30 seconds.
+Overflow, timeout and read errors fail before reviewer dispatch; the process group is terminated,
+reaped and its streams closed. Sol accepted exact diff
+`1fcbda8eba27793c002289b21a1799fee812b8c5891d0b254ad3c99761ebed33`; the full engineering gate
+passed Ruff, format, 585 tests and 189 subtests. Git internal work remains unbounded. Earlier commits
+preserve exact raw diff bytes and isolate concurrent verification artifacts by invocation. No
+provider, supervisor/runtime, service or worker was started.
 
 As of **2026-10-21**, the founder reconfirmed that the temporary 2026-10-20 audit hold is complete and
 authorized continued autonomous source development. Luna-6 High remains the sole implementation owner

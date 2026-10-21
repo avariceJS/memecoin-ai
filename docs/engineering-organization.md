@@ -42,17 +42,17 @@ current implementation owner. The Astra audit thread has no Goal. Continue bound
 development and verification under the resumption limits; do not create another Goal, coordinator or
 worker team. This source authority does not grant operational release or runtime authority.
 
-Latest source checkpoint on 2026-10-21: merged review diffs now use bounded raw Git capture. The
-collector stores at most the 50,000-byte packet limit, bounds stderr to 1,500 bytes, detects overflow
-before storing excess output, enforces a 30-second deadline, and kills/reaps the Git process group on
-failure. Exact UTF-8 decoding preserves accepted CRLF and trailing whitespace; invalid limits and
-selector allocation fail before process launch, while post-launch read errors close pipes and reap
-the process. Sol accepted exact diff
-`799a844a51b7e806c8aa9a6111c6120f4714111145bfa27706318d286356709d`; `make
-engineering-release-check` passed Ruff, format, 584 tests and 189 subtests. This bounds captured
-review-diff output, not Git's internal work, changed-path inventory capture, provider authenticity,
-usage settlement, deployment or operational release. Unique per-invocation verification directories
-and exact-diff packet transport are also present. The lead parser continues to reject ambiguous JSON.
+Latest source checkpoint on 2026-10-21: merged review diff and changed-path output now use bounded raw
+Git capture. The diff collector stores at most the 50,000-byte packet limit; path inventory capture
+stops at the 256,000-byte packet limit. Both bound stderr to 1,500 bytes, enforce a 30-second
+deadline, and kill/reap the Git process group on failure. Exact UTF-8 decoding preserves accepted
+CRLF and trailing whitespace. Invalid limits and selector allocation fail before process launch;
+post-launch read errors close pipes and reap the process. Sol accepted exact scoped diff
+`1fcbda8eba27793c002289b21a1799fee812b8c5891d0b254ad3c99761ebed33`; `make
+engineering-release-check` passed Ruff, format, 585 tests and 189 subtests. These bounds cover
+captured output, not Git's internal work, provider authenticity, usage settlement, deployment or
+operational release. Unique per-invocation verification directories and exact-diff packet transport
+are also present. The lead parser continues to reject ambiguous JSON.
 
 Independent Sol technical lead `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`
 (`gpt-6.1-sol/high`) verified the current checkout, selected private evidence hashes, pilot STOP,

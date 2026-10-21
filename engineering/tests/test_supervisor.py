@@ -514,10 +514,11 @@ class SupervisorTests(unittest.TestCase):
             return raw_path_output if "--name-only" in args else diff
 
         def git_raw_limited_output(_repo, max_bytes, *args, **_kwargs):
-            encoded = diff.encode("utf-8")
+            output = raw_path_output if "--name-only" in args else diff
+            encoded = output.encode("utf-8")
             if len(encoded) > max_bytes:
                 raise RuntimeError("git_output_exceeds_limit")
-            return diff
+            return output
 
         with (
             patch.object(supervisor, "GitGate", return_value=gate),
@@ -626,6 +627,9 @@ class SupervisorTests(unittest.TestCase):
         def git_raw_output(_repo, *args):
             return "src/example.py\0" if "--name-only" in args else "synthetic diff"
 
+        def git_raw_limited_output(_repo, _max_bytes, *args, **_kwargs):
+            return "src/example.py\0" if "--name-only" in args else "synthetic diff"
+
         failures = {}
 
         def verify_task(task_id):
@@ -645,7 +649,7 @@ class SupervisorTests(unittest.TestCase):
             ),
             patch.object(supervisor, "git", return_value="normalized output"),
             patch.object(supervisor, "git_raw", side_effect=git_raw_output),
-            patch.object(supervisor, "git_raw_limited", return_value="synthetic diff"),
+            patch.object(supervisor, "git_raw_limited", side_effect=git_raw_limited_output),
             patch.object(supervisor, "activate_contract"),
         ):
             first = threading.Thread(
@@ -873,6 +877,26 @@ class SupervisorTests(unittest.TestCase):
         )
         model.assert_not_called()
         self.assertFalse((self.verification_artifacts() / "review-packet.json").exists())
+
+    def test_oversized_changed_path_inventory_blocks_before_review_dispatch(self):
+        paths = []
+        path_output = ""
+        while len(path_output.encode("utf-8")) <= supervisor.MAX_PACKET_BYTES:
+            paths.append(f"src/path-{len(paths):06d}-" + "x" * 120)
+            path_output = "\0".join(paths) + "\0"
+        model = self.verification_failure(
+            json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
+            raw_path_output=path_output,
+        )
+        model.assert_not_called()
+        self.assertFalse((self.verification_artifacts() / "review-packet.json").exists())
+        verification_event = [
+            event for event in self.db.events() if event["kind"] == "candidate_verified"
+        ][-1]
+        self.assertIn(
+            "git_output_exceeds_limit",
+            verification_event["body"]["details"]["error"],
+        )
 
     def test_review_packet_preserves_git_diff_crlf_and_trailing_whitespace(self):
         diff = "diff --git a/src/example.py b/src/example.py\r\n+value = 1   \r\n"
