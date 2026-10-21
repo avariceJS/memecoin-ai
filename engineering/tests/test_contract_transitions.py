@@ -344,6 +344,72 @@ def test_task_independent_contract_review_is_durable_and_acknowledges_atomically
     )
 
 
+def test_migration_required_review_is_custodied_but_cannot_acknowledge(store):
+    integrate_producer(store)
+    store.add_task("PLAT-1", "Platform", "consume contract", scope=["cli.py"])
+    propose(store)
+    request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-migration-review",
+        "gpt-6.1-sol",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    result = review_result(
+        compatibility="migration_required",
+        migration_plan="Update all consumers before publishing this transition.",
+    )
+
+    finished = finish_recorded_review(store, body, result)
+
+    assert finished["body"]["status"] == "blocked"
+    assert finished["body"]["model_result"] == result
+    assert finished["body"]["result"] == result
+    assert "migration_completion_unqualified" in finished["body"]["blocking_reasons"]
+    assert (
+        store.get_contract_review_response(body["request_id"])["raw_sha256"]
+        == finished["body"]["raw_sha256"]
+    )
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+    assert finish_recorded_review(store, body, result) == finished
+    events_before_replay = store.events()
+    replayed = store.replay_contract_review_response(body["request_id"], body["packet_hash"])
+    assert replayed == finished
+    current = store.get_decision(request["name"])
+    assert current["version"] == finished["version"]
+    assert current["body"] == finished["body"]
+    assert store.events() == events_before_replay
+
+    store.acknowledge_contract_transition("sample", 2, "Experience", body["contract_hash"])
+    with pytest.raises(StateError, match="acknowledgements incomplete"):
+        store.activate_contract_transition("sample", 2)
+    assert store.get_contract("sample")["version"] == 1
+    assert store.get_decision(store._contract_transition_key("sample", 2) + "/activated") is None
+
+    successor = store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+    successor_body = successor["body"]
+    store.begin_contract_review_dispatch(
+        successor_body["request_id"], successor_body["packet_hash"]
+    )
+    store.record_contract_review_session(
+        successor_body["request_id"],
+        successor_body["packet_hash"],
+        "thread-compatible-review",
+        "gpt-6.1-sol",
+        successor_body["dispatch_id"],
+        {"pid": 124, "birth": "synthetic-birth-2"},
+    )
+    replacement = finish_recorded_review(store, successor_body, review_result())
+    assert replacement["body"]["status"] == "approved"
+    historical = store.get_decision(request["name"])
+    assert historical["version"] == finished["version"]
+    assert historical["body"] == finished["body"]
+
+
 def test_contract_review_currentness_allows_blocked_consumer_without_send_authority(store):
     request = prepare_review(store, consumer_contracts={"sample": 2})
     body = request["body"]

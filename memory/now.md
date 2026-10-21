@@ -410,3 +410,9 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   not bind later invocation to the verified inode; plans remain `execution_qualified=False`. Review
   and gate receipts: `a04-verifier-artifact-read-stability-review-20261021.json` and
   `a04-verifier-artifact-read-stability-gate-20261021.json`.
+- A10 candidate based on `dd779db` blocks newly finalized `approve/migration_required` reviews as
+  `migration_completion_unqualified`, preserving the response but writing no participant ACK.
+  Independent source review accepted exact diff `8825f980`; focused transition tests passed 73 and
+  the engineering gate passed 469 tests/101 subtests with Ruff. Existing terminal approvals and
+  direct ACK routes remain unchanged; no migration-completion interface exists. A03 and broad A10
+  remain open. Gate receipt: `a10-migration-review-fail-closed-gate-20261021.json`.

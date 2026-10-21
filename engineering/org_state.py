@@ -2674,6 +2674,10 @@ class Store:
                 ),
             }
             stale_reasons = [blocker_messages.get(code, code) for code in freshness["blockers"]]
+            if approved and detached["compatibility"] == "migration_required":
+                # A plan describes future work; without a qualified migration-completion
+                # contract it cannot authorize publication of the new interface.
+                stale_reasons.append("migration_completion_unqualified")
             transition = self._single_contract_decision(
                 self._contract_transition_key(body["name"], body["version"])
             )

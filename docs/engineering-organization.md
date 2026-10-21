@@ -400,6 +400,20 @@ receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-scoped-replay-index-gate-20261021.json`
 (SHA-256 `29191edb31bf3cad2e0faa5eed226830a70cf2d0e8e316b876491c642b9f472a`).
 
+In a reviewed candidate based on `dd779db`, a contract-review result that says
+`approve` and `migration_required` is now retained as controller-blocked with
+`migration_completion_unqualified`; it creates no participant ACK. The exact model result and raw
+response custody remain intact, repeated finalization and local replay are idempotent, and a new
+explicit evidence revision can create a separate review. This is a prospective restriction on this
+review-finalization path: prior terminal approvals and ACKs, direct ACK APIs and lead ACK routing are
+unchanged. No qualified migration-completion interface or transition-wide migration hold exists.
+Independent source review accepted exact diff
+`8825f98081b3053315dcdfeaecde5cd24ded85162290edd94017cfb9b37e01d5`; the
+focused transition suite passed 73 tests and the engineering release gate passed Ruff, 469 tests and
+101 subtests. A03, broad A10 and operational acceptance remain open. Gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-migration-review-fail-closed-gate-20261021.json`
+(SHA-256 `e86637bea8e8dd39086eace26d1753f83acbafe48fec0bbb2d673755eafc178c`).
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
