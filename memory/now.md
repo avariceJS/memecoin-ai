@@ -329,3 +329,5 @@ external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receip
 ### 2026-10-21 — A10 scoped replay index
 
 At base `9e6cd7e`, scoped contract replay now seeks exact transition identity through a guarded SQLite expression index and skips unrelated malformed review history while validating every matching journal. Sol accepted exact diff `b7fc426e`; focused suite 46 passed; final Python 3.13.6 engineering gate passed Ruff, 428 tests and 96 subtests. First full run hit the intermittent macOS code-identity deadline test; isolated and final full reruns passed. Index build/storage and matching-transition history costs still grow; public global worklist/sweep are unchanged. A03, broad A10 and operational acceptance remain open; STOP active, no runtime/providers.
+
+A10 query-plan regression follow-up at `2c353156`: production replay and `EXPLAIN QUERY PLAN` test now share the same SQL constant, preventing test/query drift. Focused transition suite 46 passed; Ruff and diff checks passed. Handoff records diff SHA-256 `8e7175123fca94df283a8989fa145a758b123613da9fc80749b0d079d90709ad`.
