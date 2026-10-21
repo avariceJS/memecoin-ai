@@ -260,6 +260,11 @@ class TaskSpecStoreTests(unittest.TestCase):
             self.assertEqual(
                 plan.bound_verifiers[0].command_bindings[0].result["kind"], "acceptance_json"
             )
+            identity_before_result_mutation = plan.identity()
+            with self.assertRaises(TypeError):
+                plan.bound_verifiers[0].command_bindings[0].result["kind"] = "exit_zero"
+            self.assertEqual(plan.identity(), identity_before_result_mutation)
+            self.assertFalse(plan.execution_qualified)
             self.assertEqual(plan.bound_verifiers[0].result_schema, "org-acceptance-v1")
             self.assertEqual(
                 expand_bound_verifier_command(

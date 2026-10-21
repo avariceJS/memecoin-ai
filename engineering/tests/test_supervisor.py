@@ -16,7 +16,7 @@ from engineering.confinement import SandboxResult
 from engineering.git_gate import VerificationPolicy
 from engineering.org_state import StateError, Store
 from engineering.tests.test_service import deployment as deployment_fixture
-from engineering.verification_plan import prepare_verification_plan
+from engineering.verification_plan import BoundCommand, prepare_verification_plan
 
 
 class FakeCodex:
@@ -156,28 +156,38 @@ class SupervisorTests(unittest.TestCase):
             "case_field": "case",
             "passed_field": "passed",
         }
-        later_binding = SimpleNamespace(
-            executable_path=Path("/trusted/native-check"),
-            executable_sha256="a" * 64,
-            runtime_path=Path("/trusted/native-main"),
-            runtime_cdhash="b" * 40,
-            script_path=Path("/trusted/later.py"),
-            script_sha256="c" * 64,
-            result=later_result,
+        later_binding = BoundCommand(
+            Path("/trusted/native-check"),
+            "a" * 64,
+            Path("/trusted/native-main"),
+            "b" * 40,
+            Path("/trusted/later.py"),
+            "c" * 64,
+            later_result,
         )
+        first_binding = BoundCommand(
+            Path("/trusted/python"),
+            "d" * 64,
+            Path("/trusted/python-main"),
+            "e" * 40,
+            Path("/trusted/acceptance.py"),
+            "f" * 64,
+            first_result,
+        )
+        first_result["kind"] = "exit_zero"
+        with self.assertRaisesRegex(ValueError, "bound_command_result_invalid"):
+            BoundCommand(
+                Path("/trusted/python"),
+                "d" * 64,
+                Path("/trusted/python-main"),
+                "e" * 40,
+                Path("/trusted/acceptance.py"),
+                "f" * 64,
+                {"kind": {"mutable": "nested"}},
+            )
         verifier = SimpleNamespace(
             commands=commands,
-            command_bindings=(
-                SimpleNamespace(
-                    executable_sha256="d" * 64,
-                    runtime_cdhash="e" * 40,
-                    runtime_path=Path("/trusted/python-main"),
-                    script_sha256="f" * 64,
-                    script_path=Path("/trusted/acceptance.py"),
-                    result=first_result,
-                ),
-                later_binding,
-            ),
+            command_bindings=(first_binding, later_binding),
             harness_path=Path("/trusted/acceptance.py"),
             interpreter_path=Path("/trusted/python"),
             acceptance_id="first-check",
@@ -267,6 +277,9 @@ class SupervisorTests(unittest.TestCase):
         )
         self.assertEqual(later_call.kwargs["expected_script_sha256"], later_binding.script_sha256)
         self.assertEqual(later_call.kwargs["expected_script_path"], later_binding.script_path)
+        self.assertEqual(first_binding.result["kind"], "acceptance_json")
+        with self.assertRaises(TypeError):
+            first_binding.result["kind"] = "exit_zero"
         gate.publish.assert_not_called()
         review.assert_not_called()
         diff.assert_not_called()

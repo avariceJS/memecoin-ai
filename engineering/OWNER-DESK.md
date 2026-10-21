@@ -891,3 +891,12 @@ exact diff `2d40e2bdcf6c3c51196bb592b91f6f6453473bfbe92c513c2a0fbb9fdc504ea5`; �
 Ruff, format, 567 тестов и 161 subtest. Закрыта только мутация последовательностей во время
 конструирования; filesystem identity races, execution provenance и полный A04 остаются открыты.
 Исполнение supervisor/runtime не запускалось.
+
+Следующий A04 increment на базе `a6c6499`: `BoundCommand` теперь отсоединяет result contract от
+исходного dict и отдаёт неизменяемую mapping только со строковыми полями. Callback regression
+меняет исходный контракт command 0 после создания plan: он остаётся `acceptance_json`, strict UTF-8
+проверка сохраняется, а later JSON с `passed=false` блокирует diff/review/publication. Прямая
+мутация mapping отклоняется; plan identity неизменен. Sol принял exact diff
+`a8b2309b6614783d40cf64cd64253997b96879b5d88d47cea63e1a8cb185fc21`. Полный gate: Ruff, format,
+567 тестов, 161 subtest. V4 single-command и v5 multi-command manifest binding checks сохранены;
+spec-backed план остаётся `execution_qualified=False`, запуск или release authority не добавлены.

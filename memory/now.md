@@ -52,8 +52,12 @@ decisions and independent review; Astra remains episodic and is never started au
   format, 566 tests and 161 subtests. Output provenance and execution qualification remain open.
 - Current A04 candidate snapshots caller-owned writable, read and protected root sequences before
   validation. Sol accepted exact diff `2d40e2bdcf6c3c51196bb592b91f6f6453473bfbe92c513c2a0fbb9fdc504ea5`;
-  the full gate passed Ruff, format, 567 tests and 161 subtests. This closes sequence mutation
-  during construction only; filesystem identity races and full A04 remain open. Not yet committed.
+  committed at `a6c6499`; the full gate passed Ruff, format, 567 tests and 161 subtests. This closes
+  sequence mutation during construction only; filesystem identity races and full A04 remain open.
+- Current A04 candidate snapshots each `BoundCommand` result mapping into a read-only string mapping.
+  Sol accepted exact diff `a8b2309b6614783d40cf64cd64253997b96879b5d88d47cea63e1a8cb185fc21`; focused
+  regressions passed and the full gate passed Ruff, format, 567 tests and 161 subtests. The prepared
+  plan remains unqualified; this candidate is not yet committed.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

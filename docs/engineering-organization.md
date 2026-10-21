@@ -1690,3 +1690,13 @@ mid-construction; neither drift changes the resulting grant or veto. Sol-6.1 acc
 gate passed Ruff, format, 567 tests and 161 subtests. This closes caller-sequence drift during
 construction only; filesystem path identity races, execution provenance and full A04 qualification
 remain open. No runtime authority is added.
+
+At `a6c6499`, `BoundCommand` copies its result contract and exposes an immutable mapping, rejecting
+non-string fields so no nested mutable value can alter result semantics after plan preparation.
+Regressions prove source-dictionary mutation and direct result-map mutation cannot downgrade command
+0 from JSON acceptance, the prepared plan identity is unchanged, and a later failed JSON result still
+blocks review and publication in the synthetic callback. Sol-6.1 accepted exact diff
+`a8b2309b6614783d40cf64cd64253997b96879b5d88d47cea63e1a8cb185fc21`. Existing v4 single-command and
+v5 multi-command binding coverage remains intact. The full engineering release gate passed Ruff,
+format, 567 tests and 161 subtests. Spec-backed plans remain `execution_qualified=False`; no execution
+or release authority is added.

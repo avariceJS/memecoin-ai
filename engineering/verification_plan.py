@@ -9,8 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from .git_gate import VerificationPolicy
@@ -34,7 +36,13 @@ class BoundCommand:
     runtime_cdhash: str
     script_path: Path | None
     script_sha256: str | None
-    result: dict[str, str]
+    result: Mapping[str, str]
+
+    def __post_init__(self) -> None:
+        result = dict(self.result)
+        if any(type(key) is not str or type(value) is not str for key, value in result.items()):
+            raise ValueError("bound_command_result_invalid")
+        object.__setattr__(self, "result", MappingProxyType(result))
 
 
 @dataclass(frozen=True)
