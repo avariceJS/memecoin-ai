@@ -1811,6 +1811,52 @@ class Store:
                 raise StateError("contract review request missing")
             return self._contract_review_currentness_in_snapshot(current, packet_hash)
 
+    def contract_review_worklist(self, *, limit: int = 100) -> dict:
+        """Project a bounded inventory of review requests without dispatch authority."""
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise StateError("contract review worklist limit invalid")
+        with self._read_snapshot():
+            rows = self.db.execute(
+                "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
+                "GROUP BY name ORDER BY name LIMIT ?",
+                (limit + 1,),
+            ).fetchall()
+            if len(rows) > limit:
+                raise StateError("contract review worklist exceeds bound")
+            items = []
+            for row in rows:
+                match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
+                if match is None:
+                    raise StateError("contract review worklist identity invalid")
+                current = self._contract_review_record(match.group(1))
+                if current is None:
+                    raise StateError("contract review worklist record missing")
+                body = current["body"]
+                freshness = self._contract_review_currentness_in_snapshot(
+                    current, body["packet_hash"]
+                )
+                items.append(
+                    {
+                        "request_id": body["request_id"],
+                        "journal_version": current["version"],
+                        "status": body["status"],
+                        "team": body["team"],
+                        "role": body["role"],
+                        "packet_hash": body["packet_hash"],
+                        "current": freshness["current"],
+                        "blockers": freshness["blockers"],
+                        "dispatch_eligible": (
+                            body["status"] == "prepared" and freshness["current"]
+                        ),
+                    }
+                )
+            return {
+                "items": items,
+                "count": len(items),
+                "limit": limit,
+                "dispatch_authority": False,
+            }
+
     def begin_contract_review_dispatch(self, request_id: str, packet_hash: str) -> dict:
         """Write the one-shot dispatch intent before any metered provider call."""
         if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):

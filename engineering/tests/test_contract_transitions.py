@@ -324,6 +324,52 @@ def test_contract_review_currentness_allows_blocked_consumer_without_send_author
         store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
 
 
+def test_contract_review_worklist_is_bounded_read_only_and_not_dispatch_authority(store):
+    request = prepare_review(store)
+    body = request["body"]
+    events_before = len(store.events())
+
+    worklist = store.contract_review_worklist()
+
+    assert worklist == {
+        "items": [
+            {
+                "request_id": body["request_id"],
+                "journal_version": 1,
+                "status": "prepared",
+                "team": "Platform",
+                "role": "consumer",
+                "packet_hash": body["packet_hash"],
+                "current": True,
+                "blockers": [],
+                "dispatch_eligible": True,
+            }
+        ],
+        "count": 1,
+        "limit": 100,
+        "dispatch_authority": False,
+    }
+    assert "packet" not in worklist["items"][0]
+    assert store.get_decision(request["name"])["version"] == 1
+    assert len(store.events()) == events_before
+
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    dispatching = store.contract_review_worklist()["items"][0]
+    assert dispatching["status"] == "dispatching"
+    assert dispatching["dispatch_eligible"] is False
+
+    with pytest.raises(StateError, match="limit invalid"):
+        store.contract_review_worklist(limit=True)
+
+
+def test_contract_review_worklist_fails_closed_above_bound(store):
+    prepare_review(store)
+    store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+
+    with pytest.raises(StateError, match="worklist exceeds bound"):
+        store.contract_review_worklist(limit=1)
+
+
 def test_contract_review_stale_inventory_blocks_dispatch_without_mutation(store):
     request = prepare_review(store)
     body = request["body"]
