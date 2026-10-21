@@ -98,7 +98,8 @@ _CONTRACT_REVIEW_BOUNDED_RECORD_QUERY = (
     "AS capped_history_bytes FROM history"
     ") SELECT version,CASE WHEN history_count<=5 AND capped_history_bytes<="
     f"{_CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES} AND body_bytes<="
-    f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES} THEN body END AS bounded_body,body_bytes,"
+    f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES} "
+    "THEN CAST(body AS BLOB) END AS bounded_body,body_bytes,"
     "CASE WHEN replaces IS NULL OR replaces=? THEN replaces END AS bounded_replaces,"
     "CASE WHEN (version=1 AND replaces IS NULL) OR (version>1 AND replaces=?) "
     "THEN 1 ELSE 0 END AS replaces_valid,replaces_version,history_count,"
@@ -1572,7 +1573,9 @@ class Store:
             ).fetchall()
         else:
             rows = self.db.execute(
-                "SELECT version,body AS bounded_body,replaces,replaces_version "
+                "SELECT version,CAST(body AS BLOB) AS bounded_body,"
+                "CAST(replaces AS BLOB) AS replaces_blob,typeof(replaces) AS replaces_type,"
+                "replaces_version "
                 "FROM decisions WHERE name=? ORDER BY version",
                 (key,),
             ).fetchall()
@@ -1596,7 +1599,7 @@ class Store:
                     or size > _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES
                 ):
                     raise StateError("contract review replay history byte limit exceeded")
-                if type(row["bounded_body"]) is not str:
+                if type(row["bounded_body"]) is not bytes:
                     raise StateError("contract review replay history byte limit exceeded")
         previous = None
         record = None
@@ -1609,12 +1612,26 @@ class Store:
             "thread_known": {"response_recorded", "approved", "blocked"},
             "response_recorded": {"approved", "blocked"},
         }
+        database_encoding = self.db.execute("PRAGMA encoding").fetchone()[0]
+        text_codec = {
+            "UTF-8": "utf-8",
+            "UTF-16le": "utf-16le",
+            "UTF-16be": "utf-16be",
+        }.get(database_encoding)
+        if text_codec is None:
+            raise StateError("contract review history invalid")
         for row in rows:
             try:
-                body = json.loads(row["bounded_body"])
-            except (TypeError, ValueError, OverflowError, RecursionError):
+                body = json.loads(row["bounded_body"].decode(text_codec))
+                if bounded_replay:
+                    replaces = row["bounded_replaces"]
+                else:
+                    replaces_blob = row["replaces_blob"]
+                    if replaces_blob is not None and row["replaces_type"] != "text":
+                        raise ValueError("contract review replaces storage type invalid")
+                    replaces = None if replaces_blob is None else replaces_blob.decode(text_codec)
+            except (TypeError, ValueError, UnicodeDecodeError, OverflowError, RecursionError):
                 raise StateError("contract review history invalid") from None
-            replaces = row["bounded_replaces"] if bounded_replay else row["replaces"]
             if (
                 type(body) is not dict
                 or not _CONTRACT_REVIEW_IDENTITY_FIELDS.issubset(body)

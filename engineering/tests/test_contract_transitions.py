@@ -1031,12 +1031,37 @@ def test_contract_review_worklist_accepts_utf16_database_encoding(tmp_path):
     try:
         utf16_store.put_contract("sample", 1, {"schema": "v1"})
         request = prepare_review(utf16_store)
+        record_pending_review_response(utf16_store, request["body"], suffix="utf16-database")
         assert utf16_store.db.execute("PRAGMA encoding").fetchone()[0] == "UTF-16le"
+        default_record = utf16_store._contract_review_record(request["body"]["request_id"])
+        bounded_record = utf16_store._contract_review_record(
+            request["body"]["request_id"], bounded_replay=True
+        )
+        assert default_record["body"]["status"] == "response_recorded"
+        assert bounded_record["body"]["status"] == "response_recorded"
         projection = utf16_store.contract_review_worklist()
         assert projection["count"] == 1
         assert projection["items"][0]["request_id"] == request["body"]["request_id"]
+        assert projection["items"][0]["status"] == "response_recorded"
     finally:
         utf16_store.close()
+
+
+def test_contract_review_readers_reject_blob_typed_replaces_link(store):
+    request = prepare_review(store)
+    store.begin_contract_review_dispatch(
+        request["body"]["request_id"], request["body"]["packet_hash"]
+    )
+    store.db.execute(
+        "UPDATE decisions SET replaces=? WHERE name=? AND version=2",
+        (sqlite3.Binary(request["name"].encode("utf-8")), request["name"]),
+    )
+
+    for bounded_replay in (False, True):
+        with pytest.raises(StateError, match="contract review history invalid"):
+            store._contract_review_record(
+                request["body"]["request_id"], bounded_replay=bounded_replay
+            )
 
 
 def test_transition_replay_does_not_hydrate_oversized_journal_names(store):
@@ -1937,6 +1962,7 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
         "terminal_result",
         "terminal_model_result",
         "terminal_both_results",
+        "malformed_utf8_body",
     ],
 )
 def test_supervisor_malformed_review_history_does_not_skip_later_activation(
@@ -2015,7 +2041,13 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
         (request["name"],),
     ).fetchone()
     latest_raw_sha256 = json.loads(latest["body"]).get("raw_sha256")
-    if corruption in {"missing_packet_hash", "invalid_packet_hash"}:
+    if corruption == "malformed_utf8_body":
+        store.db.execute(
+            "UPDATE decisions SET body=CAST(x'80' AS TEXT) WHERE name=? AND version=1",
+            (request["name"],),
+        )
+        persisted_body = latest["body"]
+    elif corruption in {"missing_packet_hash", "invalid_packet_hash"}:
         journal_rows = store.db.execute(
             "SELECT version,body FROM decisions WHERE name=? ORDER BY version",
             (request["name"],),
