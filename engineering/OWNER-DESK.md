@@ -543,3 +543,12 @@ result parser. Полный gate прошёл: 370 tests, 96 subtests, Ruff. Э�
 identity, descendants и provenance результата не квалифицированы. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-sandbox-integration-review-20261021.json`
 (SHA-256 `8f2472b36d9285a0184acdb531a6c74fd4b27faef2fa9b70804e48cc1bf5dacb`).
+
+Ограниченный A10 source `dc6f7ba` показывает в executive snapshot недостающие отзывы producer и
+consumer независимо от наличия готовой consumer-задачи. Каждый пункт привязан к имени, версии и
+hash контракта и участнику; acknowledgement автоматически не создаётся. Для опубликованных версий
+проверяются activation receipt и исторические acknowledgements. Sol принял точный diff
+`b6a173748f99b5163466a1a3ca41878cf3a267a8484bb58d1eb8c3e0e4485849`; gate: 372 tests, 96 subtests,
+Ruff. Это только видимость: dispatch отзывов и deadlock из-за task readiness остаются открытыми;
+обход ограничен 1,000 proposals/participants и 99 consumers на proposal. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-lane-review-20261021.json`.

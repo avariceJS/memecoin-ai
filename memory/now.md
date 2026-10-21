@@ -210,6 +210,11 @@ automatically.
 - Same successor Goal ID and prior history are preserved. Native Goal remains active. The durable
   handoff carries the latest API counters and review receipt; predecessor history and the
   single-owner identity remain intact.
+- A10 source `dc6f7ba` adds a passive projection of missing participant reviews, independent of
+  runnable consumer tasks; acknowledgements are never generated automatically. Sol accepted exact
+  diff `b6a173748f99b5163466a1a3ca41878cf3a267a8484bb58d1eb8c3e0e4485849`; gate: 372 tests/96
+  subtests, Ruff. Dispatcher/task-readiness liveness and payload/time bounds remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-lane-review-20261021.json`.
 
 Canonical program, acceptance criteria and limits: `docs/engineering-organization.md`. Founder-facing
 external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receipts remain under

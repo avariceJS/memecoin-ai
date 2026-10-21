@@ -170,6 +170,17 @@ plans/leases. Full A10 remains open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-durable-contract-transition-review-20261021.json`
 (SHA-256 `d94296b79abae78b7d22cce4348b750a2123046dbb860250ff13407490e9424e`).
 
+At `dc6f7ba`, executive snapshots add a passive bounded projection of missing participant reviews,
+independent of runnable consumer tasks. It lists exact contract name/version/hash and participant;
+it creates no acknowledgement. Published transitions revalidate the activation receipt and all
+historical acknowledgements. Sol accepted exact diff
+`b6a173748f99b5163466a1a3ca41878cf3a267a8484bb58d1eb8c3e0e4485849`; Ruff and the engineering
+gate passed 372 tests and 96 subtests. Proposal traversal is capped at 1,000 records and 1,000
+participants, with at most 99 consumers per proposal. This exposes missing reviews but does not
+dispatch them or resolve task-readiness deadlock; payload-byte and execution-time bounds, actual
+controller review/ack dispatch, and full A10 remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-lane-review-20261021.json`.
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while

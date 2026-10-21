@@ -175,6 +175,15 @@ Remaining audit/release questions include:
 6. Current `GitGate`/bootstrap still name private `research/active`; remote compatibility is retained.
    Rebinding a future controller to a new publication lane needs a reviewed release, never a doc edit.
 
+At `dc6f7ba`, the passive contract review projection makes missing exact participant reviews visible
+without runnable consumer tasks. Sol accepted exact diff
+`b6a173748f99b5163466a1a3ca41878cf3a267a8484bb58d1eb8c3e0e4485849`; Ruff and the full gate passed
+372 tests/96 subtests. It validates published activation receipts and historical acknowledgements,
+and caps traversal at 1,000 proposals/participants (99 consumers per proposal). It creates no
+acknowledgements and adds no dispatch: task-readiness deadlock, controller review/ack liveness,
+payload/time bounds and broad A10 remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-lane-review-20261021.json`.
+
 No collectors, writers, providers, training, AUTO, real trading, signing/submission, paid upgrades or
 protected F01/D43/reserved-holdout access is authorized. No production/model/champion changes.
 
