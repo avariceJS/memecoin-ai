@@ -1355,3 +1355,15 @@ limits do not bound temporary serialization memory, SQLite work or retained hist
 review capacity remains a separate bound. Gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-configured-contract-proposal-bounds-gate-20261021.json`
 (SHA-256 `46f83f067334a1d141ee43d929a4f3e1b7174bcaa015e2bf8635dc21b4fc5d73`).
+At base `e7d09ab`, A10 now caps a newly recorded `thread_known` session journal body at 320 KiB,
+reserving 96 KiB for exact response custody and 72 KiB for terminal results/blockers. The maximum
+terminal version is 488 KiB and the five-version journal bound is 1,864 KiB under current limits.
+An exact-boundary regression finalizes the largest supported raw/parsed result and maximally escaped
+provider ID; a plus-one session is rejected without writes. Oversized legacy sessions fail closed
+before further work, while an already returned fitting response remains locally custodiable. Sol
+accepted exact diff `5373f24d9364196b740afb74adf7057278e818ecebb0b1db5d723b69701f9dc7`; focused tests
+passed 80 and the full gate passed Ruff, 483 tests/101 subtests. This relies on the current response,
+result and blocker bounds, does not retrofit old session capacity, and does not qualify provider or
+runtime authority. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-session-response-headroom-gate-20261021.json`
+(SHA-256 `4669a7b63293a3418fad409b3acd1e9ae40dd9b167850b02b90f86f913769aaf`).

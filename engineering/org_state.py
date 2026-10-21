@@ -63,6 +63,8 @@ _CONTRACT_TRANSITION_BATCH_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT = 1000
 _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES = 512 * 1024
 _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES = 2 * 1024 * 1024
+# Reserve 96 KiB for response custody and 72 KiB for terminal result/blockers.
+_CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES = 320 * 1024
 _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_WORKLIST_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS = len("contract-review/") + 64
@@ -2329,10 +2331,21 @@ class Store:
             if "session" in body:
                 if body["session"] != session:
                     raise StateError("contract review session identity changed")
+                if (
+                    body["status"] == "thread_known"
+                    and len(_json(body).encode("utf-8"))
+                    > _CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES
+                ):
+                    raise StateError("contract review session leaves insufficient response space")
                 return current
             if body["status"] != "dispatching":
                 raise StateError("contract review session is stale")
             updated = {**body, "status": "thread_known", "session": session}
+            if (
+                len(_json(updated).encode("utf-8"))
+                > _CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES
+            ):
+                raise StateError("contract review session leaves insufficient response space")
             self._put_contract_review_version_in_transaction(request_id, updated)
             return {"name": current["name"], "version": current["version"] + 1, "body": updated}
 

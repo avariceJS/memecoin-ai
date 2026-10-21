@@ -485,6 +485,34 @@ def finish_recorded_review(store, body, result):
     )
 
 
+def review_session_thread_id_at_size(store, request, target_bytes):
+    body = request["body"]
+    dispatching = store.get_decision(request["name"])["body"]
+    session = {
+        "thread_id": "",
+        "model": "model",
+        "turn_dispatch_id": body["dispatch_id"],
+        "process_identity": {"pid": 123, "birth": "birth"},
+    }
+    candidate = {**dispatching, "status": "thread_known", "session": session}
+    thread_length = target_bytes - len(org_state._json(candidate).encode("utf-8"))
+    assert thread_length > 0
+    session["thread_id"] = "x" * thread_length
+    candidate["session"] = session
+    assert len(org_state._json(candidate).encode("utf-8")) == target_bytes
+    return session["thread_id"]
+
+
+def review_result_at_serialized_size(target_bytes):
+    findings = ["x" * 1000 for _ in range(32)] + [""]
+    result = review_result(findings=findings)
+    base_bytes = len(org_state._json(result).encode("utf-8"))
+    findings[-1] = "x" * (target_bytes - base_bytes)
+    assert len(findings[-1]) <= 1000
+    assert len(org_state._json(result).encode("utf-8")) == target_bytes
+    return result
+
+
 def prepare_review(store, *, consumer_contracts=None):
     store.add_task("EXP-1", "Experience", "produce contract", scope=["schema.py"])
     store.add_task(
@@ -847,16 +875,79 @@ def test_bounded_contract_review_suppresses_bodies_on_aggregate_overflow(store):
             store._contract_review_record(body["request_id"], bounded_replay=True)
 
 
-def test_contract_review_session_write_cannot_exceed_later_read_bound(store):
+def test_contract_review_session_reserves_response_and_finalization_space(store):
     request = prepare_review(store)
     body = request["body"]
     store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
 
-    with pytest.raises(StateError, match="version byte limit exceeded"):
+    session = store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        review_session_thread_id_at_size(
+            store, request, org_state._CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES
+        ),
+        "model",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "birth"},
+    )
+    assert session["body"]["status"] == "thread_known"
+    assert (
+        len(org_state._json(session["body"]).encode("utf-8"))
+        == org_state._CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES
+    )
+
+    result = review_result_at_serialized_size(32768)
+    raw_result = json.dumps(result, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    raw_result += b" " * (65536 - len(raw_result))
+    assert len(raw_result) == 65536
+    response = store.record_contract_review_response(
+        body["request_id"],
+        body["packet_hash"],
+        body["dispatch_id"],
+        "😀" * 256,
+        raw_result,
+    )
+    assert len(response["body"]["provider_turn_id"]) == 256
+    assert (
+        len(org_state._json(response["body"]).encode("utf-8"))
+        <= org_state._CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES
+    )
+    finished = store.finish_contract_review(
+        body["request_id"],
+        body["packet_hash"],
+        response["body"]["raw_sha256"],
+        result,
+    )
+
+    rows = store.db.execute(
+        "SELECT version,length(CAST(body AS BLOB)) AS body_bytes "
+        "FROM decisions WHERE name=? ORDER BY version",
+        (request["name"],),
+    ).fetchall()
+    assert len(rows) == 5
+    assert all(
+        row["body_bytes"] <= org_state._CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES for row in rows
+    )
+    assert (
+        sum(row["body_bytes"] for row in rows)
+        <= org_state._CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES
+    )
+    assert finished["body"]["status"] == "approved"
+
+
+def test_contract_review_session_write_cannot_consume_response_headroom(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+
+    events_before = store.events()
+    with pytest.raises(StateError, match="session leaves insufficient response space"):
         store.record_contract_review_session(
             body["request_id"],
             body["packet_hash"],
-            "x" * (512 * 1024),
+            review_session_thread_id_at_size(
+                store, request, org_state._CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES + 1
+            ),
             "model",
             body["dispatch_id"],
             {"pid": 123, "birth": "birth"},
@@ -864,6 +955,53 @@ def test_contract_review_session_write_cannot_exceed_later_read_bound(store):
 
     current = store._contract_review_record(body["request_id"])
     assert current["body"]["status"] == "dispatching"
+    assert current["version"] == 2
+    assert store.events() == events_before
+
+
+def test_oversized_legacy_thread_known_retry_fails_closed_without_mutation(store):
+    request = prepare_review(store)
+    body = request["body"]
+    dispatching = store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    session = {
+        "thread_id": "x" * 400_000,
+        "model": "model",
+        "turn_dispatch_id": body["dispatch_id"],
+        "process_identity": {"pid": 123, "birth": "birth"},
+    }
+    legacy = {**dispatching["body"], "status": "thread_known", "session": session}
+    legacy_bytes = len(org_state._json(legacy).encode("utf-8"))
+    assert (
+        org_state._CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES
+        < legacy_bytes
+        < org_state._CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES
+    )
+    with store._tx():
+        store._put_decision_in_transaction(request["name"], legacy)
+    events_before = store.events()
+
+    with pytest.raises(StateError, match="session leaves insufficient response space"):
+        store.record_contract_review_session(
+            body["request_id"],
+            body["packet_hash"],
+            session["thread_id"],
+            session["model"],
+            session["turn_dispatch_id"],
+            session["process_identity"],
+        )
+
+    current = store._contract_review_record(body["request_id"])
+    assert current["version"] == 3
+    assert current["body"] == legacy
+    assert store.events() == events_before
+
+    result = review_result()
+    finished = finish_recorded_review(store, body, result)
+    retained = store.get_contract_review_response(body["request_id"], _bounded_replay=True)
+    assert finished["body"]["status"] == "approved"
+    assert retained["raw_result"] == json.dumps(
+        result, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
 
 
 def test_contract_review_worklist_does_not_hydrate_malformed_utf8_names(store):

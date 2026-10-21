@@ -434,3 +434,9 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   accepted exact diff `b7720975`; focused tests passed 132/10 subtests and full gate passed Ruff,
   481/101. Temporary serialization memory, SQLite work, retained history and downstream review
   capacity remain outside these limits. Receipt: `a10-configured-contract-proposal-bounds-gate-20261021.json`.
+  New A10 `thread_known` session bodies cap at 320 KiB, reserving capacity for maximum raw response
+  custody and terminal finalization under current 512 KiB/version and 2 MiB/journal bounds. Exact
+  boundary, +1 rejection, maximum raw/parsed result, escaped provider ID and oversized legacy retry
+  regressions pass. Sol accepted exact diff `5373f24d`; focused 80 and full gate 483/101 with Ruff.
+  Legacy oversized sessions are not retrofitted; no provider/runtime authority. Receipt:
+  `a10-contract-review-session-response-headroom-gate-20261021.json`.
