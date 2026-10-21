@@ -33,9 +33,10 @@ trading, protected-data access, production or `main` changes, paid resources, or
 The sole implementation owner is successor Goal/thread
 `01a15b1c-c263-71b0-bfca-c5b46d17a89b` (`gpt-6-luna/high`). On 2026-10-21 the founder explicitly
 confirmed that the temporary audit hold is complete and autonomous source work continues under this
-same Goal. The native Goal interface still reports `paused` and exposes no resume operation; preserve
-the Goal identity and durable state, do not create a replacement, and do not report native status as
-active. This control-plane limitation does not revoke the founder's direct source authorization.
+same Goal. Current native readback confirms this same Goal is `active`; preserve its identity,
+history, counters and durable state, and do not create a replacement or competing owner. The earlier
+`paused` readback was a prior state, not a current control-plane limitation. This source authority
+does not grant operational release or runtime authority.
 Predecessor Goal/thread
 `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` remains blocked and preserved after repeated A03 research;
 the native Goal API cannot resume a blocked Goal. The founder authorized exactly one successor because
@@ -63,6 +64,15 @@ most one active dispatch and one unresolved-dispatch slot, preserve an unresolve
 turn completion/restart, and stop further dispatches on unknown or ambiguous settlement. This bounds
 the number of exposures; it does not cap the charge of one request. Local source work and synthetic
 checks continue while live inference stays disabled.
+
+At `org/development` HEAD `07d2006`, deployment validation previously parsed `config.json` and
+verified its digest through separate reads. It now captures UTF-8 bytes once, parses and hashes that
+same snapshot, and rejects a digest replacement observed after capture. Sol accepted the exact
+source/test diff `9113f9f41660bd052b30257216c17d959184ba3906b9ca04f19aa2f311353390`; the full
+engineering release check passed Ruff, format, 527 tests and 112 subtests. This closes the split-read
+witness only: later file changes, path races, the separately read digest file, and shared
+SQLite/config-generation authority remain outside scope. It does not qualify deployment, runtime,
+release or A10 completion.
 
 Treat A03 as a tracked external release dependency, not a company-wide engineering stop. Continue
 independent source work while that interface is unavailable. Its ranked program was updated after

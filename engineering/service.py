@@ -360,8 +360,12 @@ def validate_deployment(state: str | Path, *, allow_requalification: bool = Fals
     cfg_path, hash_path = state / "config.json", state / "config.sha256"
     if not _regular_file(cfg_path) or not _regular_file(hash_path):
         raise ValueError("deployment_policy_permissions")
-    cfg = _json(cfg_path)
-    if _digest(cfg_path) != hash_path.read_text().strip():
+    try:
+        cfg_bytes = cfg_path.read_bytes()
+        cfg = json.loads(cfg_bytes.decode("utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError("deployment_evidence_invalid") from exc
+    if hashlib.sha256(cfg_bytes).hexdigest() != hash_path.read_text().strip():
         raise ValueError("deployment_policy_hash")
     if cfg.get("schema") != "brain-engineering-deployment-v1":
         raise ValueError("deployment_schema")

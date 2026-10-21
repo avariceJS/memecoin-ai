@@ -3,9 +3,9 @@
 As of **2026-10-21**, the founder reconfirmed that the temporary 2026-10-20 audit hold is complete and
 authorized continued autonomous source development. Luna-6 High remains the sole implementation owner
 under existing Goal `01a15b1c-c263-71b0-bfca-c5b46d17a89b`; preserve its identity, history, counters and
-durable state. The available native Goal API still reports `paused` and exposes no resume operation;
-do not create a replacement Goal or treat documentation as native status. Continue source work under
-the explicit founder authorization. Predecessor Goal/thread `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f`
+durable state. Current native readback confirms the same Goal is `active`; no replacement Goal is
+needed. The earlier `paused` readback was a prior state. Continue source work under the explicit
+founder authorization. Predecessor Goal/thread `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f`
 remains blocked and preserved after repeated ORG-A03 research. Sol handles substantial technical
 decisions and independent review; Astra remains episodic and is never started automatically.
 
@@ -20,6 +20,12 @@ decisions and independent review; Astra remains episodic and is never started au
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
+- A10/service increment now reads deployment `config.json` once and parses/hashes the captured UTF-8
+  bytes. Regression reproduces replacement of config and digest between capture and verification;
+  Sol accepted exact source/test diff `9113f9f41660bd052b30257216c17d959184ba3906b9ca04f19aa2f311353390`.
+  Full engineering release check: Ruff, format, 527 tests and 112 subtests passed. Later pathname
+  changes, digest-file races, and shared SQLite/config-generation authority remain open; no
+  deployment/runtime authority follows.
 - Latest A10 source checkpoint: `6919e8e` validates plain configured proposal/participant types for
   the whole batch, then canonically detaches the complete contracts mapping before SQLite reads.
   Mutations during later DB reads cannot mix contract bodies with producer/consumer metadata. Sol

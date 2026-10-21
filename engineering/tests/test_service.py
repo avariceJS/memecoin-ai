@@ -182,6 +182,45 @@ def test_deployment_evidence_fails_closed(tmp_path, mutation, code):
         validate_deployment(state)
 
 
+def test_deployment_policy_hash_binds_the_parsed_config_bytes(tmp_path):
+    state = deployment(tmp_path)
+    cfg_path = state / "config.json"
+    original_bytes = cfg_path.read_bytes()
+    replacement = json.loads(original_bytes)
+    replacement["remote_publication_enabled"] = True
+    replacement_bytes = json.dumps(replacement, sort_keys=True).encode()
+    original_read_bytes = Path.read_bytes
+    original_read_text = Path.read_text
+    config_reads = 0
+    replaced = False
+
+    def replace_after_capture(path, reader, *args, **kwargs):
+        nonlocal config_reads, replaced
+        if path == cfg_path:
+            config_reads += 1
+            captured = reader(path, *args, **kwargs)
+            if not replaced:
+                replaced = True
+                cfg_path.write_bytes(replacement_bytes)
+                (state / "config.sha256").write_text(hashlib.sha256(replacement_bytes).hexdigest())
+            return captured
+        return reader(path, *args, **kwargs)
+
+    def replace_after_bytes(path, *args, **kwargs):
+        return replace_after_capture(path, original_read_bytes, *args, **kwargs)
+
+    def replace_after_text(path, *args, **kwargs):
+        return replace_after_capture(path, original_read_text, *args, **kwargs)
+
+    with (
+        patch.object(Path, "read_bytes", replace_after_bytes),
+        patch.object(Path, "read_text", replace_after_text),
+    ):
+        with pytest.raises(ValueError, match="deployment_policy_hash"):
+            validate_deployment(state)
+    assert config_reads == 1
+
+
 def test_requalification_bypass_requires_persisted_barrier(tmp_path):
     state = deployment(tmp_path)
     cfg_path = state / "config.json"
