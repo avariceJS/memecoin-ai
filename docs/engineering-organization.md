@@ -195,6 +195,16 @@ resolve the task-readiness deadlock. Controller dispatch/recovery, full A10 and 
 acceptance remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-independent-contract-review-journal-review-20261021.json`.
 
+At `a98744a`, SQLite quiescence revisions also advance for insert, update or deletion of
+`contract-transition/`, `contract-ack/` and `contract-review/` decisions. A second-connection
+lock-wait regression confirms that a review decision committed while a handoff waits makes the
+older handoff stale. Sol accepted the exact diff
+`f778bb096e60655e2ed9106b419c7e936f3094c4a900c934f0da0be720517960`; 38 Store tests and Ruff
+check/format passed. This closes the concurrent-write freshness gap only: an already-pending review
+does not yet defer quiescence, and review dispatch/recovery, A03 settlement, full A10 and operational
+acceptance remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-quiescence-review-20261021.json`.
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
