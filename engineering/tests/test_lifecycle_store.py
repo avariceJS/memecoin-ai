@@ -134,6 +134,89 @@ class LifecycleStoreTests(unittest.TestCase):
             first["body"],
         )
 
+    def test_request_worklist_is_a_bounded_read_only_projection(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        launch = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        held = self.store.record_lifecycle_evaluation(
+            lease, launch_observations(runtime_ready=False)
+        )
+        before = self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0]
+
+        projection = self.store.lifecycle_request_worklist(limit=2)
+        again = self.store.lifecycle_request_worklist(limit=2)
+        after = self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0]
+
+        self.assertEqual(projection, again)
+        self.assertEqual(projection["count"], 2)
+        self.assertFalse(projection["overflow"])
+        self.assertFalse(projection["dispatch_authority"])
+        self.assertFalse(projection["consumption_authority"])
+        self.assertEqual(
+            projection["owner"],
+            {
+                "owner": "owner",
+                "epoch": 1,
+                "status": "active",
+                "lease_until": 1030.0,
+                "live": True,
+            },
+        )
+        by_name = {item["decision_name"]: item for item in projection["items"]}
+        self.assertEqual(by_name[launch["id"]]["action"], "launch_request")
+        self.assertTrue(by_name[launch["id"]]["owner_current"])
+        self.assertEqual(by_name[held["id"]]["action"], "hold")
+        self.assertEqual(after, before)
+        with self.assertRaisesRegex(StateError, "worklist limit invalid"):
+            self.store.lifecycle_request_worklist(limit=True)
+
+    def test_request_worklist_overflow_returns_no_partial_identities(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        first = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        second = self.store.record_lifecycle_evaluation(
+            lease, launch_observations(backoff_until=2000.0)
+        )
+        before = self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0]
+
+        overflow = self.store.lifecycle_request_worklist(limit=1)
+
+        self.assertTrue(overflow["overflow"])
+        self.assertIsNone(overflow["count"])
+        self.assertEqual(overflow["items"], [])
+        self.assertFalse(overflow["dispatch_authority"])
+        self.assertFalse(overflow["consumption_authority"])
+        self.assertNotIn(first["id"], str(overflow))
+        self.assertNotIn(second["id"], str(overflow))
+        self.assertEqual(
+            self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0], before
+        )
+
+    def test_request_projection_marks_replaced_owner_epoch_noncurrent(self):
+        lease = self.store.claim_lifecycle_owner("owner", lease_seconds=5)
+        first = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        self.now += 5
+        replacement = self.store.claim_lifecycle_owner("replacement")
+        second = self.store.record_lifecycle_evaluation(replacement, launch_observations())
+
+        projection = self.store.lifecycle_request_worklist(limit=2)
+        by_name = {item["decision_name"]: item for item in projection["items"]}
+
+        self.assertFalse(by_name[first["id"]]["owner_current"])
+        self.assertTrue(by_name[second["id"]]["owner_current"])
+        self.assertEqual(projection["owner"]["epoch"], replacement["epoch"])
+
+    def test_request_projection_fails_closed_on_identity_corruption(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        request = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        body = dict(request["body"])
+        body["plan"] = {**body["plan"], "decision_sha256": "f" * 64}
+        self.store.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=1",
+            (json.dumps(body, sort_keys=True, separators=(",", ":")), request["id"]),
+        )
+
+        with self.assertRaisesRegex(StateError, "identity_invalid|request_invalid"):
+            self.store.lifecycle_request_worklist()
+
     def test_launch_plan_cannot_bypass_observation_evaluation(self):
         lease = self.store.claim_lifecycle_owner("owner")
         with self.assertRaisesRegex(StateError, "lifecycle_launch_requires_observation"):

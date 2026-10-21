@@ -2834,6 +2834,205 @@ class Store:
         version = self._put_decision_in_transaction(name, body)
         return {"id": name, "version": version, "body": body}
 
+    def lifecycle_request_worklist(self, *, limit: int = 100) -> dict:
+        """Return a bounded, read-only projection of immutable lifecycle requests.
+
+        This exposes journal and current owner-lease state only. It grants no launch,
+        dispatch, consumption, or disposition authority; caller-supplied gate observations
+        remain claims rather than proof of current launch authorization.
+        """
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise StateError("lifecycle request worklist limit invalid")
+        with self._read_snapshot():
+            return self._lifecycle_request_worklist_in_snapshot(limit=limit)
+
+    def _lifecycle_request_worklist_in_snapshot(self, *, limit: int) -> dict:
+        rows = self.db.execute(
+            "SELECT name FROM decisions WHERE name GLOB 'lifecycle/request/*' "
+            "GROUP BY name ORDER BY name LIMIT ?",
+            (limit + 1,),
+        ).fetchall()
+        owner_versions = self._lifecycle_decision_versions("lifecycle/owner")
+        owner_record = self.get_decision("lifecycle/owner")
+        if (owner_record is None) != (not owner_versions) or (
+            owner_record is not None and owner_record["version"] != owner_versions[-1]
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
+        captured_at = self._lifecycle_now()
+        owner = None
+        if owner_record is not None:
+            owner = self._lifecycle_fence_state(owner_record["body"])
+            owner = {
+                "owner": owner["owner"],
+                "epoch": owner["epoch"],
+                "status": owner["status"],
+                "lease_until": owner["lease_until"],
+                "live": owner["status"] == "active" and owner["lease_until"] > captured_at,
+            }
+        if len(rows) > limit:
+            return {
+                "items": [],
+                "count": None,
+                "limit": limit,
+                "overflow": True,
+                "captured_at": captured_at,
+                "owner": owner,
+                "dispatch_authority": False,
+                "consumption_authority": False,
+            }
+
+        items = []
+        for row in rows:
+            name = row["name"]
+            match = re.fullmatch(r"lifecycle/request/([0-9a-f]{64})", name)
+            if match is None:
+                raise StateError("lifecycle_request_identity_invalid")
+            history = self.db.execute(
+                "SELECT version FROM decisions WHERE name=? ORDER BY version", (name,)
+            ).fetchall()
+            if [item["version"] for item in history] != [1]:
+                raise StateError("lifecycle_request_history_invalid")
+            record = self.get_decision(name)
+            if record is None or record["version"] != 1:
+                raise StateError("lifecycle_request_history_invalid")
+            body = record["body"]
+            if type(body) is not dict or set(body) not in (
+                {"owner", "epoch", "plan"},
+                {"owner", "epoch", "plan", "observations"},
+            ):
+                raise StateError("lifecycle_request_invalid")
+            request_owner, request_epoch, plan = body["owner"], body["epoch"], body["plan"]
+            required_plan = {
+                "action",
+                "reason",
+                "retry_at",
+                "attempt_id",
+                "request_owner",
+                "request_epoch",
+                "decision_sha256",
+            }
+            if (
+                type(request_owner) is not str
+                or not request_owner.strip()
+                or len(request_owner) > 200
+                or type(request_epoch) is not int
+                or request_epoch <= 0
+                or type(plan) is not dict
+                or set(plan) != required_plan
+                or type(plan["action"]) is not str
+                or plan["action"]
+                not in {
+                    "hold",
+                    "wait",
+                    "observe",
+                    "recovery_required",
+                    "launch_request",
+                }
+                or type(plan["reason"]) is not str
+                or not plan["reason"].strip()
+                or len(plan["reason"]) > 500
+            ):
+                raise StateError("lifecycle_request_invalid")
+            retry_at = plan["retry_at"]
+            if retry_at is not None:
+                if isinstance(retry_at, bool) or not isinstance(retry_at, (int, float)):
+                    raise StateError("lifecycle_request_invalid")
+                try:
+                    finite_retry_at = math.isfinite(retry_at)
+                except OverflowError:
+                    finite_retry_at = False
+                if not finite_retry_at:
+                    raise StateError("lifecycle_request_invalid")
+            attempt_id = plan["attempt_id"]
+            if attempt_id is not None and (type(attempt_id) is not int or attempt_id <= 0):
+                raise StateError("lifecycle_request_invalid")
+            if plan["action"] == "launch_request":
+                if (
+                    plan["request_owner"] != request_owner
+                    or plan["request_epoch"] != request_epoch
+                    or type(plan["request_epoch"]) is not int
+                    or plan["request_epoch"] <= 0
+                    or "observations" not in body
+                ):
+                    raise StateError("lifecycle_request_invalid")
+            elif plan["request_owner"] is not None or plan["request_epoch"] is not None:
+                raise StateError("lifecycle_request_invalid")
+            digest = plan["decision_sha256"]
+            if type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                raise StateError("lifecycle_request_invalid")
+            expected_id = hashlib.sha256(
+                f"{request_owner}\0{request_epoch}\0{digest}".encode()
+            ).hexdigest()
+            if expected_id != match.group(1):
+                raise StateError("lifecycle_request_identity_invalid")
+            if "observations" in body:
+                observations = body["observations"]
+                if type(observations) is not dict or set(observations) != (
+                    _LIFECYCLE_OBSERVATION_FIELDS | {"request_owner", "request_epoch"}
+                ):
+                    raise StateError("lifecycle_request_invalid")
+                if (
+                    observations["request_owner"] != request_owner
+                    or type(observations["request_epoch"]) is not int
+                    or observations["request_epoch"] != request_epoch
+                ):
+                    raise StateError("lifecycle_request_invalid")
+                planner_observations = {
+                    key: value
+                    for key, value in observations.items()
+                    if key in _LIFECYCLE_OBSERVATION_FIELDS
+                }
+                try:
+                    from .lifecycle import plan_lifecycle
+
+                    computed = plan_lifecycle(
+                        **planner_observations,
+                        request_owner=request_owner,
+                        request_epoch=request_epoch,
+                    )
+                except (TypeError, ValueError, OverflowError, RecursionError):
+                    raise StateError("lifecycle_request_invalid") from None
+                computed_plan = {
+                    "action": computed.action,
+                    "reason": computed.reason,
+                    "retry_at": computed.retry_at,
+                    "attempt_id": computed.attempt_id,
+                    "request_owner": computed.request_owner,
+                    "request_epoch": computed.request_epoch,
+                    "decision_sha256": computed.decision_sha256,
+                }
+                if computed_plan != plan:
+                    raise StateError("lifecycle_request_invalid")
+            items.append(
+                {
+                    "request_id": match.group(1),
+                    "decision_name": name,
+                    "journal_version": record["version"],
+                    "owner": request_owner,
+                    "epoch": request_epoch,
+                    "action": plan["action"],
+                    "reason": plan["reason"],
+                    "retry_at": plan["retry_at"],
+                    "decision_sha256": digest,
+                    "owner_current": bool(
+                        owner
+                        and owner["live"]
+                        and owner["owner"] == request_owner
+                        and owner["epoch"] == request_epoch
+                    ),
+                }
+            )
+        return {
+            "items": items,
+            "count": len(items),
+            "limit": limit,
+            "overflow": False,
+            "captured_at": captured_at,
+            "owner": owner,
+            "dispatch_authority": False,
+            "consumption_authority": False,
+        }
+
     def open_controller_parse_fault(
         self,
         attempt_id: int,
