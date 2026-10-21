@@ -367,6 +367,24 @@ A03 settlement, broad A10 and operational acceptance remain open. Review receipt
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-integrity-fairness-gate-20261021.json`
 (SHA-256 `01d5627489783134a9f09822b59d8069ff9abb17c4021eaa41d3526b2fe1e6f9`).
 
+At `9e6cd7e`, transition-scoped replay discovers review journals through a partial expression index
+on the exact contract name, version, contract hash and proposal digest. It validates each matching
+journal's full append-only history, then applies the existing cap only to latest `response_recorded`
+requests; unrelated malformed IDs or JSON no longer poison this transition's replay. The public
+worklist and global replay sweep remain unchanged. Sol accepted exact diff
+`b7fc426eaee98609f53525dd68b7190940976cf4c52676258c1fdbc0d3a31e32`; focused tests passed 46 and
+`make engineering-release-check` passed Ruff, 428 tests and 96 subtests. `EXPLAIN QUERY PLAN` used
+the new covering index. A first full run hit the existing intermittent macOS running-code-identity
+deadline test; it passed in isolation and the final full run passed. Initial index creation and
+index storage/write cost grow with retained history; selected-transition discovery and validation
+still scale with that transition's retained journals. Separate replay/activation transactions,
+provider/usage provenance, A03 settlement, broad A10 and operational acceptance remain open. Review
+receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-scoped-replay-index-review-20261021.json`
+(SHA-256 `e38766e9046540cffc3a7fce62a88f24626a2ecc0dc6ee12c1a1ccbf087d5718`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-scoped-replay-index-gate-20261021.json`
+(SHA-256 `29191edb31bf3cad2e0faa5eed226830a70cf2d0e8e316b876491c642b9f472a`).
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
