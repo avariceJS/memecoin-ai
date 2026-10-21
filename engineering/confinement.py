@@ -421,7 +421,7 @@ class SandboxRunner:
                 raise ConfinementError("Pinned script verification exceeded command deadline")
         if time.monotonic() >= deadline:
             raise ConfinementError("Prelaunch verification exceeded command deadline")
-        with subprocess.Popen(
+        process = subprocess.Popen(
             [str(SANDBOX_EXEC), "-p", self.profile, *argv],
             cwd=directory,
             env=environment,
@@ -430,29 +430,25 @@ class SandboxRunner:
             stderr=subprocess.PIPE,
             close_fds=True,
             start_new_session=True,
-        ) as process:
+        )
+        process_failure = None
+        try:
             process_code_directory_hash = None
             process_executable_path = None
             process_identity_observations = 0
             next_process_identity_check = None
             if expected_executable_cdhash is not None:
-                try:
-                    (
-                        process_code_directory_hash,
-                        process_executable_path,
-                    ) = self._wait_for_process_code_identity(
-                        process,
-                        expected_executable_cdhash,
-                        expected_executable_main_path,
-                        deadline=deadline,
-                    )
-                    process_identity_observations = 1
-                    next_process_identity_check = time.monotonic() + PROCESS_CODE_IDENTITY_INTERVAL
-                except BaseException:
-                    # Also reap on unexpected FFI errors and cancellation. The
-                    # Popen context manager otherwise waits for the verifier.
-                    self._kill_process_group(process)
-                    raise
+                (
+                    process_code_directory_hash,
+                    process_executable_path,
+                ) = self._wait_for_process_code_identity(
+                    process,
+                    expected_executable_cdhash,
+                    expected_executable_main_path,
+                    deadline=deadline,
+                )
+                process_identity_observations = 1
+                next_process_identity_check = time.monotonic() + PROCESS_CODE_IDENTITY_INTERVAL
             timed_out = False
             output_truncated = False
             buffers = {"stdout": bytearray(), "stderr": bytearray()}
@@ -472,16 +468,12 @@ class SandboxRunner:
                         and time.monotonic() >= next_process_identity_check
                         and process.poll() is None
                     ):
-                        try:
-                            observed = self._check_process_code_identity(
-                                process,
-                                expected_executable_cdhash,
-                                expected_executable_main_path,
-                                deadline=deadline,
-                            )
-                        except BaseException:
-                            self._kill_process_group(process)
-                            raise
+                        observed = self._check_process_code_identity(
+                            process,
+                            expected_executable_cdhash,
+                            expected_executable_main_path,
+                            deadline=deadline,
+                        )
                         if observed is not None:
                             process_identity_observations += 1
                         next_process_identity_check = (
@@ -512,16 +504,12 @@ class SandboxRunner:
                         if remaining <= 0:
                             timed_out = True
                             break
-                        try:
-                            observed = self._check_process_code_identity(
-                                process,
-                                expected_executable_cdhash,
-                                expected_executable_main_path,
-                                deadline=deadline,
-                            )
-                        except BaseException:
-                            self._kill_process_group(process)
-                            raise
+                        observed = self._check_process_code_identity(
+                            process,
+                            expected_executable_cdhash,
+                            expected_executable_main_path,
+                            deadline=deadline,
+                        )
                         if observed is not None:
                             process_identity_observations += 1
                         next_process_identity_check = (
@@ -540,8 +528,29 @@ class SandboxRunner:
             # Always clean the original process group, including children that
             # retained pipes after the leader exited. Never wait for pipe EOF
             # after timeout: an adversarial descendant could keep it open.
-            self._kill_process_group(process)
             stdout, stderr = bytes(buffers["stdout"]), bytes(buffers["stderr"])
+        except BaseException as exc:
+            process_failure = exc
+            raise
+        finally:
+            cleanup_errors = []
+            try:
+                self._kill_process_group(process)
+            except BaseException as cleanup_error:
+                cleanup_errors.append(cleanup_error)
+            for stream in (process.stdout, process.stderr):
+                if stream is not None:
+                    try:
+                        stream.close()
+                    except BaseException as cleanup_error:
+                        cleanup_errors.append(cleanup_error)
+            if process_failure is None and cleanup_errors:
+                raise cleanup_errors[0]
+            if process_failure is not None:
+                for cleanup_error in cleanup_errors:
+                    process_failure.add_note(
+                        "Verifier cleanup also failed: " + type(cleanup_error).__name__
+                    )
         return SandboxResult(
             tuple(argv),
             process.returncode,

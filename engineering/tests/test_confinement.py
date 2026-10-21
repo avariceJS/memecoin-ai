@@ -390,6 +390,10 @@ class ConfinementTests(unittest.TestCase):
             def fileno():
                 return 10
 
+            @staticmethod
+            def close():
+                pass
+
         class FakeSelector:
             def __enter__(self):
                 return self
@@ -432,6 +436,127 @@ class ConfinementTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0)
         self.assertTrue(result.timed_out)
+
+    def test_output_collection_errors_kill_process_before_popen_exit(self):
+        from types import SimpleNamespace
+
+        failure_cases = (
+            ("selector_setup", False),
+            ("selector_select", False),
+            ("output_read", False),
+            ("output_read", True),
+        )
+        for failure_point, cleanup_fails in failure_cases:
+            with self.subTest(failure_point=failure_point, cleanup_fails=cleanup_fails):
+                events = []
+
+                class FakeStream:
+                    def __init__(self, name, descriptor, event_log=events):
+                        self.name = name
+                        self.descriptor = descriptor
+                        self.event_log = event_log
+
+                    def fileno(self):
+                        return self.descriptor
+
+                    def close(self):
+                        self.event_log.append(self.name + "_close")
+
+                stdout = FakeStream("stdout", 10)
+                stderr = FakeStream("stderr", 11)
+
+                class FakeProcess:
+                    pid = 42
+
+                    def __init__(self, stdout=stdout, stderr=stderr, event_log=events):
+                        self.stdout = stdout
+                        self.stderr = stderr
+                        self.event_log = event_log
+                        self.returncode = None
+
+                    def __enter__(self):
+                        self.event_log.append("popen_enter")
+                        return self
+
+                    def __exit__(self, *_args):
+                        self.event_log.append("popen_exit")
+                        if self.returncode is None:
+                            self.wait(timeout=None)
+                        return False
+
+                    def poll(self):
+                        return self.returncode
+
+                    def wait(self, timeout=None):
+                        self.event_log.append("wait")
+                        if timeout is None:
+                            raise AssertionError("Popen context attempted an unbounded wait")
+                        self.returncode = -9
+                        return self.returncode
+
+                class FakeSelector:
+                    def __init__(self, event_log=events, fail_point=failure_point):
+                        self.event_log = event_log
+                        self.fail_point = fail_point
+                        self.registered = []
+
+                    def __enter__(self):
+                        return self
+
+                    def __exit__(self, *_args):
+                        self.event_log.append("selector_exit")
+                        return False
+
+                    def register(self, stream, _event, label):
+                        self.registered.append(SimpleNamespace(fileobj=stream, data=label))
+
+                    def get_map(self):
+                        return self.registered
+
+                    def select(self, _timeout):
+                        if self.fail_point == "selector_select":
+                            raise OSError("selector_select failure")
+                        return [(self.registered[0], 1)]
+
+                process = FakeProcess()
+                selector = FakeSelector()
+
+                def set_blocking(_descriptor, _enabled, fail_point=failure_point):
+                    if fail_point == "selector_setup":
+                        raise OSError("selector_setup failure")
+
+                def kill_process_group(value, event_log=events, cleanup_fails=cleanup_fails):
+                    event_log.append("kill_process_group")
+                    if cleanup_fails:
+                        raise OSError("cleanup failure")
+                    value.returncode = -9
+
+                with (
+                    patch("engineering.confinement.subprocess.Popen", return_value=process),
+                    patch(
+                        "engineering.confinement.selectors.DefaultSelector", return_value=selector
+                    ),
+                    patch("engineering.confinement.os.set_blocking", side_effect=set_blocking),
+                    patch(
+                        "engineering.confinement.os.read",
+                        side_effect=OSError("output_read failure"),
+                    ),
+                    patch("engineering.confinement.time.monotonic", return_value=0.0),
+                    patch.object(
+                        SandboxRunner, "_kill_process_group", side_effect=kill_process_group
+                    ),
+                ):
+                    with self.assertRaisesRegex(OSError, failure_point + " failure") as raised:
+                        self.runner.run([str(PYTHON), "-I", "-c", "pass"], cwd=self.task)
+
+                if cleanup_fails:
+                    self.assertTrue(
+                        any("cleanup also failed" in note for note in raised.exception.__notes__)
+                    )
+                self.assertNotIn("popen_enter", events)
+                self.assertNotIn("popen_exit", events)
+                self.assertLess(events.index("kill_process_group"), events.index("stdout_close"))
+                self.assertIn("stderr_close", events)
 
     def test_output_limit_terminates_infinite_output(self):
         result = self.runner.run(

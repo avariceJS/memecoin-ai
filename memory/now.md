@@ -9,6 +9,13 @@ founder authorization. Predecessor Goal/thread `01a15a6e-0e03-77d2-b3ce-d81b95b5
 remains blocked and preserved after repeated ORG-A03 research. Sol handles substantial technical
 decisions and independent review; Astra remains episodic and is never started automatically.
 
+- Latest A04 source candidate at `200870b`: verifier process-group cleanup now runs for every
+  post-launch success or exception, closes both captured streams, preserves the original collection
+  error, and avoids `Popen.__exit__`'s unbounded wait. Sol accepted exact diff
+  `652f72acd610caaa82e1b5ca2e3ccaec5f426acf16db1f868f40cd842480df25`; the full gate passed Ruff,
+  format, 556 tests and 127 subtests. Failed OS-level kill can leave a process; provenance and full
+  A04 remain open. STOP remains active; A03 blocks release, not source development.
+
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported
   dispatch/model/epoch-bound settlement. No more identical probes without an upstream interface or

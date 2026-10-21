@@ -1620,3 +1620,13 @@ Ruff, format, 555 tests and 123 subtests. An initial full run hit the known tran
 identity deadline race; its isolated rerun and the final full gate passed. This fences persistence at
 commit only; direct trusted ACK calls remain, payload/transaction-time bounds and reviewer
 provenance remain outside scope, and A03/release/operational acceptance remain open.
+
+At the `200870b` source base, `SandboxRunner` now kills the verifier process group and closes both
+captured streams on every post-launch exit path, including selector setup, selection and output-read
+errors. This avoids the `Popen` context manager's unbounded wait when output collection raises.
+Synthetic regressions cover each failure point and cleanup failure while preserving the original
+error. Sol-6.1 accepted exact diff
+`652f72acd610caaa82e1b5ca2e3ccaec5f426acf16db1f868f40cd842480df25`; `make
+engineering-release-check` passed Ruff, format, 556 tests and 127 subtests. A failed OS-level kill
+can still leave a process alive, Security API calls remain non-interruptible, and process/descendant
+provenance and full A04 qualification remain open. A03 continues to block operational release only.
