@@ -15,6 +15,7 @@ import pytest
 
 from engineering import org_state, supervisor
 from engineering.org_state import (
+    _CONTRACT_REVIEW_GLOBAL_REPLAY_QUERY,
     _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
     StateError,
     Store,
@@ -1155,6 +1156,19 @@ def test_transition_replay_uses_scoped_index_and_ignores_unrelated_bad_identity(
     assert result["overflow"] is False
     assert [item["request_id"] for item in result["replayed"]] == [body["request_id"]]
     assert store.get_decision(store._contract_ack_key(body["name"], body["version"], body["team"]))
+
+
+def test_global_replay_discovery_uses_decision_primary_key_range(store):
+    plan = store.db.execute(
+        "EXPLAIN QUERY PLAN " + _CONTRACT_REVIEW_GLOBAL_REPLAY_QUERY,
+        (1001,),
+    ).fetchall()
+
+    assert any(
+        "SEARCH decisions USING COVERING INDEX sqlite_autoindex_decisions_1" in row["detail"]
+        and "name>? AND name<?" in row["detail"]
+        for row in plan
+    )
 
 
 def test_contract_review_replay_sweep_overflow_performs_no_partial_replay(store):

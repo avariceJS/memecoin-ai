@@ -61,6 +61,10 @@ _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT = 1000
 _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES = 512 * 1024
 _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES = 2 * 1024 * 1024
 _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES = 32 * 1024 * 1024
+_CONTRACT_REVIEW_GLOBAL_REPLAY_QUERY = (
+    "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
+    "GROUP BY name ORDER BY name LIMIT ?"
+)
 _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY = (
     "SELECT DISTINCT name FROM decisions WHERE name GLOB 'contract-review/*' "
     "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
@@ -1953,8 +1957,7 @@ class Store:
     def _contract_review_replay_inventory_in_snapshot(self, *, limit: int) -> dict:
         """Select only current custodied responses for bounded local replay."""
         rows = self.db.execute(
-            "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
-            "GROUP BY name ORDER BY name LIMIT ?",
+            _CONTRACT_REVIEW_GLOBAL_REPLAY_QUERY,
             (_CONTRACT_REVIEW_REPLAY_SCAN_LIMIT + 1,),
         ).fetchall()
         if len(rows) > _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
