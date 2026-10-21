@@ -637,3 +637,18 @@ test passed, full gate: 402 tests, 96 subtests, Ruff. Это одна synthetic 
 concurrency proof. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-lockwait-review-20261021.json`
 (SHA-256 `f5bcdef0fbec6b60a291408633c3e052d6a60d114f4f0614c8993b1b7aa90a5f`).
+
+A10 source `0c32290` добавляет bounded local sweep сохранённых contract-review responses. Один
+coherent worklist snapshot ограничен 100 записями; overflow возвращает пустой результат без partial
+replay. Обрабатываются только `response_recorded`; prepared и terminal записи пропускаются.
+`StateError` сохраняется как ограниченная per-request ошибка, после которой sweep продолжает другие
+заявки. Повторно используется custody check и transactional currentness check; dispatch authority,
+provider dispatch и resend отсутствуют. Sol принял exact diff
+`bd4758b574333de217989fba40eb880b00e269dc87fa39148919b2c4aaa4dcbd`; focused suite: 2 теста,
+full gate: 404 теста и 96 subtests, Ruff. Между заявками нет общей транзакции; integrity error
+останавливает sweep до writes, а иная неожиданная ошибка может остановить его после предыдущих
+commit. `evidence_revision` остаётся opaque: newest-revision selection и conflict adjudication не
+добавлены; действует текущая уникальность participant ACK. A03 settlement, provider provenance, полный
+A10 и operational acceptance открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-sweep-review-20261021.json`
+(SHA-256 `3e776872f8c928c0b265c931caa5721510c29f0545064364761ba41c42c6e90f`).

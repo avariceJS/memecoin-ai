@@ -25,6 +25,11 @@ automatically.
 - A10 regression at `d298bfb` covers response replay crossing a SQLite lock wait while participant
   inventory changes. It preserves the raw-response hash and blocks the ACK; full gate passed 402/96,
   Sol accepted the exact test diff. One synthetic interleaving only; full A10 remains open.
+- A10 source `0c32290` adds a bounded sweep for custodied `response_recorded` reviews: coherent
+  worklist, explicit overflow without partial replay, per-request `StateError` preservation, and no
+  provider dispatch/resend. Sol accepted exact diff; full gate passed 404 tests/96 subtests with Ruff.
+  The sweep is not atomic across requests and does not choose a newest opaque evidence revision.
+  Full A10 and A03 remain open. Receipt: `a10-contract-review-replay-sweep-review-20261021.json`.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable

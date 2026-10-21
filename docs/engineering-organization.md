@@ -248,6 +248,21 @@ one synthetic contention interleaving, not exhaustive concurrency proof. Receipt
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-lockwait-review-20261021.json`
 (SHA-256 `f5bcdef0fbec6b60a291408633c3e052d6a60d114f4f0614c8993b1b7aa90a5f`).
 
+At `0c32290`, `Store.replay_pending_contract_review_responses` replays only `response_recorded`
+entries from a coherent worklist snapshot capped at 100. Overflow returns no partial identities and
+performs no replay. Each request uses the existing custody check and transactional finalizer; a
+`StateError` is reported per request with bounded text while later requests continue. Prepared and
+terminal entries are skipped. The result asserts no dispatch authority, and no provider dispatch or
+resend is added. Sol accepted the exact diff
+`bd4758b574333de217989fba40eb880b00e269dc87fa39148919b2c4aaa4dcbd`; focused tests passed 2, and
+the engineering gate passed 404 tests/96 subtests with Ruff. The sweep is not atomic across requests;
+worklist integrity errors abort before writes, while other unexpected exceptions may stop it after
+prior commits. `evidence_revision` remains opaque: there is no newest-revision selection or conflict
+adjudication; existing unique participant ACK semantics apply. Provider provenance, A03 settlement,
+broad A10 and operational acceptance remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-sweep-review-20261021.json`
+(SHA-256 `3e776872f8c928c0b265c931caa5721510c29f0545064364761ba41c42c6e90f`).
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
