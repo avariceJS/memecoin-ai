@@ -18,6 +18,10 @@ automatically.
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
+- A10 source `86550d9` adds exact-packet local replay for custodied contract-review responses with
+  strict JSON parsing and transactional revalidation before ACK. Sol accepted exact diff; full gate
+  passed 401 tests/96 subtests with Ruff. Provider/RPC and usage provenance, A03, and full A10 remain
+  open. Receipt and limits: `docs/engineering-organization.md`.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable

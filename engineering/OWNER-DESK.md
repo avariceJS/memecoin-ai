@@ -611,3 +611,14 @@ Ruff. Provider dispatch/recovery не добавлены; query cost retained de
 Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-request-handoff-review-20261021.json`
 (SHA-256 `a08a2cd7e32c4f3cafdc5615b5d0d5471f469e7697d0627d1d62d202db57b600`).
+
+A10 source `86550d9` добавляет локальный replay уже сохранённого contract-review response: точный
+packet hash сверяется с текущим durable запросом, response bytes повторно проверяются по custody hash,
+а строгий JSON parser отклоняет duplicate keys, неверный UTF-8, не-object и non-finite значения.
+Транзакционная финализация заново проверяет состояние и атомарно записывает ACK; malformed/stale
+ответы остаются без ACK, повтор точного ответа идемпотентен. Sol принял exact diff
+`4e2fc44f80b3730d8437142c48eac30e090fd5eb3e872551e37734316c2758ae`; focused suite: 37 тестов,
+full gate: 401 тест, 96 subtests, Ruff. Provider dispatch не добавлен; RPC custody, provider-turn и
+usage provenance, A03 settlement и полный A10 остаются открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-local-replay-review-20261021.json`
+(SHA-256 `1ef4ae5e8c1db0178c7bd4fd0869311eab52248da71db9dd0608e9067b4f6b15`).

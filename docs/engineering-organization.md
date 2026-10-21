@@ -227,6 +227,18 @@ handoff path; it does not dispatch or recover reviews. A03 settlement, full A10 
 acceptance remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-aware-quiescence-review-20261021.json`.
 
+At `86550d9`, `Store.replay_contract_review_response` provides a local recovery path for an already
+custodied response. It requires the exact current packet hash, retrieves and rehashes the saved bytes,
+strictly parses UTF-8 JSON (rejecting duplicate keys at every depth, non-object roots and non-finite
+values), then reuses transactional finalization to recheck durable state and write the acknowledgement.
+Stale or malformed responses remain unacknowledged; repeated exact replay is idempotent. Sol accepted
+the exact diff `4e2fc44f80b3730d8437142c48eac30e090fd5eb3e872551e37734316c2758ae`; the focused suite
+passed 37 tests and the full engineering gate passed 401 tests/96 subtests with Ruff. No provider
+dispatch was added; full RPC custody, provider-turn/usage provenance, A03 settlement, full A10 and
+operational acceptance remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-local-replay-review-20261021.json`
+(SHA-256 `1ef4ae5e8c1db0178c7bd4fd0869311eab52248da71db9dd0608e9067b4f6b15`).
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
