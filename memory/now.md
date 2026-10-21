@@ -1,17 +1,18 @@
 # Current state
 
 The founder resumed source work on 2026-10-21 using existing Goal
-`01a15b1c-c263-71b0-bfca-c5b46d17a89b`; no replacement Goal. Native readback still reports `paused`
-because status changes are user/system controlled. Work continues from `org/development` after
-checkpoint `82a3383`; `main` remains `2f8da5f92da521b511e0d4fb20205981a000cab5`. The branch is
-233 commits ahead of `origin/org/development`; changes remain locally committed and unpublished.
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b`; no replacement Goal. Latest native readback still reports
+`paused`, while the founder's explicit continuation instruction authorizes work to proceed; this
+agent cannot change native Goal status. Work continues from `org/development` after checkpoint
+`82a3383`; `main` remains `2f8da5f92da521b511e0d4fb20205981a000cab5`. The branch is 233 commits
+ahead of `origin/org/development`; changes remain locally committed and unpublished.
 
 As of **2026-10-21**, the founder reconfirmed that the temporary 2026-10-20 audit hold is complete and
 authorized continued autonomous source development. Luna-6 High remains the sole implementation owner
 under existing Goal `01a15b1c-c263-71b0-bfca-c5b46d17a89b`; preserve its identity, history, counters and
-durable state. Current native readback confirms the same Goal is `active`; no replacement Goal is
-needed. The earlier `paused` readback was a prior state. Continue source work under the explicit
-founder authorization. Predecessor Goal/thread `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f`
+durable state. Latest native readback remains `paused`; no replacement Goal is created. Continue
+source work under the explicit founder authorization while preserving the native record and its
+counters. Predecessor Goal/thread `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f`
 remains blocked and preserved after repeated ORG-A03 research. Sol handles substantial technical
 decisions and independent review; Astra remains episodic and is never started automatically.
 
@@ -49,6 +50,10 @@ decisions and independent review; Astra remains episodic and is never started au
   nested JSON values and preserves finite exponents. Sol accepted exact diff
   `0d1c2d831c0071cdc82fe435a3eb7396c70eae365065d61ff63f9895776e168f`; full gate passed Ruff,
   format, 566 tests and 161 subtests. Output provenance and execution qualification remain open.
+- Current A04 candidate snapshots caller-owned writable, read and protected root sequences before
+  validation. Sol accepted exact diff `2d40e2bdcf6c3c51196bb592b91f6f6453473bfbe92c513c2a0fbb9fdc504ea5`;
+  the full gate passed Ruff, format, 567 tests and 161 subtests. This closes sequence mutation
+  during construction only; filesystem identity races and full A04 remain open. Not yet committed.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

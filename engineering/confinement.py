@@ -275,6 +275,9 @@ class SandboxRunner:
         home: str | Path,
         protected_roots: Sequence[str | Path] = (),
     ) -> None:
+        writable_roots = tuple(writable_roots)
+        read_roots = tuple(read_roots)
+        protected_roots = tuple(protected_roots)
         if (
             platform.system() != "Darwin"
             or not SANDBOX_EXEC.is_file()

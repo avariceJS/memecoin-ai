@@ -1681,3 +1681,12 @@ and continued acceptance of finite `1e300`. Sol-6.1 accepted exact diff
 `0d1c2d831c0071cdc82fe435a3eb7396c70eae365065d61ff63f9895776e168f`; the full gate passed Ruff,
 format, 566 tests and 161 subtests. This validates parsed numeric integrity; stdout provenance and
 execution qualification remain open.
+
+At `9d37eea`, `SandboxRunner` snapshots caller-owned writable, read and protected-root sequences
+before validation, then uses those snapshots to build read aliases, protected-path vetoes and the
+profile. Regressions mutate the original read list during root validation and remove a protected root
+mid-construction; neither drift changes the resulting grant or veto. Sol-6.1 accepted exact diff
+`2d40e2bdcf6c3c51196bb592b91f6f6453473bfbe92c513c2a0fbb9fdc504ea5`. The full engineering release
+gate passed Ruff, format, 567 tests and 161 subtests. This closes caller-sequence drift during
+construction only; filesystem path identity races, execution provenance and full A04 qualification
+remain open. No runtime authority is added.

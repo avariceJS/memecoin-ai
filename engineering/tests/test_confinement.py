@@ -159,6 +159,51 @@ class ConfinementTests(unittest.TestCase):
         with self.assertRaises(ConfinementError):
             SandboxRunner(writable_roots=[self.task], home=self.outside)
 
+    def test_root_profile_uses_snapshots_of_caller_owned_sequences(self):
+        import engineering.confinement as confinement
+
+        safe_read_root = self.outside
+        read_roots = [safe_read_root]
+        original_absolute = Path.absolute
+        changed = False
+
+        def mutate_read_roots(path):
+            nonlocal changed
+            if path == safe_read_root and not changed:
+                changed = True
+                read_roots.append(Path("/"))
+            return original_absolute(path)
+
+        with patch.object(Path, "absolute", new=mutate_read_roots):
+            runner = SandboxRunner(
+                writable_roots=[self.task, self.scratch],
+                read_roots=read_roots,
+                home=self.scratch,
+            )
+        self.assertTrue(changed)
+        self.assertIn(Path("/"), read_roots)
+        self.assertNotIn('(subpath "/")', runner.profile)
+
+        protected_roots = [self.outside]
+        original_root = confinement._root
+
+        def remove_protected_root(value):
+            validated = original_root(value)
+            if Path(value) == self.outside:
+                protected_roots.clear()
+            return validated
+
+        with (
+            patch.object(confinement, "_root", side_effect=remove_protected_root),
+            self.assertRaisesRegex(ConfinementError, "Protected path is within a granted root"),
+        ):
+            SandboxRunner(
+                writable_roots=[self.outside],
+                home=self.outside,
+                protected_roots=protected_roots,
+            )
+        self.assertEqual(protected_roots, [])
+
     def test_rejects_unconfined_working_directory_or_implicit_executable(self):
         for executable, cwd in (("python3", self.task), (str(PYTHON), self.outside)):
             with self.subTest(executable=executable, cwd=cwd), self.assertRaises(ConfinementError):

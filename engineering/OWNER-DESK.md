@@ -883,3 +883,11 @@ A05 follow-up: lead decision и связанные contract ACK теперь з�
 deadline гонка сначала проявилась в полном запуске, но изолированный повтор и финальный gate прошли.
 Это commit-time fencing, а не постоянная свежесть; прямой trusted ACK, A03, release и operational
 acceptance остаются открыты.
+
+A04 source increment в `org/development` на базе `9d37eea`: `SandboxRunner` сразу снимает snapshots
+списков writable/read/protected roots. Regression доказывает, что мутация caller-owned read-list не
+добавляет `/` в профиль, а удаление protected root во время проверки не снимает veto. Sol принял
+exact diff `2d40e2bdcf6c3c51196bb592b91f6f6453473bfbe92c513c2a0fbb9fdc504ea5`; полный gate прошёл:
+Ruff, format, 567 тестов и 161 subtest. Закрыта только мутация последовательностей во время
+конструирования; filesystem identity races, execution provenance и полный A04 остаются открыты.
+Исполнение supervisor/runtime не запускалось.
