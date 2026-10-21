@@ -1934,15 +1934,22 @@ child from a manifest-bound synthetic deployment first records one immutable PID
 SQLite; a duplicate child cannot re-enter the attempt. It records `attempt_work_started` before each
 metered-client context. A STOP at child entry produces `stopped_before_work` only before any work
 marker, provider session, usage, or candidate exists. SQLite reopen proves that this explicit no-work
-outcome is idempotent and does not spend retry budget; hard exits before child custody or after custody
-remain unknown/expired and do spend an attempt. Expiry reaping reads the child-start identity when no
-provider session exists and writes its marker only after confirming recorded processes are gone or
-their PID has a different birth witness. A failed kill while the same process remains alive raises
-and leaves no marker; if the birth query is unavailable, PID existence is checked and uncertainty
-also leaves no marker. Session runner identity must match the immutable child-start event. The reaper
-requires macOS process witnesses for owned processes; it does not establish global safety against
-direct Store claimers outside the serialized supervisor. The full engineering release gate passed
-Ruff/format, 633 tests and 193 subtests; `make smoke` is reproducible with `edge_established=false`.
+outcome is idempotent and does not spend retry budget. An expired attempt without a durable process-reap
+receipt blocks both direct `Store.claim` and `ready_tasks`; `readiness_report` exposes the blocking
+attempt IDs while unrelated ready tasks continue. The new `child-start-v1` claim event permits the
+distinct `no_work_before_custody` receipt only when no child, session, work, usage, or candidate was
+recorded; legacy claims without that protocol marker stay held. A late-spawned child still must pass the
+expired attempt fence before work. Reaping resolves child-start and session runner
+identities, requires confirmation that recorded processes are gone or their PID has a different birth
+witness, then atomically stores a receipt bound to attempt, epoch and PID/birth set before writing the
+recoverable JSON marker. This SQLite receipt is a trusted local reaper assertion, not an
+independently authenticated exit proof; a process with direct Store or SQLite write access could
+forge it. A failed kill, unreadable live PID or conflicting/malformed identity leaves
+no receipt and keeps claims blocked. Reopening after process exit but before receipt stays blocked;
+reopening after receipt but before marker reconstructs the marker and permits exactly one next epoch.
+The reaper requires macOS process witnesses for owned processes. Legacy expired attempts without a
+receipt remain held until positively reconciled. The full engineering release gate passed Ruff/format,
+640 tests and 193 subtests; `make smoke` is reproducible with `edge_established=false`.
 Worker/reviewer responses and Git/contract checks remain synthetic; process identity requires the
 macOS birth witness, and an exit before child registration cannot be assigned an owner. Persistent
 `Popen` failure has no backoff. A04 executable qualification, provider/usage settlement, A03 and

@@ -398,6 +398,10 @@ class StateTests(unittest.TestCase):
             self.store.submit(first["id"], first["epoch"], "old", {})
         with self.assertRaises(StaleAttempt):
             self.store.renew(first["id"], first["epoch"])
+        self.store.recover_expired()
+        self.store.record_attempt_process_reaped(
+            first["id"], first["epoch"], [], disposition="no_work_before_custody"
+        )
         second = self.store.claim("a", "two", 10)
         self.assertEqual(second["epoch"], 2)
         for operation in (
@@ -525,9 +529,16 @@ class StateTests(unittest.TestCase):
         self.store = Store(self.path, clock=lambda: self.now)
         self.assertEqual(self.store.recover_expired(), [first["id"]])
         self.assertEqual(self.store.recover_expired(), [])
-        self.store.claim("a", "worker", 1)
+        self.store.record_attempt_process_reaped(
+            first["id"], first["epoch"], [], disposition="no_work_before_custody"
+        )
+        second = self.store.claim("a", "worker", 1)
+        self.assertIsNotNone(second)
         self.now += 2
         self.store.recover_expired()
+        self.store.record_attempt_process_reaped(
+            second["id"], second["epoch"], [], disposition="no_work_before_custody"
+        )
         self.assertEqual(self.store.get_task("a")["state"], "failed")
         self.assertIsNone(self.store.claim("a", "worker"))
         self.assertEqual(len(self.store.list_attempts()), 2)
@@ -760,7 +771,10 @@ class StateTests(unittest.TestCase):
         cursor = self.store.events()[-1]["seq"]
         self.store.claim("a", "worker")
         events = self.store.events(after=cursor)
-        self.assertEqual([event["kind"] for event in events], ["attempt_claimed"])
+        self.assertEqual(
+            [event["kind"] for event in events],
+            ["attempt_claimed", "attempt_custody_required"],
+        )
         self.assertGreater(events[0]["seq"], cursor)
 
     def test_process_crash_between_mutation_and_journal_is_rolled_back(self):

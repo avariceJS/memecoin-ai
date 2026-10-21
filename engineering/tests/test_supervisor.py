@@ -603,6 +603,12 @@ class SupervisorTests(unittest.TestCase):
         )
         self.assertEqual(marker["attempt_id"], attempt["id"])
         self.assertEqual(self.db.get_task("T")["state"], "pending")
+        self.assertEqual(
+            self.db.attempt_process_reap_confirmation(attempt["id"], attempt["epoch"]),
+            {"disposition": "processes_reaped", "process_identities": [identity]},
+        )
+        replacement = self.db.claim("T", "direct-claimer", lease_seconds=5)
+        self.assertEqual(replacement["epoch"], attempt["epoch"] + 1)
 
     def test_live_child_after_failed_termination_has_no_reap_marker(self):
         self.task()
@@ -655,6 +661,73 @@ class SupervisorTests(unittest.TestCase):
         with self.assertRaisesRegex(StateError, "expired_session_process_identity_invalid"):
             supervisor.reap_expired(self.state, self.db)
         self.assertFalse(marker.exists())
+
+    def test_reap_crash_after_process_exit_before_receipt_keeps_claim_blocked(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker", lease_seconds=5)
+        identity = {"pid": 4321, "birth": "darwin:4321:1000:000001:501"}
+        self.db.record_attempt_child_start(attempt["id"], attempt["epoch"], identity)
+        self.now += 5
+        marker = self.state / "attempts" / str(attempt["id"]) / "reaped.json"
+        with (
+            patch.object(supervisor.platform, "system", return_value="Darwin"),
+            patch.object(supervisor, "terminate_owned", return_value=False),
+            patch.object(supervisor, "process_identity", return_value=None),
+            patch.object(supervisor.os, "kill", side_effect=ProcessLookupError),
+            patch.object(
+                self.db,
+                "record_attempt_process_reaped",
+                side_effect=RuntimeError("synthetic crash before receipt"),
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "synthetic crash before receipt"):
+                supervisor.reap_expired(self.state, self.db)
+        self.assertFalse(marker.exists())
+        self.assertIsNone(
+            self.db.attempt_process_reap_confirmation(attempt["id"], attempt["epoch"])
+        )
+        self.assertIsNone(self.db.claim("T", "direct-claimer", lease_seconds=5))
+        with (
+            patch.object(supervisor.platform, "system", return_value="Darwin"),
+            patch.object(supervisor, "terminate_owned", return_value=False),
+            patch.object(supervisor, "process_identity", return_value=None),
+            patch.object(supervisor.os, "kill", side_effect=ProcessLookupError),
+        ):
+            self.assertEqual(supervisor.reap_expired(self.state, self.db), [])
+        self.assertEqual(
+            self.db.attempt_process_reap_confirmation(attempt["id"], attempt["epoch"]),
+            {"disposition": "processes_reaped", "process_identities": [identity]},
+        )
+        self.assertEqual(self.db.claim("T", "after-reap", lease_seconds=5)["epoch"], 2)
+
+    def test_reap_receipt_recovers_marker_after_reopen(self):
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker", lease_seconds=5)
+        identity = {"pid": 4321, "birth": "darwin:4321:1000:000001:501"}
+        self.db.record_attempt_child_start(attempt["id"], attempt["epoch"], identity)
+        self.now += 5
+        marker = self.state / "attempts" / str(attempt["id"]) / "reaped.json"
+        with (
+            patch.object(supervisor.platform, "system", return_value="Darwin"),
+            patch.object(supervisor, "terminate_owned", return_value=False),
+            patch.object(supervisor, "process_identity", return_value=None),
+            patch.object(supervisor.os, "kill", side_effect=ProcessLookupError),
+            patch.object(supervisor, "atomic", side_effect=RuntimeError("synthetic crash")),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "synthetic crash"):
+                supervisor.reap_expired(self.state, self.db)
+        self.assertFalse(marker.exists())
+        self.assertEqual(
+            self.db.attempt_process_reap_confirmation(attempt["id"], attempt["epoch"]),
+            {"disposition": "processes_reaped", "process_identities": [identity]},
+        )
+        self.db.close()
+        self.db = Store(self.state / "organization.sqlite", clock=lambda: self.now)
+        with patch.object(supervisor, "log_event"):
+            self.assertEqual(supervisor.reap_expired(self.state, self.db), [])
+        self.assertTrue(marker.exists())
+        replacement = self.db.claim("T", "after-reopen", lease_seconds=5)
+        self.assertEqual(replacement["epoch"], attempt["epoch"] + 1)
 
     def test_malformed_child_start_history_fails_closed_without_reap_marker(self):
         self.task()
@@ -3448,10 +3521,9 @@ main()
         attempts = self.db.list_attempts("T")
         self.assertEqual(attempts[0]["state"], "expired")
         replacement = self.db.get_task("T")
-        self.assertEqual(replacement["state"], "running")
-        self.assertEqual(replacement["epoch"], 2)
-        self.assertEqual(len(replacement_attempts), 1)
-        self.assertEqual(replacement_attempts[0]["epoch"], 2)
+        self.assertEqual(replacement["state"], "pending")
+        self.assertEqual(replacement["epoch"], 1)
+        self.assertEqual(replacement_attempts, [None])
         self.assertEqual(self.db.usage_summary()["total"], {"sol_turns": 1})
         self.assertIsNone(self.db.get_decision("lead-T"))
         self.assertIsNone(

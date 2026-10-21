@@ -688,7 +688,21 @@ def reap_expired(state, db):
         if attempt["state"] != "expired":
             continue
         marker = state / "attempts" / str(attempt["id"]) / "reaped.json"
-        if marker.exists():
+        confirmation = db.attempt_process_reap_confirmation(attempt["id"], attempt["epoch"])
+        if confirmation is not None:
+            if not marker.exists():
+                atomic(
+                    marker,
+                    {
+                        "at": time.time(),
+                        "attempt_id": attempt["id"],
+                        "disposition": confirmation["disposition"],
+                        "process_identities": confirmation["process_identities"],
+                        "killed": {
+                            str(item["pid"]): True for item in confirmation["process_identities"]
+                        },
+                    },
+                )
             continue
         session = attempt.get("session") or {}
         child_identity = db.attempt_child_start_identity(attempt["id"], attempt["epoch"])
@@ -719,14 +733,41 @@ def reap_expired(state, db):
                 ):
                     raise StateError("expired_session_process_identity_invalid")
                 identities["app_server"] = {"pid": app_pid, "birth": app_birth}
-        killed = {}
-        for name, identity in identities.items():
-            killed[name] = terminate_and_confirm(identity["pid"], identity["birth"])
+        process_identities = {}
+        for identity in identities.values():
+            process_identities[identity["pid"]] = identity
         process_file = marker.parent / "processes.json"
         if process_file.exists():
             for item in read(process_file):
-                killed[str(item["pid"])] = terminate_and_confirm(item["pid"], item["birth"])
-        atomic(marker, {"at": time.time(), "attempt_id": attempt["id"], "killed": killed})
+                identity = db._validate_child_identity(
+                    {"pid": item.get("pid"), "birth": item.get("birth")}
+                )
+                previous = process_identities.get(identity["pid"])
+                if previous is not None and previous != identity:
+                    raise StateError("expired_process_identity_conflict")
+                process_identities[identity["pid"]] = identity
+        process_identities = [process_identities[pid] for pid in sorted(process_identities)]
+        killed = {
+            str(identity["pid"]): terminate_and_confirm(identity["pid"], identity["birth"])
+            for identity in process_identities
+        }
+        disposition = "processes_reaped" if process_identities else "no_work_before_custody"
+        db.record_attempt_process_reaped(
+            attempt["id"],
+            attempt["epoch"],
+            process_identities,
+            disposition=disposition,
+        )
+        atomic(
+            marker,
+            {
+                "at": time.time(),
+                "attempt_id": attempt["id"],
+                "disposition": disposition,
+                "process_identities": process_identities,
+                "killed": killed,
+            },
+        )
         log_event(state, "expired_processes_reconciled", attempt_id=attempt["id"], killed=killed)
     return expired
 

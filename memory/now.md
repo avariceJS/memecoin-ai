@@ -54,12 +54,17 @@ The dependent PLAT-002 task runs through `supervise` to acceptance, receipt/CAS 
 frozen controller's real local child records one immutable PID/birth identity before work; duplicate
 entry cannot redispatch. A work-start journal record precedes each provider client, and STOP no-work
 cancellation requires the registered owner plus no work/session/usage/candidate. Hard exits before or
-after custody remain expired and consume retry; reaping reads durable child identity and writes its
-marker only after the process is gone or its PID birth witness changed. A failed kill of a still-live
-process leaves no marker; unreadable birth identity is checked against PID existence and uncertainty
-also leaves no marker. Session runner identity must match child-start custody. This relies on macOS
-process witnesses and does not protect direct Store claimers outside the serialized supervisor. Full gate:
-Ruff/format, 633 tests and 193 subtests; smoke is reproducible with `edge_established=false`. This is
+after custody remain expired and consume retry. Direct Store claim and `ready_tasks` now block expired
+attempts until reaping is durably recorded against attempt, epoch and PID/birth set; readiness reports
+the blocker while unrelated tasks proceed. New claims carry `child-start-v1`; only these may receive
+`no_work_before_custody`, after Store proves no child/session/work/usage/candidate was recorded. Legacy
+attempts stay held. Reaper validates child/session ownership, confirms process
+disappearance or PID birth change, commits SQLite receipt, then writes a recoverable marker. Failed kill
+or uncertain identity leaves the receipt absent. Reopen recovers both the hold before receipt and marker
+after receipt. The receipt is a trusted local reaper assertion, not authenticated against direct
+Store/SQLite writers. This relies on macOS process witnesses; expired legacy attempts without receipt
+remain held for positive reconciliation. Full gate: Ruff/format, 640 tests and 193 subtests; smoke is
+reproducible with `edge_established=false`. This is
 synthetic source-only acceptance, not A04/provider/runtime qualification; remaining limits are in the
 canonical organization record.
 

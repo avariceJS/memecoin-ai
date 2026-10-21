@@ -123,6 +123,10 @@ class LifecycleStoreTests(unittest.TestCase):
             )
         self.assertEqual(self.store.recover_expired(), [second["id"]])
         self.assertEqual(self.store.get_task("dispatch-window")["state"], "pending")
+        self.assertIsNone(self.store.claim("dispatch-window", "unreaped-worker", 5))
+        self.store.record_attempt_process_reaped(
+            second["id"], second["epoch"], [], disposition="no_work_before_custody"
+        )
         third = self.store.claim("dispatch-window", "worker", lease_seconds=5)
         self.assertEqual(third["epoch"], 3)
         with self.assertRaisesRegex(StaleAttempt, "superseded attempt fence"):
@@ -233,9 +237,94 @@ class LifecycleStoreTests(unittest.TestCase):
         identity = self.store.attempt_child_start_identity(after["id"], after["epoch"])
         self.assertEqual(identity["birth"], f"synthetic:{identity['pid']}")
         self.assertEqual(self.store.get_task("after-custody")["state"], "pending")
+        self.assertIsNone(self.store.claim("after-custody", "unreaped-worker", 5))
+        self.store.record_attempt_process_reaped(after["id"], after["epoch"], [identity])
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
         replacement = self.store.claim("after-custody", "supervisor", lease_seconds=5)
         self.store.fail(replacement["id"], replacement["epoch"], "synthetic failure")
         self.assertEqual(self.store.get_task("after-custody")["state"], "failed")
+
+    def test_expired_process_recovery_blocks_claim_until_durable_receipt(self):
+        self.store.add_task("reap-fence", "Platform", "Await process reap", max_attempts=2)
+        self.store.add_task("unrelated", "Research", "Unrelated ready task")
+        attempt = self.store.claim("reap-fence", "supervisor", lease_seconds=5)
+        owner = {"pid": 511, "birth": "darwin:511:1000:000011:501"}
+        self.store.record_attempt_child_start(attempt["id"], attempt["epoch"], owner)
+        self.now += 5
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        self.assertEqual(self.store.recover_expired(), [attempt["id"]])
+        self.assertIsNone(self.store.claim("reap-fence", "direct-claimer", lease_seconds=5))
+        self.assertNotIn("reap-fence", [task["id"] for task in self.store.ready_tasks()])
+        report = {item["task_id"]: item for item in self.store.readiness_report()}
+        self.assertIn(
+            {"kind": "attempt_process_recovery", "attempt_ids": [attempt["id"]]},
+            report["reap-fence"]["blockers"],
+        )
+        self.assertIsNotNone(self.store.claim("unrelated", "direct-claimer", lease_seconds=5))
+        self.store.record_attempt_process_reaped(attempt["id"], attempt["epoch"], [owner])
+        self.store.close()
+        self.store = Store(self.path, clock=lambda: self.now)
+        replacement = self.store.claim("reap-fence", "after-reaper", lease_seconds=5)
+        self.assertEqual(replacement["epoch"], attempt["epoch"] + 1)
+
+    def test_forged_reap_receipt_cannot_invent_a_process_owner(self):
+        self.store.add_task("reap-receipt", "Platform", "Validate reap receipt")
+        attempt = self.store.claim("reap-receipt", "supervisor", lease_seconds=5)
+        self.now += 5
+        self.store.recover_expired()
+        with self.store._tx():
+            self.store._event(
+                "attempt_process_reaped",
+                "reap-receipt",
+                {
+                    "attempt_id": attempt["id"],
+                    "epoch": attempt["epoch"],
+                    "disposition": "processes_reaped",
+                    "process_identities": [{"pid": 950001, "birth": "invented:dead"}],
+                },
+            )
+        with self.assertRaisesRegex(StateError, "attempt_process_reap_history_invalid"):
+            self.store.claim("reap-receipt", "forged-receipt-claimer", lease_seconds=5)
+
+    def test_reap_receipt_rejects_boolean_attempt_identity_before_write(self):
+        self.store.add_task("reap-bool", "Platform", "Reject boolean receipt identity")
+        attempt = self.store.claim("reap-bool", "supervisor", lease_seconds=5)
+        self.now += 5
+        self.store.recover_expired()
+        identity = [{"pid": 900003, "birth": "synthetic:reaped"}]
+        with self.assertRaisesRegex(StateError, "attempt_process_reap_identity_invalid"):
+            self.store.record_attempt_process_reaped(True, True, identity)
+        self.assertIsNone(
+            self.store.attempt_process_reap_confirmation(attempt["id"], attempt["epoch"])
+        )
+
+    def test_legacy_expired_attempt_without_process_identity_stays_held(self):
+        self.store.add_task("legacy-reap", "Platform", "Hold unknown process owner")
+        attempt = self.store.claim("legacy-reap", "supervisor", lease_seconds=5)
+        self.store.record_session(attempt["id"], attempt["epoch"], "thread", "model")
+        self.now += 5
+        self.store.recover_expired()
+        with self.assertRaisesRegex(StateError, "attempt_process_reap_identity_invalid"):
+            self.store.record_attempt_process_reaped(attempt["id"], attempt["epoch"], [])
+        self.assertIsNone(self.store.claim("legacy-reap", "direct-claimer", lease_seconds=5))
+
+    def test_legacy_no_owner_attempt_cannot_use_new_no_work_disposition(self):
+        self.store.add_task("legacy-no-owner", "Platform", "Hold legacy unknown owner")
+        attempt = self.store.claim("legacy-no-owner", "supervisor", lease_seconds=5)
+        with self.store._tx():
+            self.store.db.execute(
+                "DELETE FROM events WHERE kind='attempt_custody_required' AND entity=?",
+                ("legacy-no-owner",),
+            )
+        self.now += 5
+        self.store.recover_expired()
+        with self.assertRaisesRegex(StateError, "attempt_process_reap_no_work_unproven"):
+            self.store.record_attempt_process_reaped(
+                attempt["id"], attempt["epoch"], [], disposition="no_work_before_custody"
+            )
+        self.assertIsNone(self.store.claim("legacy-no-owner", "direct-claimer", lease_seconds=5))
 
     def test_started_child_stop_cannot_erase_work_evidence(self):
         for evidence in ("stage", "dispatch", "usage", "candidate"):

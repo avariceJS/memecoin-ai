@@ -11,13 +11,20 @@ STOP проверяется перед каждым selected-task claim и ещ�
 повторить attempt. Перед каждым metered-client сохраняется `attempt_work_started`. STOP на входе
 child фиксируется как `stopped_before_work` только при отсутствии work marker, provider session,
 usage и candidate; этот явный no-work outcome не расходует retry. Падение до или после записи custody
-остаётся unknown/expired и расходует attempt. Reaper читает child identity из события при отсутствии
-provider session и записывает marker только после подтверждения, что процессы исчезли или PID получил
-другой birth witness; если birth query недоступен, отдельно проверяется наличие PID, а неопределённость
-оставляет marker незаписанным. Runner identity сверяется с immutable child-start event. Неудачный kill
-при живом процессе останавливает этот supervisor до следующего claim. Reaper требует macOS process
-witness и не доказывает общую безопасность при прямом Store claim вне сериализованного supervisor.
-Полный gate: Ruff/format, 633 теста и 193 subtests; `make smoke` воспроизводим,
+остаётся unknown/expired и блокирует claim до reconciliation. Новый `child-start-v1` marker разрешает
+`no_work_before_custody` только без child, session, work, usage и candidate; legacy claim без marker
+остаётся на hold. Поздно запущенный child всё равно обязан пройти expired attempt fence до работы.
+Без durable process-reap receipt прямой `Store.claim` и
+`ready_tasks` блокируют повторный запуск; `readiness_report` показывает attempt IDs, не скрывая
+независимые готовые задачи. Reaper сверяет child/session runner identity, подтверждает исчезновение
+процесса или смену PID birth, затем транзакционно записывает receipt с attempt, epoch и PID/birth до
+JSON marker. Неудачный kill, живой PID с unreadable identity и конфликтующая/повреждённая история
+оставляют claim заблокированным. После падения до receipt claim остаётся закрыт; после receipt, но до
+marker, reopen восстанавливает marker и допускает один следующий epoch. Reaper требует macOS process
+witness. Receipt — доверенное утверждение локального reaper, не аутентифицированное доказательство:
+прямой Store/SQLite writer может его подделать. Legacy expired attempts без receipt остаются на hold
+до подтверждённого reconciliation.
+Полный gate: Ruff/format, 640 тестов и 193 subtests; `make smoke` воспроизводим,
 `edge_established=false`.
 Worker/reviewer остаются синтетическими; падение до регистрации владельца остаётся неизвестным,
 а постоянный `Popen` failure пока не имеет backoff. Это не qualification A04, provider/usage settlement,

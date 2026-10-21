@@ -332,6 +332,8 @@ class Store:
             ON events(entity,seq) WHERE kind='attempt_stopped_before_work';
           CREATE INDEX IF NOT EXISTS idx_events_attempt_work_started
             ON events(entity,seq) WHERE kind='attempt_work_started';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_process_reaped
+            ON events(entity,seq) WHERE kind='attempt_process_reaped';
           CREATE INDEX IF NOT EXISTS idx_tasks_state_id ON tasks(state,id);
         """)
         self.db.executescript("""
@@ -1017,6 +1019,14 @@ class Store:
                             "current_version": current_version,
                         }
                     )
+            unreaped = self._unreaped_expired_attempt_ids(task["id"])
+            if unreaped:
+                blockers.append(
+                    {
+                        "kind": "attempt_process_recovery",
+                        "attempt_ids": unreaped,
+                    }
+                )
             spec_row = self.db.execute(
                 "SELECT body FROM task_specs WHERE task_id=?", (task["id"],)
             ).fetchone()
@@ -1054,8 +1064,19 @@ class Store:
                 for t in self.list_tasks()
                 if t["state"] == "pending"
                 and (team is None or t["team"] == team)
+                and not self._unreaped_expired_attempt_ids(t["id"])
                 and self._ready(t)
             ]
+
+    def _unreaped_expired_attempt_ids(self, task_id: str) -> list[int]:
+        unreaped = []
+        for row in self.db.execute(
+            "SELECT id,epoch FROM attempts WHERE task_id=? AND state='expired' ORDER BY id",
+            (task_id,),
+        ):
+            if self.attempt_process_reap_confirmation(row["id"], row["epoch"]) is None:
+                unreaped.append(row["id"])
+        return unreaped
 
     def _retry_state(self, task: dict, retryable: bool) -> str:
         used = self.db.execute(
@@ -1091,7 +1112,11 @@ class Store:
         with self._tx():
             self._recover()
             task = self._task(task_id)
-            if task["state"] != "pending" or not self._ready(task):
+            if (
+                task["state"] != "pending"
+                or self._unreaped_expired_attempt_ids(task_id)
+                or not self._ready(task)
+            ):
                 return None
             epoch = task["epoch"] + 1
             cursor = self.db.execute(
@@ -1109,6 +1134,11 @@ class Store:
                 self.db.execute("SELECT * FROM attempts WHERE id=?", (attempt_id,)).fetchone()
             )
             self._event("attempt_claimed", task_id, attempt)
+            self._event(
+                "attempt_custody_required",
+                task_id,
+                {"attempt_id": attempt_id, "epoch": epoch, "protocol": "child-start-v1"},
+            )
             return attempt
 
     def cancel_unstarted_claim(self, attempt_id: int, epoch: int, *, reason: str) -> None:
@@ -1188,11 +1218,40 @@ class Store:
             raise StateError("attempt_child_start_history_invalid")
         return matches[0] if matches else None
 
+    def _attempt_custody_required_event(self, task_id: str, attempt_id: int) -> dict | None:
+        matches = []
+        try:
+            rows = self.db.execute(
+                "SELECT body FROM events WHERE kind='attempt_custody_required' AND entity=?",
+                (task_id,),
+            )
+            for row in rows:
+                body = json.loads(row["body"])
+                if (
+                    type(body) is not dict
+                    or set(body) != {"attempt_id", "epoch", "protocol"}
+                    or type(body["attempt_id"]) is not int
+                    or type(body["epoch"]) is not int
+                    or body["epoch"] <= 0
+                    or body["protocol"] != "child-start-v1"
+                ):
+                    raise StateError("attempt_custody_history_invalid")
+                if body["attempt_id"] == attempt_id:
+                    matches.append(body)
+        except (TypeError, ValueError, KeyError, RecursionError):
+            raise StateError("attempt_custody_history_invalid") from None
+        if len(matches) > 1:
+            raise StateError("attempt_custody_history_invalid")
+        return matches[0] if matches else None
+
     def record_attempt_child_start(self, attempt_id: int, epoch: int, identity: Any) -> bool:
         """Persist the one OS child identity before any worker or provider work."""
         identity = self._validate_child_identity(identity)
         with self._tx():
             task, attempt = self._fence(attempt_id, epoch)
+            custody = self._attempt_custody_required_event(task["id"], attempt_id)
+            if custody is None or custody["epoch"] != epoch:
+                raise StateError("attempt_custody_policy_missing")
             previous = self._attempt_child_start_event(task["id"], attempt_id)
             if previous is not None:
                 if previous.get("process_identity") != identity:
@@ -1225,6 +1284,201 @@ class Store:
             if event.get("epoch") != epoch:
                 raise StateError("attempt_child_start_history_invalid")
             return dict(event["process_identity"])
+
+    def _attempt_process_reaped_event(self, task_id: str, attempt_id: int) -> dict | None:
+        matches = []
+        try:
+            rows = self.db.execute(
+                "SELECT body FROM events WHERE kind='attempt_process_reaped' AND entity=?",
+                (task_id,),
+            )
+            for row in rows:
+                body = json.loads(row["body"])
+                if (
+                    type(body) is not dict
+                    or set(body) != {"attempt_id", "epoch", "disposition", "process_identities"}
+                    or type(body["attempt_id"]) is not int
+                    or type(body["epoch"]) is not int
+                    or body["epoch"] <= 0
+                    or body["disposition"] not in {"processes_reaped", "no_work_before_custody"}
+                    or type(body["process_identities"]) is not list
+                ):
+                    raise StateError("attempt_process_reap_history_invalid")
+                if (body["disposition"] == "processes_reaped") == (not body["process_identities"]):
+                    raise StateError("attempt_process_reap_history_invalid")
+                identities = [
+                    self._validate_child_identity(item) for item in body["process_identities"]
+                ]
+                keys = [(item["pid"], item["birth"]) for item in identities]
+                if len(set(keys)) != len(keys) or keys != sorted(keys):
+                    raise StateError("attempt_process_reap_history_invalid")
+                body["process_identities"] = identities
+                if body["attempt_id"] == attempt_id:
+                    matches.append(body)
+        except (TypeError, ValueError, KeyError, RecursionError):
+            raise StateError("attempt_process_reap_history_invalid") from None
+        if len(matches) > 1:
+            raise StateError("attempt_process_reap_history_invalid")
+        return matches[0] if matches else None
+
+    def _attempt_no_work_before_custody(self, task_id: str, attempt_id: int, epoch: int) -> bool:
+        custody = self._attempt_custody_required_event(task_id, attempt_id)
+        if custody is None or custody["epoch"] != epoch:
+            return False
+        if self._attempt_child_start_event(task_id, attempt_id) is not None:
+            return False
+        attempt = self.db.execute(
+            "SELECT session FROM attempts WHERE id=? AND task_id=? AND epoch=?",
+            (attempt_id, task_id, epoch),
+        ).fetchone()
+        if attempt is None or attempt["session"] is not None:
+            return False
+        if self.db.execute(
+            "SELECT 1 FROM usage WHERE attempt_id=? AND epoch=? LIMIT 1", (attempt_id, epoch)
+        ).fetchone():
+            return False
+        if self.db.execute(
+            "SELECT 1 FROM candidates WHERE attempt_id=? AND epoch=? LIMIT 1", (attempt_id, epoch)
+        ).fetchone():
+            return False
+        for kind in ("attempt_work_started", "session_stage_recorded", "session_recorded"):
+            for row in self.db.execute(
+                "SELECT body FROM events WHERE kind=? AND entity=?", (kind, task_id)
+            ):
+                try:
+                    body = json.loads(row["body"])
+                except (TypeError, ValueError, RecursionError):
+                    raise StateError("attempt_no_work_history_invalid") from None
+                if type(body) is not dict or type(body.get("attempt_id")) is not int:
+                    raise StateError("attempt_no_work_history_invalid")
+                if body["attempt_id"] == attempt_id:
+                    return False
+        return True
+
+    def _attempt_required_process_identity_keys(
+        self, task_id: str, attempt_id: int, epoch: int, session_json: str | None
+    ) -> set[tuple[int, str]]:
+        expected = set()
+        child = self._attempt_child_start_event(task_id, attempt_id)
+        if child is not None:
+            if child["epoch"] != epoch:
+                raise StateError("attempt_child_start_history_invalid")
+            owner = child["process_identity"]
+            expected.add((owner["pid"], owner["birth"]))
+        if session_json is not None:
+            session = json.loads(session_json)
+            if type(session) is not dict:
+                raise StateError("expired_session_process_identity_invalid")
+            runner = session.get("runner")
+            if runner is not None:
+                if (
+                    type(runner) is not dict
+                    or type(runner.get("pid")) is not int
+                    or type(runner.get("birth")) is not str
+                ):
+                    raise StateError("expired_session_process_identity_invalid")
+                session_owner = self._validate_child_identity(
+                    {"pid": runner["pid"], "birth": runner["birth"]}
+                )
+                if child is not None and session_owner != child["process_identity"]:
+                    raise StateError("expired_session_child_owner_mismatch")
+                expected.add((session_owner["pid"], session_owner["birth"]))
+                app_pid = runner.get("app_server_pid")
+                app_birth = runner.get("app_server_birth")
+                if app_pid is not None or app_birth is not None:
+                    app = self._validate_child_identity({"pid": app_pid, "birth": app_birth})
+                    expected.add((app["pid"], app["birth"]))
+            else:
+                raise StateError("expired_session_process_identity_invalid")
+        return expected
+
+    def attempt_process_reap_confirmation(self, attempt_id: int, epoch: int) -> dict | None:
+        """Read the durable confirmation that permits retry after process recovery."""
+        with self._lock:
+            row = self.db.execute(
+                "SELECT task_id,epoch,state,session FROM attempts WHERE id=?", (attempt_id,)
+            ).fetchone()
+            if row is None or row["epoch"] != epoch:
+                return None
+            event = self._attempt_process_reaped_event(row["task_id"], attempt_id)
+            if event is None:
+                return None
+            if event["epoch"] != epoch:
+                raise StateError("attempt_process_reap_history_invalid")
+            observed = {(item["pid"], item["birth"]) for item in event["process_identities"]}
+            required = self._attempt_required_process_identity_keys(
+                row["task_id"], attempt_id, epoch, row["session"]
+            )
+            if event["disposition"] == "no_work_before_custody":
+                if (
+                    row["state"] != "expired"
+                    or observed
+                    or required
+                    or not self._attempt_no_work_before_custody(row["task_id"], attempt_id, epoch)
+                ):
+                    raise StateError("attempt_process_reap_history_invalid")
+            elif not required or not required.issubset(observed):
+                raise StateError("attempt_process_reap_history_invalid")
+            return {
+                "disposition": event["disposition"],
+                "process_identities": [dict(item) for item in event["process_identities"]],
+            }
+
+    def record_attempt_process_reaped(
+        self,
+        attempt_id: int,
+        epoch: int,
+        process_identities: Any,
+        *,
+        disposition: str = "processes_reaped",
+    ) -> bool:
+        """Durably fence retries until exact expired-attempt process owners are reaped."""
+        if (
+            type(attempt_id) is not int
+            or attempt_id <= 0
+            or type(epoch) is not int
+            or epoch <= 0
+            or type(process_identities) is not list
+            or type(disposition) is not str
+            or disposition not in {"processes_reaped", "no_work_before_custody"}
+            or (disposition == "processes_reaped" and not process_identities)
+            or (disposition == "no_work_before_custody" and process_identities)
+        ):
+            raise StateError("attempt_process_reap_identity_invalid")
+        identities = [self._validate_child_identity(item) for item in process_identities]
+        identities.sort(key=lambda item: (item["pid"], item["birth"]))
+        identity_keys = [(item["pid"], item["birth"]) for item in identities]
+        if len(set(identity_keys)) != len(identity_keys):
+            raise StateError("attempt_process_reap_identity_invalid")
+        with self._tx():
+            attempt = self.db.execute(
+                "SELECT task_id,epoch,state,session FROM attempts WHERE id=?", (attempt_id,)
+            ).fetchone()
+            if attempt is None or attempt["epoch"] != epoch or attempt["state"] != "expired":
+                raise StaleAttempt("expired attempt changed before process reap receipt")
+            expected = self._attempt_required_process_identity_keys(
+                attempt["task_id"], attempt_id, epoch, attempt["session"]
+            )
+            if disposition == "no_work_before_custody":
+                if expected or not self._attempt_no_work_before_custody(
+                    attempt["task_id"], attempt_id, epoch
+                ):
+                    raise StateError("attempt_process_reap_no_work_unproven")
+            elif not expected or not expected.issubset(set(identity_keys)):
+                raise StateError("attempt_process_reap_identity_incomplete")
+            previous = self._attempt_process_reaped_event(attempt["task_id"], attempt_id)
+            body = {
+                "attempt_id": attempt_id,
+                "epoch": epoch,
+                "disposition": disposition,
+                "process_identities": identities,
+            }
+            if previous is not None:
+                if previous != body:
+                    raise StateError("attempt_process_reap_receipt_conflict")
+                return False
+            self._event("attempt_process_reaped", attempt["task_id"], body)
+            return True
 
     def record_attempt_work_start(
         self, attempt_id: int, epoch: int, identity: Any, *, stage: str
