@@ -215,6 +215,11 @@ automatically.
   diff `b6a173748f99b5163466a1a3ca41878cf3a267a8484bb58d1eb8c3e0e4485849`; gate: 372 tests/96
   subtests, Ruff. Dispatcher/task-readiness liveness and payload/time bounds remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-lane-review-20261021.json`.
+- A10 source `a98744a` extends SQLite quiescence revisions to contract proposal, acknowledgement
+  and review decisions. Sol accepted exact diff `f778bb096e60655e2ed9106b419c7e936f3094c4a900c934f0da0be720517960`;
+  38 Store tests and Ruff passed. A pending review does not yet defer quiescence; dispatch, recovery,
+  A03 settlement and full A10 remain open. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-quiescence-review-20261021.json`.
 
 Canonical program, acceptance criteria and limits: `docs/engineering-organization.md`. Founder-facing
 external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receipts remain under
