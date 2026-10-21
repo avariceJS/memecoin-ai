@@ -142,6 +142,14 @@ class StateTests(unittest.TestCase):
         after = self.store.quiescence_snapshot()["revision"]
         self.assertEqual(after, before + 1)
 
+    def test_contract_review_decisions_advance_quiescence_revision(self):
+        before = self.store.quiescence_snapshot()["revision"]
+        self.store.db.execute(
+            "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+            ("contract-review/" + "a" * 64, 1, "{}"),
+        )
+        self.assertEqual(self.store.quiescence_snapshot()["revision"], before + 1)
+
     def test_quiescence_handoff_rejects_modified_issued_snapshot(self):
         snapshot = self.store.quiescence_snapshot()
         forged = {**snapshot, "readiness": [{"task_id": "invented", "eligible": True}]}
@@ -248,6 +256,62 @@ class StateTests(unittest.TestCase):
                 )
             )
             self.assertIsNotNone(self.store.get_decision("sol-handoff/" + fresh_digest))
+        finally:
+            self.store.db.set_trace_callback(None)
+            if other.db.in_transaction:
+                other.db.execute("ROLLBACK")
+            other.close()
+
+    def test_quiescence_handoff_rejects_contract_review_arriving_during_lock_wait(self):
+        snapshot = self.store.quiescence_snapshot()
+        body = {
+            "owner": "Sol",
+            "status": "requested",
+            "reason": "catalogue-exhausted",
+            "resource_reason": "synthetic",
+        }
+        identity = {
+            "snapshot": snapshot,
+            "resource_reason": body["resource_reason"],
+            "reason": body["reason"],
+        }
+        digest = hashlib.sha256(
+            json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        other = type(self.store)(self.path, clock=lambda: self.now)
+        waiting_for_write_lock = threading.Event()
+        self.store.db.set_trace_callback(
+            lambda statement: (
+                waiting_for_write_lock.set()
+                if statement.strip().upper() == "BEGIN IMMEDIATE"
+                else None
+            )
+        )
+        other.db.execute("BEGIN IMMEDIATE")
+        try:
+            with ThreadPoolExecutor(1) as pool:
+                future = pool.submit(
+                    self.store.record_quiescence_handoff_if_current,
+                    digest,
+                    snapshot,
+                    {**body, "fingerprint": digest},
+                )
+                try:
+                    self.assertTrue(waiting_for_write_lock.wait(2))
+                    with self.assertRaises(FutureTimeout):
+                        future.result(timeout=0.05)
+                    other.db.execute(
+                        "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+                        ("contract-review/" + "b" * 64, 1, "{}"),
+                    )
+                    other.db.execute("COMMIT")
+                    self.assertFalse(future.result(timeout=2))
+                finally:
+                    if other.db.in_transaction:
+                        other.db.execute("ROLLBACK")
+                    if not future.done():
+                        future.result(timeout=2)
+            self.assertIsNone(self.store.get_decision("sol-handoff/" + digest))
         finally:
             self.store.db.set_trace_callback(None)
             if other.db.in_transaction:

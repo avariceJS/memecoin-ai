@@ -175,6 +175,33 @@ class Store:
             AFTER DELETE ON contracts BEGIN
               UPDATE quiescence_revision SET value=value+1 WHERE id=1;
             END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contract_decisions_insert
+            AFTER INSERT ON decisions
+            WHEN NEW.name GLOB 'contract-transition/*'
+              OR NEW.name GLOB 'contract-ack/*'
+              OR NEW.name GLOB 'contract-review/*'
+            BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contract_decisions_update
+            AFTER UPDATE ON decisions
+            WHEN OLD.name GLOB 'contract-transition/*'
+              OR OLD.name GLOB 'contract-ack/*'
+              OR OLD.name GLOB 'contract-review/*'
+              OR NEW.name GLOB 'contract-transition/*'
+              OR NEW.name GLOB 'contract-ack/*'
+              OR NEW.name GLOB 'contract-review/*'
+            BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contract_decisions_delete
+            AFTER DELETE ON decisions
+            WHEN OLD.name GLOB 'contract-transition/*'
+              OR OLD.name GLOB 'contract-ack/*'
+              OR OLD.name GLOB 'contract-review/*'
+            BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
         """)
         self._issued_quiescence_snapshot_sha256: bytes | None = None
 
