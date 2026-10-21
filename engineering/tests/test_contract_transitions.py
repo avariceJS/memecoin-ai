@@ -32,13 +32,13 @@ def propose(db, body=None):
     )
 
 
-def integrate_producer(db):
-    db.add_task("EXP-1", "Experience", "produce contract", scope=["schema.py"])
-    attempt = db.claim("EXP-1", "synthetic", 30)
+def integrate_producer(db, task_id="EXP-1"):
+    db.add_task(task_id, "Experience", "produce contract", scope=["schema.py"])
+    attempt = db.claim(task_id, "synthetic", 30)
     db.submit(attempt["id"], attempt["epoch"], "candidate-sha", {"receipt": "synthetic"})
-    db.verify("EXP-1", "candidate-sha", True, {"passed": True})
-    db.accept("EXP-1", "candidate-sha")
-    db.integrate("EXP-1", "candidate-sha", "integration-sha", {"merged": True})
+    db.verify(task_id, "candidate-sha", True, {"passed": True})
+    db.accept(task_id, "candidate-sha")
+    db.integrate(task_id, "candidate-sha", "integration-sha", {"merged": True})
 
 
 def test_transition_requires_integrated_producer_and_exact_participant_acks(store):
@@ -70,6 +70,11 @@ def test_transition_requires_integrated_producer_and_exact_participant_acks(stor
     assert repeated["body"] == result["body"]
     assert repeated["created"] is False
     assert result["created"] is True
+    assert store.contract_transition_review_projection() == {
+        "items": [],
+        "pending_count": 0,
+        "omitted_count": 0,
+    }
     assert len([e for e in store.events() if e["kind"] == "contract_published"]) == 2
 
 
@@ -190,6 +195,8 @@ def test_transition_rejects_corrupt_skipped_version_and_missing_participant(stor
     )
     with pytest.raises(StateError, match="decision history invalid"):
         store.activate_contract_transition("sample", 2)
+    with pytest.raises(StateError, match="contract decision history invalid"):
+        store.contract_transition_review_projection()
 
 
 def test_canonical_snapshot_preserves_participants_and_mixed_numeric_keys(store):
@@ -249,3 +256,31 @@ def test_ack_history_corruption_blocks_activation(store):
     )
     with pytest.raises(StateError, match="decision history invalid"):
         store.activate_contract_transition("sample", 2)
+
+
+def test_projection_fails_closed_for_missing_ack_after_activation(store):
+    transition = propose(store)
+    integrate_producer(store)
+    digest = transition["body"]["contract_hash"]
+    for team in ("Experience", "Platform"):
+        store.acknowledge_contract_transition("sample", 2, team, digest)
+    store.activate_contract_transition("sample", 2)
+    second = store.propose_contract_transition(
+        "sample",
+        2,
+        3,
+        {"schema": "v3"},
+        producer_task_id="EXP-2",
+        producer_team="Experience",
+        consumer_teams=["Platform"],
+    )
+    integrate_producer(store, "EXP-2")
+    second_digest = second["body"]["contract_hash"]
+    for team in ("Experience", "Platform"):
+        store.acknowledge_contract_transition("sample", 3, team, second_digest)
+    store.activate_contract_transition("sample", 3)
+    ack_name = store._contract_ack_key("sample", 2, "Platform")
+    store.db.execute("DELETE FROM decisions WHERE name=?", (ack_name,))
+    store.db.execute("DELETE FROM events WHERE kind='decision_recorded' AND entity=?", (ack_name,))
+    with pytest.raises(StateError, match="activated contract review evidence is incomplete"):
+        store.contract_transition_review_projection()

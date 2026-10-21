@@ -1091,6 +1091,113 @@ class Store:
             raise StateError("contract decision history invalid")
         return row
 
+    def contract_transition_review_projection(self, *, limit: int = 100) -> dict:
+        """List exact missing participant reviews without depending on runnable tasks."""
+        if type(limit) is not int or not 0 <= limit <= 100:
+            raise StateError("contract review limit must be between 0 and 100")
+        with self._read_snapshot():
+            return self._contract_transition_review_projection_in_snapshot(limit=limit)
+
+    def _contract_transition_review_projection_in_snapshot(self, *, limit: int = 100) -> dict:
+        """Build the passive contract-review lane inside an existing SQLite snapshot."""
+        if type(limit) is not int or not 0 <= limit <= 100:
+            raise StateError("contract review limit must be between 0 and 100")
+        total = self.db.execute(
+            "SELECT COUNT(*) FROM decisions WHERE name LIKE 'contract-transition/%' "
+            "AND name NOT LIKE '%/activated'"
+        ).fetchone()[0]
+        if total > 1000:
+            raise StateError("contract transition review catalogue exceeds bound")
+        rows = self.db.execute(
+            "SELECT name,version FROM decisions WHERE name LIKE 'contract-transition/%' "
+            "AND name NOT LIKE '%/activated' "
+            "ORDER BY name LIMIT 1001"
+        ).fetchall()
+        pending = []
+        pending_count = 0
+        participant_count = 0
+        for row in rows:
+            transition = self._single_contract_decision(row["name"])
+            if transition is None or row["version"] != 1:
+                raise StateError("contract decision history invalid")
+            body = transition["body"]
+            if type(body) is not dict:
+                raise StateError("contract transition proposal invalid")
+            body = self._validated_contract_transition(
+                body, body.get("name"), body.get("to_version")
+            )
+            if self._contract_transition_key(body["name"], body["to_version"]) != row["name"]:
+                raise StateError("contract transition identity invalid")
+            current = self.db.execute(
+                "SELECT MAX(version) FROM contracts WHERE name=?", (body["name"],)
+            ).fetchone()[0]
+            if current is None or current < body["from_version"]:
+                raise StateError("contract transition source version is unavailable")
+            participants = [body["producer_team"], *body["consumer_teams"]]
+            participant_count += len(participants)
+            if participant_count > 1000:
+                raise StateError("contract transition review participants exceed bound")
+            is_current_proposal = current == body["from_version"]
+            if current >= body["to_version"]:
+                activation = self._single_contract_decision(row["name"] + "/activated")
+                published = self.db.execute(
+                    "SELECT version,body FROM contracts WHERE name=? AND version=?",
+                    (body["name"], body["to_version"]),
+                ).fetchone()
+                expected_activation = {
+                    "kind": "contract_transition_activation",
+                    "name": body["name"],
+                    "from_version": body["from_version"],
+                    "to_version": body["to_version"],
+                    "contract_hash": body["contract_hash"],
+                    "producer_task_id": body["producer_task_id"],
+                    "acknowledged_teams": sorted(participants),
+                }
+                if (
+                    activation is None
+                    or activation["body"] != expected_activation
+                    or published is None
+                    or json.loads(published["body"]) != body["body"]
+                    or hashlib.sha256(published["body"].encode("utf-8")).hexdigest()
+                    != body["contract_hash"]
+                ):
+                    raise StateError("activated contract review history is inconsistent")
+            for team in participants:
+                ack_key = self._contract_ack_key(body["name"], body["to_version"], team)
+                acknowledgement = self._single_contract_decision(ack_key)
+                if acknowledgement is not None:
+                    self._validated_contract_ack(
+                        acknowledgement["body"],
+                        body["name"],
+                        body["to_version"],
+                        team,
+                        body["contract_hash"],
+                    )
+                    continue
+                if not is_current_proposal:
+                    if current >= body["to_version"]:
+                        raise StateError("activated contract review evidence is incomplete")
+                    continue
+                pending_count += 1
+                if len(pending) < limit:
+                    pending.append(
+                        {
+                            "name": body["name"],
+                            "from_version": body["from_version"],
+                            "to_version": body["to_version"],
+                            "contract_hash": body["contract_hash"],
+                            "participant_team": team,
+                            "participant_role": (
+                                "producer" if team == body["producer_team"] else "consumer"
+                            ),
+                        }
+                    )
+        return {
+            "items": pending,
+            "pending_count": pending_count,
+            "omitted_count": pending_count - len(pending),
+        }
+
     @staticmethod
     def _validated_contract_transition(body: Any, name: str, version: int) -> dict:
         required = {
@@ -1129,6 +1236,7 @@ class Store:
         if (
             type(teams) is not list
             or not teams
+            or len(teams) > 99
             or any(type(team) is not str or not team.strip() for team in teams)
             or teams != sorted(set(teams))
             or body["producer_team"] in teams

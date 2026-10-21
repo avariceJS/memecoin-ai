@@ -1356,6 +1356,11 @@ class Executive:
                     {k: v for k, v in row.items() if k != "initial"}
                     for row in all_rows[: history_limit if table == "decisions" else open_limit]
                 ]
+            contract_review_projection = (
+                self.store._contract_transition_review_projection_in_snapshot(
+                    limit=min(open_limit, 100)
+                )
+            )
             events = [
                 dict(row)
                 for row in self.db.execute(
@@ -1454,7 +1459,7 @@ class Executive:
                 )
             ]
             return {
-                "schema": "brain-executive-snapshot-v3",
+                "schema": "brain-executive-snapshot-v4",
                 "role": role,
                 "objectives": objectives,
                 "tasks": [
@@ -1465,6 +1470,7 @@ class Executive:
                 "department_plans": department_plans,
                 "department_leases": department_leases,
                 "department_conflicts": department_conflicts,
+                "contract_review_items": contract_review_projection["items"],
                 "events": list(reversed(events)),
                 "accepted_evidence": accepted,
                 "counts": {
@@ -1480,6 +1486,8 @@ class Executive:
                     "department_conflicts": department_conflict_count,
                     "department_conflicts_open": department_conflict_open_count,
                     "department_conflicts_stale": department_conflict_stale_count,
+                    "contract_reviews_pending": contract_review_projection["pending_count"],
+                    "contract_reviews_omitted": contract_review_projection["omitted_count"],
                 },
                 "known_unmeasured_acceptance": (
                     "Полная автономная работа организации ещё не подтверждена."
@@ -1528,6 +1536,11 @@ class Executive:
         lines.append(
             f"Конфликты с устаревшими планами: {view['counts']['department_conflicts_stale']}."
         )
+        lines.append(
+            "Независимые подтверждения переходов контрактов: "
+            f"{view['counts']['contract_reviews_pending']}; "
+            f"не показано: {view['counts']['contract_reviews_omitted']}."
+        )
         lines.extend(
             f"- {row['id']}: {row['title']} ({row['status']})" for row in view["obligations"]
         )
@@ -1544,6 +1557,16 @@ class Executive:
             f"- {row['id']}: {row['status']} ({row['team_a']} vs {row['team_b']})"
             for row in view["department_conflicts"]
         )
+        lines.extend(
+            f"- {row['participant_team']}: {row['name']} v{row['from_version']}→"
+            f"v{row['to_version']} ({row['contract_hash']})"
+            for row in view["contract_review_items"]
+        )
+        if view["counts"]["contract_reviews_pending"]:
+            lines.append(
+                "Этот список только показывает недостающие отзывы; "
+                "подтверждения не создаются автоматически."
+            )
         lines.append(f"Ожидающие запросы: {view['counts']['requests']}.")
         lines.extend(f"- {row['id']}: {row['requested_change']}" for row in view["requests"])
         lines.append("Последние решения:")

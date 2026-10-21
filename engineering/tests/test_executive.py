@@ -358,7 +358,7 @@ class ExecutiveTests(unittest.TestCase):
         self.assertEqual(self.executive.get_department_plan("Platform")["revision"], 2)
         self.now += 201
         view = self.executive.snapshot()
-        self.assertEqual(view["schema"], "brain-executive-snapshot-v3")
+        self.assertEqual(view["schema"], "brain-executive-snapshot-v4")
         self.assertEqual(view["counts"]["department_plans"], 1)
         self.assertEqual(view["counts"]["department_plan_reviews_due"], 1)
         self.assertEqual(view["department_plans"][0]["review_state"], "due")
@@ -514,13 +514,86 @@ class ExecutiveTests(unittest.TestCase):
             ["review:fresh"],
         )
         view = self.executive.snapshot(open_limit=1)
-        self.assertEqual(view["schema"], "brain-executive-snapshot-v3")
+        self.assertEqual(view["schema"], "brain-executive-snapshot-v4")
         self.assertEqual(view["counts"]["department_conflicts"], 2)
         self.assertEqual(view["counts"]["department_conflicts_open"], 0)
         self.assertEqual(view["counts"]["department_conflicts_stale"], 0)
         self.assertEqual(len(view["department_conflicts"]), 1)
         self.assertEqual(view["department_conflicts"][0]["id"], "C-2")
         self.assertIn("Открытые конфликты отделов: 0 из 2.", self.executive.render_report())
+
+    def test_contract_review_lane_is_independent_of_consumer_task_readiness(self):
+        self.store.put_contract("sample", 1, {"schema": "v1"})
+        producer = "EXP-1"
+        self.store.add_task(producer, "Experience", "Produce v2", scope=["schema.py"])
+        attempt = self.store.claim(producer, "worker", 60)
+        self.store.submit(attempt["id"], attempt["epoch"], "candidate", {})
+        self.store.verify(producer, "candidate", True, {"passed": True})
+        self.store.accept(producer, "candidate")
+        self.store.integrate(producer, "candidate", "integration", {"merged": True})
+
+        transition = self.store.propose_contract_transition(
+            "sample",
+            1,
+            2,
+            {"schema": "v2"},
+            producer_task_id=producer,
+            producer_team="Experience",
+            consumer_teams=["Empty", "Research"],
+        )
+        digest = transition["body"]["contract_hash"]
+        self.store.acknowledge_contract_transition("sample", 2, "Experience", digest)
+        self.store.add_task(
+            "research-v2",
+            "Research",
+            "Requires pending v2",
+            scope=["research.py"],
+            contracts={"sample": 2},
+        )
+        self.store.add_task("unrelated", "Platform", "Still ready", scope=["other.py"])
+
+        self.assertIsNone(self.store.claim("research-v2", "worker", 60))
+        self.assertEqual([task["id"] for task in self.store.ready_tasks()], ["unrelated"])
+        self.assertIsNone(
+            self.store.get_decision(self.store._contract_ack_key("sample", 2, "Research"))
+        )
+        first = self.executive.snapshot(open_limit=10)
+        second = self.executive.snapshot(open_limit=10)
+        self.assertEqual(first["schema"], "brain-executive-snapshot-v4")
+        self.assertEqual(first["contract_review_items"], second["contract_review_items"])
+        self.assertEqual(first["counts"]["contract_reviews_pending"], 2)
+        self.assertEqual(first["counts"]["contract_reviews_omitted"], 0)
+        self.assertEqual(
+            [item["participant_team"] for item in first["contract_review_items"]],
+            ["Empty", "Research"],
+        )
+        store_projection = self.store.contract_transition_review_projection(limit=1)
+        self.assertEqual(len(store_projection["items"]), 1)
+        self.assertEqual(store_projection["pending_count"], 2)
+        self.assertEqual(store_projection["omitted_count"], 1)
+        research = first["contract_review_items"][1]
+        self.assertEqual(research["participant_role"], "consumer")
+        self.assertEqual(research["contract_hash"], digest)
+        self.assertEqual(
+            self.store.get_contract_transition("sample", 2)["body"]["body"],
+            {"schema": "v2"},
+        )
+        self.assertEqual(self.store.get_contract("sample")["version"], 1)
+        bounded = self.executive.snapshot(open_limit=1)
+        self.assertEqual(len(bounded["contract_review_items"]), 1)
+        self.assertEqual(bounded["counts"]["contract_reviews_pending"], 2)
+        self.assertEqual(bounded["counts"]["contract_reviews_omitted"], 1)
+        self.assertIn("только показывает недостающие отзывы", self.executive.render_report())
+        self.store.acknowledge_contract_transition("sample", 2, "Research", digest)
+        self.store.acknowledge_contract_transition("sample", 2, "Empty", digest)
+        self.assertEqual(
+            self.store.contract_transition_review_projection(limit=0),
+            {"items": [], "pending_count": 0, "omitted_count": 0},
+        )
+        self.assertTrue(self.store.activate_contract_transition("sample", 2)["created"])
+        activated = self.executive.snapshot(open_limit=10)
+        self.assertEqual(activated["counts"]["contract_reviews_pending"], 0)
+        self.assertEqual(activated["contract_review_items"], [])
 
     def test_conflict_adjudication_rejects_stale_ceo_fence_and_conflict_reuse(self):
         self.store.add_objective("offline", "Offline engineering")
