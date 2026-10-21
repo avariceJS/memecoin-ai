@@ -93,6 +93,94 @@ def test_transition_requires_integrated_producer_and_exact_participant_acks(stor
     assert len([e for e in store.events() if e["kind"] == "contract_published"]) == 2
 
 
+def test_contract_transition_batch_rolls_back_when_later_proposal_conflicts(store):
+    store.put_contract("alpha", 1, {"schema": "alpha-v1"})
+    existing = propose(store)
+    events_before = store.events()
+    alpha = {
+        "name": "alpha",
+        "from_version": 1,
+        "to_version": 2,
+        "body": {"schema": "alpha-v2"},
+        "producer_task_id": "EXP-1",
+        "producer_team": "Experience",
+        "consumer_teams": ["Platform"],
+    }
+    conflicting = {
+        "name": "sample",
+        "from_version": 1,
+        "to_version": 2,
+        "body": {"schema": "different-v2"},
+        "producer_task_id": "EXP-1",
+        "producer_team": "Experience",
+        "consumer_teams": ["Platform"],
+    }
+
+    with pytest.raises(StateError, match="proposal is immutable"):
+        store.propose_contract_transitions([alpha, conflicting])
+
+    assert store.get_contract_transition("alpha", 2) is None
+    retained = store.get_contract_transition("sample", 2)
+    assert retained["body"] == existing["body"]
+    assert retained["version"] == existing["version"]
+    assert store.events() == events_before
+
+
+def test_contract_transition_batch_detaches_input_before_write_lock_wait(store, tmp_path):
+    body = {"schema": "v2"}
+    consumers = ["Platform"]
+    proposal = {
+        "name": "sample",
+        "from_version": 1,
+        "to_version": 2,
+        "body": body,
+        "producer_task_id": "EXP-1",
+        "producer_team": "Experience",
+        "consumer_teams": consumers,
+    }
+    proposals = [proposal]
+    other = sqlite3.connect(str(Path(tmp_path) / "org.sqlite"), timeout=30, isolation_level=None)
+    waiting_for_write_lock = threading.Event()
+    store.db.set_trace_callback(
+        lambda statement: (
+            waiting_for_write_lock.set() if statement.strip().upper() == "BEGIN IMMEDIATE" else None
+        )
+    )
+    other.execute("BEGIN IMMEDIATE")
+    pool = ThreadPoolExecutor(1)
+    future = None
+    try:
+        future = pool.submit(store.propose_contract_transitions, proposals)
+        assert waiting_for_write_lock.wait(2)
+        with pytest.raises(FutureTimeout):
+            future.result(timeout=0.05)
+        body["schema"] = "mutated"
+        consumers[:] = ["Research"]
+        proposals.append(
+            {
+                **proposal,
+                "name": "missing-contract",
+                "from_version": 1,
+                "to_version": 2,
+            }
+        )
+        other.execute("COMMIT")
+        result = future.result(timeout=2)
+    finally:
+        if other.in_transaction:
+            other.execute("ROLLBACK")
+        pool.shutdown(wait=True)
+        store.db.set_trace_callback(None)
+        other.close()
+
+    assert len(result) == 1
+    persisted = store.get_contract_transition("sample", 2)["body"]
+    assert persisted["body"] == {"schema": "v2"}
+    assert persisted["consumer_teams"] == ["Platform"]
+    assert persisted["contract_hash"] == hashlib.sha256(b'{"schema":"v2"}').hexdigest()
+    assert store.get_contract_transition("missing-contract", 2) is None
+
+
 def test_proposal_and_ack_retries_are_exact_and_survive_restart(tmp_path):
     path = Path(tmp_path) / "org.sqlite"
     db = Store(path, clock=lambda: 1000.0)

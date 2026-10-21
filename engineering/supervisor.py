@@ -100,7 +100,7 @@ def _configured_contract_transitions(cfg, db):
     contracts = cfg.get("contracts", {})
     if type(contracts) is not dict or any(type(name) is not str for name in contracts):
         raise StateError("contract configuration invalid")
-    resolved = []
+    pending = []
     for name, proposal in sorted(contracts.items()):
         if (
             not name.strip()
@@ -159,24 +159,30 @@ def _configured_contract_transitions(cfg, db):
             producer_task_id = "EXP-001"
         if type(producer_task_id) is not str or not producer_task_id.strip():
             raise StateError("contract producer task identity unavailable")
-        transition = db.propose_contract_transition(
-            name,
-            proposal["version"] - 1,
-            proposal["version"],
-            proposal,
-            producer_task_id=producer_task_id,
-            producer_team=proposal["producer"],
-            consumer_teams=consumers,
-        )
-        resolved.append(
+        pending.append(
             {
-                "name": name,
-                "version": proposal["version"],
-                "body": transition["body"],
+                "proposal": {
+                    "name": name,
+                    "from_version": proposal["version"] - 1,
+                    "to_version": proposal["version"],
+                    "body": proposal,
+                    "producer_task_id": producer_task_id,
+                    "producer_team": proposal["producer"],
+                    "consumer_teams": consumers,
+                },
                 "already_active": already_active,
             }
         )
-    return resolved
+    persisted = db.propose_contract_transitions([item["proposal"] for item in pending])
+    return [
+        {
+            "name": transition["body"]["name"],
+            "version": transition["body"]["to_version"],
+            "body": transition["body"],
+            "already_active": item["already_active"],
+        }
+        for item, transition in zip(pending, persisted, strict=True)
+    ]
 
 
 def _validate_lead_contract_acks(value, *, team, transitions):

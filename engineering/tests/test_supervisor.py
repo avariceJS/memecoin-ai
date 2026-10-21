@@ -1258,6 +1258,34 @@ class SupervisorTests(unittest.TestCase):
 
         self.assertIsNotNone(self.db.get_decision(ack_key))
 
+    def test_configured_contract_failure_leaves_no_earlier_proposal(self):
+        early = {
+            "version": 2,
+            "producer": "Research",
+            "consumer": "Platform",
+            "producer_task_id": "EARLY-1",
+        }
+        late = {
+            "version": 2,
+            "producer": "Research",
+            "consumer": "Platform",
+            "producer_task_id": "LATE-1",
+        }
+        self.cfg["contracts"] = {"alpha-contract": early, "zeta-contract": late}
+        self.db.put_contract("alpha-contract", 1, {"version": 1})
+        self.db.put_contract("zeta-contract", 1, {"version": 1})
+        self.db.db.execute(
+            "INSERT INTO contracts(name,version,body) VALUES(?,?,?)",
+            ("zeta-contract", 2, json.dumps(late, sort_keys=True, separators=(",", ":"))),
+        )
+        events_before = self.db.events()
+
+        with self.assertRaisesRegex(StateError, "publication evidence missing"):
+            supervisor._configured_contract_transitions(self.cfg, self.db)
+
+        self.assertIsNone(self.db.get_contract_transition("alpha-contract", 2))
+        self.assertEqual(self.db.events(), events_before)
+
     def run_quiescence(
         self, reason, *, pending=False, slots=1, readiness_change=False, review_pending=False
     ):

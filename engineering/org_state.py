@@ -2731,66 +2731,116 @@ class Store:
         producer_team: str,
         consumer_teams: list[str],
     ) -> dict:
-        """Persist an immutable contract proposal and its required producer/consumer set."""
-        if type(name) is not str or not name.strip():
-            raise StateError("contract name must be a plain nonempty string")
-        if any(type(v) is not int or v < 1 for v in (from_version, to_version)):
-            raise StateError("contract versions must be positive integers")
-        if to_version != from_version + 1:
-            raise StateError("contract transition must advance exactly one version")
-        if type(producer_task_id) is not str or not producer_task_id.strip():
-            raise StateError("contract producer task required")
-        if type(producer_team) is not str or not producer_team.strip():
-            raise StateError("contract producer team required")
-        if type(consumer_teams) is not list or any(
-            type(team) is not str or not team.strip() for team in consumer_teams
-        ):
-            raise StateError("contract consumer teams must be nonempty strings")
-        consumer_teams = list(consumer_teams)
-        if not consumer_teams:
-            raise StateError("contract transition requires at least one consumer")
-        if len(set(consumer_teams)) != len(consumer_teams) or producer_team in consumer_teams:
-            raise StateError("contract participants must be unique")
-        try:
-            body = json.loads(_json(body))
-            body_json = _json(body)
-        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
-            raise StateError("contract body must be finite JSON data") from None
-        key = self._contract_transition_key(name, to_version)
-        contract_hash = hashlib.sha256(body_json.encode("utf-8")).hexdigest()
-        record = {
-            "kind": "contract_transition",
-            "status": "proposed",
-            "name": name,
-            "from_version": from_version,
-            "to_version": to_version,
-            "body": body,
-            "contract_hash": contract_hash,
-            "producer_task_id": producer_task_id,
-            "producer_team": producer_team,
-            "consumer_teams": sorted(consumer_teams),
-        }
-        self._validated_contract_transition(record, name, to_version)
-        with self._tx():
-            existing = self._single_contract_decision(key)
-            if existing is not None:
-                existing_body = self._validated_contract_transition(
-                    existing["body"], name, to_version
-                )
-                if existing_body != record:
-                    raise StateError("contract transition proposal is immutable")
-                return {
-                    "name": existing["name"],
-                    "version": existing["version"],
-                    "body": existing_body,
+        """Persist one immutable proposal through the atomic batch path."""
+        return self.propose_contract_transitions(
+            [
+                {
+                    "name": name,
+                    "from_version": from_version,
+                    "to_version": to_version,
+                    "body": body,
+                    "producer_task_id": producer_task_id,
+                    "producer_team": producer_team,
+                    "consumer_teams": consumer_teams,
                 }
-            current = self.db.execute(
-                "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
-            ).fetchone()[0]
-            if current != from_version:
-                raise StateError("contract transition source version is stale")
-            version = self._put_decision_in_transaction(key, record)
-            return {"name": key, "version": version, "body": record}
+            ]
+        )[0]
+
+    def propose_contract_transitions(self, proposals: list[dict]) -> list[dict]:
+        """Persist a set of immutable proposals atomically after detaching caller input."""
+        if type(proposals) is not list:
+            raise StateError("contract transitions must be a list")
+        required = {
+            "name",
+            "from_version",
+            "to_version",
+            "body",
+            "producer_task_id",
+            "producer_team",
+            "consumer_teams",
+        }
+        prepared = []
+        keys = set()
+        for proposal in proposals:
+            if type(proposal) is not dict or set(proposal) != required:
+                raise StateError("contract transition proposal shape invalid")
+            name = proposal["name"]
+            from_version = proposal["from_version"]
+            to_version = proposal["to_version"]
+            producer_task_id = proposal["producer_task_id"]
+            producer_team = proposal["producer_team"]
+            consumer_teams = proposal["consumer_teams"]
+            if type(name) is not str or not name.strip():
+                raise StateError("contract name must be a plain nonempty string")
+            if any(type(v) is not int or v < 1 for v in (from_version, to_version)):
+                raise StateError("contract versions must be positive integers")
+            if to_version != from_version + 1:
+                raise StateError("contract transition must advance exactly one version")
+            if type(producer_task_id) is not str or not producer_task_id.strip():
+                raise StateError("contract producer task required")
+            if type(producer_team) is not str or not producer_team.strip():
+                raise StateError("contract producer team required")
+            if type(consumer_teams) is not list or any(
+                type(team) is not str or not team.strip() for team in consumer_teams
+            ):
+                raise StateError("contract consumer teams must be nonempty strings")
+            consumer_teams = list(consumer_teams)
+            if not consumer_teams:
+                raise StateError("contract transition requires at least one consumer")
+            if len(set(consumer_teams)) != len(consumer_teams) or producer_team in consumer_teams:
+                raise StateError("contract participants must be unique")
+            try:
+                body = json.loads(_json(proposal["body"]))
+                body_json = _json(body)
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+                raise StateError("contract body must be finite JSON data") from None
+            key = self._contract_transition_key(name, to_version)
+            if key in keys:
+                raise StateError("duplicate contract transition proposal")
+            keys.add(key)
+            record = {
+                "kind": "contract_transition",
+                "status": "proposed",
+                "name": name,
+                "from_version": from_version,
+                "to_version": to_version,
+                "body": body,
+                "contract_hash": hashlib.sha256(body_json.encode("utf-8")).hexdigest(),
+                "producer_task_id": producer_task_id,
+                "producer_team": producer_team,
+                "consumer_teams": sorted(consumer_teams),
+            }
+            self._validated_contract_transition(record, name, to_version)
+            prepared.append((key, record))
+        if not prepared:
+            return []
+
+        persisted = []
+        with self._tx():
+            for key, record in prepared:
+                existing = self._single_contract_decision(key)
+                if existing is not None:
+                    existing_body = self._validated_contract_transition(
+                        existing["body"], record["name"], record["to_version"]
+                    )
+                    if existing_body != record:
+                        raise StateError("contract transition proposal is immutable")
+                    persisted.append(
+                        {
+                            "name": existing["name"],
+                            "version": existing["version"],
+                            "body": existing_body,
+                        }
+                    )
+                    continue
+                current = self.db.execute(
+                    "SELECT MAX(version) FROM contracts WHERE name=?", (record["name"],)
+                ).fetchone()[0]
+                if current != record["from_version"]:
+                    raise StateError("contract transition source version is stale")
+                version = self._put_decision_in_transaction(key, record)
+                persisted.append({"name": key, "version": version, "body": record})
+        return persisted
 
     def get_contract_transition(self, name: str, version: int) -> dict | None:
         if type(name) is not str or type(version) is not int:

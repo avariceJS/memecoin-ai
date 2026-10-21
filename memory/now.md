@@ -422,3 +422,10 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   `c591abd5` with no blocking findings; focused tests passed 52/10 subtests and full gate passed
   Ruff, 474 tests/101 subtests. This is not a historical provenance audit. A03, broad A10 and
   operational acceptance remain open. Gate receipt: `a10-configured-contract-missing-transition-evidence-gate-20261021.json`.
+- A10 configured contract proposals now validate as a set and persist in one SQLite transaction;
+  a late config error or proposal conflict leaves no partial proposal/events. Supervisor routes
+  its single proposals through the same path. Sol review accepted exact diff `c656515f` with no
+  P1-P3 findings; WAL lock-wait input mutation regression added. Focused tests passed 128/10
+  subtests; gate passed Ruff, 477 tests/101 subtests. Config reads precede persistence and
+  activation/replay remain separate; broad A10/A03 remain open. Receipt:
+  `a10-configured-contract-proposal-batch-gate-20261021.json`.
