@@ -608,7 +608,7 @@ def test_contract_review_replay_sweep_preserves_per_request_failures(store):
     malformed_response = store.get_contract_review_response(malformed_body["request_id"])
     swept = store.replay_pending_contract_review_responses()
     assert swept["overflow"] is False
-    assert swept["count"] == 3
+    assert swept["count"] == 2
     assert swept["response_recorded_count"] == 2
     assert swept["skipped_count"] == 1
     assert swept["dispatch_authority"] is False
@@ -635,20 +635,26 @@ def test_contract_review_replay_sweep_preserves_per_request_failures(store):
     assert repeated["failures"] == swept["failures"]
 
 
-def test_contract_review_replay_sweep_overflow_performs_no_partial_replay(store):
-    request = prepare_review(store)
-    body = request["body"]
+def record_pending_review_response(store, body, *, suffix, result=None):
     store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
     store.record_contract_review_session(
         body["request_id"],
         body["packet_hash"],
-        "thread-1",
+        "thread-" + suffix,
         "gpt-6.1-sol",
         body["dispatch_id"],
-        {"pid": 123, "birth": "synthetic-birth"},
+        {"pid": 123, "birth": "synthetic-birth-" + suffix},
     )
-    record_review_result(store, body, review_result())
+    record_review_result(store, body, review_result() if result is None else result)
+
+
+def test_contract_review_replay_sweep_overflow_performs_no_partial_replay(store):
+    request = prepare_review(store)
+    body = request["body"]
+    record_pending_review_response(store, body, suffix="1")
     second = store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
+    second_body = second["body"]
+    record_pending_review_response(store, second_body, suffix="2")
 
     with pytest.raises(StateError, match="replay limit invalid"):
         store.replay_pending_contract_review_responses(limit=True)
@@ -660,12 +666,57 @@ def test_contract_review_replay_sweep_overflow_performs_no_partial_replay(store)
         "response_recorded_count": None,
         "replayed": [],
         "failures": [],
-        "skipped_count": 0,
+        "skipped_count": None,
         "dispatch_authority": False,
         "provider_dispatch": False,
     }
     assert store.get_decision(request["name"])["body"]["status"] == "response_recorded"
-    assert store.get_decision(second["name"])["body"]["status"] == "prepared"
+    assert store.get_decision(second["name"])["body"]["status"] == "response_recorded"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_contract_review_replay_ignores_retained_terminal_history_for_candidate_limit(store):
+    first = prepare_review(store)
+    first_body = first["body"]
+    blocked_result = review_result(decision="blocked", compatibility="insufficient")
+    for index in range(101):
+        request = (
+            first
+            if index == 0
+            else store.prepare_contract_review(
+                "sample", 2, "Platform", f"{index:064x}", review_packet()
+            )
+        )
+        body = request["body"]
+        if index == 0:
+            body = first_body
+        record_pending_review_response(store, body, suffix=str(index), result=blocked_result)
+        response = store.get_contract_review_response(body["request_id"])
+        store.finish_contract_review(
+            body["request_id"], body["packet_hash"], response["raw_sha256"], blocked_result
+        )
+
+    pending = store.prepare_contract_review("sample", 2, "Platform", "f" * 64, review_packet())
+    pending_body = pending["body"]
+    record_pending_review_response(store, pending_body, suffix="pending", result=blocked_result)
+    sweep = store.replay_pending_contract_review_responses(limit=1)
+
+    assert sweep["overflow"] is False
+    assert sweep["count"] == 1
+    assert sweep["response_recorded_count"] == 1
+    assert sweep["skipped_count"] == 101
+    assert sweep["replayed"] == [
+        {
+            "request_id": pending_body["request_id"],
+            "packet_hash": pending_body["packet_hash"],
+            "status": "blocked",
+            "raw_sha256": store.get_contract_review_response(pending_body["request_id"])[
+                "raw_sha256"
+            ],
+        }
+    ]
+    assert store.get_decision(first["name"])["body"]["status"] == "blocked"
+    assert store.get_decision(pending["name"])["body"]["status"] == "blocked"
     assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
 
 

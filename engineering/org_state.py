@@ -1900,6 +1900,45 @@ class Store:
             "dispatch_authority": False,
         }
 
+    def _contract_review_replay_inventory_in_snapshot(self, *, limit: int) -> dict:
+        """Select only current custodied responses for bounded local replay."""
+        rows = self.db.execute(
+            "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
+            "GROUP BY name ORDER BY name"
+        )
+        items = []
+        skipped_count = 0
+        while row := rows.fetchone():
+            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", row["name"])
+            if match is None:
+                raise StateError("contract review worklist identity invalid")
+            current = self._contract_review_record(match.group(1))
+            if current is None:
+                raise StateError("contract review worklist record missing")
+            body = current["body"]
+            if body["status"] != "response_recorded":
+                skipped_count += 1
+                continue
+            items.append(
+                {
+                    "request_id": body["request_id"],
+                    "packet_hash": body["packet_hash"],
+                }
+            )
+            if len(items) > limit:
+                return {
+                    "items": [],
+                    "count": None,
+                    "skipped_count": None,
+                    "overflow": True,
+                }
+        return {
+            "items": items,
+            "count": len(items),
+            "skipped_count": skipped_count,
+            "overflow": False,
+        }
+
     def begin_contract_review_dispatch(self, request_id: str, packet_hash: str) -> dict:
         """Write the one-shot dispatch intent before any metered provider call."""
         if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
@@ -2071,10 +2110,8 @@ class Store:
         if type(limit) is not int or not 1 <= limit <= 100:
             raise StateError("contract review replay limit invalid")
         with self._read_snapshot():
-            worklist = self._contract_review_worklist_in_snapshot(
-                limit=limit, overflow_as_result=True
-            )
-        if worklist.get("overflow") is True:
+            inventory = self._contract_review_replay_inventory_in_snapshot(limit=limit)
+        if inventory["overflow"]:
             return {
                 "limit": limit,
                 "count": None,
@@ -2082,14 +2119,12 @@ class Store:
                 "response_recorded_count": None,
                 "replayed": [],
                 "failures": [],
-                "skipped_count": 0,
+                "skipped_count": None,
                 "dispatch_authority": False,
                 "provider_dispatch": False,
             }
 
-        response_recorded = [
-            item for item in worklist["items"] if item["status"] == "response_recorded"
-        ]
+        response_recorded = inventory["items"]
         replayed = []
         failures = []
         for item in response_recorded:
@@ -2119,12 +2154,12 @@ class Store:
                 )
         return {
             "limit": limit,
-            "count": worklist["count"],
+            "count": inventory["count"],
             "overflow": False,
             "response_recorded_count": len(response_recorded),
             "replayed": replayed,
             "failures": failures,
-            "skipped_count": worklist["count"] - len(response_recorded),
+            "skipped_count": inventory["skipped_count"],
             "dispatch_authority": False,
             "provider_dispatch": False,
         }

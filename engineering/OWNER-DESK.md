@@ -678,10 +678,25 @@ A10 и operational acceptance открыты. Receipt:
 A04 source `verifier_manifest.py` теперь сверяет descriptor metadata до и после хеширования
 interpreter и проверяет, что прочитан точный начальный размер. Regression с изменением файла во
 время чтения прошёл; Sol принял exact diff `415857999494287bc3b65f2e7d7035c4ecd6babbaaa187d90d9f23e361badeaf`.
-Ruff check/format прошёл для двух файлов. Полный manifest test file недоступен на имеющемся Python
-3.9.6: окружение не поддерживает `zip(strict=)` и более новую защиту JSON decoder. Это уменьшает
-уверенность в проверке всего набора, но не меняет вывод focused regression. Descriptor-read
+Полный engineering gate повторён с Python 3.13.6: 410 тестов, 96 subtests, Ruff check/format.
+Первичный запуск на Python 3.9.6 был несовместим с существующими `zip(strict=)` и JSON decoder
+требованиями; результат на закреплённой среде зелёный. Descriptor-read
 стабильность не доказывает, что позже был исполнен тот же inode; loader/import closure остаётся
 открытым, `execution_qualified=false`. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-stability-review-20261021.json`
-(SHA-256 `3d9f73874c37bd0992e96e8292bc9d2df246481087f3f2a873802ddb8090ff76`).
+(SHA-256 `3d9f73874c37bd0992e96e8292bc9d2df246481087f3f2a873802ddb8090ff76`). Gate rerun:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-stability-gate-rerun-20261021.json`
+(SHA-256 `fd14da053f07fa9a99fd0280f0a2edd7e8d3fb72a81d5a5cf3dfa2aedd6af4f3`).
+
+A10 replay-capacity regression закрывает starvation после накопления history: limit=100 применяется к
+latest `response_recorded` requests; старые prepared/in-flight/terminal записи не расходуют этот лимит.
+Публичный worklist сохранён. Overflow текущих response возвращает пустой replay и unknown counts.
+Sol принял exact diff `2313b4b89f305dc4286fd8edf1a18f060a74a5fa366137a1e463f543c3e5f833`; полный gate
+на Python 3.13.6 прошёл: 411 тестов, 96 subtests, Ruff. Discovery всё ещё сканирует историю; пропущенные
+journals не получают полный packet/currentness audit, а sweep не атомарен между requests. Dispatch,
+resend и новая authority не добавлены. A03, provider provenance, полный A10 и operational acceptance
+открыты. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-capacity-review-20261021.json`
+(SHA-256 `09b11e458a1465fbf00a95d79b7e223dd5496fdf1a886e66ab08d8b4d0ff621a`). Gate:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-capacity-gate-20261021.json`
+(SHA-256 `2c1ff6a3a57720680ab528c1b04eeb3c9e2a332e026b4150c05e4fcb3cc7c375`).

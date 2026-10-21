@@ -287,6 +287,21 @@ broad A10 and operational acceptance remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-sweep-review-20261021.json`
 (SHA-256 `3e776872f8c928c0b265c931caa5721510c29f0545064364761ba41c42c6e90f`).
 
+A follow-up replay-capacity increment adds a dedicated coherent inventory that validates review
+journals and applies the maximum-100 bound only to their latest `response_recorded` state. Retained
+prepared, in-flight and terminal requests no longer consume replay capacity; `count` is the number of
+replay candidates and `skipped_count` is the number of other valid journals. More than the candidate
+limit returns unknown counts and no partial replay. The public advisory worklist is unchanged. Sol
+accepted exact diff `2313b4b89f305dc4286fd8edf1a18f060a74a5fa366137a1e463f543c3e5f833`; the full
+engineering gate passed 411 tests and 96 subtests with Ruff. Discovery still scans retained review
+histories, skipped journals do not receive full packet/currentness audit, and replay is not atomic
+across requests. No provider dispatch or new execution authority was added. A03 settlement, broad
+A10 and operational acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-capacity-review-20261021.json`
+(SHA-256 `09b11e458a1465fbf00a95d79b7e223dd5496fdf1a886e66ab08d8b4d0ff621a`). Gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-capacity-gate-20261021.json`
+(SHA-256 `2c1ff6a3a57720680ab528c1b04eeb3c9e2a332e026b4150c05e4fcb3cc7c375`).
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
@@ -544,14 +559,16 @@ The interpreter manifest resolver now compares descriptor identity metadata befo
 hashing and requires the bytes read to equal the initial descriptor size. A controlled same-size
 overwrite during the descriptor read is rejected. The independent A04 review accepted the exact
 source diff `415857999494287bc3b65f2e7d7035c4ecd6babbaaa187d90d9f23e361badeaf`. Its focused
-regression passed and Ruff check/format passed on the two changed files. The full manifest test file
-could not run under the available Python 3.9.6 environment: existing tests require `zip(strict=)`
-and newer JSON decoder behavior; those failures do not establish a failure on the pinned project
-interpreter. Descriptor stability narrows read-time mutation evidence only. It does not bind later
+regression passed. An initial attempt under Python 3.9.6 was incompatible with existing `zip(strict=)`
+and JSON decoder behavior; the full engineering release gate was then rerun with the project Python
+3.13.6 and passed: 410 tests, 96 subtests, Ruff check/format. Descriptor stability narrows read-time
+mutation evidence only. It does not bind later
 execution to the descriptor, close parent-path races, or qualify loader/import closure; plans remain
 `execution_qualified=False`. Review receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-stability-review-20261021.json`
-(SHA-256 `3d9f73874c37bd0992e96e8292bc9d2df246481087f3f2a873802ddb8090ff76`).
+(SHA-256 `3d9f73874c37bd0992e96e8292bc9d2df246481087f3f2a873802ddb8090ff76`). Gate rerun receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-stability-gate-rerun-20261021.json`
+(SHA-256 `fd14da053f07fa9a99fd0280f0a2edd7e8d3fb72a81d5a5cf3dfa2aedd6af4f3`).
 
 Before any future A05 request consumer is designed, its inputs must come from one coherent,
 source-identified gate snapshot with capture time or sequence. Consumption must reject unknown or

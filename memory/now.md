@@ -30,6 +30,11 @@ automatically.
   provider dispatch/resend. Sol accepted exact diff; full gate passed 404 tests/96 subtests with Ruff.
   The sweep is not atomic across requests and does not choose a newest opaque evidence revision.
   Full A10 and A03 remain open. Receipt: `a10-contract-review-replay-sweep-review-20261021.json`.
+- Current A10 source `org/development` adds a replay-only inventory, so the 100-item bound counts
+  latest `response_recorded` requests; 101 terminal journals no longer starve one pending replay.
+  Sol accepted exact diff; Python 3.13.6 engineering gate passed 411 tests/96 subtests with Ruff.
+  Discovery still scans retained histories and replay is non-atomic across requests. Receipt:
+  `a10-contract-review-replay-capacity-review-20261021.json`.
 - A05 source `6691a2f` adds a read-only bounded lifecycle request projection with coherent owner state,
   identity/history checks, and no launch/consumption authority. Sol accepted; full gate passed 408/96
   subtests with Ruff. Work/byte cost can still scale with retained history. Independent Sol review found
@@ -54,6 +59,11 @@ automatically.
   `execution_qualified=False`; same-inode, loader, deployment, continuous identity and output
   provenance remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-plan-sandbox-integration-review-20261021.json`.
+- A04 current source checkpoint `1cc7d4e` detects interpreter descriptor metadata or size changes
+  during hashing. Sol accepted the exact diff; rerun of the pinned Python 3.13.6 engineering gate
+  passed 410 tests/96 subtests with Ruff. Parent-path/invocation identity and loader closure remain
+  open; `execution_qualified=False`. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-stability-gate-rerun-20261021.json`.
 - Source-only A04 review of tracked `pilot_acceptance.py` found stdlib imports and sandboxed dynamic
   candidate loading; interpreter hash plus `-I -S -B` does not pin stdlib/native loader closure.
   Deployed manifest/runtime were not inspected or executed.
