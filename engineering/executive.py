@@ -1146,33 +1146,26 @@ class Executive:
             snapshot_sha256 = hashlib.sha256(snapshot_json.encode("utf-8")).hexdigest()
             snapshot_ref = "dependency-readiness:" + snapshot_sha256
 
-            rows = [
-                json.loads(row[0])
-                for row in self.db.execute("SELECT body FROM executive_obligations")
-            ]
-            if any(
-                type(row) is not dict
-                or type(row.get("id")) is not str
-                or type(row.get("status")) is not str
-                for row in rows
+            namespace_start = "blocked-dependencies/"
+            namespace_end = "blocked-dependencies0"
+            rows = []
+            for record_id, body_json in self.db.execute(
+                "SELECT id, body FROM executive_obligations WHERE id >= ? AND id < ? ORDER BY id",
+                (namespace_start, namespace_end),
             ):
-                raise ExecutiveError("dependency obligation history is malformed")
-            for row in rows:
-                if row["id"].startswith("blocked-dependencies/") and row["status"] not in (
-                    "open",
-                    "blocked",
-                    "completed",
-                    "cancelled",
+                row = json.loads(body_json)
+                if (
+                    type(row) is not dict
+                    or row.get("id") != record_id
+                    or type(row.get("status")) is not str
                 ):
+                    raise ExecutiveError("dependency obligation history is malformed")
+                rows.append(row)
+            for row in rows:
+                if row["status"] not in ("open", "blocked", "completed", "cancelled"):
                     raise ExecutiveError("dependency obligation status is malformed")
-            active = [
-                row
-                for row in rows
-                if row["id"].startswith("blocked-dependencies/")
-                and row["status"] in ("open", "blocked")
-            ]
-            dependency_rows = [row for row in rows if row["id"].startswith("blocked-dependencies/")]
-            for row in dependency_rows:
+            active = [row for row in rows if row["status"] in ("open", "blocked")]
+            for row in rows:
                 details = row.get("details")
                 if details is not None and type(details) is not dict:
                     raise ExecutiveError("dependency obligation details are malformed")

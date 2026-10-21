@@ -538,12 +538,16 @@ At `org/development` base `c1f1ead`, dependency-duty reconciliation now runs dur
 admitted CEO episode instead of only when `trigger == "blocked-dependencies"`. Durable Store
 readiness, not the diagnostic episode trigger, determines whether the duty is created, reused or
 cancelled. It remains behind STOP and the active-owner check and uses the existing CEO-fenced
-`BEGIN IMMEDIATE` reconciliation. Sol accepted exact diff
-`64ccd7a1b3177b904b767dcfb9c4216ecac7e7da6af68f8072dc0821633f742b`; regressions cover ordinary
-triggers, Store reopen, changed blockers, unchanged-task behavior, STOP and busy-owner paths. The
-engineering gate passed Ruff, format, 543 tests and 121 subtests. Reconciliation happens only when
-a CEO episode runs, so duties may still lag between episodes; this adds no service, dispatch or
-runtime authority. Generic contract migration, broad A10 and operational acceptance remain open.
+`BEGIN IMMEDIATE` reconciliation. The reconciler seeks only the case-sensitive
+`blocked-dependencies/` primary-key range, validates every row in that range before writes, and
+includes terminal rows when selecting the next content-addressed generation. Unrelated obligation
+bodies are not hydrated. The range does not cap retained dependency history or total SQLite work.
+Sol accepted the namespace-scoped source diff `40941b9d6e735c79963f03cb2404211f60c4b3f3c840b7a456b2088c20a5fd46`;
+the engineering gate passed Ruff, format, 547 tests and 121 subtests. The earlier trigger-freshness
+increment was separately accepted at `64ccd7a1b3177b904b767dcfb9c4216ecac7e7da6af68f8072dc0821633f742b`.
+Reconciliation happens only when a CEO episode runs, so duties may still lag between episodes; this
+adds no service, dispatch or runtime authority. Generic contract migration, broad A10 and
+operational acceptance remain open.
 
 The A10 quiescence-trigger increment is on `org/development` at `714bb573fc659ba00c849c9b7e0be7c1f470b472`.
 Handoff identity now includes the coherent task/readiness snapshot, and the Store rechecks it under

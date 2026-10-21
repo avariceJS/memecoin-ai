@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from engineering import chief
-from engineering.executive import Executive, StaleExecutive
+from engineering.executive import Executive, ExecutiveError, StaleExecutive
 from engineering.org_state import Store
 
 EPISODE_RESPONSE = {
@@ -309,6 +309,116 @@ class ChiefTests(unittest.TestCase):
                 for row in self.executive.snapshot(open_limit=100)["obligations"]
             )
         )
+
+    def test_dependency_reconciliation_does_not_decode_rows_outside_its_id_range(self):
+        self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
+        unrelated_large = {
+            "id": "unrelated-large",
+            "status": "open",
+            "details": {"payload": "x" * (1024 * 1024)},
+        }
+        for record_id, body_json in (
+            ("unrelated-corrupt", "not-json"),
+            ("Blocked-dependencies/case-variant", "not-json"),
+            ("blocked-dependencies0-adjacent", "not-json"),
+            (
+                "unrelated-large",
+                json.dumps(unrelated_large, separators=(",", ":")),
+            ),
+            (
+                "blocked-dependencies/",
+                json.dumps(
+                    {"id": "blocked-dependencies/", "status": "completed", "details": {}},
+                    separators=(",", ":"),
+                ),
+            ),
+        ):
+            self.db.db.execute(
+                "INSERT INTO executive_obligations(id, body) VALUES(?, ?)",
+                (record_id, body_json),
+            )
+        plan = self.db.db.execute(
+            "EXPLAIN QUERY PLAN SELECT id, body FROM executive_obligations "
+            "WHERE id >= ? AND id < ? ORDER BY id",
+            ("blocked-dependencies/", "blocked-dependencies0"),
+        ).fetchall()
+        self.assertTrue(any("SEARCH" in row[3] and "id>? AND id<?" in row[3] for row in plan))
+
+        lease = self.executive.claim("direct-reconciler")
+        try:
+            result = self.executive.reconcile_dependency_obligations(lease)
+        finally:
+            self.executive.release(lease)
+
+        self.assertTrue(result["obligation_id"].startswith("blocked-dependencies/"))
+
+    def test_dependency_reconciliation_rejects_corrupt_scoped_row_atomically(self):
+        self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
+        lease = self.executive.claim("direct-reconciler")
+        first = self.executive.reconcile_dependency_obligations(lease)
+        obligation_id = first["obligation_id"]
+        prior_role = self.db.db.execute(
+            "SELECT body FROM executive_role WHERE role='CEO'"
+        ).fetchone()[0]
+        self.db.db.execute(
+            "UPDATE executive_obligations SET body='not-json' WHERE id=?", (obligation_id,)
+        )
+        prior_events = self.db.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+
+        with self.assertRaises(json.JSONDecodeError):
+            self.executive.reconcile_dependency_obligations(lease)
+
+        self.assertEqual(
+            self.db.db.execute(
+                "SELECT body FROM executive_obligations WHERE id=?", (obligation_id,)
+            ).fetchone()[0],
+            "not-json",
+        )
+        self.assertEqual(
+            self.db.db.execute("SELECT COUNT(*) FROM events").fetchone()[0], prior_events
+        )
+        self.assertEqual(
+            self.db.db.execute("SELECT body FROM executive_role WHERE role='CEO'").fetchone()[0],
+            prior_role,
+        )
+        self.executive.release(lease)
+
+    def test_dependency_reconciliation_rejects_row_body_id_mismatch(self):
+        self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
+        lease = self.executive.claim("direct-reconciler")
+        first = self.executive.reconcile_dependency_obligations(lease)
+        obligation_id = first["obligation_id"]
+        row = self.executive.get_obligation(obligation_id)
+        row["id"] = "blocked-dependencies/other/1"
+        self.db.db.execute(
+            "UPDATE executive_obligations SET body=? WHERE id=?",
+            (json.dumps(row, sort_keys=True, separators=(",", ":")), obligation_id),
+        )
+        prior_events = self.db.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+
+        with self.assertRaisesRegex(ExecutiveError, "history is malformed"):
+            self.executive.reconcile_dependency_obligations(lease)
+
+        self.assertEqual(
+            self.db.db.execute("SELECT COUNT(*) FROM events").fetchone()[0], prior_events
+        )
+        self.executive.release(lease)
+
+    def test_dependency_reconciliation_counts_terminal_generations(self):
+        self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
+        lease = self.executive.claim("direct-reconciler")
+        first = self.executive.reconcile_dependency_obligations(lease)
+        row = self.executive.get_obligation(first["obligation_id"])
+        row["status"] = "cancelled"
+        self.db.db.execute(
+            "UPDATE executive_obligations SET body=? WHERE id=?",
+            (json.dumps(row, sort_keys=True, separators=(",", ":")), row["id"]),
+        )
+
+        second = self.executive.reconcile_dependency_obligations(lease)
+
+        self.assertEqual(second["obligation_id"], first["obligation_id"].rsplit("/", 1)[0] + "/2")
+        self.executive.release(lease)
 
     def test_dossier_bound_preserves_authority_and_total_counts(self):
         packet = {
