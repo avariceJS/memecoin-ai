@@ -437,6 +437,24 @@ references: [`SecCodeCopyGuestWithAttributes`](https://developer.apple.com/docum
 [`kSecGuestAttributePid`](https://developer.apple.com/documentation/security/ksecguestattributepid), and
 [signing information keys](https://developer.apple.com/documentation/security/signing-information-dictionary-keys).
 
+At `f4148cb`, the resolved manifest harness digest is carried into each `BoundVerifier` and
+rechecked immediately before `Popen`. The runner requires the canonical harness path exactly at
+`argv[4]` after `-I -S -B`, opens it without following the final symlink, requires a regular file,
+limits the cumulative read to 16 MB, compares descriptor metadata before and after hashing, and
+records `prelaunch_script_sha256` in command evidence. A synthetic regression changes the harness
+after plan resolution and confirms rejection before `Popen`; Sol accepted exact diff
+`3d69f91ff4b844d0c3fc030c36568c649a60048a5f6fd570380276a5338121d2`. Focused tests passed 31 tests
+and 10 subtests; Ruff check and format passed on 58 files. The full engineering suite had 400 passes,
+96 subtests and one `PermissionError` in the existing process-group cleanup path of
+`test_running_identity_survives_path_replacement`; the same failure reproduced on clean base
+`78ff669`, while an isolated rerun passed. This candidate does not change cleanup. The hash records
+only a prelaunch observation: Python later opens by pathname, so replacement or mutation after the
+check remains possible. Synchronous filesystem reads have no hard deadline. Loader/import closure,
+descendants, stdout provenance, deployment qualification and full A04 remain open; plans stay
+`execution_qualified=False`. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-harness-custody-review-20261021.json`
+(SHA-256 `319bc7da1f94aa5366daa0ab690cf8cf6bdccfcfa033314546ba91d446182919`).
+
 A synthetic macOS integration test now joins persisted task admission and verifier binding, manifest
 v4 resolution, bound-command expansion, `SandboxRunner`, and strict result parsing in one disposable
 path. It discovers the runtime image identity as observed under Seatbelt, distinct from the Python

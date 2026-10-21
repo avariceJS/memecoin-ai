@@ -199,6 +199,12 @@ automatically.
   open and plans stay `execution_qualified=False`. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-process-code-monitor-review-20261021.json`
   (SHA-256 `5e65765997a18e9b75881156ef30c50aaf3b5ccbf78e9f9e8b1f101323aab342`).
+- A04 `f4148cb7a57b2416fba3180f456d530d0c23216a` carries the trusted harness digest into the bound
+  plan and rechecks a regular no-follow file immediately before `Popen`; exact diff Sol-accepted.
+  Focused suite passed 31/10 and Ruff passed. Full suite reproduced one pre-existing process-group
+  cleanup `PermissionError` on both candidate and clean base; isolated rerun passed. The prelaunch
+  hash does not bind Python's later path open; plans remain `execution_qualified=False`. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-harness-custody-review-20261021.json`.
 - A12 bounded active-task projection merged at `e7e8f1d039cce909d91782c1cf51f4587ccbc016`; Sol
   accepted the exact source and the gate passed 278 tests/42 subtests with Ruff. SQL limits active
   rows to 100, full state counts remain, omitted rows are disclosed, and history is retained. Full
