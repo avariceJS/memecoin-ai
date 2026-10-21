@@ -13,7 +13,7 @@ from pathlib import Path
 from .git_gate import GitGate
 from .metered_codex import metered_client
 from .org_state import StateError, _json
-from .supervisor import RULES, SOL, config, git, log_event, structured
+from .supervisor import RULES, SOL, config, git, log_event
 
 
 def eligible(cfg, db):
@@ -49,6 +49,46 @@ def _proposal(proposal, *, allow_defer=False):
         raise StateError("planning_requires_bounded_reason_and_evidence")
 
 
+def _admit_in_transaction(cfg, db, proposal, base):
+    """Append an already-validated trusted card inside the caller's transaction."""
+    _proposal(proposal)
+    name = proposal["card"]
+    if name not in eligible(cfg, db):
+        raise StateError("task_outside_current_objective_envelope")
+    if db.get_decision("admission/" + name) is not None:
+        raise StateError("admission_record_already_exists")
+    card = cfg["tasks"][name]
+    db.db.execute(
+        "INSERT INTO tasks(id,team,title,brief,scope,acceptance,dependencies,contracts,"
+        "base_sha,objective_id,max_attempts) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        (
+            name,
+            card["team"],
+            card["title"],
+            card["brief"],
+            _json(card["scope"]),
+            _json(["Frozen independent acceptance", "Regression checks", "Independent review"]),
+            _json(card["dependencies"]),
+            _json(card["contracts"]),
+            base,
+            "offline-brain-engineering",
+            3,
+        ),
+    )
+    db._event("task_added", name, db.get_task(name))
+    body = {"proposal": proposal, "base": base}
+    db.db.execute(
+        "INSERT INTO decisions VALUES(?,?,?,?,?)",
+        ("admission/" + name, 1, _json(body), None, None),
+    )
+    db._event(
+        "decision_recorded",
+        "admission/" + name,
+        {"version": 1, "body": body, "replaces": None, "replaces_version": None},
+    )
+    return name
+
+
 def admit(cfg, db, proposal, base):
     """Atomically append the trusted card and its admission rationale.
 
@@ -57,42 +97,45 @@ def admit(cfg, db, proposal, base):
     proposal except bounded rationale/evidence and a validated catalogue key.
     """
     _proposal(proposal)
-    name = proposal["card"]
     with db._tx():
-        if name not in eligible(cfg, db):
-            raise StateError("task_outside_current_objective_envelope")
-        if db.get_decision("admission/" + name) is not None:
-            raise StateError("admission_record_already_exists")
-        card = cfg["tasks"][name]
-        db.db.execute(
-            "INSERT INTO tasks(id,team,title,brief,scope,acceptance,dependencies,contracts,"
-            "base_sha,objective_id,max_attempts) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            (
-                name,
-                card["team"],
-                card["title"],
-                card["brief"],
-                _json(card["scope"]),
-                _json(["Frozen independent acceptance", "Regression checks", "Independent review"]),
-                _json(card["dependencies"]),
-                _json(card["contracts"]),
-                base,
-                "offline-brain-engineering",
-                3,
-            ),
+        return _admit_in_transaction(cfg, db, proposal, base)
+
+
+def _unique_proposal_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("planning_duplicate_json_key")
+        result[key] = value
+    return result
+
+
+def _parse_proposal(text):
+    value = text.strip()
+    if value.startswith("```"):
+        value = "\n".join(value.splitlines()[1:-1])
+    return json.loads(value, object_pairs_hook=_unique_proposal_object)
+
+
+def _finish_plan(cfg, db, key, proposal, base, thread):
+    """Commit fixed-card admission and its terminal planning decision together."""
+    _proposal(proposal, allow_defer=True)
+    with db._tx():
+        admitted = (
+            _admit_in_transaction(cfg, db, proposal, base) if proposal["card"] is not None else None
         )
-        db._event("task_added", name, db.get_task(name))
-        body = {"proposal": proposal, "base": base}
-        db.db.execute(
-            "INSERT INTO decisions VALUES(?,?,?,?,?)",
-            ("admission/" + name, 1, _json(body), None, None),
+        db._put_decision_in_transaction(
+            key,
+            {
+                "thread": thread,
+                "model": SOL,
+                "proposal": proposal,
+                "admitted": admitted,
+                "requires_executive_review": False,
+                "status": "admitted" if admitted else "deferred",
+            },
         )
-        db._event(
-            "decision_recorded",
-            "admission/" + name,
-            {"version": 1, "body": body, "replaces": None, "replaces_version": None},
-        )
-    return name
+    return admitted
 
 
 def plan_next(state: Path, db):
@@ -124,6 +167,8 @@ def plan_next(state: Path, db):
             {"version": 1, "body": requested, "replaces": None, "replaces_version": None},
         )
     thread = None
+    finalized = False
+    admitted = None
     try:
         native = state / "planning" / fingerprint
         native.mkdir(parents=True, exist_ok=True)
@@ -159,18 +204,8 @@ def plan_next(state: Path, db):
                 },
             )
             try:
-                proposal = structured(result["text"])
+                proposal = _parse_proposal(result["text"])
                 _proposal(proposal, allow_defer=True)
-                admitted = (
-                    admit(
-                        cfg,
-                        db,
-                        proposal,
-                        git(state / "integration", "rev-parse", GitGate.ACTIVE_REF),
-                    )
-                    if proposal["card"] is not None
-                    else None
-                )
             except (ValueError, TypeError) as exc:
                 db.put_decision(
                     key,
@@ -184,20 +219,24 @@ def plan_next(state: Path, db):
                 )
                 log_event(state, "planning_rejected", thread=thread, error=str(exc)[:500])
                 return None
-            db.put_decision(
+            admitted = _finish_plan(
+                cfg,
+                db,
                 key,
-                {
-                    "thread": thread,
-                    "model": SOL,
-                    "proposal": proposal,
-                    "admitted": admitted,
-                    "requires_executive_review": False,
-                    "status": "admitted" if admitted else "deferred",
-                },
+                proposal,
+                git(state / "integration", "rev-parse", GitGate.ACTIVE_REF)
+                if proposal["card"] is not None
+                else None,
+                thread,
             )
+            finalized = True
             log_event(state, "planning_completed", thread=thread, admitted=admitted)
             return admitted
     except Exception as exc:
+        if finalized:
+            # Preserve the committed task/decision, but keep cleanup failures visible
+            # so the caller can stop instead of continuing as if cleanup succeeded.
+            raise
         db.put_decision(
             key,
             {

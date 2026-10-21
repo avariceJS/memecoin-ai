@@ -270,6 +270,71 @@ class PlanningAdmissionTests(unittest.TestCase):
         fake.turn.assert_called_once()
         self.assertEqual(self.db.list_tasks(), [])
 
+    def test_duplicate_proposal_keys_are_rejected_without_admission(self):
+        from engineering.planning import plan_next
+
+        duplicate = (
+            '{"card":"UNAPPROVED","card":"PLAT-002",'
+            '"rationale":"Useful ambiguity rejection",'
+            '"evidence":"Prior integrated CLI evidence"}'
+        )
+        fake, cfg, codex, git, log = self.planning(duplicate)
+        with cfg, codex, git, log:
+            self.assertIsNone(plan_next(self.root, self.db))
+        fake.turn.assert_called_once()
+        self.assertEqual(self.db.list_tasks(), [])
+        decisions = [e for e in self.db.events() if e["entity"].startswith("planning/")]
+        self.assertEqual(decisions[-1]["body"]["body"]["status"], "rejected")
+        self.assertIn("planning_duplicate_json_key", decisions[-1]["body"]["body"]["error"])
+
+    def test_hard_interruption_cannot_split_admission_from_planning_decision(self):
+        import json
+        from unittest.mock import patch
+
+        from engineering.planning import plan_next
+
+        fake, cfg, codex, git, log = self.planning(json.dumps(self.proposal))
+        original = self.db._put_decision_in_transaction
+
+        def crash_after_admission(name, body):
+            if name.startswith("planning/"):
+                raise KeyboardInterrupt("synthetic interruption before terminal plan record")
+            return original(name, body)
+
+        with (
+            cfg,
+            codex,
+            git,
+            log,
+            patch.object(
+                self.db, "_put_decision_in_transaction", side_effect=crash_after_admission
+            ),
+        ):
+            with self.assertRaisesRegex(KeyboardInterrupt, "terminal plan record"):
+                plan_next(self.root, self.db)
+        fake.turn.assert_called_once()
+        self.assertEqual(self.db.list_tasks(), [])
+        self.assertIsNone(self.db.get_decision("admission/PLAT-002"))
+        decisions = [e for e in self.db.events() if e["entity"].startswith("planning/")]
+        self.assertEqual(len(decisions), 1)
+        self.assertEqual(decisions[0]["body"]["body"]["status"], "requested")
+        self.assertTrue(decisions[0]["body"]["body"]["requires_executive_review"])
+
+    def test_client_cleanup_failure_does_not_relabel_committed_admission(self):
+        import json
+
+        from engineering.planning import plan_next
+
+        fake, cfg, codex, git, log = self.planning(json.dumps(self.proposal))
+        fake.__exit__.side_effect = RuntimeError("synthetic client cleanup failure")
+        with cfg, codex, git, log:
+            with self.assertRaisesRegex(RuntimeError, "cleanup failure"):
+                plan_next(self.root, self.db)
+        self.assertEqual(len(self.db.list_tasks()), 1)
+        decision = [e for e in self.db.events() if e["entity"].startswith("planning/")][-1]
+        self.assertEqual(decision["body"]["body"]["status"], "admitted")
+        self.assertEqual(decision["body"]["body"]["admitted"], "PLAT-002")
+
     def test_deferred_choice_is_bounded_and_preserves_objective(self):
         import json
 

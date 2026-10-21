@@ -6,7 +6,10 @@ Native Goal `01a15f55-903b-7de2-adec-19733734ac78` проверен как `acti
 владельцем инженерной разработки. Сквозной синтетический тест проходит через настоящий `plan_next`
 для двух допустимых карточек с локальными детерминированными ответами mock-модели, без live provider.
 Planner основывает следующую задачу на активном GitGate ref; тест проверяет, что её base SHA равен
-уже интегрированному кандидату. Далее путь проходит через claim, реальный GitGate receipt и verifier-plan identity до восстановления
+уже интегрированному кандидату. Допуск карточки и terminal planning decision теперь атомарны;
+инъецированное жёсткое прерывание откатывает оба, а повторяющиеся JSON-ключи предложения
+отклоняются. Ошибка cleanup после commit остаётся видимой вызывающему коду, не меняя durable
+`admitted`. Далее путь проходит через claim, реальный GitGate receipt и verifier-plan identity до восстановления
 после CAS, SQLite close/reopen, сохранённой интеграции и claim следующей зависимой задачи. Повреждённый
 candidate SHA и отсутствующий receipt блокируют recovery без изменения Store/ref; валидное
 восстановление создаёт ровно одно событие интеграции. Producer Experience, consumer Platform и
@@ -15,7 +18,7 @@ candidate SHA и отсутствующий receipt блокируют recovery 
 и перепроверил исправления точной привязки родителей кандидата, receipt, attempt/epoch и канонической
 записи проверки. В этом bounded source-пути после исправлений обхода не найдено.
 
-Engineering suite прошёл: 592 теста и 189 subtests; Ruff и format прошли. `make smoke` прошёл на
+Engineering suite прошёл: 595 тестов и 189 subtests; Ruff и format прошли. `make smoke` прошёл на
 синтетическом временном хранилище. `make check` блокируется 107 существующими Ruff finding в
 `src/`, `tools/`, `tests/` до остальных шагов. Проверка macOS code identity может отдельно упасть
 по deadline, полный текущий suite прошёл. Фиксированный синтетический worker запускается через

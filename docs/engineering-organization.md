@@ -45,7 +45,12 @@ Current integrated-cycle checkpoint — 2026-10-21: a disposable Git/SQLite test
 catalogue choices through the real `plan_next` path using deterministic local model-turn responses;
 no live Codex/provider is called. The planner now admits against GitGate's active integration ref,
 and the dependent task's base SHA is asserted to equal the just-integrated candidate rather than
-the checkout's possibly stale `HEAD`. It then exercises claim, a real prepared verifier-plan identity, worker commit,
+the checkout's possibly stale `HEAD`. Admission and the terminal planning decision commit in one
+SQLite transaction; a hard-interruption regression verifies that no task survives if finalization
+cannot commit, duplicate JSON proposal keys are rejected, and client cleanup failure cannot relabel
+a committed admission; that cleanup failure remains visible to the caller. The test then exercises
+claim, a real
+prepared verifier-plan identity, worker commit,
 GitGate import and receipt, submitted-state reconciliation, local ref CAS, durable integration,
 SQLite close/reopen, recovery, and a dependent next-task claim. It injects a crash after ref CAS,
 removes the receipt and confirms recovery fails closed, tampers with the candidate SHA and confirms
@@ -61,7 +66,7 @@ checkpointing, runtime or A03. On the current Mac a fixed worker script runs thr
 `SandboxRunner` in the disposable checkout, writes an in-scope file and is denied an out-of-root
 write. Its subsequent verifier callback is synthetic and does not execute worker code, and this
 does not exercise the supervisor's worker-dispatch entry point or qualify A04. Engineering checks
-pass Ruff/format and 592 tests plus 189 subtests;
+pass Ruff/format and 595 tests plus 189 subtests;
 `make smoke` is deterministic and synthetic. Repository-wide `make check` currently stops at 107
 pre-existing Ruff findings in `src/`, `tools/` and `tests/`, before its later checks. The integrated
 organization cycle remains in progress.
