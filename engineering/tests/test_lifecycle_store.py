@@ -278,6 +278,123 @@ class LifecycleStoreTests(unittest.TestCase):
         after = self.store.db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0]
         self.assertEqual(after, before)
 
+    def test_open_controller_parse_recovery_vetoes_optimistic_launch_observations(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        self.store.add_task("task-7", "engineering", "Controller parse fault source")
+        attempt = self.store.claim("task-7", "worker")
+        self.store.open_controller_parse_fault(
+            attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+        )
+
+        with self.assertRaisesRegex(StateError, "controller_parse_recovery_open"):
+            self.store.record_lifecycle_evaluation(lease, launch_observations(recovery_open=False))
+        self.assertEqual(
+            self.store.db.execute(
+                "SELECT COUNT(*) FROM decisions WHERE name LIKE 'lifecycle/request/%'"
+            ).fetchone()[0],
+            0,
+        )
+
+    def test_repeated_resolved_controller_parse_recovery_history_allows_launch(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        for recovery_index in (1, 2):
+            task_id = f"task-{recovery_index}"
+            self.store.add_task(task_id, "engineering", "Controller parse fault source")
+            attempt = self.store.claim(task_id, "worker")
+            self.store.open_controller_parse_fault(
+                attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+            )
+            circuit = self.store.get_decision("circuit/controller-parse")
+            obligation = self.store.get_decision("recovery-obligation/controller-parse")
+            self.store.resolve_controller_parse_fault(
+                expected_circuit_version=circuit["version"],
+                expected_obligation_version=obligation["version"],
+                recovery_id=f"recovery-{recovery_index}",
+                fix_sha256=str(recovery_index) * 64,
+                review_ref=f"review-{recovery_index}",
+                authorization_ref=f"authorization-{recovery_index}",
+            )
+
+        receipt = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        self.assertEqual(receipt["body"]["plan"]["action"], "launch_request")
+
+    def test_malformed_controller_parse_recovery_pair_fails_closed(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        self.store.add_task("task-7", "engineering", "Controller parse fault source")
+        attempt = self.store.claim("task-7", "worker")
+        self.store.open_controller_parse_fault(
+            attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+        )
+        obligation = self.store.get_decision("recovery-obligation/controller-parse")
+        malformed = {
+            **obligation["body"],
+            "first_attempt_id": float(obligation["body"]["first_attempt_id"]),
+        }
+        self.store.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=1",
+            (
+                json.dumps(malformed, sort_keys=True, separators=(",", ":")),
+                "recovery-obligation/controller-parse",
+            ),
+        )
+
+        with self.assertRaisesRegex(StateError, "controller_parse_recovery_history_invalid"):
+            self.store.record_lifecycle_evaluation(lease, launch_observations())
+
+    def test_controller_parse_recovery_added_during_lock_wait_vetoes_launch(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        self.store.add_task("task-7", "engineering", "Controller parse fault source")
+        attempt = self.store.claim("task-7", "worker")
+        other = Store(self.path, clock=lambda: self.now)
+        entered_transaction = threading.Event()
+        fault_records_written = threading.Event()
+        finish_fault = threading.Event()
+        original_event = other._event
+
+        def pause_fault_commit(*args, **kwargs):
+            fault_records_written.set()
+            if not finish_fault.wait(2):
+                raise RuntimeError("test_fault_commit_release_timeout")
+            return original_event(*args, **kwargs)
+
+        self.store.db.set_trace_callback(
+            lambda statement: (
+                entered_transaction.set() if statement.startswith("BEGIN IMMEDIATE") else None
+            )
+        )
+        pool = ThreadPoolExecutor(2)
+        try:
+            with patch.object(other, "_event", pause_fault_commit):
+                fault_future = pool.submit(
+                    other.open_controller_parse_fault,
+                    attempt["id"],
+                    attempt["epoch"],
+                    stage="lead",
+                    exception_type="ValueError",
+                )
+                self.assertTrue(fault_records_written.wait(2))
+                evaluation_future = pool.submit(
+                    self.store.record_lifecycle_evaluation,
+                    lease,
+                    launch_observations(recovery_open=False),
+                )
+                self.assertTrue(entered_transaction.wait(2))
+                finish_fault.set()
+                fault_future.result(timeout=3)
+                with self.assertRaisesRegex(StateError, "controller_parse_recovery_open"):
+                    evaluation_future.result(timeout=3)
+            self.assertEqual(
+                self.store.db.execute(
+                    "SELECT COUNT(*) FROM decisions WHERE name LIKE 'lifecycle/request/%'"
+                ).fetchone()[0],
+                0,
+            )
+        finally:
+            finish_fault.set()
+            pool.shutdown(wait=True)
+            self.store.db.set_trace_callback(None)
+            other.close()
+
     def test_observation_snapshot_is_detached_before_sqlite_lock_wait(self):
         lease = self.store.claim_lifecycle_owner("owner")
         other = Store(self.path, clock=lambda: self.now)

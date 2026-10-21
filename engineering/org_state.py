@@ -2843,7 +2843,135 @@ class Store:
                 "request_epoch": computed.request_epoch,
                 "decision_sha256": computed.decision_sha256,
             }
+            if plan["action"] == "launch_request":
+                self._require_controller_parse_recovery_clear()
             return self._persist_lifecycle_evaluation(owner, plan, bound_observations)
+
+    def _require_controller_parse_recovery_clear(self) -> None:
+        """Reject optimistic launch requests while the durable parser recovery is open.
+
+        This checks only the Store-owned controller-parse obligation. It does not
+        establish that other lifecycle gates are current or complete.
+        """
+        circuit_name = "circuit/controller-parse"
+        obligation_name = "recovery-obligation/controller-parse"
+        circuit_versions = self._lifecycle_decision_versions(circuit_name)
+        obligation_versions = self._lifecycle_decision_versions(obligation_name)
+        if not circuit_versions and not obligation_versions:
+            return
+        if not circuit_versions or circuit_versions != obligation_versions:
+            raise StateError("controller_parse_recovery_history_invalid")
+
+        def valid_open_pair(circuit_body: Any, obligation_body: Any) -> bool:
+            circuit_fields = {
+                "status",
+                "fault",
+                "first_attempt_id",
+                "task_id",
+                "stage",
+                "exception_type",
+            }
+            obligation_fields = {
+                "status",
+                "fault",
+                "first_attempt_id",
+                "task_id",
+                "stage",
+                "required_evidence",
+            }
+            return (
+                type(circuit_body) is dict
+                and set(circuit_body) == circuit_fields
+                and circuit_body["status"] == "open"
+                and circuit_body["fault"] == "structured_response"
+                and type(circuit_body["first_attempt_id"]) is int
+                and circuit_body["first_attempt_id"] > 0
+                and type(circuit_body["task_id"]) is str
+                and bool(circuit_body["task_id"].strip())
+                and type(circuit_body["stage"]) is str
+                and bool(circuit_body["stage"].strip())
+                and type(circuit_body["exception_type"]) is str
+                and bool(circuit_body["exception_type"].strip())
+                and type(obligation_body) is dict
+                and set(obligation_body) == obligation_fields
+                and obligation_body["status"] == "open"
+                and obligation_body["fault"] == circuit_body["fault"]
+                and type(obligation_body["first_attempt_id"]) is int
+                and obligation_body["first_attempt_id"] == circuit_body["first_attempt_id"]
+                and type(obligation_body["task_id"]) is str
+                and obligation_body["task_id"] == circuit_body["task_id"]
+                and type(obligation_body["stage"]) is str
+                and obligation_body["stage"] == circuit_body["stage"]
+                and obligation_body["required_evidence"]
+                == [
+                    "qualified parser/controller fix",
+                    "independent release review",
+                    "separate bounded recovery authorization",
+                ]
+            )
+
+        def valid_resolved_pair(circuit_body: Any, obligation_body: Any) -> bool:
+            circuit_fields = {
+                "status",
+                "recovery_id",
+                "fix_sha256",
+                "review_ref",
+                "authorization_ref",
+                "fault",
+            }
+            obligation_fields = {
+                "status",
+                "recovery_id",
+                "fix_sha256",
+                "review_ref",
+                "authorization_ref",
+            }
+            return (
+                type(circuit_body) is dict
+                and set(circuit_body) == circuit_fields
+                and circuit_body["status"] == "resolved"
+                and circuit_body["fault"] == "structured_response"
+                and type(obligation_body) is dict
+                and set(obligation_body) == obligation_fields
+                and obligation_body["status"] == "resolved"
+                and all(
+                    type(circuit_body[key]) is str and bool(circuit_body[key].strip())
+                    for key in ("recovery_id", "fix_sha256", "review_ref", "authorization_ref")
+                )
+                and re.fullmatch(r"[0-9a-f]{64}", circuit_body["fix_sha256"]) is not None
+                and all(
+                    obligation_body[key] == circuit_body[key]
+                    for key in ("recovery_id", "fix_sha256", "review_ref", "authorization_ref")
+                )
+            )
+
+        previous_status = None
+        for version in circuit_versions:
+            circuit = self.get_decision(circuit_name, version)
+            obligation = self.get_decision(obligation_name, version)
+            if circuit is None or obligation is None:
+                raise StateError("controller_parse_recovery_history_invalid")
+            circuit_body = circuit["body"]
+            obligation_body = obligation["body"]
+            if type(circuit_body) is not dict or type(obligation_body) is not dict:
+                raise StateError("controller_parse_recovery_history_invalid")
+            status = circuit_body.get("status")
+            if status == "open":
+                if previous_status not in (None, "resolved") or not valid_open_pair(
+                    circuit_body, obligation_body
+                ):
+                    raise StateError("controller_parse_recovery_history_invalid")
+            elif status == "resolved":
+                if previous_status != "open" or not valid_resolved_pair(
+                    circuit_body, obligation_body
+                ):
+                    raise StateError("controller_parse_recovery_history_invalid")
+            else:
+                raise StateError("controller_parse_recovery_history_invalid")
+            previous_status = status
+
+        if previous_status == "open":
+            raise StateError("controller_parse_recovery_open")
 
     def _persist_lifecycle_evaluation(
         self, owner: dict, plan: dict, observations: dict | None = None
