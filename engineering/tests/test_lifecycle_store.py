@@ -204,6 +204,42 @@ class LifecycleStoreTests(unittest.TestCase):
         self.assertTrue(by_name[second["id"]]["owner_current"])
         self.assertEqual(projection["owner"]["epoch"], replacement["epoch"])
 
+    def test_request_projection_uses_one_snapshot_during_owner_release(self):
+        lease = self.store.claim_lifecycle_owner("owner", lease_seconds=30)
+        request = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        other = Store(self.path, clock=lambda: self.now)
+        owner_history_read = threading.Event()
+
+        def pause_before_owner_history(statement):
+            if statement.strip().upper().startswith("SELECT VERSION FROM DECISIONS WHERE NAME="):
+                owner_history_read.set()
+                continue_owner_read.wait()
+
+        continue_owner_read = threading.Event()
+        self.store.db.set_trace_callback(pause_before_owner_history)
+        pool = ThreadPoolExecutor(1)
+        try:
+            future = pool.submit(self.store.lifecycle_request_worklist)
+            try:
+                self.assertTrue(owner_history_read.wait(2))
+                other.release_lifecycle_owner(lease)
+            finally:
+                continue_owner_read.set()
+            projection = future.result(timeout=2)
+
+            self.assertEqual(projection["owner"]["status"], "active")
+            self.assertTrue(projection["owner"]["live"])
+            self.assertTrue(projection["items"][0]["owner_current"])
+            self.assertEqual(projection["items"][0]["request_id"], request["id"].rsplit("/", 1)[-1])
+            self.assertEqual(
+                self.store.get_decision("lifecycle/owner")["body"]["status"], "released"
+            )
+        finally:
+            continue_owner_read.set()
+            pool.shutdown(wait=True)
+            self.store.db.set_trace_callback(None)
+            other.close()
+
     def test_request_projection_fails_closed_on_identity_corruption(self):
         lease = self.store.claim_lifecycle_owner("owner")
         request = self.store.record_lifecycle_evaluation(lease, launch_observations())
