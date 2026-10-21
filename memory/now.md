@@ -22,6 +22,9 @@ automatically.
   strict JSON parsing and transactional revalidation before ACK. Sol accepted exact diff; full gate
   passed 401 tests/96 subtests with Ruff. Provider/RPC and usage provenance, A03, and full A10 remain
   open. Receipt and limits: `docs/engineering-organization.md`.
+- A10 regression at `d298bfb` covers response replay crossing a SQLite lock wait while participant
+  inventory changes. It preserves the raw-response hash and blocks the ACK; full gate passed 402/96,
+  Sol accepted the exact test diff. One synthetic interleaving only; full A10 remains open.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable

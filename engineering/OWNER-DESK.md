@@ -628,3 +628,12 @@ full gate: 401 тест, 96 subtests, Ruff. Provider dispatch не добавл�
 usage provenance, A03 settlement и полный A10 остаются открыты. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-local-replay-review-20261021.json`
 (SHA-256 `1ef4ae5e8c1db0178c7bd4fd0869311eab52248da71db9dd0608e9067b4f6b15`).
+
+Follow-up A10 regression `d298bfb` exercises local replay while a second SQLite connection holds
+`BEGIN IMMEDIATE`, then changes participant inventory before commit. Replay rechecks currentness after
+the lock wait, retains the exact response hash, leaves the review blocked, and writes no ACK. Sol
+принял exact test diff `5453fe0f828008e785ccd262f1ded02f297236ed72bea2ce6e7f8e523b16c4eb`; focused
+test passed, full gate: 402 tests, 96 subtests, Ruff. Это одна synthetic interleaving, не exhaustive
+concurrency proof. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-lockwait-review-20261021.json`
+(SHA-256 `f5bcdef0fbec6b60a291408633c3e052d6a60d114f4f0614c8993b1b7aa90a5f`).

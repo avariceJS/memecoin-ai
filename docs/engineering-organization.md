@@ -239,6 +239,15 @@ operational acceptance remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-local-replay-review-20261021.json`
 (SHA-256 `1ef4ae5e8c1db0178c7bd4fd0869311eab52248da71db9dd0608e9067b4f6b15`).
 
+At `d298bfb`, a cross-connection lock-wait regression calls the local replay API while another
+connection holds `BEGIN IMMEDIATE`, then changes participant inventory before releasing the lock.
+Finalization returns a terminal blocked review, preserves the response hash, and writes no participant
+acknowledgement. Sol accepted the exact test diff `5453fe0f828008e785ccd262f1ded02f297236ed72bea2ce6e7f8e523b16c4eb`;
+the focused regression passed and the engineering gate passed 402 tests/96 subtests with Ruff. This is
+one synthetic contention interleaving, not exhaustive concurrency proof. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-lockwait-review-20261021.json`
+(SHA-256 `f5bcdef0fbec6b60a291408633c3e052d6a60d114f4f0614c8993b1b7aa90a5f`).
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
