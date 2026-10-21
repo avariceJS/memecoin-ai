@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 
@@ -23,6 +24,13 @@ def _reject_constant(_: str) -> None:
     raise VerifierResultError("verifier_result_nonstandard_number")
 
 
+def _finite_float(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise VerifierResultError("verifier_result_nonstandard_number")
+    return number
+
+
 def validate_verifier_result(stdout: str, verifier: dict[str, Any]) -> dict[str, Any]:
     """Require schema, acceptance identity and literal boolean success from one harness result."""
     if type(stdout) is not str or type(verifier) is not dict:
@@ -41,6 +49,7 @@ def validate_verifier_result(stdout: str, verifier: dict[str, Any]) -> dict[str,
             stdout,
             object_pairs_hook=_unique_object,
             parse_constant=_reject_constant,
+            parse_float=_finite_float,
         )
     except VerifierResultError:
         raise

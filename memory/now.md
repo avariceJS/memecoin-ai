@@ -45,6 +45,10 @@ decisions and independent review; Astra remains episodic and is never started au
   `(0, 3600]`, and output limits require exact integers in `[1, 10_000_000]`. Sol accepted repaired
   diff `0eeac99fce04a92cd61c60c6073a72ab52d7bef2cbdc341c73704bc7c24bd06c`; full gate passed Ruff,
   format, 563 tests and 158 subtests. A03 remains an operational release blocker only; STOP remains.
+- Latest A04 source at `8d3ab61`: verifier result parsing rejects exponent overflow floats across
+  nested JSON values and preserves finite exponents. Sol accepted exact diff
+  `0d1c2d831c0071cdc82fe435a3eb7396c70eae365065d61ff63f9895776e168f`; full gate passed Ruff,
+  format, 566 tests and 161 subtests. Output provenance and execution qualification remain open.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

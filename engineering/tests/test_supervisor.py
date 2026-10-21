@@ -544,6 +544,47 @@ class SupervisorTests(unittest.TestCase):
         )
         model.assert_not_called()
 
+    def test_legacy_acceptance_exponent_overflow_is_rejected(self):
+        model = self.verification_failure(
+            '{"schema":"org-pilot-acceptance-v1","case":"T","passed":true,'
+            '"metrics":{"positive":1e9999,"negative":-1e9999,"values":[1e9999,-1e9999]}}'
+        )
+        model.assert_not_called()
+
+    def test_legacy_acceptance_rejects_negative_and_array_exponent_overflow(self):
+        contract = {
+            "acceptance_id": "T",
+            "result_schema": "org-pilot-acceptance-v1",
+            "case_field": "case",
+            "passed_field": "passed",
+        }
+        for raw in (
+            '{"schema":"org-pilot-acceptance-v1","case":"T","passed":true,'
+            '"metrics":{"negative":-1e9999}}',
+            '{"schema":"org-pilot-acceptance-v1","case":"T","passed":true,"metrics":[1e9999]}',
+            '{"schema":"org-pilot-acceptance-v1","case":"T","passed":true,"metrics":[-1e9999]}',
+        ):
+            with (
+                self.subTest(raw=raw),
+                self.assertRaisesRegex(ValueError, "verifier_result_nonstandard_number"),
+            ):
+                supervisor.validate_verifier_result(raw, contract)
+
+    def test_legacy_acceptance_finite_exponent_remains_accepted(self):
+        from engineering.verifier_result import validate_verifier_result
+
+        value = validate_verifier_result(
+            '{"schema":"org-pilot-acceptance-v1","case":"T","passed":true,'
+            '"metrics":{"value":1e300}}',
+            {
+                "acceptance_id": "T",
+                "result_schema": "org-pilot-acceptance-v1",
+                "case_field": "case",
+                "passed_field": "passed",
+            },
+        )
+        self.assertEqual(value["metrics"]["value"], 1e300)
+
     def test_malformed_independent_reviewer_json_cannot_accept_candidate(self):
         model = self.verification_failure(
             json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True})

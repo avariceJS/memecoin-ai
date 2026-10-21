@@ -45,6 +45,12 @@ Ruff, format, 558 тестов и 127 subtests. Замены файлов, prove
 Ruff, format, 563 теста и 158 subtests. Нативные Security-вызовы остаются непрерываемыми; execution
 provenance не подтверждён.
 
+В A04 parser закрыт exponent overflow: `1e9999` и `-1e9999` теперь отклоняются независимо от
+вложенности в object/array, а конечное `1e300` сохраняет обычную поддержку. Проверен полный путь
+отказа до reviewer/acceptance. Sol принял exact diff
+`0d1c2d831c0071cdc82fe435a3eb7396c70eae365065d61ff63f9895776e168f`; полный gate: Ruff, format,
+566 тестов и 161 subtest. Provenance stdout и execution qualification не заявляются.
+
 ## Решение директора
 
 Сохранить SQLite, журнал, fencing, изоляцию исполнителей, независимую приёмку и единственного

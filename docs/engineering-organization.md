@@ -1673,3 +1673,11 @@ edges. Sol-6.1 accepted the repaired exact diff
 format, 563 tests and 158 subtests. A custom metaclass equality spoof is explicitly rejected. This
 validates the runner input contract; native Security calls remain non-interruptible and execution
 provenance remains open.
+
+At `8d3ab61`, verifier-result JSON parsing now rejects exponent tokens that overflow to non-finite
+Python floats, including nested objects and arrays, by using a checked `parse_float` hook. Regressions
+cover positive and negative overflow, both container shapes, the full verification rejection path,
+and continued acceptance of finite `1e300`. Sol-6.1 accepted exact diff
+`0d1c2d831c0071cdc82fe435a3eb7396c70eae365065d61ff63f9895776e168f`; the full gate passed Ruff,
+format, 566 tests and 161 subtests. This validates parsed numeric integrity; stdout provenance and
+execution qualification remain open.
