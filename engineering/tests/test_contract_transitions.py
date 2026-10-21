@@ -2414,15 +2414,14 @@ def test_invalid_body_version_does_not_poison_transition_identity(store):
 def test_transition_and_ack_histories_must_each_be_exactly_one_record(store):
     transition = propose(store)
     store.db.execute(
-        "INSERT INTO decisions(name,version,body,replaces,replaces_version) VALUES(?,?,?,?,?)",
+        "INSERT INTO decisions(name,version,body,replaces,replaces_version) "
+        "VALUES(?,?,?,CAST(X'80' AS TEXT),NULL)",
         (
             transition["name"],
             2,
             store.db.execute(
                 "SELECT body FROM decisions WHERE name=? AND version=1", (transition["name"],)
             ).fetchone()[0],
-            transition["name"],
-            1,
         ),
     )
     with pytest.raises(StateError, match="decision history invalid"):
@@ -2503,6 +2502,27 @@ def test_ack_history_corruption_blocks_activation(store):
     )
     with pytest.raises(StateError, match="decision history invalid"):
         store.activate_contract_transition("sample", 2)
+
+
+def test_ack_root_link_metadata_corruption_blocks_activation(store):
+    transition = propose(store)
+    integrate_producer(store)
+    digest = transition["body"]["contract_hash"]
+    for team in ("Experience", "Platform"):
+        store.acknowledge_contract_transition("sample", 2, team, digest)
+    ack_name = store._contract_ack_key("sample", 2, "Platform")
+    store.db.execute(
+        "UPDATE decisions SET replaces=NULL,replaces_version=1 WHERE name=? AND version=1",
+        (ack_name,),
+    )
+    events_before = store.events()
+
+    with pytest.raises(StateError, match="contract decision history invalid"):
+        store.activate_contract_transition("sample", 2)
+
+    assert store.get_contract("sample")["version"] == 1
+    assert store.get_decision(store._contract_transition_key("sample", 2) + "/activated") is None
+    assert store.events() == events_before
 
 
 def test_projection_fails_closed_for_missing_ack_after_activation(store):

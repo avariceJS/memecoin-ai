@@ -250,7 +250,11 @@ historical acknowledgements. Sol accepted exact diff
 gate passed 372 tests and 96 subtests. Proposal traversal is capped at 1,000 records and 1,000
 participants, with at most 99 consumers per proposal. This exposes missing reviews but does not
 dispatch them or resolve task-readiness deadlock; payload-byte and execution-time bounds, actual
-controller review/ack dispatch, and full A10 remain open. Receipt:
+controller review/ack dispatch, and full A10 remain open. Contract-transition decision reads also
+require the singleton row's `replaces` and `replaces_version` fields to be `NULL`; malformed links
+fail closed before activation. Focused regression:
+`test_ack_root_link_metadata_corruption_blocks_activation`.
+Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-lane-review-20261021.json`.
 
 At `221e90e`, the Store adds an immutable task-independent contract-review journal. Each request

@@ -1252,15 +1252,19 @@ class Store:
             self._put_contract_in_transaction(name, version, body, body_json)
 
     def _single_contract_decision(self, name: str) -> dict | None:
-        versions = [
-            row[0]
-            for row in self.db.execute(
-                "SELECT version FROM decisions WHERE name=? ORDER BY version", (name,)
-            )
-        ]
-        if not versions:
+        rows = self.db.execute(
+            "SELECT version,CASE WHEN replaces IS NULL AND replaces_version IS NULL "
+            "THEN 1 ELSE 0 END AS root_valid FROM decisions "
+            "WHERE name=? ORDER BY version LIMIT 2",
+            (name,),
+        ).fetchall()
+        if not rows:
             return None
-        if versions != [1]:
+        if (
+            len(rows) != 1
+            or rows[0]["version"] != 1
+            or rows[0]["root_valid"] != 1
+        ):
             raise StateError("contract decision history invalid")
         row = self.get_decision(name, 1)
         if row is None:
