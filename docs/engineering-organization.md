@@ -171,6 +171,22 @@ synthetic interleaving, not exhaustive concurrency proof. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-projection-snapshot-review-20261021.json`
 (SHA-256 `21997923339dfd33ef6e5aceeaa51caa2bcb8e35417448cc3f736ad32bb66a84`).
 
+At `763fd5a`, lifecycle request persistence now checks the Store-owned controller-parse circuit
+and recovery-obligation histories inside the current owner-fenced `BEGIN IMMEDIATE` transaction.
+Paired histories must be contiguous, version-matched and alternate valid `open`/`resolved` records;
+an open latest cycle or malformed history rejects an otherwise optimistic `launch_request`. Tests
+exercise the real fault producer committing while evaluation waits on a SQLite writer lock, two
+resolved recovery cycles, and malformed obligation identity. Sol accepted exact source/test diff
+`25208d1da11c3058413cfa31b074ee0539fe8eb666e6e8f175520d7dc1532668`. Focused tests passed 22/3
+subtests. The first full gate had one known intermittent macOS process-group cleanup `PermissionError`
+(`killpg`) in the existing code-identity test; isolated rerun passed, and the final engineering gate
+passed 415 tests/96 subtests with Ruff. This veto covers recorded controller-parse recovery only;
+history validation cost scales with retained cycles, references are not independently authenticated,
+absence means only no recorded obligation, and other observations remain caller supplied. It adds no
+consumer, authorization generation, execution authority or operational A05 closure. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-controller-parse-recovery-veto-20261021.json`
+(SHA-256 `53d5076ee97375fb3c025cc222f70eb5179017adc684865329ea4fbc46fe9b09`).
+
 A10 now also has a bounded readiness-report scaffold at
 `57f496f5f74258d00a09dc37b5818e409495dffc`. Its read-only SQLite snapshot exposes each task's
 non-integrated or missing dependency and mismatched contract version without hiding unrelated ready

@@ -581,6 +581,19 @@ concurrency proof. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-projection-snapshot-review-20261021.json`
 (SHA-256 `21997923339dfd33ef6e5aceeaa51caa2bcb8e35417448cc3f736ad32bb66a84`).
 
+Source `763fd5a` добавляет Store veto перед сохранением lifecycle `launch_request`: внутри текущего
+owner fence проверяются все парные версии `controller-parse` circuit и recovery obligation. Открытый
+или повреждённый цикл блокирует запрос; два последовательных resolved цикла остаются допустимы. Тест
+через настоящий fault producer подтверждает отказ, если fault фиксируется, пока evaluation ждёт SQLite
+writer lock. Sol принял exact diff `25208d1da11c3058413cfa31b074ee0539fe8eb666e6e8f175520d7dc1532668`;
+focused suite: 22 теста и 3 subtests; итоговый gate: 415 тестов, 96 subtests, Ruff. Первый полный прогон
+имел intermittent `killpg PermissionError` в существующем macOS code-identity тесте; изолированный и
+повторный полный прогоны прошли. Это только проверка записанного controller-parse recovery: отсутствие
+записей не доказывает полную готовность, refs отдельно не аутентифицируются, стоимость обхода зависит
+от длины истории. Consumer, stable authorization generation и полный A05 остаются открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-controller-parse-recovery-veto-20261021.json`.
+(SHA-256 `53d5076ee97375fb3c025cc222f70eb5179017adc684865329ea4fbc46fe9b09`).
+
 A04 synthetic integration increment принят Sol на exact diff
 `5e03ada485c56a4635da07d89c7cdb6679c21b3ac4cecf790b87af09ca6316cd`, source `62ab4ce`. Один
 macOS test связывает persisted admission/binding, manifest v4, command expansion, Seatbelt и строгий

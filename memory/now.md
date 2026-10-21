@@ -45,6 +45,13 @@ automatically.
   passed 409/96 with Ruff. One earlier full run had a transient unrelated code-identity failure; isolated
   and subsequent full runs passed. One synthetic interleaving only. Receipt:
   `a05-lifecycle-projection-snapshot-review-20261021.json`.
+- A05 source `763fd5a` checks paired controller-parse circuit/recovery histories inside the owner-fenced
+  lifecycle transaction before persisting a launch request. Open or malformed recovery blocks; valid
+  repeated resolved cycles remain accepted. Sol accepted the exact diff; focused tests passed 22/3 and
+  final pinned gate passed 415/96 with Ruff after an intermittent existing macOS cleanup failure passed
+  in isolation. Only recorded controller-parse recovery is checked; history cost scales with cycles,
+  other observations remain caller claims, and no consumer or authorization generation exists. Receipt:
+  `a05-controller-parse-recovery-veto-20261021.json`.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable
