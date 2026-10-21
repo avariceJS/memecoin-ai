@@ -391,6 +391,20 @@ not normalize SQLite text-decoding failures or qualify provider/runtime authorit
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-integrity-fairness-gate-20261021.json`
 (SHA-256 `01d5627489783134a9f09822b59d8069ff9abb17c4021eaa41d3526b2fe1e6f9`).
 
+At `7b56ddd`, replay rejects non-string review statuses before set membership. At `5a77f88`,
+`_contract_review_record` also validates the required typed journal header before state traversal,
+including packet hash, proposal/contract digests, request identity, participant role, version and
+dispatch identity. Missing or malformed header fields now become `StateError`, so bounded/default
+readers and supervisor transition replay retain their existing failure isolation. Regressions retain
+malformed JSON and status-shape cases, cover missing and wrong-type packet hashes in singleton
+worklist/quiescence, and remove or corrupt the packet hash in every version of a matching response
+journal to prove a later acknowledged transition still activates without provider use. Sol accepted
+the exact two-file source diff `e8ecc8c46639ab24964fadf32b64250f74f307ff23d9e47852a2afae9351ea4d`;
+the engineering release gate passed Ruff, 503 tests and 101 subtests. The first full run hit the
+existing timing-sensitive macOS code-identity deadline test; its isolated rerun and the final full
+gate passed. SQLite text-decoding failures, retained-history cost, separate replay/activation
+transactions, provider/usage provenance, A03 and broad A10 remain open.
+
 At `9e6cd7e`, transition-scoped replay discovers review journals through a partial expression index
 on the exact contract name, version, contract hash and proposal digest. It validates each matching
 journal's full append-only history, then applies the existing cap only to latest `response_recorded`

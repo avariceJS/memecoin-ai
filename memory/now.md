@@ -18,6 +18,11 @@ automatically.
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
+- Latest A10 source checkpoint: `5a77f88` validates the common typed contract-review journal header
+  before traversal, keeping malformed historical shapes inside `StateError` replay isolation. Sol
+  accepted the exact source diff; the engineering release gate passed Ruff, 503 tests and 101
+  subtests after an isolated rerun of the existing timing-sensitive macOS code-identity test.
+  SQLite decoding failures, broad A10 and A03 remain open; STOP active, no runtime/provider started.
 - A10 source `86550d9` adds exact-packet local replay for custodied contract-review responses with
   strict JSON parsing and transactional revalidation before ACK. Sol accepted exact diff; full gate
   passed 401 tests/96 subtests with Ruff. Provider/RPC and usage provenance, A03, and full A10 remain
