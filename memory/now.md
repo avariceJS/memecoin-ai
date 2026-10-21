@@ -332,6 +332,10 @@ At base `9e6cd7e`, scoped contract replay now seeks exact transition identity th
 
 A10 query-plan regression follow-up at `2c353156`: production replay and `EXPLAIN QUERY PLAN` test now share the same SQL constant, preventing test/query drift. Focused transition suite 46 passed; Ruff and diff checks passed. Handoff records diff SHA-256 `8e7175123fca94df283a8989fa145a758b123613da9fc80749b0d079d90709ad`.
 
+### 2026-10-21 — A10 bounded replay hydration
+
+Source `7591be0` caps each replay inventory at 1,000 journals, 512 KiB/version, 2 MiB/journal and 32 MiB total. Metadata preflight precedes hydration in one read snapshot and is repeated under the finalization write lock. Overflow performs no partial replay; historical readers remain compatible. Independent review accepted exact diff `6309a82fcd0fa7503ee69a6cd73a1233be9d4078bbc3bb6c5b5e55b31d04ea03`; focused suite 54 passed and engineering gate passed 441 tests/101 subtests with Ruff. SQLite work/time and total process memory remain unbounded; STOP active, no provider/runtime.
+
 ### 2026-10-21 — A04 per-command identity
 
 At `90f99df`, verifier manifest v5 binds each ordered command's executable/runtime identity and

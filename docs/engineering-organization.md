@@ -1085,3 +1085,22 @@ A04 remain open, and spec-backed plans stay `execution_qualified=False`. Review 
 (SHA-256 `cadbff90b91805a92efeb1969ece19c50f572044378b2a7497b7fa64328e217f`). Gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-all-command-binding-gate-20261021.json`
 (SHA-256 `a31e33887732cb43d39a9edff83d6894f1d7236642b377c708f366e795bef098`).
+
+At `7591be0`, contract-review replay bounds discovery to 1,000 distinct journals, separately from
+the existing 100-response candidate limit. In one read snapshot it checks each retained version's
+serialized byte length before hydrating any history: at most 512 KiB per version, 2 MiB per journal,
+and 32 MiB for the inventory. A fifth-version schema bound rejects a sixth metadata row. Any
+discovery or byte overflow returns unknown counts and no partial replay. Replay finalization repeats
+the byte preflight after acquiring its write transaction, closing the gap between initial selection
+and acknowledgement. Historical record/response readers retain their prior unrestricted behavior;
+oversized legacy records remain present and readable there, while bounded replay overflows. Exact and
+plus-one tests cover per-version, per-journal and inventory limits, global and transition scan limits,
+and an interleaving journal enlargement before finalization. Independent review accepted exact diff
+`6309a82fcd0fa7503ee69a6cd73a1233be9d4078bbc3bb6c5b5e55b31d04ea03`; the focused suite passed 54
+tests and `engineering-release-check` passed Ruff, 441 tests and 101 subtests. These are serialized
+history hydration limits, not hard limits on SQLite execution time, index work, or total process
+memory. No provider or runtime authority was added; A03 settlement, broad A10 and operational
+acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-bounds-review-20261021.json`;
+gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-bounds-gate-20261021.json`.
