@@ -1375,6 +1375,17 @@ checks acceptance plus interior-gap rejection. Sol accepted exact diff
 passed 512 tests and 105 subtests. SQLite scans and per-version body reads still scale with retained
 cycles; A05 has no consumer or authorization generation, and operational acceptance remains open.
 
+At `b4f134e`, controller-parse recovery writes reject malformed resolution references and records
+whose serialized SQLite storage bytes exceed 64 KiB before paired journal or task/event mutations.
+History preflight rejects oversized retained bodies before JSON hydration, using the same database
+encoding byte measure as the writer. Sol accepted exact diff
+`9cb1955d29bdb359418fe98a9b12f15de767bcfd3a52db3bf467ba29055a4d06`; focused tests covered
+no-mutation rejection and a UTF-16le open/resolve/history-validation round trip, and the engineering
+release gate passed Ruff, 515 tests and 110 subtests. SQL scans, per-record serialization, and body
+reads for records within the cap remain separate costs; historical oversized records fail closed.
+A05 still has no lifecycle consumer or authorization generation, and operational acceptance remains
+open.
+
 At `67058bf`, contract-review journal reads used at dispatch, session, response custody and
 finalization now validate at most five versions and project each body only when its serialized
 size is at most 512 KiB, in one SQLite statement before JSON hydration. All five append paths also
