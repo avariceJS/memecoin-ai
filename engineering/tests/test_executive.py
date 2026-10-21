@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from engineering.executive import Executive, ExecutiveError, StaleExecutive
 from engineering.org_state import Store
+from engineering.tests.contract_review_helpers import approve_participant
 
 
 class ExecutiveTests(unittest.TestCase):
@@ -558,7 +559,7 @@ class ExecutiveTests(unittest.TestCase):
             consumer_teams=["Empty", "Research"],
         )
         digest = transition["body"]["contract_hash"]
-        self.store.acknowledge_contract_transition("sample", 2, "Experience", digest)
+        approve_participant(self.store, "sample", 2, "Experience")
         self.store.add_task(
             "research-v2",
             "Research",
@@ -600,8 +601,8 @@ class ExecutiveTests(unittest.TestCase):
         self.assertEqual(bounded["counts"]["contract_reviews_pending"], 2)
         self.assertEqual(bounded["counts"]["contract_reviews_omitted"], 1)
         self.assertIn("только показывает недостающие отзывы", self.executive.render_report())
-        self.store.acknowledge_contract_transition("sample", 2, "Research", digest)
-        self.store.acknowledge_contract_transition("sample", 2, "Empty", digest)
+        approve_participant(self.store, "sample", 2, "Research")
+        approve_participant(self.store, "sample", 2, "Empty")
         self.assertEqual(
             self.store.contract_transition_review_projection(limit=0),
             {"items": [], "pending_count": 0, "omitted_count": 0},

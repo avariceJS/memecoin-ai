@@ -329,6 +329,53 @@ class SupervisorTests(unittest.TestCase):
             self.db.integrate(task_id, sha, "merged")
         return attempt
 
+    def approve_contract_review(self, name, version, team):
+        key = self.db._contract_ack_key(name, version, team)
+        existing = self.db.get_decision(key)
+        if existing is not None:
+            return existing
+        packet = {
+            "source_commit": "a" * 40,
+            "evidence_refs": [{"ref": "compatibility:synthetic", "sha256": "b" * 64}],
+            "compatibility_analysis": "Reviewed the synthetic contract and all participants.",
+            "migration_plan": None,
+        }
+        evidence_revision = hashlib.sha256(
+            f"supervisor-test:{name}:{version}:{team}".encode()
+        ).hexdigest()
+        request = self.db.prepare_contract_review(name, version, team, evidence_revision, packet)
+        body = request["body"]
+        self.db.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+        self.db.record_contract_review_session(
+            body["request_id"],
+            body["packet_hash"],
+            "synthetic-review",
+            "synthetic:independent-reviewer",
+            body["dispatch_id"],
+            {"pid": 123, "birth": "synthetic"},
+        )
+        result = {
+            "decision": "approve",
+            "compatibility": "compatible",
+            "rationale": "Synthetic review complete.",
+            "findings": [],
+            "reviewed_evidence_refs": ["compatibility:synthetic"],
+            "affected_consumers_reviewed": body["packet"]["affected_consumer_task_ids"],
+            "migration_plan": None,
+        }
+        raw = json.dumps(result, sort_keys=True, separators=(",", ":")).encode()
+        response = self.db.record_contract_review_response(
+            body["request_id"],
+            body["packet_hash"],
+            body["dispatch_id"],
+            "synthetic-turn",
+            raw,
+        )
+        self.db.finish_contract_review(
+            body["request_id"], body["packet_hash"], response["body"]["raw_sha256"], result
+        )
+        return self.db.get_decision(key)
+
     def intent(self, task_id="T", submitted="submitted"):
         intent = {
             "task": task_id,
@@ -1516,14 +1563,16 @@ class SupervisorTests(unittest.TestCase):
             consumer_teams=["Platform"],
         )
         digest = proposal["body"]["contract_hash"]
-        self.db.acknowledge_contract_transition("schema-validation", 2, "Experience", digest)
+        with self.assertRaisesRegex(StateError, "independent review"):
+            self.db.acknowledge_contract_transition("schema-validation", 2, "Experience", digest)
         self.reconcile("merged")
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
-        with self.assertRaisesRegex(StateError, "acknowledgement does not match"):
+        with self.assertRaisesRegex(StateError, "independent review"):
             self.db.acknowledge_contract_transition("schema-validation", 2, "Platform", "0" * 64)
         self.reconcile("merged")
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
-        self.db.acknowledge_contract_transition("schema-validation", 2, "Platform", digest)
+        self.approve_contract_review("schema-validation", 2, "Experience")
+        self.approve_contract_review("schema-validation", 2, "Platform")
         self.reconcile("merged")
         self.reconcile("merged")
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 2)
@@ -1544,7 +1593,7 @@ class SupervisorTests(unittest.TestCase):
         }
         self.db.put_contract("research-output", 1, {"schema": "research-output-v1"})
         self.candidate("EXP-002", target_state="integrated", team="Experience")
-        transition = self.db.propose_contract_transition(
+        self.db.propose_contract_transition(
             "research-output",
             1,
             2,
@@ -1553,9 +1602,8 @@ class SupervisorTests(unittest.TestCase):
             producer_team="Experience",
             consumer_teams=["Platform", "Research"],
         )
-        digest = transition["body"]["contract_hash"]
         for team in ("Experience", "Platform", "Research"):
-            self.db.acknowledge_contract_transition("research-output", 2, team, digest)
+            self.approve_contract_review("research-output", 2, team)
 
         supervisor.activate_contract(self.state, self.db)
 
@@ -1667,7 +1715,7 @@ class SupervisorTests(unittest.TestCase):
 
     def test_contract_activation_revalidates_ack_history_after_publication(self):
         self.candidate("EXP-001", target_state="integrated", team="Experience")
-        transition = self.db.propose_contract_transition(
+        self.db.propose_contract_transition(
             "schema-validation",
             1,
             2,
@@ -1676,9 +1724,8 @@ class SupervisorTests(unittest.TestCase):
             producer_team="Experience",
             consumer_teams=["Platform"],
         )
-        digest = transition["body"]["contract_hash"]
         for team in ("Experience", "Platform"):
-            self.db.acknowledge_contract_transition("schema-validation", 2, team, digest)
+            self.approve_contract_review("schema-validation", 2, team)
         supervisor.activate_contract(self.state, self.db)
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 2)
 
@@ -1727,7 +1774,7 @@ class SupervisorTests(unittest.TestCase):
         attempt = self.db.claim("T", "worker", 100)
         lead, worker = FakeCodex(), FakeCodex()
         proposal = self.cfg["contracts"]["schema-validation"]
-        contract_hash = hashlib.sha256(
+        hashlib.sha256(
             json.dumps(proposal, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
         lead.response = json.dumps(
@@ -1735,13 +1782,7 @@ class SupervisorTests(unittest.TestCase):
                 "decision": "approve",
                 "worker_brief": "bounded",
                 "rationale": "reviewed v2",
-                "contract_acks": [
-                    {
-                        "name": "schema-validation",
-                        "version": 2,
-                        "contract_hash": contract_hash,
-                    }
-                ],
+                "contract_acks": [],
             }
         )
         worker.response = "{malformed"
@@ -1766,14 +1807,13 @@ class SupervisorTests(unittest.TestCase):
         ack = self.db.db.execute(
             "SELECT body FROM decisions WHERE name LIKE 'contract-ack/%'"
         ).fetchone()
-        self.assertIsNotNone(ack)
-        self.assertEqual(json.loads(ack[0])["team"], "Platform")
+        self.assertIsNone(ack)
 
     def test_superseded_attempt_cannot_persist_lead_acknowledgement(self):
         self.task("T", "Platform")
         attempt = self.db.claim("T", "worker", 100)
         proposal = self.cfg["contracts"]["schema-validation"]
-        contract_hash = hashlib.sha256(
+        hashlib.sha256(
             json.dumps(proposal, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
         lead, worker = FakeCodex(), FakeCodex()
@@ -1782,13 +1822,7 @@ class SupervisorTests(unittest.TestCase):
                 "decision": "approve",
                 "worker_brief": "bounded",
                 "rationale": "reviewed v2",
-                "contract_acks": [
-                    {
-                        "name": "schema-validation",
-                        "version": 2,
-                        "contract_hash": contract_hash,
-                    }
-                ],
+                "contract_acks": [],
             }
         )
         roles = []
@@ -1857,7 +1891,7 @@ class SupervisorTests(unittest.TestCase):
             ],
         }
 
-        with self.assertRaisesRegex(StateError, "contract transition proposal missing"):
+        with self.assertRaisesRegex(StateError, "lead result plan invalid"):
             self.db.record_lead_result(
                 attempt["id"],
                 attempt["epoch"],
@@ -1895,13 +1929,7 @@ class SupervisorTests(unittest.TestCase):
                 "decision": "approve",
                 "worker_brief": "bounded",
                 "rationale": "reviewed research-output v2",
-                "contract_acks": [
-                    {
-                        "name": "research-output",
-                        "version": 2,
-                        "contract_hash": contract_hash,
-                    }
-                ],
+                "contract_acks": [],
             }
         )
         worker.response = "{malformed"
@@ -1926,18 +1954,7 @@ class SupervisorTests(unittest.TestCase):
             "SELECT body FROM decisions WHERE name LIKE 'contract-ack/%' ORDER BY name"
         ).fetchall()
         decoded = [json.loads(row[0]) for row in ack]
-        self.assertEqual(
-            decoded,
-            [
-                {
-                    "kind": "contract_acknowledgement",
-                    "name": "research-output",
-                    "version": 2,
-                    "team": "Research",
-                    "contract_hash": contract_hash,
-                }
-            ],
-        )
+        self.assertEqual(decoded, [])
         prompt = lead.turn_calls[0][1]
         packet = json.loads(prompt.rsplit("\n", 1)[1])
         self.assertEqual(
@@ -1966,12 +1983,10 @@ class SupervisorTests(unittest.TestCase):
             }
         }
         exact = {"name": "research-output", "version": 2, "contract_hash": "a" * 64}
-        self.assertEqual(
+        with self.assertRaisesRegex(ValueError, "independent_review"):
             supervisor._validate_lead_contract_acks(
                 [exact], team="Research", transitions=[transition]
-            ),
-            [exact],
-        )
+            )
         for team, acknowledgements in (
             ("Research", [exact, exact]),
             ("Experience", [{**exact, "contract_hash": "b" * 64}]),
@@ -2082,9 +2097,9 @@ class SupervisorTests(unittest.TestCase):
             producer_team="Research",
             consumer_teams=["Platform"],
         )
-        digest = transition["body"]["contract_hash"]
-        self.db.acknowledge_contract_transition("research-output", 2, "Research", digest)
-        self.db.acknowledge_contract_transition("research-output", 2, "Platform", digest)
+        transition["body"]["contract_hash"]
+        self.approve_contract_review("research-output", 2, "Research")
+        self.approve_contract_review("research-output", 2, "Platform")
         self.db.activate_contract_transition("research-output", 2)
         self.db.db.execute(
             "DELETE FROM decisions WHERE name=?",
@@ -2253,11 +2268,9 @@ class SupervisorTests(unittest.TestCase):
                         producer_team="Experience",
                         consumer_teams=["Platform"],
                     )
-                digest = transition["body"]["contract_hash"]
-                self.db.acknowledge_contract_transition(
-                    "schema-validation", 2, "Experience", digest
-                )
-                self.db.acknowledge_contract_transition("schema-validation", 2, "Platform", digest)
+                transition["body"]["contract_hash"]
+                self.approve_contract_review("schema-validation", 2, "Experience")
+                self.approve_contract_review("schema-validation", 2, "Platform")
                 self.db.activate_contract_transition("schema-validation", 2)
                 self.assertEqual(self.db.list_tasks(), before)
             supervisor.supervise(self.state, max_seconds=10)

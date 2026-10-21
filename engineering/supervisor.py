@@ -368,36 +368,12 @@ def _configured_contract_transitions(cfg, db):
 
 
 def _validate_lead_contract_acks(value, *, team, transitions):
-    """Accept only distinct, exact-hash acknowledgements for proposals this team owns."""
+    """Keep legacy response shape while refusing to treat task leads as reviewers."""
     if type(value) is not list or type(team) is not str:
         raise ValueError("lead_contract_ack_shape")
-    allowed = {}
-    for transition in transitions:
-        body = transition["body"]
-        if team in [body["producer_team"], *body["consumer_teams"]]:
-            identity = (body["name"], body["to_version"], body["contract_hash"])
-            allowed[identity] = {
-                "name": identity[0],
-                "version": identity[1],
-                "contract_hash": identity[2],
-            }
-    accepted = []
-    seen = set()
-    for item in value:
-        if type(item) is not dict or set(item) != {"name", "version", "contract_hash"}:
-            raise ValueError("lead_contract_ack_shape")
-        if (
-            type(item["name"]) is not str
-            or type(item["version"]) is not int
-            or type(item["contract_hash"]) is not str
-        ):
-            raise ValueError("lead_contract_ack_shape")
-        identity = (item["name"], item["version"], item["contract_hash"])
-        if identity not in allowed or identity in seen:
-            raise ValueError("lead_contract_ack_unbound")
-        seen.add(identity)
-        accepted.append(allowed[identity])
-    return accepted
+    if value:
+        raise ValueError("lead_contract_ack_requires_independent_review")
+    return []
 
 
 RULES = """You are an independent Brain engineering team session. The organization
@@ -862,10 +838,10 @@ def run_attempt(state: Path, attempt_id: int):
                 thread,
                 (
                     "Review the bounded task and relevant code if necessary. Decide its "
-                    "contract and worker acceptance. Review each item in proposed_contracts. "
-                    "If your team accepts a listed interface, return its exact name, version "
-                    "and contract_hash in contract_acks; return an empty list otherwise. "
-                    "You may acknowledge only proposals listing your team. Return JSON "
+                    "contract and worker acceptance. Review each item in proposed_contracts, "
+                    "but do not acknowledge interface transitions here; a separately persisted "
+                    "independent contract-review lane owns those approvals. Return an empty "
+                    "contract_acks list. Return JSON "
                     "{decision: approve|blocked, worker_brief: string, rationale: string, "
                     "contract_acks: [{name:string,version:integer,contract_hash:string}]}. "
                     "Do not implement.\n"

@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 
 from engineering import org_state, supervisor
+from engineering.contract_review_cycle import process_pending_reviews
 from engineering.org_state import (
     _CONTRACT_REVIEW_BOUNDED_RECORD_QUERY,
     _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY,
@@ -56,7 +57,7 @@ def integrate_producer(db, task_id="EXP-1"):
     db.integrate(task_id, "candidate-sha", "integration-sha", {"merged": True})
 
 
-def test_transition_requires_integrated_producer_and_exact_participant_acks(store):
+def test_transition_requires_integrated_producer_and_review_provenance_for_each_participant(store):
     transition = propose(store)
     digest = transition["body"]["contract_hash"]
     with pytest.raises(StateError, match="producer is not integrated"):
@@ -64,16 +65,14 @@ def test_transition_requires_integrated_producer_and_exact_participant_acks(stor
     assert store.get_contract("sample")["version"] == 1
 
     integrate_producer(store)
-    store.acknowledge_contract_transition("sample", 2, "Experience", digest)
+    with pytest.raises(StateError, match="independent review"):
+        store.acknowledge_contract_transition("sample", 2, "Experience", digest)
     with pytest.raises(StateError, match="acknowledgements incomplete"):
         store.activate_contract_transition("sample", 2)
-    with pytest.raises(StateError, match="does not match proposal"):
-        store.acknowledge_contract_transition("sample", 2, "Platform", "0" * 64)
-    with pytest.raises(StateError, match="does not match proposal"):
-        store.acknowledge_contract_transition("sample", 2, "Research", digest)
     assert store.get_contract("sample")["version"] == 1
 
-    store.acknowledge_contract_transition("sample", 2, "Platform", digest)
+    approve_transition_participant(store, "Experience")
+    approve_transition_participant(store, "Platform")
     result = store.activate_contract_transition("sample", 2)
     assert result["body"]["acknowledged_teams"] == ["Experience", "Platform"]
     assert store.get_contract("sample") == {
@@ -91,6 +90,57 @@ def test_transition_requires_integrated_producer_and_exact_participant_acks(stor
         "omitted_count": 0,
     }
     assert len([e for e in store.events() if e["kind"] == "contract_published"]) == 2
+
+
+def test_ack_validator_preserves_transition_identity_and_requires_complete_provenance(store):
+    propose(store)
+    integrate_producer(store)
+    ack = approve_transition_participant(store, "Platform")["body"]
+    for field, value in (
+        ("name", "other-contract"),
+        ("version", 3),
+        ("team", "Research"),
+        ("contract_hash", "0" * 64),
+        ("review_request_id", None),
+        ("review_packet_hash", None),
+        ("review_raw_sha256", None),
+    ):
+        with pytest.raises(StateError, match="record invalid"):
+            Store._validated_contract_ack(
+                {**ack, field: value},
+                "sample",
+                2,
+                "Platform",
+                ack["contract_hash"],
+            )
+
+
+def test_legacy_pending_direct_ack_is_not_counted_as_review_evidence(store):
+    transition = propose(store)
+    legacy_ack = {
+        "kind": "contract_acknowledgement",
+        "name": "sample",
+        "version": 2,
+        "team": "Platform",
+        "contract_hash": transition["body"]["contract_hash"],
+    }
+    with store._tx():
+        store._put_decision_in_transaction(
+            store._contract_ack_key("sample", 2, "Platform"), legacy_ack
+        )
+    with pytest.raises(StateError, match="legacy direct acknowledgement"):
+        store.contract_transition_review_projection()
+
+
+def test_activation_checks_approved_review_provenance_without_reopening_review(store):
+    propose(store)
+    integrate_producer(store)
+    approve_transition_participant(store, "Experience")
+    approve_transition_participant(store, "Platform")
+    store.add_task("PLAT-2", "Platform", "New participant task", scope=["consumer.py"])
+    activated = store.activate_contract_transition("sample", 2)
+    assert activated["created"] is True
+    assert store.get_contract("sample")["version"] == 2
 
 
 def test_contract_transition_batch_rolls_back_when_later_proposal_conflicts(store):
@@ -325,23 +375,26 @@ def test_contract_transition_batch_enforces_aggregate_byte_limit(store, monkeypa
     assert store.get_contract_transition("bravo", 2) is None
 
 
-def test_proposal_and_ack_retries_are_exact_and_survive_restart(tmp_path):
+def test_proposal_and_review_ack_retries_are_exact_and_survive_restart(tmp_path):
     path = Path(tmp_path) / "org.sqlite"
     db = Store(path, clock=lambda: 1000.0)
     db.put_contract("sample", 1, {"schema": "v1"})
     transition = propose(db)
-    digest = transition["body"]["contract_hash"]
     assert propose(db) == transition
-    db.acknowledge_contract_transition("sample", 2, "Experience", digest)
-    assert db.acknowledge_contract_transition("sample", 2, "Experience", digest)["version"] == 1
+    ack = approve_transition_participant(db, "Experience")
+    assert approve_transition_participant(db, "Experience") == ack
     with pytest.raises(StateError, match="immutable"):
         propose(db, {"schema": "changed"})
     db.close()
 
     reopened = Store(path, clock=lambda: 1000.0)
     try:
-        integrate_producer(reopened)
-        reopened.acknowledge_contract_transition("sample", 2, "Platform", digest)
+        attempt = reopened.claim("EXP-1", "synthetic", 30)
+        reopened.submit(attempt["id"], attempt["epoch"], "candidate-sha", {"receipt": "synthetic"})
+        reopened.verify("EXP-1", "candidate-sha", True, {"passed": True})
+        reopened.accept("EXP-1", "candidate-sha")
+        reopened.integrate("EXP-1", "candidate-sha", "integration-sha", {"merged": True})
+        approve_transition_participant(reopened, "Platform")
         reopened.activate_contract_transition("sample", 2)
         assert reopened.get_contract("sample")["version"] == 2
     finally:
@@ -485,6 +538,41 @@ def finish_recorded_review(store, body, result):
     )
 
 
+def approve_transition_participant(store, team, *, name="sample", version=2):
+    """Complete one fully journaled synthetic review; never forge an ACK in test setup."""
+    existing_ack = store.get_decision(store._contract_ack_key(name, version, team))
+    if existing_ack is not None:
+        return existing_ack
+    for task_id, task_team in (("EXP-1", "Experience"), ("PLAT-1", "Platform")):
+        try:
+            store.get_task(task_id)
+        except StateError:
+            store.add_task(
+                task_id,
+                task_team,
+                "synthetic contract participant",
+                scope=["schema.py"],
+            )
+    revision = hashlib.sha256(f"test-review:{name}:{version}:{team}".encode()).hexdigest()
+    request = store.prepare_contract_review(name, version, team, revision, review_packet())
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "synthetic-review-" + team,
+        "synthetic:independent-reviewer",
+        body["dispatch_id"],
+        {"pid": 123, "birth": "synthetic-review"},
+    )
+    result = review_result(
+        reviewed_evidence_refs=body["packet"]["evidence_refs"],
+        affected_consumers_reviewed=body["packet"]["affected_consumer_task_ids"],
+    )
+    finish_recorded_review(store, body, result)
+    return store.get_decision(store._contract_ack_key(name, version, team))
+
+
 def review_session_thread_id_at_size(store, request, target_bytes):
     body = request["body"]
     dispatching = store.get_decision(request["name"])["body"]
@@ -593,7 +681,9 @@ def test_task_independent_contract_review_is_durable_and_acknowledges_atomically
     )
     assert finished["body"]["status"] == "approved"
     ack = store.get_decision(store._contract_ack_key("sample", 2, "Platform"))
-    assert ack["body"] == {
+    assert {
+        key: ack["body"][key] for key in ("kind", "name", "version", "team", "contract_hash")
+    } == {
         "kind": "contract_acknowledgement",
         "name": "sample",
         "version": 2,
@@ -646,7 +736,7 @@ def test_migration_required_review_is_custodied_but_cannot_acknowledge(store):
     assert current["body"] == finished["body"]
     assert store.events() == events_before_replay
 
-    store.acknowledge_contract_transition("sample", 2, "Experience", body["contract_hash"])
+    approve_transition_participant(store, "Experience")
     with pytest.raises(StateError, match="acknowledgements incomplete"):
         store.activate_contract_transition("sample", 2)
     assert store.get_contract("sample")["version"] == 1
@@ -670,6 +760,73 @@ def test_migration_required_review_is_custodied_but_cannot_acknowledge(store):
     historical = store.get_decision(request["name"])
     assert historical["version"] == finished["version"]
     assert historical["body"] == finished["body"]
+
+
+def test_injected_review_cycle_custodies_response_then_replays_without_resend(store):
+    request = prepare_review(store)
+
+    class SyntheticTransport:
+        starts = 0
+        reviews = 0
+
+        def start(self, _request):
+            self.starts += 1
+            return {
+                "thread_id": "synthetic-review-thread",
+                "model": "synthetic:independent-reviewer",
+                "pid": 123,
+                "birth": "synthetic-process",
+            }
+
+        def review(self, _session, current_request):
+            self.reviews += 1
+            packet = current_request["body"]["packet"]
+            result = review_result(
+                reviewed_evidence_refs=packet["evidence_refs"],
+                affected_consumers_reviewed=packet["affected_consumer_task_ids"],
+            )
+            return {
+                "provider_turn_id": "synthetic-turn-1",
+                "raw_result": json.dumps(result, sort_keys=True, separators=(",", ":")).encode(
+                    "utf-8"
+                ),
+            }
+
+    transport = SyntheticTransport()
+    processed = process_pending_reviews(store, transport, limit=1)
+    assert processed["transport_invocations"] == 1
+    assert processed["dispatch_authority"] == "explicitly_injected_transport"
+    assert processed["processed"][0]["status"] == "approved"
+    assert processed["processed"][0]["provider_invoked"] is True
+    ack = store.get_decision(store._contract_ack_key("sample", 2, "Platform"))
+    assert ack["body"]["review_request_id"] == request["body"]["request_id"]
+
+    replayed = process_pending_reviews(store, transport, limit=1)
+    assert replayed["transport_invocations"] == 0
+    assert transport.starts == transport.reviews == 1
+
+
+def test_injected_review_cycle_never_resends_dispatch_without_saved_response(store):
+    prepare_review(store)
+
+    class InterruptedTransport:
+        def start(self, _request):
+            return {
+                "thread_id": "synthetic-thread",
+                "model": "synthetic:independent-reviewer",
+                "pid": 123,
+                "birth": "synthetic-process",
+            }
+
+        def review(self, _session, _request):
+            raise OSError("synthetic interruption after one-shot dispatch")
+
+    first = process_pending_reviews(store, InterruptedTransport(), limit=1)
+    assert first["transport_invocations"] == 1
+    assert first["failures"]
+    second = process_pending_reviews(store, InterruptedTransport(), limit=1)
+    assert second["transport_invocations"] == 0
+    assert second["processed"] == []
 
 
 def test_contract_review_currentness_allows_blocked_consumer_without_send_authority(store):
@@ -1426,7 +1583,7 @@ def test_contract_review_canonical_comparison_preserves_key_order_equivalence(st
 def test_contract_review_existing_ack_blocks_dispatch(store):
     request = prepare_review(store)
     body = request["body"]
-    store.acknowledge_contract_transition("sample", 2, "Platform", body["contract_hash"])
+    approve_transition_participant(store, "Platform")
     currentness = store.contract_review_currentness(body["request_id"], body["packet_hash"])
     events_before = len(store.events())
 
@@ -1666,7 +1823,7 @@ def test_configured_activation_replays_saved_approval_without_provider_or_resend
         "producer_task_id": "EXP-1",
         "consumers": ["Platform"],
     }
-    transition = store.propose_contract_transition(
+    store.propose_contract_transition(
         "sample",
         1,
         2,
@@ -1678,9 +1835,7 @@ def test_configured_activation_replays_saved_approval_without_provider_or_resend
     request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
     body = request["body"]
     record_pending_review_response(store, body, suffix="activate")
-    store.acknowledge_contract_transition(
-        "sample", 2, "Experience", transition["body"]["contract_hash"]
-    )
+    approve_transition_participant(store, "Experience")
     assert [item["task_id"] for item in store.readiness_report() if item["eligible"]] == []
 
     cfg = {"contracts": {"sample": proposal}}
@@ -1996,7 +2151,7 @@ def test_supervisor_transition_overflow_keeps_processing_other_configured_contra
         "consumers": ["Platform"],
     }
     store.put_contract("z-other", 1, {"schema": "other-v1"})
-    transitions = {
+    {
         "sample": store.propose_contract_transition(
             "sample",
             1,
@@ -2017,9 +2172,7 @@ def test_supervisor_transition_overflow_keeps_processing_other_configured_contra
         ),
     }
     for name in ("sample", "z-other"):
-        store.acknowledge_contract_transition(
-            name, 2, "Experience", transitions[name]["body"]["contract_hash"]
-        )
+        approve_transition_participant(store, "Experience", name=name)
     sample_requests = []
     for index in range(101):
         request = store.prepare_contract_review(
@@ -2080,7 +2233,7 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
         "consumers": ["Platform"],
     }
     store.put_contract("z-other", 1, {"schema": "other-v1"})
-    transitions = {
+    {
         "sample": store.propose_contract_transition(
             "sample",
             1,
@@ -2101,12 +2254,8 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
         ),
     }
     for name in ("sample", "z-other"):
-        store.acknowledge_contract_transition(
-            name, 2, "Experience", transitions[name]["body"]["contract_hash"]
-        )
-    store.acknowledge_contract_transition(
-        "z-other", 2, "Platform", transitions["z-other"]["body"]["contract_hash"]
-    )
+        approve_transition_participant(store, "Experience", name=name)
+    approve_transition_participant(store, "Platform", name="z-other")
     store.db.execute(
         "INSERT INTO decisions VALUES(?,?,?,?,?)",
         ("contract-review/malformed-id", 1, "{}", None, None),
@@ -2167,7 +2316,7 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
         "consumers": ["Platform"],
     }
     store.put_contract("z-other", 1, {"schema": "other-v1"})
-    transitions = {
+    {
         "sample": store.propose_contract_transition(
             "sample",
             1,
@@ -2188,12 +2337,8 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
         ),
     }
     for name in ("sample", "z-other"):
-        store.acknowledge_contract_transition(
-            name, 2, "Experience", transitions[name]["body"]["contract_hash"]
-        )
-    store.acknowledge_contract_transition(
-        "z-other", 2, "Platform", transitions["z-other"]["body"]["contract_hash"]
-    )
+        approve_transition_participant(store, "Experience", name=name)
+    approve_transition_participant(store, "Platform", name="z-other")
     request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
     if corruption.startswith("terminal_"):
         terminal_result = review_result(decision="blocked", compatibility="insufficient")
@@ -2749,7 +2894,7 @@ def test_contract_review_ack_race_preserves_response_without_second_ack(store):
         body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth"},
     )
-    store.acknowledge_contract_transition("sample", 2, "Platform", body["contract_hash"])
+    approve_transition_participant(store, "Platform")
     result = review_result()
     finished = finish_recorded_review(store, body, result)
     assert finished["body"]["status"] == "blocked"
@@ -2765,8 +2910,8 @@ def test_contract_review_after_activation_cannot_start_dispatch(store):
     store.verify("EXP-1", "candidate-sha", True, {"passed": True})
     store.accept("EXP-1", "candidate-sha")
     store.integrate("EXP-1", "candidate-sha", "integration-sha", {"merged": True})
-    store.acknowledge_contract_transition("sample", 2, "Experience", body["contract_hash"])
-    store.acknowledge_contract_transition("sample", 2, "Platform", body["contract_hash"])
+    approve_transition_participant(store, "Experience")
+    approve_transition_participant(store, "Platform")
     store.activate_contract_transition("sample", 2)
     with pytest.raises(StateError, match="source_version_changed"):
         store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
@@ -2893,9 +3038,7 @@ def test_transition_and_ack_histories_must_each_be_exactly_one_record(store):
         ),
     )
     with pytest.raises(StateError, match="decision history invalid"):
-        store.acknowledge_contract_transition(
-            "sample", 2, "Experience", transition["body"]["contract_hash"]
-        )
+        store.activate_contract_transition("sample", 2)
 
 
 def test_transition_rejects_corrupt_skipped_version_and_missing_participant(store):
@@ -2932,10 +3075,10 @@ def test_canonical_snapshot_preserves_participants_and_mixed_numeric_keys(store)
     )
     assert consumers == []
     assert proposal["body"]["consumer_teams"] == ["Platform"]
-    digest = proposal["body"]["contract_hash"]
+    proposal["body"]["contract_hash"]
     integrate_producer(store)
-    store.acknowledge_contract_transition("sample", 2, "Experience", digest)
-    store.acknowledge_contract_transition("sample", 2, "Platform", digest)
+    approve_transition_participant(store, "Experience")
+    approve_transition_participant(store, "Platform")
     store.activate_contract_transition("sample", 2)
     assert store.get_contract("sample")["body"] == {"10": "key", "2": "numeric"}
 
@@ -2945,7 +3088,7 @@ def test_activation_retry_revalidates_complete_activation_record(store):
     integrate_producer(store)
     digest = transition["body"]["contract_hash"]
     for team in ("Experience", "Platform"):
-        store.acknowledge_contract_transition("sample", 2, team, digest)
+        approve_transition_participant(store, team)
     result = store.activate_contract_transition("sample", 2)
     store.db.execute(
         "UPDATE decisions SET body=? WHERE name=? AND version=1",
@@ -2958,9 +3101,9 @@ def test_activation_retry_revalidates_complete_activation_record(store):
 def test_ack_history_corruption_blocks_activation(store):
     transition = propose(store)
     integrate_producer(store)
-    digest = transition["body"]["contract_hash"]
-    store.acknowledge_contract_transition("sample", 2, "Experience", digest)
-    store.acknowledge_contract_transition("sample", 2, "Platform", digest)
+    transition["body"]["contract_hash"]
+    approve_transition_participant(store, "Experience")
+    approve_transition_participant(store, "Platform")
     ack = store.db.execute(
         "SELECT name,body FROM decisions WHERE name LIKE 'contract-ack/%' ORDER BY name LIMIT 1"
     ).fetchone()
@@ -2975,9 +3118,9 @@ def test_ack_history_corruption_blocks_activation(store):
 def test_ack_root_link_metadata_corruption_blocks_activation(store):
     transition = propose(store)
     integrate_producer(store)
-    digest = transition["body"]["contract_hash"]
+    transition["body"]["contract_hash"]
     for team in ("Experience", "Platform"):
-        store.acknowledge_contract_transition("sample", 2, team, digest)
+        approve_transition_participant(store, team)
     ack_name = store._contract_ack_key("sample", 2, "Platform")
     store.db.execute(
         "UPDATE decisions SET replaces=NULL,replaces_version=1 WHERE name=? AND version=1",
@@ -2996,9 +3139,9 @@ def test_ack_root_link_metadata_corruption_blocks_activation(store):
 def test_projection_fails_closed_for_missing_ack_after_activation(store):
     transition = propose(store)
     integrate_producer(store)
-    digest = transition["body"]["contract_hash"]
+    transition["body"]["contract_hash"]
     for team in ("Experience", "Platform"):
-        store.acknowledge_contract_transition("sample", 2, team, digest)
+        approve_transition_participant(store, team)
     store.activate_contract_transition("sample", 2)
     second = store.propose_contract_transition(
         "sample",
@@ -3010,9 +3153,9 @@ def test_projection_fails_closed_for_missing_ack_after_activation(store):
         consumer_teams=["Platform"],
     )
     integrate_producer(store, "EXP-2")
-    second_digest = second["body"]["contract_hash"]
+    second["body"]["contract_hash"]
     for team in ("Experience", "Platform"):
-        store.acknowledge_contract_transition("sample", 3, team, second_digest)
+        approve_transition_participant(store, team, version=3)
     store.activate_contract_transition("sample", 3)
     ack_name = store._contract_ack_key("sample", 2, "Platform")
     store.db.execute("DELETE FROM decisions WHERE name=?", (ack_name,))

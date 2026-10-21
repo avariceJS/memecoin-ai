@@ -1,5 +1,23 @@
 # Organization audit and resumption handoff
 
+## Current native ownership — 2026-10-21
+
+The founder authorized one controlled transfer after the prior Luna Goal
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b` was paused and its thread became idle. Native Goal/thread
+`01a15f55-903b-7de2-adec-19733734ac78` is the sole current Luna owner and was read back as `active`.
+The old Goal and every earlier predecessor remain preserved; the private handoff records the transfer
+additively with the prior objective and counters. The new objective is integrated synthetic source-only
+acceptance of task selection, trusted assignment, isolation, independent review, Git integration,
+durable checkpoint, continuation and interruption recovery. Sol remains the independent technical
+lead; Astra is not invoked automatically. STOP and all operational restrictions below remain in force.
+
+Current source review target — 2026-10-21: contract transitions now reject direct ACK API calls and
+task-lead acknowledgements. New activation requires review-request, packet and raw-response hash
+provenance resolving to an approved journal record. Synthetic dispatch tests use an explicitly
+injected fake transport; this is not a live provider route, and the supervisor does not dispatch
+contract reviews. Review packet preparation, integrated task/acceptance/Git/continuation and crash
+recovery still need end-to-end proof.
+
 ## Independent audit outcome — 2026-10-20
 
 The founder-requested audit of `b2dcd6d` is complete. The director selected preservation of the core

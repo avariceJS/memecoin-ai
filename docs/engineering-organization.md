@@ -30,17 +30,39 @@ and pilot state remain intact. The [handoff](../engineering/SOL-MANDATE.md) owns
 The founder subsequently authorized autonomous **engineering development**. This does not authorize
 operational release, original pilot dispatch, removal of STOP, market collection, training, AUTO,
 trading, protected-data access, production or `main` changes, paid resources, or automatic Astra.
-The sole implementation owner is successor Goal/thread
-`01a15b1c-c263-71b0-bfca-c5b46d17a89b` (`gpt-6-luna/high`). On 2026-10-21 the founder explicitly
-confirmed that the temporary audit hold is complete and autonomous source work continues under this
-same Goal. Latest native readback still reports this Goal as `paused`; the available Goal API can read
-and update status but cannot resume it. Preserve its identity, history, counters and durable state,
-and do not create a replacement or competing owner. The founder's explicit continuation instruction
-authorizes source work to proceed while the native Goal record remains paused. The earlier blocked
-predecessor `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` and its history remain preserved; it is not the
-current implementation owner. The Astra audit thread has no Goal. Continue bounded A05/A10/A04 source
-development and verification under the resumption limits; do not create another Goal, coordinator or
-worker team. This source authority does not grant operational release or runtime authority.
+On 2026-10-21 the founder authorized one controlled native Goal transfer because the prior owner
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b` was paused and idle. New Goal/thread
+`01a15f55-903b-7de2-adec-19733734ac78` is verified `active` and is the sole Luna implementation
+owner. The prior Goal, its blocked predecessor `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f`, counters,
+history and durable records remain preserved; the transfer is recorded additively in the private
+resumption handoff. The new long-term objective is the integrated synthetic engineering cycle,
+including task selection, trusted assignment, isolated execution, independent acceptance, safe Git
+integration, durable checkpointing, task continuation and interruption recovery. Sol supplies
+independent direction and substantial exact-candidate review; Astra remains episodic and is never
+invoked automatically. This source authority does not grant operational release or runtime authority.
+
+Current A10 integration correction — 2026-10-21: independent review is the sole source of participant
+acknowledgements for new contract transitions. Task-lead results must carry an empty legacy
+`contract_acks` field, the public direct-ack API rejects writes, and activation checks that each new
+ACK resolves to an approved durable review request with matching packet and raw-response hashes.
+Previously published transitions retain their idempotent historical read path; old pending direct
+ACK records are not relabeled as independent evidence. A still-pending legacy direct ACK now makes
+the review projection fail closed with an explicit repair-required error; no reviewed supersession
+protocol exists yet. A bounded controller helper drains only
+requests already prepared from pinned evidence through an explicitly injected transport. It is not
+wired into `supervise`, has no default provider, and does not satisfy A03 or authenticate a real
+reviewer. Synthetic tests exercise response custody, local replay and no-resend after ambiguous
+interruption. The organization still lacks trusted autonomous request preparation, production-qualified
+review dispatch, recovery authority and end-to-end Git/task continuation. A03, STOP and all
+operational restrictions remain unchanged. Review freshness is checked before dispatch and again at
+response finalization; after ACK, activation verifies the exact approved review provenance but does
+not reopen an immutable review if later task inventory changes. That post-ACK freshness policy needs
+a separately reviewed supersession protocol before being strengthened. Sol's read-only re-review
+found no remaining direct-ACK bypass in this bounded source path and confirmed that legacy pending
+ACKs surface as repair-required. The full suite passed 587 tests/189 subtests before the final
+projection regression; two later full runs each had one transient macOS code-identity deadline failure
+in `test_running_identity_survives_path_replacement`, while that test passed alone on rerun. Ruff and
+format checks pass. This is not acceptance of A10 as a whole or the organization cycle.
 
 Latest source checkpoint on 2026-10-21: merged review diff and changed-path output now use bounded raw
 Git capture. The diff collector stores at most the 50,000-byte packet limit; path inventory capture

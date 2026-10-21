@@ -1393,6 +1393,10 @@ class Store:
                         team,
                         body["contract_hash"],
                     )
+                    if is_current_proposal and "review_request_id" not in acknowledgement["body"]:
+                        raise StateError(
+                            "legacy direct acknowledgement requires a reviewed transition repair"
+                        )
                     continue
                 if not is_current_proposal:
                     if current >= body["to_version"]:
@@ -1489,15 +1493,22 @@ class Store:
             "team": team,
             "contract_hash": digest,
         }
-        if (
-            type(body) is not dict
-            or set(body) != set(expected)
-            or type(body.get("kind")) is not str
-            or type(body.get("name")) is not str
-            or type(body.get("version")) is not int
-            or type(body.get("team")) is not str
-            or type(body.get("contract_hash")) is not str
-            or body != expected
+        provenance_keys = {
+            "review_request_id",
+            "review_packet_hash",
+            "review_raw_sha256",
+        }
+        if type(body) is not dict:
+            raise StateError("contract acknowledgement record invalid")
+        keys = set(body)
+        reviewed = keys == set(expected) | provenance_keys
+        if keys != set(expected) and not reviewed:
+            raise StateError("contract acknowledgement record invalid")
+        if any(body.get(key) != value for key, value in expected.items()):
+            raise StateError("contract acknowledgement record invalid")
+        if reviewed and any(
+            type(body.get(key)) is not str or not re.fullmatch(r"[0-9a-f]{64}", body[key])
+            for key in provenance_keys
         ):
             raise StateError("contract acknowledgement record invalid")
         return body
@@ -1512,6 +1523,28 @@ class Store:
             raise StateError("contract versions must increase")
         self.db.execute("INSERT INTO contracts VALUES(?,?,?)", (name, version, body_json))
         self._event("contract_published", name, {"version": version, "body": body})
+
+    def _validate_ack_review_provenance(
+        self, ack: dict, name: str, version: int, team: str
+    ) -> None:
+        """Require an ACK to resolve to its exact approved durable review result."""
+        request_id = ack.get("review_request_id")
+        request = self._contract_review_record(request_id, bounded_replay=True)
+        if request is None:
+            raise StateError("contract acknowledgement review evidence missing")
+        body = request["body"]
+        if (
+            body.get("status") != "approved"
+            or body.get("name") != name
+            or body.get("version") != version
+            or body.get("team") != team
+            or body.get("contract_hash") != ack.get("contract_hash")
+            or body.get("packet_hash") != ack.get("review_packet_hash")
+            or body.get("raw_sha256") != ack.get("review_raw_sha256")
+            or type(body.get("model_result")) is not dict
+            or body["model_result"].get("decision") != "approve"
+        ):
+            raise StateError("contract acknowledgement review provenance invalid")
 
     @staticmethod
     def _contract_transition_key(name: str, version: int) -> str:
@@ -1994,6 +2027,21 @@ class Store:
             }
             self._put_contract_review_version_in_transaction(request_id, body)
             return {"name": self._contract_review_key(request_id), "version": 1, "body": body}
+
+    def get_contract_review_request(self, request_id: str) -> dict:
+        """Read one detached, hash-checked contract review packet for its assigned reviewer."""
+        if type(request_id) is not str or not re.fullmatch(r"[0-9a-f]{64}", request_id):
+            raise StateError("contract review request identity invalid")
+        with self._read_snapshot():
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if type(body.get("packet")) is not dict or self._contract_review_digest(
+                body["packet"]
+            ) != body.get("packet_hash"):
+                raise StateError("contract review packet hash invalid")
+            return json.loads(_json(current))
 
     def _contract_review_currentness_in_snapshot(self, current: dict, packet_hash: str) -> dict:
         body = current["body"]
@@ -2841,6 +2889,9 @@ class Store:
                     "version": body["version"],
                     "team": body["team"],
                     "contract_hash": body["contract_hash"],
+                    "review_request_id": request_id,
+                    "review_packet_hash": packet_hash,
+                    "review_raw_sha256": raw_sha256,
                 }
                 if existing is not None:
                     raise StateError("contract participant acknowledgement race")
@@ -2987,47 +3038,16 @@ class Store:
     def acknowledge_contract_transition(
         self, name: str, version: int, team: str, contract_hash: str
     ) -> dict:
-        """Record one immutable, content-bound acknowledgement for a required participant."""
+        """Reject direct acknowledgements; only a completed independent review can acknowledge."""
         if type(name) is not str or not name.strip() or type(team) is not str or not team.strip():
             raise StateError("contract and team names must be plain nonempty strings")
         if type(version) is not int or version < 2:
             raise StateError("contract transition version must be an integer >= 2")
         if type(contract_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", contract_hash):
             raise StateError("contract hash must be lowercase SHA-256")
-        with self._tx():
-            return self._acknowledge_contract_transition_in_transaction(
-                name, version, team, contract_hash
-            )
-
-    def _acknowledge_contract_transition_in_transaction(
-        self, name: str, version: int, team: str, contract_hash: str
-    ) -> dict:
-        key = self._contract_transition_key(name, version)
-        ack_key = self._contract_ack_key(name, version, team)
-        transition = self._single_contract_decision(key)
-        if transition is None:
-            raise StateError("contract transition proposal missing")
-        proposal = self._validated_contract_transition(transition["body"], name, version)
-        if proposal["contract_hash"] != contract_hash or team not in [
-            proposal["producer_team"],
-            *proposal["consumer_teams"],
-        ]:
-            raise StateError("contract acknowledgement does not match proposal")
-        record = {
-            "kind": "contract_acknowledgement",
-            "name": name,
-            "version": version,
-            "team": team,
-            "contract_hash": contract_hash,
-        }
-        existing = self._single_contract_decision(ack_key)
-        if existing is not None:
-            self._validated_contract_ack(existing["body"], name, version, team, contract_hash)
-            if existing["body"] != record:
-                raise StateError("contract acknowledgement is immutable")
-            return {"name": existing["name"], "version": existing["version"], "body": record}
-        ack_version = self._put_decision_in_transaction(ack_key, record)
-        return {"name": ack_key, "version": ack_version, "body": record}
+        raise StateError(
+            "contract transition acknowledgement requires an approved independent review"
+        )
 
     def record_lead_result(
         self,
@@ -3056,24 +3076,9 @@ class Store:
             or type(plan["worker_brief"]) is not str
             or type(plan["rationale"]) is not str
             or type(plan["contract_acks"]) is not list
+            or plan["contract_acks"]
         ):
             raise StateError("lead result plan invalid")
-        ack_identities = set()
-        for ack in plan["contract_acks"]:
-            if (
-                type(ack) is not dict
-                or set(ack) != {"name", "version", "contract_hash"}
-                or type(ack["name"]) is not str
-                or type(ack["version"]) is not int
-                or type(ack["contract_hash"]) is not str
-                or not re.fullmatch(r"[0-9a-f]{64}", ack["contract_hash"])
-            ):
-                raise StateError("lead result acknowledgement invalid")
-            identity = (ack["name"], ack["version"], ack["contract_hash"])
-            if identity in ack_identities:
-                raise StateError("lead result acknowledgement duplicated")
-            ack_identities.add(identity)
-
         with self._tx():
             task, _ = self._fence(attempt_id, epoch)
             lead_body = {
@@ -3084,11 +3089,6 @@ class Store:
                 "plan": plan,
             }
             version = self._put_decision_in_transaction("lead-" + task["id"], lead_body)
-            if plan["decision"] == "approve":
-                for ack in plan["contract_acks"]:
-                    self._acknowledge_contract_transition_in_transaction(
-                        ack["name"], ack["version"], task["team"], ack["contract_hash"]
-                    )
             return version
 
     def activate_contract_transition(self, name: str, version: int) -> dict:
@@ -3169,6 +3169,7 @@ class Store:
                 if ack is None:
                     raise StateError("contract transition acknowledgements incomplete")
                 self._validated_contract_ack(ack["body"], name, version, team, digest)
+                self._validate_ack_review_provenance(ack["body"], name, version, team)
             body_json = _json(proposal["body"])
             self._put_contract_in_transaction(name, version, proposal["body"], body_json)
             result = {

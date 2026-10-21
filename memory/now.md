@@ -1,11 +1,23 @@
 # Current state
 
-The founder resumed source work on 2026-10-21 using existing Goal
-`01a15b1c-c263-71b0-bfca-c5b46d17a89b`; no replacement Goal. Latest native readback still reports
-`paused`, while the founder's explicit continuation instruction authorizes work to proceed; this
-agent cannot change native Goal status. Work continues from `org/development`; `main` remains
+The founder authorized one controlled Goal transfer on 2026-10-21 after the previous owner
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b` was paused and idle. New native Goal/thread
+`01a15f55-903b-7de2-adec-19733734ac78` is verified `active` and is the sole Luna implementation
+owner. The old Goal and its counters, history, receipts, checkpoints, decisions and private handoff
+are preserved; see `/Users/root1/Developer/brain-org-state/resumption-20261020/handoff.json`.
+Work continues from `org/development`; `main` remains
 `2f8da5f92da521b511e0d4fb20205981a000cab5`. The branch remains ahead of `origin/org/development`;
-changes are locally committed and unpublished.
+the contract-review provenance correction is uncommitted and unpublished.
+
+Current source work closes the A10 direct-ACK bypass: new activations require ACK provenance linked
+to an approved durable review record; task leads and the public ACK method cannot mint it. Synthetic
+tests cover injected transport, immutable response custody, local replay and no resend after an
+ambiguous interruption. Freshness is enforced at dispatch and response finalization; activation
+checks exact review provenance but does not reopen review after ACK. Legacy pending direct ACKs are
+surfaced as repair-required projection errors; no reviewed supersession protocol exists yet. No
+review dispatch is wired into the supervisor, and packet preparation is still caller supplied.
+The source-only end-to-end organization cycle, A03, STOP, operational release, runtime and production
+remain open/prohibited.
 
 Latest source checkpoint bounds raw Git capture for merged review diffs at 50,000 stdout bytes and
 changed-path inventory at 256,000 bytes; stderr is limited to 1,500 bytes and runtime to 30 seconds.
@@ -16,12 +28,10 @@ passed Ruff, format, 585 tests and 189 subtests. Git internal work remains unbou
 preserve exact raw diff bytes and isolate concurrent verification artifacts by invocation. No
 provider, supervisor/runtime, service or worker was started.
 
-As of **2026-10-21**, the founder reconfirmed that the temporary 2026-10-20 audit hold is complete and
-authorized continued autonomous source development. Luna-6 High remains the sole implementation owner
-under existing Goal `01a15b1c-c263-71b0-bfca-c5b46d17a89b`; preserve its identity, history, counters and
-durable state. Latest native readback remains `paused`; no replacement Goal is created. Continue
-source work under the explicit founder authorization while preserving the native record and its
-counters. Predecessor Goal/thread `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f`
+As of **2026-10-21**, the founder authorized a single native successor Goal after the prior owner was
+paused and idle. Preserve prior Goal `01a15b1c-c263-71b0-bfca-c5b46d17a89b` and predecessor
+`01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` unchanged; the new sole implementation owner is active Goal
+`01a15f55-903b-7de2-adec-19733734ac78`. Predecessor Goal/thread `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f`
 remains blocked and preserved after repeated ORG-A03 research. Sol handles substantial technical
 decisions and independent review; Astra remains episodic and is never started automatically.
 

@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from engineering.org_state import StaleAttempt, StateError, Store
+from engineering.tests.contract_review_helpers import approve_participant
 
 
 class StateTests(unittest.TestCase):
@@ -49,7 +50,7 @@ class StateTests(unittest.TestCase):
         self.store.verify(producer_id, f"candidate-{to_version}", True, {})
         self.store.accept(producer_id, f"candidate-{to_version}")
         self.store.integrate(producer_id, f"candidate-{to_version}", f"merge-{to_version}")
-        transition = self.store.propose_contract_transition(
+        self.store.propose_contract_transition(
             name,
             from_version,
             to_version,
@@ -58,9 +59,8 @@ class StateTests(unittest.TestCase):
             producer_team="Producer",
             consumer_teams=["Consumer"],
         )
-        digest = transition["body"]["contract_hash"]
-        self.store.acknowledge_contract_transition(name, to_version, "Producer", digest)
-        self.store.acknowledge_contract_transition(name, to_version, "Consumer", digest)
+        approve_participant(self.store, name, to_version, "Producer")
+        approve_participant(self.store, name, to_version, "Consumer")
         self.store.activate_contract_transition(name, to_version)
 
     def test_sqlite_durability_settings(self):

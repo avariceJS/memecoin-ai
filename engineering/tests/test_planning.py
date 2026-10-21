@@ -4,6 +4,7 @@ from pathlib import Path
 
 from engineering.org_state import StateError, Store
 from engineering.planning import admit, eligible
+from engineering.tests.contract_review_helpers import approve_participant
 
 
 def advance_contract(db, name, from_version, to_version, body):
@@ -14,7 +15,7 @@ def advance_contract(db, name, from_version, to_version, body):
     db.verify(producer_id, f"candidate-{to_version}", True, {})
     db.accept(producer_id, f"candidate-{to_version}")
     db.integrate(producer_id, f"candidate-{to_version}", f"merge-{to_version}")
-    transition = db.propose_contract_transition(
+    db.propose_contract_transition(
         name,
         from_version,
         to_version,
@@ -23,9 +24,8 @@ def advance_contract(db, name, from_version, to_version, body):
         producer_team="Producer",
         consumer_teams=["Consumer"],
     )
-    digest = transition["body"]["contract_hash"]
-    db.acknowledge_contract_transition(name, to_version, "Producer", digest)
-    db.acknowledge_contract_transition(name, to_version, "Consumer", digest)
+    approve_participant(db, name, to_version, "Producer")
+    approve_participant(db, name, to_version, "Consumer")
     db.activate_contract_transition(name, to_version)
 
 
