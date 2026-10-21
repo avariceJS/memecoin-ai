@@ -110,6 +110,33 @@ def _configured_contract_transitions(cfg, db):
         raise StateError("contract configuration exceeds transition limit")
     if any(type(name) is not str for name in contracts):
         raise StateError("contract configuration invalid")
+    for name, proposal in contracts.items():
+        if (
+            not name.strip()
+            or type(proposal) is not dict
+            or type(proposal.get("version")) is not int
+            or type(proposal.get("producer")) is not str
+            or not proposal["producer"].strip()
+            or (
+                "producer_task_id" in proposal
+                and (
+                    type(proposal["producer_task_id"]) is not str
+                    or not proposal["producer_task_id"].strip()
+                )
+            )
+        ):
+            raise StateError("contract configuration invalid")
+        consumers = proposal.get("consumers", [proposal.get("consumer")])
+        if (
+            type(consumers) is not list
+            or not consumers
+            or any(type(team) is not str or not team.strip() for team in consumers)
+        ):
+            raise StateError("contract configuration invalid")
+    try:
+        contracts = json.loads(_json(contracts))
+    except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+        raise StateError("contract configuration invalid") from None
     pending = []
     for name, proposal in sorted(contracts.items()):
         if (

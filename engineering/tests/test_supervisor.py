@@ -952,6 +952,108 @@ class SupervisorTests(unittest.TestCase):
         # An unrelated configured contract stays pending until its own producer and acks exist.
         self.assertEqual(self.db.get_contract("schema-validation")["version"], 1)
 
+    def test_configured_contracts_are_detached_before_database_reads(self):
+        configured = {
+            "alpha-contract": {
+                "version": 2,
+                "producer": "Research",
+                "producer_task_id": "ALPHA-1",
+                "consumers": ["Platform"],
+                "schema": "alpha-v2",
+            },
+            "zeta-contract": {
+                "version": 2,
+                "producer": "Experience",
+                "producer_task_id": "ZETA-1",
+                "consumers": ["Research"],
+                "schema": "zeta-v2",
+            },
+        }
+        self.cfg["contracts"] = configured
+        self.db.put_contract("alpha-contract", 1, {"schema": "alpha-v1"})
+        self.db.put_contract("zeta-contract", 1, {"schema": "zeta-v1"})
+        original_get_contract = self.db.get_contract
+        mutated = False
+
+        def mutate_configuration_during_read(name):
+            nonlocal mutated
+            if not mutated:
+                mutated = True
+                configured["alpha-contract"].update(
+                    producer="ChangedAlpha",
+                    producer_task_id="CHANGED-ALPHA",
+                    consumers=["ChangedAlphaConsumer"],
+                    schema="changed-alpha-v2",
+                )
+                configured["zeta-contract"].update(
+                    producer="ChangedZeta",
+                    producer_task_id="CHANGED-ZETA",
+                    consumers=["ChangedZetaConsumer"],
+                    schema="changed-zeta-v2",
+                )
+            return original_get_contract(name)
+
+        with patch.object(self.db, "get_contract", side_effect=mutate_configuration_during_read):
+            transitions = supervisor._configured_contract_transitions(self.cfg, self.db)
+
+        self.assertEqual(
+            {
+                item["name"]: (
+                    item["body"]["body"],
+                    item["body"]["producer_team"],
+                    item["body"]["producer_task_id"],
+                    item["body"]["consumer_teams"],
+                )
+                for item in transitions
+            },
+            {
+                "alpha-contract": (
+                    {
+                        "version": 2,
+                        "producer": "Research",
+                        "producer_task_id": "ALPHA-1",
+                        "consumers": ["Platform"],
+                        "schema": "alpha-v2",
+                    },
+                    "Research",
+                    "ALPHA-1",
+                    ["Platform"],
+                ),
+                "zeta-contract": (
+                    {
+                        "version": 2,
+                        "producer": "Experience",
+                        "producer_task_id": "ZETA-1",
+                        "consumers": ["Research"],
+                        "schema": "zeta-v2",
+                    },
+                    "Experience",
+                    "ZETA-1",
+                    ["Research"],
+                ),
+            },
+        )
+
+    def test_invalid_configured_contract_json_fails_before_database_reads(self):
+        self.cfg["contracts"]["schema-validation"]["nonfinite"] = float("nan")
+        events_before = self.db.events()
+        with (
+            patch.object(self.db, "get_contract", side_effect=AssertionError("database read")),
+            self.assertRaisesRegex(StateError, "contract configuration invalid"),
+        ):
+            supervisor._configured_contract_transitions(self.cfg, self.db)
+        self.assertEqual(self.db.events(), events_before)
+
+    def test_configured_contract_plain_types_are_checked_before_detaching(self):
+        self.cfg["contracts"]["schema-validation"]["consumers"] = ("Platform",)
+        events_before = self.db.events()
+        with (
+            patch.object(self.db, "get_contract", side_effect=AssertionError("database read")),
+            self.assertRaisesRegex(StateError, "contract configuration invalid"),
+        ):
+            supervisor._configured_contract_transitions(self.cfg, self.db)
+        self.assertEqual(self.db.events(), events_before)
+
     def test_contract_activation_revalidates_ack_history_after_publication(self):
         self.candidate("EXP-001", target_state="integrated", team="Experience")
         transition = self.db.propose_contract_transition(
