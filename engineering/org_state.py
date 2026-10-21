@@ -1593,7 +1593,10 @@ class Store:
             "response_recorded": {"approved", "blocked"},
         }
         for row in rows:
-            body = json.loads(row["bounded_body"])
+            try:
+                body = json.loads(row["bounded_body"])
+            except (TypeError, ValueError, OverflowError, RecursionError):
+                raise StateError("contract review history invalid") from None
             replaces = row["bounded_replaces"] if bounded_replay else row["replaces"]
             if (
                 type(body) is not dict

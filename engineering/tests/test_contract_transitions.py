@@ -1921,6 +1921,98 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
     )
 
 
+def test_supervisor_malformed_review_history_does_not_skip_later_activation(store, tmp_path):
+    integrate_producer(store, "EXP-1")
+    integrate_producer(store, "EXP-2")
+    store.add_task("PLAT-1", "Platform", "review contract", scope=["cli.py"])
+    sample_proposal = {
+        "schema": "v2",
+        "version": 2,
+        "producer": "Experience",
+        "producer_task_id": "EXP-1",
+        "consumers": ["Platform"],
+    }
+    other_proposal = {
+        "schema": "other-v2",
+        "version": 2,
+        "producer": "Experience",
+        "producer_task_id": "EXP-2",
+        "consumers": ["Platform"],
+    }
+    store.put_contract("z-other", 1, {"schema": "other-v1"})
+    transitions = {
+        "sample": store.propose_contract_transition(
+            "sample",
+            1,
+            2,
+            sample_proposal,
+            producer_task_id="EXP-1",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        ),
+        "z-other": store.propose_contract_transition(
+            "z-other",
+            1,
+            2,
+            other_proposal,
+            producer_task_id="EXP-2",
+            producer_team="Experience",
+            consumer_teams=["Platform"],
+        ),
+    }
+    for name in ("sample", "z-other"):
+        store.acknowledge_contract_transition(
+            name, 2, "Experience", transitions[name]["body"]["contract_hash"]
+        )
+    store.acknowledge_contract_transition(
+        "z-other", 2, "Platform", transitions["z-other"]["body"]["contract_hash"]
+    )
+    request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
+    record_pending_review_response(store, request["body"], suffix="corrupt-history")
+    store.db.execute(
+        "UPDATE decisions SET body='{malformed' WHERE name=? "
+        "AND version=(SELECT MAX(version) FROM decisions WHERE name=?)",
+        (request["name"], request["name"]),
+    )
+
+    with pytest.raises(StateError, match="contract review history invalid"):
+        store._contract_review_record(request["body"]["request_id"], bounded_replay=True)
+
+    cfg = {"contracts": {"sample": sample_proposal, "z-other": other_proposal}}
+    with (
+        patch.object(supervisor, "config", return_value=cfg),
+        patch.object(supervisor, "log_event") as log_event,
+        patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
+        patch.object(
+            supervisor,
+            "metered_client",
+            side_effect=AssertionError("provider must not start"),
+        ),
+    ):
+        supervisor.activate_contract(tmp_path, store)
+
+    assert store.get_contract("sample")["version"] == 1
+    assert store.get_contract("z-other")["version"] == 2
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+    assert store.get_decision(store._contract_ack_key("z-other", 2, "Platform")) is not None
+    assert (
+        store.db.execute(
+            "SELECT body FROM decisions WHERE name=? ORDER BY version DESC LIMIT 1",
+            (request["name"],),
+        ).fetchone()["body"]
+        == "{malformed"
+    )
+    assert any(
+        call.args[1] == "contract_review_replay_failed"
+        and call.kwargs.get("name") == "sample"
+        and call.kwargs.get("version") == 2
+        and call.kwargs.get("dispatch_authority") is False
+        and call.kwargs.get("provider_dispatch") is False
+        and call.kwargs.get("error") == "contract review history invalid"
+        for call in log_event.call_args_list
+    )
+
+
 def test_transition_replay_uses_scoped_index_and_ignores_unrelated_bad_identity(store):
     request = prepare_review(store)
     body = request["body"]

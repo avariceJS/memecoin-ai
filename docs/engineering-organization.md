@@ -382,7 +382,12 @@ regression proves the affected transition stays at v1 while a later fully acknow
 activates. Retained-history scans, separate replay/activation transactions, provider/usage provenance,
 A03 settlement, broad A10 and operational acceptance remain open. Review receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-integrity-fairness-review-20261021.json`
-(SHA-256 `59a1d68d9e789577f6365296033caf63faf4618e50adcb92ab82e6ee451e2893`); gate receipt:
+(SHA-256 `59a1d68d9e789577f6365296033caf63faf4618e50adcb92ab82e6ee451e2893`). A follow-up reader
+now normalizes persisted JSON parse/type/recursion failures to `StateError` before transition-level
+isolation. Sol accepted source/test diff `db46fed25037fc8ba200e8de6cf5d1a5a6f09cf038353e1e1a6a0dc65c3532ed`;
+the engineering release gate passed Ruff, 498 tests and 101 subtests. A matching corrupted journal
+remains preserved and cannot supply an ACK; later configured transitions still reconcile. This does
+not normalize SQLite text-decoding failures or qualify provider/runtime authority. Gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-integrity-fairness-gate-20261021.json`
 (SHA-256 `01d5627489783134a9f09822b59d8069ff9abb17c4021eaa41d3526b2fe1e6f9`).
 
