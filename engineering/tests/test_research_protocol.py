@@ -5,9 +5,13 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
+import subprocess
 
 import pytest
 
+from engineering.contract_review_cycle import process_pending_reviews
+from engineering.git_gate import GitGate, VerificationPolicy
 from engineering.org_state import StateError, Store
 from engineering.research_protocol import (
     CONTRACT_NAME,
@@ -15,7 +19,6 @@ from engineering.research_protocol import (
     canonical_protocol,
     protocol_sha256,
 )
-from engineering.tests.contract_review_helpers import approve_participant
 from engineering.tests.test_task_spec_store import (
     ADMISSION,
     BASE,
@@ -61,13 +64,123 @@ def protocol():
     }
 
 
-def integrate_cortex_producer(store):
-    store.add_task("CORTEX-001", "Cortex", "Publish protocol contract", scope=["protocol.py"])
+def integrate_cortex_producer(store, tmp_path, declared_protocol):
+    integration = tmp_path / "integration"
+    integration.mkdir()
+    worker = tmp_path / "worker"
+    git_env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    git_env.update(
+        {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_OPTIONAL_LOCKS": "0",
+            "GIT_NO_REPLACE_OBJECTS": "1",
+        }
+    )
+
+    def git(repo, *args):
+        result = subprocess.run(
+            ["git", "-c", "core.hooksPath=/dev/null", "-C", str(repo), *args],
+            text=True,
+            capture_output=True,
+            env=git_env,
+            check=False,
+        )
+        if result.returncode:
+            raise AssertionError(result.stderr)
+        return result.stdout.strip()
+
+    git(integration, "init", "-b", "synthetic/base")
+    git(integration, "config", "user.name", "synthetic")
+    git(integration, "config", "user.email", "synthetic@example.invalid")
+    (integration / "src").mkdir()
+    (integration / "src" / "base.py").write_text("BASE = True\n")
+    git(integration, "add", "-A")
+    git(integration, "commit", "-m", "synthetic base")
+    base = git(integration, "rev-parse", "HEAD")
+    git(integration, "update-ref", GitGate.ACTIVE_REF, base)
+    git(tmp_path, "clone", str(integration), str(worker))
+    git(worker, "config", "user.name", "synthetic-worker")
+    git(worker, "config", "user.email", "worker@example.invalid")
+    source = worker / "src" / "cortex_protocol.py"
+    protocol_json = json.dumps(declared_protocol, sort_keys=True, separators=(",", ":"))
+    source.write_text("PROTOCOL_JSON = " + repr(protocol_json) + "\n")
+    git(worker, "add", "-A")
+    git(worker, "commit", "-m", "publish synthetic Cortex protocol contract")
+    submitted = git(worker, "rev-parse", "HEAD")
+    policy = VerificationPolicy((("synthetic-protocol-check",),), policy_id="cortex-protocol")
+    gate = GitGate(integration, integration, policy, tmp_path / "receipts")
+    candidate = gate.submit(worker, submitted, base, ["src/cortex_protocol.py"])
+    receipt = gate.verify(
+        candidate,
+        lambda checkout, sha, _policy: {
+            "status": "passed"
+            if (checkout / "src/cortex_protocol.py").read_text()
+            == "PROTOCOL_JSON = " + repr(protocol_json) + "\n"
+            and git(checkout, "rev-parse", "HEAD") == sha
+            else "failed"
+        },
+    )
+    gate.publish(candidate, receipt.digest, base)
+
+    store.add_task(
+        "CORTEX-001",
+        "Cortex",
+        "Publish protocol contract",
+        scope=["src/cortex_protocol.py"],
+    )
     attempt = store.claim("CORTEX-001", "synthetic-cortex-producer", 30)
-    store.submit(attempt["id"], attempt["epoch"], "candidate-sha", {"receipt": "synthetic"})
-    store.verify("CORTEX-001", "candidate-sha", True, {"passed": True})
-    store.accept("CORTEX-001", "candidate-sha")
-    store.integrate("CORTEX-001", "candidate-sha", "integration-sha", {"merged": True})
+    intent = {
+        "task": "CORTEX-001",
+        "submitted_sha": candidate.submitted_sha,
+        "attempt_id": attempt["id"],
+        "epoch": attempt["epoch"],
+        "candidate_sha": candidate.sha,
+        "expected_tip": base,
+        "receipt": receipt.digest,
+    }
+    store.submit(attempt["id"], attempt["epoch"], candidate.submitted_sha, {})
+    store.verify("CORTEX-001", candidate.submitted_sha, True, intent)
+    store.accept("CORTEX-001", candidate.submitted_sha)
+    store.integrate("CORTEX-001", candidate.submitted_sha, candidate.sha, intent)
+    return candidate.submitted_sha, receipt.digest
+
+
+class SyntheticResearchProtocolReview:
+    def __init__(self, expected_protocol, expected_hash):
+        self.expected_protocol = expected_protocol
+        self.expected_hash = expected_hash
+        self.reviewed_teams = []
+
+    def start(self, request):
+        body = request["body"]
+        assert body["packet"]["proposed_contract"] == self.expected_protocol
+        assert body["contract_hash"] == self.expected_hash
+        assert body["team"] in {"Cortex", "Evaluation"}
+        return {
+            "thread_id": "synthetic-protocol-review-" + body["team"],
+            "model": "synthetic-reviewer",
+            "pid": 123,
+            "birth": "synthetic-process",
+        }
+
+    def review(self, _session, request):
+        body = request["body"]
+        self.reviewed_teams.append(body["team"])
+        result = {
+            "decision": "approve",
+            "compatibility": "compatible",
+            "rationale": "Synthetic review of the exact protocol contract passed.",
+            "findings": [],
+            "reviewed_evidence_refs": body["packet"]["evidence_refs"],
+            "affected_consumers_reviewed": body["packet"]["affected_consumer_task_ids"],
+            "migration_plan": None,
+        }
+        return {
+            "provider_turn_id": "synthetic-protocol-turn-" + body["team"],
+            "raw_result": json.dumps(result, sort_keys=True, separators=(",", ":")).encode(),
+        }
 
 
 def test_protocol_rejects_ambiguous_timing_and_duplicate_roles():
@@ -138,16 +251,37 @@ def test_reviewed_protocol_is_admitted_by_exact_hash_after_reopen(tmp_path):
         producer_team="Cortex",
         consumer_teams=["Evaluation"],
     )
-    integrate_cortex_producer(store)
+    producer_sha, receipt_sha = integrate_cortex_producer(store, tmp_path, value)
+    review_transport = SyntheticResearchProtocolReview(value, expected_hash)
+    for team in ("Cortex", "Evaluation"):
+        evidence_revision = hashlib.sha256(
+            f"synthetic:{team}:{expected_hash}:{producer_sha}:{receipt_sha}".encode()
+        ).hexdigest()
+        store.prepare_contract_review(
+            CONTRACT_NAME,
+            2,
+            team,
+            evidence_revision,
+            {
+                "source_commit": producer_sha,
+                "evidence_refs": [{"ref": "git-receipt:" + receipt_sha, "sha256": receipt_sha}],
+                "compatibility_analysis": "Review the exact synthetic preregistration body.",
+                "migration_plan": None,
+            },
+        )
     with pytest.raises(StateError, match="acknowledgements incomplete"):
         store.activate_contract_transition(CONTRACT_NAME, 2)
-    approve_participant(store, CONTRACT_NAME, 2, "Cortex")
+    first_review = process_pending_reviews(store, review_transport, limit=1)
+    assert len(first_review["processed"]) == 1
     with pytest.raises(StateError, match="acknowledgements incomplete"):
         store.activate_contract_transition(CONTRACT_NAME, 2)
-    approve_participant(store, CONTRACT_NAME, 2, "Evaluation")
+    second_review = process_pending_reviews(store, review_transport, limit=1)
+    assert len(second_review["processed"]) == 1
+    assert sorted(review_transport.reviewed_teams) == ["Cortex", "Evaluation"]
     activated = store.activate_contract_transition(CONTRACT_NAME, 2)
     assert activated["body"]["acknowledged_teams"] == ["Cortex", "Evaluation"]
     assert store.get_contract(CONTRACT_NAME, 2)["body"] == value
+    assert store.get_integration("CORTEX-001")["candidate_sha"] == producer_sha
 
     wrong_digest = "0" * 64
     spec = copy.deepcopy(SPEC)

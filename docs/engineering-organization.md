@@ -2056,7 +2056,10 @@ and reviewed by both Cortex and Evaluation against the exact proposed body. Cort
 admission rechecks protocol content, objective and activation provenance and limits capabilities to
 offline code/synthetic tests; tampering, mismatched objectives and missing ACKs fail closed. Admitted
 Cortex specs remain non-claimable with `cortex_execution_not_qualified` pending A04. Sol accepted the
-bounded source diff; the release gate passes Ruff/format, 675 tests and 193 subtests. Integration and
-reviews in the new regression use synthetic helpers, not a real transport or authenticated reviewer;
-artifact pins and preregistration timing are not externally verified. This does not run generations,
+bounded source diff; the release gate passes Ruff/format, 675 tests and 193 subtests. The follow-up
+regression exercises GitGate/CAS in a disposable Git repository, then separately advances Store with
+the submitted SHA, published merge SHA, and intent naming the receipt digest; it directly prepares two durable
+review requests and processes them through an injected synthetic transport. It does not run the
+controller's receipt-custody/review-source dispatch path, authenticate Evaluation, or verify external
+artifact pins or preregistration timing. This does not run generations,
 pipeline, training, scoring, or artifact writers, and does not establish scientific acceptance.

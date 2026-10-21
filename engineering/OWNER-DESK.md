@@ -88,8 +88,12 @@ Store без `controller_catalogue` остаётся совместимым; off
 требует интегрированного Cortex producer и A10 review ACK от Cortex и Evaluation по точному телу;
 task-spec проверяет digest и objective, разрешает только `offline_code`/`synthetic_tests`.
 Допущенные Cortex specs остаются неclaimable до A04 qualification. Sol принял срез; gate:
-Ruff/format, 675 тестов и 193 subtests. Git/transport и reviewer identity в регрессии синтетические;
-artifact pins не аутентифицированы, preregistration до чтения evaluation data не доказана. Обучение,
+Ruff/format, 675 тестов и 193 subtests. GitGate выполняет CAS в одноразовом локальном репозитории,
+затем тест отдельно записывает в Store submitted SHA, merge SHA и intent с digest receipt; review
+requests подготавливаются напрямую и обрабатываются синтетическим transport. Controller receipt-custody/
+review-source dispatch не проверяется, reviewer identity не аутентифицирована. Artifact pins не
+проверяются извне, preregistration до чтения
+evaluation data не доказана. Обучение,
 scoring, pipeline и artifact writers не запускались; научная оценка не заявляется.
 
 2026-10-22: PLAT-001 Experience проходит через controller loop `supervise`: loop сам выбирает и
