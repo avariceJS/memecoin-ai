@@ -1130,6 +1130,21 @@ Plans remain `execution_qualified=False`. Review receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-artifact-read-stability-gate-20261021.json`
 (SHA-256 `bbfbe0f82fba028112e1d39d97f12990ea16a82c3ffe84c8c241df1e13713ab0`).
 
+At the source candidate based on `1823233`, the legacy fixed-catalogue acceptance callback now uses
+the same strict JSON result parser as manifest-bound verifiers. It requires schema
+`org-pilot-acceptance-v1`, the exact task ID in `case`, and literal `true` in `passed`; duplicate
+object keys and nonstandard numeric constants fail before independent reviewer dispatch. Tests cover
+duplicate `passed`, `schema`, and `case` keys and `NaN`; the existing valid-completion path remains the
+positive control. Sol accepted exact diff
+`495d69c627c7eadddfa721d03e820fc743cb7aa5222e1d23cd5f2bdb4a6d1988` with no P1-P3 findings. The
+focused suite passed 58 tests/10 subtests; the engineering release gate passed Ruff, 493 tests and
+101 subtests. This removes parser ambiguity only; it does not establish stdout provenance, runtime
+qualification or full A04. Plans remain `execution_qualified=False`. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-legacy-result-strict-json-review-20261021.json`
+(SHA-256 `a1dccfe84057f48ed200a33433fecb7daa6a6aededd16948796d1d8a623e6d29`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-legacy-result-strict-json-gate-20261021.json`
+(SHA-256 `6af24d8d09ab8d515200dcfabc7c87aa39e4c80ca8d1151092a6e3099ec9a1c7`).
+
 At `7591be0`, contract-review replay bounds discovery to 1,000 distinct journals, separately from
 the existing 100-response candidate limit. In one read snapshot it checks each retained version's
 serialized byte length before hydrating any history: at most 512 KiB per version, 2 MiB per journal,

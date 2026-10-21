@@ -69,6 +69,11 @@ automatically.
   tests passed 38/3 subtests and the full gate passed 489/101 with Ruff. SQLite work and runtime
   qualification remain open; no consumer or authorization generation exists. Receipt:
   `a05-lifecycle-request-root-link-review-20261021.json`.
+- A04 legacy fixed-catalogue acceptance now uses the strict parser already used by bound verifiers;
+  duplicate schema/case/passed keys and NaN fail before reviewer dispatch. Sol accepted exact diff
+  `495d69c6`; focused tests passed 58/10 subtests and the full gate passed 493/101 with Ruff.
+  Stdout provenance, execution qualification and full A04 remain open. Receipt:
+  `a04-legacy-result-strict-json-review-20261021.json`.
 - A10 source `274c380` preflights selected review-journal history and byte sizes before advisory
   worklist hydration; public overflow errors and quiescence returns unknown-count/no-partial results.
   Sol-6.1 High accepted; focused suite passed 59 and release gate passed 451/101 with Ruff. SQLite

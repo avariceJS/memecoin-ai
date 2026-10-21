@@ -505,6 +505,30 @@ class SupervisorTests(unittest.TestCase):
         )
         model.assert_not_called()
 
+    def test_legacy_acceptance_duplicate_passed_key_is_rejected(self):
+        model = self.verification_failure(
+            '{"schema":"org-pilot-acceptance-v1","case":"T","passed":false,"passed":true}'
+        )
+        model.assert_not_called()
+
+    def test_legacy_acceptance_duplicate_schema_key_is_rejected(self):
+        model = self.verification_failure(
+            '{"schema":"wrong","schema":"org-pilot-acceptance-v1","case":"T","passed":true}'
+        )
+        model.assert_not_called()
+
+    def test_legacy_acceptance_duplicate_case_key_is_rejected(self):
+        model = self.verification_failure(
+            '{"schema":"org-pilot-acceptance-v1","case":"wrong","case":"T","passed":true}'
+        )
+        model.assert_not_called()
+
+    def test_legacy_acceptance_nonstandard_number_is_rejected(self):
+        model = self.verification_failure(
+            '{"schema":"org-pilot-acceptance-v1","case":"T","passed":true,"extra":NaN}'
+        )
+        model.assert_not_called()
+
     def test_malformed_independent_reviewer_json_cannot_accept_candidate(self):
         model = self.verification_failure(
             json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True})

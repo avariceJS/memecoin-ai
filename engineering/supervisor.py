@@ -903,13 +903,15 @@ def verify_one(state, task):
             if result.returncode or result.timed_out or result.output_truncated:
                 raise RuntimeError("verification_command_failed:" + json.dumps(results[-1])[-2500:])
             if verifier is None and command_index == 0:
-                proof = json.loads(result.stdout)
-                if (
-                    proof.get("schema") != "org-pilot-acceptance-v1"
-                    or proof.get("case") != task["id"]
-                    or proof.get("passed") is not True
-                ):
-                    raise RuntimeError("missing_independent_acceptance_completion")
+                validate_verifier_result(
+                    result.stdout,
+                    {
+                        "acceptance_id": task["id"],
+                        "result_schema": "org-pilot-acceptance-v1",
+                        "case_field": "case",
+                        "passed_field": "passed",
+                    },
+                )
             elif (
                 command_binding is not None and command_binding.result["kind"] == "acceptance_json"
             ):
