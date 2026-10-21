@@ -1,5 +1,13 @@
 # Current state — 2026-10-22
 
+Latest Cortex source-only increment: strict metadata protocol contracts now flow through the reviewed
+A10 v2 transition (integrated Cortex producer, exact Cortex/Evaluation ACKs) into task-spec admission.
+Objective, role-pin timing, population text hash and protocol digest are revalidated; only offline-code
+and synthetic-test capabilities are allowed. Cortex specs are held from `ready_tasks`/`claim` until
+A04 qualification. Sol accepted; the gate passes 675 tests and 193 subtests. The integration/reviews
+are synthetic; reviewer identity, artifact pins and preregistration-before-evaluation-read timing are
+not proven. No Brain training, scoring, pipeline or artifact writer ran.
+
 Native Luna Goal `01a15f55-903b-7de2-adec-19733734ac78` is verified `active` and remains the sole
 implementation owner on `org/development`. It is the controlled successor to paused Goal
 `01a15b1c-c263-71b0-bfca-c5b46d17a89b`; predecessor history, counters, receipts and checkpoints are

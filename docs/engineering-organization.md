@@ -1307,7 +1307,7 @@ maximum two-team envelope remains until measured evidence and reviewed policy ju
 |---|---|---|
 | Senses | Immutable captures, source qualification, observation/support provenance | Versioned source contracts, coverage/failure denominators, synthetic decoder and acquisition-planner tasks; provider/writer access separately gated |
 | Experience | `observations`, `schema`, partitioned snapshots and composition | Producer/consumer schema versions, compatibility tests, artifact pins and ownership; original EXP-001 is a real defect |
-| Cortex | Owned `generations`, pinned recipe/snapshot/code and sealed artifacts | Registered experiment job, compute/storage lease, resumable artifact evidence and independent comparison; no training authorization in this audit |
+| Cortex | `generations` and `pipeline` execute research and training against pinned artifacts | The source-only `cortex-research-protocol` v2 now validates hypothesis, role/artifact pins, recipe/code, baseline, metrics, population, time window, budget and stop criteria. A10 requires an integrated Cortex producer and exact reviewed ACKs from Cortex and Evaluation before task-spec admission. Cortex specs bind the protocol objective/hash, allow only `offline_code` and `synthetic_tests`, and remain held from readiness/claim until A04 execution qualification. This is protocol governance only: synthetic producer/review receipts do not authenticate Evaluation; artifact pins are references, not verified artifacts; preregistration-before-evaluation-read timing, experiment jobs, compute/storage leases, resumable artifacts and independent scientific comparison remain unimplemented. No training authority is granted. |
 | Evaluation | Preregistered protocols/populations, separate evaluation role, baseline/coverage metrics | Independent acceptance owner, negative-result retention, leakage/lineage checks and promotion separation; candidate authors cannot change the exam |
 | Policy/Paper | Decision/observation separation and virtual ledger invariants | Versioned model-policy interface, replay/ledger contracts and isolated synthetic tests; no AUTO, production ledger or trading grants |
 | Platform | Controller, storage binding, developer tools and release broker | Full task lifecycle, local release gate, recoverable checkpoint, telemetry and failure handling |
@@ -2049,3 +2049,14 @@ The launcher intercept runs `run_attempt` inline, so worker child-process isolat
 This closes the PLAT-001 manual claim/run/verify and caught-only recovery seams in the integrated
 producer/consumer regression; synthetic transport/reviewer, provider identity and settlement, A03,
 A04 deployment qualification and operational release remain open.
+
+Cortex preregistration metadata — 2026-10-22: Store now enforces a strict protocol schema and
+requires the `cortex-research-protocol` v2 A10 transition to be produced by integrated Cortex work
+and reviewed by both Cortex and Evaluation against the exact proposed body. Cortex task-spec
+admission rechecks protocol content, objective and activation provenance and limits capabilities to
+offline code/synthetic tests; tampering, mismatched objectives and missing ACKs fail closed. Admitted
+Cortex specs remain non-claimable with `cortex_execution_not_qualified` pending A04. Sol accepted the
+bounded source diff; the release gate passes Ruff/format, 675 tests and 193 subtests. Integration and
+reviews in the new regression use synthetic helpers, not a real transport or authenticated reviewer;
+artifact pins and preregistration timing are not externally verified. This does not run generations,
+pipeline, training, scoring, or artifact writers, and does not establish scientific acceptance.

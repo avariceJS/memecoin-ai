@@ -26,6 +26,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from .research_protocol import (
+    CONTRACT_NAME as CORTEX_RESEARCH_PROTOCOL,
+)
+from .research_protocol import (
+    ResearchProtocolError,
+    canonical_protocol,
+)
 from .task_execution import build_execution_binding, resolve_execution_binding
 from .task_specs import validate_task_spec
 
@@ -487,6 +494,7 @@ class Store:
                 if str(exc) == "duplicate_task_id":
                     raise StateError("task_spec_duplicate") from None
                 raise
+            self._validate_cortex_task_spec(canonical)
             task_id = canonical["id"]
             if self.controller_catalogue is not None and task_id in self.controller_catalogue:
                 raise StateError("task_spec_fixed_catalogue_collision")
@@ -530,6 +538,8 @@ class Store:
                 raise StateError("task_spec_objective_missing")
             task_contracts = {}
             for name, requirement in canonical["contracts"].items():
+                if name == CORTEX_RESEARCH_PROTOCOL and requirement["version"] < 2:
+                    raise StateError("cortex_research_protocol_requires_reviewed_v2")
                 row = self.db.execute(
                     "SELECT version,body FROM contracts WHERE name=? ORDER BY version DESC LIMIT 1",
                     (name,),
@@ -537,7 +547,7 @@ class Store:
                 if row is None or row["version"] != requirement["version"]:
                     raise StateError("task_spec_contract_not_current")
                 self._validate_task_spec_contract(name, requirement, row)
-                if requirement["version"] >= 2:
+                if requirement["version"] >= 2 or name == CORTEX_RESEARCH_PROTOCOL:
                     self._validate_task_spec_contract_activation(name, requirement, row)
                 task_contracts[name] = requirement["version"]
             body = _json(canonical)
@@ -664,6 +674,7 @@ class Store:
                 raise StateError(str(exc)) from None
 
     def _validate_task_spec_contracts(self, spec: dict) -> None:
+        self._validate_cortex_task_spec(spec)
         for name, requirement in spec["contracts"].items():
             row = self.db.execute(
                 "SELECT version,body FROM contracts WHERE name=? ORDER BY version DESC LIMIT 1",
@@ -675,8 +686,45 @@ class Store:
             if requirement["version"] >= 2:
                 self._validate_task_spec_contract_activation(name, requirement, row)
 
+    def _validate_cortex_task_spec(self, spec: dict) -> None:
+        if type(spec) is not dict:
+            raise StateError("invalid_task_spec")
+        contracts = spec.get("contracts")
+        if type(contracts) is not dict:
+            raise StateError("invalid_task_spec_contracts")
+        if spec.get("team") == "Cortex":
+            requirement = contracts.get(CORTEX_RESEARCH_PROTOCOL)
+            if (
+                type(requirement) is not dict
+                or type(requirement.get("version")) is not int
+                or requirement["version"] < 2
+            ):
+                raise StateError("cortex_task_requires_reviewed_protocol")
+            protocol_row = self.db.execute(
+                "SELECT version,body FROM contracts WHERE name=? AND version=?",
+                (CORTEX_RESEARCH_PROTOCOL, requirement["version"]),
+            ).fetchone()
+            if protocol_row is None:
+                raise StateError("cortex_task_protocol_missing")
+            self._validate_task_spec_contract(CORTEX_RESEARCH_PROTOCOL, requirement, protocol_row)
+            protocol = json.loads(protocol_row["body"])
+            if protocol["objective_id"] != spec.get("objective_id"):
+                raise StateError("cortex_task_protocol_objective_mismatch")
+            capabilities = spec.get("capabilities")
+            if (
+                type(capabilities) is not list
+                or any(type(capability) is not str for capability in capabilities)
+                or "offline_code" not in capabilities
+                or not set(capabilities) <= {"offline_code", "synthetic_tests"}
+            ):
+                raise StateError("cortex_task_capability_outside_source_only_scope")
+        elif CORTEX_RESEARCH_PROTOCOL in contracts:
+            raise StateError("cortex_research_protocol_reserved_for_cortex")
+
     @staticmethod
     def _validate_task_spec_contract(name: str, requirement: dict, row: sqlite3.Row) -> None:
+        if name == CORTEX_RESEARCH_PROTOCOL and requirement.get("version", 0) < 2:
+            raise StateError("cortex_research_protocol_requires_reviewed_v2")
         try:
             raw_body = row["body"]
             if type(raw_body) is not str:
@@ -692,6 +740,11 @@ class Store:
             raise StateError("task_spec_contract_content_invalid") from None
         if digest != requirement["proposal_sha256"]:
             raise StateError("task_spec_contract_hash_mismatch")
+        if name == CORTEX_RESEARCH_PROTOCOL:
+            try:
+                canonical_protocol(body, version=requirement["version"])
+            except ResearchProtocolError as exc:
+                raise StateError(str(exc)) from None
 
     def _validate_task_spec_contract_activation(
         self, name: str, requirement: dict, row: sqlite3.Row
@@ -911,8 +964,11 @@ class Store:
             return False
         if spec_row is not None:
             try:
-                self._validate_task_spec_contracts(json.loads(spec_row["body"]))
+                spec = json.loads(spec_row["body"])
+                self._validate_task_spec_contracts(spec)
             except (StateError, TypeError, ValueError):
+                return False
+            if spec.get("team") == "Cortex":
                 return False
         return True
 
@@ -1440,7 +1496,8 @@ class Store:
                 )
             elif spec_row is not None:
                 try:
-                    self._validate_task_spec_contracts(json.loads(spec_row["body"]))
+                    spec = json.loads(spec_row["body"])
+                    self._validate_task_spec_contracts(spec)
                 except (StateError, TypeError, ValueError) as exc:
                     blockers.append(
                         {
@@ -1450,6 +1507,14 @@ class Store:
                             else "invalid_task_spec",
                         }
                     )
+                else:
+                    if spec.get("team") == "Cortex":
+                        blockers.append(
+                            {
+                                "kind": "execution_qualification",
+                                "reason": "cortex_execution_not_qualified",
+                            }
+                        )
             report.append(
                 {
                     "task_id": task["id"],
@@ -2409,6 +2474,16 @@ class Store:
             body = json.loads(body_json)
         except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
             raise StateError("contract body must be finite JSON data") from None
+        if name == CORTEX_RESEARCH_PROTOCOL and (
+            version != 1
+            or body
+            != {
+                "schema": "brain-cortex-research-protocol-unreviewed-v1",
+                "version": 1,
+                "status": "unreviewed_baseline",
+            }
+        ):
+            raise StateError("cortex research protocols require a reviewed v2 transition")
         with self._tx():
             if self.db.execute("SELECT 1 FROM contracts WHERE name=? LIMIT 1", (name,)).fetchone():
                 raise StateError("contract version advances require an acknowledged transition")
@@ -2615,6 +2690,13 @@ class Store:
             )
         ):
             raise StateError("contract transition body version mismatch")
+        if name == CORTEX_RESEARCH_PROTOCOL:
+            if body["producer_team"] != "Cortex" or teams != ["Evaluation"]:
+                raise StateError("cortex research protocol requires Cortex and Evaluation")
+            try:
+                canonical_protocol(detached_body, version=version)
+            except ResearchProtocolError as exc:
+                raise StateError(str(exc)) from None
         return body
 
     @staticmethod

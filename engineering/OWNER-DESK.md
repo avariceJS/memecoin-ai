@@ -84,6 +84,14 @@ Store без `controller_catalogue` остаётся совместимым; off
 путь, а прямой SQLite tampering отдельно не аутентифицируется. Это synthetic source-only evidence,
 не qualification reviewer/provider identity, A04/A03 или runtime.
 
+2026-10-22: Добавлена metadata-only Cortex preregistration. Контракт `cortex-research-protocol` v2
+требует интегрированного Cortex producer и A10 review ACK от Cortex и Evaluation по точному телу;
+task-spec проверяет digest и objective, разрешает только `offline_code`/`synthetic_tests`.
+Допущенные Cortex specs остаются неclaimable до A04 qualification. Sol принял срез; gate:
+Ruff/format, 675 тестов и 193 subtests. Git/transport и reviewer identity в регрессии синтетические;
+artifact pins не аутентифицированы, preregistration до чтения evaluation data не доказана. Обучение,
+scoring, pipeline и artifact writers не запускались; научная оценка не заявляется.
+
 2026-10-22: PLAT-001 Experience проходит через controller loop `supervise`: loop сам выбирает и
 claim-ит задачу, запускает привязанный worker command и на следующей итерации вызывает независимую
 проверку. Regression связывает `--state`, `--attempt`, `stdin=DEVNULL` и назначение Luna с
