@@ -350,6 +350,55 @@ class ConfinementTests(unittest.TestCase):
         self.assertTrue(result.timed_out)
         self.assertNotEqual(result.returncode, 0)
 
+    def test_completion_after_deadline_is_classified_as_timeout(self):
+        class FakeStream:
+            @staticmethod
+            def fileno():
+                return 10
+
+        class FakeSelector:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            @staticmethod
+            def register(*_args):
+                pass
+
+            @staticmethod
+            def get_map():
+                return {}
+
+        class FakeProcess:
+            pid = 42
+            stdout = FakeStream()
+            stderr = FakeStream()
+            returncode = 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            @staticmethod
+            def wait(timeout):
+                return 0
+
+        with (
+            patch("engineering.confinement.time.monotonic", side_effect=[0.0, 0.0, 1.0, 6.0, 6.0]),
+            patch("engineering.confinement.selectors.DefaultSelector", return_value=FakeSelector()),
+            patch("engineering.confinement.os.set_blocking"),
+            patch("engineering.confinement.subprocess.Popen", return_value=FakeProcess()),
+            patch.object(SandboxRunner, "_kill_process_group"),
+        ):
+            result = self.runner.run([str(PYTHON), "-I", "-c", "pass"], cwd=self.task, timeout=5.0)
+
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue(result.timed_out)
+
     def test_output_limit_terminates_infinite_output(self):
         result = self.runner.run(
             [str(PYTHON), "-I", "-c", "import os;\nwhile True: os.write(1,b'x'*65536)"],
