@@ -3141,11 +3141,21 @@ class Store:
 
     def _lifecycle_decision_versions(self, name: str) -> list[int]:
         rows = self.db.execute(
-            "SELECT version FROM decisions WHERE name=? ORDER BY version", (name,)
+            "SELECT version,CASE "
+            "WHEN typeof(version)='integer' AND version=1 "
+            "AND replaces IS NULL AND replaces_version IS NULL THEN 1 "
+            "WHEN typeof(version)='integer' AND version>1 "
+            "AND typeof(replaces)='text' AND replaces=name "
+            "AND typeof(replaces_version)='integer' AND replaces_version=version-1 THEN 1 "
+            "ELSE 0 END AS links_valid "
+            "FROM decisions WHERE name=? ORDER BY version",
+            (name,),
         ).fetchall()
-        versions = [row[0] for row in rows]
-        if versions != list(range(1, len(versions) + 1)):
-            raise StateError("lifecycle_decision_history_invalid")
+        versions = [row["version"] for row in rows]
+        if versions != list(range(1, len(versions) + 1)) or any(
+            row["links_valid"] != 1 for row in rows
+        ):
+            raise StateError("controller_parse_recovery_history_invalid")
         return versions
 
     def _lifecycle_owner_history_head(self) -> int | None:

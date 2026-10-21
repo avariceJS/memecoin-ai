@@ -593,6 +593,70 @@ class LifecycleStoreTests(unittest.TestCase):
         receipt = self.store.record_lifecycle_evaluation(lease, launch_observations())
         self.assertEqual(receipt["body"]["plan"]["action"], "launch_request")
 
+    def test_controller_parse_recovery_rejects_broken_journal_links(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        for recovery_index in (1, 2):
+            task_id = f"task-{recovery_index}"
+            self.store.add_task(task_id, "engineering", "Controller parse fault source")
+            attempt = self.store.claim(task_id, "worker")
+            self.store.open_controller_parse_fault(
+                attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+            )
+            circuit = self.store.get_decision("circuit/controller-parse")
+            obligation = self.store.get_decision("recovery-obligation/controller-parse")
+            self.store.resolve_controller_parse_fault(
+                expected_circuit_version=circuit["version"],
+                expected_obligation_version=obligation["version"],
+                recovery_id=f"recovery-{recovery_index}",
+                fix_sha256=str(recovery_index) * 64,
+                review_ref=f"review-{recovery_index}",
+                authorization_ref=f"authorization-{recovery_index}",
+            )
+
+        malformed_links = (
+            ("circuit/controller-parse", 1, "other-journal", 1),
+            ("recovery-obligation/controller-parse", 1, None, 0),
+            ("circuit/controller-parse", 2, "circuit/controller-parse", 99),
+            ("recovery-obligation/controller-parse", 2, "circuit/controller-parse", 1),
+        )
+        for name, version, replaces, replaces_version in malformed_links:
+            with self.subTest(name=name, version=version, replaces_version=replaces_version):
+                row = self.store.db.execute(
+                    "SELECT replaces,replaces_version FROM decisions WHERE name=? AND version=?",
+                    (name, version),
+                ).fetchone()
+                events_before = self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+                requests_before = self.store.db.execute(
+                    "SELECT COUNT(*) FROM decisions WHERE name LIKE 'lifecycle/request/%'"
+                ).fetchone()[0]
+                self.store.db.execute(
+                    "UPDATE decisions SET replaces=?,replaces_version=? WHERE name=? AND version=?",
+                    (replaces, replaces_version, name, version),
+                )
+
+                with self.assertRaisesRegex(
+                    StateError, "controller_parse_recovery_history_invalid"
+                ):
+                    self.store.record_lifecycle_evaluation(lease, launch_observations())
+
+                self.assertEqual(
+                    self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0],
+                    events_before,
+                )
+                self.assertEqual(
+                    self.store.db.execute(
+                        "SELECT COUNT(*) FROM decisions WHERE name LIKE 'lifecycle/request/%'"
+                    ).fetchone()[0],
+                    requests_before,
+                )
+                self.store.db.execute(
+                    "UPDATE decisions SET replaces=?,replaces_version=? WHERE name=? AND version=?",
+                    (row["replaces"], row["replaces_version"], name, version),
+                )
+
+        receipt = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        self.assertEqual(receipt["body"]["plan"]["action"], "launch_request")
+
     def test_malformed_controller_parse_recovery_pair_fails_closed(self):
         lease = self.store.claim_lifecycle_owner("owner")
         self.store.add_task("task-7", "engineering", "Controller parse fault source")
