@@ -818,3 +818,11 @@ flaky `killpg PermissionError` в `test_running_identity_survives_path_replaceme
 на 58 файлах. Тест подтверждает классификацию на synthetic clock, не реальное время процесса или
 cleanup. Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-late-completion-regression-20261021.json`
 (SHA-256 `09b4a823acc077d626ae4b1bf93f7f38bf6ed3190303f3a797bfee6fc1ba3c3e`).
+
+A05 source: `run_attempt` теперь проверяет целостную пару controller-parse circuit/recovery
+history в одном read snapshot до verifier planning. Открытое восстановление, повреждённый JSON,
+несовпадающая история и чрезмерная вложенность останавливают попытку до verifier, Git, sandbox и
+model work. Sol принял точный diff `d029f6483feaf29b479e78e2aaf2c962659111eac6a789dfc35ef0f2318cefa9`;
+engineering gate прошёл: Ruff, формат, 553 теста и 123 subtests. Это только source guard. SQLite
+operational errors продолжают распространяться; recovery provenance, A05 consumer/generation,
+A03 и operational acceptance остаются открыты.

@@ -1600,3 +1600,12 @@ result and blocker bounds, does not retrofit old session capacity, and does not 
 runtime authority. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-session-response-headroom-gate-20261021.json`
 (SHA-256 `4669a7b63293a3418fad409b3acd1e9ae40dd9b167850b02b90f86f913769aaf`).
+
+At the `7eda299` source base, `run_attempt` now validates the complete paired controller-parse
+circuit/recovery history inside one read snapshot before verifier planning. Open recovery remains a
+nonretryable stop; malformed, mismatched or deeply nested invalid journal JSON fails closed before
+verifier, Git, sandbox or model work. Sol-6.1 accepted exact diff
+`d029f6483feaf29b479e78e2aaf2c962659111eac6a789dfc35ef0f2318cefa9`; the engineering release gate
+passed Ruff, format, 553 tests and 123 subtests. This is a point-in-time source guard; SQLite
+operational errors still propagate, and recovery-reference provenance, lifecycle consumption,
+authorization generation, full A05, A03 and operational acceptance remain open.

@@ -731,6 +731,8 @@ class LifecycleStoreTests(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(StateError, "controller_parse_recovery_open"):
+            self.store.require_controller_parse_recovery_clear()
+        with self.assertRaisesRegex(StateError, "controller_parse_recovery_open"):
             self.store.record_lifecycle_evaluation(lease, launch_observations(recovery_open=False))
         self.assertEqual(
             self.store.db.execute(
@@ -761,6 +763,7 @@ class LifecycleStoreTests(unittest.TestCase):
 
         receipt = self.store.record_lifecycle_evaluation(lease, launch_observations())
         self.assertEqual(receipt["body"]["plan"]["action"], "launch_request")
+        self.store.require_controller_parse_recovery_clear()
 
     def test_controller_parse_history_version_summary_handles_long_contiguous_journal(self):
         name = "circuit/controller-parse"
@@ -1058,6 +1061,25 @@ class LifecycleStoreTests(unittest.TestCase):
 
         with self.assertRaisesRegex(StateError, "controller_parse_recovery_history_invalid"):
             self.store.record_lifecycle_evaluation(lease, launch_observations())
+
+    def test_deeply_nested_controller_parse_json_fails_closed(self):
+        self.store.add_task("task-deep-recovery", "engineering", "Nested recovery source")
+        attempt = self.store.claim("task-deep-recovery", "worker")
+        self.store.open_controller_parse_fault(
+            attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+        )
+        self.store.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=1",
+            ("[" * 1100 + "0" + "]" * 1100, "circuit/controller-parse"),
+        )
+        events_before = self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+
+        with self.assertRaisesRegex(StateError, "controller_parse_recovery_history_invalid"):
+            self.store.require_controller_parse_recovery_clear()
+
+        self.assertEqual(
+            self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0], events_before
+        )
 
     def test_controller_parse_recovery_added_during_lock_wait_vetoes_launch(self):
         lease = self.store.claim_lifecycle_owner("owner")

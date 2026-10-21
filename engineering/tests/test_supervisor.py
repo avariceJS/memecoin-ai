@@ -871,6 +871,80 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(len(FakeCodex.turn_estimates), turns_before)
         self.assertEqual(self.db.get_task("T2")["state"], "failed")
 
+    def test_mismatched_controller_recovery_history_stops_before_verifier(self):
+        self.task("T")
+        self.task("T2")
+        fault_attempt = self.db.claim("T", "worker", 100)
+        self.db.open_controller_parse_fault(
+            fault_attempt["id"], fault_attempt["epoch"], stage="lead", exception_type="ValueError"
+        )
+        circuit = self.db.get_decision("circuit/controller-parse")
+        self.db.db.execute(
+            "INSERT INTO decisions(name,version,body,replaces,replaces_version) VALUES(?,?,?,?,?)",
+            (
+                "circuit/controller-parse",
+                circuit["version"] + 1,
+                json.dumps({"status": "resolved"}, separators=(",", ":")),
+                "circuit/controller-parse",
+                circuit["version"],
+            ),
+        )
+        attempt = self.db.claim("T2", "worker", 100)
+
+        with (
+            patch.object(supervisor, "prepare_verification_plan") as prepare,
+            patch.object(supervisor, "metered_client") as dispatch,
+            patch.object(supervisor, "runner") as sandbox,
+            patch.object(supervisor, "git") as git,
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+
+        self.assertEqual(self.db.get_task("T")["state"], "failed")
+        self.assertEqual(self.db.list_attempts()[0]["state"], "failed")
+        failure = next(
+            event
+            for event in reversed(self.db.events())
+            if event["kind"] == "attempt_failed" and event["body"]["attempt_id"] == attempt["id"]
+        )
+        self.assertEqual(failure["body"]["reason"], "controller_recovery_history_invalid")
+        prepare.assert_not_called()
+        dispatch.assert_not_called()
+        sandbox.assert_not_called()
+        git.assert_not_called()
+
+    def test_malformed_controller_recovery_json_stops_before_verifier(self):
+        self.task("T")
+        self.task("T2")
+        fault_attempt = self.db.claim("T", "worker", 100)
+        self.db.open_controller_parse_fault(
+            fault_attempt["id"], fault_attempt["epoch"], stage="lead", exception_type="ValueError"
+        )
+        self.db.db.execute(
+            "UPDATE decisions SET body='{' WHERE name='circuit/controller-parse' AND version=1"
+        )
+        attempt = self.db.claim("T2", "worker", 100)
+
+        with (
+            patch.object(supervisor, "prepare_verification_plan") as prepare,
+            patch.object(supervisor, "metered_client") as dispatch,
+            patch.object(supervisor, "runner") as sandbox,
+            patch.object(supervisor, "git") as git,
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+
+        self.assertEqual(self.db.get_task("T2")["state"], "failed")
+        self.assertEqual(self.db.list_attempts("T2")[0]["state"], "failed")
+        failure = next(
+            event
+            for event in reversed(self.db.events())
+            if event["kind"] == "attempt_failed" and event["body"]["attempt_id"] == attempt["id"]
+        )
+        self.assertEqual(failure["body"]["reason"], "controller_recovery_history_invalid")
+        prepare.assert_not_called()
+        dispatch.assert_not_called()
+        sandbox.assert_not_called()
+        git.assert_not_called()
+
     def test_unqualified_verifier_plan_stops_attempt_before_dispatch_or_checkout(self):
         self.task()
         attempt = self.db.claim("T", "worker", 100)

@@ -445,9 +445,15 @@ def run_attempt(state: Path, attempt_id: int):
     epoch = attempt["epoch"]
     # A queued OS child may start after its lease was already replaced.
     db.renew(attempt_id, epoch, LEASE)
-    circuit = db.get_decision("circuit/controller-parse")
-    if circuit is not None and circuit["body"].get("status") == "open":
-        db.fail(attempt_id, epoch, "controller_circuit_open:structured_parse", retryable=False)
+    try:
+        db.require_controller_parse_recovery_clear()
+    except StateError as exc:
+        reason = (
+            "controller_circuit_open:structured_parse"
+            if str(exc) == "controller_parse_recovery_open"
+            else "controller_recovery_history_invalid"
+        )
+        db.fail(attempt_id, epoch, reason, retryable=False)
         db.close()
         return
     try:

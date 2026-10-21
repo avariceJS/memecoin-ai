@@ -3757,6 +3757,16 @@ class Store:
         if previous_status == "open":
             raise StateError("controller_parse_recovery_open")
 
+    def require_controller_parse_recovery_clear(self) -> None:
+        """Check the paired controller-parse recovery journal in one read snapshot."""
+        try:
+            with self._read_snapshot():
+                self._require_controller_parse_recovery_clear()
+        except StateError:
+            raise
+        except (ValueError, TypeError, KeyError, IndexError, OverflowError, RecursionError):
+            raise StateError("controller_parse_recovery_history_invalid") from None
+
     def _persist_lifecycle_evaluation(
         self, owner: dict, plan: dict, observations: dict | None = None
     ) -> dict:

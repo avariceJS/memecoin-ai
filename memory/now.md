@@ -528,3 +528,4 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   Sol accepted diff `02d8b8b7`; engineering gate passed 550 tests/123 subtests with Ruff. Historical
   ambiguity, recovery-reference provenance, lifecycle consumer and authorization generation remain
   open; no runtime was started.
+- A05 `run_attempt` now validates paired controller-parse recovery history in one read snapshot before verifier planning; malformed, mismatched and deeply nested invalid records fail closed. Sol accepted exact diff `d029f6483feaf29b479e78e2aaf2c962659111eac6a789dfc35ef0f2318cefa9`; full gate passed Ruff/format, 553 tests and 123 subtests. Consumer/generation, provenance, A03 and operational acceptance remain open.
