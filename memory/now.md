@@ -220,6 +220,13 @@ automatically.
   38 Store tests and Ruff passed. A pending review does not yet defer quiescence; dispatch, recovery,
   A03 settlement and full A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-quiescence-review-20261021.json`.
+- A10 source `4302b47` stores bounded exact review-result bytes in `response_recorded` before parse;
+  recovery rehashes them and finalization requires parsed-result equality before ACK. Legacy terminal
+  histories remain readable without retroactive raw custody. Sol accepted exact diff
+  `5fee1397e07c518d5d047a182c38e7f2f9770543330b9ecc3cca9bca30115957`; 93 tests/9 subtests and Ruff
+  passed. This is not full RPC custody and provider/usage provenance remains caller supplied; no
+  dispatch path, pending-review quiescence or A03 settlement. Receipt:
+  `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-response-custody-review-20261021.json`.
 
 Canonical program, acceptance criteria and limits: `docs/engineering-organization.md`. Founder-facing
 external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receipts remain under
