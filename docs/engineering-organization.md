@@ -48,28 +48,36 @@ and the dependent task's base SHA is asserted to equal the just-integrated candi
 the checkout's possibly stale `HEAD`. Admission and the terminal planning decision commit in one
 SQLite transaction; a hard-interruption regression verifies that no task survives if finalization
 cannot commit, duplicate JSON proposal keys are rejected, and client cleanup failure cannot relabel
-a committed admission; that cleanup failure remains visible to the caller. The test then exercises
-claim, a real
-prepared verifier-plan identity, worker commit,
-GitGate import and receipt, submitted-state reconciliation, local ref CAS, durable integration,
-SQLite close/reopen, recovery, and a dependent next-task claim. It injects a crash after ref CAS,
-removes the receipt and confirms recovery fails closed, tampers with the candidate SHA and confirms
-its exact parent binding rejects publication, then restores evidence and confirms one integration
-event. The integrated producer is an Experience task; its Platform consumer remains ineligible until
+a committed admission; that cleanup failure remains visible to the caller. The test then claims the
+task, prepares its verifier-plan identity, and uses the actual `supervisor.run_attempt` path through
+an injected local lead/worker transport. Its worker calls the issued tool callback; the real
+`SandboxRunner` executes a fixed script that writes the scoped source file. Seatbelt grants that
+file's parent directory and denies a write into the protected integration repository; the controller
+stages only the declared scope and records the candidate against the attempt, epoch and verifier
+identity. The test calls the real `supervisor.verify_one` path: a temporary trusted acceptance
+harness validates the candidate, `SandboxRunner` executes the registered verifier command, and
+`GitGate` imports and receipts the result. An injected deterministic reviewer receives the exact
+packet; the test asserts its task, scoped path, candidate diff and passing acceptance result before
+returning approval. This exercises the review call and packet binding, not reviewer judgment,
+identity or independence. The test injects a crash after the real ref compare-and-swap but before
+Store integration, closes and reopens
+SQLite, then recovers and claims a dependent next task. It removes the receipt and confirms recovery
+fails closed, tampers with candidate SHA and confirms exact parent binding rejects publication, then
+restores evidence and confirms one integration event.
+The integrated producer is an Experience task; its Platform consumer remains ineligible until
 both teams' synthetic durable reviews activate the exact contract version. Recovery now binds intent
 to Store attempt/epoch and successful verification details; GitGate
 requires the candidate's exact two parents to equal the captured integration tip and submitted SHA.
 The test uses `research/active` only inside a temporary repository and leaves `main` unchanged. The
-trusted verifier callback is synthetic and does not execute worker code; this does not qualify the
-Seatbelt worker dispatch path, model review authenticity, provider usage settlement, remote
-checkpointing, runtime or A03. On the current Mac a fixed worker script runs through the real
-`SandboxRunner` in the disposable checkout, writes an in-scope file and is denied an out-of-root
-write. Its subsequent verifier callback is synthetic and does not execute worker code, and this
-does not exercise the supervisor's worker-dispatch entry point or qualify A04. Engineering checks
-pass Ruff/format and 595 tests plus 189 subtests;
-`make smoke` is deterministic and synthetic. Repository-wide `make check` currently stops at 107
-pre-existing Ruff findings in `src/`, `tools/` and `tests/`, before its later checks. The integrated
-organization cycle remains in progress.
+injected lead/worker/reviewer transport and trusted acceptance harness are synthetic; no live
+provider is called. The acceptance command is the legacy fixed-policy path-only harness, not a
+manifest-bound A04 verifier. This exercises controller dispatch, worker and verifier Seatbelt paths,
+review packet binding, Git integration and recovery without qualifying real Codex identity, reviewer
+judgment/authenticity, provider usage settlement, A04 as a whole, remote checkpointing, runtime or A03.
+The current release check passes Ruff/format and 595 tests plus 189 subtests. `make smoke` is
+deterministic and synthetic. Repository-wide `make check` currently stops at 107 pre-existing Ruff
+findings in `src/`, `tools/` and `tests/`, before later checks. The integrated organization cycle
+remains in progress.
 
 Current A10 integration correction — 2026-10-21: independent review is the sole source of participant
 acknowledgements for new contract transitions. Task-lead results must carry an empty legacy
