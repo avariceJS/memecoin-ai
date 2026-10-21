@@ -671,6 +671,12 @@ focused suite: 22 теста и 3 subtests; итоговый gate: 415 тест�
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-controller-parse-recovery-veto-20261021.json`.
 (SHA-256 `53d5076ee97375fb3c025cc222f70eb5179017adc684865329ea4fbc46fe9b09`).
 
+Дополнительно generic decision writer больше не может подменить `circuit/controller-parse` или
+`recovery-obligation/controller-parse`; dedicated recovery API и проверка ожидаемых версий сохранены.
+Sol принял exact diff `02d8b8b7`; полный gate прошёл 550 тестов и 123 subtests с Ruff/format.
+Старые неоднозначные записи не исправляются автоматически, ссылки recovery отдельно не
+аутентифицируются; consumer/runtime authority не добавлены.
+
 A04 synthetic integration increment принят Sol на exact diff
 `5e03ada485c56a4635da07d89c7cdb6679c21b3ac4cecf790b87af09ca6316cd`, source `62ab4ce`. Один
 macOS test связывает persisted admission/binding, manifest v4, command expansion, Seatbelt и строгий

@@ -1459,6 +1459,15 @@ reads for records within the cap remain separate costs; historical oversized rec
 A05 still has no lifecycle consumer or authorization generation, and operational acceptance remains
 open.
 
+Follow-up reserves the exact `circuit/controller-parse` and
+`recovery-obligation/controller-parse` names from the generic `put_decision` API. Dedicated open and
+resolve paths continue through the internal fenced writer; regressions cover generic bypass rejection
+without version/event writes, allowed adjacent names, stale-version rejection and successful exact
+resolution. Sol accepted exact diff
+`02d8b8b7332c61a834cbb4367d32e97a21277de135a7afb526e351327051ba2b`; the engineering gate passed
+Ruff, format, 550 tests and 123 subtests. Existing ambiguous historical records remain unchanged,
+recovery references are not authenticated, and no consumer/runtime authority follows.
+
 At `f44626d`, owner history validation also requires exactly one matching `decision_recorded` event
 for every owner version and rejects orphan owner events. Owner and event bodies are preflighted at
 64 KiB in SQLite storage bytes and decoded one at a time using the database encoding; event

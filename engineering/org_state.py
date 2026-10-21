@@ -3129,6 +3129,11 @@ class Store:
         _name(name)
         if (
             name == "lifecycle/owner"
+            or name
+            in (
+                "circuit/controller-parse",
+                "recovery-obligation/controller-parse",
+            )
             or name.startswith("lifecycle/request/")
             or name.startswith("contract-transition/")
             or name.startswith("contract-ack/")

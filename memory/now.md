@@ -524,3 +524,7 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   compatible. Sol accepted diff `f0c585ca`; full gate passed 549 tests/121 subtests with Ruff after
   one isolated macOS code-identity deadline flake. Ambiguous history needs separate review; no
   runtime authority.
+- A05 generic `put_decision` now reserves the controller-parse circuit and recovery-obligation keys.
+  Sol accepted diff `02d8b8b7`; engineering gate passed 550 tests/123 subtests with Ruff. Historical
+  ambiguity, recovery-reference provenance, lifecycle consumer and authorization generation remain
+  open; no runtime was started.

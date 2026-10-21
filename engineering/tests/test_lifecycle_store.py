@@ -853,6 +853,56 @@ class LifecycleStoreTests(unittest.TestCase):
             authorization_ref="authorization-1",
         )
 
+    def test_generic_decisions_cannot_resolve_controller_parse_recovery(self):
+        self.store.add_task("task-generic-recovery", "engineering", "Controller parse source")
+        attempt = self.store.claim("task-generic-recovery", "worker")
+        self.store.open_controller_parse_fault(
+            attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+        )
+        circuit = self.store.get_decision("circuit/controller-parse")
+        obligation = self.store.get_decision("recovery-obligation/controller-parse")
+        events_before = self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+
+        for name in ("circuit/controller-parse", "recovery-obligation/controller-parse"):
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(StateError, "decision_namespace_reserved"),
+            ):
+                self.store.put_decision(name, {"status": "resolved"})
+        self.assertEqual(self.store.get_decision("circuit/controller-parse"), circuit)
+        self.assertEqual(
+            self.store.get_decision("recovery-obligation/controller-parse"), obligation
+        )
+        self.assertEqual(
+            self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0], events_before
+        )
+
+        adjacent_version = self.store.put_decision(
+            "circuit/controller-parse-adjacent", {"status": "resolved"}
+        )
+        self.assertEqual(adjacent_version, 1)
+        with self.assertRaisesRegex(StateError, "controller_recovery_obligation_changed"):
+            self.store.resolve_controller_parse_fault(
+                expected_circuit_version=circuit["version"] + 1,
+                expected_obligation_version=obligation["version"],
+                recovery_id="recovery-1",
+                fix_sha256="a" * 64,
+                review_ref="review-1",
+                authorization_ref="authorization-1",
+            )
+        self.assertEqual(self.store.get_decision("circuit/controller-parse"), circuit)
+        self.assertEqual(
+            self.store.get_decision("recovery-obligation/controller-parse"), obligation
+        )
+        self.store.resolve_controller_parse_fault(
+            expected_circuit_version=circuit["version"],
+            expected_obligation_version=obligation["version"],
+            recovery_id="recovery-1",
+            fix_sha256="a" * 64,
+            review_ref="review-1",
+            authorization_ref="authorization-1",
+        )
+
     def test_oversized_controller_parse_record_fails_before_json_hydration(self):
         self.store.add_task("task-large-recovery", "engineering", "Oversized recovery source")
         attempt = self.store.claim("task-large-recovery", "worker")
