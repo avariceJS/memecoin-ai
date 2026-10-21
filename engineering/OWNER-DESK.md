@@ -900,3 +900,12 @@ Ruff, format, 567 тестов и 161 subtest. Закрыта только му�
 `a8b2309b6614783d40cf64cd64253997b96879b5d88d47cea63e1a8cb185fc21`. Полный gate: Ruff, format,
 567 тестов, 161 subtest. V4 single-command и v5 multi-command manifest binding checks сохранены;
 spec-backed план остаётся `execution_qualified=False`, запуск или release authority не добавлены.
+
+A11 source increment на базе `40ac964`: review packet строится из detached snapshot полей task и
+command results. Scope, хеш, wire limit и возвращённые данные читают один snapshot. Копировщик
+сохраняет tuple argv, не вызывает пользовательские `__deepcopy__` и отклоняет циклы. Regressions
+подтверждают независимость от последующих изменений исходных task/check объектов, пересчитывают
+`packet_sha256` и закрывают type-laundering попытки. Sol принял exact diff
+`080d085c6ddd7aac64b7c5bdc1bc9354122225ec459024fd6af845b3fe885bef`; полный gate: Ruff, format,
+571 тест и 161 subtest. Возвращённый dict сам остаётся изменяемым; это не подтверждает качество
+independent review, provenance, A03 settlement или readiness к эксплуатации.

@@ -13,6 +13,20 @@ class ReviewPacketError(ValueError):
 
 MAX_DIFF_BYTES = 50_000
 MAX_PACKET_BYTES = 256_000
+TASK_PACKET_FIELDS = (
+    "id",
+    "team",
+    "title",
+    "brief",
+    "objective_id",
+    "base_sha",
+    "scope",
+    "acceptance",
+    "dependencies",
+    "contracts",
+    "capabilities",
+    "resources",
+)
 
 
 def _canonical(value: Any) -> bytes:
@@ -24,10 +38,50 @@ def _canonical(value: Any) -> bytes:
         raise ReviewPacketError("invalid_review_packet_json") from None
 
 
+def _snapshot_mutable_inputs(task, command_results):
+    """Detach JSON-shaped caller data while preserving exact list/tuple types."""
+    if type(task) is dict:
+        scope = task.get("scope")
+        if type(scope) is not list:
+            raise ReviewPacketError("invalid_review_task_scope")
+        task_projection = {key: task.get(key) for key in TASK_PACKET_FIELDS}
+        task_snapshot = _snapshot_plain_json(task_projection)
+    else:
+        task_snapshot = task
+    if type(command_results) is list:
+        if not command_results or any(type(result) is not dict for result in command_results):
+            results_snapshot = command_results
+        else:
+            results_snapshot = _snapshot_plain_json(command_results)
+    else:
+        results_snapshot = command_results
+    return task_snapshot, results_snapshot
+
+
+def _snapshot_plain_json(value):
+    """Copy built-in JSON containers without invoking user-defined copy hooks."""
+    try:
+        value_type = type(value)
+        if value_type is dict:
+            if any(type(key) is not str for key in value):
+                raise ReviewPacketError("invalid_review_packet_json")
+            return {key: _snapshot_plain_json(item) for key, item in value.items()}
+        if value_type is list:
+            return [_snapshot_plain_json(item) for item in value]
+        if value_type is tuple:
+            return tuple(_snapshot_plain_json(item) for item in value)
+        if value_type in (str, int, float, bool, type(None)):
+            return value
+        raise ReviewPacketError("invalid_review_packet_json")
+    except RecursionError:
+        raise ReviewPacketError("invalid_review_packet_json") from None
+
+
 def build_review_packet(
     task, candidate, policy, command_results, diff: str, merged_changed_paths
 ) -> dict:
     """Include the whole bounded diff and the exact identities needed to review it."""
+    task, command_results = _snapshot_mutable_inputs(task, command_results)
     if type(diff) is not str:
         raise ReviewPacketError("invalid_review_diff")
     diff_bytes = diff.encode("utf-8")
@@ -91,23 +145,7 @@ def build_review_packet(
     }
     packet = {
         "schema": "brain-independent-review-packet-v1",
-        "task": {
-            key: task.get(key)
-            for key in (
-                "id",
-                "team",
-                "title",
-                "brief",
-                "objective_id",
-                "base_sha",
-                "scope",
-                "acceptance",
-                "dependencies",
-                "contracts",
-                "capabilities",
-                "resources",
-            )
-        },
+        "task": {key: task.get(key) for key in TASK_PACKET_FIELDS},
         "candidate": candidate_manifest,
         "verifier_policy": {
             "policy_id": policy.policy_id,

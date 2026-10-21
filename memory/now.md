@@ -54,10 +54,15 @@ decisions and independent review; Astra remains episodic and is never started au
   validation. Sol accepted exact diff `2d40e2bdcf6c3c51196bb592b91f6f6453473bfbe92c513c2a0fbb9fdc504ea5`;
   committed at `a6c6499`; the full gate passed Ruff, format, 567 tests and 161 subtests. This closes
   sequence mutation during construction only; filesystem identity races and full A04 remain open.
-- Current A04 candidate snapshots each `BoundCommand` result mapping into a read-only string mapping.
+- Latest A04 source at `9421ca6` snapshots each `BoundCommand` result mapping into a read-only string mapping.
   Sol accepted exact diff `a8b2309b6614783d40cf64cd64253997b96879b5d88d47cea63e1a8cb185fc21`; focused
   regressions passed and the full gate passed Ruff, format, 567 tests and 161 subtests. The prepared
-  plan remains unqualified; this candidate is not yet committed.
+  plan remains unqualified; this source is committed locally and unpublished.
+- Current A11 candidate creates review packets from detached task/check snapshots, preserves tuple
+  argv, rejects custom copy hooks/cycles and binds size/digest to the returned evidence. Sol accepted
+  exact diff `080d085c6ddd7aac64b7c5bdc1bc9354122225ec459024fd6af845b3fe885bef`; the full gate passed
+  Ruff, format, 571 tests and 161 subtests. The returned packet remains mutable; this is source-only
+  evidence, with A03/release/runtime gates still closed. Not yet committed.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

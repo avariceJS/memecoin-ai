@@ -1700,3 +1700,14 @@ blocks review and publication in the synthetic callback. Sol-6.1 accepted exact 
 v5 multi-command binding coverage remains intact. The full engineering release gate passed Ruff,
 format, 567 tests and 161 subtests. Spec-backed plans remain `execution_qualified=False`; no execution
 or release authority is added.
+
+At `40ac964`, A11 review-packet construction snapshots the selected task projection and command
+results using only exact built-in JSON containers/scalars, preserving tuples and rejecting custom
+copy hooks. Scope validation, packet hashing, wire-size checks and returned evidence use the detached
+snapshots. Regressions mutate caller-owned task/check data after capture, recompute the digest from
+returned bytes, reject type-laundering subclasses, and normalize cyclic input to the existing JSON
+error. Sol-6.1 accepted exact diff
+`080d085c6ddd7aac64b7c5bdc1bc9354122225ec459024fd6af845b3fe885bef`; the full engineering release
+gate passed Ruff, format, 571 tests and 161 subtests. The returned packet remains an ordinary mutable
+dict, and this does not establish reviewer quality, provider provenance, A03 settlement or production
+readiness.

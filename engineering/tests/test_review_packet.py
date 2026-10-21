@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -58,6 +59,12 @@ def policy():
     return VerificationPolicy((("python", "-m", "pytest"),), (), "synthetic-policy-v1")
 
 
+def packet_digest(packet):
+    body = {key: value for key, value in packet.items() if key != "packet_sha256"}
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def test_packet_contains_complete_candidate_identity_diff_and_policy():
     diff = "diff --git a/src/example.py b/src/example.py\n+value = 1\n"
     packet = build_review_packet(
@@ -82,6 +89,144 @@ def test_packet_contains_complete_candidate_identity_diff_and_policy():
         len(__import__("json").dumps(packet, sort_keys=True, separators=(",", ":")).encode())
         <= MAX_PACKET_BYTES
     )
+
+
+def test_packet_detaches_task_and_check_inputs_after_construction():
+    task_data = task()
+    check_data = checks()
+    packet = build_review_packet(
+        task_data,
+        candidate(),
+        policy(),
+        check_data,
+        "diff content",
+        ("src/example.py", "tests/test_example.py"),
+    )
+    packet_before = json.dumps(packet, sort_keys=True, separators=(",", ":"))
+
+    task_data["scope"].clear()
+    task_data["contracts"]["schema"] = 99
+    task_data["resources"]["max_attempts"] = 100
+    check_data.append({"stdout": "new evidence"})
+    check_data[0]["stdout"] = "changed evidence"
+    check_data[0]["argv"] = ("different",)
+
+    assert json.dumps(packet, sort_keys=True, separators=(",", ":")) == packet_before
+    assert packet["task"]["scope"] == ["src/example.py", "tests/test_example.py"]
+    assert packet["task"]["contracts"] == {"schema": 1}
+    assert packet["task"]["resources"] == {"max_attempts": 1}
+    assert packet["checks"][0]["stdout"] == "2 passed"
+    assert packet["checks"][0]["argv"] == ("python", "-m", "pytest")
+    assert packet["packet_sha256"] == packet_digest(packet)
+
+
+def test_validation_hash_and_return_use_one_input_snapshot(monkeypatch):
+    from engineering import review_packet
+
+    task_data = task()
+    check_data = checks()
+    original_snapshot = review_packet._snapshot_mutable_inputs
+
+    def snapshot_then_mutate(original_task, original_checks):
+        snapshot = original_snapshot(original_task, original_checks)
+        original_task["scope"].clear()
+        original_task["contracts"].clear()
+        original_checks[0]["stdout"] = "changed during construction"
+        original_checks[0]["timed_out"] = True
+        return snapshot
+
+    monkeypatch.setattr(review_packet, "_snapshot_mutable_inputs", snapshot_then_mutate)
+    packet = build_review_packet(
+        task_data,
+        candidate(),
+        policy(),
+        check_data,
+        "diff content",
+        ("src/example.py", "tests/test_example.py"),
+    )
+
+    assert task_data["scope"] == []
+    assert packet["task"]["scope"] == ["src/example.py", "tests/test_example.py"]
+    assert packet["task"]["contracts"] == {"schema": 1}
+    assert packet["checks"][0]["stdout"] == "2 passed"
+    assert packet["checks"][0]["timed_out"] is False
+    assert packet["packet_sha256"] == packet_digest(packet)
+
+
+def test_snapshot_does_not_allow_custom_copy_hooks_to_launder_exact_types():
+    deepcopy_called = False
+
+    class TaskLaunder:
+        def __deepcopy__(self, _memo):
+            nonlocal deepcopy_called
+            deepcopy_called = True
+            return task()
+
+    with pytest.raises(ReviewPacketError, match="invalid_review_task_scope"):
+        build_review_packet(
+            TaskLaunder(),
+            candidate(),
+            policy(),
+            checks(),
+            "short diff",
+            ("src/example.py",),
+        )
+    assert not deepcopy_called
+
+    class ScopeLaunder(list):
+        def __deepcopy__(self, _memo):
+            nonlocal deepcopy_called
+            deepcopy_called = True
+            return list(self)
+
+    task_data = task()
+    task_data["scope"] = ScopeLaunder(task_data["scope"])
+    with pytest.raises(ReviewPacketError, match="invalid_review_task_scope"):
+        build_review_packet(
+            task_data,
+            candidate(),
+            policy(),
+            checks(),
+            "short diff",
+            ("src/example.py",),
+        )
+    assert not deepcopy_called
+
+    class CheckLaunder(dict):
+        def __deepcopy__(self, _memo):
+            nonlocal deepcopy_called
+            deepcopy_called = True
+            return dict(self)
+
+    check_data = checks()
+    check_data[0] = CheckLaunder(check_data[0])
+    with pytest.raises(ReviewPacketError, match="incomplete_review_check_result"):
+        build_review_packet(
+            task(),
+            candidate(),
+            policy(),
+            check_data,
+            "short diff",
+            ("src/example.py",),
+        )
+    assert not deepcopy_called
+
+
+def test_snapshot_rejects_cycles_as_invalid_packet_json():
+    task_data = task()
+    cyclic_resource = {}
+    cyclic_resource["self"] = cyclic_resource
+    task_data["resources"] = cyclic_resource
+
+    with pytest.raises(ReviewPacketError, match="invalid_review_packet_json"):
+        build_review_packet(
+            task_data,
+            candidate(),
+            policy(),
+            checks(),
+            "short diff",
+            ("src/example.py",),
+        )
 
 
 def test_oversized_diff_is_explicitly_rejected_without_truncation():
