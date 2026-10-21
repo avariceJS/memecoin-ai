@@ -1770,6 +1770,26 @@ class Store:
                     or hashlib.sha256(raw_result).hexdigest() != body["raw_sha256"]
                 ):
                     raise StateError("contract review response custody invalid")
+                if body["status"] in ("approved", "blocked"):
+                    try:
+                        if (
+                            type(body.get("result")) is not dict
+                            or type(body.get("model_result")) is not dict
+                        ):
+                            raise ValueError("terminal result shape invalid")
+                        parsed_result = _strict_contract_review_result(raw_result)
+                        if _json(parsed_result) != _json(body["model_result"]) or _json(
+                            body["result"]
+                        ) != _json(body["model_result"]):
+                            raise ValueError("terminal result differs from custodied response")
+                    except (
+                        TypeError,
+                        ValueError,
+                        UnicodeDecodeError,
+                        OverflowError,
+                        RecursionError,
+                    ):
+                        raise StateError("contract review result custody invalid") from None
             if body["status"] in ("approved", "blocked"):
                 if (
                     type(body.get("raw_sha256")) is not str

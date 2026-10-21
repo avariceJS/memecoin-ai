@@ -1426,7 +1426,7 @@ def test_contract_review_replay_sweep_preserves_per_request_failures(store):
     assert repeated["failures"] == swept["failures"]
 
 
-def record_pending_review_response(store, body, *, suffix, result=None):
+def record_pending_review_response(store, body, *, suffix, result=None, raw_result=None):
     store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
     store.record_contract_review_session(
         body["request_id"],
@@ -1436,7 +1436,12 @@ def record_pending_review_response(store, body, *, suffix, result=None):
         body["dispatch_id"],
         {"pid": 123, "birth": "synthetic-birth-" + suffix},
     )
-    record_review_result(store, body, review_result() if result is None else result)
+    record_review_result(
+        store,
+        body,
+        review_result() if result is None else result,
+        raw_result=raw_result,
+    )
 
 
 def test_configured_activation_replays_saved_approval_without_provider_or_resend(store, tmp_path):
@@ -1929,6 +1934,9 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
         "object_status",
         "missing_packet_hash",
         "invalid_packet_hash",
+        "terminal_result",
+        "terminal_model_result",
+        "terminal_both_results",
     ],
 )
 def test_supervisor_malformed_review_history_does_not_skip_later_activation(
@@ -1980,11 +1988,33 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
         "z-other", 2, "Platform", transitions["z-other"]["body"]["contract_hash"]
     )
     request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
-    record_pending_review_response(store, request["body"], suffix="corrupt-history")
+    if corruption.startswith("terminal_"):
+        terminal_result = review_result(decision="blocked", compatibility="insufficient")
+        record_pending_review_response(
+            store,
+            request["body"],
+            suffix="corrupt-history",
+            result=terminal_result,
+            raw_result=(
+                b" \n"
+                + json.dumps(terminal_result, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                + b"\t"
+            ),
+        )
+        response = store.get_contract_review_response(request["body"]["request_id"])
+        store.finish_contract_review(
+            request["body"]["request_id"],
+            request["body"]["packet_hash"],
+            response["raw_sha256"],
+            terminal_result,
+        )
+    else:
+        record_pending_review_response(store, request["body"], suffix="corrupt-history")
     latest = store.db.execute(
         "SELECT version,body FROM decisions WHERE name=? ORDER BY version DESC LIMIT 1",
         (request["name"],),
     ).fetchone()
+    latest_raw_sha256 = json.loads(latest["body"]).get("raw_sha256")
     if corruption in {"missing_packet_hash", "invalid_packet_hash"}:
         journal_rows = store.db.execute(
             "SELECT version,body FROM decisions WHERE name=? ORDER BY version",
@@ -2007,6 +2037,14 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
     else:
         if corruption == "malformed_json":
             persisted_body = "{malformed"
+        elif corruption.startswith("terminal_"):
+            invalid_body = json.loads(latest["body"])
+            altered_result = review_result()
+            if corruption in {"terminal_result", "terminal_both_results"}:
+                invalid_body["result"] = altered_result
+            if corruption in {"terminal_model_result", "terminal_both_results"}:
+                invalid_body["model_result"] = altered_result
+            persisted_body = json.dumps(invalid_body, sort_keys=True, separators=(",", ":"))
         else:
             invalid_body = json.loads(latest["body"])
             invalid_body["status"] = [] if corruption == "list_status" else {}
@@ -2017,10 +2055,31 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
             (persisted_body, request["name"], request["name"]),
         )
 
-    with pytest.raises(StateError, match="contract review history invalid"):
+    expected_error = (
+        "contract review result custody invalid"
+        if corruption.startswith("terminal_")
+        else "contract review history invalid"
+    )
+    events_before_reads = store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+    with pytest.raises(StateError, match=expected_error):
         store._contract_review_record(request["body"]["request_id"], bounded_replay=True)
-    with pytest.raises(StateError, match="contract review history invalid"):
+    with pytest.raises(StateError, match=expected_error):
         store._contract_review_record(request["body"]["request_id"])
+
+    if corruption.startswith("terminal_"):
+        with pytest.raises(StateError, match=expected_error):
+            store.finish_contract_review(
+                request["body"]["request_id"],
+                request["body"]["packet_hash"],
+                latest_raw_sha256,
+                terminal_result,
+            )
+        with pytest.raises(StateError, match=expected_error):
+            store.replay_contract_review_response(
+                request["body"]["request_id"], request["body"]["packet_hash"]
+            )
+        assert store.get_decision(request["name"])["version"] == latest["version"]
+        assert store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0] == events_before_reads
 
     cfg = {"contracts": {"sample": sample_proposal, "z-other": other_proposal}}
     with (
@@ -2046,13 +2105,18 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
         ).fetchone()["body"]
         == persisted_body
     )
+    expected_error = (
+        "contract review result custody invalid"
+        if corruption.startswith("terminal_")
+        else "contract review history invalid"
+    )
     assert any(
         call.args[1] == "contract_review_replay_failed"
         and call.kwargs.get("name") == "sample"
         and call.kwargs.get("version") == 2
         and call.kwargs.get("dispatch_authority") is False
         and call.kwargs.get("provider_dispatch") is False
-        and call.kwargs.get("error") == "contract review history invalid"
+        and call.kwargs.get("error") == expected_error
         for call in log_event.call_args_list
     )
 
