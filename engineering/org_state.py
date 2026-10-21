@@ -61,6 +61,26 @@ def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
+def _strict_contract_review_result(raw_result: bytes) -> dict:
+    """Decode one durable review result, rejecting duplicate keys and non-object roots."""
+    if type(raw_result) is not bytes:
+        raise ValueError("contract review response bytes invalid")
+
+    def unique_object(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("duplicate JSON key")
+            value[key] = item
+        return value
+
+    value = json.loads(raw_result.decode("utf-8"), object_pairs_hook=unique_object)
+    if type(value) is not dict:
+        raise ValueError("contract review response root is not an object")
+    _json(value)  # Reject non-finite JSON values accepted by Python's decoder.
+    return value
+
+
 def _name(value: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise StateError("identifier must be a nonempty string")
@@ -2033,6 +2053,19 @@ class Store:
                 "raw_result": raw_result,
             }
 
+    def replay_contract_review_response(self, request_id: str, packet_hash: str) -> dict:
+        """Finalize one already-custodied response locally, without contacting a provider."""
+        if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
+            raise StateError("contract review packet hash invalid")
+        response = self.get_contract_review_response(request_id)
+        if response["packet_hash"] != packet_hash:
+            raise StateError("contract review response is stale")
+        try:
+            result = _strict_contract_review_result(response["raw_result"])
+        except (TypeError, ValueError, UnicodeDecodeError, OverflowError, RecursionError):
+            raise StateError("contract review response is not replayable") from None
+        return self.finish_contract_review(request_id, packet_hash, response["raw_sha256"], result)
+
     def finish_contract_review(
         self, request_id: str, packet_hash: str, raw_sha256: str, result: Any
     ) -> dict:
@@ -2106,19 +2139,8 @@ class Store:
                 raise StateError("contract review response hash mismatch")
             response = self.get_contract_review_response(request_id)
             try:
-
-                def unique_object(pairs):
-                    value = {}
-                    for key, item in pairs:
-                        if key in value:
-                            raise ValueError("duplicate JSON key")
-                        value[key] = item
-                    return value
-
-                raw_result = json.loads(
-                    response["raw_result"].decode("utf-8"), object_pairs_hook=unique_object
-                )
-                if type(raw_result) is not dict or _json(raw_result) != _json(detached):
+                raw_result = _strict_contract_review_result(response["raw_result"])
+                if _json(raw_result) != _json(detached):
                     raise ValueError("stored response differs from parsed result")
             except (TypeError, ValueError, UnicodeDecodeError, OverflowError, RecursionError):
                 raise StateError(

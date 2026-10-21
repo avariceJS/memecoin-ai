@@ -507,15 +507,15 @@ def test_contract_review_raw_result_is_replayed_after_store_reopen(store, tmp_pa
     response = recovered.get_contract_review_response(body["request_id"])
     assert response["raw_sha256"] == stored["body"]["raw_sha256"]
     assert json.loads(response["raw_result"]) == result
-    finished = recovered.finish_contract_review(
-        body["request_id"], body["packet_hash"], response["raw_sha256"], result
-    )
+    with pytest.raises(StateError, match="response is stale"):
+        recovered.replay_contract_review_response(body["request_id"], "0" * 64)
+    assert recovered.get_decision(request["name"])["body"]["status"] == "response_recorded"
+    assert recovered.get_decision(recovered._contract_ack_key("sample", 2, "Platform")) is None
+    finished = recovered.replay_contract_review_response(body["request_id"], body["packet_hash"])
     assert finished["body"]["status"] == "approved"
     assert recovered.get_decision(recovered._contract_ack_key("sample", 2, "Platform"))
     assert (
-        recovered.finish_contract_review(
-            body["request_id"], body["packet_hash"], response["raw_sha256"], result
-        )
+        recovered.replay_contract_review_response(body["request_id"], body["packet_hash"])
         == finished
     )
     recovered.close()
@@ -544,12 +544,15 @@ def test_contract_review_malformed_raw_is_durable_and_non_sendable(store, raw_re
         "provider-turn-malformed",
         raw_result,
     )
+    with pytest.raises(StateError, match="not replayable"):
+        store.replay_contract_review_response(body["request_id"], body["packet_hash"])
     with pytest.raises(StateError, match="does not match parsed result"):
         store.finish_contract_review(
             body["request_id"], body["packet_hash"], recorded["body"]["raw_sha256"], review_result()
         )
     assert store.get_contract_review_response(body["request_id"])["raw_result"] == raw_result
     assert store.get_decision(request["name"])["body"]["status"] == "response_recorded"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
     with pytest.raises(StateError, match="not sendable"):
         store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
 
