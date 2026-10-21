@@ -38,33 +38,32 @@ is available from historical Git commits.
 - Keep `memory/now.md` short and dated. Do not recreate the old append-only narrative memory bank;
   Git history and immutable evidence hold the detailed chronology.
 
-## Consolidated branch ownership and audit hold — 2026-10-20
+## Current organization authority and Git ownership — 2026-10-21
 
-The founder paused autonomous organization development pending an independent Astra High audit.
-Do not resume Goals, workers, services or development, or invoke Astra automatically. Use
-`org/development` for audit and later explicitly resumed Luna work; `brain/development` owns Brain
-research development. `brain/linux` remains isolated and unqualified. `main` stays unchanged.
-`research/active` is now a frozen compatibility alias for existing bootstrap/recovery callers,
-not the development lane. The old publisher's private ref remains unchanged until a reviewed
-controller release. The registry in `docs/operator-runtime.md` and the audit handoff in
-`engineering/SOL-MANDATE.md` supersede older active-continuation and branch instructions below.
-Preserve `archive/consolidation-20261020` and all older archive/handoff tags; never merge its custody
-commit as source. Do not delete frozen pilot/historical owner checkouts during worktree cleanup.
+The founder-confirmed organization directive supersedes the completed 2026-10-20 audit hold and all
+older role, publication, and continuation instructions. Luna-6 High is the sole owner of autonomous
+source implementation. Sol-6.1 High handles substantial technical decisions and independent review.
+Astra High is an episodic CEO and is never invoked automatically. The existing Luna Goal is the
+durable objective and owner; do not create a replacement Goal or competing implementation owner.
 
-## Organization authority and Git policy — 2026-10-19
-
-The current founder directive supersedes the earlier main-integration and Sol-led executive policy.
-Astra High is the replaceable CEO / Engineering Director, the only founder-facing executive.
-Sol High leads departments and settles delegated contracts; Luna High implements bounded work.
-Astra uses short evidence-driven episodes rather than an idle permanent session. Durable objectives,
-decisions, obligations, contract versions and leases live outside conversations. Sol teams continue
-authorized work without Astra; they never inherit unrestricted executive authority.
+- `org/development` is the unified engineering-organization development branch and audit entry.
+  Continue authorized source work there; use isolated candidate checkouts when useful, then preserve
+  independent review and controlled integration. `brain/development` owns Brain research development.
+- `brain/linux` is a separate, unaccepted platform candidate. `research/active` is a frozen
+  compatibility alias for existing bootstrap/recovery callers, not a development or integration
+  target. `main` is stable and must remain unchanged.
+- The 2026-10-20 independent Astra audit and temporary founder hold are historical, completed
+  decisions. They do not block the explicitly resumed engineering program. A03 remains an external
+  operational-release blocker only; it does not stop unrelated source development.
+- Preserve `archive/consolidation-20261020` and older archive/handoff tags; never merge the custody
+  commit as source. Preserve frozen pilot/historical owner checkouts during cleanup. The registry in
+  `docs/operator-runtime.md` and current engineering mandate supersede older branch instructions.
 
 - Read `docs/engineering-organization.md` for the separate engineering control system and its gates.
   Founder communication lives in `engineering/OWNER-DESK.md` and its deployed durable projection.
-- Work in isolated task branches/checkouts. Autonomous integration targets `research/active` only
-  after independent pinned-code verification and controlled publication. **Do not change main**
-  during the organization's first implementation; stable releases have separate gates.
+- Keep implementation and integration on `org/development`, using isolated task branches/checkouts
+  for bounded candidates where appropriate. Do not publish organization development to
+  `research/active`. **Do not change `main`**; stable releases have separate gates.
 - Preserve historical `research/active` exactly under an immutable archive ref before repurposing it.
   No force push, rewriting shared history, or discarding unique changes. Preserve dirty worktrees.
 - GitHub protection/hosted CI are not trusted enforcement. Worker OS confinement, immutable external

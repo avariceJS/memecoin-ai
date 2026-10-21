@@ -13,23 +13,30 @@ its first real, independently accepted Brain task through the deployed pipeline.
 approval, integrated system acceptance, and operational authority remain separate.
 
 Audited source: `b2dcd6dc58a8e1ab09b15da8fa0d1bba5f3ad0d0`, `org/development`.
-The audit changed documentation and evidence only. It did not repair controller source, resume a
-Goal, dispatch a worker, install/start a service, clear pilot STOP, run training, access protected
-datasets, request market data, or authorize publication. **The founder must explicitly resume the
-next implementation stage.** The gates below are selected strategy, not a restart authorization.
+The audit changed documentation and evidence only. At that time it did not repair controller source,
+resume a Goal, dispatch a worker, install/start a service, clear pilot STOP, run training, access
+protected datasets, request market data, or authorize publication. The founder later completed the
+temporary audit hold and explicitly resumed engineering source development; see the current authority
+section below. The audit findings and release gates remain relevant, but the hold is not a restart
+authorization gate.
 
 The [audit receipt](evidence/brain-org-independent-audit-2026-10-20.json) binds source identities,
 local reproductions, test results and limits. Private scripts and raw results are under
 `/Users/root1/Developer/brain-org-state/audit-20261020-independent/`. Original consolidation custody
 and pilot state remain intact. The [handoff](../engineering/SOL-MANDATE.md) owns the resumption entry.
 
-### Founder resumption and non-blocking technical program — 2026-10-20
+### Founder resumption and non-blocking technical program — 2026-10-20, reaffirmed 2026-10-21
 
 The founder subsequently authorized autonomous **engineering development**. This does not authorize
 operational release, original pilot dispatch, removal of STOP, market collection, training, AUTO,
 trading, protected-data access, production or `main` changes, paid resources, or automatic Astra.
-The sole implementation owner is successor thread
-`01a15b1c-c263-71b0-bfca-c5b46d17a89b` (`gpt-6-luna/high`). Predecessor Goal/thread
+The sole implementation owner is successor Goal/thread
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b` (`gpt-6-luna/high`). On 2026-10-21 the founder explicitly
+confirmed that the temporary audit hold is complete and autonomous source work continues under this
+same Goal. The native Goal interface still reports `paused` and exposes no resume operation; preserve
+the Goal identity and durable state, do not create a replacement, and do not report native status as
+active. This control-plane limitation does not revoke the founder's direct source authorization.
+Predecessor Goal/thread
 `01a15a6e-0e03-77d2-b3ce-d81b95b5a89f` remains blocked and preserved after repeated A03 research;
 the native Goal API cannot resume a blocked Goal. The founder authorized exactly one successor because
 of that API limit. Preserve the predecessor's counters, checkpoints, prior decisions and all six pilot
@@ -987,10 +994,12 @@ STOP reason. Quota restoration cannot clear a scientific, security, release or f
 
 ## Selected operating design
 
-Astra owns strategy, objective/capability expansion and exceptional unresolved decisions in short
-founder-invited episodes. Luna is the single implementation owner after explicit resumption; Sol
-owns difficult architecture and independent exact-candidate verification. No automatic Astra,
-standing idle model supervisor or competing implementation roots.
+Astra High is the episodic CEO for strategy and exceptional decisions and is never invoked
+automatically. Luna-6 High is the sole implementation owner on `org/development`; Sol-6.1 High handles
+substantial technical decisions and independent exact-candidate review. `brain/development` owns Brain
+research work; `brain/linux` remains a separate unaccepted candidate; `research/active` is a frozen
+compatibility alias, not a development lane; `main` remains unchanged. No standing idle model
+supervisor or competing implementation roots.
 
 Implement one trusted non-inference lifecycle owner with separate desired state, observed process
 state and scheduling eligibility. It owns wake/retry/backoff/reconciliation and reasons for waiting;

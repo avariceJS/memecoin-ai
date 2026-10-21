@@ -187,10 +187,15 @@ payload/time bounds and broad A10 remain open. Receipt:
 No collectors, writers, providers, training, AUTO, real trading, signing/submission, paid upgrades or
 protected F01/D43/reserved-holdout access is authorized. No production/model/champion changes.
 
-## Only after explicit founder resumption
+## Current source authority and operating limits
 
-Use **`org/development`** for Luna High. Reconcile the private handoff, exact HEAD, clean worktree,
-paused owner and terminal workers before work; preserve the existing Goal/history rather than
-creating a competing root. Sol handles difficult design and independent pinned-source review;
-Astra remains episodic director. Do not infer model identity from a requested override. The prior
-resource policy does not lift this founder audit hold or any deployment STOP.
+The founder-confirmed resumption supersedes the historical audit hold. Luna-6 High is the sole
+implementation owner on **`org/development`**; preserve the existing Goal identity, counters, durable
+state and history. Do not create a replacement Goal or competing owner. Sol-6.1 High handles
+substantial technical decisions and independent pinned-source review. Astra High remains episodic and
+is never invoked automatically. A03 blocks operational release, not unrelated source work.
+
+This authority is for source development and synthetic/local verification only. Pilot STOP remains
+active; do not start an unqualified supervisor/runtime, pilot, market collection, training, AUTO or
+trading. Do not access protected datasets or production, change `main`, or use paid resources. Do not
+infer model identity from a requested override.
