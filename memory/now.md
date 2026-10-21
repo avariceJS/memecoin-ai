@@ -20,6 +20,13 @@ decisions and independent review; Astra remains episodic and is never started au
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
+- Latest A10 source checkpoint: `6919e8e` validates plain configured proposal/participant types for
+  the whole batch, then canonically detaches the complete contracts mapping before SQLite reads.
+  Mutations during later DB reads cannot mix contract bodies with producer/consumer metadata. Sol
+  accepted exact diff `677e35bac0f7664ff5a728933adb77318b764304ea92de78a58280b27dacb395`; full gate
+  passed Ruff, 526 tests and 112 subtests. Tuple consumers and non-finite values reject before reads.
+  Capture-time mutation, serialization cost and shared config-generation authority remain open; this
+  does not close broad A10/A03 or operational acceptance.
 - Latest A05 source checkpoint: `f44626d` validates owner-history bodies/transitions against exactly
   one bounded `decision_recorded` event per version; orphan events fail closed. A partial index
   avoids unrelated-event scans, and timestamps are projected only for numeric storage types. Sol

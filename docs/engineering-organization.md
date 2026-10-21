@@ -1501,6 +1501,20 @@ limits do not bound temporary serialization memory, SQLite work or retained hist
 review capacity remains a separate bound. Gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-configured-contract-proposal-bounds-gate-20261021.json`
 (SHA-256 `46f83f067334a1d141ee43d929a4f3e1b7174bcaa015e2bf8635dc21b4fc5d73`).
+
+At `6919e8e`, supervisor contract reconciliation now validates plain JSON-compatible proposal and
+participant types for the whole configured batch, then canonically detaches the complete mapping
+before its first SQLite read. This prevents changes during later reads from mixing a proposal body,
+producer identity/task and consumer list across two config versions. Regressions mutate both the
+current and a later configured proposal during the first DB read and require both persisted proposals
+to retain their original internally consistent bodies and participants; tuple-valued consumers and
+non-finite values reject before DB reads without events. Sol-6.1 High accepted exact diff
+`677e35bac0f7664ff5a728933adb77318b764304ea92de78a58280b27dacb395` with no P1-P3 findings. The
+engineering release gate passed Ruff, 526 tests and 112 subtests. Input capture is not atomic against
+mutation during serialization; serialization work remains unbounded, and config has no shared durable
+generation authority with SQLite. Existing contract-head reads and `already_active` observations also
+remain outside the proposal write transaction. This bounds input consistency after capture; it does
+not close broad A10, A03 or operational acceptance.
 At base `e7d09ab`, A10 now caps a newly recorded `thread_known` session journal body at 320 KiB,
 reserving 96 KiB for exact response custody and 72 KiB for terminal results/blockers. The maximum
 terminal version is 488 KiB and the five-version journal bound is 1,864 KiB under current limits.
