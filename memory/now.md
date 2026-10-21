@@ -64,6 +64,11 @@ automatically.
   focused suite passed 30/3 subtests and the release gate passed 449/101 with Ruff. B-tree/time/memory
   and owner-history bounds, consumer/generation and runtime qualification remain open. Receipt:
   `a05-lifecycle-request-indexed-seek-review-20261021.json`.
+- A10 source `274c380` preflights selected review-journal history and byte sizes before advisory
+  worklist hydration; public overflow errors and quiescence returns unknown-count/no-partial results.
+  Sol-6.1 High accepted; focused suite passed 59 and release gate passed 451/101 with Ruff. SQLite
+  query/cast/time and total-memory bounds remain open; A03 and broad A10 remain open. Receipt:
+  `a10-contract-review-worklist-byte-preflight-review-20261021.json`.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable

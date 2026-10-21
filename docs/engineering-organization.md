@@ -1183,3 +1183,18 @@ receipt:
 (SHA-256 `cec854567d1f30c79de418bd415cdef8361912bffdc8eb456739a8ed3b81930d`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-transition-replay-indexed-seek-gate-20261021.json`
 (SHA-256 `30ce4655892aa903eecdd3fd906cc3a96a0a8a23d97879b232d32705d73d43ea`).
+
+At `274c380`, the advisory contract-review worklist preflights all selected journal versions and
+serialized body sizes in its existing read snapshot before hydrating any JSON. The shared checks
+enforce contiguous histories, 512 KiB per version, 2 MiB per journal, and a 32 MiB aggregate budget.
+Byte overflow raises a worklist-specific error through the public API; quiescence returns an explicit
+unknown-count, empty overflow projection. Direct legacy record reads remain compatible. Sol-6.1 High
+accepted the exact source diff
+`05d37c2d839c3de68e29b1c66e318b5d7a0e20beab004a9bedc3b61886c87b01`; the focused transition suite
+passed 59 tests and the engineering release gate passed 451 tests/101 subtests with Ruff. SQLite
+discovery/cast work, wall time, non-review quiescence hydration and total memory remain unbounded;
+A03, provider/usage provenance, broad A10 and operational acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-byte-preflight-review-20261021.json`
+(SHA-256 `cef13dcbc76bd7287c662e6102e0b259a1ac4ca8bd4910a410e79197e29dc10c`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-byte-preflight-gate-20261021.json`
+(SHA-256 `ef21441eb37adee0721d66f5d22c4fdba48cca433227c1b04b7313d1835c5f5d`).
