@@ -1640,3 +1640,11 @@ versions and stale duplicate rejection. Sol-6.1 accepted exact diff
 engineering-release-check` passed Ruff, format, 557 tests and 127 subtests. This does not cancel all
 other active work or add recovery scheduling, execution or runtime authority; A03 remains an
 operational-release blocker only.
+
+At `7e0668f`, `SandboxRunner.run` snapshots caller `argv` as an immutable tuple before validating
+and uses the same command for pin checks, process launch and `SandboxResult`. A synthetic regression
+mutates the caller's list during executable hashing and verifies the launched command retains the
+validated script and arguments. Sol-6.1 accepted exact diff
+`fe2e69d3b35ebb12bf6593646cc14b11dacac06d6a3a6e1989613c4832c086f1`; the full gate passed Ruff,
+format, 558 tests and 127 subtests. This closes post-capture caller-list mutation only; filesystem
+replacement, output provenance and full A04 qualification remain open. No runtime authority is added.

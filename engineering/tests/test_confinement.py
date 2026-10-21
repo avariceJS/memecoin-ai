@@ -185,6 +185,47 @@ class ConfinementTests(unittest.TestCase):
                 )
         launch.assert_not_called()
 
+    def test_mutating_caller_argv_during_prelaunch_hash_cannot_change_launch(self):
+        import engineering.confinement as confinement
+
+        harness = self.task / "acceptance.py"
+        other_harness = self.task / "other.py"
+        harness.write_text("pass\n")
+        other_harness.write_text("raise SystemExit(9)\n")
+        argv = [str(PYTHON.resolve()), "-I", "-S", "-B", str(harness), "acceptance"]
+        validated_argv = tuple(argv)
+        launch_arguments = []
+
+        def mutate_argv(_path, expected_sha256):
+            argv[4] = str(other_harness)
+            argv[5] = "mutated"
+            return expected_sha256
+
+        def observe_launch(command, **_kwargs):
+            launch_arguments.append(tuple(command[-len(validated_argv) :]))
+            raise OSError("synthetic launch stop")
+
+        with (
+            patch.object(confinement, "_prelaunch_executable_sha256", side_effect=mutate_argv),
+            patch.object(
+                confinement,
+                "_prelaunch_script_sha256",
+                return_value="b" * 64,
+            ),
+            patch("engineering.confinement.subprocess.Popen", side_effect=observe_launch),
+            self.assertRaisesRegex(OSError, "synthetic launch stop"),
+        ):
+            self.runner.run(
+                argv,
+                cwd=self.task,
+                expected_executable_sha256="a" * 64,
+                expected_script_sha256="b" * 64,
+                expected_script_path=harness.resolve(),
+            )
+
+        self.assertEqual(argv[4], str(other_harness))
+        self.assertEqual(launch_arguments, [validated_argv])
+
     def test_isolated_no_site_interpreter_flags_under_disposable_sandbox(self):
         pinned_python = PYTHON.resolve(strict=True)
         expected = hashlib.sha256(pinned_python.read_bytes()).hexdigest()

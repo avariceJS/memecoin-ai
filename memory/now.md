@@ -21,6 +21,11 @@ decisions and independent review; Astra remains episodic and is never started au
   `0000787d1d13c17471651fb73b120b99f82ff14046943ee8f2814d7a955ccfe0`; full gate passed Ruff,
   format, 557 tests and 127 subtests. This does not cancel other active attempts or add recovery
   scheduling; STOP remains active and A03 blocks release only.
+- Latest A04 source at `7e0668f`: `SandboxRunner.run` snapshots argv once and reuses it for pin
+  validation, process launch and result identity. Regression mutates the caller list during hashing;
+  Sol accepted exact diff `fe2e69d3b35ebb12bf6593646cc14b11dacac06d6a3a6e1989613c4832c086f1`.
+  Full gate passed Ruff, format, 558 tests and 127 subtests. Filesystem replacement, output
+  provenance and full A04 remain open; no runtime authority is added.
 
 - A03 is an external Codex terminal-settlement interface dependency at pinned CLI 0.163.0. Public
   snapshots, internal raw events and hidden `TokenUsageRecord` do not provide complete, supported

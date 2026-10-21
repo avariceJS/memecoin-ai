@@ -362,6 +362,10 @@ class SandboxRunner:
     ) -> SandboxResult:
         if type(strict_stdout_utf8) is not bool:
             raise ConfinementError("strict stdout UTF-8 flag must be boolean")
+        try:
+            argv = tuple(argv)
+        except TypeError:
+            raise ConfinementError("argv must contain non-NUL strings") from None
         if not argv or not all(isinstance(arg, str) and "\0" not in arg for arg in argv):
             raise ConfinementError("argv must contain non-NUL strings")
         if not Path(argv[0]).is_absolute():
