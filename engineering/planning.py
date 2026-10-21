@@ -124,6 +124,73 @@ def admit(cfg, db, proposal, base, *, department_nomination):
         )
 
 
+def require_controller_assignment(cfg, db, task):
+    """Require durable controller admission before dispatch or acceptance.
+
+    Configurations without a fixed catalogue are legacy unit/development fixtures. In a
+    controller deployment, a task must either be a nominated fixed card or carry the
+    separately validated task-spec admission. This check deliberately validates the
+    persisted admission-time evidence instead of requiring the department lease to remain
+    live for the full worker and review lifecycle.
+    """
+    if "catalogue" not in cfg:
+        return
+    task_id = task.get("id") if type(task) is dict else None
+    if type(task_id) is not str or not task_id:
+        raise StateError("controller_task_identity_invalid")
+    catalogue = cfg.get("catalogue")
+    if type(catalogue) is not list or any(type(item) is not str for item in catalogue):
+        raise StateError("controller_catalogue_invalid")
+    if task_id not in catalogue:
+        if db.get_task_spec(task_id) is None:
+            raise StateError("task_outside_controller_admission_scope")
+        return
+
+    card = cfg.get("tasks", {}).get(task_id)
+    if type(card) is not dict:
+        raise StateError("fixed_card_configuration_missing")
+    decision = db.get_decision("admission/" + task_id)
+    if type(decision) is not dict or decision.get("version") != 1:
+        raise StateError("fixed_card_admission_missing")
+    body = decision.get("body")
+    if type(body) is not dict or set(body) != {"proposal", "base", "department_nomination"}:
+        raise StateError("fixed_card_admission_invalid")
+    proposal = body.get("proposal")
+    if type(proposal) is not dict or proposal.get("card") != task_id:
+        raise StateError("fixed_card_admission_invalid")
+    digest = _task_sha256(card)
+    nomination = body.get("department_nomination")
+    if (
+        type(nomination) is not dict
+        or nomination.get("schema") != "department-plan-nomination-v1"
+        or nomination.get("card_id") != task_id
+        or nomination.get("team") != card.get("team")
+        or nomination.get("objective_id") != "offline-brain-engineering"
+        or type(nomination.get("evidence_refs")) is not list
+        or "catalogue-card-sha256:" + task_id + ":" + digest
+        not in nomination.get("evidence_refs", [])
+    ):
+        raise StateError("fixed_card_department_nomination_invalid")
+    expected = {
+        "team": card.get("team"),
+        "title": card.get("title"),
+        "brief": card.get("brief", ""),
+        "scope": card.get("scope", []),
+        "dependencies": card.get("dependencies", []),
+        "contracts": card.get("contracts", {}),
+        "base_sha": body.get("base"),
+        "objective_id": "offline-brain-engineering",
+        "acceptance": [
+            "Frozen independent acceptance",
+            "Regression checks",
+            "Independent review",
+        ],
+        "max_attempts": 3,
+    }
+    if any(task.get(key) != value for key, value in expected.items()):
+        raise StateError("fixed_card_task_drift")
+
+
 def _unique_proposal_object(pairs):
     result = {}
     for key, value in pairs:

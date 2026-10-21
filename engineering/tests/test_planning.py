@@ -4,7 +4,12 @@ from pathlib import Path
 
 from engineering.executive import Executive
 from engineering.org_state import StateError, Store
-from engineering.planning import _task_sha256, admit, eligible
+from engineering.planning import (
+    _task_sha256,
+    admit,
+    eligible,
+    require_controller_assignment,
+)
 from engineering.tests.contract_review_helpers import approve_participant
 
 _UNSET = object()
@@ -94,8 +99,47 @@ class PlanningTests(unittest.TestCase):
                 admit(cfg, db, proposal, "base", department_nomination=nomination), "NEXT"
             )
             self.assertEqual(db.get_task("NEXT")["scope"], ["tools/check.py"])
+            require_controller_assignment(cfg, db, db.get_task("NEXT"))
+            drifted = {**db.get_task("NEXT"), "scope": ["tools/other.py"]}
+            with self.assertRaisesRegex(StateError, "fixed_card_task_drift"):
+                require_controller_assignment(cfg, db, drifted)
             with self.assertRaises(StateError):
                 admit(cfg, db, proposal, "base", department_nomination=nomination)
+
+    def test_controller_dispatch_rejects_direct_fixed_card_insertion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Store(Path(tmp) / "state.db")
+            self.addCleanup(db.close)
+            cfg = {
+                "catalogue": ["NEXT"],
+                "tasks": {
+                    "NEXT": {
+                        "team": "Platform",
+                        "title": "Strict input",
+                        "brief": "Fixed brief",
+                        "scope": ["tools/check.py"],
+                        "dependencies": [],
+                        "contracts": {},
+                    }
+                },
+            }
+            db.add_objective("offline-brain-engineering", "Offline work")
+            db.add_task(
+                "NEXT",
+                "Platform",
+                "Strict input",
+                "Fixed brief",
+                scope=["tools/check.py"],
+                acceptance=[
+                    "Frozen independent acceptance",
+                    "Regression checks",
+                    "Independent review",
+                ],
+                objective_id="offline-brain-engineering",
+                max_attempts=3,
+            )
+            with self.assertRaisesRegex(StateError, "fixed_card_admission_missing"):
+                require_controller_assignment(cfg, db, db.get_task("NEXT"))
 
     def test_dependent_work_not_admitted_early(self):
         with tempfile.TemporaryDirectory() as tmp:

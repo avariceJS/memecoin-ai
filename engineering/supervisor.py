@@ -835,6 +835,23 @@ def run_attempt(state: Path, attempt_id: int):
         db.close()
         return
     try:
+        from .planning import require_controller_assignment
+
+        require_controller_assignment(cfg, db, task)
+    except StateError as exc:
+        reason = str(exc)
+        log_event(
+            state,
+            "attempt_blocked",
+            task=task["id"],
+            attempt_id=attempt_id,
+            epoch=epoch,
+            reason=reason,
+        )
+        db.fail(attempt_id, epoch, "controller_assignment_unavailable:" + reason, retryable=False)
+        db.close()
+        return
+    try:
         verification_plan = prepare_verification_plan(state, db, task, cfg)
     except ValueError as exc:
         reason = str(exc)
@@ -1217,10 +1234,14 @@ def resolve_controller_parse_fault(
 
 def verify_one(state, task):
     cfg, db = config(state), store(state)
+    task = db.get_task(task["id"])
     data = db.get_candidate(task["id"])
     evidence = data["evidence"]
     python = cfg["python"]
     try:
+        from .planning import require_controller_assignment
+
+        require_controller_assignment(cfg, db, task)
         admission = db.get_decision("admission/" + task["id"])
         nomination = None
         if admission is not None:
@@ -1494,6 +1515,18 @@ def reconcile(state, db):
             continue
         plan = None
         if task["state"] in ("submitted", "verified", "accepted"):
+            try:
+                from .planning import require_controller_assignment
+
+                require_controller_assignment(config(state), db, task)
+            except ValueError as exc:
+                log_event(
+                    state,
+                    "reconciliation_blocked",
+                    task=task["id"],
+                    reason=str(exc),
+                )
+                continue
             try:
                 plan = prepare_verification_plan(state, db, task, config(state))
             except ValueError as exc:
@@ -1976,9 +2009,20 @@ def supervise(
                     atomic(state / "limits.json", limits)
                     last_read = time.monotonic()
                 active = [t for t in db.list_tasks() if t["state"] == "running"]
-                ready = [
-                    t for t in db.ready_tasks() if t["team"] not in {a["team"] for a in active}
-                ]
+                from .planning import require_controller_assignment
+
+                ready = []
+                assignment_blocked = {}
+                active_teams = {a["team"] for a in active}
+                for task in db.ready_tasks():
+                    if task["team"] in active_teams:
+                        continue
+                    try:
+                        require_controller_assignment(cfg, db, task)
+                    except StateError as exc:
+                        assignment_blocked[task["id"]] = str(exc)
+                        continue
+                    ready.append(task)
                 decision = choose_capacity(
                     limits,
                     measured_usage(state, db),
@@ -2078,7 +2122,19 @@ def supervise(
                         cfg["resources"],
                         active_tokens=0,
                     )
-                    if decision["slots"] and any(row["eligible"] for row in readiness):
+                    fresh_dispatchable_ids = set()
+                    fresh_assignment_blocked = {}
+                    for row in readiness:
+                        if not row["eligible"]:
+                            continue
+                        try:
+                            current_task = db.get_task(row["task_id"])
+                            require_controller_assignment(cfg, db, current_task)
+                        except StateError as exc:
+                            fresh_assignment_blocked[row["task_id"]] = str(exc)
+                            continue
+                        fresh_dispatchable_ids.add(row["task_id"])
+                    if decision["slots"] and fresh_dispatchable_ids:
                         # Capacity and task readiness were observed separately; avoid
                         # classifying ready work as dependency-blocked after capacity changed.
                         time.sleep(2)
@@ -2086,6 +2142,11 @@ def supervise(
                     resource_reason = decision.get("reason", "unknown")
                     if decision["slots"] == 0:
                         reason = "quota-unavailable"
+                    elif any(
+                        row["state"] == "pending" and row["task_id"] in fresh_assignment_blocked
+                        for row in readiness
+                    ):
+                        reason = "controller-assignment-required"
                     elif snapshot["contract_reviews"]["pending_count"]:
                         reason = "contract-reviews-pending"
                     elif any(row["state"] == "pending" for row in readiness):
@@ -2120,6 +2181,16 @@ def supervise(
                 for task in decision["selected_tasks"][:free]:
                     if (state / "STOP").exists():
                         break
+                    try:
+                        require_controller_assignment(cfg, db, task)
+                    except StateError as exc:
+                        log_event(
+                            state,
+                            "attempt_dispatch_blocked",
+                            task=task["id"],
+                            reason=str(exc),
+                        )
+                        continue
                     attempt = db.claim(task["id"], LUNA, LEASE)
                     if not attempt:
                         continue

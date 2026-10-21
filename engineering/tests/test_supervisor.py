@@ -589,6 +589,76 @@ class SupervisorTests(unittest.TestCase):
         )
         self.assertFalse(self.db.usage_summary()["total"])
 
+    def test_controller_catalogue_assignment_is_required_at_worker_and_review_boundaries(self):
+        self.cfg["catalogue"] = ["T"]
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker")
+        with (
+            patch.object(supervisor, "process_identity", return_value="synthetic:owner"),
+            patch.object(supervisor, "metered_client") as transport,
+            patch.object(supervisor, "Codex") as codex,
+        ):
+            supervisor.run_attempt(self.state, attempt["id"])
+        transport.assert_not_called()
+        codex.assert_not_called()
+        self.assertEqual(self.db.get_task("T")["state"], "failed")
+        self.assertIn(
+            "controller_assignment_unavailable:fixed_card_admission_missing",
+            [
+                event["body"].get("reason")
+                for event in self.db.events()
+                if event["kind"] == "attempt_failed"
+            ],
+        )
+
+        self.task("REVIEW")
+        self.cfg["tasks"]["REVIEW"] = {"checks": []}
+        review_attempt = self.db.claim("REVIEW", "synthetic-worker")
+        self.db.submit(
+            review_attempt["id"],
+            review_attempt["epoch"],
+            "candidate-sha",
+            {"checkout": str(self.state / "worker"), "base": "base"},
+        )
+        self.cfg["catalogue"].append("REVIEW")
+        with patch.object(supervisor, "metered_client") as transport:
+            self.assertFalse(supervisor.verify_one(self.state, self.db.get_task("REVIEW")))
+        transport.assert_not_called()
+        self.assertEqual(self.db.get_task("REVIEW")["state"], "submitted")
+
+    def test_reconcile_cannot_accept_direct_fixed_card_without_admission(self):
+        self.cfg["catalogue"] = ["T"]
+        self.cfg["tasks"]["T"] = {
+            "team": "team",
+            "title": "Synthetic task",
+            "brief": "",
+            "scope": ["src/example.py"],
+            "dependencies": [],
+            "contracts": {},
+            "checks": [],
+        }
+        self.task()
+        attempt = self.db.claim("T", "synthetic-worker")
+        self.db.submit(
+            attempt["id"],
+            attempt["epoch"],
+            "submitted-sha",
+            {"checkout": str(self.state / "worker"), "base": "base"},
+        )
+        (self.state / "intents" / "T.json").write_text(
+            json.dumps({"task": "T", "submitted_sha": "submitted-sha"})
+        )
+        with patch.object(supervisor, "GitGate") as gate:
+            supervisor.reconcile(self.state, self.db)
+        gate.assert_not_called()
+        self.assertEqual(self.db.get_task("T")["state"], "submitted")
+        blocked = [
+            call
+            for call in supervisor.log_event.call_args_list
+            if call.args[1] == "reconciliation_blocked" and call.kwargs.get("task") == "T"
+        ]
+        self.assertEqual(blocked[-1].kwargs["reason"], "fixed_card_admission_missing")
+
     def test_duplicate_same_process_child_start_cannot_repeat_attempt(self):
         self.task()
         attempt = self.db.claim("T", "synthetic-worker")
@@ -2692,6 +2762,9 @@ main()
 
     def test_unqualified_bound_verification_stops_before_git_sandbox_or_model(self):
         class BoundStore:
+            def get_task(self, _task_id):
+                return task
+
             def get_decision(self, _name):
                 return None
 
@@ -4040,7 +4113,14 @@ main()
                 supervisor._configured_contract_transitions(self.cfg, self.db)
 
     def run_quiescence(
-        self, reason, *, pending=False, slots=1, readiness_change=False, review_pending=False
+        self,
+        reason,
+        *,
+        pending=False,
+        slots=1,
+        readiness_change=False,
+        review_pending=False,
+        controller_assignment_required=False,
     ):
         if pending:
             self.candidate("EXP-001", target_state="integrated", team="Experience")
@@ -4053,10 +4133,21 @@ main()
             )
         else:
             self.task()
-            attempt = self.db.claim("T", "worker", 100)
-            self.db.submit(attempt["id"], attempt["epoch"], "sha", {})
-            self.db.verify("T", "sha", True, {})
-            self.db.accept("T", "sha")
+            if controller_assignment_required:
+                self.cfg["catalogue"] = ["T"]
+                self.cfg["tasks"]["T"] = {
+                    "team": "team",
+                    "title": "Synthetic task",
+                    "brief": "",
+                    "scope": ["src/example.py"],
+                    "dependencies": [],
+                    "contracts": {},
+                }
+            if not controller_assignment_required:
+                attempt = self.db.claim("T", "worker", 100)
+                self.db.submit(attempt["id"], attempt["epoch"], "sha", {})
+                self.db.verify("T", "sha", True, {})
+                self.db.accept("T", "sha")
         if review_pending:
             self.db.propose_contract_transition(
                 "schema-validation",
@@ -4069,6 +4160,7 @@ main()
             )
         decision = {"slots": slots, "selected_tasks": [], "reason": "synthetic"}
         events_before = len(self.db.events())
+        actual_ready_tasks = Store.ready_tasks
         with (
             patch.object(supervisor, "Codex", FakeCodex),
             patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
@@ -4082,7 +4174,16 @@ main()
             patch.object(supervisor.time, "monotonic", return_value=0),
             patch("engineering.planning.plan_next", return_value=None),
             patch("engineering.resources.choose_capacity", return_value=decision),
-            patch.object(Store, "ready_tasks", return_value=[]),
+            patch.object(
+                Store,
+                "ready_tasks",
+                autospec=True,
+                side_effect=lambda store, *args, **kwargs: (
+                    actual_ready_tasks(store, *args, **kwargs)
+                    if controller_assignment_required
+                    else []
+                ),
+            ),
             patch("engineering.chief.chief") as executive,
             patch.object(FakeCodex, "turn") as model_turn,
         ):
@@ -4137,6 +4238,85 @@ main()
 
     def test_quiescence_unavailable_quota_handoff_has_no_chief_call(self):
         self.run_quiescence("quota-unavailable", slots=0)
+
+    def test_quiescence_handoff_reports_missing_controller_assignment(self):
+        self.run_quiescence("controller-assignment-required", controller_assignment_required=True)
+
+    def test_quiescence_rechecks_newly_ready_assigned_task_before_handoff(self):
+        from engineering.executive import Executive
+        from engineering.planning import _task_sha256, admit
+
+        self.cfg["catalogue"] = ["T"]
+        self.cfg["tasks"]["T"] = {
+            "team": "Platform",
+            "title": "Synthetic task",
+            "brief": "",
+            "scope": ["src/example.py"],
+            "dependencies": [],
+            "contracts": {},
+        }
+        self.db.add_objective("offline-brain-engineering", "Offline work")
+        executive = Executive(self.db)
+        lease = executive.claim_department("Platform", "sol-platform")
+        executive.record_department_plan(
+            lease,
+            1,
+            "offline-brain-engineering",
+            "Select the synthetic card.",
+            ["catalogue-card:T"],
+            self.db.clock() + 3600,
+            evidence_refs=[
+                "test:quiescence-race",
+                "catalogue-card-sha256:T:" + _task_sha256(self.cfg["tasks"]["T"]),
+            ],
+        )
+        nomination = executive.department_plan_nominations(
+            {"T": "Platform"}, "offline-brain-engineering"
+        )["nominations"]["T"]
+        admit(
+            self.cfg,
+            self.db,
+            {
+                "card": "T",
+                "rationale": "The current fixed card is the useful next task.",
+                "evidence": "Its dependencies and contracts are already satisfied.",
+            },
+            "a" * 40,
+            department_nomination=nomination,
+        )
+        decision = {"slots": 1, "selected_tasks": [], "reason": "synthetic"}
+        handoff_events_before = [
+            event
+            for event in self.db.events()
+            if event["kind"] == "decision_recorded"
+            and event.get("entity", "").startswith("sol-handoff/")
+        ]
+        with (
+            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+            patch.object(supervisor, "available_memory", return_value=10**10),
+            patch.object(supervisor, "status", return_value={}),
+            patch.object(supervisor, "render_desk"),
+            patch.object(
+                supervisor.time, "sleep", side_effect=lambda _: (self.state / "STOP").touch()
+            ),
+            patch.object(supervisor.time, "monotonic", return_value=0),
+            patch("engineering.planning.plan_next", return_value=None),
+            patch("engineering.resources.choose_capacity", return_value=decision),
+            patch.object(Store, "ready_tasks", autospec=True, return_value=[]),
+        ):
+            supervisor.supervise(self.state, max_seconds=10)
+        self.assertTrue((self.state / "STOP").is_file())
+        self.assertEqual(self.db.get_task("T")["state"], "pending")
+        handoff_events_after = [
+            event
+            for event in self.db.events()
+            if event["kind"] == "decision_recorded"
+            and event.get("entity", "").startswith("sol-handoff/")
+        ]
+        self.assertEqual(handoff_events_after, handoff_events_before)
+        (self.state / "STOP").unlink()
 
     def test_quiescence_routes_pending_contract_reviews_to_sol(self):
         self.run_quiescence("contract-reviews-pending", review_pending=True)

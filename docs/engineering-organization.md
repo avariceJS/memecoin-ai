@@ -60,9 +60,15 @@ harness validates the candidate, `SandboxRunner` executes the registered verifie
 packet; for admitted fixed cards it now includes the persisted department nomination, bound by the
 canonical packet digest, alongside task, scope, candidate diff and passing acceptance result. The
 test compares both Experience and Platform nominations to their durable admission decisions. The
-generic public decision writer cannot append to the reserved `admission/` namespace. A legacy or
-directly-created task with no admission nomination still projects `null`; this is not a blanket
-requirement on every review path. This exercises the review call and packet binding, not reviewer
+generic public decision writer cannot append to the reserved `admission/` namespace. The controller
+now requires a fixed-catalogue task's persisted nomination and exact trusted-card projection before
+supervisor claim, again before worker dispatch, and before candidate verification. Off-catalogue work
+must carry the separate task-spec admission. Directly-created tasks remain usable by Store-only
+compatibility fixtures, but a controller deployment with a catalogue will not select them for worker
+spawn; a directly claimed child fails before provider work, and verifier/recovery acceptance stays
+blocked. Idle handoff records `controller-assignment-required` while preserving the raw Store readiness
+snapshot. The nomination is checked against its durable admission-time card digest; the department lease need
+not remain live throughout execution. This exercises the review call and packet binding, not reviewer
 judgment, identity or independence. The test injects a crash after the real ref compare-and-swap but before
 Store integration, closes and reopens
 SQLite, then recovers and claims a dependent next task. It removes the receipt and confirms recovery

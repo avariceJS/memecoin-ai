@@ -1,4 +1,4 @@
-# Current state — 2026-10-21
+# Current state — 2026-10-22
 
 Native Luna Goal `01a15f55-903b-7de2-adec-19733734ac78` is verified `active` and remains the sole
 implementation owner on `org/development`. It is the controlled successor to paused Goal
@@ -6,16 +6,19 @@ implementation owner on `org/development`. It is the controlled successor to pau
 preserved in `/Users/root1/Developer/brain-org-state/resumption-20261020/handoff.json`. `main`, Pilot
 STOP, protected data and runtime boundaries remain unchanged.
 
-Current A10 work adds controller-owned department plans over eligible fixed cards. Sol accepted the
-source-only candidate after fixes for lease expiry, response replay after plan commit, atomic Store
-revision recheck and full trusted-card hashing through admission. Synthetic fault cases include duplicate
-intent creation, STOP/menu and scope drift, unknown transport without resend, and two replay crash
-windows. `make engineering-release-check` passes Ruff/format, 665 tests and 193 subtests; `make smoke`
-is reproducible with `edge_established=false`. The integrated path creates the Experience plan and
-selects PLAT-001 inside `supervise`, then plans Platform work through the same supervisor path after
-contract/dependency gates. Injected transport, A03 settlement, runtime and operational release remain
-unqualified. Unknown outcomes need separate repair; no usage reservation is cleared. Repository-wide
-`make check` stops at 107 existing Ruff findings under `src/`, `tests/` and `tools`, before later checks.
+Current A10 department planning selects fixed cards only from current objectives and leases, and keeps
+unknown injected transport outcomes held without resend or usage release. A new controller boundary
+requires a fixed card's persisted department nomination and exact trusted-card projection before
+supervisor claim, worker dispatch, candidate verification and recovery reconciliation; off-catalogue
+work must use task-spec admission. Fresh quiescence rechecks assignment and durably reports
+`controller-assignment-required` without losing newly admitted ready work. Direct Store-only callers
+remain compatible, so `Store.claim` is not a universal admission fence. `make engineering-release-check`
+passes Ruff/format, 670 tests and 193 subtests; smoke is reproducible with `edge_established=false`.
+Sol accepted the exact controller-boundary candidate. The full loop remains deterministic and injected;
+reviewer/provider identity, A03 settlement, restored-runtime continuation and operational release are
+unqualified.
+Unknown outcomes retain their reservations. `make check` was previously blocked by 107 unrelated Ruff
+findings under `src/`, `tests/` and `tools`; this narrow change does not touch those paths.
 
 The synthetic source-only path connects planning, trusted task binding, isolated execution, independent
 acceptance/review, GitGate receipt/CAS integration, dependent continuation, contract reviews,

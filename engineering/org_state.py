@@ -1275,6 +1275,7 @@ class Store:
             "quota-unavailable",
             "blocked-dependencies",
             "catalogue-exhausted",
+            "controller-assignment-required",
             "contract-reviews-pending",
         }:
             raise StateError("quiescence handoff reason invalid")

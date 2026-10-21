@@ -66,14 +66,19 @@ plan revision/digest, evidence refs и conflict state; scope, контракты
 contract reviews → PLAT-002 Platform проверяет provenance в admission и интеграцию, а snapshot/restore
 сохраняет department plans; exact persisted nomination теперь включается в независимый review packet
 под canonical packet digest и сверяется с admission record для обеих команд в интеграционном тесте.
-Reviewer не получает исходную plan row или повторную проверку её currentness. Прежние Store-only
-схемы продолжают приниматься; generic `put_decision()` больше не может писать в namespace
-`admission/`. Legacy/direct-created task без nomination остаётся с `null` в packet, поэтому это не
-универсальное требование всех review путей. Sol принял точный пятифайловый предыдущий кандидат без
-существенных блокеров. Full gate после изменения API: Ruff/format, 651 тест и 193 subtests; smoke воспроизводим,
-`edge_established=false`. Plan digest вычисляется из текущей валидированной строки; независимой защиты
-от прямой SQLite-подмены нет. Это synthetic source-only evidence, не qualification операционного
-A04/A03/runtime.
+Reviewer не получает исходную plan row или повторную проверку её currentness. Generic
+`put_decision()` не может писать в namespace `admission/`. Новая проверка на границах supervisor
+требует для fixed-catalogue task persisted nomination и точное совпадение trusted-card полей до
+claim, до worker dispatch и до acceptance/recovery; off-catalogue task требует отдельный task-spec
+admission. Прямые Store-only fixtures сохраняют совместимость. Controller с catalogue не выбирает
+их для spawn; direct-claimed child блокируется до provider work, verifier и recovery не принимают
+candidate. Idle handoff фиксирует `controller-assignment-required` с исходным Store readiness snapshot.
+Проверяется зафиксированный при admission card digest, а не live lease отдела.
+Sol независимо принял этот controller-boundary candidate на базе `36a2834`. Full gate: Ruff/format,
+670 тестов и 193 subtests; smoke воспроизводим, `edge_established=false`. Generic `Store.claim` и
+`ready_tasks` остаются Store-only совместимыми API, не универсальными admission fences; конфигурации
+без `catalogue` сохраняют legacy-поведение. Прямой SQLite tampering отдельно не аутентифицируется.
+Это synthetic source-only evidence, не qualification операционного A04/A03/runtime.
 
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
 reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает
