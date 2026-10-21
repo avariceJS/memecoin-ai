@@ -254,6 +254,8 @@ class SupervisorTests(unittest.TestCase):
             self.assertTrue(supervisor.verify_one(self.state, self.db.get_task("T")))
 
         later_call = box.run.call_args_list[1]
+        self.assertTrue(box.run.call_args_list[0].kwargs["strict_stdout_utf8"])
+        self.assertTrue(later_call.kwargs["strict_stdout_utf8"])
         self.assertEqual(
             later_call.kwargs["expected_executable_sha256"], later_binding.executable_sha256
         )
@@ -278,6 +280,19 @@ class SupervisorTests(unittest.TestCase):
             "verifier_result_not_passing",
             verification_event["body"]["details"]["error"],
         )
+
+    def test_only_bound_json_result_commands_require_strict_stdout_utf8(self):
+        self.assertTrue(
+            supervisor._bound_command_requires_strict_stdout_utf8(
+                SimpleNamespace(result={"kind": "acceptance_json"})
+            )
+        )
+        self.assertFalse(
+            supervisor._bound_command_requires_strict_stdout_utf8(
+                SimpleNamespace(result={"kind": "exit_zero"})
+            )
+        )
+        self.assertFalse(supervisor._bound_command_requires_strict_stdout_utf8(None))
 
     def task(self, task_id="T", team="team"):
         self.db.add_task(task_id, team, "Synthetic task", scope=["src/example.py"])

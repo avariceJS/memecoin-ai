@@ -83,6 +83,14 @@ check passed Ruff, format, 533 tests and 112 subtests. Malformed JSON syntax in 
 fails earlier in `_task()` and is outside this increment. General database tamper detection,
 post-ACK freshness, A03 and operational acceptance remain open.
 
+Against `org/development` base `a0ae4dc`, A04 now strictly decodes captured stdout for every bound
+`acceptance_json` command after process-group cleanup. Invalid UTF-8 raises `ConfinementError` before
+result validation; legacy and `exit_zero` output plus stderr keep replacement decoding. Sol accepted
+exact four-file diff `1308d5b8917912f0e3c800c822aca3977a5ad90f46a895697c27160e26623677`. Focused tests
+passed: 64 supervisor tests/10 subtests and 3 decode tests/4 subtests; Ruff and format passed. This
+closes silent replacement of malformed proof bytes only; output provenance, same-inode execution,
+loader closure, sandbox qualification and operational acceptance remain open.
+
 Treat A03 as a tracked external release dependency, not a company-wide engineering stop. Continue
 independent source work while that interface is unavailable. Its ranked program was updated after
 source review:

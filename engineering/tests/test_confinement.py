@@ -15,6 +15,7 @@ from unittest.mock import patch
 from engineering.confinement import (
     ConfinementError,
     SandboxRunner,
+    _decode_captured_stdout,
     python_runtime_roots,
     qualify_sandbox,
 )
@@ -27,6 +28,39 @@ if not PYTHON.exists():
     PYTHON = Path(sys.executable).resolve()
 SQLITE = Path("/opt/homebrew/opt/sqlite")
 EXTRA_ROOTS = [SQLITE] if SQLITE.exists() else []
+
+
+class CapturedStdoutDecodingTests(unittest.TestCase):
+    def test_strict_utf8_preserves_valid_result_and_replacement_character(self):
+        proof = (
+            b'{"schema":"acceptance-result-v1","case":"acceptance-check",'
+            b'"passed":true,"note":"\xef\xbf\xbd"}'
+        )
+        decoded = _decode_captured_stdout(proof, strict_utf8=True)
+        validate_verifier_result(
+            decoded,
+            {
+                "acceptance_id": "acceptance-check",
+                "result_schema": "acceptance-result-v1",
+                "case_field": "case",
+                "passed_field": "passed",
+            },
+        )
+
+    def test_strict_utf8_rejects_malformed_bytes_inside_ignored_fields(self):
+        malformed = (
+            b'{"schema":"acceptance-result-v1","case":"acceptance-check",'
+            b'"passed":true,"note":"\xff"}'
+        )
+        for raw in (malformed, b"\xc3", b"\xc3(", b"\xc0\xaf"):
+            with (
+                self.subTest(raw=raw),
+                self.assertRaisesRegex(ConfinementError, "stdout is not valid UTF-8"),
+            ):
+                _decode_captured_stdout(raw, strict_utf8=True)
+
+    def test_compatibility_mode_keeps_replacement_decoding(self):
+        self.assertEqual(_decode_captured_stdout(b"proof:\xff", strict_utf8=False), "proof:\ufffd")
 
 
 class ProcessIdentityDeadlineTests(unittest.TestCase):

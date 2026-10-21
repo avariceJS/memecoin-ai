@@ -79,6 +79,10 @@ def _bound_command_runner_identity(command_binding):
     }
 
 
+def _bound_command_requires_strict_stdout_utf8(command_binding) -> bool:
+    return command_binding is not None and command_binding.result["kind"] == "acceptance_json"
+
+
 WORKER_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -934,6 +938,7 @@ def verify_one(state, task):
                 timeout=90,
                 max_output_bytes=200000,
                 env_overrides=dict(fixed_policy.env),
+                strict_stdout_utf8=_bound_command_requires_strict_stdout_utf8(command_binding),
                 **_bound_command_runner_identity(command_binding),
             )
             results.append(dataclasses.asdict(result))

@@ -32,6 +32,12 @@ decisions and independent review; Astra remains episodic and is never started au
   `ef3120dd01547830b844e7547365b2bce7d12d348581b0ecb257470b480c8701`; full gate: Ruff, format,
   533 tests and 112 subtests. Malformed task JSON fails earlier in `_task()`; broader database
   tamper detection, post-ACK freshness and A03 remain open.
+- A04 bound `acceptance_json` stdout now decodes strictly as UTF-8 after process-group cleanup;
+  malformed bytes fail before result validation while legacy/`exit_zero` and stderr decoding remain
+  compatible. Sol accepted exact diff
+  `1308d5b8917912f0e3c800c822aca3977a5ad90f46a895697c27160e26623677`. Focused tests: 64 supervisor
+  tests/10 subtests plus 3 decoder tests/4 subtests; Ruff/format passed. Provenance, same-inode,
+  loader and runtime qualification remain open.
 - Latest A10 source checkpoint: `6919e8e` validates plain configured proposal/participant types for
   the whole batch, then canonically detaches the complete contracts mapping before SQLite reads.
   Mutations during later DB reads cannot mix contract bodies with producer/consumer metadata. Sol

@@ -35,6 +35,11 @@ publisher. Они образуют пригодный фундамент. Сле
   `ef3120dd01547830b844e7547365b2bce7d12d348581b0ecb257470b480c8701`; release-check: Ruff,
   format, 533 tests, 112 subtests. Некорректный JSON task field разбирается раньше в `_task()` и
   остаётся отдельным дефектом. A03 и operational acceptance остаются открыты.
+- A04 bound JSON proof stdout теперь декодируется строго как UTF-8 после завершения process group;
+  malformed bytes блокируют проверку до parsing результата. Совместимость legacy/`exit_zero` и stderr
+  сохранена. Sol принял diff `1308d5b8917912f0e3c800c822aca3977a5ad90f46a895697c27160e26623677`;
+  focused: 64 supervisor tests/10 subtests и 3 decoder tests/4 subtests, Ruff/format прошли.
+  Авторство stdout, same-inode, loader/sandbox qualification не доказаны.
 - Пилот сохранил STOP, конфигурацию, manifest, SQLite и все шесть неудачных попыток.
   Состояние: 3 задачи, 106 событий, **0 acceptances, 0 integrations**. Engineering LaunchAgent не загружен.
 - В локальном наборе: **216 тестов и 42 subtests прошли, 2 старые проверки упали** на обязательном Permit.

@@ -57,6 +57,13 @@ class SandboxResult:
     process_identity_observations: int = 0
 
 
+def _decode_captured_stdout(raw: bytes, *, strict_utf8: bool) -> str:
+    try:
+        return raw.decode("utf-8", errors="strict" if strict_utf8 else "replace")
+    except UnicodeDecodeError:
+        raise ConfinementError("verifier stdout is not valid UTF-8") from None
+
+
 def _prelaunch_executable_sha256(path: str | Path, expected_sha256: str) -> str:
     """Recheck a pinned canonical executable immediately before sandbox launch.
 
@@ -351,7 +358,10 @@ class SandboxRunner:
         expected_executable_main_path: str | Path | None = None,
         expected_script_sha256: str | None = None,
         expected_script_path: str | Path | None = None,
+        strict_stdout_utf8: bool = False,
     ) -> SandboxResult:
+        if type(strict_stdout_utf8) is not bool:
+            raise ConfinementError("strict stdout UTF-8 flag must be boolean")
         if not argv or not all(isinstance(arg, str) and "\0" not in arg for arg in argv):
             raise ConfinementError("argv must contain non-NUL strings")
         if not Path(argv[0]).is_absolute():
@@ -535,7 +545,7 @@ class SandboxRunner:
         return SandboxResult(
             tuple(argv),
             process.returncode,
-            stdout.decode("utf-8", errors="replace"),
+            _decode_captured_stdout(stdout, strict_utf8=strict_stdout_utf8),
             stderr.decode("utf-8", errors="replace"),
             timed_out,
             self.profile_sha256,
