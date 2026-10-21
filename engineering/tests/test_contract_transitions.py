@@ -14,7 +14,11 @@ from unittest.mock import patch
 import pytest
 
 from engineering import supervisor
-from engineering.org_state import StateError, Store
+from engineering.org_state import (
+    _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
+    StateError,
+    Store,
+)
 
 
 @pytest.fixture
@@ -909,16 +913,8 @@ def test_transition_replay_uses_scoped_index_and_ignores_unrelated_bad_identity(
         ("contract-review/unrelated-malformed-id", 1, "{malformed", None, None),
     )
 
-    query = (
-        "SELECT DISTINCT name FROM decisions WHERE name GLOB 'contract-review/*' "
-        "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
-        "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
-        "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
-        "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
-        "ORDER BY name"
-    )
     plan = store.db.execute(
-        "EXPLAIN QUERY PLAN " + query,
+        "EXPLAIN QUERY PLAN " + _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
         (body["name"], body["version"], body["contract_hash"], body["proposal_digest"]),
     ).fetchall()
     assert any("idx_contract_review_transition_replay" in row["detail"] for row in plan)

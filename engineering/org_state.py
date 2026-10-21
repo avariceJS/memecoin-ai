@@ -57,6 +57,14 @@ _LIFECYCLE_OBSERVATION_FIELDS = frozenset(
 )
 _LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
 _LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
+_CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY = (
+    "SELECT DISTINCT name FROM decisions WHERE name GLOB 'contract-review/*' "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
+    "ORDER BY name"
+)
 
 
 def _json(value: Any) -> str:
@@ -1961,12 +1969,7 @@ class Store:
             raise StateError("contract review proposal changed")
         proposal_digest = self._contract_review_digest(proposal)
         rows = self.db.execute(
-            "SELECT DISTINCT name FROM decisions WHERE name GLOB 'contract-review/*' "
-            "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
-            "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
-            "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
-            "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
-            "ORDER BY name",
+            _CONTRACT_REVIEW_TRANSITION_REPLAY_QUERY,
             (name, version, contract_hash, proposal_digest),
         )
         items = []
