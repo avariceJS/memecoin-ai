@@ -41,8 +41,11 @@ integration, durable checkpointing, task continuation and interruption recovery.
 independent direction and substantial exact-candidate review; Astra remains episodic and is never
 invoked automatically. This source authority does not grant operational release or runtime authority.
 
-Current integrated-cycle checkpoint — 2026-10-21: a disposable Git/SQLite test now drives a fixed
-catalogue choice through admission, claim, a real prepared verifier-plan identity, worker commit,
+Current integrated-cycle checkpoint — 2026-10-21: a disposable Git/SQLite test now drives both
+catalogue choices through the real `plan_next` path using deterministic local model-turn responses;
+no live Codex/provider is called. The planner now admits against GitGate's active integration ref,
+and the dependent task's base SHA is asserted to equal the just-integrated candidate rather than
+the checkout's possibly stale `HEAD`. It then exercises claim, a real prepared verifier-plan identity, worker commit,
 GitGate import and receipt, submitted-state reconciliation, local ref CAS, durable integration,
 SQLite close/reopen, recovery, and a dependent next-task claim. It injects a crash after ref CAS,
 removes the receipt and confirms recovery fails closed, tampers with the candidate SHA and confirms

@@ -5,9 +5,11 @@ implementation owner. Its predecessor, counters, history, receipts and checkpoin
 in `/Users/root1/Developer/brain-org-state/resumption-20261020/handoff.json`. Work is on
 `org/development`; `main` and the founder's Pilot STOP remain unchanged.
 
-A synthetic source-only vertical now connects fixed-card selection/admission, claim, a real prepared
-verifier-plan identity, GitGate import/verification receipt, submitted-state recovery, local ref CAS,
-SQLite close/reopen, durable integration and a dependent task. Experience produces a contract consumed
+A synthetic source-only vertical now drives two fixed-card choices through real `plan_next` using
+deterministic local model-turn responses (no live provider), claim, a real prepared verifier-plan
+identity, GitGate import/verification receipt, submitted-state recovery, local ref CAS, SQLite
+close/reopen, durable integration and a dependent task. Planning binds the next task to GitGate's
+active ref, and the test asserts its base is the integrated candidate. Experience produces a contract consumed
 by Platform; the consumer is blocked until both teams' synthetic durable reviews activate the exact
 contract version. A fixed worker script runs through macOS Seatbelt in the disposable checkout and
 an out-of-root write is denied. Faults after CAS, missing receipt, changed candidate parents and JSON

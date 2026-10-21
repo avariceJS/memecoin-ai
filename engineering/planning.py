@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 
+from .git_gate import GitGate
 from .metered_codex import metered_client
 from .org_state import StateError, _json
 from .supervisor import RULES, SOL, config, git, log_event, structured
@@ -161,7 +162,12 @@ def plan_next(state: Path, db):
                 proposal = structured(result["text"])
                 _proposal(proposal, allow_defer=True)
                 admitted = (
-                    admit(cfg, db, proposal, git(state / "integration", "rev-parse", "HEAD"))
+                    admit(
+                        cfg,
+                        db,
+                        proposal,
+                        git(state / "integration", "rev-parse", GitGate.ACTIVE_REF),
+                    )
                     if proposal["card"] is not None
                     else None
                 )

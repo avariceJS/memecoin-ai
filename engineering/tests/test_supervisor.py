@@ -501,7 +501,7 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(len(events), 1)
 
     def test_fixed_task_real_git_acceptance_checkpoint_and_next_dependency(self):
-        from engineering.planning import admit, eligible
+        from engineering.planning import eligible
 
         def run_git(repo, *args):
             result = subprocess.run(
@@ -580,15 +580,44 @@ class SupervisorTests(unittest.TestCase):
         }
         self.db.add_objective("offline-brain-engineering", "Synthetic integrated cycle")
         self.assertEqual(eligible(self.cfg, self.db), ["PLAT-001"])
-        admitted = admit(
-            self.cfg,
-            self.db,
-            {
-                "card": "PLAT-001",
-                "rationale": "This fixed task provides the first bounded capability.",
-                "evidence": "The isolated synthetic repository starts from the recorded base.",
-            },
-            base,
+
+        def synthetic_plan(expected_card, rationale, evidence):
+            """Exercise the real planner through a deterministic, provider-free turn."""
+            import json
+            from unittest.mock import MagicMock
+
+            from engineering import planning
+
+            fake = MagicMock()
+            fake.__enter__.return_value = fake
+            fake.start.return_value = "synthetic-sol-thread"
+
+            def turn(_thread, prompt, **kwargs):
+                dossier = json.loads(prompt.rsplit("\n", 1)[-1])
+                self.assertEqual(list(dossier["available_cards"]), [expected_card])
+                self.assertEqual(kwargs["model"], planning.SOL)
+                self.assertEqual(kwargs["dispatch_id"].split(":", 1)[0], "planning-proposal")
+                return {
+                    "text": json.dumps(
+                        {"card": expected_card, "rationale": rationale, "evidence": evidence}
+                    )
+                }
+
+            fake.turn.side_effect = turn
+            with (
+                patch.object(planning, "config", return_value=self.cfg),
+                patch.object(planning, "metered_client", return_value=fake),
+                patch.object(planning, "git", side_effect=run_git),
+                patch.object(planning, "log_event"),
+            ):
+                selected = planning.plan_next(self.state, self.db)
+            fake.turn.assert_called_once()
+            return selected
+
+        admitted = synthetic_plan(
+            "PLAT-001",
+            "This fixed task provides the first bounded capability.",
+            "The isolated synthetic repository starts from the recorded base.",
         )
         self.assertEqual(admitted, "PLAT-001")
         task = self.db.get_task(admitted)
@@ -739,18 +768,14 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(self.db.get_contract("research-output")["version"], 2)
         self.assertEqual(eligible(self.cfg, self.db), ["PLAT-002"])
         self.assertEqual(
-            admit(
-                self.cfg,
-                self.db,
-                {
-                    "card": "PLAT-002",
-                    "rationale": "Continue from the verified integrated dependency.",
-                    "evidence": f"{admitted} is durably integrated at {candidate.sha}.",
-                },
-                candidate.sha,
+            synthetic_plan(
+                "PLAT-002",
+                "Continue from the verified integrated dependency.",
+                f"{admitted} is durably integrated at {candidate.sha}.",
             ),
             "PLAT-002",
         )
+        self.assertEqual(self.db.get_task("PLAT-002")["base_sha"], candidate.sha)
         next_attempt = self.db.claim("PLAT-002", "synthetic-worker")
         self.assertIsNotNone(next_attempt)
         self.assertEqual(self.db.get_task("PLAT-002")["dependencies"], ["PLAT-001"])
