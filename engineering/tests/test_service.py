@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import plistlib
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -109,6 +110,34 @@ def deployment(tmp_path):
     db = Store(state / "organization.sqlite")
     db.add_task("synthetic", "team", "Synthetic checkpoint task", scope=["src/example.py"])
     db.close()
+    return state
+
+
+def deployment_with_frozen_controller(tmp_path):
+    state = deployment(tmp_path)
+    controller = state / "controller"
+    shutil.rmtree(controller / "engineering")
+    source = Path(__file__).resolve().parents[1]
+    shutil.copytree(
+        source, controller / "engineering", ignore=shutil.ignore_patterns("__pycache__")
+    )
+    manifest = {
+        str(path.relative_to(controller)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted((controller / "engineering").rglob("*.py"))
+    }
+    trusted = state / "trusted/pilot_acceptance.py"
+    manifest["trusted/pilot_acceptance.py"] = hashlib.sha256(trusted.read_bytes()).hexdigest()
+    _json(state / "controller-manifest.json", manifest)
+    adapter = controller / "engineering/codex_rpc.py"
+    executable = state / "synthetic-codex"
+    _json(
+        state / "native-profile.json",
+        {
+            "qualified": True,
+            "adapter_sha256": hashlib.sha256(adapter.read_bytes()).hexdigest(),
+            "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
+        },
+    )
     return state
 
 
@@ -549,3 +578,132 @@ def test_native_bindings_reject_missing_config_pins_and_report_mismatch(tmp_path
     _json(state / "native-profile.json", report)
     with pytest.raises(ValueError, match="native_executable_binding"):
         validate_deployment(state)
+
+
+def test_restore_reconcile_recovers_committed_readback_crash_without_runtime(tmp_path):
+    source = deployment_with_frozen_controller(tmp_path)
+    integration_tip = _prepare_complete_checkpoint(source)
+    snapshot = backup_snapshot(source, tmp_path / "backup")
+    restored = restore_snapshot(snapshot, tmp_path / "restored")
+    child_code = """
+import json, os, sys
+sys.path.insert(0, sys.argv[1])
+from engineering.org_state import Store
+import engineering.service as service
+
+real_run = service.subprocess.run
+def checked_run(arguments, *args, **kwargs):
+    if type(arguments) is not list or not arguments or arguments[0] != "git":
+        raise AssertionError("unexpected process launch")
+    return real_run(arguments, *args, **kwargs)
+service.subprocess.run = checked_run
+
+class ForbidRuntimeImports:
+    def find_spec(self, fullname, *_args):
+        if fullname in {"engineering.supervisor", "engineering.metered_codex"}:
+            raise AssertionError("restore reconcile imported runtime code")
+sys.meta_path.insert(0, ForbidRuntimeImports())
+
+if sys.argv[3] == "crash_after_commit":
+    Store.lifecycle_request_worklist = lambda *_args, **_kwargs: os._exit(91)
+sys.argv = ["engineering", "restore-reconcile", "--state", sys.argv[2]]
+from engineering.__main__ import main
+try:
+    main()
+except Exception as exc:
+    print(json.dumps({"error": str(exc), "type": type(exc).__name__}, sort_keys=True))
+    raise SystemExit(2)
+"""
+
+    def invoke(mode="readback"):
+        return subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                child_code,
+                str(restored / "controller"),
+                str(restored),
+                mode,
+            ],
+            cwd=restored,
+            env={"PATH": os.environ.get("PATH", ""), "LANG": "C"},
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=10,
+        )
+
+    crashed = invoke("crash_after_commit")
+    assert crashed.returncode == 91, crashed.stderr
+    store = Store(restored / "organization.sqlite")
+    try:
+        initial = store.lifecycle_request_worklist(limit=100)
+        assert initial["count"] == 1
+        assert initial["items"][0]["action"] == "hold"
+        assert initial["items"][0]["reason"] == "stop_reason_active"
+        assert initial["dispatch_authority"] is False
+        assert initial["consumption_authority"] is False
+        body = store.get_decision(initial["items"][0]["decision_name"])["body"]
+        assert body["source_snapshot"]["stop"]["present"] is True
+        assert body["source_snapshot"]["runtime_ready"] is False
+        assert body["source_snapshot"]["host_requalification_required"] is True
+        assert body["observations"]["runtime_ready"] is False
+        assert body["observations"]["accounting_ready"] is False
+        assert body["observations"]["quota_ready"] is False
+        assert body["observations"]["process_state"] == "unknown"
+        assert body["observations"]["launch_authorized"] is False
+        assert store.get_decision("lifecycle/owner")["body"]["status"] == "released"
+        assert store.get_contract("synthetic") is None
+        assert store.db.execute("SELECT 1 FROM attempts WHERE state='running'").fetchone() is None
+    finally:
+        store.close()
+
+    replayed = invoke()
+    assert replayed.returncode == 0, replayed.stderr
+    result = json.loads(replayed.stdout)
+    assert result["status"] == "already_held"
+    assert result["action"] == "hold"
+    assert result["worklist"]["count"] == 1
+    assert result["worklist"]["dispatch_authority"] is False
+    assert result["worklist"]["consumption_authority"] is False
+    assert (restored / "STOP").is_file()
+    store = Store(restored / "organization.sqlite")
+    try:
+        assert store.lifecycle_request_worklist(limit=100)["count"] == 1
+        assert store.get_contract("synthetic") is None
+    finally:
+        store.close()
+    restored_tip = subprocess.run(
+        ["git", "-C", str(restored / "integration"), "rev-parse", "refs/heads/research/active"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert restored_tip == integration_tip
+
+    stop_bytes = (restored / "STOP").read_bytes()
+    (restored / "STOP").unlink()
+    stale_stop = invoke()
+    assert stale_stop.returncode == 2
+    assert "restore_reconcile_gate_unqualified" in stale_stop.stdout
+    _write(restored / "STOP", stop_bytes)
+    receipt_path = restored / "restore-receipt.json"
+    receipt_bytes = receipt_path.read_bytes()
+    receipt = json.loads(receipt_bytes)
+    receipt["runtime_ready"] = True
+    _json(receipt_path, receipt)
+    stale_receipt = invoke()
+    assert stale_receipt.returncode == 2
+    assert "lifecycle_restore_receipt_invalid" in stale_receipt.stdout
+    receipt_path.write_bytes(receipt_bytes)
+    final = invoke()
+    assert final.returncode == 0, final.stderr
+    assert json.loads(final.stdout)["status"] == "already_held"
+    store = Store(restored / "organization.sqlite")
+    try:
+        assert store.lifecycle_request_worklist(limit=100)["count"] == 1
+    finally:
+        store.close()

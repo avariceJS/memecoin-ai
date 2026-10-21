@@ -4,13 +4,21 @@ import argparse
 import json
 from pathlib import Path
 
-from .supervisor import render_desk, run_attempt, status, supervise
-
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
-        "command", choices=["bootstrap", "chief", "desk", "status", "supervise", "attempt", "stop"]
+        "command",
+        choices=[
+            "bootstrap",
+            "chief",
+            "desk",
+            "status",
+            "supervise",
+            "attempt",
+            "stop",
+            "restore-reconcile",
+        ],
     )
     p.add_argument("--state", type=Path, required=True)
     p.add_argument("--attempt", type=int)
@@ -28,15 +36,27 @@ def main():
         from .chief import chief
 
         chief(args.state)
+    elif args.command == "restore-reconcile":
+        from .service import reconcile_stopped_restore
+
+        print(json.dumps(reconcile_stopped_restore(args.state), sort_keys=True, indent=2))
     elif args.command == "status":
+        from .supervisor import status
+
         print(json.dumps(status(args.state), indent=2))
     elif args.command == "desk":
+        from .supervisor import render_desk
+
         print(render_desk(args.state))
     elif args.command == "supervise":
+        from .supervisor import supervise
+
         supervise(args.state, args.max_seconds)
     elif args.command == "attempt":
         if args.attempt is None:
             p.error("--attempt required")
+        from .supervisor import run_attempt
+
         run_attempt(args.state, args.attempt)
     else:
         (args.state / "STOP").touch(exist_ok=True)

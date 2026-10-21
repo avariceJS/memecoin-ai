@@ -38,6 +38,16 @@ passes Ruff/format, 618 tests and 189 subtests; `make smoke` is reproducible wit
 responses remain unresolved; it does not prove provider identity, usage settlement, A03, authorization
 generation or runtime recovery. Continue source-only integration.
 
+A05 adds a manifest-bound `restore-reconcile` CLI for fresh-path restored controllers. In disposable
+synthetic restore, the command records a source-bound passive hold only when STOP, the restore receipt
+and parser recovery gate remain valid; it never imports supervisor or metered provider code. A child
+process exits after the durable hold and lease release but before worklist readback; reopen/retry yields
+exactly one hold. Missing STOP and tampered receipt fail closed. Sol accepted the exact source/test diff
+`df12b50414bc52abe776b3d861c25aa1d3dbf67fecd6d99011dfa6d4c5fbd562d` at base `97894c8`. Full gate:
+Ruff/format, 619 tests and 189 subtests; smoke is reproducible with `edge_established=false`. This does
+not qualify host/runtime recovery; identical-byte filesystem ABA remains indistinguishable, and no
+authorization generation or lifecycle consumer exists. Continue source-only integration.
+
 `make check` still stops before later checks on 107 existing Ruff findings in `src/`, `tools/` and
 `tests/`; repository-wide pytest collection still lacks the historical PumpSwap IDL capture manifest.
 These remain separate from the engineering release gate. ORG-A03 is the external operational-release

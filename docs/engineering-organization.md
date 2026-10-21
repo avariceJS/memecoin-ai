@@ -1906,3 +1906,18 @@ failed outcome, and stop before `review.json`, acceptance or publication. Sol-6.
 passed Ruff, format, 574 tests and 173 subtests. This proves local shape/ambiguity rejection only; it
 does not authenticate the provider or establish review quality, usage settlement, A03 closure or
 operational readiness.
+
+A05 restored-controller reconciliation — 2026-10-21: `restore-reconcile` now validates and runs from
+the manifest-bound controller copy, then performs only passive lifecycle reconciliation. It requires
+Pilot STOP, a valid restore receipt, and the host-requalification barrier; it records a source-bound
+hold under the lifecycle owner lease and returns the bounded worklist after recapturing source state.
+The command path does not import `engineering.supervisor` or `engineering.metered_codex`, dispatch work,
+or consume lifecycle requests. A disposable backup/fresh-path-restore regression kills a child after
+the durable hold and lease release but before readback; reopening and retrying returns exactly one hold.
+Removing STOP or tampering with the restore receipt fails closed. Sol accepted exact source/test diff
+`df12b50414bc52abe776b3d861c25aa1d3dbf67fecd6d99011dfa6d4c5fbd562d` at base `97894c8`; review
+required a fresh source recapture after lease release. The full engineering release gate passed
+Ruff/format, 619 tests and 189 subtests; smoke is reproducible with `edge_established=false`. This
+exercises only synthetic source/SQLite recovery: same-content filesystem ABA is indistinguishable,
+host/runtime recovery is unqualified, and no authorization generation or lifecycle consumer exists.
+A03 and operational acceptance remain open.

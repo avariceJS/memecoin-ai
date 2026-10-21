@@ -458,6 +458,95 @@ def validate_deployment(state: str | Path, *, allow_requalification: bool = Fals
     }
 
 
+def reconcile_stopped_restore(state: str | Path) -> dict:
+    """Record or read back a passive A05 hold from this exact restored controller.
+
+    This explicit recovery entrypoint validates the structurally restored deployment but
+    never enters ``supervise`` or consumes a lifecycle request. It requires a current STOP,
+    the exact restore receipt, and the frozen service module from the restored controller.
+    """
+    deployment = validate_deployment(state, allow_requalification=True)
+    root = deployment["state"]
+    expected_module = (deployment["controller"] / "engineering/service.py").resolve(strict=True)
+    if Path(__file__).resolve(strict=True) != expected_module:
+        raise ValueError("restore_reconcile_controller_identity")
+
+    from .org_state import StateError, Store
+
+    db = Store(root / "organization.sqlite")
+    lease = None
+    created = False
+    try:
+        snapshot = db.capture_passive_lifecycle_gate_snapshot(root)
+        if (
+            snapshot["stop"]["present"] is not True
+            or snapshot["runtime_ready"] is not False
+            or snapshot["host_requalification_required"] is not True
+        ):
+            raise StateError("restore_reconcile_gate_unqualified")
+
+        decision = db.find_passive_lifecycle_hold(snapshot)
+        if decision is None:
+            lease = db.claim_lifecycle_owner("passive-restore-reconciler", lease_seconds=30)
+            if lease is None:
+                decision = db.find_passive_lifecycle_hold(snapshot)
+                if decision is None:
+                    raise StateError("restore_reconcile_owner_busy")
+            else:
+                snapshot = db.capture_passive_lifecycle_gate_snapshot(root)
+                if (
+                    snapshot["stop"]["present"] is not True
+                    or snapshot["runtime_ready"] is not False
+                    or snapshot["host_requalification_required"] is not True
+                ):
+                    raise StateError("restore_reconcile_gate_unqualified")
+                decision = db.find_passive_lifecycle_hold(snapshot)
+                if decision is None:
+                    decision = db.record_passive_lifecycle_hold(lease, root, snapshot)
+                    created = decision["body"].get("source_snapshot") == snapshot
+
+        if lease is not None:
+            db.release_lifecycle_owner(lease)
+            lease = None
+
+        current = db.capture_passive_lifecycle_gate_snapshot(root)
+        if any(
+            current[key] != snapshot[key]
+            for key in (
+                "schema",
+                "stop",
+                "restore_receipt_sha256",
+                "runtime_ready",
+                "host_requalification_required",
+                "controller_parse",
+            )
+        ):
+            raise StateError("lifecycle_gate_snapshot_changed")
+        worklist = db.lifecycle_request_worklist(limit=100)
+        if worklist["overflow"]:
+            raise StateError("lifecycle_worklist_overflow")
+        request_id = decision["id"].removeprefix("lifecycle/request/")
+        item = next(
+            (entry for entry in worklist["items"] if entry["request_id"] == request_id), None
+        )
+        if item is None or item["action"] != "hold":
+            raise StateError("restore_reconcile_readback_missing")
+        return {
+            "status": "held" if created else "already_held",
+            "decision_id": decision["id"],
+            "decision_version": decision["version"],
+            "action": item["action"],
+            "reason": item["reason"],
+            "worklist": worklist,
+        }
+    finally:
+        try:
+            if lease is not None:
+                db.release_lifecycle_owner(lease)
+        finally:
+            db.close()
+
+
 def launch_agent_plist(state: str | Path, *, max_seconds: int = 1800) -> dict:
     deployment = validate_deployment(state)
     if type(max_seconds) is not int or not 1 <= max_seconds <= MAX_EPISODE_SECONDS:

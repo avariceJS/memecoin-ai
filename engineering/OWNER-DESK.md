@@ -1,5 +1,19 @@
 # Founder Desk — Brain Engineering Organization
 
+Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
+reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает
+только manifest-bound controller и требует присутствующий Pilot STOP, валидный restore receipt и
+host-requalification gate; она записывает ограниченный hold и возвращает bounded worklist, не
+импортируя supervisor или metered provider client. Тест жёстко завершает дочерний процесс после
+durable hold и освобождения owner lease, но до readback; повтор после SQLite reopen находит ровно одну
+запись. Удалённый STOP и изменённый receipt закрываются fail-closed. Sol принял точный source/test diff
+`df12b50414bc52abe776b3d861c25aa1d3dbf67fecd6d99011dfa6d4c5fbd562d` на базе `97894c8` без
+блокеров; рекомендация включала повторную сверку источников после освобождения lease. Полный
+`make engineering-release-check`: Ruff/format, 619 тестов и 189 subtests; `make smoke` воспроизводим,
+`edge_established=false`. Это synthetic source recovery, не host/runtime qualification. Одинаковые
+байты STOP/receipt, удалённые и созданные снова между чтениями, остаются неразличимыми; authorization
+generation и lifecycle consumer отсутствуют. Продолжается source-only интеграция.
+
 Новый A10 recovery-срез проверен как синтетическая source-only вертикаль. Четыре дочерних процесса
 жёстко завершаются после durable dispatch intent, после сохранения session, после возврата synthetic
 review до custody ответа и после custody ответа до local replay. Первые три состояния после SQLite

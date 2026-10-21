@@ -4016,9 +4016,66 @@ class Store:
                 "request_epoch": computed.request_epoch,
                 "decision_sha256": computed.decision_sha256,
             }
+            existing = self._find_passive_lifecycle_hold_in_snapshot(snapshot)
+            if existing is not None:
+                return existing
+            worklist = self._lifecycle_request_worklist_in_snapshot(limit=100)
+            if worklist["overflow"]:
+                raise StateError("lifecycle_worklist_overflow")
             return self._persist_lifecycle_evaluation(
                 owner, plan, bound_observations, source_snapshot=snapshot
             )
+
+    def find_passive_lifecycle_hold(self, snapshot: Any) -> dict | None:
+        """Return a prior hold for the same restored sources, ignoring capture metadata.
+
+        This read-only lookup lets a controller recover after it committed a passive hold
+        but exited before returning its bounded readback. Capture time and global event
+        sequence are deliberately excluded from source identity; STOP bytes, restore
+        receipt, host barrier, and parser obligation remain exact.
+        """
+        snapshot = _lifecycle_snapshot(snapshot)
+        self._validate_passive_lifecycle_gate_snapshot(snapshot)
+        with self._read_snapshot():
+            return self._find_passive_lifecycle_hold_in_snapshot(snapshot)
+
+    def _find_passive_lifecycle_hold_in_snapshot(self, snapshot: dict) -> dict | None:
+        target = self._passive_lifecycle_source_identity(snapshot)
+        worklist = self._lifecycle_request_worklist_in_snapshot(limit=100)
+        if worklist["overflow"]:
+            raise StateError("lifecycle_worklist_overflow")
+        match = None
+        for item in worklist["items"]:
+            decision = self.get_decision(item["decision_name"])
+            if decision is None:
+                raise StateError("lifecycle_request_history_invalid")
+            body = decision["body"]
+            source = body.get("source_snapshot")
+            if (
+                item["action"] == "hold"
+                and type(source) is dict
+                and self._passive_lifecycle_source_identity(source) == target
+            ):
+                if match is not None:
+                    raise StateError("lifecycle_passive_hold_identity_ambiguous")
+                match = {
+                    "id": decision["name"],
+                    "version": decision["version"],
+                    "body": body,
+                }
+        return match
+
+    @staticmethod
+    def _passive_lifecycle_source_identity(snapshot: dict) -> str:
+        fields = (
+            "schema",
+            "stop",
+            "restore_receipt_sha256",
+            "runtime_ready",
+            "host_requalification_required",
+            "controller_parse",
+        )
+        return _json({key: snapshot[key] for key in fields})
 
     @staticmethod
     def _lifecycle_file_source(path: Path, *, optional: bool) -> dict:
