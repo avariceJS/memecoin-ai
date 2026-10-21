@@ -382,3 +382,8 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   subtests with Ruff. Sol accepted exact diff. This retains a 1001-name cap; index work/time/memory
   remain unbounded. Receipts: `a10-transition-replay-indexed-seek-review-20261021.json`,
   `a10-transition-replay-indexed-seek-gate-20261021.json`.
+- A10 source `7192e9d` adds a test-only WAL interleaving regression proving contract-review worklist
+  byte preflight and JSON hydration share one SQLite read snapshot. Sol-6.1 High accepted exact diff;
+  focused tests passed 62 and final release gate passed 454 tests/101 subtests with Ruff. One synthetic
+  interleaving only; A03, broad A10 and operational acceptance remain open. Review and gate receipts:
+  `a10-contract-review-worklist-snapshot-review-20261021.json` and `a10-contract-review-worklist-snapshot-gate-20261021.json`.

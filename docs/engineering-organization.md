@@ -1212,3 +1212,16 @@ A10 and operational acceptance remain open. Review receipt:
 (SHA-256 `7a52e724acf9bc8c8a8a376f5bf903aa51555c35485645f513d58a1264f17911`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-indexed-seek-gate-20261021.json`
 (SHA-256 `7bac1301055fc753f9602a441721bd7da84e8787cf5c263397d479b1e7ecec6d`).
+
+At `7192e9d`, a test-only WAL interleaving regression verifies that contract-review history byte
+preflight and JSON hydration share one SQLite read snapshot. A second connection commits a 600 KiB
+legacy field after preflight begins; the hydrated worklist retains the old body, while a fresh read
+sees the new field, and no acknowledgement is written. Sol-6.1 High accepted the exact test diff
+`d4dcbdf3f53cce778753b1dd25faf3742f44aab66be103cc25aabfd62a57d7f4`; focused transition tests
+passed 62 and the final engineering release gate passed 454 tests/101 subtests with Ruff. This is one
+synthetic interleaving and does not change implementation behavior or prove exhaustive concurrency.
+A03, broad A10 and operational acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-snapshot-review-20261021.json`
+(SHA-256 `6a151359673b286bb30373f65eb0e744263699f1991180abcc373487dd640d00`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-snapshot-gate-20261021.json`
+(SHA-256 `141b58d4cb879cb3dd50636b6879a3b8cea29ece3072b57ea0cc8fadec6cce8c`).
