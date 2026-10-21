@@ -21,7 +21,13 @@ from .codex_rpc import Codex
 from .confinement import SandboxRunner, python_runtime_roots
 from .git_gate import GitGate
 from .metered_codex import metered_client
-from .org_state import CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS, StaleAttempt, StateError, Store
+from .org_state import (
+    CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS,
+    StaleAttempt,
+    StateError,
+    Store,
+    _json,
+)
 from .processes import process_identity, terminate_owned
 from .review_packet import build_review_packet
 from .service import validate_deployment
@@ -132,7 +138,12 @@ def _configured_contract_transitions(cfg, db):
         if current is None:
             raise StateError("contract transition source contract missing")
         transition = db.get_contract_transition(name, proposal["version"])
-        already_active = current["version"] == proposal["version"] and current["body"] == proposal
+        try:
+            already_active = current["version"] == proposal["version"] and _json(
+                current["body"]
+            ) == _json(proposal)
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract configuration invalid") from None
         if transition is None and already_active:
             if proposal["version"] == 1:
                 continue  # Initial publication does not require transition evidence.

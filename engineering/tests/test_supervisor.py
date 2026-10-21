@@ -1177,10 +1177,60 @@ class SupervisorTests(unittest.TestCase):
     def test_initial_v1_contract_needs_no_transition_evidence(self):
         proposal = {"version": 1, "producer": "Research", "consumer": "Platform"}
         self.cfg["contracts"] = {"research-output": proposal}
-        self.db.put_contract("research-output", 1, proposal)
+        self.db.put_contract("research-output", 1, dict(reversed(list(proposal.items()))))
 
         self.assertEqual(supervisor._configured_contract_transitions(self.cfg, self.db), [])
         self.assertIsNone(self.db.get_contract_transition("research-output", 1))
+
+    def test_initial_v1_contract_rejects_boolean_integer_drift(self):
+        published = {
+            "version": 1,
+            "producer": "Research",
+            "consumer": "Platform",
+            "strict": False,
+            "nested": {"enabled": True},
+        }
+        configured = {
+            **published,
+            "strict": 0,
+            "nested": {"enabled": 1},
+        }
+        self.cfg["contracts"] = {"research-output": configured}
+        self.db.put_contract("research-output", 1, published)
+        contract_before = self.db.get_contract("research-output")
+        events_before = self.db.events()
+
+        with self.assertRaisesRegex(StateError, "source version is stale"):
+            supervisor._configured_contract_transitions(self.cfg, self.db)
+
+        self.assertEqual(self.db.get_contract("research-output"), contract_before)
+        self.assertEqual(self.db.events(), events_before)
+        self.assertIsNone(self.db.get_contract_transition("research-output", 1))
+
+    def test_legacy_v2_contract_rejects_nested_boolean_integer_drift(self):
+        published = {
+            **self.cfg["contracts"]["schema-validation"],
+            "extension": {"enabled": True},
+        }
+        configured = {**published, "extension": {"enabled": 1}}
+        self.cfg["contracts"] = {"schema-validation": configured}
+        self.db.db.execute(
+            "INSERT INTO contracts(name,version,body) VALUES(?,?,?)",
+            (
+                "schema-validation",
+                2,
+                json.dumps(published, sort_keys=True, separators=(",", ":")),
+            ),
+        )
+        contract_before = self.db.get_contract("schema-validation")
+        events_before = self.db.events()
+
+        with self.assertRaisesRegex(StateError, "source version is stale"):
+            supervisor._configured_contract_transitions(self.cfg, self.db)
+
+        self.assertEqual(self.db.get_contract("schema-validation"), contract_before)
+        self.assertEqual(self.db.events(), events_before)
+        self.assertIsNone(self.db.get_contract_transition("schema-validation", 2))
 
     def test_active_generic_contract_without_transition_fails_closed(self):
         proposal = {"version": 2, "producer": "Research", "consumer": "Platform"}
