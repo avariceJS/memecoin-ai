@@ -1428,6 +1428,15 @@ and operational acceptance remain open. Gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-configured-contract-missing-transition-evidence-gate-20261021.json`
 (SHA-256 `ef68283fb4aff15941cb5361db00d8978c34861202413dfbdf8844366c0670c1`).
 
+At `00cf162`, configured publication identity compares canonical finite JSON rather than Python value
+equality. This prevents `false`/`0` and `true`/`1` from collapsing into the same already-active v1
+or supported legacy v2 contract, while preserving object key-order independence. Regressions verify
+both drift cases reject without state changes and an exact reordered v1 body remains accepted. Sol
+accepted exact diff `342b9eb2665bd77f8544ec972046b40d54cf8266046133c589e1ff0cceafac53`; Ruff and the
+engineering gate passed 511 tests and 105 subtests. Configuration reads remain outside the proposal
+write transaction; complete historical provenance, broad A10, A03 and operational acceptance remain
+open.
+
 At `a22b423`, configured contract proposals now validate as a set before persistence and are
 inserted or exact-retried atomically by `Store.propose_contract_transitions`. The existing
 single-proposal API uses this same transaction path. If a later configured entry fails validation,
