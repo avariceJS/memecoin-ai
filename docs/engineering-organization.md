@@ -1225,3 +1225,20 @@ A03, broad A10 and operational acceptance remain open. Review receipt:
 (SHA-256 `6a151359673b286bb30373f65eb0e744263699f1991180abcc373487dd640d00`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-snapshot-gate-20261021.json`
 (SHA-256 `141b58d4cb879cb3dd50636b6879a3b8cea29ece3072b57ea0cc8fadec6cce8c`).
+
+At `8f34074`, lifecycle request and contract-review journal seeks now project a key to Python only
+when it has no embedded NUL, stays within the exact namespace identity character bound, and stays
+within four storage bytes per allowed character. Oversized keys become SQL `NULL` and fail closed
+before Python decodes the original text. This covers A05 lifecycle discovery and both global and
+transition-scoped A10 review discovery. Regressions cover oversized ASCII names, embedded NUL,
+malformed UTF-8 TEXT, and a valid UTF-16le Store database. Sol-6.1 High accepted exact diff
+`1ae8db5841aa36ed47cea6a56617bbeb04e972c3086b72cb34c8e86f88bf7900`; focused suites passed 99 tests
+and 3 subtests, and the final engineering release gate passed Ruff, 461 tests and 101 subtests. This
+bounds host-side key materialization only; SQLite still processes the stored key and its scan, cast,
+B-tree, time and internal memory costs remain unbounded. Small malformed text within the output bound
+can still raise a SQLite decode error. Broad A05/A10, A03 and operational acceptance remain open.
+Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-a10-bounded-journal-name-review-20261021.json`
+(SHA-256 `891718da32ef20ce5358105ea9546e2664f9ab79eddd442f20a05ae50fcedd4c`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-a10-bounded-journal-name-gate-20261021.json`
+(SHA-256 `4de7f0247e44be290ea586accf7347091ed5e378b351b6ea01864cf2866371fe`).

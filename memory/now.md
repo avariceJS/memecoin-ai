@@ -387,3 +387,9 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   focused tests passed 62 and final release gate passed 454 tests/101 subtests with Ruff. One synthetic
   interleaving only; A03, broad A10 and operational acceptance remain open. Review and gate receipts:
   `a10-contract-review-worklist-snapshot-review-20261021.json` and `a10-contract-review-worklist-snapshot-gate-20261021.json`.
+- A05/A10 source `8f34074` bounds indexed journal-name output before Python decoding across lifecycle,
+  global review and transition review seeks. Sol-6.1 High accepted exact diff; focused suites passed
+  99/3 subtests and final gate passed 461/101 with Ruff. Oversized ASCII, NUL and malformed UTF-8
+  regressions fail closed; UTF-16le remains compatible. SQLite internal key work/time/memory and broad
+  A05/A10 remain open. Receipts: `a05-a10-bounded-journal-name-review-20261021.json` and
+  `a05-a10-bounded-journal-name-gate-20261021.json`.
