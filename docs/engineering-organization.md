@@ -1320,7 +1320,7 @@ source increment does not close broad A10, A03 or operational acceptance. Review
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-aggregate-projection-gate-20261021.json`
 (SHA-256 `b3ff178f171e33deeb2f75c6abff6b0a294e90a9eb3f6740a7165947e7252435`).
 
-At the next source checkpoint, configured active contracts without transition proposals now fail
+At `8fd3eff`, configured active contracts without transition proposals now fail
 closed except for initial v1 publication and the exact supported legacy `schema-validation` v2
 publication (Experience to Platform). The legacy exception rejects orphan activation or participant
 ACK decisions. Regressions cover generic v2 and `schema-validation` v3 without proposals, a modern
