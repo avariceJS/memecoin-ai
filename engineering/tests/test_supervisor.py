@@ -950,24 +950,42 @@ class SupervisorTests(unittest.TestCase):
             },
         }
         self.db.add_objective("offline-brain-engineering", "Synthetic integrated cycle")
-        from engineering.executive import Executive
-
-        executive = Executive(self.db)
         department_leases = {}
-        for team, card_id in (("Experience", "PLAT-001"), ("Platform", "PLAT-002")):
-            lease = executive.claim_department(team, "sol-" + team.lower())
-            department_leases[team] = lease
-            executive.record_department_plan(
-                lease,
-                1,
-                "offline-brain-engineering",
-                "Advance the synthetic producer-consumer cycle",
-                ["catalogue-card:" + card_id],
-                self.db.clock() + 3600,
-                rationale="Keep the task within the fixed trusted catalogue and active objective.",
-                evidence_refs=["test:department-plan:" + team],
+        department_plan_calls = []
+        from engineering import department_plan_cycle
+
+        department_config_patch = patch.object(
+            department_plan_cycle, "config", return_value=self.cfg
+        )
+        department_config_patch.start()
+        self.addCleanup(department_config_patch.stop)
+
+        def department_plan_transport(request):
+            department_plan_calls.append(request["team"])
+            department_leases[request["team"]] = request["lease"]
+            return {
+                "summary": "Advance the synthetic producer-consumer cycle.",
+                "rationale": "Select only cards in the current controller-owned menu.",
+                "priorities": ["catalogue-card:" + card_id for card_id in sorted(request["cards"])],
+            }
+
+        self.assertTrue(
+            department_plan_cycle.ensure_department_plans(
+                self.state,
+                self.db,
+                department_plan_transport,
+                stop_guard=lambda: not (self.state / "STOP").exists(),
             )
+        )
+        self.assertEqual(department_plan_calls, ["Experience"])
         self.assertEqual(eligible(self.cfg, self.db), ["PLAT-001"])
+        from engineering.executive import Executive
+        from engineering.planning import _task_sha256
+
+        self.assertIn(
+            "catalogue-card-sha256:PLAT-001:" + _task_sha256(self.cfg["tasks"]["PLAT-001"]),
+            Executive(self.db).get_department_plan("Experience")["evidence_refs"],
+        )
 
         def synthetic_plan(expected_card, rationale, evidence):
             """Exercise the real planner through a deterministic, provider-free turn."""
@@ -979,6 +997,7 @@ class SupervisorTests(unittest.TestCase):
             fake = MagicMock()
             fake.__enter__.return_value = fake
             fake.start.return_value = "synthetic-sol-thread"
+            dispatch_contexts = []
 
             def turn(_thread, prompt, **kwargs):
                 dossier = json.loads(prompt.rsplit("\n", 1)[-1])
@@ -998,12 +1017,19 @@ class SupervisorTests(unittest.TestCase):
             fake.turn.side_effect = turn
             with (
                 patch.object(planning, "config", return_value=self.cfg),
-                patch.object(planning, "metered_client", return_value=fake),
+                patch.object(
+                    planning,
+                    "metered_client",
+                    side_effect=lambda *args, **kwargs: (
+                        dispatch_contexts.append(kwargs["context"]) or fake
+                    ),
+                ),
                 patch.object(planning, "git", side_effect=run_git),
                 patch.object(planning, "log_event"),
             ):
                 selected = planning.plan_next(self.state, self.db)
             fake.turn.assert_called_once()
+            self.assertEqual(dispatch_contexts[0]["team"], "Experience")
             return selected
 
         admitted = synthetic_plan(
@@ -1018,7 +1044,13 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(
             producer_nomination["owner_epoch"], department_leases["Experience"]["epoch"]
         )
-        self.assertEqual(producer_nomination["evidence_refs"], ["test:department-plan:Experience"])
+        self.assertIn("catalogue-card:PLAT-001", producer_nomination["evidence_refs"])
+        self.assertTrue(
+            any(
+                ref.startswith("department-menu-sha256:")
+                for ref in producer_nomination["evidence_refs"]
+            )
+        )
         task = self.db.get_task(admitted)
         attempt = self.db.claim(admitted, "synthetic-worker")
         plan = supervisor.prepare_verification_plan(self.state, self.db, task, self.cfg)
@@ -1438,7 +1470,6 @@ class SupervisorTests(unittest.TestCase):
                 "offline-brain-engineering",
             )
             self.assertEqual(restored_plans["nominations"]["PLAT-001"], producer_nomination)
-            self.assertEqual(restored_executive.get_department_plan("Platform")["revision"], 1)
             self.assertEqual(restored_db.get_task(admitted)["state"], "integrated")
             self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
             restored_review = restored_db.get_contract_review_request(replay_request["request_id"])
@@ -1863,7 +1894,10 @@ main()
             patch.object(supervisor.subprocess, "Popen", side_effect=capture_worker),
         ):
             supervisor.supervise(
-                self.state, max_seconds=10, contract_review_transport=review_transport
+                self.state,
+                max_seconds=10,
+                contract_review_transport=review_transport,
+                department_plan_transport=department_plan_transport,
             )
             self.assertTrue((self.state / "STOP").is_file())
             cancelled_attempt = self.db.list_attempts("PLAT-002")
@@ -1877,7 +1911,10 @@ main()
             self.assertFalse(first_episode["dispatch_authority"])
             (self.state / "STOP").unlink()
             supervisor.supervise(
-                self.state, max_seconds=1, contract_review_transport=review_transport
+                self.state,
+                max_seconds=1,
+                contract_review_transport=review_transport,
+                department_plan_transport=department_plan_transport,
             )
             cooling_episode = self.db.supervisor_episode_checkpoint_status(self.state)
             self.assertEqual(cooling_episode["status"], "waiting_until_retry")
@@ -1885,7 +1922,10 @@ main()
             self.assertFalse(cooling_episode["dispatch_authority"])
             self.now = cooling_episode["checkpoint"]["body"]["next_retry_at"]
             supervisor.supervise(
-                self.state, max_seconds=10, contract_review_transport=review_transport
+                self.state,
+                max_seconds=10,
+                contract_review_transport=review_transport,
+                department_plan_transport=department_plan_transport,
             )
             resumed_episode = self.db.supervisor_episode_checkpoint_status(self.state)
             self.assertEqual(resumed_episode["status"], "due_for_recheck")
@@ -1911,7 +1951,15 @@ main()
             "department_nomination"
         ]
         self.assertEqual(consumer_nomination["plan_revision"], 1)
-        self.assertEqual(consumer_nomination["evidence_refs"], ["test:department-plan:Platform"])
+        self.assertIn("catalogue-card:PLAT-002", consumer_nomination["evidence_refs"])
+        self.assertTrue(
+            any(
+                ref.startswith("department-menu-sha256:")
+                for ref in consumer_nomination["evidence_refs"]
+            )
+        )
+        self.assertEqual(department_plan_calls, ["Experience", "Platform"])
+        self.assertEqual(Executive(self.db).get_department_plan("Platform")["revision"], 1)
         self.assertEqual(
             self.db.get_task("PLAT-002")["state"], "integrated", self.db.events()[-12:]
         )
@@ -4130,6 +4178,58 @@ main()
         account_call.assert_not_called()
         capacity.assert_not_called()
         executive.assert_not_called()
+
+    def test_idle_supervisor_uses_only_injected_department_plan_transport(self):
+        from engineering import department_plan_cycle
+        from engineering.executive import Executive
+
+        self.db.add_objective("offline-brain-engineering", "Synthetic objective")
+        self.cfg["catalogue"] = ["NEXT"]
+        self.cfg["tasks"] = {
+            "NEXT": {
+                "team": "Experience",
+                "title": "Bounded synthetic task",
+                "brief": "Implement one useful source change.",
+                "scope": ["src/next.py"],
+                "dependencies": [],
+                "contracts": {},
+            }
+        }
+        calls = []
+
+        def transport(request):
+            calls.append(request)
+            return {
+                "summary": "Advance the synthetic objective.",
+                "rationale": "The fixed trusted card is currently eligible.",
+                "priorities": ["catalogue-card:NEXT"],
+            }
+
+        with (
+            patch.object(supervisor, "Codex", FakeCodex),
+            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
+            patch.object(supervisor, "process_identity", return_value="fake"),
+            patch.object(supervisor, "available_memory", return_value=10**10),
+            patch.object(supervisor, "status", return_value={}),
+            patch.object(supervisor, "render_desk"),
+            patch.object(
+                supervisor.time, "sleep", side_effect=lambda _: (self.state / "STOP").touch()
+            ),
+            patch("engineering.resources.choose_capacity", return_value={"slots": 1}),
+            patch("engineering.planning.plan_next", return_value=None) as plan_next,
+            patch.object(department_plan_cycle, "config", return_value=self.cfg),
+        ):
+            supervisor.supervise(
+                self.state,
+                max_seconds=10,
+                department_plan_transport=transport,
+            )
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["team"], "Experience")
+        plan = Executive(self.db).get_department_plan("Experience")
+        self.assertIsNotNone(plan)
+        self.assertEqual(plan["priorities"], ["catalogue-card:NEXT"])
+        plan_next.assert_called_once()
 
 
 if __name__ == "__main__":

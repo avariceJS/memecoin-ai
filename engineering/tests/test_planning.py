@@ -4,7 +4,7 @@ from pathlib import Path
 
 from engineering.executive import Executive
 from engineering.org_state import StateError, Store
-from engineering.planning import admit, eligible
+from engineering.planning import _task_sha256, admit, eligible
 from engineering.tests.contract_review_helpers import approve_participant
 
 _UNSET = object()
@@ -40,18 +40,6 @@ class PlanningTests(unittest.TestCase):
             db.add_objective("offline-brain-engineering", "Offline work")
             executive = Executive(db)
             lease = executive.claim_department("Platform", "sol-platform")
-            executive.record_department_plan(
-                lease,
-                1,
-                "offline-brain-engineering",
-                "Strict input",
-                ["catalogue-card:NEXT"],
-                db.clock() + 3600,
-                evidence_refs=["test:planning-admission"],
-            )
-            nomination = executive.department_plan_nominations(
-                {"NEXT": "Platform"}, "offline-brain-engineering"
-            )["nominations"]["NEXT"]
             cfg = {
                 "catalogue": ["NEXT"],
                 "tasks": {
@@ -65,6 +53,21 @@ class PlanningTests(unittest.TestCase):
                     }
                 },
             }
+            executive.record_department_plan(
+                lease,
+                1,
+                "offline-brain-engineering",
+                "Strict input",
+                ["catalogue-card:NEXT"],
+                db.clock() + 3600,
+                evidence_refs=[
+                    "test:planning-admission",
+                    "catalogue-card-sha256:NEXT:" + _task_sha256(cfg["tasks"]["NEXT"]),
+                ],
+            )
+            nomination = executive.department_plan_nominations(
+                {"NEXT": "Platform"}, "offline-brain-engineering"
+            )["nominations"]["NEXT"]
             proposal = {
                 "card": "NEXT",
                 "rationale": "Useful ambiguity rejection",
@@ -115,18 +118,6 @@ class PlanningAdmissionTests(unittest.TestCase):
         self.db.add_objective("offline-brain-engineering", "Bounded offline work")
         self.executive = Executive(self.db)
         self.platform_lease = self.executive.claim_department("Platform", "sol-platform")
-        self.executive.record_department_plan(
-            self.platform_lease,
-            1,
-            "offline-brain-engineering",
-            "Reject ambiguous JSON",
-            ["catalogue-card:PLAT-002"],
-            self.db.clock() + 3600,
-            evidence_refs=["test:planning-admission"],
-        )
-        self.nomination = self.executive.department_plan_nominations(
-            {"PLAT-002": "Platform"}, "offline-brain-engineering"
-        )["nominations"]["PLAT-002"]
         self.cfg = {
             "catalogue": ["PLAT-002"],
             "tasks": {
@@ -141,6 +132,21 @@ class PlanningAdmissionTests(unittest.TestCase):
                 }
             },
         }
+        self.executive.record_department_plan(
+            self.platform_lease,
+            1,
+            "offline-brain-engineering",
+            "Reject ambiguous JSON",
+            ["catalogue-card:PLAT-002"],
+            self.db.clock() + 3600,
+            evidence_refs=[
+                "test:planning-admission",
+                "catalogue-card-sha256:PLAT-002:" + _task_sha256(self.cfg["tasks"]["PLAT-002"]),
+            ],
+        )
+        self.nomination = self.executive.department_plan_nominations(
+            {"PLAT-002": "Platform"}, "offline-brain-engineering"
+        )["nominations"]["PLAT-002"]
         self.proposal = {
             "card": "PLAT-002",
             "rationale": "Useful ambiguity rejection",
@@ -275,6 +281,23 @@ class PlanningAdmissionTests(unittest.TestCase):
 
     def test_accepted_dependency_is_insufficient_until_integrated(self):
         self.cfg["tasks"]["PLAT-002"]["dependencies"] = ["PLAT-001"]
+        self.executive.record_department_plan(
+            self.platform_lease,
+            2,
+            "offline-brain-engineering",
+            "Wait for the integrated producer",
+            ["catalogue-card:PLAT-002"],
+            self.db.clock() + 3600,
+            evidence_refs=[
+                "test:planning-admission-revised",
+                "catalogue-card-sha256:PLAT-002:" + _task_sha256(self.cfg["tasks"]["PLAT-002"]),
+            ],
+        )
+        self.nomination = self.executive.department_plan_nominations(
+            {"PLAT-002": "Platform"},
+            "offline-brain-engineering",
+            card_sha256s={"PLAT-002": _task_sha256(self.cfg["tasks"]["PLAT-002"])},
+        )["nominations"]["PLAT-002"]
         self.db.add_task("PLAT-001", "Platform", "Producer")
         attempt = self.db.claim("PLAT-001", "worker")
         self.db.submit(attempt["id"], attempt["epoch"], "candidate", {})
@@ -337,7 +360,10 @@ class PlanningAdmissionTests(unittest.TestCase):
                 "Reconfirm the bounded task",
                 ["catalogue-card:PLAT-002"],
                 self.db.clock() + 3600,
-                evidence_refs=["test:planning-admission-revised"],
+                evidence_refs=[
+                    "test:planning-admission-revised",
+                    "catalogue-card-sha256:PLAT-002:" + _task_sha256(self.cfg["tasks"]["PLAT-002"]),
+                ],
             )
             return original_turn.return_value
 
@@ -352,7 +378,13 @@ class PlanningAdmissionTests(unittest.TestCase):
         self.assertEqual(fake.turn.call_count, 2)
         admission = self.db.get_decision("admission/PLAT-002")["body"]["department_nomination"]
         self.assertEqual(admission["plan_revision"], 2)
-        self.assertEqual(admission["evidence_refs"], ["test:planning-admission-revised"])
+        self.assertEqual(
+            admission["evidence_refs"],
+            [
+                "test:planning-admission-revised",
+                "catalogue-card-sha256:PLAT-002:" + _task_sha256(self.cfg["tasks"]["PLAT-002"]),
+            ],
+        )
 
     def test_department_conflict_holds_nominations_without_blocking_ready_work(self):
         experience = self.executive.claim_department("Experience", "sol-experience")

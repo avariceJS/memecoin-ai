@@ -115,6 +115,8 @@ class StateTests(unittest.TestCase):
         before = len(self.store.events())
         with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
             self.store.put_decision("admission/PLAT-001", exact_body)
+        with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
+            self.store.put_decision("department-plan-cycle/" + digest, exact_body)
         self.assertEqual(len(self.store.events()), before)
 
     def test_quiescence_revision_rechecks_without_rebuilding_retained_task_snapshot(self):

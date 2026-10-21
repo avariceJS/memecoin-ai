@@ -1,5 +1,16 @@
 # Founder Desk — Brain Engineering Organization
 
+Новый A10 вертикальный путь принят Sol в source-only synthetic объёме. Controller создаёт планы
+отделов только по eligible fixed-card меню через явно инъецируемый transport; полный trusted card
+hash (включая scope/verifier) проходит через nomination и повторно проверяется при admission.
+Проверены fencing проигравшего intent creator, STOP/menu drift, commit-time Store revision, scope-only
+drift, истёкшая lease и replay до и после commit плана без повторной отправки. Интеграционная цепочка
+композитна: Experience план создаёт прямой вызов API, Platform — supervisor после contract/dependency
+перехода. Полный gate: Ruff/format, 665 тестов и 193 subtests; smoke reproducible,
+`edge_established=false`. Sol тесты не запускал. Injected transport не квалифицирует модель/usage;
+`outcome_unknown` сохраняется без resend и требует отдельного ремонта; A03, A04 runtime/deployment и
+operational release открыты.
+
 Новый integrated-cycle checkpoint доводит PLAT-002 через настоящий loop `supervise`: synthetic
 launcher вызывает реальный `run_attempt`, следующая итерация сама выполняет независимую `verify_one`,
 trusted acceptance, reviewer и GitGate integration. Точный receipt, parent PLAT-001, active-ref CAS,

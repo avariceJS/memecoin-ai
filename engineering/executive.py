@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 
 from .org_state import StateError, Store, _json, _name, _positive
 
@@ -489,6 +490,7 @@ class Executive:
         rationale="",
         evidence_refs=(),
         blocked_by=(),
+        expected_store_revision=None,
     ):
         """Append one bounded, non-executable department plan under its current lease."""
         lease = self._department_lease_snapshot(lease)
@@ -516,6 +518,10 @@ class Executive:
         team = lease.get("team") if isinstance(lease, dict) else None
         if not isinstance(team, str):
             raise StaleExecutive("department lease is no longer current")
+        if expected_store_revision is not None and (
+            type(expected_store_revision) is not int or expected_store_revision < 0
+        ):
+            raise ExecutiveError("department store revision is invalid")
         plan = {
             "team": team,
             "revision": revision,
@@ -531,6 +537,12 @@ class Executive:
         if len(_json(plan).encode("utf-8")) > 65_536:
             raise ExecutiveError("department plan exceeds byte limit")
         with self.store._tx():
+            if expected_store_revision is not None:
+                current_store_revision = self.db.execute(
+                    "SELECT value FROM quiescence_revision WHERE id=1"
+                ).fetchone()[0]
+                if current_store_revision != expected_store_revision:
+                    raise ExecutiveError("department menu changed before plan commit")
             current = self._department_fence(lease)
             if not self.db.execute(
                 "SELECT 1 FROM objectives WHERE id=?", (objective_id,)
@@ -604,7 +616,7 @@ class Executive:
     def _department_card_ref(card_id):
         return f"catalogue-card:{card_id}"
 
-    def department_plan_nominations(self, cards, objective_id):
+    def department_plan_nominations(self, cards, objective_id, *, card_sha256s=None):
         """Project current, conflict-free department nominations for fixed cards only."""
         if (
             type(cards) is not dict
@@ -619,6 +631,15 @@ class Executive:
         ):
             raise ExecutiveError("department nomination catalogue is invalid")
         _text(objective_id, required=True, limit=200)
+        if card_sha256s is not None and (
+            type(card_sha256s) is not dict
+            or set(card_sha256s) != set(cards)
+            or any(
+                type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                for digest in card_sha256s.values()
+            )
+        ):
+            raise ExecutiveError("department card identity is invalid")
         with self.store._read_snapshot():
             team_states = {}
             nominations = {}
@@ -633,6 +654,12 @@ class Executive:
                     if (
                         card_team != team
                         or self._department_card_ref(card_id) not in plan["priorities"]
+                    ):
+                        continue
+                    if (
+                        card_sha256s is not None
+                        and ("catalogue-card-sha256:" + card_id + ":" + card_sha256s[card_id])
+                        not in plan["evidence_refs"]
                     ):
                         continue
                     nominations[card_id] = {
@@ -710,7 +737,9 @@ class Executive:
             "summary": plan["summary"],
         }
 
-    def validate_department_plan_nomination(self, nomination, card_id, objective_id):
+    def validate_department_plan_nomination(
+        self, nomination, card_id, objective_id, *, card_sha256=None
+    ):
         """Recheck a planner nomination while the caller owns the Store write transaction."""
         expected_shape = {
             "schema",
@@ -733,6 +762,10 @@ class Executive:
             or type(nomination.get("team")) is not str
         ):
             raise ExecutiveError("department plan nomination is invalid")
+        if card_sha256 is not None and (
+            type(card_sha256) is not str or re.fullmatch(r"[0-9a-f]{64}", card_sha256) is None
+        ):
+            raise ExecutiveError("department card identity is invalid")
         _, plan, conflict_blocked = self._department_planning_state_in_snapshot(
             nomination["team"], objective_id
         )
@@ -743,6 +776,11 @@ class Executive:
             fresh is None
             or conflict_blocked
             or self._department_card_ref(card_id) not in plan["priorities"]
+            or (
+                card_sha256 is not None
+                and ("catalogue-card-sha256:" + card_id + ":" + card_sha256)
+                not in plan["evidence_refs"]
+            )
             or {**fresh, "card_id": card_id} != nomination
         ):
             raise ExecutiveError("department plan nomination is stale")

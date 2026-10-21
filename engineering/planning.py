@@ -35,6 +35,10 @@ def eligible(cfg, db):
     return cards
 
 
+def _task_sha256(card):
+    return hashlib.sha256(_json(card).encode("utf-8")).hexdigest()
+
+
 def _proposal(proposal, *, allow_defer=False):
     if not isinstance(proposal, dict) or set(proposal) != {"card", "rationale", "evidence"}:
         raise StateError("planning_proposal_shape")
@@ -59,7 +63,10 @@ def _admit_in_transaction(cfg, db, proposal, base, *, department_nomination, exe
         raise StateError("admission_record_already_exists")
     card = cfg["tasks"][name]
     executive.validate_department_plan_nomination(
-        department_nomination, name, "offline-brain-engineering"
+        department_nomination,
+        name,
+        "offline-brain-engineering",
+        card_sha256=_task_sha256(card),
     )
     if department_nomination["team"] != card["team"]:
         raise StateError("department plan nomination team mismatch")
@@ -176,8 +183,9 @@ def plan_next(state: Path, db):
 
     executive = Executive(db)
     card_teams = {name: cfg["tasks"][name]["team"] for name in eligible_cards}
+    card_sha256s = {name: _task_sha256(cfg["tasks"][name]) for name in eligible_cards}
     nomination_snapshot = executive.department_plan_nominations(
-        card_teams, "offline-brain-engineering"
+        card_teams, "offline-brain-engineering", card_sha256s=card_sha256s
     )
     nominations = nomination_snapshot["nominations"]
     cards = [name for name in eligible_cards if name in nominations]
@@ -190,6 +198,8 @@ def plan_next(state: Path, db):
         "department_nominations": {k: nominations[k] for k in cards},
         "department_state_sha256": nomination_snapshot["state_sha256"],
     }
+    planning_teams = sorted({cfg["tasks"][name]["team"] for name in cards})
+    planning_team = planning_teams[0] if len(planning_teams) == 1 else "Organization"
     fingerprint = hashlib.sha256(json.dumps(dossier, sort_keys=True).encode()).hexdigest()
     key = "planning/" + fingerprint
     # At most one model episode per evidence fingerprint, even if two trusted
@@ -221,10 +231,12 @@ def plan_next(state: Path, db):
             state,
             native,
             cfg=cfg,
-            context={"team": "Platform", "role": "planner", "task": "planning/" + fingerprint},
+            context={"team": planning_team, "role": "planner", "task": "planning/" + fingerprint},
             event_sink=lambda e: log_event(state, "codex", role="planner", event=e),
         ) as c:
-            thread = c.start(SOL, RULES + "\nYou are the Platform department planning lead.")
+            thread = c.start(
+                SOL, RULES + "\nYou are the cross-department catalogue planning coordinator."
+            )
             result = c.turn(
                 thread,
                 "Choose a useful next catalogue task justified by integrated evidence, or defer. "

@@ -2003,3 +2003,21 @@ committed return, and a separate explicit episode that completes the dependent t
 and GitGate integration.
 This is local SQLite/file recovery evidence, not a scheduler, service wake, launch authorization
 generation or operational recovery qualification.
+
+The controller-owned A10 planning vertical now turns the current eligible fixed-card menu into
+department plans through an explicitly injected transport, then lets the ordinary planner bind
+admission to the selected department nomination. The menu digest covers the complete trusted task
+card, including scope and verifier fields; nomination and transactional admission recheck the
+selected card digest. A plan is reusable only while its lease owner/epoch remains current. Durable
+response custody replays after interruption both before and after plan commit, and the plan commit
+checks the captured Store revision under `BEGIN IMMEDIATE`; a create-if-absent intent fence prevents
+two controllers from sending the same request. Synthetic regressions cover duplicate intent races,
+STOP/menu drift, scope-only drift, Store revision races, expired lease, unknown transport outcomes
+without resend, and both response-replay crash windows. The integrated Experience-to-Platform test
+composes a direct controller API call for the producer with the supervisor path for the consumer;
+it exercises downstream admission, contract review, dependency, integration and restore evidence.
+Full engineering gate: Ruff/format, 665 tests and 193 subtests; `make smoke` is reproducible with
+`edge_established=false`. This is source-only evidence: transport/model identity and usage settlement
+are not qualified, unknown outcomes need a separate repair path, configuration/STOP files are not
+atomic with SQLite, and A03, A04 deployment qualification, runtime and operational release remain
+open.

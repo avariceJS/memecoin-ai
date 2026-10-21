@@ -1921,7 +1921,13 @@ def _spawn_backoff_plan_token(readiness, revision):
     return revision, backoff_tasks
 
 
-def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
+def supervise(
+    state: Path,
+    max_seconds=1800,
+    *,
+    contract_review_transport=None,
+    department_plan_transport=None,
+):
     from .resources import choose_capacity
 
     state = state.resolve()
@@ -2004,6 +2010,16 @@ def supervise(state: Path, max_seconds=1800, *, contract_review_transport=None):
                     else:
                         backoff_plan_token = None
                         should_plan = True
+                    if decision["slots"] and department_plan_transport is not None:
+                        from .department_plan_cycle import ensure_department_plans
+
+                        if ensure_department_plans(
+                            state,
+                            db,
+                            department_plan_transport,
+                            stop_guard=lambda: not (state / "STOP").exists(),
+                        ):
+                            continue
                     from .planning import plan_next
 
                     if decision["slots"] and should_plan and plan_next(state, db):

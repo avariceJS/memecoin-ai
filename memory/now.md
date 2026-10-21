@@ -6,6 +6,15 @@ implementation owner on `org/development`. It is the controlled successor to pau
 preserved in `/Users/root1/Developer/brain-org-state/resumption-20261020/handoff.json`. `main`, Pilot
 STOP, protected data and runtime boundaries remain unchanged.
 
+Current A10 work adds controller-owned department plans over eligible fixed cards. Sol accepted the
+source-only candidate after fixes for lease expiry, response replay after plan commit, atomic Store
+revision recheck and full trusted-card hashing through admission. Synthetic fault cases include duplicate
+intent creation, STOP/menu and scope drift, unknown transport without resend, and two replay crash
+windows. `make engineering-release-check` passes Ruff/format, 665 tests and 193 subtests; `make smoke`
+is reproducible with `edge_established=false`. The integrated path composes direct Experience plan API
+with Platform planning through `supervise`; injected transport, A03 settlement, runtime and operational
+release remain unqualified. Unknown outcomes need separate repair; no usage reservation is cleared.
+
 The synthetic source-only path connects planning, trusted task binding, isolated execution, independent
 acceptance/review, GitGate receipt/CAS integration, dependent continuation, contract reviews,
 snapshot/restore and interruption recovery. A05 passive restored-copy hold binds a fresh read-only gate
