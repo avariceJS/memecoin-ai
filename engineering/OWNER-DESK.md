@@ -5,11 +5,13 @@
 hash (включая scope/verifier) проходит через nomination и повторно проверяется при admission.
 Проверены fencing проигравшего intent creator, STOP/menu drift, commit-time Store revision, scope-only
 drift, истёкшая lease и replay до и после commit плана без повторной отправки. Интеграционная цепочка
-композитна: Experience план создаёт прямой вызов API, Platform — supervisor после contract/dependency
-перехода. Полный gate: Ruff/format, 665 тестов и 193 subtests; smoke reproducible,
-`edge_established=false`. Sol тесты не запускал. Injected transport не квалифицирует модель/usage;
-`outcome_unknown` сохраняется без resend и требует отдельного ремонта; A03, A04 runtime/deployment и
-operational release открыты.
+создаёт Experience-план и выбирает PLAT-001 внутри `supervise`, затем тем же supervisor-путём
+обрабатывает Platform после contract/dependency перехода. Полный gate: Ruff/format, 665 тестов и 193
+subtests; smoke reproducible, `edge_established=false`. Sol принял diff read-only, но тесты не запускал.
+Injected transport не квалифицирует модель/usage; `outcome_unknown` сохраняется без resend и требует
+отдельного ремонта; replay ограничен 100 journal identities; A03, A04 runtime/deployment и
+operational release открыты. Отдельный `make check` останавливается на 107 существующих Ruff
+findings в `src/`, `tests/`, `tools/` и не доходит до последующих проверок.
 
 Новый integrated-cycle checkpoint доводит PLAT-002 через настоящий loop `supervise`: synthetic
 launcher вызывает реальный `run_attempt`, следующая итерация сама выполняет независимую `verify_one`,

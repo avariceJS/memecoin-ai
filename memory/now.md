@@ -11,9 +11,11 @@ source-only candidate after fixes for lease expiry, response replay after plan c
 revision recheck and full trusted-card hashing through admission. Synthetic fault cases include duplicate
 intent creation, STOP/menu and scope drift, unknown transport without resend, and two replay crash
 windows. `make engineering-release-check` passes Ruff/format, 665 tests and 193 subtests; `make smoke`
-is reproducible with `edge_established=false`. The integrated path composes direct Experience plan API
-with Platform planning through `supervise`; injected transport, A03 settlement, runtime and operational
-release remain unqualified. Unknown outcomes need separate repair; no usage reservation is cleared.
+is reproducible with `edge_established=false`. The integrated path creates the Experience plan and
+selects PLAT-001 inside `supervise`, then plans Platform work through the same supervisor path after
+contract/dependency gates. Injected transport, A03 settlement, runtime and operational release remain
+unqualified. Unknown outcomes need separate repair; no usage reservation is cleared. Repository-wide
+`make check` stops at 107 existing Ruff findings under `src/`, `tests/` and `tools`, before later checks.
 
 The synthetic source-only path connects planning, trusted task binding, isolated execution, independent
 acceptance/review, GitGate receipt/CAS integration, dependent continuation, contract reviews,

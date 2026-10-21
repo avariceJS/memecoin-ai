@@ -969,23 +969,9 @@ class SupervisorTests(unittest.TestCase):
                 "priorities": ["catalogue-card:" + card_id for card_id in sorted(request["cards"])],
             }
 
-        self.assertTrue(
-            department_plan_cycle.ensure_department_plans(
-                self.state,
-                self.db,
-                department_plan_transport,
-                stop_guard=lambda: not (self.state / "STOP").exists(),
-            )
-        )
-        self.assertEqual(department_plan_calls, ["Experience"])
         self.assertEqual(eligible(self.cfg, self.db), ["PLAT-001"])
         from engineering.executive import Executive
         from engineering.planning import _task_sha256
-
-        self.assertIn(
-            "catalogue-card-sha256:PLAT-001:" + _task_sha256(self.cfg["tasks"]["PLAT-001"]),
-            Executive(self.db).get_department_plan("Experience")["evidence_refs"],
-        )
 
         def synthetic_plan(expected_card, rationale, evidence):
             """Exercise the real planner through a deterministic, provider-free turn."""
@@ -1015,6 +1001,15 @@ class SupervisorTests(unittest.TestCase):
                 }
 
             fake.turn.side_effect = turn
+            selected_tasks = []
+            real_plan_next = planning.plan_next
+
+            def select_then_stop(state, db):
+                selected = real_plan_next(state, db)
+                selected_tasks.append(selected)
+                (self.state / "STOP").touch()
+                return selected
+
             with (
                 patch.object(planning, "config", return_value=self.cfg),
                 patch.object(
@@ -1026,10 +1021,30 @@ class SupervisorTests(unittest.TestCase):
                 ),
                 patch.object(planning, "git", side_effect=run_git),
                 patch.object(planning, "log_event"),
+                patch.object(planning, "plan_next", side_effect=select_then_stop),
+                patch.object(supervisor, "Codex", FakeCodex),
+                patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
+                patch.object(supervisor, "process_identity", return_value="synthetic-owner"),
+                patch.object(supervisor, "available_memory", return_value=10**10),
+                patch.object(supervisor, "status", return_value={}),
+                patch.object(supervisor, "render_desk"),
+                patch("engineering.resources.choose_capacity", return_value={"slots": 1}),
             ):
-                selected = planning.plan_next(self.state, self.db)
+                supervisor.supervise(
+                    self.state,
+                    max_seconds=10,
+                    department_plan_transport=department_plan_transport,
+                )
             fake.turn.assert_called_once()
             self.assertEqual(dispatch_contexts[0]["team"], "Experience")
+            self.assertEqual(selected_tasks, [expected_card])
+            (self.state / "STOP").unlink()
+            self.assertEqual(department_plan_calls, ["Experience"])
+            self.assertIn(
+                "catalogue-card-sha256:PLAT-001:" + _task_sha256(self.cfg["tasks"]["PLAT-001"]),
+                Executive(self.db).get_department_plan("Experience")["evidence_refs"],
+            )
+            selected = selected_tasks[0]
             return selected
 
         admitted = synthetic_plan(

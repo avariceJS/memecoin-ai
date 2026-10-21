@@ -2014,10 +2014,14 @@ checks the captured Store revision under `BEGIN IMMEDIATE`; a create-if-absent i
 two controllers from sending the same request. Synthetic regressions cover duplicate intent races,
 STOP/menu drift, scope-only drift, Store revision races, expired lease, unknown transport outcomes
 without resend, and both response-replay crash windows. The integrated Experience-to-Platform test
-composes a direct controller API call for the producer with the supervisor path for the consumer;
-it exercises downstream admission, contract review, dependency, integration and restore evidence.
+creates the producer plan and selects PLAT-001 inside `supervise`, then uses the same supervisor path
+for the consumer after contract and dependency gates; it exercises downstream admission, contract
+review, integration and restore evidence.
 Full engineering gate: Ruff/format, 665 tests and 193 subtests; `make smoke` is reproducible with
 `edge_established=false`. This is source-only evidence: transport/model identity and usage settlement
-are not qualified, unknown outcomes need a separate repair path, configuration/STOP files are not
-atomic with SQLite, and A03, A04 deployment qualification, runtime and operational release remain
-open.
+are not qualified, unknown outcomes need a separate repair path, replay scans are bounded to 100
+retained request identities, configuration/STOP files are not atomic with SQLite, and A03, A04
+deployment qualification, runtime and operational release remain open.
+The separate repository-wide `make check` stops in its initial Ruff pass on 107 existing findings
+under `src/`, `tests/` and `tools/`; it does not reach later checks. The focused engineering release
+gate is clean.
