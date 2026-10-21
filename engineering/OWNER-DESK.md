@@ -571,6 +571,16 @@ A05 consumer не добавлен. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-projection-review-20261021.json`
 (SHA-256 `800f6620cacf320ac36bf19bf7d362d2a3c250f56ef02f5c23daa284aa1ce006`).
 
+Follow-up `aebb77c` додаёт cross-connection regression: второй Store коммитит owner release после
+request query, но до owner-history чтения projection. Метод должен вернуть coherent старый active/live
+snapshot, а свежий read — `released`. Sol принял exact test diff
+`f67f6149f6e09c034d5ff4bbfe8923b52509c8a9221f612e57d5982a6729b321`; focused test passed, полный gate:
+409 тестов и 96 subtests, Ruff. Один предыдущий полный прогон имел transient failure unrelated code
+identity test; isolated и следующий полный gate прошли. Это одна synthetic interleaving, не exhaustive
+concurrency proof. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-projection-snapshot-review-20261021.json`
+(SHA-256 `21997923339dfd33ef6e5aceeaa51caa2bcb8e35417448cc3f736ad32bb66a84`).
+
 A04 synthetic integration increment принят Sol на exact diff
 `5e03ada485c56a4635da07d89c7cdb6679c21b3ac4cecf790b87af09ca6316cd`, source `62ab4ce`. Один
 macOS test связывает persisted admission/binding, manifest v4, command expansion, Seatbelt и строгий

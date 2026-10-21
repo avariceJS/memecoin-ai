@@ -35,6 +35,11 @@ automatically.
   subtests with Ruff. Work/byte cost can still scale with retained history. Independent Sol review found
   no existing controller-owned authorization generation; A05 consumer remains unimplemented. Receipt:
   `a05-lifecycle-request-projection-review-20261021.json`.
+- A05 regression `aebb77c` forces owner release to commit between request and owner-history reads;
+  projection returns the coherent old snapshot and fresh read sees release. Sol accepted; final full gate
+  passed 409/96 with Ruff. One earlier full run had a transient unrelated code-identity failure; isolated
+  and subsequent full runs passed. One synthetic interleaving only. Receipt:
+  `a05-lifecycle-projection-snapshot-review-20261021.json`.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable

@@ -160,6 +160,17 @@ consumer or cross-epoch disposition was added. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-projection-review-20261021.json`
 (SHA-256 `800f6620cacf320ac36bf19bf7d362d2a3c250f56ef02f5c23daa284aa1ce006`).
 
+At `aebb77c`, a second-connection regression establishes the projection read snapshot by completing
+its request query, pauses before owner-history reads, commits owner release on another Store, and then
+resumes the projection. It must return the prior active/live owner and matching request while a fresh
+read sees `released`. Sol accepted the exact one-test diff
+`f67f6149f6e09c034d5ff4bbfe8923b52509c8a9221f612e57d5982a6729b321`. Focused test passed; the final
+full gate passed 409 tests/96 subtests with Ruff. One earlier full run had a transient unrelated code
+identity test failure; that test passed in isolation and the subsequent full run passed. This is one
+synthetic interleaving, not exhaustive concurrency proof. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-projection-snapshot-review-20261021.json`
+(SHA-256 `21997923339dfd33ef6e5aceeaa51caa2bcb8e35417448cc3f736ad32bb66a84`).
+
 A10 now also has a bounded readiness-report scaffold at
 `57f496f5f74258d00a09dc37b5818e409495dffc`. Its read-only SQLite snapshot exposes each task's
 non-integrated or missing dependency and mismatched contract version without hiding unrelated ready
