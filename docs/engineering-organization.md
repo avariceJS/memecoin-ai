@@ -1101,6 +1101,8 @@ tests and `engineering-release-check` passed Ruff, 441 tests and 101 subtests. T
 history hydration limits, not hard limits on SQLite execution time, index work, or total process
 memory. No provider or runtime authority was added; A03 settlement, broad A10 and operational
 acceptance remain open. Review receipt:
-`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-bounds-review-20261021.json`;
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-bounds-review-20261021.json`
+(SHA-256 `33b618a465b0d11dc34e5ae2da7bbcd1c1fd327e91efd5fff085bd0c004c2a47`);
 gate receipt:
-`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-bounds-gate-20261021.json`.
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-bounds-gate-20261021.json`
+(SHA-256 `b2a9aefbe7cd7f31d9f9f9d33096384227c8e3c53119063d4c077bf50df64a5f`).
