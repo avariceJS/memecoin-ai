@@ -14,6 +14,7 @@ import json
 import math
 import os
 import subprocess
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -470,6 +471,13 @@ def git_raw(repo, *args):
         return output.decode("utf-8", errors="strict")
     except UnicodeDecodeError:
         raise RuntimeError("git_path_not_utf8") from None
+
+
+def _verification_run_dir(state: Path, candidate_sha: str) -> Path:
+    """Create an exclusive artifact directory for one verification invocation."""
+    candidate_root = Path(state) / "verification" / candidate_sha
+    candidate_root.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix="run-", dir=candidate_root))
 
 
 def config(state):
@@ -1017,11 +1025,10 @@ def verify_one(state, task):
         db.close()
         return True
     log_event(state, "verification_started", task=task["id"], sha=candidate.sha)
-    verify_root = state / "verification" / candidate.sha
-    verify_root.mkdir(parents=True, exist_ok=True)
+    verification_run = _verification_run_dir(state, candidate.sha)
 
     def verification(checkout, sha, fixed_policy):
-        scratch = verify_root / "scratch"
+        scratch = verification_run / "scratch"
         box = runner(state, checkout, scratch, readonly=True)
         # Read trusted test harness; the candidate cannot alter these acceptance checks.
         box = SandboxRunner(
@@ -1073,7 +1080,7 @@ def verify_one(state, task):
                 **_bound_command_runner_identity(command_binding),
             )
             results.append(dataclasses.asdict(result))
-            atomic(verify_root / "commands.json", results)
+            atomic(verification_run / "commands.json", results)
             if result.returncode or result.timed_out or result.output_truncated:
                 raise RuntimeError("verification_command_failed:" + json.dumps(results[-1])[-2500:])
             if verifier is None and command_index == 0:
@@ -1124,8 +1131,8 @@ def verify_one(state, task):
         review_packet = build_review_packet(
             task, candidate, fixed_policy, results, diff, merged_changed_paths
         )
-        atomic(verify_root / "review-packet.json", review_packet)
-        native = verify_root / "native"
+        atomic(verification_run / "review-packet.json", review_packet)
+        native = verification_run / "native"
         native.mkdir(exist_ok=True)
         with metered_client(
             state,
@@ -1166,7 +1173,7 @@ def verify_one(state, task):
                 deadline_seconds=240,
                 output_schema=REVIEW_SCHEMA,
             )
-            atomic(verify_root / "review-raw.json", review)
+            atomic(verification_run / "review-raw.json", review)
             try:
                 decision = parse_independent_review_decision(review["text"])
             except Exception as exc:
@@ -1175,7 +1182,7 @@ def verify_one(state, task):
                 )
                 raise
             atomic(
-                verify_root / "review.json",
+                verification_run / "review.json",
                 {**review, "decision": decision, "thread": thread, "model": SOL},
             )
             if decision.get("approved") is not True:
@@ -1183,11 +1190,14 @@ def verify_one(state, task):
         return {
             "status": "passed",
             "commands_sha256": hashlib.sha256(
-                (verify_root / "commands.json").read_bytes()
+                (verification_run / "commands.json").read_bytes()
             ).hexdigest(),
-            "review_sha256": hashlib.sha256((verify_root / "review.json").read_bytes()).hexdigest(),
+            "review_sha256": hashlib.sha256(
+                (verification_run / "review.json").read_bytes()
+            ).hexdigest(),
             "review_packet_sha256": review_packet["packet_sha256"],
             "review_thread": thread,
+            "verification_run": verification_run.relative_to(state / "verification").as_posix(),
         }
 
     try:

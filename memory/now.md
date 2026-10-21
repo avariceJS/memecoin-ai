@@ -7,12 +7,12 @@ agent cannot change native Goal status. Work continues from `org/development`; `
 `2f8da5f92da521b511e0d4fb20205981a000cab5`. The branch remains ahead of `origin/org/development`;
 changes are locally committed and unpublished.
 
-Latest source checkpoint is exact Git diff transport into independent-review packets. Binary capture
-and strict UTF-8 decoding preserve CRLF and trailing whitespace through the packet digest; invalid
-UTF-8 blocks review dispatch. Sol accepted exact diff
-`891bdcb61e6bbf751424245f42e60437b1a67e7c8c847e39895aa5b0ebbb48eb`; the full engineering gate
-passed Ruff, format, 578 tests and 185 subtests. No provider, supervisor/runtime, service or worker
-was started for this check.
+Latest source checkpoint gives each verification a unique artifact directory under the candidate
+SHA. A concurrent same-SHA regression confirms receipt hashes remain bound to that run's command and
+review files, while each raw reviewer response stays in its own directory. Sol accepted exact diff
+`f0c322997dd55b5eecec89ae76a96252c4f93e8e721ffd0b8c1ab5ff6d98dd14`; the full engineering gate
+passed Ruff, format, 580 tests and 185 subtests. Exact raw Git diff transport is also committed. No
+provider, supervisor/runtime, service or worker was started for this check.
 
 As of **2026-10-21**, the founder reconfirmed that the temporary 2026-10-20 audit hold is complete and
 authorized continued autonomous source development. Luna-6 High remains the sole implementation owner

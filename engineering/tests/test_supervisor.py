@@ -6,6 +6,7 @@ import hashlib
 import json
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -527,6 +528,171 @@ class SupervisorTests(unittest.TestCase):
         self.assertFalse(any(event["kind"] == "candidate_accepted" for event in self.db.events()))
         return model
 
+    def verification_artifacts(self, candidate_sha="merged"):
+        runs = sorted((self.state / "verification" / candidate_sha).glob("run-*"))
+        self.assertTrue(runs)
+        return runs[-1]
+
+    def test_concurrent_same_candidate_verifications_keep_run_artifacts_bound(self):
+        self.candidate(task_id="T", target_state="submitted")
+        self.candidate(task_id="T2", sha="submitted-2", target_state="submitted")
+        self.cfg["tasks"]["T2"] = self.cfg["tasks"]["T"]
+        candidates = {
+            "submitted": SimpleNamespace(
+                submitted_sha="submitted",
+                base_sha="base",
+                integration_tip="base",
+                sha="merged",
+                changed_paths=("src/example.py",),
+                checkout=self.state / "candidate-A",
+            ),
+            "submitted-2": SimpleNamespace(
+                submitted_sha="submitted-2",
+                base_sha="base",
+                integration_tip="base",
+                sha="merged",
+                changed_paths=("src/example.py",),
+                checkout=self.state / "candidate-B",
+            ),
+        }
+        policy = VerificationPolicy(((sys.executable, "fixed-acceptance"),))
+        gate = MagicMock()
+        gate.submit.side_effect = lambda _checkout, submitted, _base, _scope: candidates[submitted]
+        results = {}
+
+        def verify(candidate, callback):
+            task_id = "T" if candidate.submitted_sha == "submitted" else "T2"
+            results[task_id] = callback(candidate.checkout, candidate.sha, policy)
+            return SimpleNamespace(digest="receipt-" + task_id)
+
+        gate.verify.side_effect = verify
+        reviewer_a_entered = threading.Event()
+        release_reviewer_a = threading.Event()
+        reviewer_text_a = json.dumps({"approved": True, "findings": [], "rationale": "ok"})
+
+        class Reviewer:
+            def __init__(self, task_id):
+                self.task_id = task_id
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def start(self, *_args):
+                return "thread-" + self.task_id
+
+            def turn(self, *_args, **_kwargs):
+                if self.task_id == "T":
+                    reviewer_a_entered.set()
+                    if not release_reviewer_a.wait(timeout=5):
+                        raise TimeoutError("reviewer A test barrier timed out")
+                    text = reviewer_text_a
+                else:
+                    text = "{malformed reviewer B response"
+                return {
+                    "text": text,
+                    "usage_terminal": True,
+                    "usage_delta": {"totalTokens": 5},
+                }
+
+            def record_outcome(self, *_args, **_kwargs):
+                return None
+
+        boxes = {}
+        for task_id in ("T", "T2"):
+            stdout = json.dumps(
+                {"schema": "org-pilot-acceptance-v1", "case": task_id, "passed": True}
+            )
+            box = MagicMock()
+            box.run.return_value = SandboxResult(
+                ("fixed-acceptance",), 0, stdout, "", False, "profile", 0.01
+            )
+            boxes[task_id] = box
+
+        def sandbox_runner(**_kwargs):
+            task_id = "T" if threading.current_thread().name == "verification-A" else "T2"
+            return boxes[task_id]
+
+        def git_raw_output(_repo, *args):
+            return "src/example.py\0" if "--name-only" in args else "synthetic diff"
+
+        failures = {}
+
+        def verify_task(task_id):
+            try:
+                supervisor.verify_one(self.state, self.db.get_task(task_id))
+            except BaseException as exc:
+                failures[task_id] = exc
+
+        with (
+            patch.object(supervisor, "GitGate", return_value=gate),
+            patch.object(supervisor, "runner", return_value=MagicMock()),
+            patch.object(supervisor, "SandboxRunner", side_effect=sandbox_runner),
+            patch.object(
+                supervisor,
+                "metered_client",
+                side_effect=lambda *args, **kwargs: Reviewer(kwargs["context"]["task"]),
+            ),
+            patch.object(supervisor, "git", return_value="normalized output"),
+            patch.object(supervisor, "git_raw", side_effect=git_raw_output),
+            patch.object(supervisor, "activate_contract"),
+        ):
+            first = threading.Thread(
+                target=verify_task, args=("T",), name="verification-A", daemon=True
+            )
+            first.start()
+            try:
+                self.assertTrue(
+                    reviewer_a_entered.wait(timeout=5), repr((failures, self.db.events()))
+                )
+                second = threading.Thread(
+                    target=verify_task, args=("T2",), name="verification-B", daemon=True
+                )
+                second.start()
+                second.join(timeout=5)
+                self.assertFalse(second.is_alive())
+            finally:
+                release_reviewer_a.set()
+                first.join(timeout=5)
+            self.assertFalse(first.is_alive())
+
+        self.assertEqual(failures, {})
+        runs = list((self.state / "verification" / "merged").glob("run-*"))
+        self.assertEqual(len(runs), 2)
+        run_a = self.state / "verification" / results["T"]["verification_run"]
+        run_b = next(run for run in runs if run != run_a)
+        self.assertNotEqual(run_a, run_b)
+        self.assertEqual(
+            results["T"]["commands_sha256"],
+            hashlib.sha256((run_a / "commands.json").read_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            results["T"]["review_sha256"],
+            hashlib.sha256((run_a / "review.json").read_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            json.loads((run_a / "commands.json").read_text())[0]["stdout"],
+            json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
+        )
+        self.assertEqual(
+            json.loads((run_b / "commands.json").read_text())[0]["stdout"],
+            json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T2", "passed": True}),
+        )
+        self.assertEqual(
+            json.loads((run_a / "review-raw.json").read_text())["text"], reviewer_text_a
+        )
+        self.assertEqual(
+            json.loads((run_b / "review-raw.json").read_text())["text"],
+            "{malformed reviewer B response",
+        )
+        self.assertTrue((run_a / "review.json").is_file())
+        self.assertTrue((run_b / "review-raw.json").is_file())
+        self.assertFalse((run_b / "review.json").exists())
+        self.assertEqual(self.db.get_task("T")["state"], "integrated")
+        self.assertEqual(self.db.get_task("T2")["state"], "pending")
+
     def test_acceptance_early_exit_zero_without_completion_json_is_rejected(self):
         model = self.verification_failure("")
         model.assert_not_called()
@@ -607,9 +773,7 @@ class SupervisorTests(unittest.TestCase):
             json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True})
         )
         model.assert_called_once()
-        packet = json.loads(
-            (self.state / "verification" / "merged" / "review-packet.json").read_text()
-        )
+        packet = json.loads((self.verification_artifacts() / "review-packet.json").read_text())
         self.assertEqual(packet["diff"], "synthetic diff")
         self.assertEqual(packet["candidate"]["submitted_sha"], "submitted")
         self.assertEqual(packet["candidate"]["merged_candidate_sha"], "merged")
@@ -668,8 +832,9 @@ class SupervisorTests(unittest.TestCase):
             "review_decision_duplicate_key",
             verification_event["body"]["details"]["error"],
         )
-        self.assertTrue((self.state / "verification" / "merged" / "review-raw.json").is_file())
-        self.assertFalse((self.state / "verification" / "merged" / "review.json").exists())
+        artifacts = self.verification_artifacts()
+        self.assertTrue((artifacts / "review-raw.json").is_file())
+        self.assertFalse((artifacts / "review.json").exists())
 
     def test_unclosed_review_fence_cannot_hide_conflicting_decision_in_callback(self):
         model = self.verification_failure(
@@ -688,8 +853,9 @@ class SupervisorTests(unittest.TestCase):
             "review_decision_invalid_fence",
             verification_event["body"]["details"]["error"],
         )
-        self.assertTrue((self.state / "verification" / "merged" / "review-raw.json").is_file())
-        self.assertFalse((self.state / "verification" / "merged" / "review.json").exists())
+        artifacts = self.verification_artifacts()
+        self.assertTrue((artifacts / "review-raw.json").is_file())
+        self.assertFalse((artifacts / "review.json").exists())
 
     def test_oversized_diff_blocks_before_independent_review_call(self):
         model = self.verification_failure(
@@ -697,7 +863,7 @@ class SupervisorTests(unittest.TestCase):
             diff="x" * 50001,
         )
         model.assert_not_called()
-        self.assertFalse((self.state / "verification" / "merged" / "review-packet.json").exists())
+        self.assertFalse((self.verification_artifacts() / "review-packet.json").exists())
 
     def test_review_packet_preserves_git_diff_crlf_and_trailing_whitespace(self):
         diff = "diff --git a/src/example.py b/src/example.py\r\n+value = 1   \r\n"
@@ -705,9 +871,7 @@ class SupervisorTests(unittest.TestCase):
             json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
             diff=diff,
         )
-        packet = json.loads(
-            (self.state / "verification" / "merged" / "review-packet.json").read_text()
-        )
+        packet = json.loads((self.verification_artifacts() / "review-packet.json").read_text())
         self.assertEqual(packet["diff"], diff)
         self.assertEqual(packet["diff_sha256"], hashlib.sha256(diff.encode()).hexdigest())
 
@@ -717,7 +881,7 @@ class SupervisorTests(unittest.TestCase):
             raw_path_output=" src/example.py\0",
         )
         model.assert_not_called()
-        self.assertFalse((self.state / "verification" / "merged" / "review-packet.json").exists())
+        self.assertFalse((self.verification_artifacts() / "review-packet.json").exists())
 
     def test_unqualified_bound_verification_stops_before_git_sandbox_or_model(self):
         class BoundStore:
@@ -849,6 +1013,19 @@ class SupervisorTests(unittest.TestCase):
         with patch.object(supervisor.subprocess, "run", return_value=process):
             with self.assertRaisesRegex(RuntimeError, "git_path_not_utf8"):
                 supervisor.git_raw(self.state, "diff")
+
+    def test_verification_runs_get_distinct_artifact_directories(self):
+        first = supervisor._verification_run_dir(self.state, "merged")
+        raw = first / "review-raw.json"
+        raw.write_text('{"text":"first response"}')
+
+        second = supervisor._verification_run_dir(self.state, "merged")
+        (second / "review-raw.json").write_text('{"text":"second response"}')
+
+        self.assertNotEqual(first, second)
+        self.assertEqual(first.parent, second.parent)
+        self.assertEqual(raw.read_text(), '{"text":"first response"}')
+        self.assertEqual((second / "review-raw.json").read_text(), '{"text":"second response"}')
 
     def test_restart_does_not_reissue_running_unexpired_attempt(self):
         self.task()
