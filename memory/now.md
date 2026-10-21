@@ -18,11 +18,12 @@ automatically.
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
-- Latest A05 source checkpoint: `db779e6` validates every lifecycle owner body and epoch transition,
-  after a 64 KiB SQLite-storage-byte preflight and one-at-a-time decoding. Sol accepted exact diff;
-  UTF-16le over-limit rejection and owner-history regressions passed, as did the full gate (518 tests,
-  110 subtests, Ruff). Each fence still scans/parses retained history; event provenance and the A05
-  consumer/authorization generation remain open.
+- Latest A05 source checkpoint: `f44626d` validates owner-history bodies/transitions against exactly
+  one bounded `decision_recorded` event per version; orphan events fail closed. A partial index
+  avoids unrelated-event scans, and timestamps are projected only for numeric storage types. Sol
+  accepted exact diff; UTF-16le, malformed/oversized event and no-mutation regressions passed. Full
+  gate: 523 tests/112 subtests with Ruff. First index creation scans prior events; owner-history
+  processing, authenticity, authorization generation and consumer remain open.
 - Latest A10 source checkpoint: `00cf162` compares configured publication bodies as canonical finite
   JSON, rejecting bool/integer identity drift for initial and supported legacy contracts while
   preserving key-order independence. Sol accepted the exact diff; focused regressions passed and

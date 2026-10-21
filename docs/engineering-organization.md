@@ -1386,15 +1386,19 @@ reads for records within the cap remain separate costs; historical oversized rec
 A05 still has no lifecycle consumer or authorization generation, and operational acceptance remains
 open.
 
-At `db779e6`, lifecycle owner history validation now preflights every retained decision body at
-64 KiB in SQLite storage bytes, then decodes one body at a time using the database encoding. It
-rejects malformed or duplicate-key bodies and invalid owner/epoch transitions before fencing or
-reclaiming the current owner. Sol accepted exact diff
-`9209743ee9aa8cd2cc49ac43760de91212a9205ca62d53fcf7ffa1e31f43c181`; focused owner-history tests
-passed, including UTF-16le over-limit rejection before hydration, and the engineering release gate
-passed Ruff, 518 tests and 110 subtests. Each check still scans and parses retained owner history;
-SQLite work and total execution time remain unbounded, and decision-event provenance is not checked.
-No lifecycle consumer or authorization generation was added; operational acceptance remains open.
+At `f44626d`, owner history validation also requires exactly one matching `decision_recorded` event
+for every owner version and rejects orphan owner events. Owner and event bodies are preflighted at
+64 KiB in SQLite storage bytes and decoded one at a time using the database encoding; event
+timestamps are projected only for SQLite numeric storage classes. A partial index bounds matching
+to owner decision events rather than scanning unrelated events. Sol accepted exact diff
+`682ac0451e27c7dad2d3a6d9f83788ee39f1c00a35ef891bc489d5da915486d2`; regressions cover missing,
+orphaned, mismatched and oversized events, malformed UTF-8 and oversized timestamps, plus UTF-16le.
+The engineering release gate passed Ruff, 523 tests and 112 subtests. Two preceding full runs hit
+existing macOS code-identity deadline/unavailable observations; both affected tests passed in
+isolation and the subsequent full gate passed. First-time partial-index construction scans existing
+events; each check still processes retained owner history. Event consistency does not establish
+authenticity or historical lease-expiry proof. No lifecycle consumer or authorization generation
+was added; operational acceptance remains open.
 
 At `67058bf`, contract-review journal reads used at dispatch, session, response custody and
 finalization now validate at most five versions and project each body only when its serialized
