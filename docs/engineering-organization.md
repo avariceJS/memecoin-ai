@@ -202,7 +202,7 @@ consumer, controller-owned authorization generation or runtime qualification. Re
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-byte-bounds-review-20261021.json`
 (SHA-256 `618b68932fbed90c9cc650cf04c5dae60578eb58261502e798d6842439cc9058`); gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-byte-bounds-gate-20261021.json`
-(SHA-256 `de1e346238ab6651f282a3804c133a8610fe40cf7c9640c648c032d7b50e2ab8`).
+(SHA-256 `c08221ea42077fa90ebda351c096a279a5e2483ffecf8725bd94cac8586391ec`).
 
 A10 now also has a bounded readiness-report scaffold at
 `57f496f5f74258d00a09dc37b5818e409495dffc`. Its read-only SQLite snapshot exposes each task's
