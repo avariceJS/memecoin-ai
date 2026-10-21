@@ -713,3 +713,15 @@ resend и новая authority не добавлены. A03, provider provenance
 (SHA-256 `09b11e458a1465fbf00a95d79b7e223dd5496fdf1a886e66ab08d8b4d0ff621a`). Gate:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-replay-capacity-gate-20261021.json`
 (SHA-256 `2c1ff6a3a57720680ab528c1b04eeb3c9e2a332e026b4150c05e4fcb3cc7c375`).
+
+A04 `98f4ace` включает хеширование pinned executable и script в deadline команды, отклоняет поздно
+вернувшиеся совпадающие Security identity и пересчитывает остаток времени после повторной проверки
+перед ожиданием процесса. Если deadline истёк при prelaunch hash, `Popen` не вызывается; позднее
+обычное завершение помечается timeout. Sol принял точный diff
+`f3ed047e15fe4287b19fb63d1046ec34734b46c268b29064622c26a80b8346ff`; Python 3.13.6 gate прошёл:
+419 тестов, 96 subtests, Ruff check/format на 58 файлах. Синхронный Security/filesystem-вызов
+нельзя прервать, поэтому это fail-closed классификация после возврата, без гарантии prompt return;
+отдельного теста позднего normal completion нет. `execution_qualified=false`; loader, inode,
+descendants, stdout provenance и полный A04 остаются открыты. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-deadline-review-20261021.json`
+(SHA-256 `f96992390067dd843fdbdd6077674e811f2672219ac224fbe71511d9fe32f18c`).

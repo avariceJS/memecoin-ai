@@ -312,3 +312,4 @@ automatically.
 Canonical program, acceptance criteria and limits: `docs/engineering-organization.md`. Founder-facing
 external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receipts remain under
 `/Users/root1/Developer/brain-org-state/resumption-20261020/`.
+- A04 `98f4ace` makes executable/script hashing consume the command deadline, rejects late matching identity observations, recomputes wait budget after identity checks, and prevents launch after prelaunch expiry. Sol accepted exact diff; Python 3.13.6 gate passed 419 tests/96 subtests with Ruff. Synchronous calls remain uninterruptible; no late-completion regression; `execution_qualified=False`. Receipt: `a04-verifier-deadline-review-20261021.json`.

@@ -972,3 +972,17 @@ unaccepted. Preserve frozen pilot/owner checkouts, original SQLite/WAL and prior
 Earlier source-review, quota, transfer and pilot receipts remain immutable evidence for their exact
 scope. Superseded execution narratives remain in Git history at the audited source commit. They do
 not establish current Goal activity, current capability grants, or acceptance of a later composition.
+
+A04 deadline checkpoint at `98f4ace`: `SandboxRunner` includes pinned executable and script hashing
+in the command deadline, rejects matching initial or repeated Security identity observations that
+return after expiry, and recomputes remaining time after a repeated observation before waiting on the
+process. Expired prelaunch executable or script hashing prevents `Popen`; late normal completion is
+classified as timed out. The independent A04 process-monitor reviewer accepted exact diff
+`f3ed047e15fe4287b19fb63d1046ec34734b46c268b29064622c26a80b8346ff`. Python 3.13.6
+`engineering-release-check` passed Ruff check/format on 58 files, 419 tests and 96 subtests. This is
+fail-closed classification once synchronous Security/filesystem calls return, not a hard prompt-return
+guarantee. A direct late-completion regression remains absent. Sampling still does not bind the
+executed inode, descendants, loader closure or stdout provenance; plans remain
+`execution_qualified=False` and full A04 remains open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-verifier-deadline-review-20261021.json`
+(SHA-256 `f96992390067dd843fdbdd6077674e811f2672219ac224fbe71511d9fe32f18c`).
