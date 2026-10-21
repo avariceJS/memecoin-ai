@@ -559,6 +559,18 @@ controller-owned authorization generation; `launch_authorized` приходит 
 Consumer не должен создавать или повышать launch authority. Нужен отдельный владелец generation;
 пассивный disposition и любые process/service actions остаются разными границами.
 
+A05 source `6691a2f` добавляет read-only `lifecycle_request_worklist`: bounded 1..100 список durable
+requests и owner lease из одной SQLite snapshot, с проверкой истории, request identity и планов,
+построенных из observations. Это advisory projection; `owner_current` — только моментальный lease
+match, без dispatch/consumption authority. Sol принял exact diff
+`7d0b176f1792d6571447be4dbb175c6e0a6445abe30948edbee7970aa2a2e21b`; focused suite: 17 тестов и 3
+subtests, full gate: 408 тестов и 96 subtests, Ruff. Ограничение числа результатов не ограничивает
+полную стоимость обхода истории/размер сохранённых observations. Sol подтвердил, что текущие
+Executive, lifecycle lease и dispatch Permit не задают controller-owned authorization generation;
+A05 consumer не добавлен. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-projection-review-20261021.json`
+(SHA-256 `800f6620cacf320ac36bf19bf7d362d2a3c250f56ef02f5c23daa284aa1ce006`).
+
 A04 synthetic integration increment принят Sol на exact diff
 `5e03ada485c56a4635da07d89c7cdb6679c21b3ac4cecf790b87af09ca6316cd`, source `62ab4ce`. Один
 macOS test связывает persisted admission/binding, manifest v4, command expansion, Seatbelt и строгий

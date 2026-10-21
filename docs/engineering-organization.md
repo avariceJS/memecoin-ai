@@ -147,6 +147,19 @@ in this Store contract. A consumer must not mint or promote that authority; it r
 until a separately owned generation interface can be validated. A future consumer may persist only a
 passive disposition, with process/service action qualified separately.
 
+At `6691a2f`, Store adds a bounded read-only `lifecycle_request_worklist`. It reads immutable requests
+and current owner lease state in one SQLite snapshot, validates exact request identity/history, and
+recomputes observation-backed plans. Results are advisory and grant no dispatch or consumption
+authority; `owner_current` is only a point-in-time lease match. Sol accepted the exact diff
+`7d0b176f1792d6571447be4dbb175c6e0a6445abe30948edbee7970aa2a2e21b`; focused tests passed 17/3
+subtests and the full engineering gate passed 408/96 subtests with Ruff. Limit 1..100 bounds returned
+request count, not history scan or retained observation bytes. Legacy non-launch records without
+observations cannot be replanned; recomputation proves consistency, not sensor truth or freshness.
+The independent authority review found no existing controller-owned generation contract, so no A05
+consumer or cross-epoch disposition was added. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-projection-review-20261021.json`
+(SHA-256 `800f6620cacf320ac36bf19bf7d362d2a3c250f56ef02f5c23daa284aa1ce006`).
+
 A10 now also has a bounded readiness-report scaffold at
 `57f496f5f74258d00a09dc37b5818e409495dffc`. Its read-only SQLite snapshot exposes each task's
 non-integrated or missing dependency and mismatched contract version without hiding unrelated ready

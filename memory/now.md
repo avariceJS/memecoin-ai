@@ -30,6 +30,11 @@ automatically.
   provider dispatch/resend. Sol accepted exact diff; full gate passed 404 tests/96 subtests with Ruff.
   The sweep is not atomic across requests and does not choose a newest opaque evidence revision.
   Full A10 and A03 remain open. Receipt: `a10-contract-review-replay-sweep-review-20261021.json`.
+- A05 source `6691a2f` adds a read-only bounded lifecycle request projection with coherent owner state,
+  identity/history checks, and no launch/consumption authority. Sol accepted; full gate passed 408/96
+  subtests with Ruff. Work/byte cost can still scale with retained history. Independent Sol review found
+  no existing controller-owned authorization generation; A05 consumer remains unimplemented. Receipt:
+  `a05-lifecycle-request-projection-review-20261021.json`.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable
