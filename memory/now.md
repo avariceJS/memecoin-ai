@@ -250,6 +250,14 @@ automatically.
   subtests with Ruff. No supervisor/provider dispatch; A03 and broad A10 remain open. Receipt:
   `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-review-20261021.json`.
 
+- A10 source `edbc1f4` carries the bounded review worklist in the same quiescence snapshot and inert
+  Sol handoff; Store compares it to the issued snapshot and rechecks the decision revision after
+  `BEGIN IMMEDIATE`. Overflow above 100 retained requests is explicit with unknown count/no partial
+  IDs; public worklist shape is unchanged. Sol accepted exact diff
+  `e168b3617d4636850c81a9a47a208abbe4a6bcaef5f9e79730e2004ac5b7f44d`; gate passed 401 tests/96
+  subtests with Ruff. No dispatch/recovery; retained-decision query scaling, A03 and broad A10 remain.
+  Receipt: `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-request-handoff-review-20261021.json`.
+
 Canonical program, acceptance criteria and limits: `docs/engineering-organization.md`. Founder-facing
 external-dependency request: `engineering/OWNER-DESK.md`. Prior immutable receipts remain under
 `/Users/root1/Developer/brain-org-state/resumption-20261020/`.

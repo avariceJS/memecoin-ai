@@ -582,3 +582,14 @@ diff `043e73f781be21ad93390ea516b0fb19707fdd3601c840e16e618cee1dbaecc5`; gate: 3
 Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-worklist-review-20261021.json`
 (SHA-256 `be7ca8ca9cd92c890227f363da874c5979ec1694598ebe6a50b99d7479adcc2e`).
+
+A10 source `edbc1f4` включает bounded worklist review requests в coherent quiescence snapshot и
+передаёт её без изменений в inert Sol handoff. Store сверяет worklist с выданным snapshot и после
+получения `BEGIN IMMEDIATE` проверяет revision, поэтому новая заявка инвалидирует устаревший handoff.
+При более чем 100 retained requests указывается `overflow=true`, неизвестное число и пустой список;
+частичный список не выдаётся. Публичная форма worklist сохранена. Sol принял exact diff
+`e168b3617d4636850c81a9a47a208abbe4a6bcaef5f9e79730e2004ac5b7f44d`; gate: 401 тест, 96 subtests,
+Ruff. Provider dispatch/recovery не добавлены; query cost retained decisions, A03 и полный A10 открыты.
+Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-request-handoff-review-20261021.json`
+(SHA-256 `a08a2cd7e32c4f3cafdc5615b5d0d5471f469e7697d0627d1d62d202db57b600`).
