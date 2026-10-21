@@ -67,6 +67,23 @@ _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES = 2 * 1024 * 1024
 _CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES = 320 * 1024
 _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES = 32 * 1024 * 1024
 _CONTRACT_REVIEW_WORKLIST_MAX_BYTES = 32 * 1024 * 1024
+_CONTRACT_REVIEW_IDENTITY_FIELDS = frozenset(
+    {
+        "kind",
+        "status",
+        "request_id",
+        "proposal_digest",
+        "contract_hash",
+        "name",
+        "version",
+        "team",
+        "role",
+        "evidence_revision",
+        "packet",
+        "packet_hash",
+        "dispatch_id",
+    }
+)
 _CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS = len("contract-review/") + 64
 _LIFECYCLE_REQUEST_NAME_MAX_CHARS = len("lifecycle/request/") + 64
 _CONTRACT_REVIEW_BOUNDED_RECORD_QUERY = (
@@ -1600,6 +1617,7 @@ class Store:
             replaces = row["bounded_replaces"] if bounded_replay else row["replaces"]
             if (
                 type(body) is not dict
+                or not _CONTRACT_REVIEW_IDENTITY_FIELDS.issubset(body)
                 or body.get("kind") != "contract_review_request"
                 or body.get("request_id") != request_id
                 or type(body.get("status")) is not str
@@ -1612,6 +1630,24 @@ class Store:
                     "approved",
                     "blocked",
                 }
+                or type(body.get("proposal_digest")) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", body["proposal_digest"]) is None
+                or type(body.get("contract_hash")) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", body["contract_hash"]) is None
+                or type(body.get("name")) is not str
+                or not body["name"].strip()
+                or type(body.get("version")) is not int
+                or body["version"] < 2
+                or type(body.get("team")) is not str
+                or not body["team"].strip()
+                or type(body.get("role")) is not str
+                or body["role"] not in {"producer", "consumer"}
+                or type(body.get("evidence_revision")) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", body["evidence_revision"]) is None
+                or type(body.get("packet")) is not dict
+                or type(body.get("packet_hash")) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", body["packet_hash"]) is None
+                or body.get("dispatch_id") != "contract-review:" + request_id
                 or replaces != (key if previous is not None else None)
                 or row["replaces_version"] != (row["version"] - 1 if previous is not None else None)
             ):

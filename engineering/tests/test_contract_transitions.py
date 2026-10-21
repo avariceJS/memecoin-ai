@@ -1921,7 +1921,16 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
     )
 
 
-@pytest.mark.parametrize("corruption", ["malformed_json", "list_status", "object_status"])
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "malformed_json",
+        "list_status",
+        "object_status",
+        "missing_packet_hash",
+        "invalid_packet_hash",
+    ],
+)
 def test_supervisor_malformed_review_history_does_not_skip_later_activation(
     store, tmp_path, corruption
 ):
@@ -1973,20 +1982,40 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
     request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
     record_pending_review_response(store, request["body"], suffix="corrupt-history")
     latest = store.db.execute(
-        "SELECT body FROM decisions WHERE name=? ORDER BY version DESC LIMIT 1",
+        "SELECT version,body FROM decisions WHERE name=? ORDER BY version DESC LIMIT 1",
         (request["name"],),
     ).fetchone()
-    if corruption == "malformed_json":
-        persisted_body = "{malformed"
+    if corruption in {"missing_packet_hash", "invalid_packet_hash"}:
+        journal_rows = store.db.execute(
+            "SELECT version,body FROM decisions WHERE name=? ORDER BY version",
+            (request["name"],),
+        ).fetchall()
+        persisted_body = None
+        for row in journal_rows:
+            invalid_body = json.loads(row["body"])
+            if corruption == "missing_packet_hash":
+                invalid_body.pop("packet_hash")
+            else:
+                invalid_body["packet_hash"] = []
+            version_body = json.dumps(invalid_body, sort_keys=True, separators=(",", ":"))
+            store.db.execute(
+                "UPDATE decisions SET body=? WHERE name=? AND version=?",
+                (version_body, request["name"], row["version"]),
+            )
+            if row["version"] == latest["version"]:
+                persisted_body = version_body
     else:
-        invalid_body = json.loads(latest["body"])
-        invalid_body["status"] = [] if corruption == "list_status" else {}
-        persisted_body = json.dumps(invalid_body, sort_keys=True, separators=(",", ":"))
-    store.db.execute(
-        "UPDATE decisions SET body=? WHERE name=? "
-        "AND version=(SELECT MAX(version) FROM decisions WHERE name=?)",
-        (persisted_body, request["name"], request["name"]),
-    )
+        if corruption == "malformed_json":
+            persisted_body = "{malformed"
+        else:
+            invalid_body = json.loads(latest["body"])
+            invalid_body["status"] = [] if corruption == "list_status" else {}
+            persisted_body = json.dumps(invalid_body, sort_keys=True, separators=(",", ":"))
+        store.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? "
+            "AND version=(SELECT MAX(version) FROM decisions WHERE name=?)",
+            (persisted_body, request["name"], request["name"]),
+        )
 
     with pytest.raises(StateError, match="contract review history invalid"):
         store._contract_review_record(request["body"]["request_id"], bounded_replay=True)
@@ -2026,6 +2055,21 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
         and call.kwargs.get("error") == "contract review history invalid"
         for call in log_event.call_args_list
     )
+
+
+def test_contract_review_worklist_rejects_missing_packet_hash(store):
+    request = prepare_review(store)
+    body = store.get_decision(request["name"])["body"]
+    del body["packet_hash"]
+    store.db.execute(
+        "UPDATE decisions SET body=? WHERE name=? AND version=1",
+        (json.dumps(body, sort_keys=True, separators=(",", ":")), request["name"]),
+    )
+
+    with pytest.raises(StateError, match="contract review history invalid"):
+        store.contract_review_worklist()
+    with pytest.raises(StateError, match="contract review history invalid"):
+        store.quiescence_snapshot()
 
 
 def test_transition_replay_uses_scoped_index_and_ignores_unrelated_bad_identity(store):
