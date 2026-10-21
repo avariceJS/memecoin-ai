@@ -187,6 +187,23 @@ consumer, authorization generation, execution authority or operational A05 closu
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-controller-parse-recovery-veto-20261021.json`
 (SHA-256 `53d5076ee97375fb3c025cc222f70eb5179017adc684865329ea4fbc46fe9b09`).
 
+The lifecycle request writer now rejects serialized request bodies above 64 KiB before journal
+insertion. The read-only worklist preflights each selected body's SQLite BLOB length and singleton
+history in the same read snapshot, then rejects a record above 64 KiB or an aggregate above 1 MiB
+before JSON hydration. Byte-limit failures return no partial projection and mutate no state. Sol
+accepted the exact source diff
+`d940d17234a3f8d55fb3ede3d5f1fef2a48cf98428c0de1626cea95554e9ca37`; focused tests passed 25
+tests/3 subtests. The first full engineering gate had one existing intermittent sandbox code-identity
+pin mismatch; its isolated rerun passed, and the final gate passed 426 tests/96 subtests with Ruff.
+Historical oversized requests remain stored but make the whole worklist fail closed; valid records can
+still exceed the aggregate budget, and no pagination exists. Input detachment/planning, owner history
+hydration and SQLite scan/cast costs are not bounded by these request-byte limits. This adds no
+consumer, controller-owned authorization generation or runtime qualification. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-byte-bounds-review-20261021.json`
+(SHA-256 `618b68932fbed90c9cc650cf04c5dae60578eb58261502e798d6842439cc9058`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-byte-bounds-gate-20261021.json`
+(SHA-256 `de1e346238ab6651f282a3804c133a8610fe40cf7c9640c648c032d7b50e2ab8`).
+
 A10 now also has a bounded readiness-report scaffold at
 `57f496f5f74258d00a09dc37b5818e409495dffc`. Its read-only SQLite snapshot exposes each task's
 non-integrated or missing dependency and mismatched contract version without hiding unrelated ready

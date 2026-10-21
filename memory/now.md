@@ -53,6 +53,12 @@ automatically.
   in isolation. Only recorded controller-parse recovery is checked; history cost scales with cycles,
   other observations remain caller claims, and no consumer or authorization generation exists. Receipt:
   `a05-controller-parse-recovery-veto-20261021.json`.
+- A05 worklist now caps serialized request records at 64 KiB and preflights a 1 MiB aggregate before
+  JSON hydration; the writer rejects new oversized request bodies. Sol accepted exact source diff;
+  final engineering gate passed 426 tests/96 subtests with Ruff after one isolated flaky code-identity
+  test rerun. Historical oversized rows and aggregate overflow fail closed; owner-history and SQL scan
+  costs remain open. A05 consumer/generation remain absent. Receipt:
+  `a05-lifecycle-request-byte-bounds-review-20261021.json`.
 - A04 macOS 26.7.1 probe found no reviewed public descriptor-to-exec mechanism; Apple launch
   constraints do not bind current `sandbox-exec` invocation to the hashed inode. A05 consumer design
   must require coherent fresh source-identified gates, current-fence revalidation and stable
