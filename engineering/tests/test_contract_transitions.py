@@ -476,6 +476,79 @@ def test_contract_review_worklist_preflights_oversized_legacy_before_hydration(s
     assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
 
 
+def test_contract_review_worklist_preflight_and_hydration_share_snapshot(
+    store, tmp_path, monkeypatch
+):
+    request = prepare_review(store)
+    body = request["body"]
+    current_size = store.db.execute(
+        "SELECT length(CAST(body AS BLOB)) FROM decisions WHERE name=? AND version=1",
+        (request["name"],),
+    ).fetchone()[0]
+    byte_limit = current_size + 100
+    monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES", byte_limit)
+    other = sqlite3.connect(str(Path(tmp_path) / "org.sqlite"), timeout=30, isolation_level=None)
+    preflight_started = threading.Event()
+    continue_preflight = threading.Event()
+    paused = False
+    hydrated = []
+    read_review = store._contract_review_record
+
+    def capture_hydrated_review(request_id, *args, **kwargs):
+        result = read_review(request_id, *args, **kwargs)
+        hydrated.append(result)
+        return result
+
+    monkeypatch.setattr(store, "_contract_review_record", capture_hydrated_review)
+
+    def pause_before_preflight(statement):
+        nonlocal paused
+        if not paused and statement.strip().upper().startswith(
+            "SELECT VERSION,LENGTH(CAST(BODY AS BLOB)) AS BODY_BYTES FROM DECISIONS"
+        ):
+            paused = True
+            preflight_started.set()
+            continue_preflight.wait()
+
+    store.db.set_trace_callback(pause_before_preflight)
+    pool = ThreadPoolExecutor(1)
+    try:
+        future = pool.submit(store.contract_review_worklist)
+        try:
+            assert preflight_started.wait(2)
+            with pytest.raises(FutureTimeout):
+                future.result(timeout=0.05)
+            other.execute("BEGIN IMMEDIATE")
+            changed = json.loads(
+                other.execute(
+                    "SELECT body FROM decisions WHERE name=? AND version=1", (request["name"],)
+                ).fetchone()[0]
+            )
+            changed["legacy_extra"] = "x" * (600 * 1024)
+            other.execute(
+                "UPDATE decisions SET body=? WHERE name=? AND version=1",
+                (json.dumps(changed), request["name"]),
+            )
+            other.execute("COMMIT")
+        finally:
+            continue_preflight.set()
+        projection = future.result(timeout=2)
+        assert len(hydrated) == 1
+        assert "legacy_extra" not in hydrated[0]["body"]
+        fresh = store._contract_review_record(body["request_id"])
+        assert projection["count"] == 1
+        assert projection["items"][0]["status"] == "prepared"
+        assert fresh["body"]["legacy_extra"] == "x" * (600 * 1024)
+        assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+    finally:
+        continue_preflight.set()
+        pool.shutdown(wait=True)
+        store.db.set_trace_callback(None)
+        if other.in_transaction:
+            other.execute("ROLLBACK")
+        other.close()
+
+
 def test_contract_review_worklist_aggregate_byte_budget_exact_and_plus_one(store, monkeypatch):
     first = prepare_review(store)
     second = store.prepare_contract_review("sample", 2, "Platform", "d" * 64, review_packet())
