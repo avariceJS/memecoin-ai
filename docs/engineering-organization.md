@@ -76,6 +76,18 @@ increments below preserve evidence boundaries; the engineering gate passes Ruff/
 and 193 subtests. Current acceptance is the integrated synthetic cycle plus the separately bounded
 real-child CLI/RPC path described here, not an operational system qualification.
 
+Sol's independent completion review of `1ac09647891294746978a4abdad90cc10f7a9111` found no
+remaining permitted source-only acceptance criterion. The native source-only engineering objective
+may be completed on this evidence: the integrated PLAT-001 → PLAT-002 controller regression composes
+selection, trusted assignment, isolation, parent acceptance, safe Git integration, durable checkpoint,
+dependency continuation, and selected interruption recovery; `CLI-001` separately covers the frozen
+CLI through the real Codex/MeteredCodex and sandbox-tool path against a deterministic local peer while
+retaining unknown usage reservations. This is bounded synthetic completion, not operational readiness.
+A03 usage settlement, A04 execution/deployment qualification, A05 lifecycle authorization, live
+provider/reviewer identity and judgment, and remote recovery remain open or unauthorized. The CLI
+test's direct legacy task insertion does not prove trusted admission on that path, and the two
+regressions are complementary rather than one fully qualified operational E2E.
+
 Current A10 department-plan admission link — 2026-10-21: fixed-card planning now exposes a card only
 when its owning department has an active fenced lease and a current, unexpired plan for the same
 objective that names `catalogue-card:<id>` in its priorities. Open conflicts bound to the plan

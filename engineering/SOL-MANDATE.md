@@ -11,7 +11,21 @@ acceptance of task selection, trusted assignment, isolation, independent review,
 durable checkpoint, continuation and interruption recovery. Sol remains the independent technical
 lead; Astra is not invoked automatically. STOP and all operational restrictions below remain in force.
 
-Current bounded source-only acceptance — 2026-10-22 at `bd57f14`: a disposable Git/SQLite
+Source-only objective completion review — 2026-10-22, exact source head
+`1ac09647891294746978a4abdad90cc10f7a9111`: Sol independently confirmed that the permitted
+integrated synthetic objective is complete and no reachable source-only acceptance criterion remains
+open. The PLAT-001 → PLAT-002 regression composes planning/selection, trusted assignment, isolated
+execution, independent parent acceptance, GitGate receipt/CAS, durable integration, dependency
+continuation and selected interruption/fault recovery. The separately bounded `CLI-001` regression
+exercises the frozen attempt CLI through actual Codex/MeteredCodex and sandbox-tool code against a
+deterministic local RPC peer, with unknown usage left reserved. The CLI task is inserted directly as
+legacy state and its synthetic reviewer does not establish trusted admission, live model judgment or
+reviewer authenticity. These complementary tests establish bounded source-only acceptance, not one
+operational end-to-end qualification. The source-only native objective may be marked complete after
+this evidence and its limitations are durably recorded; operational organization readiness remains
+unfinished behind A03/A04/A05 and separate founder authority.
+
+Current integrated source-only evidence — 2026-10-22 at `bd57f14`: a disposable Git/SQLite
 Experience PLAT-001 → Platform PLAT-002 cycle now covers controller planning, trusted assignment,
 fresh exec-child attempts under a test-only synthetic harness, parent-side verification/review,
 GitGate receipt/CAS, durable Store integration, contract/dependency continuation, and selected STOP,
