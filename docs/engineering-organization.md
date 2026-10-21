@@ -205,6 +205,18 @@ does not yet defer quiescence, and review dispatch/recovery, A03 settlement, ful
 acceptance remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-quiescence-review-20261021.json`.
 
+At `4302b47`, the review journal adds a `response_recorded` state. It stores bounded exact structured
+review-result bytes in the append-only Store before parsing; recovery reopens and rehashes those
+bytes, and finalization requires the parsed result to match them before an acknowledgement can be
+written. Malformed output remains durable and non-sendable. Legacy terminal records remain readable,
+but do not gain raw-response custody retroactively. Sol accepted exact diff
+`5fee1397e07c518d5d047a182c38e7f2f9770543330b9ecc3cca9bca30115957`; focused tests passed 93 tests
+and 9 subtests, and Ruff check/format passed. This is result-byte custody, not the full RPC
+transcript; provider-turn and usage-ledger provenance remain caller assertions. No supervisor dispatch
+or recovery path is wired, pending reviews still do not defer quiescence, and A03 settlement, full A10
+and operational acceptance remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-review-response-custody-review-20261021.json`.
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
