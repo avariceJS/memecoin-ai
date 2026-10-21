@@ -33,11 +33,12 @@ attempts through a fresh test-only synthetic harness running real `run_attempt`,
 sandbox tool callback; the supervisor performs independent verification and Git integration. It
 preserves a STOP-cancelled claim and synchronous spawn-error/cooldown before PLAT-002 resumes. Both child
 PID/birth identities match durable Store custody; durable role traces prove lead/worker ran in each child,
-verifier in the parent, dependent base equals the producer tip, and out-of-root writes fail. Sol accepted
-the test diff; focused regression passed twice. Synthetic transport/reviewer and test harness do not
-prove production attempt CLI, provider/app-server, live usage settlement, full descendant cleanup, A03,
-A04 or operational release. The current `make engineering-release-check` passes Ruff/format, 676 tests
-and 193 subtests.
+verifier in the parent, dependent base equals the producer tip, and out-of-root writes fail. Each child
+invokes the real `engineering.__main__.main` parser and `attempt` dispatch after synthetic Store/transport
+injection. Sol accepted both exact test increments; focused regression passed twice. The parent still
+substitutes a harness for the requested production CLI process; provider/app-server, live usage settlement,
+full descendant cleanup, A03, A04 and operational release remain unqualified. The current
+`make engineering-release-check` passes Ruff/format, 676 tests and 193 subtests.
 Unknown outcomes retain their reservations. `make check` was previously blocked by 107 unrelated Ruff
 findings under `src/`, `tests/` and `tools`; this narrow change does not touch those paths.
 

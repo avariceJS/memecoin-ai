@@ -2045,10 +2045,11 @@ with code 73 after Git ref CAS and before `Store.integrate`; the parent reopens 
 starts a fresh supervisor episode. That episode integrates the producer once and reaches contract-review
 preparation; the same regression then completes the contract/dependency path through PLAT-002. Bounded
 timeouts use birth-bound `terminate_owned` before signaling. Altered intent/receipt evidence remains
-rejected. Sol accepted the exact synthetic test diff; `make engineering-release-check` passes Ruff/format,
-676 tests and 193 subtests. This proves an exec-spawned synthetic producer, not the production
-`engineering attempt` entrypoint, Codex app-server/provider, live usage settlement, or cleanup of every
-independent descendant group during an exceptional hang. PLAT-002 remains inline in this regression;
+rejected. Each child invokes the real `engineering.__main__.main` parser and `attempt` dispatch after
+test-only Store/transport injection. Sol accepted the exact synthetic test diff; `make
+engineering-release-check` passes Ruff/format, 676 tests and 193 subtests. The parent substitutes a
+harness for the supervisor-requested production CLI process; Codex app-server/provider, live usage
+settlement, or cleanup of every independent descendant group during an exceptional hang are not proved.
 A03, A04 deployment qualification and operational release remain open.
 
 Integrated two-department exec-child continuation — 2026-10-22: the successful PLAT-002 Platform retry
@@ -2058,8 +2059,9 @@ records lead/worker calls durably in the child and verifier invocation in the pa
 consumer base is the integrated PLAT-001 tip, denies a sandbox escape write, and completes parent-side
 verification, GitGate CAS and integration. Sol accepted the exact test diff; the focused regression
 passed twice and `make engineering-release-check` passes Ruff/format, 676 tests and 193 subtests. This
-remains synthetic harness evidence: the production attempt CLI and live model/provider accounting are
-not exercised; A03 and A04 operational/deployment qualification remain open.
+remains synthetic harness evidence: the supervisor-requested production CLI process and live
+model/provider accounting are not exercised; A03 and A04 operational/deployment qualification remain
+open.
 
 Cortex preregistration metadata — 2026-10-22: Store now enforces a strict protocol schema and
 requires the `cortex-research-protocol` v2 A10 transition to be produced by integrated Cortex work

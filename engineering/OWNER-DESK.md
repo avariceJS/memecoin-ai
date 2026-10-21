@@ -107,9 +107,10 @@ controller hard exit после Git CAS. Для PLAT-002 сохранены STOP
 spawn с cooldown до успешного retry. PID/birth обоих worker совпадают с Store custody; дочерний trace
 связывает lead/worker, parent вызывает verifier, consumer base равен producer tip, запись вне checkout
 запрещена. Sol принял точный test diff; focused regression прошёл два раза. Полный gate на текущем
-срезе: Ruff/format, 676 тестов и 193 subtests. Это synthetic exec-process evidence, не production
-`engineering attempt` CLI, Codex app-server/provider, live settlement, полная очистка descendant groups,
-A03, A04 или operational release.
+срезе: Ruff/format, 676 тестов и 193 subtests. Synthetic children вызывают настоящий
+`engineering.__main__.main` parser и `attempt` dispatch после тестовой подмены Store/transport; parent
+всё ещё заменяет запрошенный production CLI process на harness. Codex app-server/provider, live
+settlement, полная очистка descendant groups, A03, A04 и operational release не квалифицированы.
 
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
 reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает
