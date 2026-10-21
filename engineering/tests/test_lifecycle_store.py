@@ -614,6 +614,145 @@ class LifecycleStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(StateError, "controller_parse_recovery_history_invalid"):
             self.store._lifecycle_decision_versions(name)
 
+    def test_controller_parse_resolution_rejects_invalid_or_oversized_references(self):
+        self.store.add_task("task-recovery-ref", "engineering", "Recovery reference source")
+        attempt = self.store.claim("task-recovery-ref", "worker")
+        events_before_open = self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+        with self.assertRaisesRegex(StateError, "controller_parse_recovery_record_byte_limit"):
+            self.store.open_controller_parse_fault(
+                attempt["id"],
+                attempt["epoch"],
+                stage="x" * org_state._CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES,
+                exception_type="ValueError",
+            )
+        self.assertIsNone(self.store.get_decision("circuit/controller-parse"))
+        self.assertIsNone(self.store.get_decision("recovery-obligation/controller-parse"))
+        self.assertEqual(
+            self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0], events_before_open
+        )
+        self.assertEqual(self.store.get_task("task-recovery-ref")["state"], "running")
+
+        self.store.open_controller_parse_fault(
+            attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+        )
+        circuit = self.store.get_decision("circuit/controller-parse")
+        obligation = self.store.get_decision("recovery-obligation/controller-parse")
+        circuit_before = circuit
+        obligation_before = obligation
+        events_before = self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+        invalid_references = (
+            {"recovery_id": 1},
+            {"fix_sha256": "A" * 64},
+            {"review_ref": ""},
+            {"authorization_ref": "bad\x00reference"},
+            {"recovery_id": "x" * org_state._CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES},
+        )
+
+        for replacement in invalid_references:
+            arguments = {
+                "recovery_id": "recovery-1",
+                "fix_sha256": "a" * 64,
+                "review_ref": "review-1",
+                "authorization_ref": "authorization-1",
+                **replacement,
+            }
+            with self.subTest(replacement=tuple(replacement)):
+                with self.assertRaises(StateError):
+                    self.store.resolve_controller_parse_fault(
+                        expected_circuit_version=circuit["version"],
+                        expected_obligation_version=obligation["version"],
+                        **arguments,
+                    )
+                self.assertEqual(
+                    self.store.get_decision("circuit/controller-parse"), circuit_before
+                )
+                self.assertEqual(
+                    self.store.get_decision("recovery-obligation/controller-parse"),
+                    obligation_before,
+                )
+                self.assertEqual(
+                    self.store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0],
+                    events_before,
+                )
+
+        self.store.resolve_controller_parse_fault(
+            expected_circuit_version=circuit["version"],
+            expected_obligation_version=obligation["version"],
+            recovery_id="recovery-1",
+            fix_sha256="a" * 64,
+            review_ref="review-1",
+            authorization_ref="authorization-1",
+        )
+
+    def test_oversized_controller_parse_record_fails_before_json_hydration(self):
+        self.store.add_task("task-large-recovery", "engineering", "Oversized recovery source")
+        attempt = self.store.claim("task-large-recovery", "worker")
+        self.store.open_controller_parse_fault(
+            attempt["id"], attempt["epoch"], stage="lead", exception_type="ValueError"
+        )
+        current = self.store.get_decision("circuit/controller-parse")
+        oversized = {
+            **current["body"],
+            "extra": "x" * org_state._CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES,
+        }
+        self.store.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=?",
+            (
+                json.dumps(oversized, sort_keys=True, separators=(",", ":")),
+                "circuit/controller-parse",
+                current["version"],
+            ),
+        )
+
+        with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
+            with self.assertRaisesRegex(StateError, "controller_parse_recovery_history_invalid"):
+                self.store._require_controller_parse_recovery_clear()
+
+    def test_utf16_controller_parse_record_limits_match_stored_bytes(self):
+        utf16_path = Path(self.temp.name) / "utf16.sqlite"
+        connection = sqlite3.connect(utf16_path)
+        connection.execute("PRAGMA encoding='UTF-16le'")
+        connection.execute("CREATE TABLE encoding_seed(value TEXT)")
+        connection.close()
+        utf16_store = Store(utf16_path, clock=lambda: self.now)
+        try:
+            utf16_store.add_task("utf16-task", "engineering", "UTF-16 recovery source")
+            attempt = utf16_store.claim("utf16-task", "worker")
+            events_before = utf16_store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+            with self.assertRaisesRegex(StateError, "controller_parse_recovery_record_byte_limit"):
+                utf16_store.open_controller_parse_fault(
+                    attempt["id"],
+                    attempt["epoch"],
+                    stage="x" * 33_000,
+                    exception_type="ValueError",
+                )
+            self.assertIsNone(utf16_store.get_decision("circuit/controller-parse"))
+            self.assertIsNone(utf16_store.get_decision("recovery-obligation/controller-parse"))
+            self.assertEqual(
+                utf16_store.db.execute("SELECT COUNT(*) FROM events").fetchone()[0], events_before
+            )
+            self.assertEqual(utf16_store.get_task("utf16-task")["state"], "running")
+
+            utf16_store.open_controller_parse_fault(
+                attempt["id"],
+                attempt["epoch"],
+                stage="x" * 20_000,
+                exception_type="ValueError",
+            )
+            circuit = utf16_store.get_decision("circuit/controller-parse")
+            obligation = utf16_store.get_decision("recovery-obligation/controller-parse")
+            utf16_store.resolve_controller_parse_fault(
+                expected_circuit_version=circuit["version"],
+                expected_obligation_version=obligation["version"],
+                recovery_id="r" * 20_000,
+                fix_sha256="a" * 64,
+                review_ref="review-1",
+                authorization_ref="authorization-1",
+            )
+            utf16_store._require_controller_parse_recovery_clear()
+        finally:
+            utf16_store.close()
+
     def test_controller_parse_recovery_rejects_broken_journal_links(self):
         lease = self.store.claim_lifecycle_owner("owner")
         for recovery_index in (1, 2):

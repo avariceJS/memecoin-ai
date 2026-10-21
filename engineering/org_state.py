@@ -57,6 +57,7 @@ _LIFECYCLE_OBSERVATION_FIELDS = frozenset(
 )
 _LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
 _LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
+_CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES = 64 * 1024
 CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS = 1000
 _CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES = 512 * 1024
 _CONTRACT_TRANSITION_BATCH_MAX_BYTES = 32 * 1024 * 1024
@@ -3180,6 +3181,7 @@ class Store:
         row = self.db.execute(
             "SELECT COUNT(*) AS version_count,MIN(version) AS first_version,"
             "MAX(version) AS last_version,"
+            "MAX(length(CAST(body AS BLOB))) AS max_body_bytes,"
             "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) "
             "AS invalid_versions,SUM(CASE "
             "WHEN typeof(version)='integer' AND version=1 "
@@ -3197,16 +3199,31 @@ class Store:
         if count == 0:
             return 0
         first, last = row["first_version"], row["last_version"]
+        max_body_bytes = row["max_body_bytes"]
         if (
             row["invalid_versions"] != 0
             or row["invalid_links"] != 0
             or type(first) is not int
             or type(last) is not int
+            or type(max_body_bytes) is not int
+            or max_body_bytes < 0
+            or max_body_bytes > _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES
             or first != 1
             or last != count
         ):
             raise StateError("controller_parse_recovery_history_invalid")
         return count
+
+    def _controller_parse_recovery_record_bytes(self, body: dict) -> int:
+        """Measure serialized record bytes using SQLite's configured text encoding."""
+        serialized = _json(body)
+        row = self.db.execute(
+            "SELECT length(CAST(? AS BLOB)) AS body_bytes", (serialized,)
+        ).fetchone()
+        size = row["body_bytes"]
+        if type(size) is not int or size < 0:
+            raise StateError("controller_parse_recovery_record_byte_limit")
+        return size
 
     def _lifecycle_owner_history_head(self) -> int | None:
         """Validate owner version continuity with constant Python-side memory."""
@@ -3916,6 +3933,12 @@ class Store:
                     "separate bounded recovery authorization",
                 ],
             }
+            if any(
+                self._controller_parse_recovery_record_bytes(body)
+                > _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES
+                for body in (circuit, obligation)
+            ):
+                raise StateError("controller_parse_recovery_record_byte_limit")
             self._put_decision_in_transaction("circuit/controller-parse", circuit)
             self._put_decision_in_transaction("recovery-obligation/controller-parse", obligation)
             state = self._retry_state(task, False)
@@ -3942,6 +3965,16 @@ class Store:
         review_ref: str,
         authorization_ref: str,
     ) -> None:
+        references = (recovery_id, review_ref, authorization_ref)
+        if (
+            any(
+                type(value) is not str or not value.strip() or "\x00" in value
+                for value in references
+            )
+            or type(fix_sha256) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", fix_sha256) is None
+        ):
+            raise StateError("controller_recovery_reference_invalid")
         with self._tx():
             circuit = self.get_decision("circuit/controller-parse")
             obligation = self.get_decision("recovery-obligation/controller-parse")
@@ -3961,9 +3994,14 @@ class Store:
                 "review_ref": review_ref,
                 "authorization_ref": authorization_ref,
             }
-            self._put_decision_in_transaction(
-                "circuit/controller-parse", {**resolved, "fault": "structured_response"}
-            )
+            circuit = {**resolved, "fault": "structured_response"}
+            if any(
+                self._controller_parse_recovery_record_bytes(body)
+                > _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES
+                for body in (circuit, resolved)
+            ):
+                raise StateError("controller_parse_recovery_record_byte_limit")
+            self._put_decision_in_transaction("circuit/controller-parse", circuit)
             self._put_decision_in_transaction("recovery-obligation/controller-parse", resolved)
 
     def get_decision(self, name: str, version: int | None = None) -> dict | None:
