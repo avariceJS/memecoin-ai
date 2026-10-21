@@ -100,16 +100,16 @@ A04: Cortex task specs остаются неclaimable. Artifact pins и preregis
 не доказаны. Обучение,
 scoring, pipeline и artifact writers не запускались; научная оценка не заявляется.
 
-2026-10-22: PLAT-001 Experience проходит через `supervise`: controller выбирает и claim-ит задачу,
-запускает отдельный exec-процесс с тестовым synthetic harness, где выполняются настоящий `run_attempt`,
-durable Store custody и sandbox tool callback; следующий loop независимо проверяет candidate. Regression
-связывает запрошенные `--state`/`--attempt`, `stdin=DEVNULL`, PID/birth ребёнка и Store child-start
-identity. Controller аварийно завершается после Git ref CAS и до `Store.integrate`; SQLite reopen и
-новая supervisor episode интегрируют producer ровно один раз, затем общий тест проходит зависимость
-PLAT-002. Sol принял diff; полный gate: Ruff/format, 676 тестов и 193 subtests. Доказан exec-child
-только с synthetic harness, не production `engineering attempt` CLI, Codex app-server/provider или
-settlement; полная очистка независимых descendant groups не доказана. PLAT-002 остаётся inline, A03,
-A04 и operational release открыты.
+2026-10-22: PLAT-001 Experience → PLAT-002 Platform теперь исполняются в отдельных exec-child через
+test-only synthetic harness с реальным `run_attempt`, durable Store custody и sandbox tool callback;
+supervisor сам проверяет и интегрирует оба результата. Для PLAT-001 проверяется восстановление после
+controller hard exit после Git CAS. Для PLAT-002 сохранены STOP-cancelled claim и синхронная ошибка
+spawn с cooldown до успешного retry. PID/birth обоих worker совпадают с Store custody; дочерний trace
+связывает lead/worker, parent вызывает verifier, consumer base равен producer tip, запись вне checkout
+запрещена. Sol принял точный test diff; focused regression прошёл два раза. Полный gate на текущем
+срезе: Ruff/format, 676 тестов и 193 subtests. Это synthetic exec-process evidence, не production
+`engineering attempt` CLI, Codex app-server/provider, live settlement, полная очистка descendant groups,
+A03, A04 или operational release.
 
 Новый A05 source-only вертикальный путь связывает свежий восстановленный controller с пассивной
 reconciliation-командой `restore-reconcile`. В синтетической disposable-копии команда принимает

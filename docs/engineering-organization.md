@@ -2051,6 +2051,16 @@ rejected. Sol accepted the exact synthetic test diff; `make engineering-release-
 independent descendant group during an exceptional hang. PLAT-002 remains inline in this regression;
 A03, A04 deployment qualification and operational release remain open.
 
+Integrated two-department exec-child continuation — 2026-10-22: the successful PLAT-002 Platform retry
+now also launches a fresh test-only synthetic child after the earlier STOP-cancelled claim and
+synchronous spawn error/cooldown. The same regression binds that child's PID/birth to Store custody,
+records lead/worker calls durably in the child and verifier invocation in the parent, proves the
+consumer base is the integrated PLAT-001 tip, denies a sandbox escape write, and completes parent-side
+verification, GitGate CAS and integration. Sol accepted the exact test diff; the focused regression
+passed twice and `make engineering-release-check` passes Ruff/format, 676 tests and 193 subtests. This
+remains synthetic harness evidence: the production attempt CLI and live model/provider accounting are
+not exercised; A03 and A04 operational/deployment qualification remain open.
+
 Cortex preregistration metadata — 2026-10-22: Store now enforces a strict protocol schema and
 requires the `cortex-research-protocol` v2 A10 transition to be produced by integrated Cortex work
 and reviewed by both Cortex and Evaluation against the exact proposed body. Cortex task-spec

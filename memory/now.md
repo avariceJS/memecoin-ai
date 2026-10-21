@@ -28,16 +28,16 @@ work must use task-spec admission. Supervisor Store instances apply that catalog
 claim transactions; task-spec IDs cannot collide with fixed cards, including an ID mutation during
 SQLite lock wait. Fresh quiescence durably reports `controller-assignment-required`. Sol accepted the
 boundary and race fix. Latest `make engineering-release-check` passes Ruff/format, 676 tests and 193 subtests.
-The PLAT-001 integrated regression uses `supervise` for selection/claim and launches a fresh exec Python
-child with a test-only synthetic harness running real `run_attempt`, durable Store custody and the
-sandbox tool callback; the next loop calls independent `verify_one`. Requested launcher state/attempt,
-`stdin=DEVNULL`, child PID/birth and Store child-start identity are bound. A separate controller hard-exits
-after Git CAS/before Store integration; SQLite reopen and fresh-supervisor recovery integrate once, then
-the same regression continues PLAT-002. Sol accepted the exact diff; `make engineering-release-check`
-passes Ruff/format, 676 tests and 193 subtests. This proves an exec-spawn synthetic producer, not the
-production attempt CLI, provider/app-server, live usage settlement, complete descendant cleanup, A03,
-A04 or operational release. PLAT-002 remains inline in this regression; smoke on the prior commit has
-`edge_established=false`.
+The integrated PLAT-001 Experience → PLAT-002 Platform regression now exec-spawns both successful
+attempts through a fresh test-only synthetic harness running real `run_attempt`, Store custody and the
+sandbox tool callback; the supervisor performs independent verification and Git integration. It
+preserves a STOP-cancelled claim and synchronous spawn-error/cooldown before PLAT-002 resumes. Both child
+PID/birth identities match durable Store custody; durable role traces prove lead/worker ran in each child,
+verifier in the parent, dependent base equals the producer tip, and out-of-root writes fail. Sol accepted
+the test diff; focused regression passed twice. Synthetic transport/reviewer and test harness do not
+prove production attempt CLI, provider/app-server, live usage settlement, full descendant cleanup, A03,
+A04 or operational release. The current `make engineering-release-check` passes Ruff/format, 676 tests
+and 193 subtests.
 Unknown outcomes retain their reservations. `make check` was previously blocked by 107 unrelated Ruff
 findings under `src/`, `tests/` and `tools`; this narrow change does not touch those paths.
 

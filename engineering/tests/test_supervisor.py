@@ -1333,8 +1333,11 @@ class SupervisorTests(unittest.TestCase):
                 {
                     "controller": str(controller.resolve()),
                     "python": python_executable,
+                    "task_id": "PLAT-001",
                     "worker_code": worker_code,
+                    "worker_brief": "Add the fixed synthetic capability.",
                     "escape_path": str(escape_path),
+                    "trace": str(self.state / "producer-child-roles.jsonl"),
                     "clock": self.now,
                 },
                 sort_keys=True,
@@ -1360,10 +1363,13 @@ class SupervisorTests(unittest.TestCase):
             "    def __exit__(self, *_args): return None\n"
             "    def start(self, *_args): return 'synthetic-' + self.role + '-thread'\n"
             "    def turn(self, *_args, **kwargs):\n"
+            "        with pathlib.Path(spec['trace']).open('a') as trace:\n"
+            "            trace.write(json.dumps({'task_id':spec['task_id'],'role':self.role,"
+            "'pid':__import__('os').getpid()})+'\\n')\n"
             "        if self.role == 'lead':\n"
             "            text = json.dumps({'decision':'approve','worker_brief':"
-            "'Add the fixed synthetic capability.','rationale':"
-            "'The bounded task and exact contract proposal qualify.','contract_acks':[]})\n"
+            "spec['worker_brief'],'rationale':'The bounded synthetic task qualifies.',"
+            "'contract_acks':[]})\n"
             "        elif self.role == 'worker':\n"
             "            result = kwargs['tool']({'argv':[spec['python'],'-I','-c',"
             "spec['worker_code']],'timeout':10})\n"
@@ -2013,8 +2019,30 @@ main()
             "from pathlib import Path\n"
             "if Path('src/capability.py').read_text() != 'VALUE = 7\\n':\n"
             "    raise SystemExit('integrated producer output is missing')\n"
+            f"outside = Path({str(self.state / 'dependent-sandbox-escape')!r})\n"
+            "try:\n"
+            "    outside.write_text('escape')\n"
+            "except OSError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise SystemExit('sandbox allowed an out-of-root write')\n"
             "Path('src/consumer.py').write_text("
             "'from capability import VALUE\\nCONSUMED = VALUE + 1\\n')\n"
+        )
+        child_spec_path.write_text(
+            json.dumps(
+                {
+                    "controller": str(controller.resolve()),
+                    "python": python_executable,
+                    "task_id": "PLAT-002",
+                    "worker_code": dependent_worker_code,
+                    "worker_brief": "Consume the active research-output contract.",
+                    "escape_path": str(self.state / "dependent-sandbox-escape"),
+                    "trace": str(self.state / "dependent-child-roles.jsonl"),
+                    "clock": self.now,
+                },
+                sort_keys=True,
+            )
         )
         dependent_transport_roles = []
         stop_injected_after_claim = []
@@ -2104,6 +2132,8 @@ main()
 
         spawned = []
         real_popen = subprocess.Popen
+        real_sleep = time.sleep
+        dependent_launch_record = self.state / "dependent-launch.json"
 
         def select_synthetic_capacity(*_args, ready_tasks=(), **_kwargs):
             selected = list(ready_tasks)
@@ -2119,10 +2149,47 @@ main()
                 if not popen_failures:
                     popen_failures.append(attempt_id)
                     raise OSError("synthetic exec failure")
-                spawned.append((args, kwargs))
-                attempt_state = Path(args[args.index("--state") + 1])
-                supervisor.run_attempt(attempt_state, attempt_id)
-                return SimpleNamespace(pid=456)
+                state_arg = args[args.index("--state") + 1]
+                exec_args = [
+                    sys.executable,
+                    "-I",
+                    str(child_harness),
+                    state_arg,
+                    str(attempt_id),
+                    str(child_spec_path),
+                ]
+                child = real_popen(exec_args, **kwargs)
+                child_birth = process_birth_identity(child.pid)
+                supervisor.atomic(
+                    dependent_launch_record,
+                    {
+                        "requested_argv": list(args),
+                        "exec_argv": exec_args,
+                        "stdin_devnull": kwargs.get("stdin") == subprocess.DEVNULL,
+                        "synthetic_harness": True,
+                        "pid": child.pid,
+                        "birth": child_birth,
+                    },
+                )
+                spawned.append((args, kwargs, child.pid, child_birth))
+                child_deadline = time.perf_counter() + 15
+                while child.poll() is None and time.perf_counter() < child_deadline:
+                    real_sleep(0.005)
+                if child.poll() is None:
+                    terminate_owned(child.pid, child_birth)
+                    if child.poll() is None:
+                        child.kill()
+                    try:
+                        child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        raise RuntimeError(
+                            "synthetic dependent child could not be reaped"
+                        ) from None
+                    raise RuntimeError("synthetic dependent child timed out") from None
+                returncode = child.wait()
+                if returncode != 0:
+                    raise RuntimeError(f"synthetic dependent child failed: {returncode}")
+                return child
             return real_popen(args, **kwargs)
 
         real_store_claim = Store.claim
@@ -2231,9 +2298,12 @@ main()
             self.assertEqual(cooling_episode["action"], "hold")
             self.assertFalse(cooling_episode["dispatch_authority"])
             self.now = cooling_episode["checkpoint"]["body"]["next_retry_at"]
+            child_spec = supervisor.read(child_spec_path)
+            child_spec["clock"] = self.now
+            supervisor.atomic(child_spec_path, child_spec)
             supervisor.supervise(
                 self.state,
-                max_seconds=10,
+                max_seconds=30,
                 contract_review_transport=review_transport,
                 department_plan_transport=department_plan_transport,
             )
@@ -2254,7 +2324,13 @@ main()
             self.assertEqual(ack["body"]["review_packet_hash"], body["packet_hash"])
             self.assertEqual(ack["body"]["review_raw_sha256"], response["raw_sha256"])
         self.assertEqual(self.db.get_contract("research-output")["version"], 2)
-        self.assertEqual(verification_calls, [("PLAT-002", True)], supervisor_events)
+        self.assertEqual(
+            verification_calls,
+            [("PLAT-002", True)],
+            f"events={supervisor_events!r}, attempts={self.db.list_attempts('PLAT-002')!r}, "
+            f"task={self.db.get_task('PLAT-002')!r}, "
+            f"child_log={(self.state / 'attempt-output.log').read_text()!r}",
+        )
         self.assertEqual(eligible(self.cfg, self.db), [], self.db.events())
         self.assertEqual(self.db.get_task("PLAT-002")["base_sha"], candidate_sha)
         consumer_nomination = self.db.get_decision("admission/PLAT-002")["body"][
@@ -2273,7 +2349,7 @@ main()
         self.assertEqual(
             self.db.get_task("PLAT-002")["state"], "integrated", self.db.events()[-12:]
         )
-        self.assertEqual(dependent_transport_roles, ["lead", "worker", "verifier"])
+        self.assertEqual(dependent_transport_roles, ["verifier"])
         self.assertEqual(self.db.get_task("PLAT-002")["dependencies"], ["PLAT-001"])
         dependent_attempts = self.db.list_attempts("PLAT-002")
         self.assertEqual(len(dependent_attempts), 3)
@@ -2282,6 +2358,32 @@ main()
         self.assertEqual(popen_failures, [dependent_attempts[1]["id"]])
         self.assertEqual(len(spawned), 1)
         self.assertIn("--attempt", spawned[0][0])
+        consumer_launch = supervisor.read(dependent_launch_record)
+        self.assertTrue(consumer_launch["synthetic_harness"])
+        self.assertTrue(consumer_launch["stdin_devnull"])
+        self.assertEqual(consumer_launch["exec_argv"][2], str(child_harness))
+        self.assertEqual(
+            (consumer_launch["pid"], consumer_launch["birth"]),
+            (spawned[0][2], spawned[0][3]),
+        )
+        consumer_child_identity = self.db.attempt_child_start_identity(
+            dependent_attempts[-1]["id"], dependent_attempts[-1]["epoch"]
+        )
+        self.assertEqual(consumer_child_identity["pid"], consumer_launch["pid"])
+        self.assertEqual(consumer_child_identity["birth"], consumer_launch["birth"])
+        self.assertNotEqual(consumer_launch["pid"], os.getpid())
+        self.assertNotEqual(
+            (consumer_launch["pid"], consumer_launch["birth"]),
+            (launch_record["pid"], launch_record["birth"]),
+        )
+        dependent_roles = [
+            json.loads(line)
+            for line in (self.state / "dependent-child-roles.jsonl").read_text().splitlines()
+        ]
+        self.assertEqual([item["role"] for item in dependent_roles], ["lead", "worker"])
+        self.assertTrue(all(item["task_id"] == "PLAT-002" for item in dependent_roles))
+        self.assertTrue(all(item["pid"] == consumer_launch["pid"] for item in dependent_roles))
+        self.assertFalse((self.state / "dependent-sandbox-escape").exists())
 
         # The actual supervisor loop dispatched, executed, independently verified, and
         # integrated the dependent task without a manual run_attempt/verify_one call.
