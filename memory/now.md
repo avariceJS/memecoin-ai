@@ -23,6 +23,11 @@ automatically.
   accepted the exact source diff; the engineering release gate passed Ruff, 503 tests and 101
   subtests after an isolated rerun of the existing timing-sensitive macOS code-identity test.
   SQLite decoding failures, broad A10 and A03 remain open; STOP active, no runtime/provider started.
+- Latest A05 source checkpoint: `53120b6` validates controller-parse recovery decision root and
+  self-links within the owner-fenced request transaction, before body hydration. Sol-6.1 High
+  accepted exact diff `9d7c1b5a3f67157620b60b0bcd3ab603b094bd4c6eee271a36b2d11ecf0b1934`; the final
+  engineering gate passed Ruff, 504 tests and 105 subtests. A05 remains passive: no consumer or
+  authorization generation; STOP active, no runtime/provider started.
 - A10 source `86550d9` adds exact-packet local replay for custodied contract-review responses with
   strict JSON parsing and transactional revalidation before ACK. Sol accepted exact diff; full gate
   passed 401 tests/96 subtests with Ruff. Provider/RPC and usage provenance, A03, and full A10 remain

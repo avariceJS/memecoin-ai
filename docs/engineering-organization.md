@@ -187,6 +187,16 @@ consumer, authorization generation, execution authority or operational A05 closu
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-controller-parse-recovery-veto-20261021.json`
 (SHA-256 `53d5076ee97375fb3c025cc222f70eb5179017adc684865329ea4fbc46fe9b09`).
 
+At `53120b6`, that veto also validates the SQLite decision journal links before hydrating controller
+parse recovery bodies: version 1 must be a root, and later versions must point to the same journal's
+immediately preceding version. Four regressions corrupt root, dangling, and cross-journal links;
+each rejects the optimistic request without adding events or request decisions, while healthy
+resolved cycles still permit an inert request. Sol-6.1 High accepted exact source/test diff
+`9d7c1b5a3f67157620b60b0bcd3ab603b094bd4c6eee271a36b2d11ecf0b1934`; `make
+engineering-release-check` passed Ruff, 504 tests and 105 subtests. This remains a check over the
+recorded controller-parse obligation only; no A05 consumer, authorization generation, execution
+authority or operational closure was added.
+
 The lifecycle request writer now rejects serialized request bodies above 64 KiB before journal
 insertion. The read-only worklist preflights each selected body's SQLite BLOB length and singleton
 history in the same read snapshot, then rejects a record above 64 KiB or an aggregate above 1 MiB
