@@ -817,6 +817,7 @@ class SupervisorTests(unittest.TestCase):
         review_evidence = f"git-receipt:{receipt_digest}"
         transition = self.db.get_contract_transition("research-output", 2)
         contract_hash = transition["body"]["contract_hash"]
+        prepared_reviews = []
         for team in ("Experience", "Platform"):
             packet = {
                 "source_commit": candidate_sha,
@@ -825,11 +826,50 @@ class SupervisorTests(unittest.TestCase):
                 "migration_plan": None,
             }
             evidence_revision = hashlib.sha256(f"{candidate_sha}:{team}".encode()).hexdigest()
-            self.db.prepare_contract_review("research-output", 2, team, evidence_revision, packet)
+            prepared_reviews.append(
+                self.db.prepare_contract_review(
+                    "research-output", 2, team, evidence_revision, packet
+                )
+            )
+
+        # Simulate a controller interruption after response custody but before local replay.
+        # Reopen SQLite before supervise resumes the durable review cycle.
+        replay_request = prepared_reviews[0]["body"]
+        self.db.begin_contract_review_dispatch(
+            replay_request["request_id"], replay_request["packet_hash"]
+        )
+        self.db.record_contract_review_session(
+            replay_request["request_id"],
+            replay_request["packet_hash"],
+            "synthetic-custodied-review-thread",
+            "synthetic-reviewer",
+            replay_request["dispatch_id"],
+            {"pid": 123, "birth": "synthetic"},
+        )
+        replay_result = {
+            "decision": "approve",
+            "compatibility": "compatible",
+            "rationale": "Custodied synthetic response survived controller restart.",
+            "findings": [],
+            "reviewed_evidence_refs": replay_request["packet"]["evidence_refs"],
+            "affected_consumers_reviewed": replay_request["packet"]["affected_consumer_task_ids"],
+            "migration_plan": replay_request["packet"]["migration_plan"],
+        }
+        self.db.record_contract_review_response(
+            replay_request["request_id"],
+            replay_request["packet_hash"],
+            replay_request["dispatch_id"],
+            "synthetic-custodied-turn",
+            json.dumps(replay_result, sort_keys=True, separators=(",", ":")).encode(),
+        )
+        self.db.close()
+        self.db = Store(self.state / "organization.sqlite", clock=lambda: self.now)
+        self.addCleanup(self.db.close)
 
         class SyntheticContractReviewTransport:
             def __init__(self):
                 self.started_teams = []
+                self.reviewed_teams = []
 
             def start(self, request):
                 body = request["body"]
@@ -853,6 +893,7 @@ class SupervisorTests(unittest.TestCase):
 
             def review(self, _session, request):
                 body = request["body"]
+                self.reviewed_teams.append(body["team"])
                 result = {
                     "decision": "approve",
                     "compatibility": "compatible",
@@ -930,8 +971,18 @@ class SupervisorTests(unittest.TestCase):
             supervisor.supervise(
                 self.state, max_seconds=10, contract_review_transport=review_transport
             )
-        self.assertEqual(len(review_transport.started_teams), 2)
-        self.assertEqual(len(set(review_transport.started_teams)), 2)
+        self.assertEqual(len(review_transport.started_teams), 1)
+        self.assertEqual(review_transport.reviewed_teams, review_transport.started_teams)
+        self.assertNotIn(replay_request["team"], review_transport.started_teams)
+        for request in prepared_reviews:
+            body = request["body"]
+            ack = self.db.get_decision(
+                self.db._contract_ack_key("research-output", 2, body["team"])
+            )
+            response = self.db.get_contract_review_response(body["request_id"])
+            self.assertEqual(ack["body"]["review_request_id"], body["request_id"])
+            self.assertEqual(ack["body"]["review_packet_hash"], body["packet_hash"])
+            self.assertEqual(ack["body"]["review_raw_sha256"], response["raw_sha256"])
         self.assertEqual(self.db.get_contract("research-output")["version"], 2)
         self.assertEqual(eligible(self.cfg, self.db), [], self.db.events())
         self.assertEqual(self.db.get_task("PLAT-002")["base_sha"], candidate_sha)

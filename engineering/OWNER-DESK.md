@@ -25,7 +25,9 @@ candidate SHA и отсутствующий receipt блокируют recovery 
 содержит candidate SHA и declared GitGate receipt ref/digest, но Store не валидирует внешний receipt;
 ещё не admitted `PLAT-002` отсутствует в Platform task inventory review. Это contract-level, не
 task-specific review. Обычный CLI и quiescence path transport не получают и сохраняют inert Sol
-handoff; live provider/runtime dispatch не квалифицирован. Sol независимо проверил recovery-путь, выявил
+handoff; test также закрывает/переоткрывает SQLite после durable response custody и проверяет
+локальный replay без повторной отправки до dispatch второго review. Live provider/runtime dispatch
+не квалифицирован. Sol независимо проверил recovery-путь, выявил
 и перепроверил исправления точной привязки родителей кандидата, receipt, attempt/epoch и канонической
 записи проверки. В этом bounded source-пути после исправлений обхода не найдено.
 

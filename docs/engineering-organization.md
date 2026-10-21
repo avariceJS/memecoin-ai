@@ -67,9 +67,13 @@ restores evidence and confirms one integration event.
 The integrated producer is an Experience task; its Platform consumer remains ineligible until the
 exact contract version is activated. The test prepares one review request for each transition
 participant, then drives the real `supervise` idle loop with an explicitly injected synthetic
-transport. It dispatches one durable `process_pending_reviews` item per iteration and attempts
-activation after each: the consumer remains blocked after one approval and becomes eligible only
-after both. Its packet contains the candidate SHA and declared GitGate receipt reference/digest,
+transport. One review response is durably recorded, SQLite is closed/reopened, and supervisor
+reconciliation replays that saved response without resending it before the idle loop dispatches the
+other review. The test checks both acknowledgement request/packet bindings and the stored raw
+response hash. The loop processes one durable `process_pending_reviews` item per iteration and
+attempts activation after each: the consumer remains blocked after one approval and becomes
+eligible only after both. Its packet
+contains the candidate SHA and declared GitGate receipt reference/digest,
 which the request hash preserves; Store does not resolve or validate that external receipt. Since
 `PLAT-002` is not admitted until activation, it is absent from the Platform participant's task
 inventory, so this proves contract-level participant review and readiness gating, not task-specific

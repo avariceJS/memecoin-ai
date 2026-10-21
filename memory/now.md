@@ -27,8 +27,9 @@ unadmitted Platform task is absent from its team review inventory. The durable r
 reachable through `supervise` only when an in-process transport is explicitly injected: it handles
 one request per iteration and attempts activation before planning resumes. The ordinary CLI and
 quiescence path pass no transport, preserving the inert Sol handoff. The integrated test uses two
-synthetic reviews, then plans, claims and dispatches the dependent task; live dispatch remains
-unqualified. Proposal JSON rejects duplicate keys,
+synthetic reviews, including SQLite reopen after response custody and replay without resend, then
+plans, claims and dispatches the dependent task; live dispatch remains unqualified. Proposal JSON
+rejects duplicate keys,
 and task admission plus terminal planning
 decision commit atomically; an injected hard interruption rolls both back, and client cleanup failure
 remains visible to caller without relabeling committed admission. JSON `true` for an integer epoch
