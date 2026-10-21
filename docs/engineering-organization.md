@@ -1137,3 +1137,19 @@ added. Review receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-global-replay-query-plan-review-20261021.json`;
 gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-global-replay-query-plan-gate-20261021.json`.
+
+At `5c12b89`, global contract-review replay discovery replaces grouped namespace enumeration with
+successive indexed name seeks. The inclusive first cursor and exclusive next cursor run within the
+existing read snapshot; the explicit BINARY range preserves all `contract-review/` names, including
+the malformed bare prefix so identity validation still fails closed. Discovery returns at most 1,001
+names and checks overflow before hydration or replay. The regression verifies the covering primary-key
+range and that the bound cursor register directly drives SQLite `SeekGE`/`SeekGT`; a synthetic journal
+with 1,000 versions confirms the next distinct name is found. Sol-6.1 High accepted exact diff
+`f7f35d7b1a426ce69cb269f2b8c72cd911aef3b0262a17580d1a964b4f169204`; the focused transition suite
+passed 56 tests and `make engineering-release-check` passed Ruff, 446 tests and 101 subtests. This
+bounds discovery calls and returned names, not B-tree work, SQLite time, or process memory. A03,
+broad A10 and operational acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-global-replay-indexed-seek-review-20261021.json`
+(SHA-256 `40bb3924f0849c607eb8dc792922aa22b6a40c7b42aa661b8985eeb952d7e5a4`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-global-replay-indexed-seek-gate-20261021.json`
+(SHA-256 `3f646f8bb350099d1c5415c7688390de8a610e400f98a71929f4d929a3199a5c`).

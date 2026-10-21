@@ -355,3 +355,10 @@ remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
   Sol accepted exact diff; focused suite passed 55 and engineering gate passed 445 tests/101
   subtests with Ruff. This is SQLite 3.53.4 planner evidence only, not a bound on query work/time or
   memory. Receipt paths and exact limits are in `docs/engineering-organization.md`.
+- A10 source `5c12b89` replaces global `GROUP BY` replay discovery with at most 1,001 indexed
+  name seeks in one read snapshot. EXPLAIN opcode regression proves the cursor drives `SeekGE` /
+  `SeekGT`; synthetic 1,000-version journal regression finds the following name. Sol accepted exact
+  diff; focused suite passed 56 and engineering gate passed 446 tests/101 subtests with Ruff. This
+  bounds discovery calls/names, not B-tree work/time/memory. Full A10 and A03 remain open; receipts:
+  `a10-global-replay-indexed-seek-review-20261021.json`,
+  `a10-global-replay-indexed-seek-gate-20261021.json`.
