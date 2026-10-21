@@ -324,6 +324,8 @@ class Store:
             entity TEXT NOT NULL, body TEXT NOT NULL);
           CREATE INDEX IF NOT EXISTS idx_events_lifecycle_owner_decision
             ON events(seq) WHERE kind='decision_recorded' AND entity='lifecycle/owner';
+          CREATE INDEX IF NOT EXISTS idx_events_task_spec_admitted
+            ON events(entity) WHERE kind='task_spec_admitted';
           CREATE INDEX IF NOT EXISTS idx_tasks_state_id ON tasks(state,id);
         """)
         self.db.executescript("""
@@ -493,10 +495,14 @@ class Store:
             task_contracts = {}
             for name, requirement in canonical["contracts"].items():
                 row = self.db.execute(
-                    "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
+                    "SELECT version,body FROM contracts WHERE name=? ORDER BY version DESC LIMIT 1",
+                    (name,),
                 ).fetchone()
-                if row[0] != requirement["version"]:
+                if row is None or row["version"] != requirement["version"]:
                     raise StateError("task_spec_contract_not_current")
+                self._validate_task_spec_contract(name, requirement, row)
+                if requirement["version"] >= 2:
+                    self._validate_task_spec_contract_activation(name, requirement, row)
                 task_contracts[name] = requirement["version"]
             body = _json(canonical)
             admission_body = _json(admission_snapshot)
@@ -560,6 +566,8 @@ class Store:
         with self._lock:
             row = self.db.execute("SELECT * FROM task_specs WHERE task_id=?", (task_id,)).fetchone()
             if row is None:
+                if self._has_task_spec_admission(task_id):
+                    raise StateError("admitted_task_spec_missing")
                 return None
             return {
                 "spec": json.loads(row["body"]),
@@ -567,6 +575,19 @@ class Store:
                 "admission": json.loads(row["admission"]),
                 "decision": {"name": row["decision_name"], "version": row["decision_version"]},
             }
+
+    def _has_task_spec_admission(self, task_id: str) -> bool:
+        decision_name = "admission/task-spec/" + task_id
+        return (
+            self.db.execute(
+                """SELECT 1 FROM task_specs WHERE task_id=?
+               UNION ALL SELECT 1 FROM decisions WHERE name=?
+               UNION ALL SELECT 1 FROM events WHERE kind='task_spec_admitted' AND entity=?
+               LIMIT 1""",
+                (task_id, decision_name, task_id),
+            ).fetchone()
+            is not None
+        )
 
     def resolve_task_execution_binding(
         self, task_id: str, *, controller_release_sha256: str
@@ -588,8 +609,10 @@ class Store:
                 raise StateError("missing_execution_binding_decision")
             decision = {**dict(decision_row), "body": json.loads(decision_row["body"])}
             decision_body = decision["body"]
+            spec = json.loads(row["body"])
+            self._validate_task_spec_contracts(spec)
             if (
-                _json(decision_body.get("spec")) != _json(json.loads(row["body"]))
+                _json(decision_body.get("spec")) != _json(spec)
                 or decision_body.get("policy_sha256") != row["policy_sha256"]
                 or _json(decision_body.get("admission")) != _json(json.loads(row["admission"]))
             ):
@@ -603,6 +626,81 @@ class Store:
                 )
             except ValueError as exc:
                 raise StateError(str(exc)) from None
+
+    def _validate_task_spec_contracts(self, spec: dict) -> None:
+        for name, requirement in spec["contracts"].items():
+            row = self.db.execute(
+                "SELECT version,body FROM contracts WHERE name=? ORDER BY version DESC LIMIT 1",
+                (name,),
+            ).fetchone()
+            if row is None or row["version"] != requirement["version"]:
+                raise StateError("task_spec_contract_not_current")
+            self._validate_task_spec_contract(name, requirement, row)
+            if requirement["version"] >= 2:
+                self._validate_task_spec_contract_activation(name, requirement, row)
+
+    @staticmethod
+    def _validate_task_spec_contract(name: str, requirement: dict, row: sqlite3.Row) -> None:
+        try:
+            raw_body = row["body"]
+            if type(raw_body) is not str:
+                raise StateError("task_spec_contract_content_invalid")
+            body = json.loads(raw_body)
+            canonical = _json(body)
+            if raw_body != canonical:
+                raise StateError("task_spec_contract_hash_mismatch")
+            digest = hashlib.sha256(raw_body.encode("utf-8")).hexdigest()
+        except StateError:
+            raise
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("task_spec_contract_content_invalid") from None
+        if digest != requirement["proposal_sha256"]:
+            raise StateError("task_spec_contract_hash_mismatch")
+
+    def _validate_task_spec_contract_activation(
+        self, name: str, requirement: dict, row: sqlite3.Row
+    ) -> None:
+        version = requirement["version"]
+        transition = self._single_contract_decision(self._contract_transition_key(name, version))
+        if transition is None:
+            raise StateError("task_spec_contract_transition_missing")
+        proposal = self._validated_contract_transition(transition["body"], name, version)
+        if proposal["contract_hash"] != requirement["proposal_sha256"] or _json(
+            proposal["body"]
+        ) != _json(json.loads(row["body"])):
+            raise StateError("task_spec_contract_transition_mismatch")
+        activation = self._single_contract_decision(
+            self._contract_transition_key(name, version) + "/activated"
+        )
+        participants = [proposal["producer_team"], *proposal["consumer_teams"]]
+        expected_activation = {
+            "kind": "contract_transition_activation",
+            "name": name,
+            "from_version": proposal["from_version"],
+            "to_version": version,
+            "contract_hash": proposal["contract_hash"],
+            "producer_task_id": proposal["producer_task_id"],
+            "acknowledged_teams": sorted(participants),
+        }
+        producer = self.db.execute(
+            "SELECT team,state FROM tasks WHERE id=?", (proposal["producer_task_id"],)
+        ).fetchone()
+        if (
+            activation is None
+            or not _json_equal(activation["body"], expected_activation)
+            or producer is None
+            or producer["team"] != proposal["producer_team"]
+            or producer["state"] != "integrated"
+        ):
+            raise StateError("task_spec_contract_activation_missing")
+        for team in participants:
+            ack = self._single_contract_decision(self._contract_ack_key(name, version, team))
+            if ack is None:
+                raise StateError("task_spec_contract_activation_evidence_missing")
+            self._validated_contract_ack(
+                ack["body"], name, version, team, proposal["contract_hash"]
+            )
+            self._validate_ack_review_provenance(ack["body"], name, version, team)
 
     def close(self) -> None:
         with self._lock:
@@ -754,13 +852,27 @@ class Store:
             self._event("task_added", task_id, self._task(task_id))
 
     def _ready(self, task: dict) -> bool:
-        return all(self._task(d)["state"] == "integrated" for d in task["dependencies"]) and all(
+        if not all(self._task(d)["state"] == "integrated" for d in task["dependencies"]):
+            return False
+        if not all(
             self.db.execute("SELECT MAX(version) FROM contracts WHERE name=?", (name,)).fetchone()[
                 0
             ]
             == version
             for name, version in task["contracts"].items()
-        )
+        ):
+            return False
+        spec_row = self.db.execute(
+            "SELECT body FROM task_specs WHERE task_id=?", (task["id"],)
+        ).fetchone()
+        if spec_row is None and self._has_task_spec_admission(task["id"]):
+            return False
+        if spec_row is not None:
+            try:
+                self._validate_task_spec_contracts(json.loads(spec_row["body"]))
+            except (StateError, TypeError, ValueError):
+                return False
+        return True
 
     def readiness_report(self) -> list[dict]:
         """Return one coherent, read-only snapshot of pending work and explicit blockers.
@@ -897,6 +1009,25 @@ class Store:
                             "name": contract_name,
                             "required_version": required_version,
                             "current_version": current_version,
+                        }
+                    )
+            spec_row = self.db.execute(
+                "SELECT body FROM task_specs WHERE task_id=?", (task["id"],)
+            ).fetchone()
+            if spec_row is None and self._has_task_spec_admission(task["id"]):
+                blockers.append(
+                    {"kind": "task_spec_binding", "reason": "admitted_task_spec_missing"}
+                )
+            elif spec_row is not None:
+                try:
+                    self._validate_task_spec_contracts(json.loads(spec_row["body"]))
+                except (StateError, TypeError, ValueError) as exc:
+                    blockers.append(
+                        {
+                            "kind": "contract_binding",
+                            "reason": str(exc)
+                            if isinstance(exc, StateError)
+                            else "invalid_task_spec",
                         }
                     )
             report.append(

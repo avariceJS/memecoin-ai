@@ -1464,6 +1464,188 @@ class SupervisorTests(unittest.TestCase):
             [event["entity"] for event in all_integration_events], ["PLAT-001", "PLAT-002"]
         )
 
+        # Admit one useful off-catalog task against the fully integrated current tip. Its
+        # trusted execution binding must reach the verifier gate; the unavailable executable
+        # qualification must block before checkout or worker dispatch.
+        off_catalog_id = "PLAT-003"
+        acceptance_id = "next-source-check"
+        acceptance_sha = "4" * 64
+        proposal_sha = contract_hash
+        scope = ["src/next_capability.py"]
+        contract_requirement = {"research-output": {"version": 2, "proposal_sha256": proposal_sha}}
+        off_catalog_spec = {
+            "schema": "brain-task-spec-v1",
+            "id": off_catalog_id,
+            "objective_id": "offline-brain-engineering",
+            "team": "Platform",
+            "title": "Extend the integrated research capability",
+            "brief": (
+                "Add one bounded source capability that consumes the current integrated contract."
+            ),
+            "base_sha": dependent_intent["candidate_sha"],
+            "scope": scope,
+            "dependencies": ["PLAT-002"],
+            "contracts": contract_requirement,
+            "risk": "low",
+            "capabilities": ["offline_code", "synthetic_tests"],
+            "resources": {"max_attempts": 1, "max_turn_seconds": 600, "estimated_wpu": 1},
+            "acceptance": [{"id": acceptance_id, "sha256": acceptance_sha}],
+            "evidence_refs": [f"integrated-task:{off_catalog_id}:synthetic"],
+        }
+        envelope = {
+            "schema": "brain-task-envelope-v1",
+            "objective_id": "offline-brain-engineering",
+            "teams": ["Platform"],
+            "allowed_paths": scope,
+            "capabilities": ["offline_code", "synthetic_tests"],
+            "max_attempts": 1,
+            "max_turn_seconds": 600,
+            "allowed_contracts": {"research-output": {"2": proposal_sha}},
+            "base_sha": dependent_intent["candidate_sha"],
+            "risk_levels": ["low"],
+        }
+        acceptance_registry = {
+            acceptance_id: {
+                "sha256": acceptance_sha,
+                "objective_id": "offline-brain-engineering",
+                "scope": scope,
+                "contracts": contract_requirement,
+                "independent": True,
+                "frozen": True,
+                "risk": "low",
+            }
+        }
+        verifier_registry = {
+            acceptance_id: {
+                "acceptance_sha256": acceptance_sha,
+                "policy_id": "next-source-check-v1",
+                "commands": [
+                    ["{interpreter}", "-I", "-S", "-B", "{harness}", "{task_id}", "{checkout}"]
+                ],
+                "env": {"LANG": "C"},
+                "harness_sha256": "5" * 64,
+                "result_schema": "org-acceptance-v1",
+                "case_field": "case",
+                "passed_field": "passed",
+            }
+        }
+        release_sha = "6" * 64
+        integration_policy_sha = "7" * 64
+        self.cfg["controller_release_sha256"] = release_sha
+        self.cfg["integration_policy_sha256"] = integration_policy_sha
+        admitted_off_catalog = self.db.admit_task_spec(
+            off_catalog_spec,
+            envelope=envelope,
+            acceptance_registry=acceptance_registry,
+            policy_sha256="8" * 64,
+            admission={
+                "rationale": "The integrated dependency exposes the next useful source boundary.",
+                "evidence": f"PLAT-002 is integrated at {dependent_intent['candidate_sha']}.",
+            },
+            verifier_registry=verifier_registry,
+            controller_release_sha256=release_sha,
+            integration_policy_sha256=integration_policy_sha,
+        )
+        self.assertEqual(admitted_off_catalog, off_catalog_id)
+        self.assertNotIn(off_catalog_id, self.cfg["catalogue"])
+        self.assertEqual([task["id"] for task in self.db.ready_tasks()], [off_catalog_id])
+        off_catalog_task = self.db.get_task(off_catalog_id)
+        bound_plan = prepare_verification_plan(self.state, self.db, off_catalog_task, self.cfg)
+        self.assertFalse(bound_plan.execution_qualified)
+        self.assertEqual(bound_plan.reason, "verifier_manifest_not_qualified")
+        self.assertEqual(bound_plan.decision_name, f"admission/task-spec/{off_catalog_id}")
+        self.assertEqual(bound_plan.acceptance_identities, (f"{acceptance_id}:{acceptance_sha}",))
+        self.assertEqual(
+            bound_plan.policy.commands,
+            tuple(tuple(command) for command in verifier_registry[acceptance_id]["commands"]),
+        )
+
+        activation_name = self.db._contract_transition_key("research-output", 2) + "/activated"
+        activation_row = self.db.db.execute(
+            "SELECT version,body FROM decisions WHERE name=?", (activation_name,)
+        ).fetchone()
+        self.assertIsNotNone(activation_row)
+        original_activation_body = activation_row["body"]
+        activation_event = self.db.db.execute(
+            "SELECT seq,body FROM events WHERE kind='decision_recorded' AND entity=?",
+            (activation_name,),
+        ).fetchone()
+        self.assertIsNotNone(activation_event)
+        original_activation_event = activation_event["body"]
+        forged_activation = json.loads(original_activation_body)
+        forged_activation["from_version"] = True
+        forged_activation_raw = json.dumps(forged_activation, sort_keys=True, separators=(",", ":"))
+        self.db.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=?",
+            (
+                forged_activation_raw,
+                activation_name,
+                activation_row["version"],
+            ),
+        )
+        self.db.db.execute(
+            "UPDATE events SET body=? WHERE seq=?",
+            (
+                json.dumps(
+                    {
+                        "version": 1,
+                        "body": json.loads(forged_activation_raw),
+                        "replaces": None,
+                        "replaces_version": None,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                activation_event["seq"],
+            ),
+        )
+        self.assertEqual(self.db.ready_tasks(), [])
+        with self.assertRaisesRegex(ValueError, "task_spec_contract_activation_missing"):
+            prepare_verification_plan(self.state, self.db, off_catalog_task, self.cfg)
+        self.db.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=?",
+            (original_activation_body, activation_name, activation_row["version"]),
+        )
+        self.db.db.execute(
+            "UPDATE events SET body=? WHERE seq=?",
+            (original_activation_event, activation_event["seq"]),
+        )
+        self.assertEqual([task["id"] for task in self.db.ready_tasks()], [off_catalog_id])
+
+        # A forged config catalogue entry cannot replace this task's saved execution binding.
+        self.cfg["tasks"][off_catalog_id] = {
+            "checks": [["must-not-run"]],
+            "scope": ["src/forbidden.py"],
+        }
+        self.assertEqual(
+            prepare_verification_plan(self.state, self.db, off_catalog_task, self.cfg).identity(),
+            bound_plan.identity(),
+        )
+        self.cfg["integration_policy_sha256"] = "9" * 64
+        with self.assertRaisesRegex(ValueError, "bound_verifier_integration_policy_mismatch"):
+            prepare_verification_plan(self.state, self.db, off_catalog_task, self.cfg)
+        self.cfg["integration_policy_sha256"] = integration_policy_sha
+        self.cfg["verifier_manifest_sha256"] = "a" * 64
+        with self.assertRaisesRegex(ValueError, "verifier_manifest"):
+            prepare_verification_plan(self.state, self.db, off_catalog_task, self.cfg)
+        self.cfg.pop("verifier_manifest_sha256")
+
+        off_catalog_attempt = self.db.claim(off_catalog_id, "synthetic-off-catalog-owner")
+        self.assertIsNotNone(off_catalog_attempt)
+        attempt_root = self.state / "attempts" / str(off_catalog_attempt["id"])
+        with (
+            patch.object(supervisor, "metered_client", side_effect=AssertionError("dispatch")),
+            patch.object(supervisor.subprocess, "Popen", side_effect=AssertionError("spawn")),
+        ):
+            supervisor.run_attempt(self.state, off_catalog_attempt["id"])
+        self.assertEqual(self.db.get_task(off_catalog_id)["state"], "failed")
+        self.assertEqual(self.db.events()[-1]["kind"], "attempt_failed")
+        self.assertEqual(
+            self.db.events()[-1]["body"]["reason"],
+            "verifier_plan_unqualified:verifier_manifest_not_qualified",
+        )
+        self.assertFalse(attempt_root.exists())
+
     def test_accepted_intent_after_publish_recovers_without_republish(self):
         self.candidate()
         self.intent()

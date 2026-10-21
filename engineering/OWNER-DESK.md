@@ -3,7 +3,9 @@
 ### Текущая работа — 2026-10-21
 
 Native Goal `01a15f55-903b-7de2-adec-19733734ac78` проверен как `active` и остаётся единственным
-владельцем инженерной разработки. Сквозной синтетический тест проходит через настоящий `plan_next`
+владельцем инженерной разработки после контролируемой передачи от приостановленной Goal
+`01a15b1c-c263-71b0-bfca-c5b46d17a89b`; история, счётчики и handoff сохранены. Сквозной синтетический
+тест проходит через настоящий `plan_next`
 для двух допустимых карточек с локальными детерминированными ответами mock-модели, без live provider.
 Planner основывает следующую задачу на активном GitGate ref; тест проверяет, что её base SHA равен
 уже интегрированному кандидату. Допуск карточки и terminal planning decision теперь атомарны;
@@ -376,6 +378,18 @@ release gate. Sol независимо проверяет точный канд�
 следуют универсальная привязка задачи к verifier, восстановление после отказов, координация отделов
 и испытания длительностью 24 часа, 72 часа и семь суток. Условия подробно записаны в
 `docs/engineering-organization.md`.
+
+В интегрированный synthetic path добавлен off-catalog PLAT-003 на текущем tip PLAT-002. Store теперь
+сверяет digest task spec с точными canonical bytes опубликованного контракта; для v2 перепроверяет
+transition hash, activation, integrated producer и provenance ACK. Повреждённое содержимое, замена
+`1` на `true` в activation и исчезновение строки spec блокируют readiness/claim и verifier fallback.
+Изменённый каталог не заменяет сохранённый verifier binding. Настоящий `run_attempt` PLAT-003
+заканчивается до checkout, worker dispatch, transport и spawn, потому что verifier manifest/executable
+остаётся неквалифицированным. Sol принял точный diff
+`04f44369c5a2434a6136b835ad2a8e90a897b6a20417f1cee3bd892778c230f9`; release gate: Ruff/format,
+617 тестов, 189 subtests; `make smoke` воспроизводим с `edge_established=false`. Это закрывает
+bounded A04 admission-to-gate vertical, но не off-catalog execution, полную A04 qualification,
+provider/runtime или operational release. A03 и Pilot STOP остаются.
 
 ### Исторический снимок владельца на этапе аудита
 

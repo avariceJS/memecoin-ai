@@ -164,7 +164,10 @@ def prepare_verification_plan(state: Path, db: Store, task: dict, cfg: dict) -> 
     task_id = task.get("id") if type(task) is dict else None
     if type(task_id) is not str or not task_id:
         raise VerificationPlanError("invalid_verification_task")
-    saved_spec = db.get_task_spec(task_id)
+    try:
+        saved_spec = db.get_task_spec(task_id)
+    except StateError as exc:
+        raise VerificationPlanError(str(exc)) from None
     bound_verifiers: tuple[BoundVerifier, ...] = ()
     interpreter_path: str | None = None
     interpreter_sha256: str | None = None

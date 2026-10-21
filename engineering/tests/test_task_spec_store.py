@@ -26,6 +26,7 @@ from engineering.verification_plan import (
 from engineering.verifier_result import validate_verifier_result
 
 H = "a" * 64
+CONTRACT_SHA = hashlib.sha256(b'{"synthetic":true}').hexdigest()
 BASE = "b" * 40
 POLICY = "c" * 64
 SCOPE = ["engineering/org_state.py", "engineering/tests/test_task_spec_store.py"]
@@ -39,7 +40,7 @@ SPEC = {
     "base_sha": BASE,
     "scope": SCOPE,
     "dependencies": [],
-    "contracts": {"store-api": {"version": 1, "proposal_sha256": H}},
+    "contracts": {"store-api": {"version": 1, "proposal_sha256": CONTRACT_SHA}},
     "risk": "low",
     "capabilities": ["offline_code", "synthetic_tests"],
     "resources": {"max_attempts": 2, "max_turn_seconds": 600, "estimated_wpu": 1},
@@ -54,7 +55,7 @@ ENVELOPE = {
     "capabilities": ["offline_code", "synthetic_tests"],
     "max_attempts": 3,
     "max_turn_seconds": 600,
-    "allowed_contracts": {"store-api": {"1": H}},
+    "allowed_contracts": {"store-api": {"1": CONTRACT_SHA}},
     "base_sha": BASE,
     "risk_levels": ["low"],
 }
@@ -108,6 +109,95 @@ class TaskSpecStoreTests(unittest.TestCase):
         }
         args.update(kwargs)
         return self.store.admit_task_spec(copy.deepcopy(SPEC), **args)
+
+    def test_admission_rejects_digest_consistent_envelope_for_wrong_store_contract(self):
+        forged = copy.deepcopy(SPEC)
+        forged_digest = "9" * 64
+        forged["contracts"]["store-api"]["proposal_sha256"] = forged_digest
+        envelope = copy.deepcopy(ENVELOPE)
+        envelope["allowed_contracts"]["store-api"]["1"] = forged_digest
+        registry = copy.deepcopy(REGISTRY)
+        registry["atomic-spec-store"]["contracts"] = copy.deepcopy(forged["contracts"])
+        before = self.store.events()
+        with self.assertRaisesRegex(StateError, "task_spec_contract_hash_mismatch"):
+            self.store.admit_task_spec(
+                forged,
+                envelope=envelope,
+                acceptance_registry=registry,
+                policy_sha256=POLICY,
+                admission=copy.deepcopy(ADMISSION),
+            )
+        self.assertIsNone(
+            self.store.db.execute("SELECT 1 FROM tasks WHERE id=?", (forged["id"],)).fetchone()
+        )
+        self.assertIsNone(self.store.get_task_spec(forged["id"]))
+        self.assertEqual(self.store.events(), before)
+
+    def test_contract_content_drift_blocks_readiness_and_execution_binding(self):
+        self.admit(
+            verifier_registry=copy.deepcopy(VERIFIER_REGISTRY),
+            controller_release_sha256="e" * 64,
+            integration_policy_sha256="f" * 64,
+        )
+        self.store.db.execute(
+            "UPDATE contracts SET body=? WHERE name=? AND version=?",
+            ('{"synthetic":false}', "store-api", 1),
+        )
+        self.assertEqual(self.store.ready_tasks(), [])
+        row = next(item for item in self.store.readiness_report() if item["task_id"] == SPEC["id"])
+        self.assertFalse(row["eligible"])
+        self.assertIn(
+            {"kind": "contract_binding", "reason": "task_spec_contract_hash_mismatch"},
+            row["blockers"],
+        )
+        with self.assertRaisesRegex(StateError, "task_spec_contract_hash_mismatch"):
+            self.store.resolve_task_execution_binding(
+                SPEC["id"], controller_release_sha256="e" * 64
+            )
+
+    def test_noncanonical_equivalent_contract_bytes_block_readiness_and_execution(self):
+        self.admit(
+            verifier_registry=copy.deepcopy(VERIFIER_REGISTRY),
+            controller_release_sha256="e" * 64,
+            integration_policy_sha256="f" * 64,
+        )
+        self.store.db.execute(
+            "UPDATE contracts SET body=? WHERE name=? AND version=?",
+            ('{ "synthetic" : true }', "store-api", 1),
+        )
+        self.assertEqual(self.store.ready_tasks(), [])
+        row = next(item for item in self.store.readiness_report() if item["task_id"] == SPEC["id"])
+        self.assertIn(
+            {"kind": "contract_binding", "reason": "task_spec_contract_hash_mismatch"},
+            row["blockers"],
+        )
+        with self.assertRaisesRegex(StateError, "task_spec_contract_hash_mismatch"):
+            self.store.resolve_task_execution_binding(
+                SPEC["id"], controller_release_sha256="e" * 64
+            )
+
+    def test_deleted_admitted_spec_cannot_become_legacy_catalogue_task(self):
+        self.admit()
+        self.store.db.execute("DELETE FROM task_specs WHERE task_id=?", (SPEC["id"],))
+        self.assertEqual(self.store.ready_tasks(), [])
+        self.assertIsNone(self.store.claim(SPEC["id"], "synthetic-worker"))
+        row = next(item for item in self.store.readiness_report() if item["task_id"] == SPEC["id"])
+        self.assertIn(
+            {"kind": "task_spec_binding", "reason": "admitted_task_spec_missing"},
+            row["blockers"],
+        )
+        with self.assertRaisesRegex(StateError, "admitted_task_spec_missing"):
+            self.store.get_task_spec(SPEC["id"])
+        with self.assertRaisesRegex(VerificationPlanError, "admitted_task_spec_missing"):
+            prepare_verification_plan(
+                Path(self.tmp.name),
+                self.store,
+                self.store.get_task(SPEC["id"]),
+                {
+                    "python": sys.executable,
+                    "tasks": {SPEC["id"]: {"checks": [["forged-legacy-check"]]}},
+                },
+            )
 
     def test_admission_persists_canonical_snapshot_and_detached_getter(self):
         self.assertEqual(self.admit(), SPEC["id"])
