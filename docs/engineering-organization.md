@@ -1125,3 +1125,15 @@ added. Review receipt:
 gate receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-owner-history-head-gate-20261021.json`
 (SHA-256 `88ac386d694a08cffe670b33f63064401634e6ee8d2d6bf71f66deae99fe8c36`).
+
+At `9d168e1`, global contract-review replay discovery now executes a shared SQL constant whose
+regression test inspects `EXPLAIN QUERY PLAN` for a covering primary-key range on decision names.
+Sol-6.1 High accepted the exact diff `4bc517f672af01c74383961d65721f38d7da98076d33a43ac3b13339bdf40af7`;
+the focused transition suite passed 55 tests and `make engineering-release-check` passed Ruff,
+445 tests and 101 subtests. This planner assertion is tied to the installed Python 3.13.6 / SQLite
+3.53.4 environment and does not establish bounded query time, index work, or process memory. A03,
+broad A10, and operational acceptance remain open; no provider, runtime, or service authority was
+added. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-global-replay-query-plan-review-20261021.json`;
+gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-global-replay-query-plan-gate-20261021.json`.

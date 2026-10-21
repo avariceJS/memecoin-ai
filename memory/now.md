@@ -350,3 +350,8 @@ review/publication. Same-inode launch, continuous/descendant identity, loader cl
 provenance, deployment and full A04 remain open; spec plans stay `execution_qualified=False`. STOP
 remains active. Receipts: `a04-all-command-binding-review-20261021.json`,
 `a04-all-command-binding-gate-20261021.json`.
+- A10 global replay plan regression is source-committed at `9d168e1`; the exact SQL constant is
+  exercised by `EXPLAIN QUERY PLAN` and currently selects the decision primary-key covering range.
+  Sol accepted exact diff; focused suite passed 55 and engineering gate passed 445 tests/101
+  subtests with Ruff. This is SQLite 3.53.4 planner evidence only, not a bound on query work/time or
+  memory. Receipt paths and exact limits are in `docs/engineering-organization.md`.
