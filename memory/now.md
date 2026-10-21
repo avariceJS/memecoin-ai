@@ -64,6 +64,11 @@ automatically.
   focused suite passed 30/3 subtests and the release gate passed 449/101 with Ruff. B-tree/time/memory
   and owner-history bounds, consumer/generation and runtime qualification remain open. Receipt:
   `a05-lifecycle-request-indexed-seek-review-20261021.json`.
+- A05 request retries/worklists now reject non-NULL immutable root links before body hydration and
+  enforce the 64 KiB body ceiling on legacy retries. Sol accepted exact diff `ba182fd8`; focused
+  tests passed 38/3 subtests and the full gate passed 489/101 with Ruff. SQLite work and runtime
+  qualification remain open; no consumer or authorization generation exists. Receipt:
+  `a05-lifecycle-request-root-link-review-20261021.json`.
 - A10 source `274c380` preflights selected review-journal history and byte sizes before advisory
   worklist hydration; public overflow errors and quiescence returns unknown-count/no-partial results.
   Sol-6.1 High accepted; focused suite passed 59 and release gate passed 451/101 with Ruff. SQLite

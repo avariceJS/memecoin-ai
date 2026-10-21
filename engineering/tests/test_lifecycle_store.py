@@ -317,6 +317,66 @@ class LifecycleStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(StateError, "lifecycle_request_byte_limit"):
             self.store.lifecycle_request_worklist()
 
+    def test_request_worklist_rejects_nonroot_history_links_before_hydration(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        request = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        self.store.db.execute(
+            "UPDATE decisions SET replaces=?,replaces_version=1 WHERE name=? AND version=1",
+            ("x" * (2 * 1024 * 1024), request["id"]),
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_request_history_invalid"):
+            self.store.lifecycle_request_worklist()
+
+    def test_request_worklist_rejects_malformed_utf8_link_without_decoding_it(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        request = self.store.record_lifecycle_evaluation(lease, launch_observations())
+        self.store.db.execute(
+            "UPDATE decisions SET replaces=CAST(X'80' AS TEXT) WHERE name=? AND version=1",
+            (request["id"],),
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_request_history_invalid"):
+            self.store.lifecycle_request_worklist()
+
+    def test_request_retry_rejects_malformed_root_link_before_body_hydration(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        observations = launch_observations()
+        request = self.store.record_lifecycle_evaluation(lease, observations)
+        self.store.db.execute(
+            "UPDATE decisions SET replaces=NULL,replaces_version=1 WHERE name=? AND version=1",
+            (request["id"],),
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_request_history_invalid"):
+            self.store.record_lifecycle_evaluation(lease, observations)
+
+    def test_request_retry_rejects_malformed_utf8_link_before_body_decoding(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        observations = launch_observations()
+        request = self.store.record_lifecycle_evaluation(lease, observations)
+        self.store.db.execute(
+            "UPDATE decisions SET replaces=CAST(X'80' AS TEXT),body=CAST(X'80' AS TEXT) "
+            "WHERE name=? AND version=1",
+            (request["id"],),
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_request_history_invalid"):
+            self.store.record_lifecycle_evaluation(lease, observations)
+
+    def test_request_retry_rejects_oversized_body_before_json_hydration(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        observations = launch_observations()
+        request = self.store.record_lifecycle_evaluation(lease, observations)
+        oversized = json.dumps("x" * (64 * 1024), separators=(",", ":"))
+        self.store.db.execute(
+            "UPDATE decisions SET body=? WHERE name=? AND version=1",
+            (oversized, request["id"]),
+        )
+
+        with self.assertRaisesRegex(StateError, "lifecycle_request_byte_limit"):
+            self.store.record_lifecycle_evaluation(lease, observations)
+
     def test_lifecycle_evaluation_rejects_oversized_request_before_persistence(self):
         lease = self.store.claim_lifecycle_owner("owner")
         observations = launch_observations(stop_reasons=["x" * (64 * 1024)])
@@ -681,6 +741,22 @@ class LifecycleStoreTests(unittest.TestCase):
             "VALUES(?,0,?,NULL,NULL)",
             (first["id"], body),
         )
+        with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
+            self.store.record_lifecycle_evaluation(lease, observations)
+
+    def test_gapped_request_history_preserves_decision_history_error(self):
+        lease = self.store.claim_lifecycle_owner("owner")
+        observations = launch_observations()
+        first = self.store.record_lifecycle_evaluation(lease, observations)
+        body = self.store.db.execute(
+            "SELECT body FROM decisions WHERE name=? AND version=1", (first["id"],)
+        ).fetchone()[0]
+        self.store.db.execute(
+            "INSERT INTO decisions(name,version,body,replaces,replaces_version) "
+            "VALUES(?,3,?,NULL,NULL)",
+            (first["id"], body),
+        )
+
         with self.assertRaisesRegex(StateError, "lifecycle_decision_history_invalid"):
             self.store.record_lifecycle_evaluation(lease, observations)
 

@@ -1272,6 +1272,22 @@ Review receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-a10-bounded-journal-name-gate-20261021.json`
 (SHA-256 `4de7f0247e44be290ea586accf7347091ed5e378b351b6ea01864cf2866371fe`).
 
+At the source candidate based on `bf64e3d`, A05 lifecycle request retry and worklist reads now require
+the singleton version's `replaces` and `replaces_version` fields to both be NULL. SQL validates this
+root-link condition without projecting the raw link values. Retry checks aggregate version continuity
+and serialized body size before selecting or decoding the body; worklist keeps its aggregate byte
+preflight and then selects only `name`, `version`, and `body` inside the same read snapshot. Regressions
+cover a 2 MiB link, malformed UTF-8 links (with malformed body behind an invalid link on retry), an
+oversized legacy body, and gapped version history. Sol accepted exact diff
+`ba182fd800676899ecf66b05f05287dbcff269c65858b524540cae6c31f29968` with no P1-P3 findings. Focused
+tests passed 38 tests/3 subtests; the engineering release gate passed Ruff, 489 tests and 101 subtests.
+SQLite history scans and internal work/memory remain unbounded. The change adds no consumer or
+authorization generation; A05 runtime and operational acceptance remain open. Review receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-root-link-review-20261021.json`
+(SHA-256 `e74ce3ff8b89a3714a0f79e15ed34c4c37bc5f4dc72c207328a6621a012a2fec`); gate receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a05-lifecycle-request-root-link-gate-20261021.json`
+(SHA-256 `5dad98bdb42da7510ef2dead297a7c02c6caef06227614af39c64b3029f625f8`).
+
 At `67058bf`, contract-review journal reads used at dispatch, session, response custody and
 finalization now validate at most five versions and project each body only when its serialized
 size is at most 512 KiB, in one SQLite statement before JSON hydration. All five append paths also

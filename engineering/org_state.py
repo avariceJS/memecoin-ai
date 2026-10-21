@@ -3472,16 +3472,59 @@ class Store:
             body["observations"] = observations
         if len(_json(body).encode("utf-8")) > _LIFECYCLE_REQUEST_MAX_BYTES:
             raise StateError("lifecycle_request_byte_limit")
-        versions = self._lifecycle_decision_versions(name)
-        old = self.get_decision(name)
-        if old is not None:
-            if versions != [1] or old["version"] != 1:
+        history = self.db.execute(
+            "SELECT COUNT(*) AS version_count,MIN(version) AS first_version,"
+            "MAX(version) AS last_version,"
+            "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) AS invalid_versions "
+            "FROM decisions WHERE name=?",
+            (name,),
+        ).fetchone()
+        version_count = history["version_count"]
+        first_version, last_version = history["first_version"], history["last_version"]
+        if type(version_count) is not int:
+            raise StateError("lifecycle_decision_history_invalid")
+        if version_count and (
+            history["invalid_versions"] != 0
+            or type(first_version) is not int
+            or type(last_version) is not int
+            or first_version != 1
+            or last_version != version_count
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
+        if version_count > 1:
+            raise StateError("lifecycle_request_history_invalid")
+        old = None
+        if version_count:
+            row = self.db.execute(
+                "SELECT version,length(CAST(body AS BLOB)) AS body_bytes,"
+                "CASE WHEN replaces IS NULL AND replaces_version IS NULL THEN 1 ELSE 0 END "
+                "AS root_valid FROM decisions WHERE name=? AND version=1",
+                (name,),
+            ).fetchone()
+            if row is None:
+                raise StateError("lifecycle_decision_history_invalid")
+            if row["root_valid"] != 1:
                 raise StateError("lifecycle_request_history_invalid")
+            request_bytes = row["body_bytes"]
+            if type(request_bytes) is not int or request_bytes < 0:
+                raise StateError("lifecycle_request_invalid")
+            if request_bytes > _LIFECYCLE_REQUEST_MAX_BYTES:
+                raise StateError("lifecycle_request_byte_limit")
+            old_row = self.db.execute(
+                "SELECT body FROM decisions "
+                "WHERE name=? AND version=1 AND replaces IS NULL AND replaces_version IS NULL",
+                (name,),
+            ).fetchone()
+            if old_row is None:
+                raise StateError("lifecycle_request_history_invalid")
+            try:
+                old = {"name": name, "version": 1, "body": json.loads(old_row["body"])}
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+                raise StateError("lifecycle_request_invalid") from None
+        if old is not None:
             if _json(old["body"]) != _json(body):
                 raise StateError("lifecycle_request_identity_conflict")
             return {"id": name, "version": old["version"], "body": old["body"]}
-        if versions:
-            raise StateError("lifecycle_request_history_invalid")
         version = self._put_decision_in_transaction(name, body)
         return {"id": name, "version": version, "body": body}
 
@@ -3538,11 +3581,13 @@ class Store:
             if re.fullmatch(r"lifecycle/request/[0-9a-f]{64}", name) is None:
                 raise StateError("lifecycle_request_identity_invalid")
             history = self.db.execute(
-                "SELECT version, length(CAST(body AS BLOB)) AS body_bytes FROM decisions "
+                "SELECT version, length(CAST(body AS BLOB)) AS body_bytes, "
+                "CASE WHEN replaces IS NULL AND replaces_version IS NULL THEN 1 ELSE 0 END "
+                "AS root_valid FROM decisions "
                 "WHERE name=? ORDER BY version LIMIT 2",
                 (name,),
             ).fetchall()
-            if [item["version"] for item in history] != [1]:
+            if [item["version"] for item in history] != [1] or history[0]["root_valid"] != 1:
                 raise StateError("lifecycle_request_history_invalid")
             request_bytes = history[0]["body_bytes"]
             if type(request_bytes) is not int or request_bytes < 0:
@@ -3560,10 +3605,18 @@ class Store:
             match = re.fullmatch(r"lifecycle/request/([0-9a-f]{64})", name)
             if match is None:
                 raise StateError("lifecycle_request_identity_invalid")
-            record = self.get_decision(name)
-            if record is None or record["version"] != 1 or request_sizes.get(name) is None:
+            row = self.db.execute(
+                "SELECT name,version,body FROM decisions "
+                "WHERE name=? AND version=1 AND replaces IS NULL AND replaces_version IS NULL",
+                (name,),
+            ).fetchone()
+            if row is None or request_sizes.get(name) is None:
                 raise StateError("lifecycle_request_history_invalid")
-            body = record["body"]
+            try:
+                body = json.loads(row["body"])
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+                raise StateError("lifecycle_request_invalid") from None
+            record_version = row["version"]
             if type(body) is not dict or set(body) not in (
                 {"owner", "epoch", "plan"},
                 {"owner", "epoch", "plan", "observations"},
@@ -3675,7 +3728,7 @@ class Store:
                 {
                     "request_id": match.group(1),
                     "decision_name": name,
-                    "journal_version": record["version"],
+                    "journal_version": record_version,
                     "owner": request_owner,
                     "epoch": request_epoch,
                     "action": plan["action"],
