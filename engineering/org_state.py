@@ -1528,9 +1528,13 @@ class Store:
             rows = self.db.execute(
                 "SELECT version, CASE WHEN length(CAST(body AS BLOB))<="
                 f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES} THEN body END AS bounded_body, "
-                "length(CAST(body AS BLOB)) AS body_bytes,replaces,replaces_version "
+                "length(CAST(body AS BLOB)) AS body_bytes, "
+                "CASE WHEN replaces IS NULL OR replaces=? THEN replaces END AS bounded_replaces, "
+                "CASE WHEN (version=1 AND replaces IS NULL) "
+                "OR (version>1 AND replaces=?) THEN 1 ELSE 0 END AS replaces_valid, "
+                "replaces_version "
                 "FROM decisions WHERE name=? ORDER BY version LIMIT 6",
-                (key,),
+                (key, key, key),
             ).fetchall()
         else:
             rows = self.db.execute(
@@ -1545,6 +1549,8 @@ class Store:
         if bounded_replay:
             history_bytes = 0
             for row in rows:
+                if row["replaces_valid"] != 1:
+                    raise StateError("contract review history invalid")
                 size = row["body_bytes"]
                 if (
                     type(size) is not int
@@ -1570,6 +1576,7 @@ class Store:
         }
         for row in rows:
             body = json.loads(row["bounded_body"])
+            replaces = row["bounded_replaces"] if bounded_replay else row["replaces"]
             if (
                 type(body) is not dict
                 or body.get("kind") != "contract_review_request"
@@ -1583,7 +1590,7 @@ class Store:
                     "approved",
                     "blocked",
                 }
-                or row["replaces"] != (key if previous is not None else None)
+                or replaces != (key if previous is not None else None)
                 or row["replaces_version"] != (row["version"] - 1 if previous is not None else None)
             ):
                 raise StateError("contract review history invalid")

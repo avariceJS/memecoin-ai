@@ -491,6 +491,20 @@ def test_contract_review_dispatch_does_not_hydrate_oversized_body(store):
             store.begin_contract_review_dispatch(request_id, "0" * 64)
 
 
+def test_bounded_contract_review_rejects_oversized_replaces_before_hydration(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.db.execute(
+        "UPDATE decisions SET replaces=? WHERE name=? AND version=2",
+        ("r" * (256 * 1024), request["name"]),
+    )
+
+    with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
+        with pytest.raises(StateError, match="contract review history invalid"):
+            store._contract_review_record(body["request_id"], bounded_replay=True)
+
+
 def test_contract_review_session_write_cannot_exceed_later_read_bound(store):
     request = prepare_review(store)
     body = request["body"]
