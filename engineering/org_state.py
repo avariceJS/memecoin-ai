@@ -1304,6 +1304,510 @@ class Store:
         team_id = hashlib.sha256(team.encode("utf-8")).hexdigest()
         return f"contract-ack/{contract_id}/{version}/{team_id}"
 
+    @staticmethod
+    def _contract_review_key(request_id: str) -> str:
+        if type(request_id) is not str or not re.fullmatch(r"[0-9a-f]{64}", request_id):
+            raise StateError("contract review request identity invalid")
+        return f"contract-review/{request_id}"
+
+    @staticmethod
+    def _contract_review_digest(value: Any) -> str:
+        return hashlib.sha256(_json(value).encode("utf-8")).hexdigest()
+
+    def _contract_review_record(self, request_id: str) -> dict | None:
+        key = self._contract_review_key(request_id)
+        rows = self.db.execute(
+            "SELECT version,body,replaces,replaces_version FROM decisions "
+            "WHERE name=? ORDER BY version",
+            (key,),
+        ).fetchall()
+        if not rows:
+            return None
+        if [row["version"] for row in rows] != list(range(1, len(rows) + 1)):
+            raise StateError("contract review history invalid")
+        previous = None
+        record = None
+        allowed_status = {
+            None: {"prepared"},
+            "prepared": {"dispatching"},
+            "dispatching": {"thread_known"},
+            "thread_known": {"approved", "blocked"},
+        }
+        for row in rows:
+            body = json.loads(row["body"])
+            if (
+                type(body) is not dict
+                or body.get("kind") != "contract_review_request"
+                or body.get("request_id") != request_id
+                or body.get("status")
+                not in {"prepared", "dispatching", "thread_known", "approved", "blocked"}
+                or row["replaces"] != (key if previous is not None else None)
+                or row["replaces_version"] != (row["version"] - 1 if previous is not None else None)
+            ):
+                raise StateError("contract review history invalid")
+            if body["status"] not in allowed_status.get(
+                previous.get("status") if previous is not None else None, set()
+            ):
+                raise StateError("contract review state transition invalid")
+            if previous is not None and any(
+                body.get(field) != previous.get(field)
+                for field in (
+                    "request_id",
+                    "proposal_digest",
+                    "contract_hash",
+                    "name",
+                    "version",
+                    "team",
+                    "role",
+                    "evidence_revision",
+                    "packet",
+                    "packet_hash",
+                    "dispatch_id",
+                )
+            ):
+                raise StateError("contract review identity changed")
+            if (
+                previous is not None
+                and "session" in previous
+                and body.get("session") != previous["session"]
+            ):
+                raise StateError("contract review session identity changed")
+            if body["status"] == "prepared" and any(
+                field in body for field in ("session", "raw_sha256", "result")
+            ):
+                raise StateError("contract review prepared state invalid")
+            if body["status"] == "dispatching" and any(
+                field in body for field in ("session", "raw_sha256", "result")
+            ):
+                raise StateError("contract review dispatch state invalid")
+            if body["status"] == "thread_known":
+                session = body.get("session")
+                if (
+                    type(session) is not dict
+                    or set(session)
+                    != {"thread_id", "model", "turn_dispatch_id", "process_identity"}
+                    or any(
+                        type(session[field]) is not str or not session[field]
+                        for field in ("thread_id", "model", "turn_dispatch_id")
+                    )
+                    or type(session["process_identity"]) is not dict
+                    or set(session["process_identity"]) != {"pid", "birth"}
+                    or type(session["process_identity"]["pid"]) is not int
+                    or session["process_identity"]["pid"] <= 0
+                    or type(session["process_identity"]["birth"]) is not str
+                    or "raw_sha256" in body
+                    or "result" in body
+                ):
+                    raise StateError("contract review session state invalid")
+            if body["status"] in ("approved", "blocked") and (
+                "session" not in body
+                or type(body.get("raw_sha256")) is not str
+                or not re.fullmatch(r"[0-9a-f]{64}", body["raw_sha256"])
+                or type(body.get("result")) is not dict
+                or type(body.get("model_result")) is not dict
+                or type(body.get("blocking_reasons")) is not list
+            ):
+                raise StateError("contract review result state invalid")
+            previous, record = body, {"name": key, "version": row["version"], "body": body}
+        return record
+
+    def prepare_contract_review(
+        self, name: str, version: int, team: str, evidence_revision: str, packet: Any
+    ) -> dict:
+        """Persist one immutable, task-independent review request for exact evidence."""
+        if (
+            type(name) is not str
+            or not name.strip()
+            or type(version) is not int
+            or version < 2
+            or type(team) is not str
+            or not team.strip()
+            or type(evidence_revision) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", evidence_revision)
+        ):
+            raise StateError("contract review identity invalid")
+        try:
+            submitted = json.loads(_json(packet))
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract review packet invalid") from None
+        required_packet = {
+            "source_commit",
+            "evidence_refs",
+            "compatibility_analysis",
+            "migration_plan",
+        }
+        if (
+            type(submitted) is not dict
+            or set(submitted) != required_packet
+            or type(submitted["source_commit"]) is not str
+            or not re.fullmatch(r"[0-9a-f]{40}", submitted["source_commit"])
+            or type(submitted["evidence_refs"]) is not list
+            or not submitted["evidence_refs"]
+            or len(submitted["evidence_refs"]) > 100
+            or type(submitted["compatibility_analysis"]) is not str
+            or not submitted["compatibility_analysis"].strip()
+            or len(submitted["compatibility_analysis"]) > 8000
+            or (
+                submitted["migration_plan"] is not None
+                and (
+                    type(submitted["migration_plan"]) is not str
+                    or not submitted["migration_plan"].strip()
+                    or len(submitted["migration_plan"]) > 8000
+                )
+            )
+        ):
+            raise StateError("contract review packet shape invalid")
+        refs = []
+        for item in submitted["evidence_refs"]:
+            if (
+                type(item) is not dict
+                or set(item) != {"ref", "sha256"}
+                or type(item["ref"]) is not str
+                or not item["ref"].strip()
+                or len(item["ref"]) > 512
+                or type(item["sha256"]) is not str
+                or not re.fullmatch(r"[0-9a-f]{64}", item["sha256"])
+            ):
+                raise StateError("contract review evidence reference invalid")
+            refs.append(item["ref"])
+        if len(set(refs)) != len(refs):
+            raise StateError("contract review evidence references must be unique")
+        key = self._contract_transition_key(name, version)
+        with self._tx():
+            transition = self._single_contract_decision(key)
+            if transition is None:
+                raise StateError("contract transition proposal missing")
+            proposal = self._validated_contract_transition(transition["body"], name, version)
+            current = self.db.execute(
+                "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
+            ).fetchone()[0]
+            if current != proposal["from_version"]:
+                raise StateError("contract review proposal is no longer current")
+            participants = [proposal["producer_team"], *proposal["consumer_teams"]]
+            if team not in participants:
+                raise StateError("contract review team is not a participant")
+            producer_task_row = self.db.execute(
+                "SELECT id FROM tasks WHERE id=?", (proposal["producer_task_id"],)
+            ).fetchone()
+            if producer_task_row is None:
+                raise StateError("contract review producer task is unavailable")
+            team_tasks = self.db.execute(
+                "SELECT id FROM tasks WHERE team=? ORDER BY id LIMIT 101", (team,)
+            ).fetchall()
+            if len(team_tasks) > 100:
+                raise StateError("contract review participant task inventory exceeds bound")
+            task_inventory = [self._task(row["id"]) for row in team_tasks]
+            prior_contract = self.db.execute(
+                "SELECT version,body FROM contracts WHERE name=? AND version=?",
+                (name, proposal["from_version"]),
+            ).fetchone()
+            if prior_contract is None:
+                raise StateError("contract review source contract is unavailable")
+            ack_key = self._contract_ack_key(name, version, team)
+            ack = self._single_contract_decision(ack_key)
+            if ack is not None:
+                self._validated_contract_ack(
+                    ack["body"], name, version, team, proposal["contract_hash"]
+                )
+                raise StateError("contract participant already acknowledged")
+            proposal_digest = self._contract_review_digest(proposal)
+            detached = {
+                "name": name,
+                "from_version": proposal["from_version"],
+                "to_version": proposal["to_version"],
+                "contract_hash": proposal["contract_hash"],
+                "proposal_digest": proposal_digest,
+                "participant_team": team,
+                "participant_role": (
+                    "producer" if team == proposal["producer_team"] else "consumer"
+                ),
+                "source_commit": submitted["source_commit"],
+                "producer_task": self._task(proposal["producer_task_id"]),
+                "old_contract": {
+                    "version": prior_contract["version"],
+                    "body": json.loads(prior_contract["body"]),
+                },
+                "proposed_contract": proposal["body"],
+                "participant_tasks": task_inventory,
+                "affected_consumer_task_ids": [task["id"] for task in task_inventory],
+                "compatibility_analysis": submitted["compatibility_analysis"],
+                "compatibility_evidence": submitted["evidence_refs"],
+                "migration_plan": submitted["migration_plan"],
+                "evidence_refs": refs,
+            }
+            packet_json = _json(detached)
+            if len(packet_json.encode("utf-8")) > 65536:
+                raise StateError("contract review packet exceeds byte bound")
+            packet_hash = hashlib.sha256(packet_json.encode("utf-8")).hexdigest()
+            request_id = self._contract_review_digest([proposal_digest, team, evidence_revision])
+            existing = self._contract_review_record(request_id)
+            if existing is not None:
+                body = existing["body"]
+                if (
+                    body["proposal_digest"] != proposal_digest
+                    or body["contract_hash"] != proposal["contract_hash"]
+                    or body["packet_hash"] != packet_hash
+                    or body["packet"] != detached
+                ):
+                    raise StateError("contract review request identity conflict")
+                return existing
+            body = {
+                "kind": "contract_review_request",
+                "status": "prepared",
+                "request_id": request_id,
+                "proposal_digest": proposal_digest,
+                "contract_hash": proposal["contract_hash"],
+                "name": name,
+                "version": version,
+                "team": team,
+                "role": "producer" if team == proposal["producer_team"] else "consumer",
+                "evidence_revision": evidence_revision,
+                "packet": detached,
+                "packet_hash": packet_hash,
+                "dispatch_id": "contract-review:" + request_id,
+            }
+            self._put_decision_in_transaction(self._contract_review_key(request_id), body)
+            return {"name": self._contract_review_key(request_id), "version": 1, "body": body}
+
+    def begin_contract_review_dispatch(self, request_id: str, packet_hash: str) -> dict:
+        """Write the one-shot dispatch intent before any metered provider call."""
+        if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
+            raise StateError("contract review packet hash invalid")
+        with self._tx():
+            current = self._contract_review_record(request_id)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if body["packet_hash"] != packet_hash:
+                raise StateError("contract review packet changed")
+            if body["status"] != "prepared":
+                raise StateError("contract review dispatch is not sendable")
+            updated = {**body, "status": "dispatching"}
+            self._put_decision_in_transaction(current["name"], updated)
+            return {"name": current["name"], "version": current["version"] + 1, "body": updated}
+
+    def record_contract_review_session(
+        self,
+        request_id: str,
+        packet_hash: str,
+        thread_id: str,
+        model: str,
+        turn_dispatch_id: str,
+        process_identity: Any,
+    ) -> dict:
+        """Persist the exact metered session before issuing its review turn."""
+        for value in (thread_id, model, turn_dispatch_id):
+            _name(value)
+        try:
+            identity = json.loads(_json(process_identity))
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract review process identity invalid") from None
+        if (
+            type(identity) is not dict
+            or set(identity) != {"pid", "birth"}
+            or type(identity["pid"]) is not int
+            or identity["pid"] <= 0
+            or type(identity["birth"]) is not str
+            or not identity["birth"]
+        ):
+            raise StateError("contract review process identity invalid")
+        session = {
+            "thread_id": thread_id,
+            "model": model,
+            "turn_dispatch_id": turn_dispatch_id,
+            "process_identity": identity,
+        }
+        with self._tx():
+            current = self._contract_review_record(request_id)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if body["packet_hash"] != packet_hash:
+                raise StateError("contract review session is stale")
+            if "session" in body:
+                if body["session"] != session:
+                    raise StateError("contract review session identity changed")
+                return current
+            if body["status"] != "dispatching":
+                raise StateError("contract review session is stale")
+            updated = {**body, "status": "thread_known", "session": session}
+            self._put_decision_in_transaction(current["name"], updated)
+            return {"name": current["name"], "version": current["version"] + 1, "body": updated}
+
+    def finish_contract_review(
+        self, request_id: str, packet_hash: str, raw_sha256: str, result: Any
+    ) -> dict:
+        """Commit immutable review evidence and any exact acknowledgement atomically."""
+        if (
+            type(packet_hash) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", packet_hash)
+            or type(raw_sha256) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", raw_sha256)
+        ):
+            raise StateError("contract review evidence hash invalid")
+        try:
+            detached = json.loads(_json(result))
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract review result invalid") from None
+        required = {
+            "decision",
+            "compatibility",
+            "rationale",
+            "findings",
+            "reviewed_evidence_refs",
+            "affected_consumers_reviewed",
+            "migration_plan",
+        }
+        if (
+            type(detached) is not dict
+            or set(detached) != required
+            or detached["decision"] not in ("approve", "blocked")
+            or detached["compatibility"] not in ("compatible", "migration_required", "insufficient")
+            or type(detached["rationale"]) is not str
+            or not detached["rationale"].strip()
+            or type(detached["findings"]) is not list
+            or any(type(item) is not str for item in detached["findings"])
+            or type(detached["reviewed_evidence_refs"]) is not list
+            or any(type(item) is not str for item in detached["reviewed_evidence_refs"])
+            or type(detached["affected_consumers_reviewed"]) is not list
+            or any(type(item) is not str for item in detached["affected_consumers_reviewed"])
+            or (
+                detached["migration_plan"] is not None
+                and type(detached["migration_plan"]) is not str
+            )
+        ):
+            raise StateError("contract review result shape invalid")
+        if (
+            len(_json(detached).encode("utf-8")) > 32768
+            or len(detached["rationale"]) > 4000
+            or len(detached["findings"]) > 100
+            or any(len(item) > 1000 for item in detached["findings"])
+            or len(detached["reviewed_evidence_refs"]) > 100
+            or any(len(item) > 512 for item in detached["reviewed_evidence_refs"])
+            or len(detached["affected_consumers_reviewed"]) > 100
+            or any(len(item) > 32768 for item in detached["affected_consumers_reviewed"])
+            or (detached["migration_plan"] is not None and len(detached["migration_plan"]) > 8000)
+        ):
+            raise StateError("contract review result exceeds bound")
+        with self._tx():
+            current = self._contract_review_record(request_id)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if body["packet_hash"] != packet_hash:
+                raise StateError("contract review packet changed")
+            if body["status"] in ("approved", "blocked"):
+                completed = body.get("model_result")
+                if body.get("raw_sha256") != raw_sha256 or completed != detached:
+                    raise StateError("contract review result is immutable")
+                return current
+            if body["status"] != "thread_known":
+                raise StateError("contract review response has no durable session")
+            allowed_refs = body["packet"].get("evidence_refs", [])
+            allowed_consumers = body["packet"].get("affected_consumer_task_ids", [])
+            if (
+                type(allowed_refs) is not list
+                or any(type(ref) is not str for ref in allowed_refs)
+                or type(allowed_consumers) is not list
+                or any(type(task_id) is not str for task_id in allowed_consumers)
+                or len(set(detached["reviewed_evidence_refs"]))
+                != len(detached["reviewed_evidence_refs"])
+                or not set(detached["reviewed_evidence_refs"]).issubset(allowed_refs)
+                or len(set(detached["affected_consumers_reviewed"]))
+                != len(detached["affected_consumers_reviewed"])
+                or not set(detached["affected_consumers_reviewed"]).issubset(allowed_consumers)
+            ):
+                raise StateError("contract review evidence coverage invalid")
+            approved = detached["decision"] == "approve"
+            if approved and (
+                sorted(detached["affected_consumers_reviewed"]) != sorted(allowed_consumers)
+                or detached["compatibility"] == "insufficient"
+                or not detached["reviewed_evidence_refs"]
+                or (
+                    detached["compatibility"] == "migration_required"
+                    and not (detached["migration_plan"] or "").strip()
+                )
+            ):
+                raise StateError("contract review approval lacks compatibility evidence")
+            current_team_tasks = self.db.execute(
+                "SELECT id FROM tasks WHERE team=? ORDER BY id LIMIT 101", (body["team"],)
+            ).fetchall()
+            stale_reasons = []
+            if len(current_team_tasks) > 100:
+                stale_reasons.append(
+                    "participant task inventory exceeds bound after packet preparation"
+                )
+            else:
+                current_inventory = [self._task(row["id"]) for row in current_team_tasks]
+            if len(current_team_tasks) <= 100 and current_inventory != body["packet"].get(
+                "participant_tasks"
+            ):
+                stale_reasons.append("participant task inventory changed after packet preparation")
+            transition = self._single_contract_decision(
+                self._contract_transition_key(body["name"], body["version"])
+            )
+            if transition is None:
+                raise StateError("contract transition proposal missing")
+            proposal = self._validated_contract_transition(
+                transition["body"], body["name"], body["version"]
+            )
+            current_producer = self._task(proposal["producer_task_id"])
+            if current_producer != body["packet"].get("producer_task"):
+                stale_reasons.append("producer task evidence changed after packet preparation")
+            current_version = self.db.execute(
+                "SELECT MAX(version) FROM contracts WHERE name=?", (body["name"],)
+            ).fetchone()[0]
+            if (
+                self._contract_review_digest(proposal) != body["proposal_digest"]
+                or proposal["contract_hash"] != body["contract_hash"]
+                or body["team"] not in [proposal["producer_team"], *proposal["consumer_teams"]]
+            ):
+                raise StateError("contract review proposal changed")
+            if current_version != proposal["from_version"]:
+                stale_reasons.append(
+                    "contract source version changed while this review was pending"
+                )
+            ack_key = self._contract_ack_key(body["name"], body["version"], body["team"])
+            existing_ack = self._single_contract_decision(ack_key)
+            if existing_ack is not None:
+                self._validated_contract_ack(
+                    existing_ack["body"],
+                    body["name"],
+                    body["version"],
+                    body["team"],
+                    body["contract_hash"],
+                )
+                stale_reasons.append("participant was acknowledged while this review was pending")
+            updated = {
+                **body,
+                "status": "approved" if approved and not stale_reasons else "blocked",
+                "raw_sha256": raw_sha256,
+                "model_result": detached,
+                "result": detached,
+                "blocking_reasons": stale_reasons,
+            }
+            self._put_decision_in_transaction(current["name"], updated)
+            if approved and not stale_reasons:
+                if (
+                    self._contract_review_digest(proposal) != body["proposal_digest"]
+                    or proposal["contract_hash"] != body["contract_hash"]
+                    or body["team"] not in [proposal["producer_team"], *proposal["consumer_teams"]]
+                    or current_version != proposal["from_version"]
+                ):
+                    raise StateError("contract review proposal changed")
+                existing = self._single_contract_decision(ack_key)
+                ack_record = {
+                    "kind": "contract_acknowledgement",
+                    "name": body["name"],
+                    "version": body["version"],
+                    "team": body["team"],
+                    "contract_hash": body["contract_hash"],
+                }
+                if existing is not None:
+                    raise StateError("contract participant acknowledgement race")
+                self._put_decision_in_transaction(ack_key, ack_record)
+            return {"name": current["name"], "version": current["version"] + 1, "body": updated}
+
     def propose_contract_transition(
         self,
         name: str,
@@ -1529,6 +2033,7 @@ class Store:
             or name.startswith("lifecycle/request/")
             or name.startswith("contract-transition/")
             or name.startswith("contract-ack/")
+            or name.startswith("contract-review/")
             or name.startswith("sol-handoff/")
         ):
             raise StateError("decision_namespace_reserved")

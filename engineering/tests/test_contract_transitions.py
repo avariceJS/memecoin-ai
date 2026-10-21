@@ -144,6 +144,364 @@ def test_transition_rejects_skipped_versions_duplicate_participants_and_bad_hash
     assert transition["body"]["status"] == "proposed"
 
 
+def review_packet():
+    return {
+        "source_commit": "a" * 40,
+        "evidence_refs": [{"ref": "compatibility:receipt-1", "sha256": "b" * 64}],
+        "compatibility_analysis": "Preserved v1 behavior and reviewed every Platform task.",
+        "migration_plan": None,
+    }
+
+
+def review_result(**overrides):
+    result = {
+        "decision": "approve",
+        "compatibility": "compatible",
+        "rationale": "The reviewed interface preserves the recorded behavior.",
+        "findings": [],
+        "reviewed_evidence_refs": ["compatibility:receipt-1"],
+        "affected_consumers_reviewed": ["PLAT-1"],
+        "migration_plan": None,
+    }
+    result.update(overrides)
+    return result
+
+
+def prepare_review(store):
+    store.add_task("EXP-1", "Experience", "produce contract", scope=["schema.py"])
+    store.add_task("PLAT-1", "Platform", "consume contract", scope=["cli.py"])
+    propose(store)
+    revision = "c" * 64
+    return store.prepare_contract_review("sample", 2, "Platform", revision, review_packet())
+
+
+def test_task_independent_contract_review_is_durable_and_acknowledges_atomically(store):
+    request = prepare_review(store)
+    body = request["body"]
+    assert body["status"] == "prepared"
+    assert body["role"] == "consumer"
+    assert body["packet"]["affected_consumer_task_ids"] == ["PLAT-1"]
+    assert body["packet"]["participant_tasks"][0]["id"] == "PLAT-1"
+    assert (
+        store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet()) == request
+    )
+    with pytest.raises(StateError, match="namespace_reserved"):
+        store.put_decision(request["name"], {"status": "approved"})
+
+    dispatching = store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    assert dispatching["body"]["status"] == "dispatching"
+    with pytest.raises(StateError, match="process identity invalid"):
+        store.record_contract_review_session(
+            body["request_id"],
+            body["packet_hash"],
+            "thread-1",
+            "gpt-6.1-sol",
+            "turn-1",
+            {"pid": True, "birth": None},
+        )
+    assert store.get_decision(request["name"])["body"]["status"] == "dispatching"
+    with pytest.raises(StateError, match="not sendable"):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    session = store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    assert session["body"]["status"] == "thread_known"
+    assert (
+        store.record_contract_review_session(
+            body["request_id"],
+            body["packet_hash"],
+            "thread-1",
+            "gpt-6.1-sol",
+            "turn-1",
+            {"pid": 123, "birth": "synthetic-birth"},
+        )
+        == session
+    )
+    result = review_result()
+    receipt_hash = "d" * 64
+    finished = store.finish_contract_review(
+        body["request_id"], body["packet_hash"], receipt_hash, result
+    )
+    assert finished["body"]["status"] == "approved"
+    ack = store.get_decision(store._contract_ack_key("sample", 2, "Platform"))
+    assert ack["body"] == {
+        "kind": "contract_acknowledgement",
+        "name": "sample",
+        "version": 2,
+        "team": "Platform",
+        "contract_hash": body["contract_hash"],
+    }
+    assert (
+        store.finish_contract_review(body["request_id"], body["packet_hash"], receipt_hash, result)
+        == finished
+    )
+
+
+def test_contract_review_rejects_forged_scope_and_keeps_blocked_result_without_ack(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    with pytest.raises(StateError, match="evidence coverage"):
+        store.finish_contract_review(
+            body["request_id"],
+            body["packet_hash"],
+            "d" * 64,
+            review_result(reviewed_evidence_refs=["invented:receipt"]),
+        )
+    blocked = review_result(
+        decision="blocked",
+        compatibility="insufficient",
+        rationale="No compatibility evidence.",
+        reviewed_evidence_refs=[],
+        findings=["consumer behavior is unverified"],
+    )
+    stored = store.finish_contract_review(
+        body["request_id"], body["packet_hash"], "e" * 64, blocked
+    )
+    assert stored["body"]["status"] == "blocked"
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+    with pytest.raises(StateError, match="not sendable"):
+        store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+
+
+def test_contract_review_packet_and_proposal_are_fenced(store):
+    request = prepare_review(store)
+    body = request["body"]
+    with pytest.raises(StateError, match="not a participant"):
+        store.prepare_contract_review("sample", 2, "Research", "f" * 64, review_packet())
+    with pytest.raises(StateError, match="packet changed"):
+        store.begin_contract_review_dispatch(body["request_id"], "0" * 64)
+    with pytest.raises(StateError, match="byte bound"):
+        store.prepare_contract_review(
+            "sample",
+            2,
+            "Platform",
+            "f" * 64,
+            {
+                **review_packet(),
+                "compatibility_analysis": "x" * 8000,
+                "evidence_refs": [
+                    {
+                        "ref": f"ref{index}-" + "x" * (506 - len(str(index))),
+                        "sha256": f"{index:064x}",
+                    }
+                    for index in range(100)
+                ],
+            },
+        )
+
+
+def test_contract_review_stale_inventory_is_terminal_blocked_and_not_retried(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    store.add_task("PLAT-2", "Platform", "new consumer", scope=["other.py"])
+    result = review_result()
+    finished = store.finish_contract_review(
+        body["request_id"], body["packet_hash"], "d" * 64, result
+    )
+    assert finished["body"]["status"] == "blocked"
+    assert finished["body"]["model_result"] == result
+    assert any("inventory changed" in item for item in finished["body"]["blocking_reasons"])
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+    with pytest.raises(StateError, match="identity conflict"):
+        store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
+
+
+def test_blocked_review_can_record_partial_consumer_coverage(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    blocked = review_result(
+        decision="blocked",
+        compatibility="insufficient",
+        rationale="Review remains incomplete.",
+        reviewed_evidence_refs=[],
+        affected_consumers_reviewed=[],
+        findings=["not reviewed"],
+    )
+    finished = store.finish_contract_review(
+        body["request_id"], body["packet_hash"], "e" * 64, blocked
+    )
+    assert finished["body"]["status"] == "blocked"
+    assert finished["body"]["result"]["affected_consumers_reviewed"] == []
+
+
+def test_contract_review_ack_race_preserves_response_without_second_ack(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    store.acknowledge_contract_transition("sample", 2, "Platform", body["contract_hash"])
+    result = review_result()
+    finished = store.finish_contract_review(
+        body["request_id"], body["packet_hash"], "f" * 64, result
+    )
+    assert finished["body"]["status"] == "blocked"
+    assert finished["body"]["model_result"] == result
+    assert any("was acknowledged" in item for item in finished["body"]["blocking_reasons"])
+
+
+def test_contract_review_after_activation_is_terminal_blocked(store):
+    request = prepare_review(store)
+    body = request["body"]
+    attempt = store.claim("EXP-1", "synthetic", 30)
+    store.submit(attempt["id"], attempt["epoch"], "candidate-sha", {"receipt": "synthetic"})
+    store.verify("EXP-1", "candidate-sha", True, {"passed": True})
+    store.accept("EXP-1", "candidate-sha")
+    store.integrate("EXP-1", "candidate-sha", "integration-sha", {"merged": True})
+    store.acknowledge_contract_transition("sample", 2, "Experience", body["contract_hash"])
+    store.acknowledge_contract_transition("sample", 2, "Platform", body["contract_hash"])
+    store.activate_contract_transition("sample", 2)
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    result = review_result()
+    finished = store.finish_contract_review(
+        body["request_id"], body["packet_hash"], "a" * 64, result
+    )
+    assert finished["body"]["status"] == "blocked"
+    assert finished["body"]["model_result"] == result
+    assert any("source version changed" in item for item in finished["body"]["blocking_reasons"])
+
+
+def test_contract_review_result_limits_reject_unbounded_output(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    with pytest.raises(StateError, match="result exceeds bound"):
+        store.finish_contract_review(
+            body["request_id"],
+            body["packet_hash"],
+            "b" * 64,
+            review_result(rationale="x" * 4001),
+        )
+
+
+def test_contract_review_rechecks_producer_snapshot_before_ack(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    store.claim("EXP-1", "synthetic", 30)
+    result = review_result()
+    finished = store.finish_contract_review(
+        body["request_id"], body["packet_hash"], "b" * 64, result
+    )
+    assert finished["body"]["status"] == "blocked"
+    assert any(
+        "producer task evidence changed" in item for item in finished["body"]["blocking_reasons"]
+    )
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_contract_review_task_growth_past_bound_is_terminal_blocked(store):
+    store.add_task("EXP-1", "Experience", "produce contract", scope=["schema.py"])
+    store.add_task("PLAT-000", "Platform", "consume contract", scope=["cli.py"])
+    for index in range(1, 100):
+        store.add_task(f"PLAT-{index:03d}", "Platform", "consume contract", scope=["cli.py"])
+    propose(store)
+    request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    store.add_task("PLAT-100", "Platform", "new consumer", scope=["other.py"])
+    result = review_result(affected_consumers_reviewed=body["packet"]["affected_consumer_task_ids"])
+    finished = store.finish_contract_review(
+        body["request_id"], body["packet_hash"], "c" * 64, result
+    )
+    assert finished["body"]["status"] == "blocked"
+    assert any("exceeds bound" in item for item in finished["body"]["blocking_reasons"])
+    assert store.get_decision(store._contract_ack_key("sample", 2, "Platform")) is None
+
+
+def test_contract_review_accepts_legacy_task_id_within_result_byte_bound(store):
+    store.add_task("EXP-1", "Experience", "produce contract", scope=["schema.py"])
+    task_id = "P" * 300
+    store.add_task(task_id, "Platform", "consume contract", scope=["cli.py"])
+    propose(store)
+    request = store.prepare_contract_review("sample", 2, "Platform", "c" * 64, review_packet())
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+    store.record_contract_review_session(
+        body["request_id"],
+        body["packet_hash"],
+        "thread-1",
+        "gpt-6.1-sol",
+        "turn-1",
+        {"pid": 123, "birth": "synthetic-birth"},
+    )
+    result = review_result(affected_consumers_reviewed=[task_id])
+    finished = store.finish_contract_review(
+        body["request_id"], body["packet_hash"], "d" * 64, result
+    )
+    assert finished["body"]["status"] == "approved"
+
+
 def test_invalid_body_version_does_not_poison_transition_identity(store):
     with pytest.raises(StateError, match="body version mismatch"):
         propose(store, {"version": 3})
