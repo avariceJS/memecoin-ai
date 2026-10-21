@@ -181,6 +181,20 @@ dispatch them or resolve task-readiness deadlock; payload-byte and execution-tim
 controller review/ack dispatch, and full A10 remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-contract-review-lane-review-20261021.json`.
 
+At `221e90e`, the Store adds an immutable task-independent contract-review journal. Each request
+binds the transition, participant, explicit evidence revision, pinned source commit, old/proposed
+contract, producer task and a bounded snapshot of participant tasks. Packets cap at 64 KiB; one-shot
+dispatch intent, thread identity and bounded terminal results are persisted. Approval atomically
+records the exact participant acknowledgement only while the proposal, source version, producer
+snapshot and participant task inventory remain current. Stale or competing reviews are retained as
+blocked evidence, and retry requires a new explicit evidence revision. Sol accepted exact diff
+`37c20f79d5eaee17b553dda9b55e8883f832d4e76dbbc8f29c8eee2bfbc94002`; Ruff and the engineering
+gate passed 383 tests and 96 subtests. This Store API is not wired to supervisor dispatch: it does
+not perform or authenticate a review, verify evidence artifact contents or provider usage, or
+resolve the task-readiness deadlock. Controller dispatch/recovery, full A10 and operational
+acceptance remain open. Receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a10-independent-contract-review-journal-review-20261021.json`.
+
 The A10 dependency-obligation increment merged at `5e4d123ece95d6c87c0eb0ced6891d8473bedece`.
 `blocked-dependencies` now reconciles duties and task readiness in one fenced SQLite transaction;
 its content-addressed snapshot names blocked tasks and exact dependency/contract blockers while
