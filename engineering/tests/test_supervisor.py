@@ -573,7 +573,7 @@ class SupervisorTests(unittest.TestCase):
                 "team": "Platform",
                 "title": "Continue from the accepted capability",
                 "brief": "Consume the integrated first task.",
-                "scope": ["src"],
+                "scope": ["src/consumer.py"],
                 "checks": [],
                 "dependencies": ["PLAT-001"],
                 "contracts": {"research-output": 2},
@@ -647,8 +647,16 @@ class SupervisorTests(unittest.TestCase):
         trusted.mkdir()
         (trusted / "pilot_acceptance.py").write_text(
             "import json, pathlib, sys\n"
-            "passed = (pathlib.Path(sys.argv[2]) / 'src/capability.py').read_text() "
-            "== 'VALUE = 7\\n'\n"
+            "checkout = pathlib.Path(sys.argv[2])\n"
+            "if sys.argv[1] == 'PLAT-001':\n"
+            "    passed = (checkout / 'src/capability.py').read_text() == 'VALUE = 7\\n'\n"
+            "elif sys.argv[1] == 'PLAT-002':\n"
+            "    sys.path.insert(0, str(checkout / 'src'))\n"
+            "    from consumer import CONSUMED\n"
+            "    passed = (checkout / 'src/capability.py').read_text() == 'VALUE = 7\\n' "
+            "and CONSUMED == 8\n"
+            "else:\n"
+            "    passed = False\n"
             "print(json.dumps({'schema': 'org-pilot-acceptance-v1', "
             "'case': sys.argv[1], 'passed': passed}))\n"
             "raise SystemExit(0 if passed else 1)\n"
@@ -975,6 +983,9 @@ class SupervisorTests(unittest.TestCase):
             self.assertIsNotNone(
                 restored_db.get_contract_review_response(replay_request["request_id"])
             )
+            self.assertEqual(restored_db.get_contract("research-output")["version"], 1)
+            self.assertEqual(eligible(self.cfg, restored_db), [])
+            self.assertTrue((restored / "STOP").is_file())
             self.assertEqual(
                 restored_db.get_contract_review_request(prepared_reviews[1]["body"]["request_id"])[
                     "body"
@@ -1123,9 +1134,138 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(self.db.get_task("PLAT-002")["base_sha"], candidate_sha)
         self.assertEqual(self.db.get_task("PLAT-002")["state"], "running")
         self.assertEqual(self.db.get_task("PLAT-002")["dependencies"], ["PLAT-001"])
-        self.assertEqual(len(self.db.list_attempts("PLAT-002")), 1)
+        dependent_attempts = self.db.list_attempts("PLAT-002")
+        self.assertEqual(len(dependent_attempts), 1)
         self.assertEqual(len(spawned), 1)
         self.assertIn("--attempt", spawned[0][0])
+
+        # Complete the selected dependent task explicitly after the synthetic supervisor spawn.
+        # This proves the activated contract leads to accepted work, not automatic restart.
+        (self.state / "STOP").unlink()
+        dependent_attempt = dependent_attempts[0]
+        dependent_worker_code = (
+            "from pathlib import Path\n"
+            "if Path('src/capability.py').read_text() != 'VALUE = 7\\n':\n"
+            "    raise SystemExit('integrated producer output is missing')\n"
+            "Path('src/consumer.py').write_text("
+            "'from capability import VALUE\\nCONSUMED = VALUE + 1\\n')\n"
+        )
+        dependent_transport_roles = []
+
+        class SyntheticDependentCodex:
+            def __init__(self, role):
+                self.role = role
+                self.proc = SimpleNamespace(pid=789)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def start(self, *_args):
+                return "synthetic-dependent-" + self.role
+
+            def turn(self, *_args, **kwargs):
+                if self.role == "worker":
+                    result = kwargs["tool"](
+                        {
+                            "argv": [python_executable, "-I", "-c", dependent_worker_code],
+                            "timeout": 10,
+                        }
+                    )
+                    if result["returncode"] != 0:
+                        raise AssertionError(result["stderr"])
+                    text = json.dumps(
+                        {
+                            "summary": "Consumed the integrated producer capability.",
+                            "tests": ["synthetic producer dependency and sandbox"],
+                            "limitations": ["provider and reviewer remain synthetic"],
+                        }
+                    )
+                elif self.role == "lead":
+                    text = json.dumps(
+                        {
+                            "decision": "approve",
+                            "worker_brief": "Consume the active research-output contract.",
+                            "rationale": "The exact contract version is active.",
+                            "contract_acks": [],
+                        }
+                    )
+                else:
+                    packet = json.loads(_args[1].rsplit("\n", 1)[-1])
+                    self_test.assertEqual(packet["task"]["id"], "PLAT-002")
+                    self_test.assertEqual(
+                        packet["candidate"]["submitted_changed_paths"], ["src/consumer.py"]
+                    )
+                    self_test.assertIn("CONSUMED = VALUE + 1", packet["diff"])
+                    acceptance = json.loads(packet["checks"][0]["stdout"])
+                    self_test.assertEqual(acceptance["case"], "PLAT-002")
+                    self_test.assertIs(acceptance["passed"], True)
+                    text = json.dumps(
+                        {
+                            "approved": True,
+                            "findings": [],
+                            "rationale": "Synthetic exact-candidate consumer review passed.",
+                        }
+                    )
+                return {
+                    "text": text,
+                    "usage_terminal": True,
+                    "usage_delta": {"totalTokens": 3},
+                }
+
+            def record_outcome(self, *_args, **_kwargs):
+                return None
+
+        def synthetic_dependent_client(*_args, **kwargs):
+            role = kwargs["context"]["role"]
+            dependent_transport_roles.append(role)
+            return SyntheticDependentCodex(role)
+
+        with (
+            patch.object(
+                supervisor,
+                "metered_client",
+                side_effect=synthetic_dependent_client,
+            ),
+            patch.object(supervisor, "process_identity", return_value="synthetic-dependent"),
+        ):
+            supervisor.run_attempt(self.state, dependent_attempt["id"])
+            self.assertEqual(
+                self.db.get_task("PLAT-002")["state"], "submitted", self.db.events()[-1]
+            )
+            self.assertTrue(supervisor.verify_one(self.state, self.db.get_task("PLAT-002")))
+        self.assertEqual(dependent_transport_roles, ["lead", "worker", "verifier"])
+        dependent_task = self.db.get_task("PLAT-002")
+        self.assertEqual(dependent_task["state"], "integrated", self.db.events()[-1])
+        dependent_intent = supervisor.read(self.state / "intents/PLAT-002.json")
+        dependent_receipt_raw = (
+            self.state / "receipts" / f"{dependent_intent['receipt']}.json"
+        ).read_bytes()
+        dependent_receipt = json.loads(dependent_receipt_raw)
+        canonical_receipt = json.dumps(
+            dependent_receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode()
+        self.assertEqual(hashlib.sha256(canonical_receipt).hexdigest(), dependent_intent["receipt"])
+        self.assertEqual(dependent_receipt_raw, canonical_receipt)
+        self.assertEqual(dependent_receipt["candidate_sha"], dependent_intent["candidate_sha"])
+        self.assertEqual(dependent_receipt["result"]["status"], "passed")
+        dependent_parents = run_git(
+            integration, "show", "-s", "--format=%P", dependent_intent["candidate_sha"]
+        ).split()
+        self.assertEqual(dependent_parents, [candidate_sha, dependent_task["candidate_sha"]])
+        self.assertEqual(dependent_intent["expected_tip"], candidate_sha)
+        self.assertEqual(run_git(integration, "rev-parse", "main"), base)
+        self.assertEqual(
+            run_git(integration, "rev-parse", GitGate.ACTIVE_REF), dependent_intent["candidate_sha"]
+        )
+        all_integration_events = [
+            event for event in self.db.events() if event["kind"] == "candidate_integrated"
+        ]
+        self.assertEqual(
+            [event["entity"] for event in all_integration_events], ["PLAT-001", "PLAT-002"]
+        )
 
     def test_accepted_intent_after_publish_recovers_without_republish(self):
         self.candidate()

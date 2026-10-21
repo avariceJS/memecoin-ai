@@ -27,20 +27,37 @@ receipt указывает `runtime_ready=false`. Fixture не квалифиц�
 время restore. Producer Experience, consumer Platform и
 контрактная версия связаны реально: test запускает обе durable review через idle-loop `supervise`
 с явно инъецированным synthetic transport; после первой ACK consumer остаётся заблокирован,
-после второй точная версия активируется. Затем supervisor планирует зависимую задачу, claim-ит её
-и передаёт worker-процессу. Packet
-содержит candidate SHA и declared GitGate receipt ref/digest, но Store не валидирует внешний receipt;
-ещё не admitted `PLAT-002` отсутствует в Platform task inventory review. Это contract-level, не
-task-specific review. Обычный CLI и quiescence path transport не получают и сохраняют inert Sol
-handoff; test также закрывает/переоткрывает SQLite после durable response custody и проверяет
-локальный replay без повторной отправки до dispatch второго review. Live provider/runtime dispatch
-не квалифицирован. Sol независимо проверил recovery-путь, выявил
+после второй точная версия активируется. Затем supervisor планирует и claim-ит PLAT-002. Его
+spawn перехвачен; после этого test явно запускает настоящий `run_attempt` и `verify_one` с
+synthetic worker/reviewer. Узкий `src/consumer.py` использует интегрированный результат PLAT-001,
+trusted acceptance исполняет consumer и проверяет вычисленное значение, reviewer проверяет точный
+PLAT-002 packet, а GitGate/Store интегрируют второй commit. Test повторно хеширует canonical
+receipt и связывает его с candidate SHA, проверяет первый parent на SHA PLAT-001, неизменность
+`main` и ровно одно событие интеграции на задачу. Отдельная отрицательная регрессия двигает уже
+существующий active ref после построения кандидата и подтверждает отказ публикации. Это исправило реальный
+стык: planner брал базу с `research/active`, а GitGate доверял только `HEAD`; теперь GitGate
+разрешает active-ref историю при неизменном `main`. Это ручное синтетическое продолжение после
+перехваченного spawn, не доказательство lifecycle restart. Restored copy только валидируется и
+читается: custodied review остаётся pending, STOP сохраняется, consumer заблокирован; после restore
+не вызывается supervisor helper. Packet содержит candidate SHA и declared GitGate receipt ref/digest, но Store не валидирует внешний
+receipt; не admitted на момент contract review `PLAT-002` отсутствует в Platform task inventory,
+поэтому тот review contract-level, а не task-specific. Обычный CLI и quiescence path transport не
+получают и сохраняют inert Sol handoff; test также закрывает/переоткрывает SQLite после durable
+response custody и проверяет локальный replay без повторной отправки до dispatch второго review.
+Live provider/runtime dispatch не квалифицирован. Sol независимо проверил recovery-путь, выявил
 и перепроверил исправления точной привязки родителей кандидата, receipt, attempt/epoch и канонической
 записи проверки. В этом bounded source-пути после исправлений обхода не найдено.
 
-Актуальный `make engineering-release-check` прошёл: Ruff, format, 595 тестов и 189 subtests,
-включая supervisor idle-loop с двумя synthetic contract reviews.
-`make smoke` прошёл на синтетическом временном хранилище. `make check` блокируется 107 существующими Ruff finding в
+До последней правки область mock не включала PLAT-002 `verify_one`; один focused run до обнаружения
+этого мог вызвать установленный Codex reviewer. Внешний dispatch и usage settlement не установлены:
+считать usage нулевым или settled нельзя, резервы не освобождались. Полный gate был остановлен после
+451 теста. Owner/production ledger не менялся; test использовал временное состояние. Сейчас patch
+охватывает lead, worker и reviewer и проверяет role trace; исправленный полный gate прошёл ниже.
+
+Sol принял точный source diff PLAT-002 после исправления mock scope. `make engineering-release-check`
+прошёл: Ruff, format, 596 тестов и 189 subtests; `make smoke` воспроизводим на синтетическом
+временном хранилище. Ранее прерванный gate на 451 тесте был повторно пройден после mock-scope fix.
+`make check` блокируется 107 существующими Ruff finding в
 `src/`, `tools/`, `tests/` до остальных шагов. Worker теперь запускается через штатный supervisor
 dispatch и Seatbelt tool callback; verification проходит через `verify_one`, выполняя временный
 acceptance harness. Worker/lead transport, reviewer, acceptance fixture и contract reviews

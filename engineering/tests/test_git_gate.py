@@ -108,6 +108,23 @@ def test_candidate_refuses_stale_integration_tip(setup_gate):
         gate.publish(candidate, receipt.digest, "0" * 40)
 
 
+def test_candidate_refuses_active_ref_moved_after_construction(setup_gate):
+    _, integration, worker, base, gate = setup_gate
+    first = submit(setup_gate)
+    first_receipt = gate.verify(first, verifier)
+    gate.publish(first, first_receipt.digest, "0" * 40)
+
+    (worker / "src" / "second.py").write_text("value = 2\n")
+    second_sha = commit(worker, "second worker change")
+    second = gate.submit(worker, second_sha, base, ["src"])
+    second_receipt = gate.verify(second, verifier)
+
+    git(integration, "update-ref", gate.ACTIVE_REF, base, first.sha)
+    with pytest.raises(GitGateError, match="active ref differs from caller's expected tip"):
+        gate.publish(second, second_receipt.digest, first.sha)
+    assert git(integration, "rev-parse", gate.ACTIVE_REF) == base
+
+
 def test_sequential_candidates_build_on_and_preserve_active_tip(setup_gate):
     _, integration, worker, base, gate = setup_gate
     first = submit(setup_gate)

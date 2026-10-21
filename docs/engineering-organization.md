@@ -64,6 +64,18 @@ Store integration, closes and reopens
 SQLite, then recovers and claims a dependent next task. It removes the receipt and confirms recovery
 fails closed, tampers with candidate SHA and confirms exact parent binding rejects publication, then
 restores evidence and confirms one integration event.
+The synthetic consumer now has scope `src/consumer.py`, reads the integrated producer result, and
+passes trusted acceptance only when its computed value is correct. The test drives its real
+`run_attempt` and `verify_one` paths after the supervisor's worker spawn is intercepted, then checks
+the exact PLAT-002 review packet, rehashes its canonical GitGate receipt, verifies Store integration,
+the exact final active ref and one integration event per task. A negative regression moves an
+already-existing active ref after candidate construction and confirms publication fails closed.
+This exposed and fixed a GitGate mismatch: a dependent task planned from
+`research/active` was rejected because trusted-source ancestry considered only `HEAD`; GitGate now
+uses the active ref when present while leaving `main` unchanged. This is an explicit synthetic
+continuation after a mocked spawn, not lifecycle restart or unattended execution. The restored copy
+is only validated and read back: its custodied review stays pending under STOP and the consumer
+remains blocked. No post-restore supervisor helper is invoked.
 At the quiescent point after producer integration and custody of one contract-review response, the
 test asserts no running attempts, sets STOP, and invokes the real `backup_snapshot` and
 `restore_snapshot` against a temporary deployment whose current controller package is manifest
@@ -97,10 +109,13 @@ synthetic; no live provider is called. The acceptance command is the legacy fixe
 manifest-bound A04 verifier. This exercises controller dispatch, worker and verifier Seatbelt paths,
 review packet binding, Git integration and recovery without qualifying real Codex identity, reviewer
 judgment/authenticity, provider usage settlement, A04 as a whole, remote checkpointing, runtime or A03.
-The current release check passes Ruff/format and 595 tests plus 189 subtests. `make smoke` is
-deterministic and synthetic. Repository-wide `make check` currently stops at 107 pre-existing Ruff
-findings in `src/`, `tools/` and `tests/`, before later checks. The integrated organization cycle
-remains in progress.
+The current PLAT-002 candidate passes Ruff/format, 596 tests plus 189 subtests, and deterministic
+synthetic `make smoke`. Before its mock-scope fix, one full gate was interrupted after 451 tests when
+review found that the synthetic metered-client patch did not yet cover the dependent verifier; it
+now covers lead, worker and reviewer and asserts that role trace. Sol accepted the exact source
+candidate. Repository-wide `make check` still stops at 107 pre-existing
+Ruff findings in `src/`, `tools/` and `tests/`, before later checks. The integrated organization
+cycle remains in progress.
 
 Current A10 integration correction — 2026-10-21: independent review is the sole source of participant
 acknowledgements for new contract transitions. Task-lead results must carry an empty legacy

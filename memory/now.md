@@ -39,12 +39,31 @@ rejects duplicate keys,
 and task admission plus terminal planning
 decision commit atomically; an injected hard interruption rolls both back, and client cleanup failure
 remains visible to caller without relabeling committed admission. JSON `true` for an integer epoch
-fails closed. Sol independently reviewed the recovery binding and found
+fails closed. The restored copy is validation/readback only: its custodied review stays pending,
+STOP remains, and the consumer is blocked; no post-restore supervisor helper runs. After the second participant review activates
+the exact contract, the same test now manually completes PLAT-002 after intercepting the supervisor
+spawn: a Seatbelt worker reads integrated PLAT-001 output and writes only `src/consumer.py`, trusted
+acceptance executes the consumer, and a synthetic independent reviewer checks its exact packet.
+The test rehashes the canonical GitGate receipt; GitGate/Store integrate the second candidate, with
+its first parent equal to PLAT-001, `main` unchanged and one integration event per task. A negative
+test moves an existing active ref after candidate creation and confirms publication fails closed.
+This exposed/fixed GitGate's trusted-history check:
+dependent bases from `research/active` are now trusted even when checkout `HEAD` remains `main`.
+The manual continuation is not an A05 restart proof; provider/reviewer authenticity and bound A04
+remain open. Sol independently reviewed the recovery binding and found
 no remaining bypass in this bounded path. Lead, worker and reviewer transports, trusted acceptance
 harness and both review transports remain synthetic. This does not qualify real provider identity/settlement,
 reviewer judgment/authenticity, full A04, remote checkpointing or operations.
 
-The current engineering gate passes Ruff/format and 595 tests plus 189 subtests.
+Before the PLAT-002 fake-transport scope fix, one focused run passed with `verify_one` outside the
+mock; an installed Codex reviewer may have been invoked. Attribution and usage settlement are
+unknown, so do not call them zero or settled and do not release any reservation. The subsequent full
+gate was interrupted after 451 tests. Owner/production ledgers were not changed; the test used a
+disposable state. The test now holds the same synthetic metered-client patch over lead, worker and
+reviewer and asserts the exact role trace. The corrected full gate and smoke now pass. The current
+engineering gate passes Ruff/format and 596 tests plus 189 subtests; Sol accepted the exact
+PLAT-002/GitGate source candidate.
+
 `make smoke` passes with deterministic synthetic fixtures. Repository `make check` stops at 107 Ruff
 findings in untouched `src/`, `tools/` and `tests/`, before type and package tests. A macOS process
 identity integration test has intermittent Security.framework observation errors; tests accept only

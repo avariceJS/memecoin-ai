@@ -98,7 +98,11 @@ class GitGate:
         if not self._is_ancestor(Path(checkout), base, submitted):
             raise GitGateError("expected base is not an ancestor of submitted commit")
         trusted_base = self._resolve_sha(self.source_repo, expected_base)
-        source_tip = self._rev(self.source_repo, "HEAD")
+        # Planning advances on the broker-owned active ref even when the stable checkout HEAD
+        # remains on main; a task may use only that active history (or initial HEAD fallback).
+        source_tip = self._ref_sha(self.source_repo, self.ACTIVE_REF, missing_ok=True) or self._rev(
+            self.source_repo, "HEAD"
+        )
         if trusted_base != base or not self._is_ancestor(self.source_repo, base, source_tip):
             raise GitGateError("expected base is not in trusted source history")
         paths = self._changed_paths(Path(checkout), base, submitted)
