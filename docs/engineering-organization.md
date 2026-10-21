@@ -426,6 +426,16 @@ passed Ruff, 507 tests and 105 subtests. This validates stored-result consistenc
 provenance, complete terminal-schema validation, SQLite text-decoding failures, A03 and broad A10
 remain open.
 
+At `342f6ca`, contract-review history readers project stored bodies and link values as bytes, then
+decode them strictly using the SQLite database encoding before validation. Invalid text becomes a
+stable `StateError` that preserves transition-level isolation; valid multi-version UTF-16le journals
+remain readable, and BLOB-typed links fail closed in both bounded and default readers. Regressions
+prove malformed UTF-8 cannot starve a later configured transition, preserve the existing UTF-16le
+path, and reject byte-identical BLOB links. Sol-6.1 High accepted exact diff
+`28faad4d3d795a45be230f7f27cd1b65404aaa08df5569af6ae323fcc21ed09f`; the full engineering gate
+passed Ruff, 509 tests and 105 subtests. This does not bound default-reader hydration, SQLite work,
+provider provenance, A03 or broad A10.
+
 At `9e6cd7e`, transition-scoped replay discovers review journals through a partial expression index
 on the exact contract name, version, contract hash and proposal digest. It validates each matching
 journal's full append-only history, then applies the existing cap only to latest `response_recorded`

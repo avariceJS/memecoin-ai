@@ -18,12 +18,12 @@ automatically.
 - Continue independent source work: A04 execution/verifier binding, A11 complete review packet, A05
   passive lifecycle, A10 durable contract/dependency transitions, and A12 bounded history projection.
   A03 blocks release, not unrelated engineering. Full operational acceptance remains required.
-- Latest A10 source checkpoint: `927d19d` binds terminal review `result` and `model_result` to the
-  strict parse of their hash-verified raw response. Corrupt terminal rows reject in readers, retries
-  and local replay while legacy no-raw rows remain readable. Sol-6.1 High accepted exact diff
-  `a3c161d23ba6e22740444260a1c72c47835b8dd838af4d595c730f8587f4d76d`; the full gate passed Ruff,
-  507 tests and 105 subtests. SQLite decoding failures, provider provenance, broad A10 and A03 remain
-  open; STOP active, no runtime/provider started.
+- Latest A10 source checkpoint: `342f6ca` strictly decodes review-history body/link bytes with the
+  SQLite database encoding. Malformed UTF-8 remains transition-isolated; multi-version UTF-16le
+  records work, and BLOB-typed links reject in both readers. Sol-6.1 High accepted exact diff
+  `28faad4d3d795a45be230f7f27cd1b65404aaa08df5569af6ae323fcc21ed09f`; the full gate passed Ruff,
+  509 tests and 105 subtests. Default hydration/SQLite work, provider provenance, broad A10 and A03
+  remain open; STOP active, no runtime/provider started.
 - Latest A05 source checkpoint: `53120b6` validates controller-parse recovery decision root and
   self-links within the owner-fenced request transaction, before body hydration. Sol-6.1 High
   accepted exact diff `9d7c1b5a3f67157620b60b0bcd3ab603b094bd4c6eee271a36b2d11ecf0b1934`; the final
