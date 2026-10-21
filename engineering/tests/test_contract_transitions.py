@@ -895,10 +895,41 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
 
     assert store.get_contract("sample")["version"] == 1
     assert store.get_contract("z-other")["version"] == 2
-    assert any(
-        call.args[1] == "contract_review_replay_failed" and call.kwargs.get("name") == "sample"
-        for call in log_event.call_args_list
+    assert not any(
+        call.args[1] == "contract_review_replay_failed" for call in log_event.call_args_list
     )
+
+
+def test_transition_replay_uses_scoped_index_and_ignores_unrelated_bad_identity(store):
+    request = prepare_review(store)
+    body = request["body"]
+    record_pending_review_response(store, body, suffix="scoped-index")
+    store.db.execute(
+        "INSERT INTO decisions VALUES(?,?,?,?,?)",
+        ("contract-review/unrelated-malformed-id", 1, "{malformed", None, None),
+    )
+
+    query = (
+        "SELECT DISTINCT name FROM decisions WHERE name GLOB 'contract-review/*' "
+        "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
+        "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
+        "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
+        "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
+        "ORDER BY name"
+    )
+    plan = store.db.execute(
+        "EXPLAIN QUERY PLAN " + query,
+        (body["name"], body["version"], body["contract_hash"], body["proposal_digest"]),
+    ).fetchall()
+    assert any("idx_contract_review_transition_replay" in row["detail"] for row in plan)
+
+    result = store.replay_contract_review_responses_for_transition(
+        body["name"], body["version"], body["contract_hash"]
+    )
+
+    assert result["overflow"] is False
+    assert [item["request_id"] for item in result["replayed"]] == [body["request_id"]]
+    assert store.get_decision(store._contract_ack_key(body["name"], body["version"], body["team"]))
 
 
 def test_contract_review_replay_sweep_overflow_performs_no_partial_replay(store):

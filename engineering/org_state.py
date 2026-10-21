@@ -144,6 +144,14 @@ class Store:
           CREATE TABLE IF NOT EXISTS decisions(
             name TEXT NOT NULL, version INTEGER NOT NULL, body TEXT NOT NULL,
             replaces TEXT, replaces_version INTEGER, PRIMARY KEY(name,version));
+          CREATE INDEX IF NOT EXISTS idx_contract_review_transition_replay
+            ON decisions(
+              CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END,
+              CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END,
+              CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END,
+              CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END,
+              name,version
+            ) WHERE name GLOB 'contract-review/*';
           CREATE TABLE IF NOT EXISTS candidates(
             task_id TEXT NOT NULL REFERENCES tasks(id), sha TEXT NOT NULL,
             attempt_id INTEGER NOT NULL REFERENCES attempts(id), epoch INTEGER NOT NULL,
@@ -1953,8 +1961,13 @@ class Store:
             raise StateError("contract review proposal changed")
         proposal_digest = self._contract_review_digest(proposal)
         rows = self.db.execute(
-            "SELECT name FROM decisions WHERE name GLOB 'contract-review/*' "
-            "GROUP BY name ORDER BY name"
+            "SELECT DISTINCT name FROM decisions WHERE name GLOB 'contract-review/*' "
+            "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
+            "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
+            "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
+            "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
+            "ORDER BY name",
+            (name, version, contract_hash, proposal_digest),
         )
         items = []
         skipped_count = 0
@@ -1972,7 +1985,7 @@ class Store:
                 or body["contract_hash"] != contract_hash
                 or body["proposal_digest"] != proposal_digest
             ):
-                continue
+                raise StateError("contract review transition index mismatch")
             if body["status"] != "response_recorded":
                 skipped_count += 1
                 continue
