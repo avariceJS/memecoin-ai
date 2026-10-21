@@ -460,8 +460,17 @@ contract blockers и независимые ready tasks; совпадающее 
 триггер не скрывает готовую работу и не меняет её состояние. Sol принял точный source diff; Ruff
 прошёл, engineering gate: 341 тест, 73 subtests. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-dependency-obligations-review-20261021.json`
-(SHA-256 `30a9fac250685cb73ad28db0575b6d75322c196c9f44d43bb122682b3c4c47f4`). Автоматическая
-свежесть trigger, generic contract migration, department plans/leases и полный A10 остаются открыты.
+(SHA-256 `30a9fac250685cb73ad28db0575b6d75322c196c9f44d43bb122682b3c4c47f4`).
+
+Следующий A10 fix убирает зависимость reconciliation от названия CEO trigger: каждый допущенный
+episode после STOP/busy проверяет текущую readiness и обновляет duty в существующей fenced SQLite
+transaction. Благодаря этому обычный `owner-review` создаёт duty, а следующий эпизод после
+integration producer отменяет устаревшее duty с content-addressed evidence даже после открытия
+нового Store. Sol принял exact diff
+`64ccd7a1b3177b904b767dcfb9c4216ecac7e7da6af68f8072dc0821633f742b`. Engineering gate: Ruff,
+format, 543 tests и 121 subtests. Reconciliation вызывается только при CEO episode, поэтому
+непрерывная свежесть между эпизодами не заявляется; службы, dispatch и runtime не добавлены.
+Generic contract migration, department plans/leases и полный A10 остаются открыты.
 
 Следующий A10 increment включён в `org/development` на `714bb573fc659ba00c849c9b7e0be7c1f470b472`:
 идентичность quiescence handoff теперь учитывает coherent task/readiness snapshot, а Store сверяет

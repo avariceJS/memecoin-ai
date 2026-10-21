@@ -68,11 +68,24 @@ class ChiefTests(unittest.TestCase):
         self.assertEqual(self.executive.get_obligation("O")["status"], "open")
 
     def test_active_director_and_stop_marker_do_not_start_new_model(self):
+        self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
         active = self.executive.claim("live-director")
         self.assertEqual(chief.chief(self.path)["status"], "executive_busy")
+        self.assertFalse(
+            any(
+                row["id"].startswith("blocked-dependencies/")
+                for row in self.executive.snapshot(open_limit=100)["obligations"]
+            )
+        )
         (self.path / "STOP").touch()
         self.assertEqual(chief.chief(self.path)["status"], "stopped")
         self.assertEqual(self.executive.snapshot()["role"]["epoch"], active["epoch"])
+        self.assertFalse(
+            any(
+                row["id"].startswith("blocked-dependencies/")
+                for row in self.executive.snapshot(open_limit=100)["obligations"]
+            )
+        )
 
     def test_blocked_inference_does_not_cancel_already_authorized_work(self):
         attempt = self.db.claim("T", "luna", 120)
@@ -110,7 +123,7 @@ class ChiefTests(unittest.TestCase):
         self.assertEqual(snapshot["ready"], ["T", "independent"])
         self.assertEqual(self.db.get_task("consumer")["state"], "pending")
 
-        chief.chief(self.path, trigger="blocked-dependencies")
+        chief.chief(self.path, trigger="owner-review")
         rows_after_retry = [
             row
             for row in self.executive.snapshot(open_limit=100)["obligations"]
@@ -118,6 +131,25 @@ class ChiefTests(unittest.TestCase):
         ]
         self.assertEqual(len(rows_after_retry), 1)
         self.assertEqual(rows_after_retry[0]["id"], rows[0]["id"])
+
+        self.db.db.execute(
+            "UPDATE tasks SET dependencies=? WHERE id='consumer'",
+            (json.dumps(["other-producer"], separators=(",", ":")),),
+        )
+        chief.chief(self.path, trigger="accepted-milestone")
+        obligations = [
+            row
+            for row in self.executive.snapshot(open_limit=100)["obligations"]
+            if row["id"].startswith("blocked-dependencies/")
+        ]
+        self.assertEqual(len(obligations), 1)
+        self.assertNotEqual(obligations[0]["id"], rows[0]["id"])
+        self.assertEqual(obligations[0]["status"], "blocked")
+        self.assertEqual(
+            obligations[0]["details"]["snapshot"]["blocked"][0]["blockers"][0]["id"],
+            "other-producer",
+        )
+        self.assertEqual(self.executive.get_obligation(rows[0]["id"])["status"], "cancelled")
 
     def test_dependency_obligation_cancels_atomically_when_readiness_clears(self):
         self.db.add_task("consumer", "Platform", "Dependent work", dependencies=["T"])
@@ -172,6 +204,66 @@ class ChiefTests(unittest.TestCase):
                 for row in self.executive.snapshot(open_limit=100)["obligations"]
             )
         )
+
+    def test_dependency_obligations_reconcile_on_unrelated_fresh_episodes(self):
+        for index, trigger in enumerate(
+            (
+                "owner-review",
+                "replacement",
+                "accepted-milestone",
+                "catalogue-exhausted",
+                "quota-unavailable",
+            )
+        ):
+            with self.subTest(trigger=trigger):
+                state = self.path / f"episode-{index}"
+                state.mkdir()
+                db = Store(state / "organization.sqlite")
+                try:
+                    executive = Executive(db)
+                    db.add_task("producer", "Experience", "Produce dependency")
+                    db.add_task("consumer", "Platform", "Dependent work", dependencies=["producer"])
+                    with patch.object(
+                        chief, "structured", side_effect=AssertionError("model call")
+                    ):
+                        chief.chief(state, trigger="owner-review")
+                    obligation = next(
+                        row
+                        for row in executive.snapshot(open_limit=100)["obligations"]
+                        if row["id"].startswith("blocked-dependencies/")
+                    )
+
+                    attempt = db.claim("producer", "worker")
+                    db.submit(attempt["id"], attempt["epoch"], "candidate", {})
+                    db.verify("producer", "candidate", True, {})
+                    db.accept("producer", "candidate")
+                    db.integrate("producer", "candidate", "merged")
+                    db.close()
+
+                    # A new Store/Executive episode observes only durable state.
+                    db = Store(state / "organization.sqlite")
+                    executive = Executive(db)
+                    task_state_before = db.list_tasks()
+                    with patch.object(
+                        chief, "structured", side_effect=AssertionError("model call")
+                    ):
+                        chief.chief(state, trigger=trigger)
+
+                    closed = executive.get_obligation(obligation["id"])
+                    self.assertEqual(closed["status"], "cancelled")
+                    self.assertEqual(len(closed["cancellation_evidence"]), 1)
+                    evidence_ref = closed["cancellation_evidence"][0]
+                    self.assertTrue(evidence_ref.startswith("dependency-readiness:"))
+                    evidence = db.db.execute(
+                        "SELECT body FROM events "
+                        "WHERE kind='dependency_readiness_reconciled' AND entity=?",
+                        (evidence_ref,),
+                    ).fetchone()
+                    self.assertIsNotNone(evidence)
+                    self.assertEqual(json.loads(evidence[0])["snapshot"]["blocked"], [])
+                    self.assertEqual(db.list_tasks(), task_state_before)
+                finally:
+                    db.close()
 
     def test_dependency_obligation_records_contract_mismatch_and_leaves_ready_task(self):
         self.db.put_contract("api", 1, {"schema": "v1"})

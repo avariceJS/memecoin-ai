@@ -131,8 +131,9 @@ def chief(state: Path, *, trigger="owner-review"):
                 ),
                 evidence_refs=["deployment:catalogue-exhausted"],
             )
-        if trigger == "blocked-dependencies":
-            executive.reconcile_dependency_obligations(lease)
+        # Readiness is durable Store state; unrelated episode triggers must not leave
+        # dependency duties stale or suppress creating a current duty.
+        executive.reconcile_dependency_obligations(lease)
         executive.release(lease, summary="model call blocked by current policy")
         render_desk(state, db)
         atomic(

@@ -36,6 +36,13 @@ decisions and independent review; Astra remains episodic and is never started au
   `2e26d89872276415c60bcf0d2814cbfc2759740be6d16cb6832aa611d0118c4f`; the transition suite passed
   103 tests and the full gate passed Ruff, format, 542 tests and 116 subtests. Missing-task
   `StateError`, SQLite propagation, broader tamper detection, post-ACK freshness and A03 remain open.
+- A10 dependency duties now reconcile on every admitted CEO episode, independent of diagnostic
+  trigger. Regression covers five triggers, Store reopen, changed blockers, unchanged task state,
+  STOP/busy exits, and no inference call. Sol accepted exact diff
+  `64ccd7a1b3177b904b767dcfb9c4216ecac7e7da6af68f8072dc0821633f742b`; `make
+  engineering-release-check` passed Ruff, format, 543 tests and 121 subtests. A first full run hit the
+  known intermittent macOS code-identity deadline test; it passed alone and the repeated full gate
+  passed. Duties may still lag between CEO episodes; no service/runtime authority is added.
 - A04 bound `acceptance_json` stdout now decodes strictly as UTF-8 after process-group cleanup;
   malformed bytes fail before result validation while legacy/`exit_zero` and stderr decoding remain
   compatible. Sol accepted exact diff

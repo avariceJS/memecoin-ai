@@ -534,6 +534,17 @@ acceptance remain open. Receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a10-dependency-obligations-review-20261021.json`
 (SHA-256 `30a9fac250685cb73ad28db0575b6d75322c196c9f44d43bb122682b3c4c47f4`).
 
+At `org/development` base `c1f1ead`, dependency-duty reconciliation now runs during every
+admitted CEO episode instead of only when `trigger == "blocked-dependencies"`. Durable Store
+readiness, not the diagnostic episode trigger, determines whether the duty is created, reused or
+cancelled. It remains behind STOP and the active-owner check and uses the existing CEO-fenced
+`BEGIN IMMEDIATE` reconciliation. Sol accepted exact diff
+`64ccd7a1b3177b904b767dcfb9c4216ecac7e7da6af68f8072dc0821633f742b`; regressions cover ordinary
+triggers, Store reopen, changed blockers, unchanged-task behavior, STOP and busy-owner paths. The
+engineering gate passed Ruff, format, 543 tests and 121 subtests. Reconciliation happens only when
+a CEO episode runs, so duties may still lag between episodes; this adds no service, dispatch or
+runtime authority. Generic contract migration, broad A10 and operational acceptance remain open.
+
 The A10 quiescence-trigger increment is on `org/development` at `714bb573fc659ba00c849c9b7e0be7c1f470b472`.
 Handoff identity now includes the coherent task/readiness snapshot, and the Store rechecks it under
 `BEGIN IMMEDIATE` before atomically deduplicating or recording the immutable handoff. Fresh eligible
