@@ -29,6 +29,47 @@ SQLITE = Path("/opt/homebrew/opt/sqlite")
 EXTRA_ROOTS = [SQLITE] if SQLITE.exists() else []
 
 
+class ProcessIdentityDeadlineTests(unittest.TestCase):
+    class FakeProcess:
+        pid = 42
+
+        @staticmethod
+        def poll():
+            return None
+
+    def test_late_matching_initial_identity_is_rejected(self):
+        with (
+            patch("engineering.confinement.time.monotonic", side_effect=[0.0, 1.0, 3.0]),
+            patch(
+                "engineering.confinement.running_code_identity",
+                return_value=("a" * 40, "/trusted/python"),
+            ),
+            self.assertRaisesRegex(ConfinementError, "observation exceeded deadline"),
+        ):
+            SandboxRunner._wait_for_process_code_identity(
+                self.FakeProcess(),
+                "a" * 40,
+                Path("/trusted/python"),
+                deadline=2.0,
+            )
+
+    def test_late_matching_recheck_is_rejected(self):
+        with (
+            patch("engineering.confinement.time.monotonic", side_effect=[0.0, 11.0]),
+            patch(
+                "engineering.confinement.running_code_identity",
+                return_value=("a" * 40, "/trusted/python"),
+            ),
+            self.assertRaisesRegex(ConfinementError, "observation exceeded deadline"),
+        ):
+            SandboxRunner._check_process_code_identity(
+                self.FakeProcess(),
+                "a" * 40,
+                Path("/trusted/python"),
+                deadline=10.0,
+            )
+
+
 @unittest.skipUnless(platform.system() == "Darwin", "requires real macOS Seatbelt")
 class ConfinementTests(unittest.TestCase):
     def setUp(self):
@@ -197,6 +238,52 @@ class ConfinementTests(unittest.TestCase):
                     expected_script_sha256=harness_sha256,
                     expected_script_path=harness.resolve(),
                 )
+        launch.assert_not_called()
+
+    def test_expired_prelaunch_script_hash_never_starts_verifier(self):
+        import engineering.confinement as confinement
+
+        harness = self.task / "acceptance.py"
+        harness.write_text("pass\n")
+        with (
+            patch.object(confinement, "_prelaunch_script_sha256", return_value="a" * 64),
+            patch("engineering.confinement.time.monotonic", side_effect=[0.0, 11.0]),
+            patch("engineering.confinement.subprocess.Popen") as launch,
+            self.assertRaisesRegex(
+                ConfinementError, "script verification exceeded command deadline"
+            ),
+        ):
+            self.runner.run(
+                [str(PYTHON.resolve()), "-I", "-S", "-B", str(harness)],
+                cwd=self.task,
+                timeout=10.0,
+                expected_script_sha256="a" * 64,
+                expected_script_path=harness.resolve(),
+            )
+        launch.assert_not_called()
+
+    def test_expired_prelaunch_executable_hash_never_starts_verifier(self):
+        import engineering.confinement as confinement
+
+        executable_sha256 = "b" * 64
+        with (
+            patch.object(
+                confinement,
+                "_prelaunch_executable_sha256",
+                return_value=executable_sha256,
+            ),
+            patch("engineering.confinement.time.monotonic", side_effect=[0.0, 11.0]),
+            patch("engineering.confinement.subprocess.Popen") as launch,
+            self.assertRaisesRegex(
+                ConfinementError, "executable verification exceeded command deadline"
+            ),
+        ):
+            self.runner.run(
+                [str(PYTHON.resolve()), "-c", "pass"],
+                cwd=self.task,
+                timeout=10.0,
+                expected_executable_sha256=executable_sha256,
+            )
         launch.assert_not_called()
 
     def test_pinned_executable_rejects_noncanonical_and_nonexecutable_paths(self):

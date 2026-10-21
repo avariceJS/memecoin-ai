@@ -356,6 +356,10 @@ class SandboxRunner:
             raise ConfinementError("argv must contain non-NUL strings")
         if not Path(argv[0]).is_absolute():
             raise ConfinementError("Executable must be absolute; shell resolution is forbidden")
+        if timeout <= 0 or timeout > 3600:
+            raise ConfinementError("Timeout must be in (0, 3600] seconds")
+        if not 1 <= max_output_bytes <= 10_000_000:
+            raise ConfinementError("Output limit must be in [1, 10000000] bytes")
         if expected_executable_cdhash is not None and (
             expected_executable_sha256 is None
             or expected_executable_main_path is None
@@ -372,14 +376,8 @@ class SandboxRunner:
                 != str(expected_executable_main_path.resolve(strict=True))
             ):
                 raise ConfinementError("Expected running executable path is invalid")
-        prelaunch_executable_sha256 = None
-        if expected_executable_sha256 is not None:
-            prelaunch_executable_sha256 = _prelaunch_executable_sha256(
-                argv[0], expected_executable_sha256
-            )
         if (expected_script_sha256 is None) != (expected_script_path is None):
             raise ConfinementError("Expected script digest and path must be supplied together")
-        prelaunch_script_sha256 = None
         if expected_script_sha256 is not None:
             expected_script_path = Path(expected_script_path)
             if (
@@ -394,16 +392,25 @@ class SandboxRunner:
         directory = Path(cwd).resolve(strict=True)
         if not directory.is_dir() or not _inside(directory, self.writable_roots + self.read_roots):
             raise ConfinementError("cwd must be within a granted task read or writable root")
-        if timeout <= 0 or timeout > 3600:
-            raise ConfinementError("Timeout must be in (0, 3600] seconds")
-        if not 1 <= max_output_bytes <= 10_000_000:
-            raise ConfinementError("Output limit must be in [1, 10000000] bytes")
         environment = self.environment(env_overrides)
         started = time.monotonic()
+        deadline = started + timeout
+        prelaunch_executable_sha256 = None
+        if expected_executable_sha256 is not None:
+            prelaunch_executable_sha256 = _prelaunch_executable_sha256(
+                argv[0], expected_executable_sha256
+            )
+            if time.monotonic() >= deadline:
+                raise ConfinementError("Pinned executable verification exceeded command deadline")
+        prelaunch_script_sha256 = None
         if expected_script_sha256 is not None:
             prelaunch_script_sha256 = _prelaunch_script_sha256(
                 expected_script_path, expected_script_sha256
             )
+            if time.monotonic() >= deadline:
+                raise ConfinementError("Pinned script verification exceeded command deadline")
+        if time.monotonic() >= deadline:
+            raise ConfinementError("Prelaunch verification exceeded command deadline")
         with subprocess.Popen(
             [str(SANDBOX_EXEC), "-p", self.profile, *argv],
             cwd=directory,
@@ -427,7 +434,7 @@ class SandboxRunner:
                         process,
                         expected_executable_cdhash,
                         expected_executable_main_path,
-                        deadline=started + timeout,
+                        deadline=deadline,
                     )
                     process_identity_observations = 1
                     next_process_identity_check = time.monotonic() + PROCESS_CODE_IDENTITY_INTERVAL
@@ -445,7 +452,7 @@ class SandboxRunner:
                     os.set_blocking(stream.fileno(), False)
                     selector.register(stream, selectors.EVENT_READ, label)
                 while selector.get_map():
-                    remaining = started + timeout - time.monotonic()
+                    remaining = deadline - time.monotonic()
                     if remaining <= 0:
                         timed_out = True
                         break
@@ -460,6 +467,7 @@ class SandboxRunner:
                                 process,
                                 expected_executable_cdhash,
                                 expected_executable_main_path,
+                                deadline=deadline,
                             )
                         except BaseException:
                             self._kill_process_group(process)
@@ -490,7 +498,7 @@ class SandboxRunner:
                         timed_out = True
                 else:
                     while process.poll() is None:
-                        remaining = started + timeout - time.monotonic()
+                        remaining = deadline - time.monotonic()
                         if remaining <= 0:
                             timed_out = True
                             break
@@ -499,6 +507,7 @@ class SandboxRunner:
                                 process,
                                 expected_executable_cdhash,
                                 expected_executable_main_path,
+                                deadline=deadline,
                             )
                         except BaseException:
                             self._kill_process_group(process)
@@ -508,10 +517,16 @@ class SandboxRunner:
                         next_process_identity_check = (
                             time.monotonic() + PROCESS_CODE_IDENTITY_INTERVAL
                         )
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            timed_out = True
+                            break
                         try:
                             process.wait(timeout=min(0.1, remaining))
                         except subprocess.TimeoutExpired:
                             pass
+            if not timed_out and not output_truncated and time.monotonic() >= deadline:
+                timed_out = True
             # Always clean the original process group, including children that
             # retained pipes after the leader exited. Never wait for pipe EOF
             # after timeout: an adversarial descendant could keep it open.
@@ -559,14 +574,29 @@ class SandboxRunner:
         deadline = min(deadline, time.monotonic() + PROCESS_CODE_IDENTITY_TIMEOUT)
         last_observed = None
         while True:
+            if time.monotonic() >= deadline:
+                message = (
+                    "Running executable code identity does not match pin"
+                    if last_observed is not None
+                    else "Running executable code identity is unavailable"
+                )
+                raise ConfinementError(message)
             try:
                 last_observed, executable_path = running_code_identity(process.pid)
             except MacCodeIdentityError:
+                if time.monotonic() >= deadline:
+                    raise ConfinementError(
+                        "Running executable code identity observation exceeded deadline"
+                    ) from None
                 if process.poll() is not None:
                     raise ConfinementError(
                         "Running executable code identity is unavailable"
                     ) from None
             else:
+                if time.monotonic() >= deadline:
+                    raise ConfinementError(
+                        "Running executable code identity observation exceeded deadline"
+                    )
                 if last_observed == expected and executable_path == str(expected_path):
                     return last_observed, executable_path
                 if process.poll() is not None:
@@ -585,14 +615,24 @@ class SandboxRunner:
         process: subprocess.Popen,
         expected: str,
         expected_path: Path,
+        *,
+        deadline: float,
     ) -> tuple[str, str] | None:
         """Recheck a live process image while its result is being collected."""
+        if time.monotonic() >= deadline:
+            raise ConfinementError("Running executable code identity deadline exceeded")
         try:
             observed, executable_path = running_code_identity(process.pid)
         except MacCodeIdentityError:
+            if time.monotonic() >= deadline:
+                raise ConfinementError(
+                    "Running executable code identity observation exceeded deadline"
+                ) from None
             if process.poll() is not None:
                 return None
             raise ConfinementError("Running executable code identity is unavailable") from None
+        if time.monotonic() >= deadline:
+            raise ConfinementError("Running executable code identity observation exceeded deadline")
         if observed != expected or executable_path != str(expected_path):
             raise ConfinementError("Running executable code identity does not match pin")
         return observed, executable_path
