@@ -79,18 +79,23 @@ acceptance harness. Worker/lead transport, reviewer, acceptance fixture и contr
 экспертизу, провайдера или эксплуатацию. A03, Pilot STOP, запрет
 runtime и запрет `main` сохраняются; цель организации остаётся открытой.
 
-Восстановленный snapshot теперь соединён с пассивным A05 lifecycle решением: тест читает STOP и
-restore receipt отдельной синтетической копии, сохраняет fenced `hold` при неизвестной готовности
-runtime/accounting/quota/process, закрывает и снова открывает SQLite, затем проверяет отказ старой
-lease после claim владельца с новым epoch. Worklist возвращает только сохранённый `hold` без
-dispatch/consumption authority; STOP не снимается. `snapshot_stop` — STOP из disposable fixture,
-не исторический Pilot STOP; `host_requalification_required` используется только как осторожный
-fixture proxy, а accounting/quota/process/authorization остаются синтетическими caller observations.
-Sol принял тестовую семантику после уточнения происхождения STOP; финальный отформатированный diff:
-`67fbfcfc97ce0363ebac32df6e727598667c43ad351f2a69adf81a655e85490f`. Focused интеграционный тест
-и полный engineering gate прошли: Ruff/format, 596 тестов и 189 subtests. Это не доказывает
-доверенный свежий gate snapshot, lifecycle consumer, restart или operational recovery. A05 остаётся
-открытым.
+Восстановленная копия теперь даёт source-identified snapshot для пассивного A05 `hold`: Store
+считывает fixture STOP, точный restore receipt с привязкой к `snapshot.json` и controller-parse
+recovery history. Store записывает DB event sequence и время; файловые источники нельзя включить
+в атомарную SQLite sequence, поэтому они читаются дважды и сверяются по hash. Перед записью Store
+под `BEGIN IMMEDIATE` перечитывает файлы и DB gate, отвергает изменение источника и возраст более
+30 секунд. Digest входит в planner hash и durable request; worklist заново проверяет схему и
+консервативные hold observations. Тест меняет STOP между захватом и записью, истекает snapshot во
+время SQLite lock wait, затем проверяет read-only worklist, reopen и fencing старого owner epoch.
+STOP остаётся. Это synthetic disposable restore: runtime/accounting/quota/process/authorization
+не квалифицированы, runtime жёстко считается недоступным. Consumer, стабильная authorization
+generation и process/service action не добавлены; A05 и operational recovery открыты.
+Ограничение: одинаковые байты STOP/receipt, удалённые и созданные снова между чтениями, неотличимы
+от неизменного источника; Store adapter связывает receipt с manifest hash, но сам manifest заново
+не валидирует (это делает отдельный интегрированный restore path).
+Sol принял exact source diff `1122381c685f623c9d314016dbc789e6ec9ddc3a2f40765b8e656bfa3f2582e3`
+без блокеров. `make engineering-release-check`: Ruff/format, 613 тестов и 189 subtests;
+`make smoke` прошёл с `edge_established=false`.
 
 Ограниченный A04 source increment: `SandboxRunner.run` фиксирует строку профиля в начале вызова,
 сверяет её с digest при создании runner и передаёт те же байты в `sandbox-exec` и

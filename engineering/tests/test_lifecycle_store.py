@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import tempfile
 import threading
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -105,6 +107,160 @@ class LifecycleStoreTests(unittest.TestCase):
         self.assertEqual(next_lease["epoch"], lease["epoch"] + 1)
         with self.assertRaisesRegex(StateError, "stale_lifecycle_owner"):
             self.store.renew_lifecycle_owner(lease)
+
+    def test_passive_gate_snapshot_freshness_is_checked_after_sqlite_lock_wait(self):
+        root = Path(self.temp.name) / "restored"
+        root.mkdir()
+        (root / "STOP").touch()
+        manifest = b'{"schema":"synthetic-snapshot"}\n'
+        (root / "snapshot.json").write_bytes(manifest)
+        receipt = {
+            "schema": "brain-organization-restore-v1",
+            "snapshot_manifest_sha256": hashlib.sha256(manifest).hexdigest(),
+            "restored_path": str(root),
+            "stop_preserved": True,
+            "structural_deployment_validation": True,
+            "runtime_ready": False,
+            "host_requalification_required": True,
+        }
+        (root / "restore-receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
+        lease = self.store.claim_lifecycle_owner("snapshot-test", lease_seconds=60)
+        snapshot = self.store.capture_passive_lifecycle_gate_snapshot(root)
+        blocker = Store(self.path, clock=lambda: self.now)
+        blocker.db.execute("BEGIN IMMEDIATE")
+        entered = threading.Event()
+
+        def record():
+            entered.set()
+            return self.store.record_passive_lifecycle_hold(lease, root, snapshot)
+
+        try:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(record)
+                self.assertTrue(entered.wait(1))
+                time.sleep(0.05)
+                self.assertFalse(future.done())
+                self.now += 31
+                blocker.db.execute("COMMIT")
+                with self.assertRaisesRegex(StateError, "lifecycle_gate_snapshot_stale_or_invalid"):
+                    future.result(timeout=5)
+        finally:
+            if blocker.db.in_transaction:
+                blocker.db.execute("ROLLBACK")
+            blocker.close()
+
+    def test_worklist_rejects_self_consistent_but_malformed_source_snapshot(self):
+        from engineering.lifecycle import plan_lifecycle
+
+        lease = self.store.claim_lifecycle_owner("snapshot-audit", lease_seconds=60)
+        snapshot = {
+            "schema": "passive-lifecycle-gates-v1",
+            "captured_at": self.now,
+            "capture_sequence": 1,
+            "stop": {"present": True, "sha256": None},
+            "restore_receipt_sha256": "a" * 64,
+            "runtime_ready": False,
+            "host_requalification_required": True,
+            "controller_parse": "clear",
+        }
+        snapshot["snapshot_sha256"] = hashlib.sha256(
+            json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        observations = launch_observations(
+            stop_reasons=["deployment_stop"],
+            runtime_ready=False,
+            accounting_ready=False,
+            quota_ready=False,
+            process_state="unknown",
+            recovery_open=True,
+            launch_authorized=False,
+        )
+        bound = {
+            **observations,
+            "request_owner": lease["owner"],
+            "request_epoch": lease["epoch"],
+            "source_snapshot_sha256": snapshot["snapshot_sha256"],
+        }
+        computed = plan_lifecycle(**bound)
+        plan = {
+            "action": computed.action,
+            "reason": computed.reason,
+            "retry_at": computed.retry_at,
+            "attempt_id": computed.attempt_id,
+            "request_owner": computed.request_owner,
+            "request_epoch": computed.request_epoch,
+            "decision_sha256": computed.decision_sha256,
+        }
+        with self.store._tx():
+            owner = self.store._lifecycle_fence(lease)
+            self.store._persist_lifecycle_evaluation(owner, plan, bound, source_snapshot=snapshot)
+        with self.assertRaisesRegex(StateError, "lifecycle_request_invalid"):
+            self.store.lifecycle_request_worklist()
+
+    def test_worklist_rejects_source_snapshot_without_planner_hash_link(self):
+        from engineering.lifecycle import plan_lifecycle
+
+        root = Path(self.temp.name) / "restored-linked"
+        root.mkdir()
+        (root / "STOP").touch()
+        manifest = b'{"schema":"synthetic-snapshot"}\n'
+        (root / "snapshot.json").write_bytes(manifest)
+        receipt = {
+            "schema": "brain-organization-restore-v1",
+            "snapshot_manifest_sha256": hashlib.sha256(manifest).hexdigest(),
+            "restored_path": str(root),
+            "stop_preserved": True,
+            "structural_deployment_validation": True,
+            "runtime_ready": False,
+            "host_requalification_required": True,
+        }
+        (root / "restore-receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
+        lease = self.store.claim_lifecycle_owner("snapshot-link", lease_seconds=60)
+        snapshot = self.store.capture_passive_lifecycle_gate_snapshot(root)
+        observations = launch_observations(
+            stop_reasons=["deployment_stop"],
+            runtime_ready=False,
+            accounting_ready=False,
+            quota_ready=False,
+            process_state="unknown",
+            recovery_open=True,
+            launch_authorized=False,
+        )
+        bound = {
+            **observations,
+            "request_owner": lease["owner"],
+            "request_epoch": lease["epoch"],
+        }
+        computed = plan_lifecycle(**bound)
+        plan = {
+            "action": computed.action,
+            "reason": computed.reason,
+            "retry_at": computed.retry_at,
+            "attempt_id": computed.attempt_id,
+            "request_owner": computed.request_owner,
+            "request_epoch": computed.request_epoch,
+            "decision_sha256": computed.decision_sha256,
+        }
+        with self.store._tx():
+            owner = self.store._lifecycle_fence(lease)
+            self.store._persist_lifecycle_evaluation(owner, plan, bound, source_snapshot=snapshot)
+        with self.assertRaisesRegex(StateError, "lifecycle_request_invalid"):
+            self.store.lifecycle_request_worklist()
+
+    def test_lifecycle_source_reader_rejects_fifo_swapped_after_lstat(self):
+        path = Path(self.temp.name) / "source"
+        path.write_bytes(b"regular")
+        real_open = org_state.os.open
+
+        def swap_to_fifo(target, flags, *args, **kwargs):
+            if Path(target) == path:
+                path.unlink()
+                org_state.os.mkfifo(path)
+            return real_open(target, flags, *args, **kwargs)
+
+        with patch.object(org_state.os, "open", side_effect=swap_to_fifo):
+            with self.assertRaisesRegex(StateError, "lifecycle_source_not_regular"):
+                self.store._lifecycle_file_source(path, optional=False)
 
     def test_owner_history_head_validation_uses_constant_memory_summary(self):
         lease = self.store.claim_lifecycle_owner("owner", lease_seconds=10000)

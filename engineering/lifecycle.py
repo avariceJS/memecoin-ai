@@ -64,6 +64,7 @@ def plan_lifecycle(
     launch_authorized: Any,
     request_owner: Any = None,
     request_epoch: Any = None,
+    source_snapshot_sha256: Any = None,
 ) -> LifecyclePlan:
     """Return a deterministic plan without changing state, starting a process, or waking a service.
 
@@ -96,6 +97,12 @@ def plan_lifecycle(
         isinstance(request_epoch, bool) or type(request_epoch) is not int or request_epoch <= 0
     ):
         raise LifecycleError("invalid_request_epoch")
+    if source_snapshot_sha256 is not None and (
+        type(source_snapshot_sha256) is not str
+        or len(source_snapshot_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in source_snapshot_sha256)
+    ):
+        raise LifecycleError("invalid_source_snapshot")
     if active_attempt_id is not None and (
         isinstance(active_attempt_id, bool)
         or type(active_attempt_id) is not int
@@ -122,6 +129,8 @@ def plan_lifecycle(
         "request_owner": request_owner,
         "request_epoch": request_epoch,
     }
+    if source_snapshot_sha256 is not None:
+        body["source_snapshot_sha256"] = source_snapshot_sha256
 
     def plan(action: Action, reason: str, at: float | None = None) -> LifecyclePlan:
         result = {"action": action, "reason": reason, "retry_at": at}

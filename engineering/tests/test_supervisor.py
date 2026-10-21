@@ -1125,23 +1125,16 @@ class SupervisorTests(unittest.TestCase):
                 "synthetic-restored-controller", lease_seconds=30
             )
             self.assertIsNotNone(restored_lifecycle_lease)
-            restored_lifecycle_observations = {
-                "desired_state": "enabled",
-                "stop_reasons": ["snapshot_stop"] if (restored / "STOP").is_file() else [],
-                "runtime_ready": restore_receipt["runtime_ready"],
-                "accounting_ready": False,
-                "quota_ready": False,
-                "process_state": "unknown",
-                "process_owner": None,
-                "lease_owner": None,
-                "active_attempt_id": None,
-                "recovery_open": restore_receipt["host_requalification_required"],
-                "backoff_until": None,
-                "now": self.now,
-                "launch_authorized": False,
-            }
-            restored_lifecycle_decision = restored_db.record_lifecycle_evaluation(
-                restored_lifecycle_lease, restored_lifecycle_observations
+            stale_gate_snapshot = restored_db.capture_passive_lifecycle_gate_snapshot(restored)
+            (restored / "STOP").unlink()
+            with self.assertRaisesRegex(StateError, "lifecycle_gate_snapshot_changed"):
+                restored_db.record_passive_lifecycle_hold(
+                    restored_lifecycle_lease, restored, stale_gate_snapshot
+                )
+            (restored / "STOP").touch()
+            gate_snapshot = restored_db.capture_passive_lifecycle_gate_snapshot(restored)
+            restored_lifecycle_decision = restored_db.record_passive_lifecycle_hold(
+                restored_lifecycle_lease, restored, gate_snapshot
             )
             self.assertEqual(restored_lifecycle_decision["body"]["plan"]["action"], "hold")
             self.assertEqual(
@@ -1154,6 +1147,7 @@ class SupervisorTests(unittest.TestCase):
             self.assertFalse(
                 restored_lifecycle_decision["body"]["observations"]["launch_authorized"]
             )
+            self.assertEqual(restored_lifecycle_decision["body"]["source_snapshot"], gate_snapshot)
             self.assertTrue((restored / "STOP").is_file())
         finally:
             restored_db.close()

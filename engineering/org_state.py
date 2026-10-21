@@ -15,8 +15,10 @@ import base64
 import hashlib
 import json
 import math
+import os
 import re
 import sqlite3
+import stat
 import threading
 import time
 from collections.abc import Callable
@@ -58,6 +60,7 @@ _LIFECYCLE_OBSERVATION_FIELDS = frozenset(
 _LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
 _LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
 _LIFECYCLE_OWNER_RECORD_MAX_BYTES = 64 * 1024
+_LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS = 30.0
 _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES = 64 * 1024
 CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS = 1000
 _CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES = 512 * 1024
@@ -3738,6 +3741,303 @@ class Store:
                 self._require_controller_parse_recovery_clear()
             return self._persist_lifecycle_evaluation(owner, plan, bound_observations)
 
+    def capture_passive_lifecycle_gate_snapshot(self, deployment_root: Path) -> dict:
+        """Capture source-labelled recovery gates for a passive restored-copy hold.
+
+        Only STOP presence, the restore receipt, and the Store-owned controller-parse
+        obligation are observed. Other gates remain explicitly unknown/unqualified.
+        This snapshot is not an authorization to consume a lifecycle request.
+        """
+        root = Path(deployment_root)
+        try:
+            root_mode = root.lstat().st_mode
+        except OSError:
+            raise StateError("lifecycle_deployment_root_invalid") from None
+        if not stat.S_ISDIR(root_mode):
+            raise StateError("lifecycle_deployment_root_invalid")
+        with self._read_snapshot():
+            stop = self._lifecycle_file_source(root / "STOP", optional=True)
+            receipt = self._lifecycle_file_source(root / "restore-receipt.json", optional=False)
+            if receipt["present"] is not True:
+                raise StateError("lifecycle_restore_receipt_missing")
+            receipt_body = self._validate_lifecycle_restore_receipt(root, receipt)
+            parser_state = self._controller_parse_gate_state()
+            sequence_row = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()
+            sequence = sequence_row[0]
+            if type(sequence) is not int or sequence < 0:
+                raise StateError("lifecycle_gate_snapshot_sequence_invalid")
+            confirm = self._capture_passive_lifecycle_gate_sources(root)
+            if (
+                confirm["stop"] != {"present": stop["present"], "sha256": stop["sha256"]}
+                or confirm["restore_receipt_sha256"] != receipt["sha256"]
+                or confirm["runtime_ready"] != receipt_body["runtime_ready"]
+                or confirm["host_requalification_required"]
+                != receipt_body["host_requalification_required"]
+                or confirm["controller_parse"] != parser_state
+                or confirm["capture_sequence"] != sequence
+            ):
+                raise StateError("lifecycle_gate_snapshot_changed")
+            source = {
+                "schema": "passive-lifecycle-gates-v1",
+                "captured_at": self._lifecycle_now(),
+                "capture_sequence": sequence,
+                "stop": {"present": stop["present"], "sha256": stop["sha256"]},
+                "restore_receipt_sha256": receipt["sha256"],
+                "runtime_ready": receipt_body["runtime_ready"],
+                "host_requalification_required": receipt_body["host_requalification_required"],
+                "controller_parse": parser_state,
+            }
+            source["snapshot_sha256"] = hashlib.sha256(_json(source).encode("utf-8")).hexdigest()
+            return source
+
+    def record_passive_lifecycle_hold(self, lease: Any, deployment_root: Path, snapshot: Any):
+        """Persist a source-bound passive hold if captured gates remain fresh and unchanged.
+
+        Re-reads file sources and controller-parse history after SQLite's write lock is
+        acquired. No launch request can be emitted by this API.
+        """
+        lease = _lifecycle_snapshot(lease)
+        snapshot = _lifecycle_snapshot(snapshot)
+        self._validate_passive_lifecycle_gate_snapshot(snapshot)
+        stop = snapshot["stop"]
+
+        with self._tx():
+            now = self._lifecycle_now()
+            if (
+                now < snapshot["captured_at"]
+                or now - snapshot["captured_at"] > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+            ):
+                raise StateError("lifecycle_gate_snapshot_stale_or_invalid")
+            owner = self._lifecycle_fence(lease)
+            current = self._capture_passive_lifecycle_gate_sources(Path(deployment_root))
+            if (
+                current["stop"] != stop
+                or current["restore_receipt_sha256"] != snapshot["restore_receipt_sha256"]
+                or current["runtime_ready"] != snapshot["runtime_ready"]
+                or current["host_requalification_required"]
+                != snapshot["host_requalification_required"]
+                or current["controller_parse"] != snapshot["controller_parse"]
+                or current["capture_sequence"] != snapshot["capture_sequence"]
+            ):
+                raise StateError("lifecycle_gate_snapshot_changed")
+            commit_now = self._lifecycle_now()
+            if (
+                commit_now < snapshot["captured_at"]
+                or commit_now - snapshot["captured_at"] > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+            ):
+                raise StateError("lifecycle_gate_snapshot_stale_or_invalid")
+            observations = {
+                "desired_state": "enabled",
+                "stop_reasons": ["deployment_stop"] if stop["present"] else [],
+                "runtime_ready": False,
+                "accounting_ready": False,
+                "quota_ready": False,
+                "process_state": "unknown",
+                "process_owner": None,
+                "lease_owner": None,
+                "active_attempt_id": None,
+                "recovery_open": (
+                    snapshot["host_requalification_required"]
+                    or snapshot["controller_parse"] != "clear"
+                ),
+                "backoff_until": None,
+                "now": commit_now,
+                "launch_authorized": False,
+            }
+            bound_observations = {
+                **observations,
+                "request_owner": owner["owner"],
+                "request_epoch": owner["epoch"],
+                "source_snapshot_sha256": snapshot["snapshot_sha256"],
+            }
+            from .lifecycle import plan_lifecycle
+
+            computed = plan_lifecycle(**bound_observations)
+            if computed.action != "hold":
+                raise StateError("lifecycle_passive_snapshot_not_hold")
+            final_now = self._lifecycle_now()
+            if (
+                final_now < snapshot["captured_at"]
+                or final_now - snapshot["captured_at"] > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+            ):
+                raise StateError("lifecycle_gate_snapshot_stale_or_invalid")
+            plan = {
+                "action": computed.action,
+                "reason": computed.reason,
+                "retry_at": computed.retry_at,
+                "attempt_id": computed.attempt_id,
+                "request_owner": computed.request_owner,
+                "request_epoch": computed.request_epoch,
+                "decision_sha256": computed.decision_sha256,
+            }
+            return self._persist_lifecycle_evaluation(
+                owner, plan, bound_observations, source_snapshot=snapshot
+            )
+
+    @staticmethod
+    def _lifecycle_file_source(path: Path, *, optional: bool) -> dict:
+        try:
+            before = path.lstat()
+        except FileNotFoundError:
+            if optional:
+                return {"present": False, "sha256": None, "bytes": b""}
+            raise StateError("lifecycle_source_missing") from None
+        if not stat.S_ISREG(before.st_mode):
+            raise StateError("lifecycle_source_not_regular")
+        nofollow = getattr(os, "O_NOFOLLOW", None)
+        if nofollow is None:
+            raise StateError("lifecycle_no_follow_unavailable")
+        flags = os.O_RDONLY | os.O_NONBLOCK | nofollow
+        try:
+            fd = os.open(path, flags)
+            try:
+                opened = os.fstat(fd)
+                if not stat.S_ISREG(opened.st_mode):
+                    raise StateError("lifecycle_source_not_regular")
+                if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+                    raise StateError("lifecycle_source_changed")
+                if opened.st_size > 1024 * 1024:
+                    raise StateError("lifecycle_source_too_large")
+                chunks = []
+                remaining = opened.st_size + 1
+                while remaining:
+                    chunk = os.read(fd, min(remaining, 65536))
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                    remaining -= len(chunk)
+                data = b"".join(chunks)
+                after = os.fstat(fd)
+            finally:
+                os.close(fd)
+        except OSError:
+            raise StateError("lifecycle_source_unreadable") from None
+        if len(data) != before.st_size or (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+        ) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+            raise StateError("lifecycle_source_changed")
+        return {"present": True, "sha256": hashlib.sha256(data).hexdigest(), "bytes": data}
+
+    @staticmethod
+    def _validate_passive_lifecycle_gate_snapshot(snapshot: Any) -> None:
+        required = {
+            "schema",
+            "captured_at",
+            "capture_sequence",
+            "stop",
+            "restore_receipt_sha256",
+            "runtime_ready",
+            "host_requalification_required",
+            "controller_parse",
+            "snapshot_sha256",
+        }
+        if type(snapshot) is not dict or set(snapshot) != required:
+            raise StateError("lifecycle_gate_snapshot_invalid")
+        claimed = dict(snapshot)
+        digest = claimed.pop("snapshot_sha256")
+        try:
+            expected = hashlib.sha256(_json(claimed).encode("utf-8")).hexdigest()
+            captured_at_valid = (
+                type(snapshot["captured_at"]) in (int, float)
+                and not isinstance(snapshot["captured_at"], bool)
+                and math.isfinite(snapshot["captured_at"])
+            )
+        except (TypeError, ValueError, OverflowError, RecursionError):
+            raise StateError("lifecycle_gate_snapshot_invalid") from None
+        stop = snapshot["stop"]
+        if (
+            snapshot["schema"] != "passive-lifecycle-gates-v1"
+            or not captured_at_valid
+            or type(snapshot["capture_sequence"]) is not int
+            or snapshot["capture_sequence"] < 0
+            or type(stop) is not dict
+            or set(stop) != {"present", "sha256"}
+            or type(stop["present"]) is not bool
+            or (
+                stop["present"]
+                and (
+                    type(stop["sha256"]) is not str
+                    or re.fullmatch(r"[0-9a-f]{64}", stop["sha256"]) is None
+                )
+            )
+            or (not stop["present"] and stop["sha256"] is not None)
+            or type(snapshot["restore_receipt_sha256"]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", snapshot["restore_receipt_sha256"]) is None
+            or snapshot["runtime_ready"] is not False
+            or snapshot["host_requalification_required"] is not True
+            or type(snapshot["controller_parse"]) is not str
+            or snapshot["controller_parse"] not in {"clear", "open", "unknown"}
+            or type(digest) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or digest != expected
+        ):
+            raise StateError("lifecycle_gate_snapshot_invalid")
+
+    def _controller_parse_gate_state(self) -> str:
+        try:
+            self._require_controller_parse_recovery_clear()
+        except StateError as exc:
+            if str(exc) == "controller_parse_recovery_open":
+                return "open"
+            return "unknown"
+        return "clear"
+
+    def _capture_passive_lifecycle_gate_sources(self, root: Path) -> dict:
+        try:
+            root_mode = root.lstat().st_mode
+        except OSError:
+            raise StateError("lifecycle_deployment_root_invalid") from None
+        if not stat.S_ISDIR(root_mode):
+            raise StateError("lifecycle_deployment_root_invalid")
+        stop = self._lifecycle_file_source(root / "STOP", optional=True)
+        receipt = self._lifecycle_file_source(root / "restore-receipt.json", optional=False)
+        if not receipt["present"]:
+            raise StateError("lifecycle_restore_receipt_missing")
+        body = self._validate_lifecycle_restore_receipt(root, receipt)
+        sequence = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+        if type(sequence) is not int or sequence < 0:
+            raise StateError("lifecycle_gate_snapshot_sequence_invalid")
+        return {
+            "stop": {"present": stop["present"], "sha256": stop["sha256"]},
+            "restore_receipt_sha256": receipt["sha256"],
+            "runtime_ready": body["runtime_ready"],
+            "host_requalification_required": body["host_requalification_required"],
+            "controller_parse": self._controller_parse_gate_state(),
+            "capture_sequence": sequence,
+        }
+
+    def _validate_lifecycle_restore_receipt(self, root: Path, receipt: dict) -> dict:
+        try:
+            body = json.loads(receipt["bytes"].decode("utf-8"))
+        except (UnicodeDecodeError, TypeError, ValueError, OverflowError, RecursionError):
+            raise StateError("lifecycle_restore_receipt_invalid") from None
+        required = {
+            "schema",
+            "snapshot_manifest_sha256",
+            "restored_path",
+            "stop_preserved",
+            "structural_deployment_validation",
+            "runtime_ready",
+            "host_requalification_required",
+        }
+        manifest = self._lifecycle_file_source(root / "snapshot.json", optional=False)
+        if (
+            type(body) is not dict
+            or set(body) != required
+            or body.get("schema") != "brain-organization-restore-v1"
+            or body.get("snapshot_manifest_sha256") != manifest["sha256"]
+            or body.get("restored_path") != str(root)
+            or body.get("stop_preserved") is not True
+            or body.get("structural_deployment_validation") is not True
+            or body.get("runtime_ready") is not False
+            or body.get("host_requalification_required") is not True
+        ):
+            raise StateError("lifecycle_restore_receipt_invalid")
+        return body
+
     def _require_controller_parse_recovery_clear(self) -> None:
         """Reject optimistic launch requests while the durable parser recovery is open.
 
@@ -3875,7 +4175,11 @@ class Store:
             raise StateError("controller_parse_recovery_history_invalid") from None
 
     def _persist_lifecycle_evaluation(
-        self, owner: dict, plan: dict, observations: dict | None = None
+        self,
+        owner: dict,
+        plan: dict,
+        observations: dict | None = None,
+        source_snapshot: dict | None = None,
     ) -> dict:
         digest = plan["decision_sha256"]
         request_id = hashlib.sha256(
@@ -3885,6 +4189,8 @@ class Store:
         body = {"owner": owner["owner"], "epoch": owner["epoch"], "plan": plan}
         if observations is not None:
             body["observations"] = observations
+        if source_snapshot is not None:
+            body["source_snapshot"] = source_snapshot
         if len(_json(body).encode("utf-8")) > _LIFECYCLE_REQUEST_MAX_BYTES:
             raise StateError("lifecycle_request_byte_limit")
         history = self.db.execute(
@@ -4035,8 +4341,20 @@ class Store:
             if type(body) is not dict or set(body) not in (
                 {"owner", "epoch", "plan"},
                 {"owner", "epoch", "plan", "observations"},
+                {"owner", "epoch", "plan", "observations", "source_snapshot"},
             ):
                 raise StateError("lifecycle_request_invalid")
+            if "source_snapshot" in body:
+                source = body["source_snapshot"]
+                try:
+                    self._validate_passive_lifecycle_gate_snapshot(source)
+                except StateError:
+                    raise StateError("lifecycle_request_invalid") from None
+                observations = body.get("observations")
+                if type(observations) is not dict or observations.get(
+                    "source_snapshot_sha256"
+                ) != source.get("snapshot_sha256"):
+                    raise StateError("lifecycle_request_invalid")
             request_owner, request_epoch, plan = body["owner"], body["epoch"], body["plan"]
             required_plan = {
                 "action",
@@ -4103,8 +4421,14 @@ class Store:
                 raise StateError("lifecycle_request_identity_invalid")
             if "observations" in body:
                 observations = body["observations"]
-                if type(observations) is not dict or set(observations) != (
-                    _LIFECYCLE_OBSERVATION_FIELDS | {"request_owner", "request_epoch"}
+                ordinary_observations = _LIFECYCLE_OBSERVATION_FIELDS | {
+                    "request_owner",
+                    "request_epoch",
+                }
+                snapshot_observations = ordinary_observations | {"source_snapshot_sha256"}
+                if type(observations) is not dict or set(observations) not in (
+                    ordinary_observations,
+                    snapshot_observations,
                 ):
                     raise StateError("lifecycle_request_invalid")
                 if (
@@ -4118,6 +4442,49 @@ class Store:
                     for key, value in observations.items()
                     if key in _LIFECYCLE_OBSERVATION_FIELDS
                 }
+                if "source_snapshot_sha256" in observations:
+                    source = body.get("source_snapshot")
+                    if type(source) is not dict or observations[
+                        "source_snapshot_sha256"
+                    ] != source.get("snapshot_sha256"):
+                        raise StateError("lifecycle_request_invalid")
+                    planner_observations["source_snapshot_sha256"] = observations[
+                        "source_snapshot_sha256"
+                    ]
+                    expected_stop_reasons = ["deployment_stop"] if source["stop"]["present"] else []
+                    try:
+                        observation_time = observations["now"]
+                        finite_observation_time = (
+                            type(observation_time) in (int, float)
+                            and not isinstance(observation_time, bool)
+                            and math.isfinite(observation_time)
+                        )
+                    except (TypeError, ValueError, OverflowError):
+                        finite_observation_time = False
+                    if (
+                        plan["action"] != "hold"
+                        or observations["desired_state"] != "enabled"
+                        or observations["stop_reasons"] != expected_stop_reasons
+                        or observations["runtime_ready"] is not False
+                        or observations["accounting_ready"] is not False
+                        or observations["quota_ready"] is not False
+                        or observations["process_state"] != "unknown"
+                        or observations["process_owner"] is not None
+                        or observations["lease_owner"] is not None
+                        or observations["active_attempt_id"] is not None
+                        or observations["recovery_open"]
+                        is not (
+                            source["host_requalification_required"]
+                            or source["controller_parse"] != "clear"
+                        )
+                        or observations["backoff_until"] is not None
+                        or observations["launch_authorized"] is not False
+                        or not finite_observation_time
+                        or observation_time < source["captured_at"]
+                        or observation_time - source["captured_at"]
+                        > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+                    ):
+                        raise StateError("lifecycle_request_invalid")
                 try:
                     from .lifecycle import plan_lifecycle
 

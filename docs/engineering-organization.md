@@ -127,21 +127,23 @@ candidate. Repository-wide `make check` still stops at 107 pre-existing
 Ruff findings in `src/`, `tools/` and `tests/`, before later checks. The integrated organization
 cycle remains in progress.
 
-A05 now joins the synthetic fresh-path restore to the passive lifecycle Store. On the separate
-restored copy, the test reads its fixture STOP and restore receipt, records a fenced `hold` with
-runtime requalification, accounting, quota and process state conservatively unavailable, closes and
-reopens SQLite, and confirms a newer owner epoch rejects an optimistic write from the prior lease.
-The read-only worklist returns the persisted hold with no dispatch or consumption authority; STOP
-remains present. `snapshot_stop` is created by this fixture, and the restore receipt's
-`host_requalification_required` flag is only a conservative proxy in this test. Accounting, quota,
-process and authorization inputs are synthetic caller observations, not qualified sensors. This
-composes restore, planner and durable fencing for passive hold recovery only; no source-identified
-freshness-bound gate snapshot, lifecycle request consumer, stable authorization generation or
-process action was added. A05 and operational recovery remain open. Sol accepted the test semantics
-after requiring the STOP label to reflect fixture provenance. The focused integrated test passed;
-the exact formatted test diff is
-`67fbfcfc97ce0363ebac32df6e727598667c43ad351f2a69adf81a655e85490f`. The combined engineering gate
-passed Ruff/format, 596 tests and 189 subtests.
+A05 now captures source-identified gates from the synthetic fresh-path restored copy through Store:
+the fixture STOP marker, exact restore receipt bound to `snapshot.json`, and controller-parse
+recovery history. Store records its SQLite event sequence and clock time; it double-reads and
+hash-compares filesystem sources because they cannot share an atomic SQLite sequence. Before
+persisting the passive `hold`, Store re-reads those sources after acquiring `BEGIN IMMEDIATE`,
+rejects changed sources or a snapshot older than 30 seconds, and includes the snapshot digest in the
+planner hash and durable request. Tests remove STOP between capture and write, expire a snapshot
+during a SQLite lock wait, reopen the Store, and verify old owner-epoch fencing. The worklist
+revalidates the exact source schema and its conservative hold observations, and still grants no
+dispatch or consumption authority; STOP remains present.
+This is synthetic restored-copy evidence: runtime is forced unavailable, and accounting, quota,
+process, and launch authorization have no qualified sensors. It adds no lifecycle request consumer,
+stable authorization generation, or process/service action. A05 and operational recovery remain
+open. Same-content remove/recreate events between filesystem observations cannot be distinguished,
+and this Store adapter verifies the restore receipt's manifest digest but does not independently
+validate that manifest; the integrated restore path separately validates the deployment. Exact
+focused-test and release-gate results are recorded in the current owner state.
 
 Current A11 receipt-replay increment — 2026-10-21: `GitGate.load_receipt` is the shared reader for
 publication and supervisor recovery. It bounds reads, rejects symlinks/non-regular files, enforces
