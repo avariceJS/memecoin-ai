@@ -1505,21 +1505,58 @@ class Store:
             raise StateError("contract review replay request byte limit exceeded")
         return total
 
+    def _put_contract_review_version_in_transaction(self, request_id: str, body: dict) -> int:
+        """Append one review version only when the complete retained journal stays bounded."""
+        serialized = _json(body)
+        body_bytes = len(serialized.encode("utf-8"))
+        if body_bytes > _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES:
+            raise StateError("contract review version byte limit exceeded")
+        if (
+            self._contract_review_replay_history_size(request_id) + body_bytes
+            > _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES
+        ):
+            raise StateError("contract review request history byte limit exceeded")
+        return self._put_decision_in_transaction(self._contract_review_key(request_id), body)
+
     def _contract_review_record(
         self, request_id: str, *, bounded_replay: bool = False
     ) -> dict | None:
         key = self._contract_review_key(request_id)
         if bounded_replay:
-            self._contract_review_replay_history_size(request_id)
-        rows = self.db.execute(
-            "SELECT version,body,replaces,replaces_version FROM decisions "
-            "WHERE name=? ORDER BY version",
-            (key,),
-        ).fetchall()
+            # Keep count, byte checks, and bounded body projection in one statement so a
+            # writer cannot add rows between preflight and an unbounded body fetch.
+            rows = self.db.execute(
+                "SELECT version, CASE WHEN length(CAST(body AS BLOB))<="
+                f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES} THEN body END AS bounded_body, "
+                "length(CAST(body AS BLOB)) AS body_bytes,replaces,replaces_version "
+                "FROM decisions WHERE name=? ORDER BY version LIMIT 6",
+                (key,),
+            ).fetchall()
+        else:
+            rows = self.db.execute(
+                "SELECT version,body AS bounded_body,replaces,replaces_version "
+                "FROM decisions WHERE name=? ORDER BY version",
+                (key,),
+            ).fetchall()
         if not rows:
             return None
-        if [row["version"] for row in rows] != list(range(1, len(rows) + 1)):
+        if len(rows) > 5 or [row["version"] for row in rows] != list(range(1, len(rows) + 1)):
             raise StateError("contract review history invalid")
+        if bounded_replay:
+            history_bytes = 0
+            for row in rows:
+                size = row["body_bytes"]
+                if (
+                    type(size) is not int
+                    or size < 0
+                    or size > _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES
+                ):
+                    raise StateError("contract review replay history byte limit exceeded")
+                history_bytes += size
+                if history_bytes > _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES:
+                    raise StateError("contract review replay request byte limit exceeded")
+                if type(row["bounded_body"]) is not str:
+                    raise StateError("contract review replay history byte limit exceeded")
         previous = None
         record = None
         allowed_status = {
@@ -1532,7 +1569,7 @@ class Store:
             "response_recorded": {"approved", "blocked"},
         }
         for row in rows:
-            body = json.loads(row["body"])
+            body = json.loads(row["bounded_body"])
             if (
                 type(body) is not dict
                 or body.get("kind") != "contract_review_request"
@@ -1841,7 +1878,7 @@ class Store:
                 "packet_hash": packet_hash,
                 "dispatch_id": "contract-review:" + request_id,
             }
-            self._put_decision_in_transaction(self._contract_review_key(request_id), body)
+            self._put_contract_review_version_in_transaction(request_id, body)
             return {"name": self._contract_review_key(request_id), "version": 1, "body": body}
 
     def _contract_review_currentness_in_snapshot(self, current: dict, packet_hash: str) -> dict:
@@ -2012,7 +2049,7 @@ class Store:
             raise
         items = []
         for request_id in identities:
-            current = self._contract_review_record(request_id)
+            current = self._contract_review_record(request_id, bounded_replay=True)
             if current is None:
                 raise StateError("contract review worklist record missing")
             body = current["body"]
@@ -2096,7 +2133,7 @@ class Store:
         items = []
         skipped_count = 0
         for request_id in identities:
-            current = self._contract_review_record(request_id)
+            current = self._contract_review_record(request_id, bounded_replay=True)
             if current is None:
                 raise StateError("contract review worklist record missing")
             body = current["body"]
@@ -2211,7 +2248,7 @@ class Store:
         if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
             raise StateError("contract review packet hash invalid")
         with self._tx():
-            current = self._contract_review_record(request_id)
+            current = self._contract_review_record(request_id, bounded_replay=True)
             if current is None:
                 raise StateError("contract review request missing")
             body = current["body"]
@@ -2223,7 +2260,7 @@ class Store:
                     "contract review packet is stale: " + ",".join(freshness["blockers"])
                 )
             updated = {**body, "status": "dispatching"}
-            self._put_decision_in_transaction(current["name"], updated)
+            self._put_contract_review_version_in_transaction(request_id, updated)
             return {"name": current["name"], "version": current["version"] + 1, "body": updated}
 
     def record_contract_review_session(
@@ -2258,7 +2295,7 @@ class Store:
             "process_identity": identity,
         }
         with self._tx():
-            current = self._contract_review_record(request_id)
+            current = self._contract_review_record(request_id, bounded_replay=True)
             if current is None:
                 raise StateError("contract review request missing")
             body = current["body"]
@@ -2273,7 +2310,7 @@ class Store:
             if body["status"] != "dispatching":
                 raise StateError("contract review session is stale")
             updated = {**body, "status": "thread_known", "session": session}
-            self._put_decision_in_transaction(current["name"], updated)
+            self._put_contract_review_version_in_transaction(request_id, updated)
             return {"name": current["name"], "version": current["version"] + 1, "body": updated}
 
     def record_contract_review_response(
@@ -2304,7 +2341,7 @@ class Store:
         raw_sha256 = hashlib.sha256(raw_result).hexdigest()
         encoded = base64.b64encode(raw_result).decode("ascii")
         with self._tx():
-            current = self._contract_review_record(request_id)
+            current = self._contract_review_record(request_id, bounded_replay=True)
             if current is None:
                 raise StateError("contract review request missing")
             body = current["body"]
@@ -2327,7 +2364,7 @@ class Store:
             if type(session) is not dict or session.get("turn_dispatch_id") != turn_dispatch_id:
                 raise StateError("contract review response session mismatch")
             updated = {**body, "status": "response_recorded", **response_identity}
-            self._put_decision_in_transaction(current["name"], updated)
+            self._put_contract_review_version_in_transaction(request_id, updated)
             return {"name": current["name"], "version": current["version"] + 1, "body": updated}
 
     def get_contract_review_response(
@@ -2545,7 +2582,7 @@ class Store:
         ):
             raise StateError("contract review result exceeds bound")
         with self._tx():
-            current = self._contract_review_record(request_id, bounded_replay=_bounded_replay)
+            current = self._contract_review_record(request_id, bounded_replay=True)
             if current is None:
                 raise StateError("contract review request missing")
             body = current["body"]
@@ -2560,9 +2597,7 @@ class Store:
                 raise StateError("contract review response is not durably recorded")
             if body.get("raw_sha256") != raw_sha256:
                 raise StateError("contract review response hash mismatch")
-            response = self.get_contract_review_response(
-                request_id, _bounded_replay=_bounded_replay
-            )
+            response = self.get_contract_review_response(request_id, _bounded_replay=True)
             try:
                 raw_result = _strict_contract_review_result(response["raw_result"])
                 if _json(raw_result) != _json(detached):
@@ -2639,7 +2674,7 @@ class Store:
                 "result": detached,
                 "blocking_reasons": stale_reasons,
             }
-            self._put_decision_in_transaction(current["name"], updated)
+            self._put_contract_review_version_in_transaction(request_id, updated)
             if approved and not stale_reasons:
                 if (
                     self._contract_review_digest(proposal) != body["proposal_digest"]

@@ -465,6 +465,51 @@ def test_contract_review_worklist_does_not_hydrate_names_with_embedded_nul(store
         store.contract_review_worklist(limit=1)
 
 
+def test_contract_review_dispatch_rejects_oversized_history_before_body_hydration(store):
+    request_id = "a" * 64
+    name = "contract-review/" + request_id
+    store.db.executemany(
+        "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+        [(name, version, "{}") for version in range(1, 7)],
+    )
+
+    with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
+        with pytest.raises(StateError, match="contract review history invalid"):
+            store.begin_contract_review_dispatch(request_id, "0" * 64)
+
+
+def test_contract_review_dispatch_does_not_hydrate_oversized_body(store):
+    request_id = "b" * 64
+    name = "contract-review/" + request_id
+    store.db.execute(
+        "INSERT INTO decisions(name,version,body) VALUES(?,?,?)",
+        (name, 1, "x" * (512 * 1024 + 1)),
+    )
+
+    with patch("engineering.org_state.json.loads", side_effect=AssertionError("body hydrated")):
+        with pytest.raises(StateError, match="replay history byte limit exceeded"):
+            store.begin_contract_review_dispatch(request_id, "0" * 64)
+
+
+def test_contract_review_session_write_cannot_exceed_later_read_bound(store):
+    request = prepare_review(store)
+    body = request["body"]
+    store.begin_contract_review_dispatch(body["request_id"], body["packet_hash"])
+
+    with pytest.raises(StateError, match="version byte limit exceeded"):
+        store.record_contract_review_session(
+            body["request_id"],
+            body["packet_hash"],
+            "x" * (512 * 1024),
+            "model",
+            body["dispatch_id"],
+            {"pid": 123, "birth": "birth"},
+        )
+
+    current = store._contract_review_record(body["request_id"])
+    assert current["body"]["status"] == "dispatching"
+
+
 def test_contract_review_worklist_does_not_hydrate_malformed_utf8_names(store):
     raw_name = b"contract-review/" + b"a" * 62 + b"\xc2" + b"\x80" * (256 * 1024)
     store.db.execute(
@@ -1151,13 +1196,22 @@ def test_replay_history_rejects_sixth_version_before_body_hydration(store):
 def test_oversized_legacy_review_remains_readable_but_replay_fails_closed(store, monkeypatch):
     request = prepare_review(store)
     body = request["body"]
-    body["legacy_extra"] = "x" * 1000
+    record_pending_review_response(store, body, suffix="oversized-legacy")
+    current = store.get_decision(request["name"])
+    oversized = {**current["body"], "legacy_extra": "x" * 1000}
     store.db.execute(
-        "UPDATE decisions SET body=? WHERE name=?", (json.dumps(body), request["name"])
+        "UPDATE decisions SET body=? WHERE name=? AND version=?",
+        (json.dumps(oversized), request["name"], current["version"]),
     )
     monkeypatch.setattr(org_state, "_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES", 100)
 
     assert store._contract_review_record(body["request_id"])["body"]["legacy_extra"] == "x" * 1000
+    assert (
+        store.get_contract_review_response(body["request_id"])["raw_sha256"]
+        == current["body"]["raw_sha256"]
+    )
+    with pytest.raises(StateError, match="replay history byte limit exceeded"):
+        store.get_contract_review_response(body["request_id"], _bounded_replay=True)
     result = store.replay_contract_review_responses_for_transition(
         "sample", 2, body["contract_hash"], limit=100
     )
