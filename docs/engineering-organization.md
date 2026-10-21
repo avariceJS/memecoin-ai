@@ -444,16 +444,21 @@ limits the cumulative read to 16 MB, compares descriptor metadata before and aft
 records `prelaunch_script_sha256` in command evidence. A synthetic regression changes the harness
 after plan resolution and confirms rejection before `Popen`; Sol accepted exact diff
 `3d69f91ff4b844d0c3fc030c36568c649a60048a5f6fd570380276a5338121d2`. Focused tests passed 31 tests
-and 10 subtests; Ruff check and format passed on 58 files. The full engineering suite had 400 passes,
-96 subtests and one `PermissionError` in the existing process-group cleanup path of
-`test_running_identity_survives_path_replacement`; the same failure reproduced on clean base
-`78ff669`, while an isolated rerun passed. This candidate does not change cleanup. The hash records
-only a prelaunch observation: Python later opens by pathname, so replacement or mutation after the
-check remains possible. Synchronous filesystem reads have no hard deadline. Loader/import closure,
-descendants, stdout provenance, deployment qualification and full A04 remain open; plans stay
-`execution_qualified=False`. Receipt:
+and 10 subtests; Ruff check and format passed on 58 files. Initial full-suite runs showed 400 passes,
+96 subtests and one intermittent `PermissionError` in the existing process-group cleanup path of
+`test_running_identity_survives_path_replacement`; the same failure occurred on clean base `78ff669`.
+An isolated rerun and a diagnostic instrumented baseline run passed. A later uninstrumented full run
+on this exact candidate passed 401 tests and 96 subtests. The cause of the intermittent cleanup
+failure remains unknown; this candidate does not change cleanup. The hash records only a prelaunch
+observation: Python later opens by pathname, so replacement or mutation after the check remains
+possible. Synchronous filesystem reads have no hard deadline. Loader/import closure, descendants,
+stdout provenance, deployment qualification and full A04 remain open; plans stay
+`execution_qualified=False`. Review receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-harness-custody-review-20261021.json`
 (SHA-256 `319bc7da1f94aa5366daa0ab690cf8cf6bdccfcfa033314546ba91d446182919`).
+Gate rerun receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-harness-custody-gate-rerun-20261021.json`
+(SHA-256 `02197749030f0be284acd1fbc5e1bcdae0fe0598dbf78fb3b09ac6c3caa3a77e`).
 
 A synthetic macOS integration test now joins persisted task admission and verifier binding, manifest
 v4 resolution, bound-command expansion, `SandboxRunner`, and strict result parsing in one disposable

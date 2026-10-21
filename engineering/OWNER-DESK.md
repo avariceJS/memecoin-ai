@@ -358,15 +358,18 @@ manifest hash trusted harness в `BoundVerifier` и проверяет файл 
 `Popen`: canonical path должен стоять ровно в `argv[4]` после `-I -S -B`, файл regular, чтение до
 16 MB, metadata descriptor совпадают до/после hash. `prelaunch_script_sha256` записывается в command
 evidence. Sol принял exact diff `3d69f91ff4b844d0c3fc030c36568c649a60048a5f6fd570380276a5338121d2`;
-focused suite: 31 тест, 10 subtests; Ruff прошёл на 58 файлах. Полный gate дал 400 тестов и 96
-subtests плюс один `PermissionError` в существующем cleanup `test_running_identity_survives_path_replacement`;
-тот же сбой воспроизведён на чистом base `78ff669`, отдельный повтор теста прошёл. Patch cleanup не
-менял. Prelaunch hash не доказывает, что Python открыл те же bytes: замена path или мутация после
-проверки остаются возможны; синхронное чтение не имеет жёсткого deadline. Loader/import closure,
-descendants, stdout provenance и deployment qualification открыты; планы остаются
-`execution_qualified=False`. Receipt:
+focused suite: 31 тест, 10 subtests; Ruff прошёл на 58 файлах. Ранние полные прогоны дали 400 тестов,
+96 subtests и intermittent `PermissionError` в существующем cleanup `test_running_identity_survives_path_replacement`;
+тот же сбой был на чистом base `78ff669`. Изолированный и инструментированный диагностический прогоны
+прошли; затем обычный полный прогон exact candidate прошёл: 401 тест, 96 subtests. Причина cleanup
+сбоя остаётся неизвестной; patch cleanup не менял. Prelaunch hash не доказывает, что Python открыл те же
+bytes: замена path или мутация после проверки остаются возможны; синхронное чтение не имеет жёсткого
+deadline. Loader/import closure, descendants, stdout provenance и deployment qualification открыты;
+планы остаются `execution_qualified=False`. Review receipt:
 `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-harness-custody-review-20261021.json`
-(SHA-256 `319bc7da1f94aa5366daa0ab690cf8cf6bdccfcfa033314546ba91d446182919`). Полный A04 открыт.
+(SHA-256 `319bc7da1f94aa5366daa0ab690cf8cf6bdccfcfa033314546ba91d446182919`). Gate rerun receipt:
+`/Users/root1/Developer/brain-org-state/resumption-20261020/a04-harness-custody-gate-rerun-20261021.json`
+(SHA-256 `02197749030f0be284acd1fbc5e1bcdae0fe0598dbf78fb3b09ac6c3caa3a77e`). Полный A04 открыт.
 
 A10 получил read-only readiness report в `57f496f5f74258d00a09dc37b5818e409495dffc`: единый SQLite
 snapshot показывает non-integrated/missing dependencies и несовпадающие версии contracts. Blocked
