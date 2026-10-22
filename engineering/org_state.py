@@ -69,6 +69,7 @@ _LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
 _LIFECYCLE_OWNER_RECORD_MAX_BYTES = 64 * 1024
 _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS = 30.0
 _SUPERVISOR_EPISODE_CHECKPOINT_PREFIX = "supervisor/episode-checkpoint/"
+_COMPANY_CONTROL_ENTITY = "company/control"
 _SPAWN_FAILURE_BACKOFF_BASE_SECONDS = 5.0
 _SPAWN_FAILURE_BACKOFF_MAX_SECONDS = 300.0
 _SPAWN_FAILURE_BACKOFF_MAX_FAILURES = 8
@@ -277,6 +278,7 @@ class Store:
         clock: Callable[[], float] = time.time,
         *,
         controller_catalogue: list[str] | tuple[str, ...] | None = None,
+        require_company_control: bool = False,
     ):
         if controller_catalogue is not None and (
             type(controller_catalogue) not in (list, tuple)
@@ -287,6 +289,9 @@ class Store:
         self.controller_catalogue = (
             None if controller_catalogue is None else frozenset(controller_catalogue)
         )
+        if type(require_company_control) is not bool:
+            raise StateError("company_control_policy_invalid")
+        self.require_company_control = require_company_control
         self._lock = threading.RLock()
         self.db = sqlite3.connect(
             str(path), timeout=30, isolation_level=None, check_same_thread=False
@@ -315,6 +320,10 @@ class Store:
           CREATE TABLE IF NOT EXISTS decisions(
             name TEXT NOT NULL, version INTEGER NOT NULL, body TEXT NOT NULL,
             replaces TEXT, replaces_version INTEGER, PRIMARY KEY(name,version));
+          CREATE TABLE IF NOT EXISTS company_control(
+            id INTEGER PRIMARY KEY CHECK(id=1), generation INTEGER NOT NULL,
+            phase TEXT NOT NULL, request_id TEXT NOT NULL, checkpoint_id TEXT,
+            body TEXT NOT NULL, body_sha256 TEXT NOT NULL);
           CREATE INDEX IF NOT EXISTS idx_contract_review_transition_replay
             ON decisions(
               CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END,
@@ -421,6 +430,316 @@ class Store:
         """)
         self._issued_quiescence_snapshot_sha256: bytes | None = None
 
+    def _company_control_current(self, *, required: bool | None = None) -> dict | None:
+        """Read and event-bind the dedicated singleton company execution fence."""
+        require = self.require_company_control if required is None else required
+        row = self.db.execute("SELECT * FROM company_control WHERE id=1").fetchone()
+        if row is None:
+            if require:
+                raise StateError("company_control_missing")
+            return None
+        try:
+            body = json.loads(row["body"])
+            digest = hashlib.sha256(_json(body).encode("utf-8")).hexdigest()
+            latest = self.db.execute(
+                "SELECT body FROM events WHERE kind='company_control_transition' "
+                "AND entity=? ORDER BY seq DESC LIMIT 1",
+                (_COMPANY_CONTROL_ENTITY,),
+            ).fetchone()
+            if (
+                type(body) is not dict
+                or set(body)
+                != {"schema", "generation", "phase", "request_id", "checkpoint_id", "updated_at"}
+                or body["schema"] != "company-control-v1"
+                or type(body["generation"]) is not int
+                or body["generation"] < 0
+                or body["generation"] != row["generation"]
+                or body["phase"] not in {"running", "draining", "hibernated", "wake_pending"}
+                or body["phase"] != row["phase"]
+                or type(body["request_id"]) is not str
+                or not body["request_id"]
+                or body["request_id"] != row["request_id"]
+                or (body["checkpoint_id"] is not None and (
+                    type(body["checkpoint_id"]) is not str
+                    or re.fullmatch(r"[0-9a-f]{64}", body["checkpoint_id"]) is None
+                ))
+                or body["checkpoint_id"] != row["checkpoint_id"]
+                or type(body["updated_at"]) not in (int, float)
+                or isinstance(body["updated_at"], bool)
+                or not math.isfinite(body["updated_at"])
+                or digest != row["body_sha256"]
+                or latest is None
+                or latest["body"] != _json(body)
+            ):
+                raise ValueError
+        except (TypeError, ValueError, KeyError, RecursionError):
+            raise StateError("company_control_history_invalid") from None
+        return body
+
+    def company_control_state(self, *, required: bool | None = None) -> dict | None:
+        """Return the durable company fence without implying dispatch authority."""
+        with self._lock:
+            if self.db.in_transaction:
+                body = self._company_control_current(required=required)
+            else:
+                with self._read_snapshot():
+                    body = self._company_control_current(required=required)
+            return None if body is None else dict(body)
+
+    def _require_company_running(self) -> None:
+        body = self._company_control_current()
+        if body is not None and body["phase"] != "running":
+            raise StateError("company_hibernation_active")
+
+    def require_company_phase(self, expected: str) -> dict | None:
+        if type(expected) is not str or expected not in {
+            "running", "draining", "hibernated", "wake_pending"
+        }:
+            raise StateError("company_control_phase_invalid")
+        body = self.company_control_state()
+        if body is not None and body["phase"] != expected:
+            raise StateError("company_control_phase_mismatch")
+        return body
+
+    def require_company_running(self) -> dict | None:
+        """Fail closed for controller Stores while company dispatch is fenced."""
+        body = self.company_control_state()
+        if body is not None and body["phase"] != "running":
+            raise StateError("company_hibernation_active")
+        return body
+
+    def initialize_company_control(self) -> dict:
+        """Install the explicit initial running state during trusted deployment bootstrap."""
+        with self._tx():
+            existing = self._company_control_current(required=False)
+            if existing is not None:
+                return existing
+            if self.db.execute(
+                "SELECT 1 FROM events WHERE kind='company_control_transition' AND entity=? LIMIT 1",
+                (_COMPANY_CONTROL_ENTITY,),
+            ).fetchone():
+                raise StateError("company_control_history_invalid")
+            body = {
+                "schema": "company-control-v1",
+                "generation": 0,
+                "phase": "running",
+                "request_id": "deployment-bootstrap",
+                "checkpoint_id": None,
+                "updated_at": self.clock(),
+            }
+            self.db.execute(
+                "INSERT INTO company_control VALUES(1,?,?,?,?,?,?)",
+                (
+                    body["generation"],
+                    body["phase"],
+                    body["request_id"],
+                    body["checkpoint_id"],
+                    _json(body),
+                    hashlib.sha256(_json(body).encode("utf-8")).hexdigest(),
+                ),
+            )
+            self._event("company_control_transition", _COMPANY_CONTROL_ENTITY, body)
+            return body
+
+    def request_company_hibernation(self, request_id: str) -> dict:
+        """Persist the drain fence before a caller starts waiting for owned work."""
+        if type(request_id) is not str or not request_id.strip() or len(request_id) > 128:
+            raise StateError("company_hibernation_request_invalid")
+        with self._tx():
+            current = self._company_control_current(required=True)
+            if current["phase"] in ("draining", "hibernated"):
+                if current["request_id"] != request_id:
+                    raise StateError("company_hibernation_request_conflict")
+                return current
+            if current["phase"] != "running":
+                raise StateError("company_control_transition_invalid")
+            body = {
+                "schema": "company-control-v1",
+                "generation": current["generation"] + 1,
+                "phase": "draining",
+                "request_id": request_id,
+                "checkpoint_id": None,
+                "updated_at": self.clock(),
+            }
+            self._write_company_control(body)
+            return body
+
+    def company_hibernation_snapshot(self) -> dict:
+        """Capture one Store view for a request-bound handoff while draining."""
+        with self._read_snapshot():
+            control = self._company_control_current(required=True)
+            if control["phase"] != "draining":
+                raise StateError("company_hibernation_not_draining")
+            revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            events = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+            tasks = self.list_tasks()
+            attempts = self.list_attempts()
+            snapshot = {
+                "schema": "company-hibernation-store-v1",
+                "control": control,
+                "revision": revision,
+                "event_seq": events,
+                "tasks": tasks,
+                "attempts": attempts,
+                "readiness": self._readiness_report_in_snapshot(),
+                "contract_reviews": self._contract_transition_review_projection_in_snapshot(
+                    limit=100
+                ),
+                "review_requests": self._contract_review_worklist_in_snapshot(
+                    limit=100, overflow_as_result=True
+                ),
+            }
+            return snapshot
+
+    def complete_company_hibernation(
+        self,
+        *,
+        request_id: str,
+        generation: int,
+        checkpoint_id: str,
+        expected_revision: int,
+        expected_event_seq: int,
+    ) -> dict:
+        """Commit hibernated only if the exact drained Store snapshot is still current."""
+        if (
+            type(request_id) is not str
+            or not request_id
+            or type(generation) is not int
+            or generation < 1
+            or type(checkpoint_id) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", checkpoint_id) is None
+            or type(expected_revision) is not int
+            or expected_revision < 0
+            or type(expected_event_seq) is not int
+            or expected_event_seq < 0
+        ):
+            raise StateError("company_hibernation_checkpoint_invalid")
+        with self._tx():
+            current = self._company_control_current(required=True)
+            if current["phase"] == "hibernated":
+                if (
+                    current["request_id"] == request_id
+                    and current["generation"] == generation
+                    and current["checkpoint_id"] == checkpoint_id
+                ):
+                    return current
+                raise StateError("company_hibernation_checkpoint_conflict")
+            if (
+                current["phase"] != "draining"
+                or current["request_id"] != request_id
+                or current["generation"] != generation
+            ):
+                raise StateError("company_hibernation_generation_changed")
+            if self.db.execute("SELECT 1 FROM tasks WHERE state='running' LIMIT 1").fetchone():
+                raise StateError("company_hibernation_attempts_active")
+            if self.db.execute("SELECT 1 FROM attempts WHERE state='running' LIMIT 1").fetchone():
+                raise StateError("company_hibernation_attempts_active")
+            revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            event_seq = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+            if revision != expected_revision or event_seq != expected_event_seq:
+                raise StateError("company_hibernation_snapshot_changed")
+            body = {
+                "schema": "company-control-v1",
+                "generation": current["generation"],
+                "phase": "hibernated",
+                "request_id": request_id,
+                "checkpoint_id": checkpoint_id,
+                "updated_at": self.clock(),
+            }
+            self._write_company_control(body)
+            return body
+
+    def request_company_resume(self, request_id: str) -> dict:
+        if type(request_id) is not str or not request_id.strip() or len(request_id) > 128:
+            raise StateError("company_resume_request_invalid")
+        with self._tx():
+            current = self._company_control_current(required=True)
+            if current["phase"] == "wake_pending":
+                if current["request_id"] != request_id:
+                    raise StateError("company_resume_request_conflict")
+                return current
+            if current["phase"] != "hibernated":
+                raise StateError("company_not_hibernated")
+            body = {
+                "schema": "company-control-v1",
+                "generation": current["generation"] + 1,
+                "phase": "wake_pending",
+                "request_id": request_id,
+                "checkpoint_id": current["checkpoint_id"],
+                "updated_at": self.clock(),
+            }
+            self._write_company_control(body)
+            return body
+
+    def complete_company_resume(
+        self,
+        *,
+        request_id: str,
+        generation: int,
+        checkpoint_id: str,
+        expected_revision: int,
+        expected_event_seq: int,
+    ) -> dict:
+        if (
+            type(request_id) is not str
+            or not request_id
+            or type(generation) is not int
+            or generation < 1
+            or type(checkpoint_id) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", checkpoint_id) is None
+            or type(expected_revision) is not int
+            or expected_revision < 0
+            or type(expected_event_seq) is not int
+            or expected_event_seq < 0
+        ):
+            raise StateError("company_resume_checkpoint_invalid")
+        with self._tx():
+            current = self._company_control_current(required=True)
+            if (
+                current["phase"] != "wake_pending"
+                or current["request_id"] != request_id
+                or current["generation"] != generation
+                or current["checkpoint_id"] != checkpoint_id
+            ):
+                raise StateError("company_resume_generation_changed")
+            if self.db.execute("SELECT 1 FROM tasks WHERE state='running' LIMIT 1").fetchone():
+                raise StateError("company_resume_attempts_active")
+            if self.db.execute("SELECT 1 FROM attempts WHERE state='running' LIMIT 1").fetchone():
+                raise StateError("company_resume_attempts_active")
+            revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            event_seq = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+            if revision != expected_revision or event_seq != expected_event_seq:
+                raise StateError("company_resume_snapshot_changed")
+            body = {
+                "schema": "company-control-v1",
+                "generation": current["generation"] + 1,
+                "phase": "running",
+                "request_id": request_id,
+                "checkpoint_id": checkpoint_id,
+                "updated_at": self.clock(),
+            }
+            self._write_company_control(body)
+            return body
+
+    def _write_company_control(self, body: dict) -> None:
+        canonical = _json(body)
+        self.db.execute(
+            "UPDATE company_control SET generation=?,phase=?,request_id=?,checkpoint_id=?,"
+            "body=?,body_sha256=? WHERE id=1",
+            (
+                body["generation"], body["phase"], body["request_id"],
+                body["checkpoint_id"], canonical,
+                hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+            ),
+        )
+        self._event("company_control_transition", _COMPANY_CONTROL_ENTITY, body)
+
     def admit_task_spec(
         self,
         spec: Any,
@@ -456,6 +775,7 @@ class Store:
             proposed_id = None
         decision_name = "admission/task-spec/" + proposed_id if proposed_id else None
         with self._tx():
+            self._require_company_running()
             if (
                 proposed_id
                 and self.controller_catalogue is not None
@@ -917,6 +1237,7 @@ class Store:
             if isinstance(version, bool) or not isinstance(version, int) or version < 1:
                 raise StateError("contract versions must be positive integers")
         with self._tx():
+            self._require_company_running()
             # Existing dependencies only: immutable insertion order guarantees an acyclic DAG.
             for dependency in dependencies:
                 self._task(dependency)
@@ -1078,7 +1399,8 @@ class Store:
             or type(snapshot["deployment_root_sha256"]) is not str
             or re.fullmatch(r"[0-9a-f]{64}", snapshot["deployment_root_sha256"]) is None
             or type(exit_reason) is not str
-            or exit_reason not in {"stop_requested", "episode_deadline", "quiescent"}
+            or exit_reason
+            not in {"stop_requested", "episode_deadline", "quiescent", "company_hibernation"}
         ):
             raise StateError("supervisor_episode_snapshot_invalid")
         try:
@@ -1311,7 +1633,8 @@ class Store:
             or body.get("schema") != "supervisor-episode-checkpoint-v1"
             or body.get("action") != "hold"
             or body.get("dispatch_authority") is not False
-            or body.get("exit_reason") not in {"stop_requested", "episode_deadline", "quiescent"}
+            or body.get("exit_reason")
+            not in {"stop_requested", "episode_deadline", "quiescent", "company_hibernation"}
             or body.get("unknown_gates")
             != {
                 "runtime": "unknown",
@@ -1648,6 +1971,9 @@ class Store:
         _name(worker)
         _positive(lease_seconds)
         with self._tx():
+            control = self._company_control_current()
+            if control is not None and control["phase"] != "running":
+                return None
             self._recover()
             task = self._task(task_id)
             if (
@@ -3727,6 +4053,7 @@ class Store:
         if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
             raise StateError("contract review packet hash invalid")
         with self._tx():
+            self._require_company_running()
             current = self._contract_review_record(request_id, bounded_replay=True)
             if current is None:
                 raise StateError("contract review request missing")
@@ -4508,6 +4835,8 @@ class Store:
             or name.startswith("department-plan-cycle/")
             or name.startswith("sol-handoff/")
             or name.startswith(_SUPERVISOR_EPISODE_CHECKPOINT_PREFIX)
+            or name == _COMPANY_CONTROL_ENTITY
+            or name.startswith(_COMPANY_CONTROL_ENTITY + "/")
         ):
             raise StateError("decision_namespace_reserved")
         with self._tx():

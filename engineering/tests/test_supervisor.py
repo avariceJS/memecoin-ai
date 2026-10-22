@@ -95,6 +95,7 @@ class SupervisorTests(unittest.TestCase):
         (self.state / "intents").mkdir()
         self.now = 1000.0
         self.db = Store(self.state / "organization.sqlite", clock=lambda: self.now)
+        self.db.initialize_company_control()
         self.addCleanup(self.db.close)
         self.cfg = {
             "python": sys.executable,
@@ -1664,9 +1665,10 @@ class SupervisorTests(unittest.TestCase):
             "sys.path.insert(0, spec['controller'])\n"
             "from engineering import supervisor\n"
             "from engineering.org_state import Store\n"
-            "def synthetic_store(state, *, controller_catalogue=None):\n"
+            "def synthetic_store(state, *, controller_catalogue=None, require_company_control=False):\n"
             "    return Store(pathlib.Path(state)/'organization.sqlite',"
-            "clock=lambda:spec['clock'],controller_catalogue=controller_catalogue)\n"
+            "clock=lambda:spec['clock'],controller_catalogue=controller_catalogue,"
+            "require_company_control=require_company_control)\n"
             "supervisor.store = synthetic_store\n"
             "class SyntheticCodex:\n"
             "    def __init__(self, role):\n"
@@ -3458,6 +3460,9 @@ main()
             def close(self):
                 self.closed = True
 
+            def require_company_running(self):
+                return None
+
         db = BoundStore()
         task = {
             "id": "DYNAMIC",
@@ -3501,6 +3506,9 @@ main()
 
         class BoundStore:
             accepted = False
+
+            def require_company_running(self):
+                return None
 
             def get_task(self, task_id):
                 return {

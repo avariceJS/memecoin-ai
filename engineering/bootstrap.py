@@ -199,6 +199,7 @@ def bootstrap(state: Path, source: Path, python: str):
     ledger = UsageLedger(state / "usage-ledger.sqlite")
     ledger.close()
     db = Store(state / "organization.sqlite")
+    db.initialize_company_control()
     db.add_objective(
         "offline-brain-engineering",
         "Improve Brain offline validation and developer safety",

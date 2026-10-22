@@ -5,6 +5,7 @@ import time
 import pytest
 
 from engineering.metered_codex import Controller, MeteredCodex, _canonical_usage_total
+from engineering.org_state import StateError, Store
 from engineering.usage_ledger import UsageLedger
 
 
@@ -261,6 +262,55 @@ def test_stop_file_cancels_active_dispatch_without_account_polling(tmp_path):
     controller.stop_monitor(watcher)
     assert not watcher.is_alive()
     controller.close()
+    ledger.close()
+
+
+def test_company_drain_serializes_provider_send_boundary_and_blocks_later_send(tmp_path):
+    ledger = UsageLedger(tmp_path / "usage.sqlite")
+    company = Store(tmp_path / "organization.sqlite")
+    company.initialize_company_control()
+    entered = threading.Event()
+    release = threading.Event()
+    controller = Controller(
+        ledger,
+        state=tmp_path,
+        preflight=lambda: {"resources": {"policy_id": "founder-manual-quota"}},
+        company_store=company,
+    )
+    rpc = FakeRPC(ledger)
+    client = MeteredCodex(rpc, controller, {"role": "worker", "task": "T"})
+
+    def in_flight_send():
+        with controller.dispatch_guard():
+            entered.set()
+            assert release.wait(2)
+
+    sending = threading.Thread(target=in_flight_send)
+    sending.start()
+    assert entered.wait(2)
+    company.request_company_hibernation("owner-stop-1")
+
+    denied = threading.Event()
+
+    def later_send():
+        try:
+            with controller.dispatch_guard():
+                raise AssertionError("draining company admitted a provider send")
+        except StateError as exc:
+            assert str(exc) == "company_hibernation_active"
+            denied.set()
+
+    waiting = threading.Thread(target=later_send)
+    waiting.start()
+    release.set()
+    sending.join(2)
+    waiting.join(2)
+    assert not sending.is_alive()
+    assert not waiting.is_alive()
+    assert denied.is_set()
+    assert rpc.calls == 0
+    controller.close()
+    company.close()
     ledger.close()
 
 

@@ -17,6 +17,8 @@ def main():
             "supervise",
             "attempt",
             "stop",
+            "hibernate",
+            "prepare-stop",
             "restore-reconcile",
         ],
     )
@@ -52,6 +54,16 @@ def main():
         from .supervisor import supervise
 
         supervise(args.state, args.max_seconds)
+    elif args.command in ("hibernate", "prepare-stop"):
+        from .supervisor import hibernate_company
+
+        print(
+            json.dumps(
+                hibernate_company(args.state, max_seconds=args.max_seconds),
+                sort_keys=True,
+                indent=2,
+            )
+        )
     elif args.command == "attempt":
         if args.attempt is None:
             p.error("--attempt required")

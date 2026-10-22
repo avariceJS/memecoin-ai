@@ -242,6 +242,7 @@ def _finish_plan(cfg, db, key, proposal, base, thread, *, nominations, executive
 
 
 def plan_next(state: Path, db):
+    db.require_company_running()
     cfg = config(state)
     eligible_cards = eligible(cfg, db)
     if not eligible_cards:
@@ -272,6 +273,7 @@ def plan_next(state: Path, db):
     # At most one model episode per evidence fingerprint, even if two trusted
     # callers race. A crash leaves requested evidence for executive review.
     with db._tx():
+        db._require_company_running()
         if db.get_decision(key):
             return None
         requested = {

@@ -15,6 +15,7 @@ import stat
 import subprocess
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -76,12 +77,14 @@ class GitGate:
         receipt_store: Path,
         *,
         remote: str | None = None,
+        operation_guard: Callable[[], object] | None = None,
     ) -> None:
         self.source_repo = Path(source_repo).resolve()
         self.repo = Path(integration_repo).resolve()
         self.policy = policy
         self.receipt_store = Path(receipt_store).resolve()
         self.remote = remote
+        self.operation_guard = operation_guard
         if remote is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", remote):
             raise GitGateError("remote must be a broker-configured Git remote name")
         if not (self.repo / ".git").exists():
@@ -218,6 +221,27 @@ class GitGate:
         expected_remote_main: str | None = None,
     ) -> str:
         """CAS-publish a verified candidate to local active ref and optionally fixed remote."""
+        guard = self.operation_guard() if self.operation_guard is not None else nullcontext()
+        with guard:
+            return self._publish_locked(
+                candidate,
+                receipt_hash,
+                expected_tip,
+                publish_remote=publish_remote,
+                expected_remote_tip=expected_remote_tip,
+                expected_remote_main=expected_remote_main,
+            )
+
+    def _publish_locked(
+        self,
+        candidate: Candidate,
+        receipt_hash: str,
+        expected_tip: str,
+        *,
+        publish_remote: bool,
+        expected_remote_tip: str | None,
+        expected_remote_main: str | None,
+    ) -> str:
         self.load_receipt(receipt_hash, candidate.sha)
         self.validate_candidate(candidate)
         if publish_remote:

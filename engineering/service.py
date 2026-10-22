@@ -192,6 +192,15 @@ _ORGANIZATION_SCHEMA = {
         ("epoch", "INTEGER", 1, 0, None),
         ("body", "TEXT", 1, 0, None),
     ),
+    "company_control": (
+        ("id", "INTEGER", 0, 1, None),
+        ("generation", "INTEGER", 1, 0, None),
+        ("phase", "TEXT", 1, 0, None),
+        ("request_id", "TEXT", 1, 0, None),
+        ("checkpoint_id", "TEXT", 0, 0, None),
+        ("body", "TEXT", 1, 0, None),
+        ("body_sha256", "TEXT", 1, 0, None),
+    ),
     "verifications": (
         ("id", "INTEGER", 0, 1, None),
         ("task_id", "TEXT", 1, 0, None),
@@ -280,7 +289,15 @@ _ORGANIZATION_UNIQUE_WITH_EXECUTIVE = {
 _LEGACY_ORGANIZATION_SCHEMA_V2 = {
     table: columns
     for table, columns in _ORGANIZATION_SCHEMA.items()
-    if table != "quiescence_revision"
+    if table not in {"quiescence_revision", "company_control"}
+}
+_ORGANIZATION_SCHEMA_WITH_COMPANY_CONTROL_V0 = {
+    table: columns for table, columns in _ORGANIZATION_SCHEMA.items() if table != "quiescence_revision"
+}
+_ORGANIZATION_SCHEMA_WITH_EXECUTIVE_COMPANY_CONTROL_V0 = {
+    table: columns
+    for table, columns in _ORGANIZATION_SCHEMA_WITH_EXECUTIVE.items()
+    if table != "company_control"
 }
 
 
@@ -293,6 +310,14 @@ def _assert_no_running_attempts(database: Path) -> None:
             unique_expectations = _ORGANIZATION_UNIQUE
         elif tables == set(_ORGANIZATION_SCHEMA_WITH_EXECUTIVE):
             schema = _ORGANIZATION_SCHEMA_WITH_EXECUTIVE
+            foreign_key_expectations = _ORGANIZATION_FOREIGN_KEYS_WITH_EXECUTIVE
+            unique_expectations = _ORGANIZATION_UNIQUE_WITH_EXECUTIVE
+        elif tables == set(_ORGANIZATION_SCHEMA_WITH_COMPANY_CONTROL_V0):
+            schema = _ORGANIZATION_SCHEMA_WITH_COMPANY_CONTROL_V0
+            foreign_key_expectations = _ORGANIZATION_FOREIGN_KEYS
+            unique_expectations = _ORGANIZATION_UNIQUE
+        elif tables == set(_ORGANIZATION_SCHEMA_WITH_EXECUTIVE_COMPANY_CONTROL_V0):
+            schema = _ORGANIZATION_SCHEMA_WITH_EXECUTIVE_COMPANY_CONTROL_V0
             foreign_key_expectations = _ORGANIZATION_FOREIGN_KEYS_WITH_EXECUTIVE
             unique_expectations = _ORGANIZATION_UNIQUE_WITH_EXECUTIVE
         elif tables == set(_LEGACY_ORGANIZATION_SCHEMA_V2):

@@ -57,6 +57,8 @@ def _latest_dispatch(db, request_id):
 def _append(db, request_id, body, *, expected_status=None):
     key = DISPATCH_PREFIX + request_id
     with db._tx():
+        if body.get("status") == "dispatching":
+            db.require_company_running()
         current = db.get_decision(key)
         if current is None:
             if expected_status is not None:
@@ -147,6 +149,10 @@ def _validate_response(response, team_menu):
 
 def _currentness(state, db, objective_id, expected_menu_sha256):
     if (Path(state) / "STOP").exists():
+        return False
+    try:
+        db.require_company_running()
+    except StateError:
         return False
     current_cfg = config(Path(state))
     current_menu = _menu(current_cfg, db, objective_id)
@@ -297,6 +303,10 @@ def ensure_department_plans(
 ):
     """Create/replay current department plans only through an explicitly injected transport."""
     if transport is None or not stop_guard():
+        return False
+    try:
+        db.require_company_running()
+    except StateError:
         return False
     if not db.db.execute("SELECT 1 FROM objectives WHERE id=?", (objective_id,)).fetchone():
         return False

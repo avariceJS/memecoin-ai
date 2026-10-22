@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import os
+import fcntl
 import threading
 import time
 from contextlib import contextmanager
@@ -84,11 +86,13 @@ class Controller:
         clock=time.time,
         monotonic=time.monotonic,
         preflight=None,
+        company_store=None,
         external_allowlist=frozenset(),
     ):
         self.ledger, self.state, self.clock = ledger, Path(state), clock
         self.monotonic = monotonic
-        self.preflight, self.lock, self.closed = preflight, threading.RLock(), False
+        self.preflight, self.company_store = preflight, company_store
+        self.lock, self.closed = threading.RLock(), False
         self.external_allowlist = frozenset(external_allowlist)
         self._monitors = set()
         self._monitor_events = {}
@@ -104,6 +108,27 @@ class Controller:
             if not isinstance(pf, dict) or not pf.get("resources", {}).get("policy_id"):
                 raise RuntimeError("preflight_unknown")
         return True
+
+    @contextmanager
+    def dispatch_guard(self):
+        """Serialize a provider send with the durable company drain fence."""
+        path = self.state / ".company-dispatch.lock"
+        flags = os.O_CREAT | os.O_RDWR
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        fd = os.open(path, flags, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            self.refresh("dispatch_gate")
+            if self.company_store is not None:
+                self.company_store.require_company_running()
+            yield
+        finally:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            finally:
+                os.close(fd)
 
     def admit(self, dispatch_id, stream, baseline_or_none, model, estimate, deadline_at, context):
         with self.lock:
@@ -141,6 +166,12 @@ class Controller:
                 if (self.state / "STOP").exists():
                     cancel()
                     return
+                if self.company_store is not None:
+                    try:
+                        self.company_store.require_company_running()
+                    except Exception:
+                        cancel()
+                        return
                 remaining = deadline - self.monotonic()
                 if remaining <= 0:
                     cancel()
@@ -384,11 +415,13 @@ class MeteredCodex:
             # A provider thread ID does not exist before start; bind this one-use
             # capability to the protocol's synthetic new-thread identity.
             permit.identity = "new-thread"
-            self.thread = self.rpc.start(model, instructions, permit=permit)
+            with self.controller.dispatch_guard():
+                self.thread = self.rpc.start(model, instructions, permit=permit)
         else:
             # Legacy adapters consume locally against the durable start dispatch.
-            permit.consume(did, model)
-            self.thread = self.rpc.start(model, instructions)
+            with self.controller.dispatch_guard():
+                permit.consume(did, model)
+                self.thread = self.rpc.start(model, instructions)
         from .usage_ledger import ZERO
 
         self.controller.ledger.register(
@@ -410,7 +443,8 @@ class MeteredCodex:
         ).fetchall()
         if len(rows) != 1 or rows[0]["model"] != model:
             raise RuntimeError("resume_requires_unique_ledger_epoch")
-        result = self.rpc.resume(thread_id, model)
+        with self.controller.dispatch_guard():
+            result = self.rpc.resume(thread_id, model)
         resumed = (
             result.get("thread", {}).get("id", thread_id) if isinstance(result, dict) else thread_id
         )
@@ -533,17 +567,18 @@ class MeteredCodex:
             return started(turn_id) if started else None
 
         try:
-            out = self.rpc.turn(
-                thread_id,
-                prompt,
-                model=model,
-                tool=tool,
-                deadline_seconds=deadline_seconds,
-                heartbeat=heartbeat,
-                output_schema=output_schema,
-                started=bind,
-                permit=permit,
-            )
+            with self.controller.dispatch_guard():
+                out = self.rpc.turn(
+                    thread_id,
+                    prompt,
+                    model=model,
+                    tool=tool,
+                    deadline_seconds=deadline_seconds,
+                    heartbeat=heartbeat,
+                    output_schema=output_schema,
+                    started=bind,
+                    permit=permit,
+                )
         except Exception as exc:
             self.controller.ledger.record_outcome(
                 dispatch_id,
@@ -594,16 +629,27 @@ def metered_client(
         current = config(Path(state))
         if current != cfg:
             raise RuntimeError("frozen_controller_config_changed")
+        if company_store is not None:
+            company_store.require_company_running()
         return {"resources": {"policy_id": cfg.get("authority", "founder-manual-quota")}}
 
+    company_store = None
+    organization_store = Path(state) / "organization.sqlite"
+    if organization_store.exists():
+        from .org_state import Store
+
+        company_store = Store(organization_store, require_company_control=True)
     controller = Controller(
         ledger,
         state=state,
         preflight=common_preflight,
+        company_store=company_store,
     )
     try:
         yield MeteredCodex(rpc, controller, context)
     finally:
         controller.close()
+        if company_store is not None:
+            company_store.close()
         ledger.close()
         rpc.close()

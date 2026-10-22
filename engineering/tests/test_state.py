@@ -68,6 +68,40 @@ class StateTests(unittest.TestCase):
         self.assertEqual(self.store.db.execute("PRAGMA synchronous").fetchone()[0], 2)
         self.assertEqual(self.store.db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
 
+    def test_company_control_is_explicit_event_bound_and_fences_claim_and_admission(self):
+        self.task("queued")
+        strict = Store(self.path, clock=lambda: self.now, require_company_control=True)
+        try:
+            with self.assertRaisesRegex(StateError, "company_control_missing"):
+                strict.require_company_running()
+        finally:
+            strict.close()
+
+        initial = self.store.initialize_company_control()
+        self.assertEqual(initial["phase"], "running")
+        self.store.require_company_running()
+        draining = self.store.request_company_hibernation("founder-request-1")
+        self.assertEqual(draining["phase"], "draining")
+        self.assertEqual(
+            self.store.request_company_hibernation("founder-request-1"), draining
+        )
+        self.assertIsNone(self.store.claim("queued", "worker"))
+        with self.assertRaisesRegex(StateError, "company_hibernation_active"):
+            self.task("new-queue-item")
+        with self.assertRaisesRegex(StateError, "company_hibernation_request_conflict"):
+            self.store.request_company_hibernation("different-request")
+        with self.assertRaisesRegex(StateError, "decision_namespace_reserved"):
+            self.store.put_decision("company/control", {"phase": "running"})
+
+    def test_company_control_fails_closed_when_current_record_or_event_diverges(self):
+        self.store.initialize_company_control()
+        self.store.request_company_hibernation("founder-request-1")
+        self.store.db.execute(
+            "UPDATE company_control SET phase='running' WHERE id=1"
+        )
+        with self.assertRaisesRegex(StateError, "company_control_history_invalid"):
+            self.store.company_control_state()
+
     def test_quiescence_handoff_rechecks_snapshot_atomically_and_is_idempotent(self):
         snapshot = self.store.quiescence_snapshot()
         body = {

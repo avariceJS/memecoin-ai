@@ -22,6 +22,8 @@ import subprocess
 import tempfile
 import threading
 import time
+import uuid
+from contextlib import contextmanager
 from pathlib import Path
 
 from .confinement import SandboxRunner, python_runtime_roots
@@ -615,11 +617,403 @@ def config(state):
     return deployment["config"]
 
 
-def store(state, *, controller_catalogue=None):
+def store(state, *, controller_catalogue=None, require_company_control=False):
     return Store(
         state / "organization.sqlite",
         controller_catalogue=controller_catalogue,
+        require_company_control=require_company_control,
     )
+
+
+@contextmanager
+def _company_operation_lock(state):
+    path = Path(state) / ".company-dispatch.lock"
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+
+@contextmanager
+def _company_operation_guard(state, db, *, allowed_phase="running"):
+    with _company_operation_lock(state):
+        db.require_company_phase(allowed_phase)
+        yield
+
+
+@contextmanager
+def _timed_exclusive_lock(path, deadline):
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
+    acquired = False
+    try:
+        os.fchmod(fd, 0o600)
+        while not acquired:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("company_hibernation_lock_timeout") from None
+                time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
+        yield
+    finally:
+        if acquired:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            finally:
+                os.close(fd)
+        else:
+            os.close(fd)
+
+
+def _company_handoff_file_hashes(state):
+    paths = []
+    for directory in ("intents", "receipts"):
+        root = state / directory
+        if root.exists():
+            paths.extend(sorted(item for item in root.iterdir() if item.is_file()))
+    for root in sorted((state / "attempts").glob("[0-9]*")):
+        for name in (
+            "packet.json",
+            "processes.json",
+            "lead.json",
+            "lead-raw.json",
+            "worker.json",
+            "worker-raw.json",
+        ):
+            path = root / name
+            if path.exists():
+                paths.append(path)
+    if len(paths) > 5000:
+        raise StateError("company_handoff_file_inventory_overflow")
+    result = []
+    total_bytes = 0
+    for path in sorted(set(paths)):
+        if path.is_symlink() or not path.is_file():
+            raise StateError("company_handoff_file_identity_invalid")
+        data = path.read_bytes()
+        total_bytes += len(data)
+        if total_bytes > 128 * 1024 * 1024:
+            raise StateError("company_handoff_file_inventory_overflow")
+        result.append(
+            {
+                "path": str(path.relative_to(state)),
+                "size": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+        )
+    return result
+
+
+def _company_handoff_process_inventory(state, db):
+    from .processes import process_identity as current_process_identity
+
+    attempts = db.list_attempts()
+    by_pid = {}
+    for attempt in attempts:
+        child = db.attempt_child_start_identity(attempt["id"], attempt["epoch"])
+        identities = []
+        if child is not None:
+            identities.append(child)
+        session = attempt.get("session")
+        runner = session.get("runner") if isinstance(session, dict) else None
+        if isinstance(runner, dict):
+            for pid_key, birth_key in (("pid", "birth"), ("app_server_pid", "app_server_birth")):
+                pid, birth = runner.get(pid_key), runner.get(birth_key)
+                if pid is None and birth is None:
+                    continue
+                if type(pid) is not int or pid <= 1 or type(birth) is not str or not birth:
+                    raise StateError("company_handoff_process_identity_unknown")
+                identities.append({"pid": pid, "birth": birth})
+        process_file = state / "attempts" / str(attempt["id"]) / "processes.json"
+        if process_file.exists():
+            if process_file.is_symlink() or not process_file.is_file():
+                raise StateError("company_handoff_process_inventory_invalid")
+            process_items = json.loads(process_file.read_text(encoding="utf-8"))
+            if type(process_items) is not list:
+                raise StateError("company_handoff_process_inventory_invalid")
+            for item in process_items:
+                if (
+                    type(item) is not dict
+                    or set(item) != {"pid", "birth"}
+                    or type(item["pid"]) is not int
+                    or item["pid"] <= 1
+                    or type(item["birth"]) is not str
+                    or not item["birth"]
+                ):
+                    raise StateError("company_handoff_process_identity_unknown")
+                identities.append(item)
+        for item in identities:
+            prior = by_pid.get(item["pid"])
+            if prior is not None and prior["birth"] != item["birth"]:
+                raise StateError("company_handoff_process_identity_conflict")
+            by_pid[item["pid"]] = dict(item)
+    inventory = []
+    for pid, owner in sorted(by_pid.items()):
+        current = current_process_identity(pid)
+        if current is None and platform.system() != "Darwin":
+            raise StateError("company_handoff_process_identity_unqualified")
+        inventory.append({**owner, "alive": current == owner["birth"]})
+    return inventory
+
+
+def _company_handoff_dispatches(state):
+    from .usage_ledger import UsageLedger
+
+    path = Path(state) / "usage-ledger.sqlite"
+    if not path.exists():
+        return {"available": False, "items": []}
+    ledger = UsageLedger(path)
+    try:
+        rows = ledger.db.execute(
+            "SELECT dispatch_id,identity,model,provider_turn_id,status,epoch "
+            "FROM dispatches ORDER BY dispatch_id"
+        ).fetchall()
+        if len(rows) > 5000:
+            raise StateError("company_handoff_dispatch_inventory_overflow")
+        return {
+            "available": True,
+            "items": [dict(row) for row in rows],
+        }
+    finally:
+        ledger.close()
+
+
+def hibernate_company(state: Path, *, request_id: str | None = None, max_seconds=1800):
+    """Fence, drain and checkpoint the local synthetic company without clearing Pilot STOP."""
+    if type(max_seconds) is not int or not 1 <= max_seconds <= 3600:
+        raise ValueError("company_hibernation_timeout_invalid")
+    state = Path(state).resolve()
+    cfg = config(state)
+    db = store(state, controller_catalogue=cfg.get("catalogue"), require_company_control=True)
+    deadline = time.monotonic() + max_seconds
+    try:
+        current = db.company_control_state(required=True)
+        if current["phase"] == "hibernated":
+            if request_id is not None and request_id != current["request_id"]:
+                raise StateError("company_hibernation_request_conflict")
+            return {
+                "phase": "hibernated",
+                "request_id": current["request_id"],
+                "checkpoint_id": current["checkpoint_id"],
+            }
+        if current["phase"] == "draining":
+            if request_id is not None and request_id != current["request_id"]:
+                raise StateError("company_hibernation_request_conflict")
+            request_id = current["request_id"]
+        elif current["phase"] == "running":
+            request_id = request_id or ("founder-" + uuid.uuid4().hex)
+            current = db.request_company_hibernation(request_id)
+        else:
+            raise StateError("company_control_transition_invalid")
+
+        handoff = state / "company-handoffs"
+        handoff.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(handoff, 0o700)
+        checkpoint_path = handoff / f"generation-{current['generation']}.json"
+        with _timed_exclusive_lock(state / "supervisor.lock", deadline):
+            with _timed_exclusive_lock(state / ".company-dispatch.lock", deadline):
+                while True:
+                    snapshot = db.company_hibernation_snapshot()
+                    processes = _company_handoff_process_inventory(state, db)
+                    running_tasks = [
+                        task["id"] for task in snapshot["tasks"] if task["state"] == "running"
+                    ]
+                    live_processes = [item for item in processes if item["alive"]]
+                    if not running_tasks and not live_processes:
+                        break
+                    if time.monotonic() >= deadline:
+                        return {
+                            "phase": "draining",
+                            "request_id": request_id,
+                            "reason": "active_work_or_processes_remain",
+                            "running_tasks": running_tasks,
+                            "live_processes": live_processes,
+                        }
+                    time.sleep(min(0.1, max(0.0, deadline - time.monotonic())))
+
+                active_tip = git(state / "integration", "rev-parse", GitGate.ACTIVE_REF)
+                main_tip = git(state / "integration", "rev-parse", "refs/heads/main")
+                handoff_body = {
+                    "schema": "company-hibernation-handoff-v1",
+                    "request_id": request_id,
+                    "generation": current["generation"],
+                    "store": snapshot,
+                    "processes": processes,
+                    "dispatches": _company_handoff_dispatches(state),
+                    "git": {
+                        "active_ref": GitGate.ACTIVE_REF,
+                        "active_tip": active_tip,
+                        "main_tip": main_tip,
+                        "integration_status": git(
+                            state / "integration", "status", "--porcelain", "--untracked-files=all"
+                        ),
+                    },
+                    "config_sha256": hashlib.sha256((state / "config.json").read_bytes()).hexdigest(),
+                    "controller_manifest_sha256": hashlib.sha256(
+                        (state / "controller-manifest.json").read_bytes()
+                    ).hexdigest(),
+                    "pilot_stop": {
+                        "present": (state / "STOP").exists(),
+                        "sha256": (
+                            hashlib.sha256((state / "STOP").read_bytes()).hexdigest()
+                            if (state / "STOP").is_file()
+                            else None
+                        ),
+                    },
+                    "files": _company_handoff_file_hashes(state),
+                }
+                canonical = _json(handoff_body).encode("utf-8")
+                if len(canonical) > 8 * 1024 * 1024:
+                    raise StateError("company_handoff_checkpoint_too_large")
+                checkpoint_id = hashlib.sha256(canonical).hexdigest()
+                envelope = {"checkpoint_id": checkpoint_id, "handoff": handoff_body}
+                atomic(checkpoint_path, envelope)
+                final = db.complete_company_hibernation(
+                    request_id=request_id,
+                    generation=current["generation"],
+                    checkpoint_id=checkpoint_id,
+                    expected_revision=snapshot["revision"],
+                    expected_event_seq=snapshot["event_seq"],
+                )
+                return {
+                    "phase": final["phase"],
+                    "request_id": request_id,
+                    "checkpoint_id": checkpoint_id,
+                    "checkpoint_path": str(checkpoint_path),
+                    "task_count": len(snapshot["tasks"]),
+                    "attempt_count": len(snapshot["attempts"]),
+                    "unknown_dispatch_count": sum(
+                        item["status"] in {"unknown", "timeout", "failed"}
+                        for item in handoff_body["dispatches"]["items"]
+                    ),
+                    "pilot_stop_preserved": handoff_body["pilot_stop"]["present"],
+                }
+    finally:
+        db.close()
+
+
+def continue_company(state: Path, *, request_id: str | None = None):
+    """Explicitly validate one hibernation handoff, locally reconcile, then reopen Luna claims."""
+    state = Path(state).resolve()
+    cfg = config(state)
+    db = store(state, controller_catalogue=cfg.get("catalogue"), require_company_control=True)
+    try:
+        control = db.company_control_state(required=True)
+        if control["phase"] == "running":
+            return {"phase": "running", "status": "already_running"}
+        if control["phase"] == "wake_pending":
+            if request_id is not None and request_id != control["request_id"]:
+                raise StateError("company_resume_request_conflict")
+            request_id = control["request_id"]
+        elif control["phase"] != "hibernated":
+            raise StateError("company_not_hibernated")
+        if (state / "STOP").exists():
+            return {"phase": control["phase"], "status": "blocked_by_pilot_STOP"}
+        checkpoint_id = control["checkpoint_id"]
+        handoff_generation = control["generation"] - (1 if control["phase"] == "wake_pending" else 0)
+        checkpoint_path = state / "company-handoffs" / f"generation-{handoff_generation}.json"
+        envelope = read(checkpoint_path)
+        handoff = envelope.get("handoff") if isinstance(envelope, dict) else None
+        if (
+            type(handoff) is not dict
+            or envelope.get("checkpoint_id") != checkpoint_id
+            or hashlib.sha256(_json(handoff).encode("utf-8")).hexdigest() != checkpoint_id
+            or handoff.get("schema") != "company-hibernation-handoff-v1"
+            or handoff.get("generation") != handoff_generation
+            or handoff.get("request_id")
+            != handoff.get("store", {}).get("control", {}).get("request_id")
+            or control.get("checkpoint_id") != checkpoint_id
+        ):
+            raise StateError("company_hibernation_checkpoint_invalid")
+        if (
+            hashlib.sha256((state / "config.json").read_bytes()).hexdigest()
+            != handoff["config_sha256"]
+            or hashlib.sha256((state / "controller-manifest.json").read_bytes()).hexdigest()
+            != handoff["controller_manifest_sha256"]
+        ):
+            raise StateError("company_hibernation_configuration_changed")
+        if git(state / "integration", "rev-parse", "refs/heads/main") != handoff["git"]["main_tip"]:
+            raise StateError("company_hibernation_main_changed")
+        if control["phase"] == "hibernated" and (
+            git(state / "integration", "rev-parse", GitGate.ACTIVE_REF)
+            != handoff["git"]["active_tip"]
+            or git(state / "integration", "status", "--porcelain", "--untracked-files=all")
+            != handoff["git"]["integration_status"]
+            or db.db.execute("SELECT value FROM quiescence_revision WHERE id=1").fetchone()[0]
+            != handoff["store"]["revision"]
+            or _json(db.list_tasks()) != _json(handoff["store"]["tasks"])
+            or _json(db.list_attempts()) != _json(handoff["store"]["attempts"])
+            or _json(_company_handoff_file_hashes(state)) != _json(handoff["files"])
+            or _json(_company_handoff_dispatches(state)) != _json(handoff["dispatches"])
+        ):
+            raise StateError("company_hibernation_store_or_custody_changed")
+        processes = _company_handoff_process_inventory(state, db)
+        if any(item["alive"] for item in processes) or any(
+            item.get("alive") for item in handoff.get("processes", [])
+        ):
+            raise StateError("company_hibernation_process_still_live")
+        if control["phase"] == "hibernated":
+            transition_events = db.events(handoff["store"]["event_seq"])
+            if (
+                len(transition_events) != 1
+                or transition_events[0]["kind"] != "company_control_transition"
+                or transition_events[0]["entity"] != "company/control"
+                or transition_events[0]["body"].get("phase") != "hibernated"
+                or transition_events[0]["body"].get("checkpoint_id") != checkpoint_id
+            ):
+                raise StateError("company_hibernation_history_changed")
+            request_id = request_id or ("founder-wake-" + uuid.uuid4().hex)
+            control = db.request_company_resume(request_id)
+
+        # Reconciliation is local and receipt-bound. Wake-pending permits only this repair
+        # path; claims, planning and provider sends remain fenced until the final Store CAS.
+        with _timed_exclusive_lock(state / "supervisor.lock", time.monotonic() + 30):
+            if (state / "STOP").exists():
+                return {"phase": "wake_pending", "status": "blocked_by_pilot_STOP"}
+            reconcile(state, db, allow_wake_pending=True)
+            if (state / "STOP").exists():
+                return {"phase": "wake_pending", "status": "blocked_by_pilot_STOP"}
+            if (
+                hashlib.sha256((state / "config.json").read_bytes()).hexdigest()
+                != handoff["config_sha256"]
+                or hashlib.sha256((state / "controller-manifest.json").read_bytes()).hexdigest()
+                != handoff["controller_manifest_sha256"]
+            ):
+                raise StateError("company_hibernation_configuration_changed")
+            revision = db.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            event_seq = db.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+            resumed = db.complete_company_resume(
+                request_id=request_id,
+                generation=control["generation"],
+                checkpoint_id=checkpoint_id,
+                expected_revision=revision,
+                expected_event_seq=event_seq,
+            )
+        return {
+            "phase": resumed["phase"],
+            "request_id": request_id,
+            "checkpoint_id": checkpoint_id,
+            "status": "explicit_resume_ready",
+            "sol_oversight": "restored_by_the_supervisor_sol_lead_gate",
+            "pilot_stop_preserved": (state / "STOP").exists(),
+        }
+    finally:
+        db.close()
 
 
 def log_event(state, kind, **values):
@@ -809,7 +1203,7 @@ def reap_expired(state, db):
 
 def run_attempt(state: Path, attempt_id: int):
     cfg = config(state)
-    db = store(state, controller_catalogue=cfg.get("catalogue"))
+    db = store(state, controller_catalogue=cfg.get("catalogue"), require_company_control=True)
     attempt = next(a for a in db.list_attempts() if a["id"] == attempt_id)
     task = db.get_task(attempt["task_id"])
     epoch = attempt["epoch"]
@@ -844,7 +1238,12 @@ def run_attempt(state: Path, attempt_id: int):
         )
         db.close()
         return
-    if (state / "STOP").exists():
+    try:
+        db.require_company_running()
+        company_running = True
+    except StateError:
+        company_running = False
+    if (state / "STOP").exists() or not company_running:
         try:
             db.stop_started_child_before_work(attempt_id, epoch, child_identity)
         except (StaleAttempt, StateError) as exc:
@@ -1275,8 +1674,13 @@ def resolve_controller_parse_fault(
 
 def verify_one(state, task):
     cfg = config(state)
-    db = store(state, controller_catalogue=cfg.get("catalogue"))
+    db = store(state, controller_catalogue=cfg.get("catalogue"), require_company_control=True)
     task = db.get_task(task["id"])
+    try:
+        db.require_company_running()
+    except StateError:
+        db.close()
+        return False
     data = db.get_candidate(task["id"])
     evidence = data["evidence"]
     python = cfg["python"]
@@ -1560,7 +1964,14 @@ def verify_one(state, task):
     return True
 
 
-def reconcile(state, db):
+def reconcile(state, db, *, allow_wake_pending=False):
+    try:
+        if allow_wake_pending:
+            db.require_company_phase("wake_pending")
+        else:
+            db.require_company_running()
+    except StateError:
+        return False
     for path in (state / "intents").glob("*.json"):
         intent = read(path)
         task = db.get_task(intent["task"])
@@ -1631,6 +2042,11 @@ def reconcile(state, db):
                 state / "integration",
                 plan.policy,
                 state / "receipts",
+                operation_guard=lambda: _company_operation_guard(
+                    state,
+                    db,
+                    allowed_phase="wake_pending" if allow_wake_pending else "running",
+                ),
             )
             gate_candidate = Candidate(
                 intent["submitted_sha"],
@@ -1788,6 +2204,7 @@ def _contract_review_dispatch_guard(state, db, cfg, request):
     """Revalidate STOP and source evidence at the provider invocation boundary."""
     if (state / "STOP").exists():
         raise StateError("contract review dispatch blocked by STOP")
+    db.require_company_running()
     body = request["body"]
     transitions = _configured_contract_transitions(cfg, db)
     transition = next(
@@ -2019,7 +2436,7 @@ def supervise(
 
     state = state.resolve()
     cfg = config(state)
-    db = store(state, controller_catalogue=cfg.get("catalogue"))
+    db = store(state, controller_catalogue=cfg.get("catalogue"), require_company_control=True)
     with (state / "supervisor.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         log_event(state, "supervisor_started", birth=process_identity(os.getpid()))
@@ -2027,6 +2444,10 @@ def supervise(
         blocked_verification = set()
         backoff_plan_token = None
         while time.monotonic() < end and not (state / "STOP").exists():
+            try:
+                db.require_company_running()
+            except StateError:
+                break
             allowed_contract_reviews = reconcile(state, db)
             reap_expired(state, db)
             tasks = db.list_tasks()
@@ -2284,6 +2705,8 @@ def supervise(
         render_desk(state, db)
         if (state / "STOP").exists():
             exit_reason = "stop_requested"
+        elif (db.company_control_state() or {}).get("phase") == "draining":
+            exit_reason = "company_hibernation"
         elif time.monotonic() >= end:
             exit_reason = "episode_deadline"
         else:

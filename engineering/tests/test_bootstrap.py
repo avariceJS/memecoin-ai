@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from engineering import bootstrap as bootstrap_module
+from engineering.org_state import Store
 from engineering.service import validate_deployment
 from engineering.usage_ledger import UsageLedger
 
@@ -67,6 +68,11 @@ class BootstrapTests(unittest.TestCase):
         )
         self.assertNotIn("codex_sha256", cfg)
         self.assertEqual(validate_deployment(state)["codex_executable"], self.executable.resolve())
+        company = Store(state / "organization.sqlite", require_company_control=True)
+        try:
+            self.assertEqual(company.company_control_state()["phase"], "running")
+        finally:
+            company.close()
         ledger = UsageLedger(state / "usage-ledger.sqlite")
         try:
             self.assertEqual(ledger.db.execute("PRAGMA user_version").fetchone()[0], 1)
