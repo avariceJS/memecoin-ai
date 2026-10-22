@@ -10,7 +10,9 @@ Russian. Brain architecture and scientific validity remain owned by `brain-devel
 **Recommendation: do not replace the autonomous control plane with Herdr. Evaluate native Codex
 reuse first; keep Herdr optional for trusted operator terminals.** This is a research decision and
 proposed simplification path, not an adopted runtime migration or permission to start services.
-The completed synthetic objective remains accepted; operational A03/A04/A05 remain open.
+The prior source-only objective remains accepted. Founder-managed quota means exact A03 usage
+settlement is no longer a company dispatch gate; current controller code still has that old gate and
+needs a reviewed update. A04 and A05 qualification remain open.
 
 ### Evidence and maturity
 
@@ -20,9 +22,9 @@ Reviewed Brain `fd9ad03e230818bda7a8ee7bea591f2e531c5ebd`, Herdr master
 actively maintained. Its repository was created March 27, 2026; activity and adoption do not establish
 unattended reliability. Key inspected resume, integration, worktree and persistence source files were
 unchanged between these release/master pins. Documentation and current official Codex references
-were read; local `codex-cli 0.163.0` was inspected only with version/help commands. No Herdr binary,
-integration, service, model request or fault experiment was run. Sol independently reviewed the
-component boundaries and challenged the proposed native-host simplification.
+were read; local `codex-cli 0.163.0` was inspected only with version/help commands during this Herdr
+review. No Herdr binary, integration or service was run. Sol independently reviewed the component
+boundaries and challenged the proposed native-host simplification.
 
 The [v0.9.5 release](https://github.com/herdrdev/herdr/releases/tag/v0.9.5) specifically removes
 Codex turn hooks and returns status detection to screen rules. A current
@@ -149,12 +151,44 @@ security boundary. Astra stays absent unless explicitly requested; no standing m
 or permanent idle departmental conversations are needed. Native Goals may support bounded work but
 are not the exclusive company-state authority or permission to wake after STOP.
 
+### Founder quota and Company Hibernation policy — 2026-10-22
+
+This founder instruction supersedes the 2026-10-20 quota amendment for company control. The founder
+manually manages the weekly subscription quota. Paid usage and paid fallback remain prohibited; the
+organization does not need exact per-call token settlement to decide whether company work may proceed.
+Account/rate-limit reads and token counters may remain evidence or diagnostics, but their absence alone
+must not block work. This is the authorized policy; the current `MeteredCodex` and capacity code still
+enforce the prior account-read and unresolved-usage gates. Do not claim that dispatch already follows
+this policy. Implement and independently review that controller change before relying on it. The policy
+does not qualify the native interface, runtime, or any other release boundary.
+
+The founder explicitly controls sleep and wake with “Подготовить компанию к остановке” and
+“Продолжить работу компании.” Hibernation must persist the stopped intent and fence new assignments,
+turns, queue entries, and publication; drain bounded active work or durably preserve it as unresolved;
+and checkpoint task/attempt/epoch, native thread/turn/model/permission identity, checkout/ref and dirty
+worktree custody, and receipts. It is complete only when no new work can start and each active operation
+is either settled or visibly held as unknown. A quota reset never wakes the company.
+
+Only the explicit continuation command may clear the manual hibernation intent. It first reconciles
+attempt and Git state, keeps uncertain sends held without retry, revalidates configuration and available
+authority, restores Sol's management/review ownership, and then permits Luna continuation. Clearing
+manual hibernation never clears an independent Pilot STOP or other safety gate. Missing usage counters
+do not make a task outcome uncertain, and unknown task outcome does not become safe merely because
+quota is sufficient. Never resend an attempt whose send may have reached Codex; reconcile it or create
+a separately admitted successor after the prior outcome is resolved.
+
+These commands are required behavior, not an implemented operator interface or qualified A05
+transaction. Current lifecycle projections are inert; no founder-facing hibernate/wake command is
+qualified to fence dispatch or reconcile work. Do not report Company Hibernation readiness until the
+command path is integrated and synthetic interruption/recovery cases pass.
+
 A05 could become a small non-inference reconciler over founder intent, owner epoch, native thread/
 turn state and checkpoint evidence. Codex would own supported process hosting. `turn/interrupt`
 requests cancellation; it does not undo tool effects. Native request IDs are not assumed to be
 idempotency keys. Lost send acknowledgements, callback reconnection and pending queue cancellation
 must be qualified before use. Do not use `codex queue` for unattended dispatch solely because the
-command exists. Keep A03 unknown usage reserved and current A04 boundaries until equivalent proof.
+command exists. Preserve unresolved task outcomes and no-blind-retry independently of usage accounting;
+A04 and other current execution boundaries remain in force.
 
 ### Manual Company Hibernation and handover
 
@@ -172,7 +206,8 @@ obligations. The proposed founder command must use the existing graceful STOP me
 4. Report hibernated only after the no-dispatch and quiescence conditions hold. Detach UI or stop the
    dedicated host only through its qualified lifecycle; do not terminate unrelated user sessions.
 5. On explicit founder wake, reconcile stored attempts and Git publication before new work, reacquire
-   ownership, revalidate runtime/config/permissions/quota, and then resume the exact native thread or
+   ownership, revalidate runtime/config/permissions and the founder's explicit no-paid manual-quota
+   authority, and then resume the exact native thread or
    create a documented successor from a bounded handoff. Never blindly replay an uncertain prompt.
 
 Emergency termination is a separate operation with potentially unknown outcomes. Herdr cannot
@@ -180,8 +215,39 @@ upgrade this protocol to a guarantee; it can display progress and reopen operato
 
 ### First reversible proof and go/no-go
 
-**Design only; not executed in this review.** First compare a qualified native-host adapter with the
-current per-role app-server adapter, then add Herdr only if it removes a measured operator burden.
+**The complete comparison remains unexecuted; these synthetic probes are not a go/no-go acceptance.**
+Codex 0.163.0's `app-server --listen unix://...` created a `0600` Unix socket and answered direct
+WebSocket `initialize`. With a deliberately reduced config, the documented `app-server proxy` returned
+no response to `initialize` in five seconds, and `thread/start` hit this host's sandbox-helper denial.
+Repeating with the exact Brain feature and permission profile started two task threads on one daemon,
+completed one local synthetic Responses turn for each, routed one `org_exec` callback to the matching
+thread/turn, and recovered both completed histories with matching IDs after daemon restart. The callback
+returned a fixed synthetic value and executed no command; the local fixture received three requests,
+with no Authorization header. That shared profile explicitly allowed both temporary checkout roots,
+so it did not test per-task isolation. A separate one-thread run explicitly called `thread/resume`
+after a daemon restart, completed a second turn, and read both completed turns from the same thread;
+the local fixture received exactly two requests. This is native session continuation, not a Company
+Hibernation wake. No hard interruption, lost/unknown send or no-resend, Company Hibernation/wake,
+Store/Git integration, or independent acceptance was tested. The temporary HOME/CODEX_HOME, checkouts,
+socket, and fixture were isolated;
+no Herdr installation, owner config, provider credentials, or model-generated checkout modification
+was involved.
+
+The initial probe receipt is `/Users/root1/Developer/brain-org-state/native-codex-20261022/native-codex-daemon-probe-20261022.json`
+(SHA-256 `0faada29431474016c40a17dda327ff650289de6de2d540de7444e746c548839`); sequential task/callback/restart receipt:
+`/Users/root1/Developer/brain-org-state/native-codex-20261022/native-codex-daemon-sequence-20261022.json`
+(SHA-256 `ea56d9ed67b418f1cd0fa286787b3d563a1f8cf734694935d6d5ab14d5ddcfb7`); continuation receipt:
+`/Users/root1/Developer/brain-org-state/native-codex-20261022/native-codex-daemon-resume-20261022.json`
+(SHA-256 `d91b7099117e2dd2f2997d3b809c8da61ec7355ddbbc040a004c223605faf76c`). A `0600` socket controls
+cross-user access, not hostile processes under the same UID. Official
+[App Server documentation](https://learn.chatgpt.com/docs/app-server) labels the interface
+experimental and unsupported for production workloads.
+
+This demonstrates that native daemon sessions can host and restore completed synthetic threads; it
+does not establish per-task security or a smaller reliable company controller. Full task/recovery and
+lifecycle cases remain required before host substitution. First compare a qualified native-host
+adapter with the current per-role app-server adapter, then add Herdr only if it removes a measured
+operator burden.
 Use an isolated VM or dedicated OS test identity with no owner home/state mounts, secrets, credentials
 or network egress. Fresh HOME/config/state roots and named sockets prevent accidental collisions;
 directory overrides alone are not a security boundary. Use disposable Git/SQLite fixtures and a
@@ -404,7 +470,7 @@ captured output, not Git's internal work, provider authenticity, usage settlemen
 operational release. Unique per-invocation verification directories and exact-diff packet transport
 are also present. The lead parser continues to reject ambiguous JSON.
 
-Independent Sol technical lead `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`
+**Historical quota policy, superseded on 2026-10-22:** Independent Sol technical lead `01a15a5e-7fc3-7bf0-9a10-73199636bfcd`
 (`gpt-6.1-sol/high`) verified the current checkout, selected private evidence hashes, pilot STOP,
 configuration, manifest and SQLite against the audit. It made no source or pilot changes. Its
 follow-up established that A03 is an external Codex-interface dependency at pinned v0.163.0: stable
@@ -461,9 +527,9 @@ passed: 64 supervisor tests/10 subtests and 3 decode tests/4 subtests; Ruff and 
 closes silent replacement of malformed proof bytes only; output provenance, same-inode execution,
 loader closure, sandbox qualification and operational acceptance remain open.
 
-Treat A03 as a tracked external release dependency, not a company-wide engineering stop. Continue
-independent source work while that interface is unavailable. Its ranked program was updated after
-source review:
+**Historical program, superseded by the founder's 2026-10-22 manual quota policy:** Treat A03 as a
+tracked external release dependency, not a company-wide engineering stop. Continue independent source
+work while that interface is unavailable. Its ranked program was updated after source review:
 
 1. **Keep A03 fail-closed and open the upstream dependency.** Luna owns a bounded safe architecture
    and records the exact supported-interface contract in the Founder Desk. Resume A03 implementation
@@ -1185,8 +1251,10 @@ separately qualified path. Current observation binding does not provide these gu
 consumer is implemented and A05 remains open.
 
 The source candidate, merged-system acceptance, operational release, and founder authority to resume
-the original pilot are distinct gates. A03 currently blocks full operational release, not independent
-engineering progress. Passing synthetic tests or the local release command alone does not pass them.
+the original pilot are distinct gates. The former A03 usage-settlement gate is superseded by the
+founder's manual quota policy; its current code mismatch must be reviewed and corrected before the
+controller follows that policy. A04, A05, deployment and founder authority remain separate gates.
+Passing synthetic tests or the local release command alone does not pass them.
 
 ### Terminal usage evidence source qualification — 2026-10-20
 
@@ -1345,7 +1413,7 @@ production corruption or a successful sandbox escape.
 |---|---|---|
 | ORG-A01 | P1 | **Bounded source repair accepted by Sol at `3c16388`:** bootstrap writes `codex_executable_sha256`, matching `service.validate_deployment`. Prior synthetic bootstrap evidence reproduced the rejection as `codex_executable_binding`. The pinned engineering release gate passed. |
 | ORG-A02 | P1 | **Bounded source repair accepted by Sol at `3c16388`:** bootstrap initializes the ledger only after both qualification steps, before creating organization state. Schema creation, legacy column additions and `user_version=1` commit together. Existing version-1 ledgers must match exact ordered columns, types, nullability, primary keys, grouped composite foreign keys and unique indexes; newer, partial, extra-table and unknown schemas fail closed. A split-FK regression test rejects two single-column constraints in place of the required composite key. The pinned engineering release gate passed. |
-| ORG-A03 | P1 | The operational adapter always returns `usage_terminal=False`; progress counters are deliberately unattributed. `metered_client` sets `terminal_usage_qualified=False`, and there is no operational caller of `reconcile_dispatch`. A completed synthetic turn retained its reservation and `model_attribution_unverified`; scheduler capacity became zero. Correct conservative accounting has no qualified operational settlement path. Do not fix this by assuming unknown usage is zero. |
+| ORG-A03 | Historical under superseded quota policy | The operational adapter returns `usage_terminal=False`; progress counters are deliberately unattributed. `metered_client` sets `terminal_usage_qualified=False`, and there is no operational caller of `reconcile_dispatch`. A completed synthetic turn retained its reservation and `model_attribution_unverified`; scheduler capacity became zero. The founder's 2026-10-22 policy removes exact settlement as a company quota gate, so this is a current implementation mismatch, not an external quota blocker. Do not clear unknown task outcomes or permit resend as a consequence. |
 | ORG-A04 | P1 | `Store.admit_task_spec` atomically persists a valid spec and controller-owned verifier metadata binding; a shared plan at `066227e` resolves that exact decision in `verify_one` and `reconcile`. Spec-backed tasks never fall back to `cfg['tasks'][id]['checks']`; plans stop before execution when unqualified. At `838ff08`, `run_attempt` resolves the plan before checkout or dispatch and puts plan identities in the worker packet. At `b0e4731`, candidate evidence stores the plan identity and verification/reconciliation require exact equality before transitions; bound missing identity and explicit `null` block; absent legacy identity remains compatible. At `e96dbd2`, configured manifest and harness identity enter plan/attempt identity. At `3c859e2`, the first result command must invoke the pinned harness and its JSON result must match schema and acceptance identity with literal `true`. At `d985cff`, manifest v2 also pins canonical interpreter path and executable SHA-256, requires that interpreter at argv[0] and harness at argv[1], and binds interpreter identity into plan/attempt evidence. Sol accepted bounded source. The gate passed 329 tests and 65 subtests; Ruff check/format passed. At `a6f2dfb`, manifest v4 adds runtime path/CDHash pins and one Security API process-image observation for the first bound command; Sol accepted the exact bounded diff, gate passed 348 tests/83 subtests and Ruff. It does not establish literal inode or prior/later execution/result provenance. At `e9bb957`, `SandboxRunner` schedules process-image checks every 100 ms during output collection/wait for the first command of each bound verifier; synchronous Security API calls can extend the spacing. A marker-controlled signed-binary regression proves an exec image change was observed after the initial match. Sol accepted exact diff `54e33e3c984a18660433c97d6dc1d720d9b3128d0353f3fe25c56b739400f8d4`; gate passed 366 tests/96 subtests with Ruff. Sampling still leaves brief inter-sample changes, descendant identity and stdout provenance open, and the synchronous call is not interruptible by command timeout. Spec-backed plans remain `execution_qualified=False`; replacement between resolution and invocation, interpreter/loader semantics, sandbox qualification, executable integration acceptance, production admission default-off gates and full A04 remain open. At `d6da357`, the integrated synthetic path admits off-catalog PLAT-003 against PLAT-002, binds its spec digest to exact canonical Store contract bytes, and for v2 revalidates the transition, activation, integrated producer and reviewed ACKs. Readiness, claim and plan resolution fail closed on contract drift, activation type substitution or a missing admitted spec row; legacy verifier fallback cannot replace the binding. Sol accepted exact diff `04f44369c5a2434a6136b835ad2a8e90a897b6a20417f1cee3bd892778c230f9`; the gate passed Ruff/format, 617 tests and 189 subtests, and synthetic smoke was reproducible. PLAT-003 reaches `run_attempt` but remains `execution_qualified=False` and is rejected before checkout or dispatch. This does not qualify off-catalog execution, full A04, runtime or operational release. Receipts: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-result-contract-review-20261021.json` (SHA-256 `ecfb8f8a9888a96b059e1fa2122eb6331aeb5de81353ad3f8ab43fc85a6e4278`), `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-pin-review-20261021.json` (SHA-256 `a045ffd8c9d747a9fbd848f28ee0917782023663c2acc04484be2b2b2954dfe0`; test hash correction at `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-interpreter-pin-review-correction-20261021.json`, SHA-256 `4a09da47cd6b643ff8853b782cdc2d5741ce136a2d8d9927294fb50ec0edfffe`); process-identity review: `/Users/root1/Developer/brain-org-state/resumption-20261020/a04-process-code-identity-review-20261021.json` (SHA-256 `dfbed547202fe6ec40cbc09c8612681264319d637e273944e2e6a91cfe783ec5`). |
 | ORG-A05 | P1 | Successful supervisor exit after its bounded episode is not restarted by the generated `KeepAlive={'SuccessfulExit': False}` plist. Quiescence writes a Sol handoff and exits; no qualified consumer of that handoff exists. `reset_recovery_decision` has no operational caller. Chat Goal continuation and the frozen pilot are separate control paths, not one qualified lifetime service. A pure lifecycle planner scaffold at `91c6cfa` deterministically gates an inert launch request on STOP/runtime/accounting/quota/process/recovery/backoff observations, rejects stale owner metadata, and requires request owner/epoch. Sol accepted the exact source; the 274-test/42-subtest Ruff gate passed. Durable fencing, state persistence, request consumption/deduplication, retry policy, scheduler/process integration and operational recovery remain open. See `/Users/root1/Developer/brain-org-state/resumption-20261020/a05-passive-lifecycle-scaffold-review-20261020.json` (SHA-256 `87596c56a7e60b86a9ab85a70a2e03b15ab9ac613f2e9b8539a7fa2eafc88d97`). |
 | ORG-A06 | P1 | **Bounded source repair accepted by Sol at `3c16388`:** snapshot v2 copies the private state tree, backs up both SQLite databases, requires exact organization column/type/nullability/default/PK/FK/unique signatures, checks FK data integrity and no live attempts, and verifies the integration repository offline with sanitized Git configuration while rejecting alternates, shallow repositories and promisor remotes. It retains STOP, intents, attempts, logs and Git objects/refs; holds the supervisor lock; canonicalizes destination containment; and restores only to a fresh path. Synthetic restore after moving the source copy rebinds bundled executables and permits unavailable host executables only behind the persisted barrier. Relaxed structural validation requires `restore_requires_host_requalification=true`; restore receipts say `runtime_ready=false`. Fresh-path structural checks passed. Host qualification and operational/pilot restore remain open. |
@@ -1472,27 +1540,20 @@ volume identity and descriptor-bound live writes; there is no internal-storage f
 
 ## Resource and productivity policy
 
-The latest founder resource amendment remains
-[CEO-20261020-02](evidence/brain-org-founder-quota-amendment-20261020.json), subject to the current audit
-hold. It permits useful Sol/Luna work within actual subscription entitlement, not paid credits,
-upgrades or a billable API fallback. Legacy 68/69%, 750k lifetime, 72-hour, 200-WPU and renewal-count
-ceilings are historical and do not override that amendment.
+The founder's 2026-10-22 manual quota and hibernation policy above supersedes the account polling,
+percentage thresholds, token reservations, and automatic quota recovery assumptions in the older
+[CEO-20261020-02](evidence/brain-org-founder-quota-amendment-20261020.json) receipt. That receipt is
+historical and immutable. No paid usage or fallback is authorized. Do not automatically resume after a
+quota reset; wait for the founder's explicit continuation command.
 
-Before dispatch and after completion read actual account limits; while active poll at most every
-five minutes, at most every 60 seconds from 95%. At 97%, use one productive team and bounded short
-turns; at 99%, pause productive inference with the default one-point recovery reserve. A measured
-in-flight/granularity need may justify two points with recorded evidence. Provider denial or unknown
-required entitlement fails closed. The existing watchdog does not fully implement active-turn policy
-(ORG-A07). Two fresh successful readings at least 60 seconds apart plus state reconciliation are
-required for quota recovery; predicted reset time alone grants nothing. This rule is currently a
-helper, not a completed recovery service.
-
-Keep reservations and bounded uncertainty for in-flight/unknown outcomes. Separate unknown model
-attribution from unknown aggregate usage where independently justified, without inventing terminal
-counters or cancelling debt. WPU is an internal planning proxy, not subscription consumption or a
-bill. Track elapsed intervals, accepted useful tasks, time to acceptance, retries by cause, review
-reversals, queue age, maintenance share, model usage and recovery latency. Do not equate tokens,
-commits, passing component tests or time in Goal mode with useful delivery.
+Preserve durable dispatch/attempt identity and every unknown result independently of token accounting.
+An absent terminal counter can no longer block company quota decisions, but it never authorizes replay
+of a possibly delivered prompt, clears a task obligation, or proves completion. Existing per-call
+accounting code remains in place until a separately reviewed change demonstrates that duplicate
+prevention, bounded concurrency, recovery, and evidence custody survive its removal. Track delivered
+tasks, time to independent acceptance, retries by cause, review reversals, queue age, maintenance share,
+and recovery latency. Do not treat tokens, commits, passing component tests, or time in Goal mode as
+useful delivery.
 
 The founder supplied 14h28 elapsed, about 7h59 registered activity and 4h37 idle after HTTP 403.
 These are about 55.2% and 31.9% of elapsed time respectively. The remaining 1h52 is unclassified by
@@ -1510,8 +1571,9 @@ interface-level diagnosis before another implementation loop.
 
 ## Evidence gates for later authorization
 
-1. **Small coherent release candidate.** Fix the startup/accounting/active-quota path (ORG-A01,
-   A02, A03, A07) and put engineering checks in an explicit local release command (A08).
+1. **Small coherent release candidate.** Align dispatch with founder-managed quota while preserving
+   task outcome uncertainty and no-blind-retry; fix startup and active-work cancellation paths
+   (ORG-A01, A02, A07) and put engineering checks in an explicit local release command (A08).
    Validate the exact assembled finite-pilot release in a disposable deployment with real local
    Git/SQLite, synthetic transport and frozen external acceptance. Test clean startup and old-state
    migration, terminal/late/ambiguous accounting, invalid messages, drift and STOP precedence.

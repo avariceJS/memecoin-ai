@@ -1,15 +1,32 @@
 # Organization audit and resumption handoff
 
-## Current native ownership — 2026-10-21
+## Current native ownership — 2026-10-22
 
-The founder authorized one controlled transfer after the prior Luna Goal
-`01a15b1c-c263-71b0-bfca-c5b46d17a89b` was paused and its thread became idle. Native Goal/thread
-`01a15f55-903b-7de2-adec-19733734ac78` is the sole current Luna owner and was read back as `active`.
-The old Goal and every earlier predecessor remain preserved; the private handoff records the transfer
-additively with the prior objective and counters. The new objective is integrated synthetic source-only
-acceptance of task selection, trusted assignment, isolation, independent review, Git integration,
-durable checkpoint, continuation and interruption recovery. Sol remains the independent technical
-lead; Astra is not invoked automatically. STOP and all operational restrictions below remain in force.
+The founder authorized one successor after the previous source-only Goal completed. Native thread
+`01a15f55-903b-7de2-adec-19733734ac78` remains Luna's sole implementation owner; the new Pursuing Goal
+was read back as `active`. It compares native Codex app-server/daemon hosting with the current
+worker-session process path through reversible synthetic tests, and may simplify a bounded component
+only after Sol accepts the exact source. The previous Goal's objective, counters, history, receipts and
+checkpoint are preserved in the additive private handoff at
+`/Users/root1/Developer/brain-org-state/resumption-20261020/handoff.json`; earlier paused and blocked
+predecessors remain preserved too. No competing active Codex owner was present when created.
+
+The founder manually manages weekly subscription quota. No paid usage/fallback and no automatic
+resume after quota reset. Exact per-call token settlement is not a company-management requirement;
+unknown task outcomes, no-blind-retry, duplicate prevention and durable receipts remain mandatory.
+The required “Подготовить компанию к остановке” operation fences new work and produces a complete
+handoff; “Продолжить работу компании” first reconciles durable task/Git state, restores Sol oversight,
+then permits Luna to continue. **Neither founder-facing command nor its transaction is implemented.**
+They must never clear Pilot STOP. The founder-approved policy is recorded in
+`docs/engineering-organization.md`; native-host and lifecycle behavior are still under synthetic
+qualification. Astra remains episodic and is never invoked automatically.
+
+## Previous native ownership transfer — 2026-10-21
+
+The founder's previous one-time transfer is historical. Goal `01a15b1c-c263-71b0-bfca-c5b46d17a89b`
+was paused; its successor `01a15f55-903b-7de2-adec-19733734ac78` completed the bounded source-only
+synthetic objective on 2026-10-22. The predecessor history, counters, receipts and checkpoints remain
+preserved. The current successor is recorded above; STOP and all operational restrictions remain.
 
 Source-only objective completion review — 2026-10-22, exact source head
 `1ac09647891294746978a4abdad90cc10f7a9111`: Sol independently confirmed that the permitted
