@@ -7,7 +7,7 @@ python -m engineering.fault_trial --state PRIVATE --audit-only
 The driver signals only same-UID process-group leaders whose recorded kernel
 birth still matches. It never restarts workers, edits leases or manufactures
 integration results. A separate supervisor performs ordinary recovery. Optional
---replace-chief admits one replacement episode only against fresh live quotas.
+--replace-chief admits one bounded replacement episode from current local readiness.
 """
 
 from __future__ import annotations
@@ -452,20 +452,19 @@ def _can_replace_chief(state, cfg):
     role = view["role"]
     if role and role["status"] == "active" and role["lease_until"] > time.time():
         return False
-    limits_path = state / "limits.json"
-    if not limits_path.exists() or time.time() - limits_path.stat().st_mtime > 90:
-        return False
     db = Store(state / "organization.sqlite")
     try:
         active = sum(task["state"] == "running" for task in view["tasks"])
         capacity = choose_capacity(
-            _read(limits_path),
             measured_usage(state, db),
-            {"available_memory_bytes": available_memory(), "cpu_count": os.cpu_count()},
+            {
+                "available_memory_bytes": available_memory(),
+                "cpu_count": os.cpu_count(),
+                "active_teams": active,
+            },
             cfg["resources"],
-            active_tokens=active * cfg["resources"]["per_worker_tokens"],
         )
-        return capacity["slots"] > active
+        return capacity["slots"] > 0
     finally:
         db.close()
 

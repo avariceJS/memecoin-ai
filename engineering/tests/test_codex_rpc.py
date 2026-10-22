@@ -64,6 +64,30 @@ def test_turn_returns_final_message_without_commentary():
     assert client.call.call_args.args[1]["effort"] == "high"
 
 
+def test_active_stop_cancellation_interrupts_started_provider_turn():
+    class CancellablePermit(TrustedPermit):
+        cancelled = False
+
+        def cancel(self):
+            self.cancelled = True
+
+    permit = CancellablePermit()
+    client = Codex.__new__(Codex)
+
+    def start(method, _params, **_kwargs):
+        assert method == "turn/start"
+        permit.cancel()
+        return {"turn": {"id": "turn"}}
+
+    client.call = Mock(side_effect=start)
+    client.sink = Mock()
+    client.messages = queue.Queue()
+    client.notifications = []
+    with pytest.raises(Exception, match="turn_cancelled_by_metering_guard"):
+        client.turn("thread", "bounded", model="gpt-6-luna", tool=Mock(), permit=permit)
+    assert client.call.call_args_list[-1].args[0] == "turn/interrupt"
+
+
 @pytest.mark.parametrize("timeout", [1000, 10000, 0, 91, True, 1.5, "30", None])
 def test_broker_rejects_wrong_timeout_units_before_execution(tmp_path, timeout):
     box = Mock()

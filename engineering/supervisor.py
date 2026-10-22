@@ -24,7 +24,6 @@ import threading
 import time
 from pathlib import Path
 
-from .codex_rpc import Codex
 from .confinement import SandboxRunner, python_runtime_roots
 from .git_gate import Candidate, GitGate
 from .metered_codex import metered_client
@@ -50,6 +49,12 @@ from .verifier_result import validate_verifier_result
 SOL = "gpt-6.1-sol"
 LUNA = "gpt-6-luna"
 LEASE = 45
+
+
+class VerificationOutcomeUncertain(RuntimeError):
+    """The independent review dispatch may have reached Codex without a result."""
+
+
 LEAD_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -1213,7 +1218,12 @@ def run_attempt(state: Path, attempt_id: int):
                 attempt_id,
                 epoch,
                 type(exc).__name__ + ":" + str(exc)[:500],
-                retryable=("lead_blocked" not in str(exc) and "controller_fault:" not in str(exc)),
+                retryable=(
+                    not db.attempt_work_started(attempt_id, epoch)
+                    and "lead_blocked" not in str(exc)
+                    and "controller_fault:" not in str(exc)
+                ),
+                outcome_uncertain=db.attempt_work_started(attempt_id, epoch),
             )
         except StaleAttempt:
             pass
@@ -1324,6 +1334,8 @@ def verify_one(state, task):
         return False
     policy = plan.policy
     gate = GitGate(state / "integration", state / "integration", policy, state / "receipts")
+    review_dispatch_started = False
+    review_raw_durable = False
     try:
         candidate = gate.submit(
             Path(evidence["checkout"]), task["candidate_sha"], evidence["base"], task["scope"]
@@ -1336,6 +1348,7 @@ def verify_one(state, task):
     verification_run = _verification_run_dir(state, candidate.sha)
 
     def verification(checkout, sha, fixed_policy):
+        nonlocal review_dispatch_started, review_raw_durable
         scratch = verification_run / "scratch"
         box = runner(state, checkout, scratch, readonly=True)
         # Read trusted test harness; the candidate cannot alter these acceptance checks.
@@ -1459,31 +1472,35 @@ def verify_one(state, task):
             harness_cwd=native,
             event_sink=lambda event: log_event(state, "codex", role="verifier", event=event),
         ) as reviewer:
-            thread = reviewer.start(
-                SOL,
-                RULES
-                + "\nYou are the independent verification reviewer. You did not author this patch. "
-                "No editing.",
-            )
-            review = reviewer.turn(
-                thread,
-                (
-                    "Review this exact candidate for correctness, scope, regression risk "
-                    "and scientific semantics. Fixed independent acceptance and focused "
-                    "tests passed. Return JSON "
-                    "{approved: boolean, findings: [strings], rationale: string}. Block "
-                    "concrete defects, "
-                    "not hypothetical unrelated improvements.\n"
+            try:
+                review_dispatch_started = True
+                thread = reviewer.start(
+                    SOL,
+                    RULES + "\nYou are the independent verification reviewer. "
+                    "You did not author this patch. No editing.",
                 )
-                + json.dumps(review_packet, sort_keys=True, separators=(",", ":")),
-                dispatch_id=f"verify:{task['id']}:{sha}",
-                estimate={"tokens": 3500, "wpu": 1.0},
-                model=SOL,
-                tool=lambda _: {"error": "review_tools_disabled"},
-                deadline_seconds=240,
-                output_schema=REVIEW_SCHEMA,
-            )
+                review = reviewer.turn(
+                    thread,
+                    (
+                        "Review this exact candidate for correctness, scope, regression risk "
+                        "and scientific semantics. Fixed independent acceptance and focused "
+                        "tests passed. Return JSON "
+                        "{approved: boolean, findings: [strings], rationale: string}. Block "
+                        "concrete defects, "
+                        "not hypothetical unrelated improvements.\n"
+                    )
+                    + json.dumps(review_packet, sort_keys=True, separators=(",", ":")),
+                    dispatch_id=f"verify:{task['id']}:{sha}",
+                    estimate={"tokens": 3500, "wpu": 1.0},
+                    model=SOL,
+                    tool=lambda _: {"error": "review_tools_disabled"},
+                    deadline_seconds=240,
+                    output_schema=REVIEW_SCHEMA,
+                )
+            except Exception as exc:
+                raise VerificationOutcomeUncertain(type(exc).__name__) from exc
             atomic(verification_run / "review-raw.json", review)
+            review_raw_durable = True
             try:
                 decision = parse_independent_review_decision(review["text"])
             except Exception as exc:
@@ -1532,7 +1549,12 @@ def verify_one(state, task):
     except Exception as exc:
         log_event(state, "verification_failed", task=task["id"], error=str(exc)[-3000:])
         if db.get_task(task["id"])["state"] == "submitted":
-            db.verify(task["id"], task["candidate_sha"], False, {"error": str(exc)[-3000:]})
+            if review_dispatch_started and not review_raw_durable:
+                db.hold_uncertain_verification(
+                    task["id"], task["candidate_sha"], {"error": str(exc)[-3000:]}
+                )
+            else:
+                db.verify(task["id"], task["candidate_sha"], False, {"error": str(exc)[-3000:]})
     finally:
         db.close()
     return True
@@ -2002,287 +2024,262 @@ def supervise(
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         log_event(state, "supervisor_started", birth=process_identity(os.getpid()))
         end = time.monotonic() + max_seconds
-        native = state / "budget-native"
-        native.mkdir(exist_ok=True)
         blocked_verification = set()
         backoff_plan_token = None
-        with Codex(native, codex=cfg.get("codex_executable", "codex")) as account:
-            last_read, limits = None, None
-            while time.monotonic() < end and not (state / "STOP").exists():
-                allowed_contract_reviews = reconcile(state, db)
-                reap_expired(state, db)
-                tasks = db.list_tasks()
-                # Each verifier is serial and may block dispatch briefly; active workers
-                # maintain their own leases independently and continue during verification.
-                submitted = next(
-                    (
-                        t
-                        for t in tasks
-                        if t["state"] == "submitted" and t["id"] not in blocked_verification
-                    ),
-                    None,
-                )
-                if submitted:
-                    if not verify_one(state, submitted):
-                        blocked_verification.add(submitted["id"])
-                    continue
-                if last_read is None or time.monotonic() - last_read > 60:
-                    try:
-                        limits = account.call("account/rateLimits/read")
-                        quota_observed_at = time.time()
-                    except Exception:
-                        limits = {"ordinaryUsageAllowed": None}
-                        quota_observed_at = None
-                    # Do not persist identity or reset-credit objects.
-                    limits = {
-                        k: limits.get(k)
-                        for k in ("ordinaryUsageAllowed", "rateLimits", "rateLimitsByLimitId")
-                    }
-                    limits["observed_at"] = quota_observed_at
-                    atomic(state / "limits.json", limits)
-                    last_read = time.monotonic()
-                active = [t for t in db.list_tasks() if t["state"] == "running"]
-                from .planning import require_controller_assignment
+        while time.monotonic() < end and not (state / "STOP").exists():
+            allowed_contract_reviews = reconcile(state, db)
+            reap_expired(state, db)
+            tasks = db.list_tasks()
+            # Each verifier is serial and may block dispatch briefly; active workers
+            # maintain their own leases independently and continue during verification.
+            submitted = next(
+                (
+                    t
+                    for t in tasks
+                    if t["state"] == "submitted" and t["id"] not in blocked_verification
+                ),
+                None,
+            )
+            if submitted:
+                if not verify_one(state, submitted):
+                    blocked_verification.add(submitted["id"])
+                continue
+            active = [t for t in db.list_tasks() if t["state"] == "running"]
+            from .planning import require_controller_assignment
 
-                ready = []
-                assignment_blocked = {}
-                active_teams = {a["team"] for a in active}
-                for task in db.ready_tasks():
-                    if task["team"] in active_teams:
+            ready = []
+            assignment_blocked = {}
+            active_teams = {a["team"] for a in active}
+            for task in db.ready_tasks():
+                if task["team"] in active_teams:
+                    continue
+                try:
+                    require_controller_assignment(cfg, db, task)
+                except StateError as exc:
+                    assignment_blocked[task["id"]] = str(exc)
+                    continue
+                ready.append(task)
+            decision = choose_capacity(
+                measured_usage(state, db),
+                {
+                    "available_memory_bytes": available_memory(),
+                    "cpu_count": os.cpu_count(),
+                    "active_team_ids": sorted({t["team"] for t in active}),
+                    "active_attempt_count": len(active),
+                },
+                cfg["resources"],
+                ready_tasks=ready,
+                active_scopes=[s for t in active for s in t["scope"]],
+            )
+            if not active and not ready:
+                readiness = db.readiness_report()
+                backoff_deadline = _spawn_backoff_deadline(readiness)
+                cooling_down = (
+                    decision["slots"]
+                    and backoff_deadline is not None
+                    and backoff_deadline > db.clock()
+                )
+                if cooling_down:
+                    # Give planning one opportunity for each changed durable state,
+                    # then keep waiting without repeatedly spending planner calls.
+                    revision = db.quiescence_snapshot()["revision"]
+                    token = _spawn_backoff_plan_token(readiness, revision)
+                    should_plan = token != backoff_plan_token
+                    backoff_plan_token = token
+                else:
+                    backoff_plan_token = None
+                    should_plan = True
+                if decision["slots"] and department_plan_transport is not None:
+                    from .department_plan_cycle import ensure_department_plans
+
+                    if ensure_department_plans(
+                        state,
+                        db,
+                        department_plan_transport,
+                        stop_guard=lambda: not (state / "STOP").exists(),
+                    ):
                         continue
-                    try:
-                        require_controller_assignment(cfg, db, task)
-                    except StateError as exc:
-                        assignment_blocked[task["id"]] = str(exc)
+                from .planning import plan_next
+
+                if decision["slots"] and should_plan and plan_next(state, db):
+                    continue
+                if decision["slots"] and contract_review_transport is not None:
+                    from .contract_review_cycle import process_pending_reviews
+
+                    review_cycle = process_pending_reviews(
+                        db,
+                        contract_review_transport,
+                        limit=1,
+                        allowed_request_ids=allowed_contract_reviews,
+                        dispatch_guard=lambda request: _contract_review_dispatch_guard(
+                            state, db, cfg, request
+                        ),
+                    )
+                    if review_cycle["processed"]:
+                        activate_contract(state, db)
+                        log_event(
+                            state,
+                            "contract_reviews_processed",
+                            processed=review_cycle["processed"],
+                            failures=review_cycle["failures"],
+                            transport_invocations=review_cycle["transport_invocations"],
+                            dispatch_authority=review_cycle["dispatch_authority"],
+                        )
                         continue
-                    ready.append(task)
+                if cooling_down:
+                    wait_seconds = min(2.0, max(0.0, backoff_deadline - db.clock()))
+                    if wait_seconds:
+                        time.sleep(wait_seconds)
+                    continue
+                snapshot = db.quiescence_snapshot()
+                readiness = snapshot["readiness"]
+                if any(
+                    row["state"] == "running"
+                    or (row["state"] == "submitted" and row["task_id"] not in blocked_verification)
+                    for row in readiness
+                ):
+                    # The earlier active/ready reads may have gone stale while the
+                    # supervisor reconciled and planned. Let the next pass act on the
+                    # fresh state instead of recording a quiescence handoff for it.
+                    time.sleep(2)
+                    continue
                 decision = choose_capacity(
-                    limits,
                     measured_usage(state, db),
                     {
                         "available_memory_bytes": available_memory(),
                         "cpu_count": os.cpu_count(),
-                        "active_team_ids": sorted({t["team"] for t in active}),
+                        "active_team_ids": [],
                     },
                     cfg["resources"],
-                    active_tokens=len(active) * cfg["resources"]["per_worker_tokens"],
-                    ready_tasks=ready,
-                    active_scopes=[s for t in active for s in t["scope"]],
                 )
-                if not active and not ready:
-                    readiness = db.readiness_report()
-                    backoff_deadline = _spawn_backoff_deadline(readiness)
-                    cooling_down = (
-                        decision["slots"]
-                        and backoff_deadline is not None
-                        and backoff_deadline > db.clock()
-                    )
-                    if cooling_down:
-                        # Give planning one opportunity for each changed durable state,
-                        # then keep waiting without repeatedly spending planner calls.
-                        revision = db.quiescence_snapshot()["revision"]
-                        token = _spawn_backoff_plan_token(readiness, revision)
-                        should_plan = token != backoff_plan_token
-                        backoff_plan_token = token
-                    else:
-                        backoff_plan_token = None
-                        should_plan = True
-                    if decision["slots"] and department_plan_transport is not None:
-                        from .department_plan_cycle import ensure_department_plans
-
-                        if ensure_department_plans(
-                            state,
-                            db,
-                            department_plan_transport,
-                            stop_guard=lambda: not (state / "STOP").exists(),
-                        ):
-                            continue
-                    from .planning import plan_next
-
-                    if decision["slots"] and should_plan and plan_next(state, db):
+                fresh_dispatchable_ids = set()
+                fresh_assignment_blocked = {}
+                for row in readiness:
+                    if not row["eligible"]:
                         continue
-                    if decision["slots"] and contract_review_transport is not None:
-                        from .contract_review_cycle import process_pending_reviews
-
-                        review_cycle = process_pending_reviews(
-                            db,
-                            contract_review_transport,
-                            limit=1,
-                            allowed_request_ids=allowed_contract_reviews,
-                            dispatch_guard=lambda request: _contract_review_dispatch_guard(
-                                state, db, cfg, request
-                            ),
-                        )
-                        if review_cycle["processed"]:
-                            activate_contract(state, db)
-                            log_event(
-                                state,
-                                "contract_reviews_processed",
-                                processed=review_cycle["processed"],
-                                failures=review_cycle["failures"],
-                                transport_invocations=review_cycle["transport_invocations"],
-                                dispatch_authority=review_cycle["dispatch_authority"],
-                            )
-                            continue
-                    if cooling_down:
-                        wait_seconds = min(2.0, max(0.0, backoff_deadline - db.clock()))
-                        if wait_seconds:
-                            time.sleep(wait_seconds)
-                        continue
-                    snapshot = db.quiescence_snapshot()
-                    readiness = snapshot["readiness"]
-                    if any(
-                        row["state"] == "running"
-                        or (
-                            row["state"] == "submitted"
-                            and row["task_id"] not in blocked_verification
-                        )
-                        for row in readiness
-                    ):
-                        # The earlier active/ready reads may have gone stale while the
-                        # supervisor reconciled and planned. Let the next pass act on the
-                        # fresh state instead of recording a quiescence handoff for it.
-                        time.sleep(2)
-                        continue
-                    decision = choose_capacity(
-                        limits,
-                        measured_usage(state, db),
-                        {
-                            "available_memory_bytes": available_memory(),
-                            "cpu_count": os.cpu_count(),
-                            "active_team_ids": [],
-                        },
-                        cfg["resources"],
-                        active_tokens=0,
-                    )
-                    fresh_dispatchable_ids = set()
-                    fresh_assignment_blocked = {}
-                    for row in readiness:
-                        if not row["eligible"]:
-                            continue
-                        try:
-                            current_task = db.get_task(row["task_id"])
-                            require_controller_assignment(cfg, db, current_task)
-                        except StateError as exc:
-                            fresh_assignment_blocked[row["task_id"]] = str(exc)
-                            continue
-                        fresh_dispatchable_ids.add(row["task_id"])
-                    if decision["slots"] and fresh_dispatchable_ids:
-                        # Capacity and task readiness were observed separately; avoid
-                        # classifying ready work as dependency-blocked after capacity changed.
-                        time.sleep(2)
-                        continue
-                    resource_reason = decision.get("reason", "unknown")
-                    if decision["slots"] == 0:
-                        reason = "quota-unavailable"
-                    elif any(
-                        row["state"] == "pending"
-                        and (
-                            row["task_id"] in fresh_assignment_blocked
-                            or any(
-                                blocker.get("kind") == "controller_assignment"
-                                for blocker in row["blockers"]
-                            )
-                        )
-                        for row in readiness
-                    ):
-                        reason = "controller-assignment-required"
-                    elif snapshot["contract_reviews"]["pending_count"]:
-                        reason = "contract-reviews-pending"
-                    elif any(row["state"] == "pending" for row in readiness):
-                        reason = "blocked-dependencies"
-                    else:
-                        reason = "catalogue-exhausted"
-                    fingerprint_data = {
-                        "snapshot": snapshot,
-                        "resource_reason": resource_reason,
-                        "reason": reason,
-                    }
-                    fingerprint = hashlib.sha256(
-                        json.dumps(fingerprint_data, sort_keys=True, separators=(",", ":")).encode()
-                    ).hexdigest()
-                    recorded = db.record_quiescence_handoff_if_current(
-                        fingerprint,
-                        snapshot,
-                        {
-                            "owner": "Sol",
-                            "status": "requested",
-                            "reason": reason,
-                            "resource_reason": resource_reason,
-                            "fingerprint": fingerprint,
-                            "review_requests": snapshot["review_requests"],
-                        },
-                    )
-                    if not recorded:
-                        time.sleep(2)
-                        continue
-                    break
-                free = decision["slots"]
-                for task in decision["selected_tasks"][:free]:
-                    if (state / "STOP").exists():
-                        break
                     try:
-                        require_controller_assignment(cfg, db, task)
+                        current_task = db.get_task(row["task_id"])
+                        require_controller_assignment(cfg, db, current_task)
                     except StateError as exc:
-                        log_event(
-                            state,
-                            "attempt_dispatch_blocked",
-                            task=task["id"],
-                            reason=str(exc),
-                        )
+                        fresh_assignment_blocked[row["task_id"]] = str(exc)
                         continue
-                    attempt = db.claim(task["id"], LUNA, LEASE)
-                    if not attempt:
-                        continue
-                    log = (state / "attempt-output.log").open("ab")
-                    if (state / "STOP").exists():
-                        log.close()
-                        db.cancel_unstarted_claim(
-                            attempt["id"], attempt["epoch"], reason="stop_before_spawn"
+                    fresh_dispatchable_ids.add(row["task_id"])
+                if decision["slots"] and fresh_dispatchable_ids:
+                    # Capacity and task readiness were observed separately; avoid
+                    # classifying ready work as dependency-blocked after capacity changed.
+                    time.sleep(2)
+                    continue
+                resource_reason = decision.get("reason", "unknown")
+                if decision["slots"] == 0:
+                    reason = "local-capacity-unavailable"
+                elif any(
+                    row["state"] == "pending"
+                    and (
+                        row["task_id"] in fresh_assignment_blocked
+                        or any(
+                            blocker.get("kind") == "controller_assignment"
+                            for blocker in row["blockers"]
                         )
-                        break
-                    try:
-                        p = subprocess.Popen(
-                            [
-                                cfg["python"],
-                                "-m",
-                                "engineering",
-                                "attempt",
-                                "--state",
-                                str(state),
-                                "--attempt",
-                                str(attempt["id"]),
-                            ],
-                            cwd=cfg["controller"],
-                            stdin=subprocess.DEVNULL,
-                            stdout=log,
-                            stderr=log,
-                            start_new_session=True,
-                        )
-                    except OSError as exc:
-                        log.close()
-                        db.cancel_unstarted_claim(
-                            attempt["id"], attempt["epoch"], reason="popen_failed"
-                        )
-                        log_event(
-                            state,
-                            "attempt_spawn_failed",
-                            attempt_id=attempt["id"],
-                            task=task["id"],
-                            error_type=type(exc).__name__,
-                        )
-                        continue
-                    log.close()
+                    )
+                    for row in readiness
+                ):
+                    reason = "controller-assignment-required"
+                elif snapshot["contract_reviews"]["pending_count"]:
+                    reason = "contract-reviews-pending"
+                elif any(row["state"] == "pending" for row in readiness):
+                    reason = "blocked-dependencies"
+                else:
+                    reason = "catalogue-exhausted"
+                fingerprint_data = {
+                    "snapshot": snapshot,
+                    "resource_reason": resource_reason,
+                    "reason": reason,
+                }
+                fingerprint = hashlib.sha256(
+                    json.dumps(fingerprint_data, sort_keys=True, separators=(",", ":")).encode()
+                ).hexdigest()
+                recorded = db.record_quiescence_handoff_if_current(
+                    fingerprint,
+                    snapshot,
+                    {
+                        "owner": "Sol",
+                        "status": "requested",
+                        "reason": reason,
+                        "resource_reason": resource_reason,
+                        "fingerprint": fingerprint,
+                        "review_requests": snapshot["review_requests"],
+                    },
+                )
+                if not recorded:
+                    time.sleep(2)
+                    continue
+                break
+            free = decision["slots"]
+            for task in decision["selected_tasks"][:free]:
+                if (state / "STOP").exists():
+                    break
+                try:
+                    require_controller_assignment(cfg, db, task)
+                except StateError as exc:
                     log_event(
                         state,
-                        "attempt_spawned",
+                        "attempt_dispatch_blocked",
+                        task=task["id"],
+                        reason=str(exc),
+                    )
+                    continue
+                attempt = db.claim(task["id"], LUNA, LEASE)
+                if not attempt:
+                    continue
+                log = (state / "attempt-output.log").open("ab")
+                if (state / "STOP").exists():
+                    log.close()
+                    db.cancel_unstarted_claim(
+                        attempt["id"], attempt["epoch"], reason="stop_before_spawn"
+                    )
+                    break
+                try:
+                    p = subprocess.Popen(
+                        [
+                            cfg["python"],
+                            "-m",
+                            "engineering",
+                            "attempt",
+                            "--state",
+                            str(state),
+                            "--attempt",
+                            str(attempt["id"]),
+                        ],
+                        cwd=cfg["controller"],
+                        stdin=subprocess.DEVNULL,
+                        stdout=log,
+                        stderr=log,
+                        start_new_session=True,
+                    )
+                except OSError as exc:
+                    log.close()
+                    db.cancel_unstarted_claim(
+                        attempt["id"], attempt["epoch"], reason="popen_failed"
+                    )
+                    log_event(
+                        state,
+                        "attempt_spawn_failed",
                         attempt_id=attempt["id"],
                         task=task["id"],
-                        child_pid=p.pid,
+                        error_type=type(exc).__name__,
                     )
-                atomic(state / "status.json", status(state, db, decision=decision))
-                render_desk(state, db, decision)
-                time.sleep(2)
+                    continue
+                log.close()
+                log_event(
+                    state,
+                    "attempt_spawned",
+                    attempt_id=attempt["id"],
+                    task=task["id"],
+                    child_pid=p.pid,
+                )
+            atomic(state / "status.json", status(state, db, decision=decision))
+            render_desk(state, db, decision)
+            time.sleep(2)
         atomic(state / "status.json", status(state, db))
         render_desk(state, db)
         if (state / "STOP").exists():

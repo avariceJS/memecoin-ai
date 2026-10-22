@@ -1111,7 +1111,6 @@ class UsageLedger:
         *,
         context,
         baseline=None,
-        admission_percent=0,
     ):
         if not dispatch_id or not identity or model not in MODELS:
             raise ValueError("invalid dispatch")
@@ -1138,33 +1137,6 @@ class UsageLedger:
                 if row["payload"] != payload:
                     raise RuntimeError("dispatch_id_payload_conflict")
             else:
-                if (
-                    self.db.execute(
-                        "SELECT 1 FROM dispatches "
-                        "WHERE status NOT IN ('covered','settled') AND model=? LIMIT 1",
-                        (model,),
-                    ).fetchone()
-                    and self.db.execute(
-                        "SELECT count(*) FROM dispatches "
-                        "WHERE status NOT IN ('covered','settled') AND model=?",
-                        (model,),
-                    ).fetchone()[0]
-                    >= 2
-                ):
-                    raise RuntimeError("model_dispatch_slots_full")
-                active_teams = {
-                    item[0]
-                    for item in self.db.execute(
-                        "SELECT DISTINCT json_extract(payload,'$.context.team') FROM dispatches "
-                        "WHERE status NOT IN ('covered','settled')"
-                    )
-                    if item[0]
-                }
-                team = context.get("team") if isinstance(context, dict) else None
-                if team and team not in active_teams and len(active_teams) >= 2:
-                    raise RuntimeError("team_dispatch_slots_full")
-                if admission_percent >= 97 and active_teams and team not in active_teams:
-                    raise RuntimeError("quota_97_single_team_only")
                 self.db.execute(
                     "INSERT INTO dispatches "
                     "(dispatch_id,payload,identity,model,estimate_tokens,estimate_wpu,deadline_at,"

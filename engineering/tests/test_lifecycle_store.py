@@ -139,6 +139,64 @@ class LifecycleStoreTests(unittest.TestCase):
             ["cancelled_before_spawn", "expired", "failed"],
         )
 
+    def test_unknown_task_outcome_is_held_while_unrelated_work_continues(self):
+        self.store.add_task("uncertain-send", "Platform", "Hold uncertain provider result")
+        self.store.add_task("unrelated-after-uncertain", "Research", "Keep other work moving")
+        attempt = self.store.claim("uncertain-send", "worker", lease_seconds=5)
+        owner = {"pid": 410, "birth": "darwin:410:1000:000010:501"}
+        self.store.record_attempt_child_start(attempt["id"], attempt["epoch"], owner)
+        self.store.record_attempt_work_start(attempt["id"], attempt["epoch"], owner, stage="worker")
+        self.store.fail(
+            attempt["id"],
+            attempt["epoch"],
+            "synthetic lost response after dispatch",
+        )
+        self.assertEqual(self.store.get_task("uncertain-send")["state"], "failed")
+        self.assertIsNone(self.store.claim("uncertain-send", "retry", lease_seconds=5))
+        self.assertIsNotNone(
+            self.store.claim("unrelated-after-uncertain", "other-worker", lease_seconds=5)
+        )
+        self.assertTrue(
+            any(
+                event["kind"] == "attempt_outcome_uncertain" and event["entity"] == "uncertain-send"
+                for event in self.store.events()
+            )
+        )
+
+    def test_expired_attempt_after_provider_work_intent_is_held(self):
+        self.store.add_task("uncertain-expiry", "Platform", "Hold after child interruption")
+        self.store.add_task("ready-after-expiry", "Research", "Independent task remains ready")
+        attempt = self.store.claim("uncertain-expiry", "worker", lease_seconds=5)
+        owner = {"pid": 410, "birth": "darwin:410:1000:000010:501"}
+        self.store.record_attempt_child_start(attempt["id"], attempt["epoch"], owner)
+        self.store.record_attempt_work_start(attempt["id"], attempt["epoch"], owner, stage="lead")
+        self.now += 5
+        self.assertEqual(self.store.recover_expired(), [attempt["id"]])
+        self.assertEqual(self.store.get_task("uncertain-expiry")["state"], "failed")
+        self.assertIsNone(self.store.claim("uncertain-expiry", "retry", lease_seconds=5))
+        self.assertIsNotNone(self.store.claim("ready-after-expiry", "other", lease_seconds=5))
+        self.assertTrue(
+            any(
+                event["kind"] == "attempt_expired_outcome_uncertain"
+                and event["entity"] == "uncertain-expiry"
+                for event in self.store.events()
+            )
+        )
+
+    def test_unknown_independent_review_holds_submitted_candidate(self):
+        self.store.add_task("uncertain-review", "Platform", "Hold unknown reviewer result")
+        self.store.add_task("ready-during-review-hold", "Research", "Continue separate work")
+        attempt = self.store.claim("uncertain-review", "worker", lease_seconds=5)
+        self.store.submit(attempt["id"], attempt["epoch"], "candidate-sha", {"base": "base"})
+        self.store.hold_uncertain_verification(
+            "uncertain-review", "candidate-sha", {"error": "lost reviewer response"}
+        )
+        task = self.store.get_task("uncertain-review")
+        self.assertEqual(task["state"], "failed")
+        self.assertEqual(task["candidate_sha"], "candidate-sha")
+        self.assertIsNone(self.store.claim("uncertain-review", "retry", lease_seconds=5))
+        self.assertIsNotNone(self.store.claim("ready-during-review-hold", "other", 5))
+
     def test_popen_failure_backoff_is_durable_bounded_and_budget_neutral(self):
         self.store.add_task("popen-backoff", "Platform", "Wait after spawn error", max_attempts=1)
         self.store.add_task("unrelated-ready", "Research", "Continue unrelated work")

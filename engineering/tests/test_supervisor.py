@@ -286,7 +286,11 @@ class SupervisorTests(unittest.TestCase):
             "        instructions=msg['params'].get('developerInstructions','')\n"
             "        role=('worker' if 'implementation worker' in instructions else "
             "'verifier' if 'verification reviewer' in instructions else 'lead')\n"
-            "        thread=role+'-'+str(len(roles)+1)\n"
+            "        counter=trace+'.thread-counter'\n"
+            "        try: sequence=int(open(counter).read())+1\n"
+            "        except FileNotFoundError: sequence=1\n"
+            "        open(counter,'w').write(str(sequence))\n"
+            "        thread=role+'-'+str(sequence)\n"
             "        roles[thread]=role; result={'thread':{'id':thread}}\n"
             "    elif method == 'turn/start':\n"
             "        p=msg['params']; thread=p['threadId']; role=roles[thread]\n"
@@ -439,10 +443,10 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(git("show", "refs/heads/research/active:src/result.py"), "VALUE = 7")
         records = [json.loads(line) for line in trace.read_text().splitlines()]
         argv_records = [row for row in records if row["kind"] == "argv"]
-        self.assertGreaterEqual(len(argv_records), 7)
+        self.assertEqual(len(argv_records), 3)
         self.assertTrue(all(row["argv"][:2] == ["app-server", "--stdio"] for row in argv_records))
         methods = [row.get("method") for row in records if row["kind"] == "rpc"]
-        self.assertIn("account/rateLimits/read", methods)
+        self.assertNotIn("account/rateLimits/read", methods)
         self.assertEqual(methods.count("thread/start"), 3)
         self.assertEqual(methods.count("turn/start"), 3)
         self.assertTrue(any(row.get("kind") == "tool_reply" and row["success"] for row in records))
@@ -464,16 +468,18 @@ class SupervisorTests(unittest.TestCase):
         finally:
             ledger.close()
 
-        # A third Sol reservation is refused while both completed turns remain unresolved.
+        # Unknown usage remains evidence, but the founder's manual quota policy permits
+        # the next distinct task. Attempt identity still prevents replay of prior sends.
         with patch.dict(os.environ, {"HOME": str(self.state / "synthetic-home")}):
             with metered_client(
                 self.state,
                 integration,
                 cfg=self.cfg,
                 context={"role": "lead", "team": "Platform", "task": "CLI-002"},
-            ) as blocked:
-                with self.assertRaisesRegex(RuntimeError, "model_dispatch_slots_full"):
-                    blocked.start(supervisor.SOL, "synthetic third Sol dispatch must fail closed")
+            ) as next_task:
+                self.assertTrue(
+                    next_task.start(supervisor.SOL, "synthetic next task with unknown usage")
+                )
 
     def test_later_bound_command_identity_and_result_contract_reach_verifier_gate(self):
         command = SimpleNamespace(
@@ -868,7 +874,6 @@ class SupervisorTests(unittest.TestCase):
                     with (
                         patch.object(supervisor, "__file__", str(module)),
                         patch.object(supervisor, "store") as open_store,
-                        patch.object(supervisor, "Codex") as codex,
                         patch.object(supervisor.subprocess, "Popen") as spawn,
                     ):
                         with self.assertRaises(ValueError):
@@ -877,7 +882,6 @@ class SupervisorTests(unittest.TestCase):
                             else:
                                 supervisor.run_attempt(state, 1)
                     open_store.assert_not_called()
-                    codex.assert_not_called()
                     spawn.assert_not_called()
 
     def test_run_attempt_entry_STOP_cancels_claim_before_execution(self):
@@ -885,12 +889,10 @@ class SupervisorTests(unittest.TestCase):
         attempt = self.db.claim("T", "synthetic-worker")
         (self.state / "STOP").touch()
         with (
-            patch.object(supervisor, "Codex") as codex,
             patch.object(supervisor, "metered_client") as transport,
             patch.object(supervisor, "process_identity", return_value="synthetic:owner"),
         ):
             supervisor.run_attempt(self.state, attempt["id"])
-        codex.assert_not_called()
         transport.assert_not_called()
         self.assertEqual(self.db.get_task("T")["state"], "pending")
         stored = self.db.list_attempts("T")[0]
@@ -916,11 +918,9 @@ class SupervisorTests(unittest.TestCase):
         with (
             patch.object(supervisor, "process_identity", return_value="synthetic:owner"),
             patch.object(supervisor, "metered_client") as transport,
-            patch.object(supervisor, "Codex") as codex,
         ):
             supervisor.run_attempt(self.state, attempt["id"])
         transport.assert_not_called()
-        codex.assert_not_called()
         self.assertEqual(self.db.get_task("T")["state"], "failed")
         self.assertIn(
             "controller_assignment_unavailable:fixed_card_admission_missing",
@@ -987,12 +987,10 @@ class SupervisorTests(unittest.TestCase):
         events_before = len(self.db.events())
         with (
             patch.object(supervisor, "process_identity", return_value="synthetic:owner"),
-            patch.object(supervisor, "Codex") as codex,
             patch.object(supervisor, "metered_client") as transport,
             patch.object(supervisor, "runner") as sandbox,
         ):
             supervisor.run_attempt(self.state, attempt["id"])
-        codex.assert_not_called()
         transport.assert_not_called()
         sandbox.assert_not_called()
         self.assertEqual(len(self.db.events()), events_before)
@@ -1414,8 +1412,6 @@ class SupervisorTests(unittest.TestCase):
                 patch.object(planning, "git", side_effect=run_git),
                 patch.object(planning, "log_event"),
                 patch.object(planning, "plan_next", side_effect=select_then_stop),
-                patch.object(supervisor, "Codex", FakeCodex),
-                patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
                 patch.object(supervisor, "process_identity", return_value="synthetic-owner"),
                 patch.object(supervisor, "available_memory", return_value=10**10),
                 patch.object(supervisor, "status", return_value={}),
@@ -1776,8 +1772,6 @@ class SupervisorTests(unittest.TestCase):
                 side_effect=lambda *_args, **kwargs: SyntheticCodex(kwargs["context"]["role"]),
             ),
             patch.object(supervisor, "process_identity", return_value="synthetic-process"),
-            patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
             patch.object(supervisor, "render_desk"),
@@ -1944,8 +1938,6 @@ class SupervisorTests(unittest.TestCase):
         self.assertFalse((self.state / "STOP").exists())
         with (
             patch.object(Store, "prepare_contract_review", interrupt_store_contract_review),
-            patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
             patch.object(supervisor, "process_identity", return_value="synthetic-recovery-owner"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
@@ -2560,8 +2552,6 @@ main()
             return fake
 
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
             patch.object(supervisor, "process_identity", return_value="synthetic-process"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
@@ -2979,6 +2969,7 @@ main()
         reviewer_text="{malformed",
         diff="synthetic diff",
         raw_path_output="src/example.py\0",
+        atomic_failure_name=None,
     ):
         """Drive the actual verifier callback with pure fake tool/model responses."""
         self.candidate(target_state="submitted")
@@ -3012,6 +3003,13 @@ main()
                 raise RuntimeError("git_output_exceeds_limit")
             return output
 
+        atomic_impl = supervisor.atomic
+
+        def injected_atomic(path, value):
+            if atomic_failure_name and Path(path).name == atomic_failure_name:
+                raise OSError("synthetic custody failure")
+            return atomic_impl(path, value)
+
         with (
             patch.object(supervisor, "GitGate", return_value=gate),
             patch.object(supervisor, "runner", return_value=MagicMock()),
@@ -3022,12 +3020,33 @@ main()
             patch.object(supervisor, "git", return_value="normalized output"),
             patch.object(supervisor, "git_raw", side_effect=git_raw_output),
             patch.object(supervisor, "git_raw_limited", side_effect=git_raw_limited_output),
+            patch.object(supervisor, "atomic", side_effect=injected_atomic),
         ):
             supervisor.verify_one(self.state, self.db.get_task("T"))
-        self.assertEqual(self.db.get_task("T")["state"], "pending")
+        self.assertEqual(
+            self.db.get_task("T")["state"],
+            "failed" if atomic_failure_name else "pending",
+        )
         gate.publish.assert_not_called()
         self.assertFalse(any(event["kind"] == "candidate_accepted" for event in self.db.events()))
         return model
+
+    def test_review_result_custody_failure_holds_candidate(self):
+        reviewer_text = json.dumps(
+            {"approved": True, "findings": [], "rationale": "Synthetic independent review."}
+        )
+        self.verification_failure(
+            json.dumps({"schema": "org-pilot-acceptance-v1", "case": "T", "passed": True}),
+            reviewer_text=reviewer_text,
+            atomic_failure_name="review-raw.json",
+        )
+        self.assertIsNone(self.db.claim("T", "must-not-retry", lease_seconds=5))
+        self.assertTrue(
+            any(
+                event["kind"] == "verification_outcome_uncertain" and event["entity"] == "T"
+                for event in self.db.events()
+            )
+        )
 
     def verification_artifacts(self, candidate_sha="merged"):
         runs = sorted((self.state / "verification" / candidate_sha).glob("run-*"))
@@ -3630,7 +3649,6 @@ main()
         self.task()
         first = self.db.claim("T", "worker", 100)
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
             patch.object(supervisor, "process_identity", return_value="fake"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
@@ -3644,10 +3662,9 @@ main()
         self.assertEqual(self.db.get_task("T")["active_attempt"], first["id"])
         self.assertEqual(len(self.db.list_attempts()), 1)
 
-    def test_initial_rate_limit_read_does_not_depend_on_system_uptime(self):
+    def test_supervisor_does_not_spawn_account_only_codex_reader(self):
         self.task()
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
             patch.object(supervisor, "process_identity", return_value="fake"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
@@ -3657,7 +3674,7 @@ main()
             ),
         ):
             supervisor.supervise(self.state, max_seconds=10)
-        self.assertIn(("account/rateLimits/read",), FakeCodex.calls)
+        self.assertEqual(FakeCodex.calls, [])
 
     def test_malformed_lead_output_opens_circuit_without_running_worker(self):
         self.task()
@@ -4414,7 +4431,8 @@ main()
         attempts = self.db.list_attempts("T")
         self.assertEqual(attempts[0]["state"], "expired")
         replacement = self.db.get_task("T")
-        self.assertEqual(replacement["state"], "pending")
+        self.assertEqual(replacement["state"], "failed")
+        self.assertIsNone(replacement_attempts[0])
         self.assertEqual(replacement["epoch"], 1)
         self.assertEqual(replacement_attempts, [None])
         self.assertEqual(self.db.usage_summary()["total"], {"sol_turns": 1})
@@ -4810,8 +4828,6 @@ main()
         events_before = len(self.db.events())
         actual_ready_tasks = Store.ready_tasks
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
             patch.object(supervisor, "process_identity", return_value="fake"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
@@ -4884,8 +4900,8 @@ main()
     def test_quiescence_handoff_identity_tracks_current_contract_readiness(self):
         self.run_quiescence("contract-reviews-pending", pending=True, readiness_change=True)
 
-    def test_quiescence_unavailable_quota_handoff_has_no_chief_call(self):
-        self.run_quiescence("quota-unavailable", slots=0)
+    def test_quiescence_local_capacity_handoff_has_no_chief_call(self):
+        self.run_quiescence("local-capacity-unavailable", slots=0)
 
     def test_quiescence_handoff_reports_missing_controller_assignment(self):
         self.run_quiescence("controller-assignment-required", controller_assignment_required=True)
@@ -4940,8 +4956,6 @@ main()
             and event.get("entity", "").startswith("sol-handoff/")
         ]
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
             patch.object(supervisor, "process_identity", return_value="fake"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
@@ -4975,8 +4989,6 @@ main()
         self.db.submit(attempt["id"], attempt["epoch"], "sha", {})
         decision = {"slots": 1, "selected_tasks": [], "reason": "synthetic"}
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
             patch.object(supervisor, "process_identity", return_value="fake"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),
@@ -5007,8 +5019,6 @@ main()
     def test_stop_prevents_quiescence_resource_or_handoff_work(self):
         (self.state / "STOP").touch()
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call") as account_call,
             patch("engineering.resources.choose_capacity") as capacity,
             patch("engineering.chief.chief") as executive,
             patch.object(supervisor, "status", return_value={}),
@@ -5018,7 +5028,6 @@ main()
         self.assertEqual(checkpoint["status"], "stop_active")
         self.assertEqual(checkpoint["action"], "hold")
         self.assertFalse(checkpoint["dispatch_authority"])
-        account_call.assert_not_called()
         capacity.assert_not_called()
         executive.assert_not_called()
 
@@ -5049,8 +5058,6 @@ main()
             }
 
         with (
-            patch.object(supervisor, "Codex", FakeCodex),
-            patch.object(FakeCodex, "call", return_value={"ordinaryUsageAllowed": True}),
             patch.object(supervisor, "process_identity", return_value="fake"),
             patch.object(supervisor, "available_memory", return_value=10**10),
             patch.object(supervisor, "status", return_value={}),

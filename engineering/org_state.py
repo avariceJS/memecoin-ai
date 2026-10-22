@@ -1392,6 +1392,7 @@ class Store:
             raise StateError("quiescence handoff body invalid")
         if body["reason"] not in {
             "quota-unavailable",
+            "local-capacity-unavailable",
             "blocked-dependencies",
             "catalogue-exhausted",
             "controller-assignment-required",
@@ -1610,6 +1611,16 @@ class Store:
         ).fetchone()[0]
         return "pending" if retryable and used < task["max_attempts"] else "failed"
 
+    def _attempt_work_started(self, task_id: str, attempt_id: int, epoch: int) -> bool:
+        for row in self.db.execute(
+            "SELECT body FROM events WHERE kind='attempt_work_started' AND entity=?",
+            (task_id,),
+        ):
+            body = json.loads(row["body"])
+            if body.get("attempt_id") == attempt_id and body.get("epoch") == epoch:
+                return True
+        return False
+
     def _recover(self) -> list[int]:
         expired = list(
             self.db.execute(
@@ -1619,10 +1630,13 @@ class Store:
         for attempt in expired:
             task = self._task(attempt["task_id"])
             self.db.execute("UPDATE attempts SET state='expired' WHERE id=?", (attempt["id"],))
-            state = self._retry_state(task, True)
+            work_started = self._attempt_work_started(task["id"], attempt["id"], attempt["epoch"])
+            state = self._retry_state(task, not work_started)
             self.db.execute("UPDATE tasks SET state=? WHERE id=?", (state, task["id"]))
             self._event(
-                "attempt_expired", task["id"], {"attempt_id": attempt["id"], "state": state}
+                "attempt_expired_outcome_uncertain" if work_started else "attempt_expired",
+                task["id"],
+                {"attempt_id": attempt["id"], "state": state, "outcome_uncertain": work_started},
             )
         return [r["id"] for r in expired]
 
@@ -2059,6 +2073,16 @@ class Store:
             )
             return True
 
+    def attempt_work_started(self, attempt_id: int, epoch: int) -> bool:
+        """Whether this attempt crossed the durable provider-work intent boundary."""
+        with self._lock:
+            row = self.db.execute(
+                "SELECT task_id,epoch FROM attempts WHERE id=?", (attempt_id,)
+            ).fetchone()
+            if row is None or row["epoch"] != epoch:
+                raise StaleAttempt("attempt work intent identity mismatch")
+            return self._attempt_work_started(row["task_id"], attempt_id, epoch)
+
     def stop_started_child_before_work(self, attempt_id: int, epoch: int, identity: Any) -> bool:
         """Record a no-work STOP only for the one durably registered child."""
         identity = self._validate_child_identity(identity)
@@ -2208,16 +2232,34 @@ class Store:
                 {"attempt_id": attempt_id, "epoch": epoch, "session": session},
             )
 
-    def fail(self, attempt_id: int, epoch: int, reason: str, retryable: bool = True) -> None:
+    def fail(
+        self,
+        attempt_id: int,
+        epoch: int,
+        reason: str,
+        retryable: bool = True,
+        *,
+        outcome_uncertain: bool = False,
+    ) -> None:
         with self._tx():
             task, _ = self._fence(attempt_id, epoch)
+            if self._attempt_work_started(task["id"], attempt_id, epoch):
+                outcome_uncertain = True
+            if outcome_uncertain:
+                retryable = False
             state = self._retry_state(task, retryable)
             self.db.execute("UPDATE attempts SET state='failed' WHERE id=?", (attempt_id,))
             self.db.execute("UPDATE tasks SET state=? WHERE id=?", (state, task["id"]))
             self._event(
-                "attempt_failed",
+                "attempt_outcome_uncertain" if outcome_uncertain else "attempt_failed",
                 task["id"],
-                {"attempt_id": attempt_id, "epoch": epoch, "reason": reason, "state": state},
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "reason": reason,
+                    "state": state,
+                    "outcome_uncertain": outcome_uncertain,
+                },
             )
 
     def reopen_failed(
@@ -2401,6 +2443,29 @@ class Store:
                 "candidate_verified",
                 task_id,
                 {"sha": candidate_sha, "passed": passed, "details": details, "state": state},
+            )
+
+    def hold_uncertain_verification(self, task_id: str, candidate_sha: str, details: Any) -> None:
+        """Hold a submitted candidate when the independent review outcome is unknown."""
+        with self._tx():
+            task, candidate = self._candidate(task_id, candidate_sha)
+            if task["state"] != "submitted":
+                raise StateError("uncertain verification requires submitted task")
+            self.db.execute(
+                "UPDATE attempts SET state='failed' WHERE id=?", (candidate["attempt_id"],)
+            )
+            self.db.execute("UPDATE tasks SET state='failed' WHERE id=?", (task_id,))
+            self._event(
+                "verification_outcome_uncertain",
+                task_id,
+                {
+                    "sha": candidate_sha,
+                    "attempt_id": candidate["attempt_id"],
+                    "epoch": candidate["epoch"],
+                    "details": details,
+                    "state": "failed",
+                    "outcome_uncertain": True,
+                },
             )
 
     def accept(self, task_id: str, candidate_sha: str) -> None:

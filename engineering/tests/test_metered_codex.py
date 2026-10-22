@@ -8,21 +8,6 @@ from engineering.metered_codex import Controller, MeteredCodex, _canonical_usage
 from engineering.usage_ledger import UsageLedger
 
 
-def quota(percent=68):
-    return {
-        "ordinaryUsageAllowed": True,
-        "rateLimitsByLimitId": {
-            "codex": {
-                "primary": {"usedPercent": percent, "resetsAt": 9999},
-                "secondary": None,
-                "rateLimitReachedType": None,
-                "spendControlReached": False,
-                "credits": {"hasCredits": False, "unlimited": False, "balance": "0"},
-            }
-        },
-    }
-
-
 class FakeRPC:
     def __init__(self, ledger):
         self.ledger = ledger
@@ -48,12 +33,11 @@ class FakeRPC:
         }
 
 
-def make(tmp_path, percent=68):
+def make(tmp_path):
     ledger = UsageLedger(tmp_path / "usage.sqlite")
     rpc = FakeRPC(ledger)
     controller = Controller(
         ledger,
-        lambda: quota(percent),
         state=tmp_path,
         clock=lambda: 1000,
         preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
@@ -140,7 +124,6 @@ def test_canonical_usage_preserves_raw_optional_counter_in_receipt(tmp_path):
     rpc = UsageRPC(ledger)
     controller = Controller(
         ledger,
-        lambda: quota(),
         state=tmp_path,
         clock=lambda: 1000,
         preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
@@ -198,19 +181,30 @@ def test_pre_send_reservation_and_replay_and_stop(tmp_path):
     ledger.close()
 
 
-def test_quota_99_blocks_before_reservation(tmp_path):
-    ledger, _, controller, client = make(tmp_path, 99)
-    with pytest.raises(RuntimeError):
+def test_unknown_quota_usage_does_not_gate_dispatch_and_identity_still_prevents_replay(tmp_path):
+    ledger, rpc, controller, client = make(tmp_path)
+    thread = client.start("gpt-6-luna", "start")
+    client.turn(
+        thread,
+        "prompt",
+        dispatch_id="d",
+        model="gpt-6-luna",
+        estimate={"tokens": 1, "wpu": 1},
+        tool=lambda _: None,
+        deadline_seconds=3,
+    )
+    assert rpc.calls == 1
+    with pytest.raises((RuntimeError, ValueError)):
         client.turn(
-            "thread",
-            "prompt",
+            thread,
+            "retry",
             dispatch_id="d",
             model="gpt-6-luna",
             estimate={"tokens": 1, "wpu": 1},
             tool=lambda _: None,
             deadline_seconds=3,
         )
-    assert not ledger.summary()["reservations"]
+    assert rpc.calls == 1
     controller.close()
     ledger.close()
 
@@ -246,95 +240,26 @@ def test_lost_response_and_unknown_end_keep_dispatch_obligation(tmp_path):
     ledger.close()
 
 
-def test_unknown_required_or_paid_quota_evidence_stops_before_send(tmp_path):
-    for name, change in (
-        ("missing reset", lambda q: q["rateLimitsByLimitId"]["codex"]["primary"].pop("resetsAt")),
-        (
-            "paid credits",
-            lambda q: q["rateLimitsByLimitId"]["codex"]["credits"].update(hasCredits=True),
-        ),
-        ("unknown spend", lambda q: q["rateLimitsByLimitId"]["codex"].pop("spendControlReached")),
-    ):
-        q = quota()
-        change(q)
-        ledger = UsageLedger(tmp_path / (name.replace(" ", "-") + ".sqlite"))
-        rpc = FakeRPC(ledger)
-        controller = Controller(ledger, lambda q=q: q, state=tmp_path, clock=lambda: 1000)
-        client = MeteredCodex(rpc, controller, {"role": "worker", "team": "X", "task": "T"})
-        with pytest.raises(RuntimeError):
-            client.turn(
-                "thread",
-                "prompt",
-                dispatch_id=name,
-                model="gpt-6-luna",
-                estimate={"tokens": 100, "wpu": 1},
-                tool=lambda _: None,
-                deadline_seconds=10,
-            )
-        assert rpc.calls == 0
-        assert not ledger.summary()["reservations"]
-        controller.close()
-        ledger.close()
-
-
-def test_stop_monitor_waits_for_inflight_quota_read_and_joins_watcher(tmp_path):
+def test_deadline_monitor_cancels_without_quota_polling(tmp_path):
     ledger, _rpc, controller, _client = make(tmp_path)
-    entered, release = threading.Event(), threading.Event()
-
-    def blocked_read():
-        entered.set()
-        release.wait()
-        return quota()
-
-    controller.account_read = blocked_read
-    watcher = controller.monitor(time.monotonic() + 30, lambda: None)
-    assert entered.wait(2)
-    stopper = threading.Thread(target=controller.stop_monitor, args=(watcher,))
-    stopper.start()
-    time.sleep(0.05)
-    assert stopper.is_alive()
-    release.set()
-    stopper.join(3)
-    assert not stopper.is_alive()
+    cancelled = threading.Event()
+    watcher = controller.monitor(time.monotonic() + 0.05, cancelled.set)
+    assert cancelled.wait(2)
+    controller.stop_monitor(watcher)
     assert not watcher.is_alive()
     assert watcher not in controller._monitors
     controller.close()
     ledger.close()
 
 
-def test_zero_slot_quota_cancels_active_monitor(tmp_path):
+def test_stop_file_cancels_active_dispatch_without_account_polling(tmp_path):
     ledger, _rpc, controller, _client = make(tmp_path)
     cancelled = threading.Event()
-
-    def no_capacity(_source):
-        controller.quota_decision = {"slots": 0, "reason": "reserve_threshold"}
-        return quota(99)
-
-    controller.refresh = no_capacity
-    watcher = controller.monitor(time.monotonic() + 30, cancelled.set)
+    watcher = controller.monitor(time.monotonic() + 10, cancelled.set)
+    (tmp_path / "STOP").write_text("STOP\n", encoding="utf-8")
     assert cancelled.wait(2)
-    watcher.join(2)
-    assert not watcher.is_alive()
-    controller.close()
-    ledger.close()
-
-
-def test_zero_admission_slots_at_high_quota_do_not_cancel_active_team(tmp_path):
-    ledger, _rpc, controller, _client = make(tmp_path)
-    controller.quota_decision = {"slots": 0, "reason": "quota_high"}
-    refresh_complete = threading.Event()
-
-    def high_quota(_source):
-        controller.quota_decision = {"slots": 0, "reason": "quota_high"}
-        refresh_complete.set()
-        return quota(97)
-
-    controller.refresh = high_quota
-    cancelled = threading.Event()
-    watcher = controller.monitor(time.monotonic() + 30, cancelled.set)
-    assert refresh_complete.wait(2)
-    assert not cancelled.wait(0.05)
     controller.stop_monitor(watcher)
+    assert not watcher.is_alive()
     controller.close()
     ledger.close()
 
@@ -382,7 +307,6 @@ def test_unqualified_progress_across_model_switch_stays_unassigned(tmp_path):
     rpc = SwitchingRPC(ledger)
     controller = Controller(
         ledger,
-        lambda: quota(),
         state=tmp_path,
         clock=lambda: 1000,
         preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
@@ -455,7 +379,6 @@ def test_qualified_terminal_reconciliation_attributes_only_certified_interval(tm
     rpc = TerminalRPC(ledger)
     controller = Controller(
         ledger,
-        lambda: quota(),
         state=tmp_path,
         clock=lambda: 1000,
         preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
@@ -567,7 +490,6 @@ def test_completed_turn_without_usage_keeps_next_baseline_unknown(tmp_path):
     rpc = NoUsageRPC(ledger)
     controller = Controller(
         ledger,
-        lambda: quota(),
         state=tmp_path,
         clock=lambda: 1000,
         preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},
@@ -618,7 +540,6 @@ def test_lost_provider_binding_prevents_zero_baseline_reuse(tmp_path):
     rpc = LostBindingRPC(ledger)
     controller = Controller(
         ledger,
-        lambda: quota(),
         state=tmp_path,
         clock=lambda: 1000,
         preflight=lambda: {"resources": {"policy_id": "CEO-20261020-02"}},

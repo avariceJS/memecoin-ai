@@ -55,11 +55,13 @@ queue entries и публикацию, завершает ограниченну
 hold, Sol восстанавливает управление и review, затем разрешается продолжение Luna. Сброс квоты не
 запускает компанию автоматически и не снимает Pilot STOP или другие safety gates.
 
-Политика согласована с Sol-6.1 High как изменение требований к quota management. Код dispatch всё
-ещё применяет прежний account/usage gate; до отдельного source change и интегрированной synthetic
-приёмки политика не реализована в controller. Founder-facing команда Hibernation/wake и транзакция
-A05 также ещё не реализованы: существующие lifecycle projection инертны и не квалифицируют fencing,
-handoff или восстановление. Подробные нормы — в
+Политика согласована с Sol-6.1 High. Принятый source diff
+`8cca3eb44f0b13c18ab256e62912d71036fddc3655f442da851430db22adaca7` убирает account-only Codex
+процесс, опрос rate limits и usage-based квотные gates. Он сохраняет одноразовые dispatch ID,
+удержание task при неопределённом исходе после work-start и STOP-triggered interrupt. Gate прошёл
+680 тестов и 193 subtests; это синтетическая source приёмка. Founder-facing команда Hibernation/wake
+и транзакция A05 ещё не реализованы: существующие lifecycle projection инертны и не квалифицируют
+fencing, handoff или восстановление. Подробные нормы — в
 [каноническом документе](../docs/engineering-organization.md#founder-quota-and-company-hibernation-policy--2026-10-22).
 
 ## Историческое завершение предыдущей source-only цели — 2026-10-22

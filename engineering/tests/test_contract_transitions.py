@@ -2226,7 +2226,6 @@ def test_configured_activation_replays_saved_approval_without_provider_or_resend
             ),
         ),
         patch.object(supervisor, "log_event"),
-        patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
         patch.object(
             supervisor,
             "metered_client",
@@ -2580,7 +2579,6 @@ def test_supervisor_transition_overflow_keeps_processing_other_configured_contra
             ),
         ),
         patch.object(supervisor, "log_event") as log_event,
-        patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
         patch.object(
             supervisor,
             "metered_client",
@@ -2663,7 +2661,6 @@ def test_supervisor_replay_integrity_error_does_not_skip_later_activation(store,
             ),
         ),
         patch.object(supervisor, "log_event") as log_event,
-        patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
         patch.object(
             supervisor,
             "metered_client",
@@ -2848,7 +2845,6 @@ def test_supervisor_malformed_review_history_does_not_skip_later_activation(
             ),
         ),
         patch.object(supervisor, "log_event") as log_event,
-        patch.object(supervisor, "Codex", side_effect=AssertionError("provider must not start")),
         patch.object(
             supervisor,
             "metered_client",

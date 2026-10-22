@@ -568,7 +568,7 @@ class UsageLedgerTests(unittest.TestCase):
             )
         self.assertEqual(self.l.summary()["incremental"], c())
 
-    def test_external_active_reservation_occupies_model_and_team_slots(self):
+    def test_usage_reservation_is_evidence_not_dispatch_capacity(self):
         batch = [
             {
                 "kind": "active_reservation",
@@ -599,17 +599,15 @@ class UsageLedgerTests(unittest.TestCase):
             9999,
             context={"team": "Beta"},
         )
-        with self.assertRaisesRegex(
-            RuntimeError, "model_dispatch_slots_full|team_dispatch_slots_full"
-        ):
-            self.l.reserve(
-                "blocked-sol-gamma",
-                "c",
-                "gpt-6.1-sol",
-                {"tokens": 100, "wpu": 1},
-                9999,
-                context={"team": "Gamma"},
-            )
+        self.l.reserve(
+            "next-sol-gamma",
+            "c",
+            "gpt-6.1-sol",
+            {"tokens": 100, "wpu": 1},
+            9999,
+            context={"team": "Gamma"},
+        )
+        self.assertTrue(any(row.get("team") == "Alpha" for row in self.l.summary()["reservations"]))
 
     def test_public_import_of_historical_unknown_adds_no_retrospective_reservation(self):
         batch = [
@@ -618,7 +616,6 @@ class UsageLedgerTests(unittest.TestCase):
         encoded = json.dumps(batch, sort_keys=True, separators=(",", ":")).encode()
         controller = Controller(
             self.l,
-            lambda: {},
             state=self.tmp.name,
             external_allowlist={"trusted-history"},
         )
@@ -638,33 +635,12 @@ class UsageLedgerTests(unittest.TestCase):
                 for row in after["historical_unknown"]
             )
         )
-        rate = {
-            "ordinaryUsageAllowed": True,
-            "observed_at": 1_000,
-            "evaluated_at": 1_000,
-            "rateLimitsByLimitId": {
-                "codex": {
-                    "primary": {"usedPercent": 68, "resetsAt": 2_000},
-                    "secondary": None,
-                    "credits": {"hasCredits": False, "unlimited": False, "balance": 0},
-                    "rateLimitReachedType": None,
-                    "spendControlReached": False,
-                },
-                "weekly": {
-                    "primary": {"usedPercent": 50, "resetsAt": 8_000},
-                    "secondary": None,
-                    "credits": {"hasCredits": False, "unlimited": False, "balance": 0},
-                    "rateLimitReachedType": None,
-                    "spendControlReached": False,
-                },
-            },
-        }
         resources = {
             "available_memory_bytes": 2_000_000_000,
             "cpu_count": 8,
             "active_tokens": 0,
         }
-        self.assertEqual(choose_capacity(rate, after, resources)["slots"], 2)
+        self.assertEqual(choose_capacity(after, resources)["slots"], 2)
 
     def test_raw_rpc_ingress_is_byte_exact_and_persists_on_separate_connection(self):
         raw = b'{"method":"turn/started"}\r\n'

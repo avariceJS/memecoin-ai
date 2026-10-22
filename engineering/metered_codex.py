@@ -79,7 +79,6 @@ class Controller:
     def __init__(
         self,
         ledger,
-        account_read,
         *,
         state,
         clock=time.time,
@@ -87,84 +86,30 @@ class Controller:
         preflight=None,
         external_allowlist=frozenset(),
     ):
-        self.ledger, self.account_read, self.state, self.clock = (
-            ledger,
-            account_read,
-            Path(state),
-            clock,
-        )
+        self.ledger, self.state, self.clock = ledger, Path(state), clock
         self.monotonic = monotonic
         self.preflight, self.lock, self.closed = preflight, threading.RLock(), False
         self.external_allowlist = frozenset(external_allowlist)
-        self.account_lock = threading.Lock()
         self._monitors = set()
         self._monitor_events = {}
         self._monitor_lock = threading.Lock()
         self._monitor_stop = threading.Event()
-        self._owner_thread = threading.get_ident()
-        self._active_teams_snapshot = set()
-        self._active_teams_lock = threading.Lock()
 
     def refresh(self, reason="admission"):
-        # Timestamp the observation as soon as the serialized official read returns.
-        with self.account_lock:
-            data = self.account_read()
-            observed_at = self.clock()
-        from .quota_policy import choose_quota_capacity
-
-        # SQLite is deliberately thread-bound. Only the serialized dispatch
-        # owner reads it; watchdog threads use this last committed snapshot.
-        if threading.get_ident() == self._owner_thread:
-            rows = self.ledger.db.execute(
-                "SELECT payload FROM dispatches WHERE status NOT IN ('covered','settled')"
-            ).fetchall()
-            teams = {json.loads(row["payload"]).get("context", {}).get("team") for row in rows}
-            teams.discard(None)
-            with self._active_teams_lock:
-                self._active_teams_snapshot = teams
-        else:
-            with self._active_teams_lock:
-                teams = set(self._active_teams_snapshot)
-        stop = (self.state / "STOP").exists()
-        decision = choose_quota_capacity(
-            data,
-            observed_at=observed_at,
-            now=self.clock(),
-            active_teams=len(teams),
-            stop=stop,
-        )
-        if decision["reason"] in (
-            "invalid_or_missing_quota_evidence",
-            "stale_quota_evidence",
-            "invalid_observation",
-        ):
-            raise RuntimeError("quota_unknown_or_stale")
+        """Check explicit stop/config authority without polling subscription usage."""
+        if (self.state / "STOP").exists():
+            raise RuntimeError("STOP")
         if self.preflight:
             pf = self.preflight()
             if not isinstance(pf, dict) or not pf.get("resources", {}).get("policy_id"):
                 raise RuntimeError("preflight_unknown")
-        self.observed_at = observed_at
-        self.last_quota = data
-        self.quota_decision = decision
-        return data
+        return True
 
     def admit(self, dispatch_id, stream, baseline_or_none, model, estimate, deadline_at, context):
         with self.lock:
             if (self.state / "STOP").exists():
                 raise RuntimeError("STOP")
-            quota = self.refresh("admit")
-            used = max(
-                float(bucket[name]["usedPercent"])
-                for bucket in quota["rateLimitsByLimitId"].values()
-                for name in ("primary", "secondary")
-                if bucket[name] is not None
-            )
-            current_team = context.get("team")
-            active_team = current_team in self._active_teams_snapshot
-            if used >= 99 or (self.quota_decision["slots"] <= 0 and not active_team):
-                raise RuntimeError("quota_capacity_unavailable")
-            if used >= 97 and estimate["tokens"] > 4000:
-                raise RuntimeError("quota_97_estimate_exceeds_4000")
+            self.refresh("admit")
             row = self.ledger.reserve(
                 dispatch_id,
                 stream,
@@ -173,7 +118,6 @@ class Controller:
                 deadline_at,
                 context=context,
                 baseline=baseline_or_none,
-                admission_percent=used,
             )
             if row["status"] != "reserved":
                 raise RuntimeError("dispatch_already_sent")
@@ -187,65 +131,29 @@ class Controller:
             row = self.ledger.dispatch(dispatch_id)
             if not row or row["status"] != "reserved" or self.monotonic() >= row["deadline_at"]:
                 raise RuntimeError("dispatch_not_sendable")
-            payload = json.loads(row["payload"])
-            quota = self.last_quota
-            usage = max(
-                float(bucket[name]["usedPercent"])
-                for bucket in quota["rateLimitsByLimitId"].values()
-                for name in ("primary", "secondary")
-                if bucket[name] is not None
-            )
-            if usage >= 99:
-                raise RuntimeError("quota_pause_99")
-            if usage >= 97:
-                active_teams = self._active_teams_snapshot
-                team = payload.get("context", {}).get("team")
-                if (
-                    payload["estimate"]["tokens"] > 4000
-                    or len(active_teams) != 1
-                    or team not in active_teams
-                ):
-                    raise RuntimeError("quota_97_single_team_estimate_gate")
 
     def monitor(self, deadline, cancel):
-        """Quota polling and monotonic cancellation run on independent threads."""
+        """Enforce only the bounded call deadline; quota resets never cancel or resume work."""
         stopped = threading.Event()
 
         def deadline_watch():
-            remaining = max(0.0, deadline - self.monotonic())
-            if not stopped.wait(remaining) and not self.closed:
-                cancel()
-
-        def quota_watch():
-            while not stopped.is_set() and not self.closed and self.monotonic() < deadline:
-                try:
-                    self.refresh("active")
-                except Exception:
+            while not self.closed:
+                if (self.state / "STOP").exists():
                     cancel()
                     return
-                if self.quota_decision["reason"] in (
-                    "stop",
-                    "quota_critical",
-                    "reserve_threshold",
-                ):
+                remaining = deadline - self.monotonic()
+                if remaining <= 0:
                     cancel()
                     return
-                remaining = max(0.0, deadline - self.monotonic())
-                if stopped.wait(min(60, remaining)):
-                    return
-                if self.monotonic() >= deadline:
-                    cancel()
+                if stopped.wait(min(0.1, remaining)):
                     return
 
         timer = threading.Thread(target=deadline_watch, name="metered-deadline", daemon=True)
-        watcher = threading.Thread(target=quota_watch, name="metered-quota-watch", daemon=True)
         timer.start()
-        watcher.start()
         with self._monitor_lock:
-            self._monitors.update((timer, watcher))
+            self._monitors.add(timer)
             self._monitor_events[timer] = stopped
-            self._monitor_events[watcher] = stopped
-        return watcher
+        return timer
 
     def start_monitor(self, deadline, permit):
         return self.monitor(deadline, permit.cancel)
@@ -679,7 +587,6 @@ def metered_client(
         event_sink=event_sink,
         harness_cwd=harness_cwd,
     )
-    account = factory(cwd, codex=cfg.get("codex_executable", "codex"), harness_cwd=harness_cwd)
 
     def common_preflight():
         from .supervisor import config
@@ -687,16 +594,10 @@ def metered_client(
         current = config(Path(state))
         if current != cfg:
             raise RuntimeError("frozen_controller_config_changed")
-        return {
-            "resources": {
-                "policy_id": cfg.get("authority", "CEO-20261020-02"),
-            },
-            "terminal_usage_qualified": False,
-        }
+        return {"resources": {"policy_id": cfg.get("authority", "founder-manual-quota")}}
 
     controller = Controller(
         ledger,
-        lambda: account.call("account/rateLimits/read", timeout=2),
         state=state,
         preflight=common_preflight,
     )
@@ -705,5 +606,4 @@ def metered_client(
     finally:
         controller.close()
         ledger.close()
-        account.close()
         rpc.close()
