@@ -5,6 +5,207 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
+## Herdr and native Codex architecture review — 2026-10-22
+
+**Recommendation: do not replace the autonomous control plane with Herdr. Evaluate native Codex
+reuse first; keep Herdr optional for trusted operator terminals.** This is a research decision and
+proposed simplification path, not an adopted runtime migration or permission to start services.
+The completed synthetic objective remains accepted; operational A03/A04/A05 remain open.
+
+### Evidence and maturity
+
+Reviewed Brain `fd9ad03e230818bda7a8ee7bea591f2e531c5ebd`, Herdr master
+`5bd900d88c80d95f5b145397e45bbeea398b8165`, and release v0.9.5 commit
+`2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01` (published October 14). Herdr is Apache-2.0 and
+actively maintained. Its repository was created March 27, 2026; activity and adoption do not establish
+unattended reliability. Key inspected resume, integration, worktree and persistence source files were
+unchanged between these release/master pins. Documentation and current official Codex references
+were read; local `codex-cli 0.163.0` was inspected only with version/help commands. No Herdr binary,
+integration, service, model request or fault experiment was run. Sol independently reviewed the
+component boundaries and challenged the proposed native-host simplification.
+
+The [v0.9.5 release](https://github.com/herdrdev/herdr/releases/tag/v0.9.5) specifically removes
+Codex turn hooks and returns status detection to screen rules. A current
+[long-running memory-growth report](https://github.com/herdrdev/herdr/issues/5471) remains open;
+it is a reporter's reproduction, not a finding reproduced by this review. A future trial should pin
+a release and examine resource behavior; no automatic updates or experimental live handoff are
+needed for the first deployment candidate.
+
+### What Herdr actually supplies
+
+Herdr owns PTYs, layouts, terminal clients, local sockets and SSH attachment. Detaching keeps its
+server and pane processes alive. After server/host restart it reconstructs the layout and can invoke
+an agent's native resume command; it does not restore arbitrary old processes or reverse partially
+performed tools. Codex history remains in Codex storage: Herdr saves a session reference, not an
+independent conversation backup. Machine migration therefore also needs authorized Codex state,
+checkout and credential provisioning. Its experimental live handoff can preserve running PTYs but
+does not preserve every in-flight request, wait or message. See
+[session persistence](https://herdr.dev/docs/session-state/).
+
+The Codex SessionStart integration reports session identity; its working/idle/blocked classification
+comes from terminal/OSC rules. `agent prompt --wait` is not bound to a particular native turn;
+completion of already-running work can satisfy it, and timeout does not establish that nothing was
+sent. `done` is an unseen idle completion, not acceptance of a code change. These are usable operator
+signals, not transaction or accounting receipts. See
+[automation semantics](https://herdr.dev/docs/agent-automation/) and
+[Codex screen rules](https://github.com/herdrdev/herdr/blob/2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01/src/detect/manifests/codex.toml).
+
+Sol/Luna can be separate named Codex panes with explicit model/effort arguments. Those names provide
+addressing, not department leases, reviewer independence or verified model identity. The built-in
+[Codex restore command](https://github.com/herdrdev/herdr/blob/2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01/src/agent_resume.rs#L218)
+is `codex resume <id>`; it does not replay the original full launch policy. Some settings may be
+restored by Codex itself, but effective model, effort, permissions, tool handler and config identity
+must be verified again. A worker thread with our dynamic `org_exec` callback cannot be assumed to
+be equivalent when opened in an ordinary TUI. Herdr supplies no Astra/Sol/Luna organizational policy,
+independent evaluation, or autonomous selection of useful Brain tasks.
+
+### Replacement and simplification map
+
+| Current responsibility | Proposed disposition | Reason / acceptance condition |
+| --- | --- | --- |
+| Operator panes, attached terminals, SSH reconnect, attention display | Buy from Herdr if native Codex UI is insufficient | Avoid building a terminal UI; keep outside worker authority. |
+| Conversation history, resume/fork, model selection, subagent coordination | Reuse native Codex | Already partly used by `codex_rpc.py`; do not create another session database or framework. |
+| `codex_rpc.py` process startup/shutdown and connection transport | Candidate for a qualified native-host adapter | Preserve dynamic tool callbacks, exact thread/turn IDs, model/permission binding and unknown-send semantics. |
+| A05 `lifecycle.py`, owner/request journal in `org_state.py`, service hosting | Retain policy; evaluate a smaller reconciler around native hosting | Herdr restart does not confer launch authority; native hosting may remove process-host duplication, not STOP/epoch/recovery. |
+| `supervisor.py`, planning and department contracts | Keep task semantics; later consolidate overlapping orchestration | Neither a named pane nor a native subagent supplies durable admission, dependencies and attempt ownership. |
+| Worktree creation and browsing | Reuse one native Git/Codex owner; optionally open existing paths in Herdr | Avoid two managers creating/removing the same checkout. Keep exact base, scope, retention and candidate custody. |
+| `confinement.py`, executable/deployment checks, process custody | Retain until an equivalent native boundary is independently qualified | PTY/worktree separation is not OS isolation; shared daemon use changes the failure/trust domain. |
+| `usage_ledger.py`, `metered_codex.py`, quotas | Retain obligation and reservation semantics | Neither screen state nor documented token updates closes A03's terminal-attribution contract. |
+| Frozen verifier, independent review, `git_gate.py`, Store integration | Retain | Herdr provides no exact-candidate acceptance, protected-ref policy or expected-tip CAS publisher. |
+| Private Store/ledger/Git checkpoint and restore | Retain and reduce duplicate projections where demonstrably redundant | Herdr layout snapshots are not organization backups. |
+
+The current system is not primarily a bespoke terminal manager. `codex_rpc.py` is 527 physical lines,
+`processes.py` 99, `lifecycle.py` 178, and service launch-plist/install functions span 58 lines at this
+Brain pin. These include policy and safety logic; their sum is not a removable-line estimate. The
+larger modules are Store (5,980), supervisor (2,419), Executive (1,891), and usage ledger (1,674).
+Herdr has no equivalent semantics for most of that code. **Immediate demonstrated core deletion:
+zero.** Native hosting could reduce a bounded transport/process slice and future maintenance, but
+only an equivalence experiment can quantify it. Do not promise a percentage or thousands of deleted
+lines. Keeping Herdr mandatory alongside both existing and native schedulers would add maintenance.
+
+Stop expanding a second conversation manager, terminal dashboard, general agent framework, or
+service-restart engine. Treat native host reuse as the next simplification candidate; retain existing
+code until a reviewed replacement passes the same acceptance contract. Previous source-only
+completion was not proof that the design was minimal or that alternatives should never be assessed.
+
+### Compatibility and authority hazards
+
+- [Codex integration installation](https://herdr.dev/docs/integrations/#codex) writes a hook script,
+  edits `hooks.json`, and sets `[features] hooks = true` in the selected Codex home. Uninstall leaves
+  `config.toml` changed. Installation is not an exact rollback mechanism. Native Codex additionally
+  requires trust of non-managed hook definitions; enabling the flag does not establish that the
+  session hook runs. Other matching hooks can run concurrently; inspect all active layers. See
+  [official hook rules](https://learn.chatgpt.com/docs/hooks).
+- Brain's `codex_rpc.py:54-150` disables hooks/native delegation/Goals/apps and exposes only the
+  brokered tool with a restricted native permission profile. Its environment excludes Herdr socket
+  variables. Preserve those guarantees; installing an integration cannot safely substitute for this
+  adapter or justify enabling hooks in workers.
+- Herdr injects its control socket path into managed pane environments. The
+  [socket API](https://herdr.dev/docs/socket-api/) can send keys, start agents and manipulate
+  worktrees. Its Unix `0600` protection distinguishes users, not hostile processes under one UID.
+  Never grant a worker access to the operator socket, even through a hook. A trusted read-only
+  projection needs a separate limited adapter; the full Herdr API is not inherently read-only.
+- [Worktree operations](https://github.com/herdrdev/herdr/blob/2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01/src/worktree.rs#L174)
+  use ordinary Git creation/removal, including optional force removal. Worktrees share Git metadata;
+  a separate path does not protect refs, controller state or credentials. Keep publisher access and
+  cleanup outside worker scope. Codex-managed worktrees have their own cleanup/snapshot rules and
+  optional ignored-file copying; review those before using them for durable task custody.
+- Auto-resume is enabled by default in Herdr and can start restored agents after client attachment.
+  A proposed company deployment must disable it until the company lifecycle gate authorizes each
+  resume. Missing or invalid session references can yield a shell rather than the expected agent;
+  observe and reconcile that state rather than silently dispatching into it.
+
+### Native-first target architecture (proposed, not deployed)
+
+Use native Codex for saved conversations, thread history and structured turn operations, plus its
+documented model/effort configuration and subagent facilities where the trust domain allows them.
+The installed CLI exposes `agents`, `resume`, `fork`, `queue`, worktrees and app-server daemon
+management; help output proves availability, not reliability or authorization. Official references:
+[app-server](https://learn.chatgpt.com/docs/app-server),
+[subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents),
+[worktrees](https://learn.chatgpt.com/docs/environments/git-worktrees),
+[daemon controls](https://learn.chatgpt.com/docs/developer-commands#manage-the-background-server-with-daemon).
+
+```mermaid
+flowchart TD
+  F[Founder: run / hibernate] --> K[Brain policy kernel: STOP, epochs, tasks, obligations]
+  A[Astra: explicit episodic direction] --> K
+  K --> N[Qualified native Codex host / structured adapter]
+  N --> S[Sol: department planning and independent review]
+  N --> L[Luna: bounded implementation in isolated checkout]
+  S --> K
+  L --> V[Frozen checks and exact-candidate acceptance]
+  K --> V
+  V --> G[Single GitGate publisher and durable receipt]
+  G --> K
+  H[Optional Herdr operator UI] -. observation / operator access .-> N
+```
+
+Native sessions own conversation history; Brain owns obligations and acceptance; Git owns source and
+candidate identity. Record their IDs together rather than copying each store into the other. A
+shared native daemon must be separated by trust domain, not simply shared across privileged reviewer
+and worker tool environments. Native delegation is context separation, not automatically an OS
+security boundary. Astra stays absent unless explicitly requested; no standing model polling loop
+or permanent idle departmental conversations are needed. Native Goals may support bounded work but
+are not the exclusive company-state authority or permission to wake after STOP.
+
+A05 could become a small non-inference reconciler over founder intent, owner epoch, native thread/
+turn state and checkpoint evidence. Codex would own supported process hosting. `turn/interrupt`
+requests cancellation; it does not undo tool effects. Native request IDs are not assumed to be
+idempotency keys. Lost send acknowledgements, callback reconnection and pending queue cancellation
+must be qualified before use. Do not use `codex queue` for unattended dispatch solely because the
+command exists. Keep A03 unknown usage reserved and current A04 boundaries until equivalent proof.
+
+### Manual Company Hibernation and handover
+
+No company-level Hibernation transaction was found in the reviewed Herdr source/API. Detach continues
+work; a server stop can kill processes; a shell job suspension does not persist organizational
+obligations. The proposed founder command must use the existing graceful STOP meaning explicitly:
+
+1. Persist desired stopped state and fence new admissions, turns, queued continuation and publication
+   beyond the permitted drain boundary. Do not clear any independent STOP reason.
+2. Drain already-authorized bounded work, or request explicit cancellation. Wait for identified
+   processes and tools to settle; unresolved work remains an obligation, not successful hibernation.
+3. Save task/attempt/epoch, native thread/turn/model/effort/policy IDs, immutable receipts, reservations,
+   repository/base/candidate refs and dirty checkout custody in the existing coherent checkpoint.
+   Record that no autonomous continuations remain eligible. Keep session references as resume aids.
+4. Report hibernated only after the no-dispatch and quiescence conditions hold. Detach UI or stop the
+   dedicated host only through its qualified lifecycle; do not terminate unrelated user sessions.
+5. On explicit founder wake, reconcile stored attempts and Git publication before new work, reacquire
+   ownership, revalidate runtime/config/permissions/quota, and then resume the exact native thread or
+   create a documented successor from a bounded handoff. Never blindly replay an uncertain prompt.
+
+Emergency termination is a separate operation with potentially unknown outcomes. Herdr cannot
+upgrade this protocol to a guarantee; it can display progress and reopen operator terminals.
+
+### First reversible proof and go/no-go
+
+**Design only; not executed in this review.** First compare a qualified native-host adapter with the
+current per-role app-server adapter, then add Herdr only if it removes a measured operator burden.
+Use an isolated VM or dedicated OS test identity with no owner home/state mounts, secrets, credentials
+or network egress. Fresh HOME/config/state roots and named sockets prevent accidental collisions;
+directory overrides alone are not a security boundary. Use disposable Git/SQLite fixtures and a
+release-pinned Herdr binary, never a global installer, shell-profile modification or user daemon.
+
+For Herdr's initial trial, use a local deterministic Codex-like terminal fixture, no model provider,
+and synthetic hook/config files. Exercise detach/reattach, restart, missing/duplicate session IDs,
+config install/uninstall, prompt timeout and dirty-worktree retention. This establishes terminal
+behavior only. Native-host trials require a separately specified local protocol/provider fixture;
+if it cannot drive real callbacks through supported interfaces, record that coverage as absent.
+
+The useful vertical is two admitted synthetic tasks with independent acceptance and GitGate
+integration, founder hibernate/wake, and hard interruption around send/reply, tool callback and
+post-publication commit. Require no duplicate dispatch after lost acknowledgement, no work after the
+STOP fence, no worker control-socket access, preserved unknown usage, exact checkout/ref recovery,
+and restored model/tool/permission binding. Keep Herdr status non-authoritative throughout.
+
+Success must identify an existing adapter/process path that can actually be retired, with lower
+owned code/config surface and equivalent guarantees. If only terminal convenience improves, adopt
+Herdr only as an optional operator tool. If equivalent isolation/recovery needs another scheduler,
+discard the replacement approach. No source deletion precedes independent review. A later real
+Codex/Brain task, host endurance and operational launch require their existing evidence and founder
+gates; synthetic acceptance cannot authorize them.
+
 ## Independent director audit — 2026-10-20
 
 **Verdict: retain the core architecture; reject operational release and unattended operation.**
