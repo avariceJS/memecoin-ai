@@ -11,49 +11,48 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
-## Current authorized resumption and finite qualification — 2026-10-24
+## Current bounded MVP and operating state — 2026-10-24
 
-Paperclip is the sole task and correction lifecycle owner. MEM-42 is in the current finite qualification;
-historical companies and the 12 retained holds remain held. Six departments exist, but Experience,
-Cortex, Evaluation and Policy remain analysis-only. MEM-41 accepted the first two reports and qualified
-the latter two; original MEM-10..17 implementation issues remain open and held.
+Independent Sol assessment accepted a bounded first MVP: two sequential native source stages in the
+finite Senses cycle passed exact independent QA, the fixed final verifier, native finalization, and
+automatic projected/canonical publication. MEM-42, MEM-54 and MEM-55 are done. Stage 1 published
+projected `c30ca4068b824ba131d5a252e552abcb226690b7` and canonical
+`ac8c00143ad303cb24c87d02dbc35fc85f08f668`. Stage 2 published projected
+`8a48470caee6249667aa5eee626dbcaeb17647c4` and canonical
+`06efd663fb6b11ea88f3114049d0e76aef10f636`; GitHub canonical custody is confirmed and `main` is
+unchanged. The exact stage-2 packet is
+`stage2-accepted-published-and-lead-finalized.json` (SHA-256
+`ca273e4d81610664d79d5e68d971813c3c0289116379829b56312257507fc9d3`); independent assessment is
+`state/resumption-20261024/bounded-mvp-independent-assessment.json` (SHA-256
+`d96eede1d38d4ccabf991487c4503d01042bb6bd8709b5b2297c36868a43bc93`).
 
-The exact rejected-seed correction `fbd482d71e052d1d794207b2b7006b68d8403849` and source/lead role
-proposal were independently accepted (review receipt SHA-256 `8091cabec0c9d0b52272c60a39363620f772bd6a9b430420123b8bbce49c2bdc`), integrated, built, pushed, and installed. Source and lead managed roles were updated by supported revision CAS; reviewer role, model, permissions, grants, config, and capabilities remained unchanged. This is bounded correction-lane qualification, not MVP.
+Product outcome is three useful Brain changes total, including the prior capacity correction with
+operator-assisted canonical catch-up at `ad02f26`. Experience and Cortex remain accepted read-only
+analyses; Evaluation and Policy remain qualified analyses. Those four departments have no source-write
+or publication authority. The bounded result does not establish uninterrupted autonomy, arbitrary
+department writers, or endurance/crash qualification. Stop/resume evidence is limited to scoped
+known-writer/checkpoint cases.
 
-MEM-42 has one accepted and published stage. Stage 1 attempt 3 passed independent QA and the final
-verifier, finalized natively, and published projected `c30ca4068b824ba131d5a252e552abcb226690b7` and
-canonical `ac8c00143ad303cb24c87d02dbc35fc85f08f668`; the canonical ref was pushed and remotely
-confirmed. Receipt: `stage1-accepted-published.json` (SHA-256 `c0f19d75d1582753034c2b615b965454c37e5aacd016e95c60da86d621f8cb3a`) and
-`canonical-remote-checkpoint-ack.json` (SHA-256 `934a107671397e27f23186d2511ad54a11abd4171005c8f798f069b1bd076aa5`).
+Administrative housekeeping exposed a live wake hazard: supported dependency-removal and closure
+comments woke the shared Sol lead despite blocked board descriptors. The 11 incidental runs are now
+terminal (3 advisory successes, 8 cancellations); missing usage/accounting remains unknown. MEM has
+zero live runs; the company is active and other agents are unchanged. Shared Sol is paused; do not
+resume it until the owner explicitly reviews wake requests and holds. This superseding incident caveat
+is `state/resumption-20261024/bounded-mvp-housekeeping-superseding-caveat.json` (SHA-256
+`b4c8f39105e1e07991fe5f95674ea6cb9c3291f896a9f7c832b2de015b7d8b0c`).
 
-Stage 2 attempt 2 was rejected solely because two otherwise-valid regression fixtures were missing:
-separate cases with `transaction` absent and `meta` absent. The existing `{}` case fails earlier on
-version/slot and does not reach either guard. No source behavior defect was found; the final verifier
-and publication did not run for that attempt. The founder authorized one final stage-2 attempt 3 using
-only the exact controller-verified rejected-attempt-2 working seed. Native Sol created and bound MEM-54
-source / MEM-55 QA; immutable bind receipt `native-attempt3-seeded-pair.json` has SHA-256
-`cdfc0df9a87fe3519aad00deaab431fda57ce187d7179487190ed1e34793339f`. Its readback records MEM-42
-blocked v28, MEM-54 in progress v2/run `de48df86-8073-4db5-9390-d52be2bd8546`, and MEM-55 blocked v0.
-The source task has started; QA awaits source completion. No stage-2 acceptance, final verifier, or
-publication exists. Keep accepted Git parents `c30ca406`/`ac8c0014` fixed. The second stage remains
-pending; do not claim a second accepted publication until final QA, verifier, dual-publication and
-native-finalization receipts exist. No fourth attempt exists anywhere.
+Housekeeping restored eight board-owned scoped holds for MEM-10..17 with their original Sol ownership
+and objectives, removed aggregate MEM-7 edges, and preserved active goals. MEM-9/18/19/28/30 and
+MEM-20/29 remain done; MEM-7 was closed last after repeated dependent/child and live-run preflight.
+The final admin readback is `state/resumption-20261023/finite-preflight-retry-release/rejected-seed-correction-release/housekeeping/final-administrative-readback-v2.json`
+(SHA-256 `3aa22c9b55a6d4018f1a40f4cd7ff0f952382c72128397e141472883e07d73ee`).
 
-Sol practical owns routine release and runtime; Luna implements; a separate Sol accepts exact source
-and role bytes. Paperclip owns correction lifecycle. Duplicated custom stage orchestration is existing
-Platform technical debt MEM-53; no further custom lifecycle expansion, scheduler, journal family,
-SDK/read-scope, config, or capability expansion is authorized. Do not override QA, replay unknown
-outcomes, manually create pairs/copy source/edit dependencies/publish, or change model/config. If the
-final attempt fails, stop and triage independent useful work. Preserve accepted refs, rejected seed
-provenance, old attempts and immutable receipts.
-
-The four analysis departments remain source-only. They do not add source-write or publication
-authority. The prior capacity improvement remains projected `4dcb736` with operator-assisted canonical
-catch-up `ad02f26`. The practical MVP still requires a second accepted/published stage in this finite
-cycle and final combined qualification. Keep paid-API, protected-data, main/production, market,
-training, AUTO, trading, old refused worker-Git-import and historical Pilot STOP boundaries. Exact
-private handoff and current receipts live in lab `state/resumption-20261023/` and `state/resumption-20261024/`.
+MEM-53 remains backlog for duplicated correction-lifecycle orchestration and wake governance. Paperclip
+owns correction lifecycle; do not add another scheduler or expand custom lifecycle logic. CEO authorized
+an analysis-only follow-up for existing MEM-53 by independent Platform Sol
+`593a415f-925e-4e92-a2d8-0c8b788f6ca6` after minimal role alignment/review through Sol practical. It is
+planned, not launched, and grants no implementation/source-write authority. No further infrastructure
+campaign is authorized. Preserve unknown usage, rejected history and all prior safety boundaries.
 
 ## Paperclip-first experimental integration — founder authorization 2026-10-22
 
