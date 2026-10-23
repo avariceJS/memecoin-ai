@@ -126,6 +126,9 @@ describe("Paperclip autonomous bridge tools", () => {
       "inspect_source_stage_candidate",
       "approve_source_stage_candidate",
     ]));
+    const bindTool = manifest.tools.find((tool) => tool.name === "bind_source_stage");
+    expect((bindTool?.parametersSchema as { properties?: Record<string, { maximum?: number }> })
+      .properties?.attempt?.maximum).toBe(3);
   });
 
   it("uses only host context and delivers bounded source contents", async () => {
@@ -345,6 +348,13 @@ describe("Paperclip autonomous bridge tools", () => {
       expect(invoke.mock.calls.filter(([action]) => action !== "lookup_source_stage_binding")).toHaveLength(0);
     }
     workspaceProviderType = "local_fs";
+    await expect(handlers.get("bind_source_stage")!({
+      ...params, attempt: 3, retry_of_operation_key: "f".repeat(64),
+    }, leadRun)).rejects.toThrow("source_stage_retry_not_admitted");
+    expect(invoke).toHaveBeenCalledWith("lookup_source_stage_binding", expect.objectContaining({
+      stage_key: "MEM8", attempt: 2,
+    }), configPath, "/usr/bin/python3");
+    expect(updateStatusCompareAndSet).not.toHaveBeenCalled();
     failCommentIssue = "review-8";
     await expect(handlers.get("bind_source_stage")!(params, leadRun)).rejects.toThrow("comment_create_failed");
     expect(updateStatusCompareAndSet).not.toHaveBeenCalled();
@@ -871,6 +881,11 @@ describe("Paperclip autonomous bridge tools", () => {
       stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
       predecessor: { operation_key: "c".repeat(64), source_issue_id: "source-8", review_issue_id: "review-8" },
     }, leadRun)).rejects.toThrow("source_stage_predecessor_not_finalized");
+    await expect(handlers.get("bind_source_stage")!({
+      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
+      attempt: 3, retry_of_operation_key: "c".repeat(64),
+      predecessor: { operation_key: "c".repeat(64), source_issue_id: "source-8", review_issue_id: "review-8" },
+    }, leadRun)).rejects.toThrow("source_stage_attempt_limit_exceeded");
     expect(getDependencyReadiness).toHaveBeenCalledWith("lead-issue", "company-1");
     expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
     expect(updateStatusCompareAndSet).not.toHaveBeenCalled();

@@ -30,7 +30,7 @@ const manifest: PaperclipPluginManifestV1 = {
       description: "Bind the owner-admitted native source and review tasks to one finite content stage.",
       parametersSchema: { type: "object", properties: {
         stage_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
-        attempt: { type: "integer", minimum: 1, maximum: 2 },
+        attempt: { type: "integer", minimum: 1, maximum: 3 },
         retry_of_operation_key: { type: "string", pattern: "^[0-9a-f]{64}$" },
         predecessor: { type: "object", properties: {
           operation_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },

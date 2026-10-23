@@ -222,7 +222,7 @@ def _load_journal(config: BridgeConfig, operation_key: str) -> dict[str, Any]:
 
 
 def _stage_journal_key(stage_key: str, attempt: int = 1) -> str:
-    if type(attempt) is not int or attempt not in (1, 2):
+    if type(attempt) is not int or attempt not in (1, 2, 3):
         raise BridgeError("source_stage_attempt_invalid")
     if attempt == 1:
         return hashlib.sha256(_canonical(["paperclip-source-stage-v1", stage_key])).hexdigest()
@@ -234,9 +234,13 @@ def _stage_journal_key(stage_key: str, attempt: int = 1) -> str:
 def _record_attempt(record: dict[str, Any]) -> int:
     """Treat only a missing legacy field as attempt 1; reject bool/int aliases."""
     attempt = record["attempt"] if "attempt" in record else 1
-    if type(attempt) is not int or attempt not in (1, 2):
+    if type(attempt) is not int or attempt not in (1, 2, 3):
         raise BridgeError("source_stage_attempt_invalid")
     return attempt
+
+
+def _stage_attempt_limit(stage: SourceStageSpec) -> int:
+    return 3 if stage.predecessor_stage_key is None else 2
 
 
 def _stage_record_key(record: dict[str, Any]) -> str:
@@ -562,7 +566,7 @@ def _stage_binding(config: BridgeConfig, stage_binding_key: str) -> dict[str, An
     if type(stage_binding_key) is not str or not HASH_RE.fullmatch(stage_binding_key):
         raise BridgeError("source_stage_binding_key_invalid")
     for stage in config.source_stage_catalog:
-        for attempt in (1, 2):
+        for attempt in range(1, _stage_attempt_limit(stage) + 1):
             try:
                 record = _load_journal(config, _stage_journal_key(stage.stage_key, attempt))
             except BridgeError:
@@ -572,15 +576,14 @@ def _stage_binding(config: BridgeConfig, stage_binding_key: str) -> dict[str, An
             expected_schema = (
                 "paperclip-source-stage-binding-v1"
                 if attempt == 1
-                else "paperclip-source-stage-binding-attempt-v2"
+                else f"paperclip-source-stage-binding-attempt-v{attempt}"
             )
             if record.get("schema") != expected_schema:
                 raise BridgeError("source_stage_binding_invalid")
             if _record_attempt(record) != attempt:
                 raise BridgeError("source_stage_attempt_invalid")
-            if record.get("schema") != "paperclip-source-stage-binding-v1":
-                if attempt != 2:
-                    raise BridgeError("source_stage_binding_invalid")
+            if attempt > 1 and record.get("schema") != expected_schema:
+                raise BridgeError("source_stage_binding_invalid")
             if record.get("owner_config_digest") != config.owner_config_digest:
                 raise BridgeError("source_stage_owner_config_changed")
             if stage.workspace_id == "published":
@@ -653,11 +656,11 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
     ):
         raise BridgeError("source_stage_bind_payload_shape_invalid")
     attempt = payload["attempt"] if "attempt" in payload else 1
-    if type(attempt) is not int or attempt not in (1, 2):
+    if type(attempt) is not int or attempt not in (1, 2, 3):
         raise BridgeError("source_stage_attempt_invalid")
     if attempt == 1 and set(payload) & (optional_attempt_fields - {"attempt"}):
         raise BridgeError("source_stage_retry_unexpected")
-    if attempt == 2 and not (optional_attempt_fields - {"attempt"}).issubset(payload):
+    if attempt >= 2 and not (optional_attempt_fields - {"attempt"}).issubset(payload):
         raise BridgeError("source_stage_retry_required")
     if any(
         payload[name] != expected
@@ -692,13 +695,15 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         ):
             raise BridgeError("source_stage_retry_validation_invalid")
     stage = config.source_stage(payload["stage_key"])
+    if attempt > _stage_attempt_limit(stage):
+        raise BridgeError("source_stage_attempt_limit_exceeded")
     if payload["source_issue_id"] == payload["review_issue_id"]:
         raise BridgeError("source_stage_issue_pair_invalid")
     binding_value: dict[str, Any] = {
         "schema": (
             "paperclip-source-stage-binding-v1"
             if attempt == 1
-            else "paperclip-source-stage-binding-attempt-v2"
+            else f"paperclip-source-stage-binding-attempt-v{attempt}"
         ),
         "stage_key": stage.stage_key,
         "source_issue_id": payload["source_issue_id"],
@@ -725,9 +730,11 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         "operation_key": None,
         "candidate_sha": None,
     }
-    if attempt == 2:
-        binding_value["attempt"] = 2
+    if attempt >= 2:
+        binding_value["attempt"] = attempt
         binding_value["retry_of_operation_key"] = payload["retry_of_operation_key"]
+        if attempt == 3:
+            binding_value["retry_of_attempt"] = 2
         binding_value["retry_validation"] = {
             "source_status": payload["retry_of_source_status"],
             "source_version": payload["retry_of_source_version"],
@@ -799,7 +806,8 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             )
         ):
             raise BridgeError("source_stage_unexpected_predecessor")
-    if attempt == 2:
+    if attempt >= 2:
+        retry_attempt = attempt - 1
         retry_operation_key = payload["retry_of_operation_key"]
         try:
             retry_operation = _load_journal(config, retry_operation_key)
@@ -844,7 +852,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             or retry_binding.get("operation_key") != retry_operation_key
             or retry_binding.get("review_issue_id") == payload["review_issue_id"]
             or retry_binding.get("source_issue_id") == payload["source_issue_id"]
-            or _record_attempt(retry_binding) != 1
+            or _record_attempt(retry_binding) != retry_attempt
             or retry_binding.get("base_sha") != binding_value.get("base_sha")
             or retry_binding.get("canonical_base_sha") != binding_value.get("canonical_base_sha")
             or any(retry_binding.get(key) != value for key, value in expected_predecessor.items())
@@ -856,6 +864,8 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         ):
             raise BridgeError("source_stage_retry_not_admitted")
         binding_value["retry_of_stage_binding_key"] = retry_binding["stage_binding_key"]
+        if retry_attempt != 1:
+            binding_value["retry_of_attempt"] = retry_attempt
         retry_stage_path = _journal_path(config, _stage_journal_key(stage.stage_key, attempt))
         if retry_stage_path.exists():
             existing_retry = _load_journal(config, _stage_journal_key(stage.stage_key, attempt))
@@ -871,6 +881,19 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             binding_value["retry_workspace_snapshot_sha256"] = workspace_digest
             binding_value["retry_workspace_artifact_sha256"] = workspace_artifact_digest
         else:
+            if attempt == 3:
+                gate = config.gate()
+                if (
+                    gate._ref_sha(config.publisher_repo, config.expected_dev_ref, missing_ok=True)
+                    != binding_value["base_sha"]
+                ):
+                    raise BridgeError("source_stage_retry_projected_base_changed")
+                if (
+                    config.canonical_repo is not None
+                    and gate._ref_sha(config.canonical_repo, config.canonical_ref, missing_ok=True)
+                    != binding_value["canonical_base_sha"]
+                ):
+                    raise BridgeError("source_stage_retry_canonical_base_changed")
             workspace_digest, workspace_artifact_digest = _snapshot_rejected_workspace(
                 config, retry_operation, retry_binding, stage
             )
@@ -993,7 +1016,7 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         raise BridgeError("source_stage_lookup_payload_shape_invalid")
     requested_attempt = payload["attempt"] if "attempt" in payload else None
     if "attempt" in payload and (
-        type(requested_attempt) is not int or requested_attempt not in (1, 2)
+        type(requested_attempt) is not int or requested_attempt not in (1, 2, 3)
     ):
         raise BridgeError("source_stage_attempt_invalid")
     if any(
@@ -1007,12 +1030,14 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
     ):
         raise BridgeError("source_stage_lead_binding_mismatch")
     stage = config.source_stage(payload["stage_key"])
+    if requested_attempt is not None and requested_attempt > _stage_attempt_limit(stage):
+        raise BridgeError("source_stage_attempt_limit_exceeded")
     if "stage_binding_key" in payload:
         record = _stage_binding(config, payload["stage_binding_key"])
         attempt = _record_attempt(record)
         if (
             type(attempt) is not int
-            or attempt not in (1, 2)
+            or attempt not in (1, 2, 3)
             or record.get("stage_key") != stage.stage_key
             or (requested_attempt is not None and attempt != requested_attempt)
         ):
@@ -1030,7 +1055,7 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         != (
             "paperclip-source-stage-binding-v1"
             if attempt == 1
-            else "paperclip-source-stage-binding-attempt-v2"
+            else f"paperclip-source-stage-binding-attempt-v{attempt}"
         )
         or record.get("owner_config_digest") != config.owner_config_digest
         or _record_attempt(record) != attempt
@@ -1051,6 +1076,7 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         "operation_key": record.get("operation_key"),
         "candidate_sha": record.get("candidate_sha"),
         "retry_of_operation_key": record.get("retry_of_operation_key"),
+        "retry_of_attempt": record.get("retry_of_attempt", attempt - 1 if attempt > 1 else None),
         "operation_state": None,
         "operation_review_approved": None,
         "canonical_status": None,

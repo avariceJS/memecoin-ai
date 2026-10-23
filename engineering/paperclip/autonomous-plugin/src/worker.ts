@@ -492,6 +492,7 @@ async function validateStageRetry(
   ctx: Pick<PluginContext, "issues">,
   owner: OwnerConfig,
   stageKey: string,
+  priorAttempt: 1 | 2,
   retryOfOperationKey: string,
   source: { id: string },
   review: { id: string },
@@ -505,9 +506,9 @@ async function validateStageRetry(
     lead_agent_id: owner.finite_lead_agent_id,
     lead_issue_id: owner.finite_lead_issue_id,
     stage_key: stageKey,
-    attempt: 1,
+    attempt: priorAttempt,
   }, owner.configPath, owner.python_executable);
-  if (prior.found !== true || prior.attempt !== 1 || prior.operation_key !== retryOfOperationKey
+  if (prior.found !== true || prior.attempt !== priorAttempt || prior.operation_key !== retryOfOperationKey
       || prior.operation_state !== "review_rejected" || prior.operation_review_approved !== false
       || prior.state !== "active" || prior.activation_pending === true
       || typeof prior.source_issue_id !== "string" || typeof prior.review_issue_id !== "string"
@@ -618,7 +619,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       type: "object",
       properties: {
         stage_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
-        attempt: { type: "integer", minimum: 1, maximum: 2 }, retry_of_operation_key: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        attempt: { type: "integer", minimum: 1, maximum: 3 }, retry_of_operation_key: { type: "string", pattern: "^[0-9a-f]{64}$" },
         predecessor: { type: "object", properties: {
           operation_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
         }, required: ["operation_key", "source_issue_id", "review_issue_id"], additionalProperties: false },
@@ -633,13 +634,15 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || typeof params.source_issue_id !== "string" || !ID_RE.test(params.source_issue_id)
         || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)) fail("source_stage_parameters_invalid");
     const attempt = Object.prototype.hasOwnProperty.call(params, "attempt") ? params.attempt : 1;
-    if (typeof attempt !== "number" || !Number.isSafeInteger(attempt) || (attempt !== 1 && attempt !== 2)
+    if (typeof attempt !== "number" || !Number.isSafeInteger(attempt) || ![1, 2, 3].includes(attempt)
         || (attempt === 1 && Object.prototype.hasOwnProperty.call(params, "retry_of_operation_key"))
-        || (attempt === 2 && (typeof params.retry_of_operation_key !== "string" || !KEY_RE.test(params.retry_of_operation_key)))) {
+        || (attempt >= 2 && (typeof params.retry_of_operation_key !== "string" || !KEY_RE.test(params.retry_of_operation_key)))) {
       fail("source_stage_attempt_invalid");
     }
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
     const stage = requireSourceStage(owner, params.stage_key);
+    const stageAttemptLimit = stage.predecessor_stage_key === null ? 3 : 2;
+    if (attempt > stageAttemptLimit) fail("source_stage_attempt_limit_exceeded");
     const predecessorRequest = readStagePredecessor(stage, params.predecessor);
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
         || runCtx.agentId !== owner.finite_lead_agent_id || !owner.finite_lead_issue_id) fail("source_stage_lead_binding_mismatch");
@@ -654,7 +657,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       if (typeof existing.stage_binding_key !== "string" || !KEY_RE.test(existing.stage_binding_key)
           || typeof existing.base_sha !== "string" || !SHA_RE.test(existing.base_sha)
           || existing.attempt !== attempt
-          || (attempt === 2 && existing.retry_of_operation_key !== params.retry_of_operation_key)) fail("bridge_result_invalid");
+          || (attempt >= 2 && existing.retry_of_operation_key !== params.retry_of_operation_key)) fail("bridge_result_invalid");
       if (existing.predecessor_operation_key !== (predecessorRequest?.operation_key ?? null)
           || existing.predecessor_source_issue_id !== (predecessorRequest?.source_issue_id ?? null)
           || existing.predecessor_review_issue_id !== (predecessorRequest?.review_issue_id ?? null)) {
@@ -669,7 +672,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         const note = sourceStageBoundNote(
           stage.stage_key, existing.stage_binding_key, existing.base_sha, params.source_issue_id, params.review_issue_id,
           existing.source_instruction_sha256, existing.review_instruction_sha256,
-          attempt, attempt === 2 ? String(existing.retry_of_operation_key) : null,
+          attempt, attempt >= 2 ? String(existing.retry_of_operation_key) : null,
         );
         await persistSourceStageBoundNotes(
           ctx, owner, note, params.source_issue_id, params.review_issue_id,
@@ -730,9 +733,9 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         dependency_ready: predecessorFinalized,
       };
     }
-    const retryValidation = attempt === 2
+    const retryValidation = attempt >= 2
       ? await validateStageRetry(
-        ctx, owner, stage.stage_key, params.retry_of_operation_key as string,
+        ctx, owner, stage.stage_key, (attempt - 1) as 1 | 2, params.retry_of_operation_key as string,
         source, review,
         predecessor.operation_key === null ? null : {
           operation_key: predecessor.operation_key,
@@ -760,8 +763,8 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       predecessor_source_issue_id: predecessor.source_issue_id,
       predecessor_review_issue_id: predecessor.review_issue_id,
       predecessor_dependency_ready: predecessor.dependency_ready,
-      ...(attempt === 2 ? {
-        attempt: 2,
+      ...(attempt >= 2 ? {
+        attempt,
         retry_of_operation_key: params.retry_of_operation_key,
         retry_of_source_status: retryValidation!.source_status,
         retry_of_source_version: retryValidation!.source_version,
@@ -776,7 +779,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const note = sourceStageBoundNote(
       stage.stage_key, result.stage_binding_key, result.base_sha, source.id, review.id,
       sourceInstructionSha256, reviewInstructionSha256,
-      attempt, attempt === 2 ? params.retry_of_operation_key as string : null,
+      attempt, attempt >= 2 ? params.retry_of_operation_key as string : null,
     );
     await persistSourceStageBoundNotes(
       ctx, owner, note, source.id, review.id, sourceInstructionSha256, reviewInstructionSha256, true,

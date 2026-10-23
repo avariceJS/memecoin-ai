@@ -1054,7 +1054,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(lookup["review_instruction_sha256"], "2" * 64)
         first_stage_key = _stage_journal_key("MEM8")
         first_stage_record = _load_journal(config, first_stage_key)
-        for invalid_attempt in (True, None, "1", 0, 3):
+        for invalid_attempt in (True, None, "1", 0, 4):
             malformed = {**first_stage_record, "attempt": invalid_attempt}
             _write_journal(config, first_stage_key, malformed, create=False)
             with self.subTest(stored_attempt=invalid_attempt):
@@ -1327,7 +1327,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(BridgeError, "source_stage_predecessor_not_finalized"):
             dispatch(config, {"action": "bind_source_stage", "payload": second})
 
-    def test_attempt_two_uses_separate_journal_and_requires_exact_finalized_rejection(self):
+    def test_attempt_three_uses_only_finalized_attempt_two_and_preserves_prior_journals(self):
         from engineering.paperclip_source_delivery import SOURCE_PATHS
 
         stages = (
@@ -1452,26 +1452,192 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             {
                 "schema": "paperclip-autonomous-operation-v1",
                 "operation_key": "7" * 64,
-                "state": "published",
+                "state": "review_rejected",
                 "source_stage_binding": second["stage_binding_key"],
+                "review": {"approved": False},
                 "candidate": {"operation_key": "7" * 64, "candidate_sha": "c" * 40},
-                "canonical": {"status": "published", "candidate": "8" * 40},
+                "canonical": {
+                    "status": "prepared",
+                    "candidate": "8" * 40,
+                    "receipt_digest": "6" * 64,
+                },
+            },
+            create=True,
+        )
+        second_stage_bytes_before_attempt_three = (
+            config.bridge_journal_dir / f"operation-{second_key}.json"
+        ).read_bytes()
+        rejected_operation_bytes_before_attempt_three = (
+            config.bridge_journal_dir / f"operation-{'7' * 64}.json"
+        ).read_bytes()
+        attempt_three_payload = {
+            **first_payload,
+            "lead_run_id": "lead-run-3",
+            "source_issue_id": "source-3",
+            "source_version": 3,
+            "review_issue_id": "review-3",
+            "review_version": 3,
+            "source_instruction_sha256": "7" * 64,
+            "review_instruction_sha256": "8" * 64,
+            "attempt": 3,
+            "retry_of_operation_key": "7" * 64,
+            "retry_of_source_status": "done",
+            "retry_of_source_version": 5,
+            "retry_of_review_status": "done",
+            "retry_of_review_version": 5,
+            "retry_of_dependency_ready": True,
+        }
+        with self.assertRaisesRegex(BridgeError, "source_stage_retry_not_admitted"):
+            dispatch(
+                config,
+                {
+                    "action": "bind_source_stage",
+                    "payload": {**attempt_three_payload, "retry_of_operation_key": "f" * 64},
+                },
+            )
+
+        def ref_reader(projected_sha, canonical_sha):
+            return SimpleNamespace(
+                _ref_sha=lambda repo, _ref, missing_ok=False: (
+                    projected_sha if repo == config.publisher_repo else canonical_sha
+                )
+            )
+
+        for reader, error in (
+            (ref_reader("0" * 40, "f" * 40), "source_stage_retry_projected_base_changed"),
+            (ref_reader("a" * 40, "0" * 40), "source_stage_retry_canonical_base_changed"),
+        ):
+            with (
+                patch.object(BridgeConfig, "gate", return_value=reader),
+                patch(
+                    "engineering.paperclip_autonomous_bridge._snapshot_rejected_workspace"
+                ) as snapshot_retry,
+            ):
+                with self.assertRaisesRegex(BridgeError, error):
+                    dispatch(
+                        config,
+                        {"action": "bind_source_stage", "payload": attempt_three_payload},
+                    )
+            snapshot_retry.assert_not_called()
+            self.assertFalse(
+                (
+                    config.bridge_journal_dir / f"operation-{_stage_journal_key('MEM8', 3)}.json"
+                ).exists()
+            )
+        reader = ref_reader("a" * 40, "f" * 40)
+        with (
+            patch.object(BridgeConfig, "gate", return_value=reader),
+            patch(
+                "engineering.paperclip_autonomous_bridge._snapshot_rejected_workspace",
+                return_value=("9" * 64, "a" * 64),
+            ) as snapshot_retry,
+        ):
+            third = dispatch(
+                config, {"action": "bind_source_stage", "payload": attempt_three_payload}
+            )
+        self.assertEqual(third["attempt"], 3)
+        self.assertEqual(third["base_sha"], first_record["base_sha"])
+        self.assertEqual(third["canonical_base_sha"], first_record["canonical_base_sha"])
+        third_key = _stage_journal_key("MEM8", 3)
+        third_record = _load_journal(config, third_key)
+        self.assertEqual(third_record["retry_of_operation_key"], "7" * 64)
+        self.assertEqual(third_record["retry_of_attempt"], 2)
+        self.assertEqual(third_record["retry_of_stage_binding_key"], second["stage_binding_key"])
+        snapshot_retry.assert_called_once()
+        self.assertEqual(
+            (config.bridge_journal_dir / f"operation-{second_key}.json").read_bytes(),
+            second_stage_bytes_before_attempt_three,
+        )
+        self.assertEqual(first_journal_path.read_bytes(), first_bytes)
+        self.assertEqual(
+            (config.bridge_journal_dir / f"operation-{'7' * 64}.json").read_bytes(),
+            rejected_operation_bytes_before_attempt_three,
+        )
+        third_lookup = dispatch(
+            config,
+            {
+                "action": "lookup_source_stage_binding",
+                "payload": {
+                    "company_id": config.company_id,
+                    "project_id": config.project_id,
+                    "lead_agent_id": "lead-1",
+                    "lead_issue_id": "lead-issue",
+                    "stage_key": "MEM8",
+                    "attempt": 3,
+                },
+            },
+        )
+        self.assertEqual(third_lookup["stage_binding_key"], third["stage_binding_key"])
+        self.assertEqual(third_lookup["retry_of_attempt"], 2)
+        with self.assertRaisesRegex(BridgeError, "source_stage_attempt_invalid"):
+            dispatch(
+                config,
+                {"action": "bind_source_stage", "payload": {**attempt_three_payload, "attempt": 4}},
+            )
+        with self.assertRaisesRegex(BridgeError, "source_stage_attempt_limit_exceeded"):
+            dispatch(
+                config,
+                {
+                    "action": "bind_source_stage",
+                    "payload": {
+                        **attempt_three_payload,
+                        "stage_key": "MEM9",
+                        "predecessor_operation_key": "9" * 64,
+                        "predecessor_source_status": "done",
+                        "predecessor_source_version": 6,
+                        "predecessor_review_status": "done",
+                        "predecessor_review_version": 6,
+                        "predecessor_source_issue_id": "source-3",
+                        "predecessor_review_issue_id": "review-3",
+                        "predecessor_dependency_ready": True,
+                    },
+                },
+            )
+        with self.assertRaisesRegex(BridgeError, "source_stage_attempt_limit_exceeded"):
+            dispatch(
+                config,
+                {
+                    "action": "lookup_source_stage_binding",
+                    "payload": {
+                        "company_id": config.company_id,
+                        "project_id": config.project_id,
+                        "lead_agent_id": "lead-1",
+                        "lead_issue_id": "lead-issue",
+                        "stage_key": "MEM9",
+                        "attempt": 3,
+                    },
+                },
+            )
+        third_record["state"] = "active"
+        third_record["operation_key"] = "9" * 64
+        third_record["candidate_sha"] = "e" * 40
+        _write_journal(config, third_key, third_record, create=False)
+        _write_journal(
+            config,
+            "9" * 64,
+            {
+                "schema": "paperclip-autonomous-operation-v1",
+                "operation_key": "9" * 64,
+                "state": "published",
+                "source_stage_binding": third["stage_binding_key"],
+                "candidate": {"operation_key": "9" * 64, "candidate_sha": "e" * 40},
+                "canonical": {"status": "published", "candidate": "b" * 40},
             },
             create=True,
         )
         second_stage_payload = {
             **first_payload,
-            "lead_run_id": "lead-run-3",
+            "lead_run_id": "lead-run-4",
             "stage_key": "MEM9",
-            "source_issue_id": "source-3",
-            "review_issue_id": "review-3",
-            "predecessor_operation_key": "7" * 64,
+            "source_issue_id": "source-4",
+            "review_issue_id": "review-4",
+            "predecessor_operation_key": "9" * 64,
             "predecessor_source_status": "done",
-            "predecessor_source_version": 3,
+            "predecessor_source_version": 6,
             "predecessor_review_status": "done",
-            "predecessor_review_version": 3,
-            "predecessor_source_issue_id": "source-2",
-            "predecessor_review_issue_id": "review-2",
+            "predecessor_review_version": 6,
+            "predecessor_source_issue_id": "source-3",
+            "predecessor_review_issue_id": "review-3",
             "predecessor_dependency_ready": True,
         }
         trusted_cache = Path(self.tmp.name) / "trusted-stage-cache"
@@ -1488,11 +1654,11 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             next_stage = dispatch(
                 config, {"action": "bind_source_stage", "payload": second_stage_payload}
             )
-        self.assertEqual(next_stage["base_sha"], "c" * 40)
-        self.assertEqual(next_stage["canonical_base_sha"], "8" * 40)
+        self.assertEqual(next_stage["base_sha"], "e" * 40)
+        self.assertEqual(next_stage["canonical_base_sha"], "b" * 40)
         self.assertEqual(next_stage["attempt"], 1)
         next_record = _load_journal(config, _stage_journal_key("MEM9"))
-        self.assertEqual(next_record["predecessor_operation_key"], "7" * 64)
+        self.assertEqual(next_record["predecessor_operation_key"], "9" * 64)
         self.assertNotIn("retry_of_operation_key", next_record)
         with self.assertRaisesRegex(BridgeError, "source_stage_retry_not_admitted"):
             dispatch(
@@ -1505,7 +1671,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(BridgeError, "source_stage_attempt_invalid"):
             dispatch(
                 config,
-                {"action": "bind_source_stage", "payload": {**retry_payload, "attempt": 3}},
+                {"action": "bind_source_stage", "payload": {**retry_payload, "attempt": 4}},
             )
 
     def test_content_preflight_failure_is_immutable_and_changed_bytes_can_pass_before_prepare(self):
