@@ -655,7 +655,11 @@ def _verifier(config: BridgeConfig, candidate_checkout: Path, *, content_only: b
             home=scratch,
             protected_roots=[
                 config.source_repo,
-                *((config.worker_checkout,) if not content_only and config.worker_checkout is not None else ()),
+                *(
+                    (config.worker_checkout,)
+                    if not content_only and config.worker_checkout is not None
+                    else ()
+                ),
                 # The candidate worktree is nested under GitGate's publisher .git directory.
                 # The publisher is not a granted read/write root; keeping it out of protected
                 # roots lets Seatbelt grant only the exact candidate worktree below it.
@@ -817,7 +821,10 @@ def prepare_source_content(config: BridgeConfig, payload: dict[str, Any]) -> dic
     base_sha = payload.get("base_sha")
     if type(base_sha) is not str or not SHA_RE.fullmatch(base_sha):
         raise BridgeError("source_base_sha_invalid")
-    if config.expected_dev_ref == "refs/heads/brain/development" and base_sha != config.expected_base_sha:
+    if (
+        config.expected_dev_ref == "refs/heads/brain/development"
+        and base_sha != config.expected_base_sha
+    ):
         raise BridgeError("development_base_not_owner_admitted")
     try:
         snapshot = snapshot_records(payload["files"])

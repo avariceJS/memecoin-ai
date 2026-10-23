@@ -138,7 +138,7 @@ def materialize_owner_projection(
                 raise SourceDeliveryError("owner_source_path_not_regular_file")
             target.write_bytes(item.data)
         gate._run(checkout, ["add", "--", *SOURCE_PATHS])
-        submitted = gate._run(
+        gate._run(
             checkout,
             [
                 "-c", "user.name=PaperclipContentDelivery",
