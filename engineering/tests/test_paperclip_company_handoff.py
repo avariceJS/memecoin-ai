@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 from engineering.paperclip_company_handoff import (
     HandoffError,
     PaperclipAPI,
+    _handoff_module_sha256,
     _snapshot,
     hibernate,
     resume,
@@ -72,6 +73,62 @@ class PaperclipCompanyHandoffTests(unittest.TestCase):
 
     def api(self, fixture):
         return PaperclipAPI(request=fixture.request)
+
+    def write_reconciliation(self, runs, *, update=None):
+        failed_evidence = self.root / "failed-evidence.json"
+        continuation_evidence = self.root / "continuation-evidence.json"
+        failed_evidence.write_bytes(
+            b'{"run":"run-failed","review":"terminal failure"}\n'
+        )
+        continuation_evidence.write_bytes(
+            b'{"run":"run-success","review":"verified continuation"}\n'
+        )
+        failed_evidence.chmod(0o600)
+        continuation_evidence.chmod(0o600)
+        receipt = {
+            "schema": "paperclip-run-reconciliation-v1",
+            "handoff_source_sha256": _handoff_module_sha256(),
+            "company_id": "company-1",
+            "issue_id": "issue-1",
+            "failed_run_id": "run-failed",
+            "agent_id": "agent-1",
+            "status": "failed",
+            "evidence_path": str(failed_evidence),
+            "evidence_sha256": hashlib.sha256(failed_evidence.read_bytes()).hexdigest(),
+            "resolution": "verified_succeeded_continuation",
+            "continuation_run_id": "run-success",
+            "continuation_status": "succeeded",
+            "continuation_evidence_path": str(continuation_evidence),
+            "continuation_evidence_sha256": hashlib.sha256(
+                continuation_evidence.read_bytes()
+            ).hexdigest(),
+        }
+        if update is not None:
+            receipt.update(update)
+        receipt_path = self.root / "run-reconciliation.json"
+        receipt_path.write_text(
+            json.dumps(receipt, sort_keys=True, separators=(",", ":"))
+        )
+        receipt_path.chmod(0o600)
+        return receipt_path, hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+
+    def reconciled_runs(self):
+        return [
+            {
+                "id": "run-failed",
+                "companyId": "company-1",
+                "agentId": "agent-1",
+                "issueId": "issue-1",
+                "status": "failed",
+            },
+            {
+                "id": "run-success",
+                "companyId": "company-1",
+                "agentId": "agent-1",
+                "issueId": "issue-1",
+                "status": "succeeded",
+            },
+        ]
 
     def test_hibernate_pauses_then_polls_active_run_and_writes_allowlisted_private_handoff(self):
         fixture = FakeLoopbackPaperclip(
@@ -237,6 +294,159 @@ class PaperclipCompanyHandoffTests(unittest.TestCase):
                 self.assertTrue(snapshot["unresolved"])
                 if status == "mystery":
                     self.assertFalse(snapshot["complete"])
+
+    def test_pinned_receipt_reconciles_only_exact_failed_run_and_flows_through_resume(self):
+        fixture = FakeLoopbackPaperclip(company_status="paused", runs=self.reconciled_runs())
+        receipt_path, receipt_sha256 = self.write_reconciliation(fixture.runs)
+        result = hibernate(
+            self.api(fixture), "company-1", self.handoff, self.journal, 0,
+            run_reconciliation=receipt_path,
+            run_reconciliation_sha256=receipt_sha256,
+        )
+        self.assertTrue(result["complete"])
+        snapshot = result["snapshot"]
+        self.assertEqual(
+            [run["status"] for run in snapshot["runs"]], ["failed", "succeeded"]
+        )
+        self.assertEqual(
+            snapshot["run_reconciliation"]["receipt_sha256"], receipt_sha256
+        )
+        self.assertEqual(snapshot["unresolved"], [])
+        self.assertNotIn("verified continuation", json.dumps(snapshot))
+        resumed = resume(
+            self.api(fixture), "company-1", "founder-wake-reconciled",
+            self.handoff, self.journal,
+            run_reconciliation=receipt_path,
+            run_reconciliation_sha256=receipt_sha256,
+        )
+        self.assertTrue(resumed["complete"])
+        intent = json.loads(Path(resumed["intent_path"]).read_text())
+        self.assertEqual(
+            intent["snapshot"]["run_reconciliation"]["receipt_sha256"], receipt_sha256
+        )
+        self.assertEqual(
+            [run["status"] for run in intent["snapshot"]["runs"]],
+            ["failed", "succeeded"],
+        )
+
+    def test_reconciliation_receipt_missing_evidence_or_bad_cli_digest_stays_blocked(self):
+        fixture = FakeLoopbackPaperclip(
+            company_status="paused", runs=self.reconciled_runs()
+        )
+        receipt_path, receipt_sha256 = self.write_reconciliation(fixture.runs)
+        receipt = json.loads(receipt_path.read_text())
+        Path(receipt["evidence_path"]).unlink()
+        missing_snapshot = _snapshot(
+            self.api(fixture), "company-1", self.journal,
+            run_reconciliation=receipt_path,
+            run_reconciliation_sha256=receipt_sha256,
+        )
+        self.assertTrue(missing_snapshot["unresolved"])
+        self.assertFalse(missing_snapshot.get("run_reconciliation"))
+
+        receipt_path, receipt_sha256 = self.write_reconciliation(fixture.runs)
+        receipt = json.loads(receipt_path.read_text())
+        evidence_path = Path(receipt["continuation_evidence_path"])
+        evidence_path.write_bytes(b"tampered evidence\n")
+        evidence_path.chmod(0o600)
+        tampered_snapshot = _snapshot(
+            self.api(fixture), "company-1", self.journal,
+            run_reconciliation=receipt_path,
+            run_reconciliation_sha256=receipt_sha256,
+        )
+        self.assertTrue(tampered_snapshot["unresolved"])
+        self.assertFalse(tampered_snapshot.get("run_reconciliation"))
+
+        bad_digest_snapshot = _snapshot(
+            self.api(fixture), "company-1", self.journal,
+            run_reconciliation=receipt_path,
+            run_reconciliation_sha256="0" * 64,
+        )
+        self.assertTrue(bad_digest_snapshot["unresolved"])
+        self.assertFalse(bad_digest_snapshot.get("run_reconciliation"))
+
+    def test_reconciliation_receipt_rejects_source_status_company_agent_and_evidence_mismatch(self):
+        mismatches = (
+            {"handoff_source_sha256": "f" * 64},
+            {"status": "cancelled"},
+            {"company_id": "company-other"},
+            {"issue_id": "issue-other"},
+            {"agent_id": "agent-other"},
+            {"continuation_status": "cancelled"},
+        )
+        for mismatch in mismatches:
+            with self.subTest(mismatch=mismatch):
+                fixture = FakeLoopbackPaperclip(
+                    company_status="paused", runs=self.reconciled_runs()
+                )
+                receipt_path, receipt_sha256 = self.write_reconciliation(
+                    fixture.runs, update=mismatch
+                )
+                snapshot = _snapshot(
+                    self.api(fixture), "company-1", self.journal,
+                    run_reconciliation=receipt_path,
+                    run_reconciliation_sha256=receipt_sha256,
+                )
+                self.assertTrue(snapshot["unresolved"])
+                self.assertFalse(snapshot.get("run_reconciliation"))
+
+    def test_reconciliation_evidence_symlink_is_rejected(self):
+        fixture = FakeLoopbackPaperclip(
+            company_status="paused", runs=self.reconciled_runs()
+        )
+        receipt_path, receipt_sha256 = self.write_reconciliation(fixture.runs)
+        receipt = json.loads(receipt_path.read_text())
+        evidence_path = Path(receipt["evidence_path"])
+        target = self.root / "evidence-target.json"
+        target.write_bytes(evidence_path.read_bytes())
+        target.chmod(0o600)
+        evidence_path.unlink()
+        evidence_path.symlink_to(target)
+        snapshot = _snapshot(
+            self.api(fixture), "company-1", self.journal,
+            run_reconciliation=receipt_path,
+            run_reconciliation_sha256=receipt_sha256,
+        )
+        self.assertTrue(snapshot["unresolved"])
+        self.assertFalse(snapshot.get("run_reconciliation"))
+
+    def test_receipt_does_not_reconcile_changed_run_tuple_or_unknown_neighbor(self):
+        receipt_runs = self.reconciled_runs()
+        receipt_path, receipt_sha256 = self.write_reconciliation(receipt_runs)
+        changed = [dict(receipt_runs[0], status="cancelled"), receipt_runs[1]]
+        fixture = FakeLoopbackPaperclip(company_status="paused", runs=changed)
+        mismatch_snapshot = _snapshot(
+            self.api(fixture), "company-1", self.journal,
+            run_reconciliation=receipt_path,
+            run_reconciliation_sha256=receipt_sha256,
+        )
+        self.assertTrue(mismatch_snapshot["unresolved"])
+
+        fixture.runs = [receipt_runs[0], dict(receipt_runs[1], issueId="issue-other")]
+        different_issue_snapshot = _snapshot(
+            self.api(fixture), "company-1", self.journal,
+            run_reconciliation=receipt_path,
+            run_reconciliation_sha256=receipt_sha256,
+        )
+        self.assertTrue(different_issue_snapshot["unresolved"])
+
+        fixture.runs = receipt_runs + [
+            {
+                "id": "run-unknown",
+                "companyId": "company-1",
+                "agentId": "agent-1",
+                "status": "unknown",
+            }
+        ]
+        unknown_snapshot = _snapshot(
+            self.api(fixture), "company-1", self.journal,
+            run_reconciliation=receipt_path,
+            run_reconciliation_sha256=receipt_sha256,
+        )
+        self.assertTrue(
+            any(item.get("id") == "run-unknown" for item in unknown_snapshot["unresolved"])
+        )
+        self.assertFalse(unknown_snapshot["complete"])
 
     def test_missing_or_invalid_journal_path_is_incomplete_and_blocks_actions(self):
         fixture = FakeLoopbackPaperclip(company_status="paused")
