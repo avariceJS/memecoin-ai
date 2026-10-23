@@ -3,7 +3,7 @@ import { constants, openSync, closeSync, fstatSync, readFileSync, lstatSync } fr
 import { fileURLToPath } from "node:url";
 import { isAbsolute } from "node:path";
 import { definePlugin, runWorker } from "@paperclipai/plugin-sdk";
-import type { PluginContext, ToolRunContext, ToolResult } from "@paperclipai/plugin-sdk";
+import type { PluginContext, PluginToolRunCurrent, ToolRunContext, ToolResult } from "@paperclipai/plugin-sdk";
 import manifest from "./manifest.js";
 
 const BRIDGE = fileURLToPath(new URL("../../../paperclip_autonomous_bridge.py", import.meta.url));
@@ -11,7 +11,7 @@ const MAX_OUTPUT = 200_000;
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SHA_RE = /^[0-9a-f]{40,64}$/;
 const KEY_RE = /^[0-9a-f]{64}$/;
-const CONFIG_SCHEMA = "paperclip-autonomous-bridge-config-v1";
+const CONFIG_SCHEMA = "paperclip-autonomous-bridge-config-v2";
 
 type ToolAction = "submit_candidate" | "inspect_candidate" | "approve_candidate";
 type BridgeResult = Record<string, unknown>;
@@ -27,7 +27,6 @@ type OwnerConfig = {
   worker_agent_id: string;
   reviewer_agent_id: string;
   source_issue_id: string;
-  reviewer_issue_id: string;
   python_executable: string;
   configPath: string;
 };
@@ -36,26 +35,19 @@ function fail(code: string): never {
   throw new Error(code);
 }
 
-export async function assertRunBoundIssue(
+async function currentToolRun(
   ctx: Pick<PluginContext, "issues">,
   runCtx: ToolRunContext,
-  issueId: string,
-  allowedStatuses: string[] = ["in_progress"],
-): Promise<void> {
+): Promise<PluginToolRunCurrent> {
   if (![runCtx.companyId, runCtx.projectId, runCtx.agentId, runCtx.runId].every((id) => typeof id === "string" && ID_RE.test(id))) {
     fail("host_run_context_invalid");
   }
-  const scopedIssues = ctx.issues.forCurrentToolRun();
-  const [issue, orchestration] = await Promise.all([
-    scopedIssues.get(issueId, runCtx.companyId),
-    scopedIssues.getOrchestration({ issueId, companyId: runCtx.companyId }),
-  ]);
-  const boundRun = orchestration.runs.find((run) => run.id === runCtx.runId);
-  if (!issue || issue.id !== issueId || issue.companyId !== runCtx.companyId || issue.projectId !== runCtx.projectId
-      || issue.assigneeAgentId !== runCtx.agentId || issue.executionRunId !== runCtx.runId || !allowedStatuses.includes(issue.status)
-      || !boundRun || boundRun.issueId !== issueId || boundRun.agentId !== runCtx.agentId || boundRun.status !== "running") {
+  const current = await ctx.issues.forCurrentToolRun().getCurrent();
+  if (!current || current.runId !== runCtx.runId || current.issue.companyId !== runCtx.companyId
+      || current.issue.projectId !== runCtx.projectId) {
     fail("host_issue_run_binding_mismatch");
   }
+  return current;
 }
 
 async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: string): Promise<OwnerConfig> {
@@ -79,7 +71,7 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
       fail("owner_bridge_config_changed");
     }
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const keys = ["company_id", "project_id", "worker_agent_id", "reviewer_agent_id", "source_issue_id", "reviewer_issue_id"] as const;
+    const keys = ["company_id", "project_id", "worker_agent_id", "reviewer_agent_id", "source_issue_id"] as const;
     if (parsed.schema !== CONFIG_SCHEMA || keys.some((key) => typeof parsed[key] !== "string" || !ID_RE.test(parsed[key] as string))
         || typeof parsed.python_executable !== "string" || !isAbsolute(parsed.python_executable)) {
       fail("owner_bridge_config_invalid");
@@ -157,7 +149,7 @@ function validateParams(action: ToolAction, value: unknown): Record<string, unkn
   const params = value as Record<string, unknown>;
   const keys = action === "submit_candidate" ? ["base_sha", "submitted_sha"]
     : action === "inspect_candidate" ? ["operation_key", "candidate_sha"]
-      : ["operation_key", "candidate_sha", "approved", "evidence"];
+      : ["operation_key", "candidate_sha", "evidence"];
   if (Object.keys(params).some((key) => !keys.includes(key)) || keys.some((key) => !(key in params))) fail("tool_parameters_invalid");
   if (action === "submit_candidate") {
     if (typeof params.base_sha !== "string" || !SHA_RE.test(params.base_sha)
@@ -167,7 +159,7 @@ function validateParams(action: ToolAction, value: unknown): Record<string, unkn
         || typeof params.candidate_sha !== "string" || !SHA_RE.test(params.candidate_sha)) fail("candidate_identity_invalid");
   } else if (typeof params.operation_key !== "string" || !KEY_RE.test(params.operation_key)
       || typeof params.candidate_sha !== "string" || !SHA_RE.test(params.candidate_sha)
-      || typeof params.approved !== "boolean" || !params.evidence || typeof params.evidence !== "object"
+      || !params.evidence || typeof params.evidence !== "object"
       || Array.isArray(params.evidence)
       || typeof (params.evidence as Record<string, unknown>).inspection_digest !== "string"
       || !KEY_RE.test((params.evidence as Record<string, string>).inspection_digest)
@@ -194,22 +186,48 @@ async function persistIssueNote(
   }
 }
 
-async function validateReviewerWakeTarget(
-  ctx: Pick<PluginContext, "issues">,
+function assertAssigneeContext(current: PluginToolRunCurrent, runCtx: ToolRunContext, owner: OwnerConfig): void {
+  if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
+      || runCtx.agentId !== owner.worker_agent_id || current.authority.kind !== "assignee"
+      || current.issue.id !== owner.source_issue_id || current.issue.assigneeAgentId !== owner.worker_agent_id
+      || current.issue.executionRunId !== current.runId) fail("worker_actor_binding_mismatch");
+}
+
+function assertNativeReviewContext(
+  current: PluginToolRunCurrent,
+  runCtx: ToolRunContext,
   owner: OwnerConfig,
-): Promise<void> {
-  const scopedIssues = ctx.issues.forCurrentToolRun();
-  const [issue, orchestration] = await Promise.all([
-    scopedIssues.get(owner.reviewer_issue_id, owner.company_id),
-    scopedIssues.getOrchestration({ issueId: owner.reviewer_issue_id, companyId: owner.company_id }),
-  ]);
-  if (!issue || issue.id !== owner.reviewer_issue_id || issue.companyId !== owner.company_id
-      || issue.projectId !== owner.project_id || issue.assigneeAgentId !== owner.reviewer_agent_id
-      || issue.parentId !== owner.source_issue_id || !["backlog", "todo"].includes(issue.status)
-      || issue.executionRunId !== null || orchestration.blockedByIssueIds.length !== 1
-      || orchestration.blockedByIssueIds[0] !== owner.source_issue_id) {
-    fail("reviewer_issue_wake_target_mismatch");
+  phase: "pending" | "resolved",
+): void {
+  const authority = current.authority;
+  if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
+      || runCtx.agentId !== owner.reviewer_agent_id || authority.kind !== "native_completion_review"
+      || !ID_RE.test(authority.sourceRunId) || !ID_RE.test(authority.interactionId) || !ID_RE.test(authority.decisionId)
+      || current.issue.id !== owner.source_issue_id || current.issue.assigneeAgentId !== owner.worker_agent_id
+      || (phase === "pending" && (authority.status !== "pending" || current.issue.executionRunId !== current.runId))
+      || (phase === "resolved" && authority.status !== "accepted" && authority.status !== "rejected")) {
+    fail("native_reviewer_context_mismatch");
   }
+}
+
+async function assertSubmittedCandidate(
+  ctx: Pick<PluginContext, "issues">,
+  issueId: string,
+  companyId: string,
+  sourceRunId: string,
+  operationKey: string,
+  candidateSha: string,
+): Promise<void> {
+  const comments = await ctx.issues.forCurrentToolRun().listComments(issueId, companyId);
+  const marker = `brain-autonomous-bridge:${operationKey}:submitted`;
+  const matches = comments.filter((comment) => comment.body.includes(marker));
+  if (matches.length === 0 || matches.some((comment) => comment.body !== matches[0].body)) {
+    fail("submitted_candidate_note_missing_or_conflicting");
+  }
+  const lines = matches[0].body.split("\n");
+  const has = (key: string, value: string) => lines.filter((line) => line === `${key}:${value}`).length === 1;
+  if (!has("operation_key", operationKey) || !has("candidate_sha", candidateSha)
+      || !has("worker_run_id", sourceRunId)) fail("submitted_candidate_context_mismatch");
 }
 
 export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoker): void {
@@ -220,15 +238,10 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
   }, async (raw, runCtx): Promise<ToolResult> => {
     const params = validateParams("submit_candidate", raw);
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
-    if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id || runCtx.agentId !== owner.worker_agent_id) fail("worker_actor_binding_mismatch");
-    await assertRunBoundIssue(ctx, runCtx, owner.source_issue_id);
-    await validateReviewerWakeTarget(ctx, owner);
+    const current = await currentToolRun(ctx, runCtx);
+    assertAssigneeContext(current, runCtx, owner);
     const result = await invoke("submit_candidate", {
-      company_id: owner.company_id,
-      project_id: owner.project_id,
-      worker_agent_id: owner.worker_agent_id,
-      run_id: runCtx.runId,
-      source_issue_id: owner.source_issue_id,
+      run_id: current.runId,
       base_sha: params.base_sha,
       submitted_sha: params.submitted_sha,
     }, owner.configPath, owner.python_executable);
@@ -238,13 +251,12 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       `operation_key:${result.operation_key}`,
       `brain-autonomous-bridge:${result.operation_key}:submitted`,
       `candidate_sha:${result.candidate_sha}`,
+      `worker_run_id:${current.runId}`,
       `base_sha:${String(result.base_sha ?? params.base_sha)}`,
       `submitted_sha:${String(result.submitted_sha ?? params.submitted_sha)}`,
       `policy_digest:${String(result.policy_digest ?? "")}`,
     ].join("\n");
-    await persistIssueNote(ctx, owner.reviewer_issue_id, owner.company_id, `${result.operation_key}:submitted`, note);
-    await validateReviewerWakeTarget(ctx, owner);
-    await ctx.issues.forCurrentToolRun().update(owner.reviewer_issue_id, "todo", owner.company_id);
+    await persistIssueNote(ctx, current.issue.id, owner.company_id, `${result.operation_key}:submitted`, note);
     return { content: `operation_key:${result.operation_key}\ncandidate_sha:${result.candidate_sha}` };
   });
 
@@ -255,14 +267,16 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
   }, async (raw, runCtx): Promise<ToolResult> => {
     const params = validateParams("inspect_candidate", raw);
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
-    if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id || runCtx.agentId !== owner.reviewer_agent_id) fail("reviewer_actor_binding_mismatch");
-    await assertRunBoundIssue(ctx, runCtx, owner.reviewer_issue_id);
+    const current = await currentToolRun(ctx, runCtx);
+    assertNativeReviewContext(current, runCtx, owner, "pending");
+    const authority = current.authority;
+    if (authority.kind !== "native_completion_review") fail("native_reviewer_context_mismatch");
+    await assertSubmittedCandidate(ctx, current.issue.id, owner.company_id, authority.sourceRunId, String(params.operation_key), String(params.candidate_sha));
     const result = await invoke("inspect_candidate", {
-      company_id: owner.company_id,
-      project_id: owner.project_id,
-      reviewer_agent_id: owner.reviewer_agent_id,
-      reviewer_run_id: runCtx.runId,
-      reviewer_issue_id: owner.reviewer_issue_id,
+      reviewer_run_id: current.runId,
+      source_run_id: authority.sourceRunId,
+      interaction_id: authority.interactionId,
+      decision_id: authority.decisionId,
       operation_key: params.operation_key,
       candidate_sha: params.candidate_sha,
     }, owner.configPath, owner.python_executable);
@@ -276,36 +290,27 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
 
   ctx.tools.register("approve_candidate", {
     displayName: "Approve Brain Candidate",
-    description: "After inspecting the exact candidate in this reviewer run, record your evidence and decision; approval runs the fixed verifier and local GitGate CAS.",
-    parametersSchema: { type: "object", properties: { operation_key: { type: "string" }, candidate_sha: { type: "string" }, approved: { type: "boolean" }, evidence: { type: "object", properties: { inspection_digest: { type: "string" } }, required: ["inspection_digest"], additionalProperties: true } }, required: ["operation_key", "candidate_sha", "approved", "evidence"], additionalProperties: false },
+    description: "After resolving this native completion review, custody the matching evidence and publish only if Paperclip recorded acceptance. A rejected review is recorded without publishing.",
+    parametersSchema: { type: "object", properties: { operation_key: { type: "string" }, candidate_sha: { type: "string" }, evidence: { type: "object", properties: { inspection_digest: { type: "string" } }, required: ["inspection_digest"], additionalProperties: true } }, required: ["operation_key", "candidate_sha", "evidence"], additionalProperties: false },
   }, async (raw, runCtx): Promise<ToolResult> => {
     const params = validateParams("approve_candidate", raw);
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
-    if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id || runCtx.agentId !== owner.reviewer_agent_id) fail("reviewer_actor_binding_mismatch");
-    await assertRunBoundIssue(ctx, runCtx, owner.reviewer_issue_id);
+    const current = await currentToolRun(ctx, runCtx);
+    assertNativeReviewContext(current, runCtx, owner, "resolved");
+    const authority = current.authority;
+    if (authority.kind !== "native_completion_review") fail("native_reviewer_context_mismatch");
     const result = await invoke("approve_candidate", {
-      company_id: owner.company_id,
-      project_id: owner.project_id,
-      reviewer_agent_id: owner.reviewer_agent_id,
-      reviewer_run_id: runCtx.runId,
-      reviewer_issue_id: owner.reviewer_issue_id,
+      reviewer_run_id: current.runId,
+      source_run_id: authority.sourceRunId,
+      interaction_id: authority.interactionId,
+      decision_id: authority.decisionId,
       operation_key: params.operation_key,
       candidate_sha: params.candidate_sha,
-      approved: params.approved,
+      native_verdict: authority.status,
       evidence: params.evidence,
     }, owner.configPath, owner.python_executable);
     if (typeof result.status !== "string") fail("bridge_result_invalid");
     if (typeof result.evidence_digest !== "string" || !KEY_RE.test(result.evidence_digest)) fail("bridge_result_invalid");
-    const note = [
-      `brain-autonomous-bridge:${params.operation_key}:reviewed`,
-      `candidate_sha:${String(result.candidate_sha ?? params.candidate_sha)}`,
-      `status:${result.status}`,
-      `reviewer_agent_id:${owner.reviewer_agent_id}`,
-      `reviewer_run_id:${runCtx.runId}`,
-      `evidence_digest:${result.evidence_digest}`,
-      `evidence:${JSON.stringify(params.evidence)}`,
-    ].join("\n");
-    await persistIssueNote(ctx, owner.source_issue_id, owner.company_id, `${params.operation_key}:reviewed`, note);
     return { content: `status:${result.status}\ncandidate_sha:${String(result.candidate_sha ?? params.candidate_sha)}` };
   });
 }

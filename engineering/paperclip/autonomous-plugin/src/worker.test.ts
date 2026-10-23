@@ -1,215 +1,163 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@paperclipai/plugin-sdk", () => ({
-  definePlugin: (value: unknown) => value,
-  runWorker: vi.fn(),
-}));
+vi.mock("@paperclipai/plugin-sdk", () => ({ definePlugin: (value: unknown) => value, runWorker: vi.fn() }));
 
 import { registerAutonomousTools } from "./worker.js";
-import type { PluginContext, ToolRunContext } from "@paperclipai/plugin-sdk";
+import type { PluginContext, PluginToolRunCurrent, ToolRunContext } from "@paperclipai/plugin-sdk";
 
-const config = {
-  schema: "paperclip-autonomous-bridge-config-v1",
+const owner = {
+  schema: "paperclip-autonomous-bridge-config-v2",
   company_id: "company-1",
   project_id: "project-1",
   worker_agent_id: "worker-1",
   reviewer_agent_id: "reviewer-1",
-  source_issue_id: "issue-worker",
-  reviewer_issue_id: "issue-reviewer",
+  source_issue_id: "issue-source",
   python_executable: "/usr/bin/python3",
 };
-
 const workerRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "worker-1", runId: "worker-run" };
 const reviewerRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "reviewer-1", runId: "reviewer-run" };
+const operationKey = "a".repeat(64);
+const candidateSha = "b".repeat(40);
+const inspectionDigest = "c".repeat(64);
 
-function fixture(
-  configPath: string,
-  reviewerStatus: string = "backlog",
-  reviewerOverrides: Record<string, unknown> = {},
-  reviewerBlockers: string[] = ["issue-worker"],
-) {
-  const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
-  const issueReads: string[] = [];
-  const notes = new Map<string, string[]>();
-  const updates: Array<{ issueId: string; patch: unknown }> = [];
-  const lifecycle: string[] = [];
-  const issue = (id: string, runCtx: ToolRunContext) => ({
-    id,
-    companyId: runCtx.companyId,
-    projectId: runCtx.projectId,
-    ...(id === "issue-reviewer" ? { parentId: "issue-worker" } : {}),
-    assigneeAgentId: runCtx.agentId,
-    status: id === "issue-reviewer" ? reviewerStatus : "in_progress",
-    executionRunId: id === "issue-reviewer" && reviewerStatus !== "in_progress" ? null : runCtx.runId,
-    ...(id === "issue-reviewer" ? reviewerOverrides : {}),
-  });
-  const ctx = {
-    config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
-    issues: {
-      forCurrentToolRun: () => ({
-      get: vi.fn(async (id: string, _companyId: string) => {
-        issueReads.push(id);
-        if (id === "issue-worker") return issue(id, workerRun) as never;
-        if (id === "issue-reviewer") return issue(id, reviewerRun) as never;
-        return null;
-      }),
-      getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({
-          issueId,
-          companyId: "company-1",
-          runs: [{
-            id: issueId === "issue-worker" ? workerRun.runId : reviewerRun.runId,
-            issueId,
-            agentId: issueId === "issue-worker" ? workerRun.agentId : reviewerRun.agentId,
-            status: "running",
-            invocationSource: "issue",
-            triggerDetail: null,
-            startedAt: new Date().toISOString(),
-            finishedAt: null,
-            error: null,
-            createdAt: new Date().toISOString(),
-          }],
-          blockedByIssueIds: issueId === "issue-reviewer" ? reviewerBlockers : [],
-        })) as never,
-      listComments: vi.fn(async (id: string) => (notes.get(id) ?? []).map((body) => ({ body })) as never),
-      createComment: vi.fn(async (id: string, body: string) => { lifecycle.push(`comment:${id}`); notes.set(id, [...(notes.get(id) ?? []), body]); return {} as never; }),
-      update: vi.fn(async (issueId: string, status: string) => { const patch = { status }; lifecycle.push(`update:${issueId}:${status}`); updates.push({ issueId, patch }); return {} as never; }),
-      }),
+function hostCurrent(run: ToolRunContext, authority: PluginToolRunCurrent["authority"]): PluginToolRunCurrent {
+  return {
+    runId: run.runId,
+    authority,
+    issue: {
+      id: "issue-source", companyId: run.companyId, projectId: run.projectId,
+      assigneeAgentId: "worker-1", executionRunId: run.runId,
     },
-    tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
-  } as unknown as PluginContext;
-  return { ctx, handlers, issueReads, notes, updates, lifecycle };
+  };
 }
 
-describe("Paperclip autonomous bridge tools", () => {
-  let configPath = "";
+describe("native completion review bridge tools", () => {
   let configDir = "";
   afterEach(async () => {
     if (configDir) {
       const { rm } = await import("node:fs/promises");
-      await rm(configDir, { recursive: true, force: true }).catch(() => undefined);
-      configPath = "";
+      await rm(configDir, { recursive: true, force: true });
       configDir = "";
     }
   });
 
-  async function installConfig() {
+  async function setup(current: PluginToolRunCurrent) {
     const { mkdtemp, writeFile } = await import("node:fs/promises");
     const { join } = await import("node:path");
     const { tmpdir } = await import("node:os");
-    const dir = await mkdtemp(join(tmpdir(), "pc-bridge-test-"));
-    configDir = dir;
-    configPath = join(dir, "owner.json");
-    await writeFile(configPath, JSON.stringify(config), { mode: 0o600 });
+    configDir = await mkdtemp(join(tmpdir(), "pc-native-review-"));
+    const configPath = join(configDir, "owner.json");
+    await writeFile(configPath, JSON.stringify(owner), { mode: 0o600 });
+    const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
+    const comments: string[] = [];
+    const updates: unknown[] = [];
+    const ctx = {
+      config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
+      issues: {
+        forCurrentToolRun: () => ({
+          getCurrent: vi.fn(async () => current),
+          listComments: vi.fn(async () => comments.map((body) => ({ body }))),
+          createComment: vi.fn(async (_id: string, body: string) => { comments.push(body); return {}; }),
+          update: vi.fn(async (...args: unknown[]) => { updates.push(args); return {}; }),
+        }),
+      },
+      tools: { register: (name: string, _schema: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
+    } as unknown as PluginContext;
+    return { ctx, handlers, comments, updates };
   }
 
-  it("uses only host context and the configured worker issue for candidate submission", async () => {
-    await installConfig();
-    const { ctx, handlers, issueReads, notes, updates, lifecycle } = fixture(configPath);
-    const invoke = vi.fn(async () => ({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40), base_sha: "c".repeat(40), submitted_sha: "d".repeat(40), policy_digest: "e".repeat(64) }));
+  it("submits with host-derived worker identity and records an operation note on the source issue", async () => {
+    const { ctx, handlers, comments, updates } = await setup(hostCurrent(workerRun, { kind: "assignee" }));
+    const invoke = vi.fn(async () => ({ operation_key: operationKey, candidate_sha: candidateSha, base_sha: "d".repeat(40), submitted_sha: candidateSha, policy_digest: "e".repeat(64) }));
     registerAutonomousTools(ctx, invoke as never);
-    const result = await handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun) as { content: string };
-    expect(issueReads).toEqual(["issue-worker", "issue-reviewer", "issue-reviewer"]);
-    expect(invoke).toHaveBeenCalledWith("submit_candidate", expect.objectContaining({
-      company_id: "company-1", project_id: "project-1", worker_agent_id: "worker-1", run_id: "worker-run", source_issue_id: "issue-worker",
-    }), configPath, "/usr/bin/python3");
-    expect(result.content).toBe(`operation_key:${"a".repeat(64)}\ncandidate_sha:${"b".repeat(40)}`);
-    expect(notes.get("issue-reviewer")?.[0]).toContain(`candidate_sha:${"b".repeat(40)}`);
-    expect(updates).toEqual([{ issueId: "issue-reviewer", patch: { status: "todo" } }]);
-    expect(lifecycle).toEqual([
-      "comment:issue-reviewer",
-      "update:issue-reviewer:todo",
-    ]);
-  });
-
-  it("rejects a reviewer with the worker identity before invoking the bridge", async () => {
-    await installConfig();
-    const { ctx, handlers, issueReads } = fixture(configPath);
-    const invoke = vi.fn();
-    registerAutonomousTools(ctx, invoke as never);
-    await expect(handlers.get("approve_candidate")!({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40), approved: true, evidence: { inspection_digest: "c".repeat(64) } }, workerRun)).rejects.toThrow("reviewer_actor_binding_mismatch");
-    expect(issueReads).toEqual([]);
-    expect(invoke).not.toHaveBeenCalled();
-  });
-
-  it("does not submit or wake an incorrectly assigned or already active reviewer issue", async () => {
-    await installConfig();
-    const { ctx, handlers } = fixture(configPath, "in_progress");
-    const invoke = vi.fn();
-    registerAutonomousTools(ctx, invoke as never);
-    await expect(handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun))
-      .rejects.toThrow("reviewer_issue_wake_target_mismatch");
-    expect(invoke).not.toHaveBeenCalled();
-  });
-
-  it("rejects reviewer issues outside the owner-pinned company/project/assignee", async () => {
-    await installConfig();
-    const { ctx, handlers } = fixture(configPath, "backlog", { assigneeAgentId: "unrelated-agent" });
-    const invoke = vi.fn();
-    registerAutonomousTools(ctx, invoke as never);
-    await expect(handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun))
-      .rejects.toThrow("reviewer_issue_wake_target_mismatch");
-    expect(invoke).not.toHaveBeenCalled();
-  });
-
-  it("checks the exact native source blocker before invoking the bridge", async () => {
-    await installConfig();
-    const { ctx, handlers, notes, updates } = fixture(configPath, "backlog", {}, ["issue-worker", "unrelated-blocker"]);
-    const invoke = vi.fn();
-    registerAutonomousTools(ctx, invoke as never);
-    await expect(handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun))
-      .rejects.toThrow("reviewer_issue_wake_target_mismatch");
-    expect(invoke).not.toHaveBeenCalled();
-    expect(notes.get("issue-reviewer")).toBeUndefined();
+    await handlers.get("submit_candidate")!({ base_sha: "d".repeat(40), submitted_sha: candidateSha }, workerRun);
+    expect(invoke).toHaveBeenCalledWith("submit_candidate", { run_id: "worker-run", base_sha: "d".repeat(40), submitted_sha: candidateSha }, expect.any(String), "/usr/bin/python3");
+    expect(comments[0]).toContain(`operation_key:${operationKey}`);
+    expect(comments[0]).toContain(`worker_run_id:${workerRun.runId}`);
     expect(updates).toEqual([]);
   });
 
-  it("lets only the configured reviewer inspect an exact candidate in its bound issue run", async () => {
-    await installConfig();
-    const { ctx, handlers, issueReads } = fixture(configPath, "in_progress");
-    const diff = "diff --git a/engineering/example.py b/engineering/example.py\n+trusted";
-    const invoke = vi.fn(async () => ({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40), inspection_digest: "c".repeat(64), diff }));
+  it("requires the host's native review assignment and exact submitted candidate", async () => {
+    const assignment = { kind: "native_completion_review", sourceRunId: workerRun.runId, interactionId: "interaction-1", decisionId: "decision-1", status: "pending" } as const;
+    const { ctx, handlers, comments, updates } = await setup(hostCurrent(reviewerRun, assignment));
+    comments.push([`brain-autonomous-bridge:${operationKey}:submitted`, `operation_key:${operationKey}`, `candidate_sha:${candidateSha}`, `worker_run_id:${workerRun.runId}`].join("\n"));
+    const invoke = vi.fn(async () => ({ operation_key: operationKey, candidate_sha: candidateSha, inspection_digest: inspectionDigest, diff: "exact diff" }));
     registerAutonomousTools(ctx, invoke as never);
-    const result = await handlers.get("inspect_candidate")!({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40) }, reviewerRun) as { content: string };
-    expect(issueReads).toEqual(["issue-reviewer"]);
-    expect(invoke).toHaveBeenCalledWith("inspect_candidate", expect.objectContaining({
-      reviewer_agent_id: "reviewer-1", reviewer_issue_id: "issue-reviewer", reviewer_run_id: "reviewer-run",
-      operation_key: "a".repeat(64), candidate_sha: "b".repeat(40),
-    }), configPath, "/usr/bin/python3");
-    expect(result.content).toContain(diff);
-    await expect(handlers.get("inspect_candidate")!({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40) }, workerRun)).rejects.toThrow("reviewer_actor_binding_mismatch");
-  });
-
-  it("requires the SDK issue executionRunId and orchestration run summary to match the host run", async () => {
-    const { assertRunBoundIssue } = await import("./worker.js");
-    const ctx = { issues: {
-      forCurrentToolRun: () => ({
-      get: vi.fn(async () => ({
-        id: "issue-worker", companyId: "company-1", projectId: "project-1", assigneeAgentId: "worker-1", status: "in_progress",
-        executionRunId: "some-other-run",
-      })),
-      getOrchestration: vi.fn(async () => ({ runs: [{ id: "worker-run", issueId: "issue-worker", agentId: "worker-1", status: "running" }] })),
-      }),
-    } } as unknown as PluginContext;
-    await expect(assertRunBoundIssue(ctx, workerRun, "issue-worker")).rejects.toThrow("host_issue_run_binding_mismatch");
-  });
-
-  it("persists exact reviewer evidence without changing producer or reviewer status", async () => {
-    await installConfig();
-    const { ctx, handlers, notes, updates } = fixture(configPath, "in_progress");
-    const evidence = { inspection_digest: "d".repeat(64), inspected_paths: ["engineering/example.py"], verdict: "accepted" };
-    const invoke = vi.fn(async () => ({ status: "published", candidate_sha: "b".repeat(40), evidence_digest: "c".repeat(64) }));
-    registerAutonomousTools(ctx, invoke as never);
-    await handlers.get("approve_candidate")!({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40), approved: true, evidence }, reviewerRun);
-    expect(notes.get("issue-worker")?.[0]).toContain(`evidence:${JSON.stringify(evidence)}`);
+    const result = await handlers.get("inspect_candidate")!({ operation_key: operationKey, candidate_sha: candidateSha }, reviewerRun) as { content: string };
+    expect(invoke).toHaveBeenCalledWith("inspect_candidate", {
+      reviewer_run_id: reviewerRun.runId, source_run_id: workerRun.runId,
+      interaction_id: "interaction-1", decision_id: "decision-1", operation_key: operationKey, candidate_sha: candidateSha,
+    }, expect.any(String), "/usr/bin/python3");
+    expect(result.content).toContain("exact diff");
     expect(updates).toEqual([]);
   });
 
-  it("preserves producer completion after rejection without automatic dispatch", async () => {
-    await installConfig();
-    const { ctx, handlers, updates } = fixture(configPath, "in_progress");
-    const invoke = vi.fn(async () => ({ status: "review_rejected", candidate_sha: "b".repeat(40), evidence_digest: "c".repeat(64), operation_key: "a".repeat(64) }));
+  it("custodies review evidence without changing issue status or waking a task", async () => {
+    const assignment = { kind: "native_completion_review", sourceRunId: workerRun.runId, interactionId: "interaction-1", decisionId: "decision-1", status: "accepted" } as const;
+    const { ctx, handlers, comments, updates } = await setup(hostCurrent(reviewerRun, assignment));
+    comments.push([`brain-autonomous-bridge:${operationKey}:submitted`, `operation_key:${operationKey}`, `candidate_sha:${candidateSha}`, `worker_run_id:${workerRun.runId}`].join("\n"));
+    const evidence = { inspection_digest: inspectionDigest, verdict: "accepted" };
+    const invoke = vi.fn(async () => ({ status: "published", candidate_sha: candidateSha, evidence_digest: "f".repeat(64) }));
     registerAutonomousTools(ctx, invoke as never);
-    await handlers.get("approve_candidate")!({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40), approved: false, evidence: { inspection_digest: "d".repeat(64), reason: "needs correction" } }, reviewerRun);
+    await handlers.get("approve_candidate")!({ operation_key: operationKey, candidate_sha: candidateSha, evidence }, reviewerRun);
+    expect(invoke).toHaveBeenCalledWith("approve_candidate", expect.objectContaining({
+      reviewer_run_id: reviewerRun.runId, source_run_id: workerRun.runId,
+      interaction_id: "interaction-1", decision_id: "decision-1", native_verdict: "accepted", evidence,
+    }), expect.any(String), "/usr/bin/python3");
+    expect(comments).toHaveLength(1);
     expect(updates).toEqual([]);
+  });
+
+  it("records a resolved rejection without publishing or writing to the producer task", async () => {
+    const assignment = { kind: "native_completion_review", sourceRunId: workerRun.runId, interactionId: "interaction-1", decisionId: "decision-1", status: "rejected" } as const;
+    const { ctx, handlers, comments, updates } = await setup(hostCurrent(reviewerRun, assignment));
+    comments.push([`brain-autonomous-bridge:${operationKey}:submitted`, `operation_key:${operationKey}`, `candidate_sha:${candidateSha}`, `worker_run_id:${workerRun.runId}`].join("\n"));
+    const invoke = vi.fn(async () => ({ status: "review_rejected", candidate_sha: candidateSha, evidence_digest: "f".repeat(64) }));
+    registerAutonomousTools(ctx, invoke as never);
+    await handlers.get("approve_candidate")!({ operation_key: operationKey, candidate_sha: candidateSha, evidence: { inspection_digest: inspectionDigest } }, reviewerRun);
+    expect(invoke).toHaveBeenCalledWith("approve_candidate", expect.objectContaining({ native_verdict: "rejected" }), expect.any(String), "/usr/bin/python3");
+    expect(comments).toHaveLength(1);
+    expect(updates).toEqual([]);
+  });
+
+  it("requires a resolved native verdict and rejects caller-selected decisions", async () => {
+    const pending = { kind: "native_completion_review", sourceRunId: workerRun.runId, interactionId: "interaction-1", decisionId: "decision-1", status: "pending" } as const;
+    const { ctx, handlers, comments } = await setup(hostCurrent(reviewerRun, pending));
+    comments.push([`brain-autonomous-bridge:${operationKey}:submitted`, `operation_key:${operationKey}`, `candidate_sha:${candidateSha}`, `worker_run_id:${workerRun.runId}`].join("\n"));
+    const invoke = vi.fn();
+    registerAutonomousTools(ctx, invoke as never);
+    await expect(handlers.get("approve_candidate")!({ operation_key: operationKey, candidate_sha: candidateSha, evidence: { inspection_digest: inspectionDigest } }, reviewerRun)).rejects.toThrow("native_reviewer_context_mismatch");
+    await expect(handlers.get("approve_candidate")!({ operation_key: operationKey, candidate_sha: candidateSha, approved: true, evidence: { inspection_digest: inspectionDigest } }, reviewerRun)).rejects.toThrow("tool_parameters_invalid");
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stale producer run against the exact submitted note before bridge calls", async () => {
+    const stale = { kind: "native_completion_review", sourceRunId: "old-worker-run", interactionId: "interaction-1", decisionId: "decision-1", status: "pending" } as const;
+    const { ctx, handlers, comments } = await setup(hostCurrent(reviewerRun, stale));
+    comments.push([`brain-autonomous-bridge:${operationKey}:submitted`, `operation_key:${operationKey}`, `candidate_sha:${candidateSha}`, `worker_run_id:${workerRun.runId}`].join("\n"));
+    const invoke = vi.fn();
+    registerAutonomousTools(ctx, invoke as never);
+    await expect(handlers.get("inspect_candidate")!({ operation_key: operationKey, candidate_sha: candidateSha }, reviewerRun)).rejects.toThrow("submitted_candidate_context_mismatch");
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("rejects a host issue whose persisted execution run differs from the invocation", async () => {
+    const current = hostCurrent(workerRun, { kind: "assignee" });
+    current.issue.executionRunId = "old-run";
+    const { ctx, handlers } = await setup(current);
+    const invoke = vi.fn();
+    registerAutonomousTools(ctx, invoke as never);
+    await expect(handlers.get("submit_candidate")!({ base_sha: "d".repeat(40), submitted_sha: candidateSha }, workerRun)).rejects.toThrow("worker_actor_binding_mismatch");
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("rejects a host-selected issue outside the owner-pinned source task", async () => {
+    const current = hostCurrent(workerRun, { kind: "assignee" });
+    current.issue.id = "other-issue";
+    const { ctx, handlers } = await setup(current);
+    const invoke = vi.fn();
+    registerAutonomousTools(ctx, invoke as never);
+    await expect(handlers.get("submit_candidate")!({ base_sha: "d".repeat(40), submitted_sha: candidateSha }, workerRun)).rejects.toThrow("worker_actor_binding_mismatch");
+    expect(invoke).not.toHaveBeenCalled();
   });
 });

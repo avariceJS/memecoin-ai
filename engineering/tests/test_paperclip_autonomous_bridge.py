@@ -79,7 +79,6 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             worker_agent_id="worker-1",
             reviewer_agent_id="reviewer-1",
             source_issue_id="issue-worker",
-            reviewer_issue_id="issue-reviewer",
             source_repo=root / "source",
             worker_checkout=root / "worker",
             publisher_repo=root / "publisher",
@@ -102,10 +101,6 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
 
     def worker_payload(self):
         return {
-            "company_id": "company-1",
-            "project_id": "project-1",
-            "source_issue_id": "issue-worker",
-            "worker_agent_id": "worker-1",
             "run_id": "worker-run-1",
             "base_sha": "a" * 40,
             "submitted_sha": "b" * 40,
@@ -113,11 +108,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
 
     def reviewer_payload(self, operation_key, **overrides):
         payload = {
-            "company_id": "company-1",
-            "project_id": "project-1",
-            "reviewer_agent_id": "reviewer-1",
             "reviewer_run_id": "reviewer-run-1",
-            "reviewer_issue_id": "issue-reviewer",
+            "source_run_id": "worker-run-1",
+            "interaction_id": "interaction-1",
+            "decision_id": "decision-1",
             "operation_key": operation_key,
             "candidate_sha": "c" * 40,
             "approved": False,
@@ -131,11 +125,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
 
     def inspect_payload(self, operation_key, **overrides):
         payload = {
-            "company_id": "company-1",
-            "project_id": "project-1",
-            "reviewer_agent_id": "reviewer-1",
             "reviewer_run_id": "reviewer-run-1",
-            "reviewer_issue_id": "issue-reviewer",
+            "source_run_id": "worker-run-1",
+            "interaction_id": "interaction-1",
+            "decision_id": "decision-1",
             "operation_key": operation_key,
             "candidate_sha": "c" * 40,
         }
@@ -147,16 +140,6 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         payload["worker_checkout"] = "/tmp/attacker"
         with self.assertRaisesRegex(BridgeError, "submit_payload_shape_invalid"):
             dispatch(self.config, {"action": "submit_candidate", "payload": payload})
-
-    def test_submit_rejects_mismatched_worker_or_issue(self):
-        for key, value in (("worker_agent_id", "reviewer-1"), ("source_issue_id", "other-issue")):
-            payload = self.worker_payload()
-            payload[key] = value
-            with (
-                self.subTest(key=key),
-                self.assertRaisesRegex(BridgeError, "actor_or_issue_binding_mismatch"),
-            ):
-                dispatch(self.config, {"action": "submit_candidate", "payload": payload})
 
     def test_submit_persists_operation_binding_and_candidate(self):
         with patch.object(
@@ -185,8 +168,8 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             prepared = dispatch(
                 self.config, {"action": "submit_candidate", "payload": self.worker_payload()}
             )
-            payload = self.reviewer_payload(prepared["operation_key"], reviewer_agent_id="worker-1")
-            with self.assertRaisesRegex(BridgeError, "reviewer_actor_or_issue_binding_mismatch"):
+            payload = self.reviewer_payload(prepared["operation_key"], source_run_id="other-run")
+            with self.assertRaisesRegex(BridgeError, "native_review_source_run_mismatch"):
                 dispatch(self.config, {"action": "approve_candidate", "payload": payload})
             payload = self.reviewer_payload(prepared["operation_key"], candidate_sha="d" * 40)
             with self.assertRaisesRegex(BridgeError, "candidate_does_not_match_prepared_journal"):
@@ -220,6 +203,12 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 "inspection_digest": inspection["inspection_digest"],
                 "reason": "synthetic rejection",
             }
+            stale_assignment = {**payload, "decision_id": "old-decision"}
+            with self.assertRaisesRegex(BridgeError, "reviewer_must_inspect_candidate_first"):
+                dispatch(
+                    self.config,
+                    {"action": "approve_candidate", "payload": stale_assignment},
+                )
             result = dispatch(self.config, {"action": "approve_candidate", "payload": payload})
             self.assertEqual(result["status"], "review_rejected")
             journal_path = (
@@ -254,7 +243,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                     },
                 )
 
-    def test_inspection_rejects_wrong_reviewer_issue_or_candidate(self):
+    def test_inspection_rejects_wrong_source_run_or_candidate(self):
         fake_broker = FakeBroker(self.candidate, self.config.broker_journal_dir)
         with (
             patch.object(BridgeConfig, "broker", return_value=fake_broker),
@@ -269,13 +258,13 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             prepared = dispatch(
                 self.config, {"action": "submit_candidate", "payload": self.worker_payload()}
             )
-            with self.assertRaisesRegex(BridgeError, "reviewer_actor_or_issue_binding_mismatch"):
+            with self.assertRaisesRegex(BridgeError, "native_review_source_run_mismatch"):
                 dispatch(
                     self.config,
                     {
                         "action": "inspect_candidate",
                         "payload": self.inspect_payload(
-                            prepared["operation_key"], reviewer_issue_id="other"
+                            prepared["operation_key"], source_run_id="other-run"
                         ),
                     },
                 )
@@ -389,7 +378,6 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             worker_agent_id="worker-1",
             reviewer_agent_id="reviewer-1",
             source_issue_id="issue-worker",
-            reviewer_issue_id="issue-reviewer",
             source_repo=source,
             worker_checkout=worker,
             publisher_repo=publisher,
@@ -416,10 +404,6 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             expected_base_sha=base,
         )
         worker_payload = {
-            "company_id": "company-1",
-            "project_id": "project-1",
-            "source_issue_id": "issue-worker",
-            "worker_agent_id": "worker-1",
             "run_id": "worker-run-integrated",
             "base_sha": base,
             "submitted_sha": submitted,
@@ -428,11 +412,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             config, {"action": "submit_candidate", "payload": worker_payload}
         )
         reviewer_payload = {
-            "company_id": "company-1",
-            "project_id": "project-1",
-            "reviewer_agent_id": "reviewer-1",
             "reviewer_run_id": "reviewer-run-integrated",
-            "reviewer_issue_id": "issue-reviewer",
+            "source_run_id": "worker-run-integrated",
+            "interaction_id": "interaction-integrated",
+            "decision_id": "decision-integrated",
             "operation_key": submitted_result["operation_key"],
             "candidate_sha": submitted_result["candidate_sha"],
         }
@@ -517,11 +500,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             expected_base_sha="a" * 40,
         )
         payload = {
-            "company_id": "company-1",
-            "project_id": "project-1",
-            "reviewer_agent_id": "reviewer-1",
             "reviewer_run_id": "reviewer-run-1",
-            "reviewer_issue_id": "issue-reviewer",
+            "source_run_id": "worker-run-1",
+            "interaction_id": "interaction-1",
+            "decision_id": "decision-1",
             "operation_key": result["operation_key"],
             "candidate_sha": self.candidate.sha,
         }
@@ -553,11 +535,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             )
         changed = replace(self.config, publisher_repo=Path(self.tmp.name) / "changed-publisher")
         payload = {
-            "company_id": "company-1",
-            "project_id": "project-1",
-            "reviewer_agent_id": "reviewer-1",
             "reviewer_run_id": "reviewer-run-1",
-            "reviewer_issue_id": "issue-reviewer",
+            "source_run_id": "worker-run-1",
+            "interaction_id": "interaction-1",
+            "decision_id": "decision-1",
             "operation_key": result["operation_key"],
             "candidate_sha": self.candidate.sha,
         }
@@ -577,13 +558,12 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
 
     def test_owner_config_rejects_loose_permissions_and_non_absolute_paths(self):
         raw = {
-            "schema": "paperclip-autonomous-bridge-config-v1",
+            "schema": "paperclip-autonomous-bridge-config-v2",
             "company_id": "company-1",
             "project_id": "project-1",
             "worker_agent_id": "worker-1",
             "reviewer_agent_id": "reviewer-1",
             "source_issue_id": "issue-worker",
-            "reviewer_issue_id": "issue-reviewer",
             "source_repo": "/tmp/source",
             "worker_checkout": "/tmp/worker",
             "publisher_repo": "/tmp/publisher",

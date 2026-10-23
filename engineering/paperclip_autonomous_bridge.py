@@ -278,35 +278,38 @@ def inspect_candidate(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
 
 def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
     if set(payload) != {
-        "company_id",
-        "project_id",
-        "reviewer_agent_id",
         "reviewer_run_id",
-        "reviewer_issue_id",
+        "source_run_id",
+        "interaction_id",
+        "decision_id",
         "operation_key",
         "candidate_sha",
     }:
         raise BridgeError("inspect_payload_shape_invalid")
-    if any(
-        payload.get(key) != expected
-        for key, expected in {
-            "company_id": config.company_id,
-            "project_id": config.project_id,
-            "reviewer_agent_id": config.reviewer_agent_id,
-            "reviewer_issue_id": config.reviewer_issue_id,
-        }.items()
-    ):
-        raise BridgeError("reviewer_actor_or_issue_binding_mismatch")
     reviewer_run_id = payload.get("reviewer_run_id")
+    source_run_id = payload.get("source_run_id")
+    interaction_id = payload.get("interaction_id")
+    decision_id = payload.get("decision_id")
     operation_key = payload.get("operation_key")
     candidate_sha = payload.get("candidate_sha")
     if type(reviewer_run_id) is not str or not ID_RE.fullmatch(reviewer_run_id):
         raise BridgeError("reviewer_run_identity_invalid")
+    if (
+        type(source_run_id) is not str
+        or not ID_RE.fullmatch(source_run_id)
+        or type(interaction_id) is not str
+        or not ID_RE.fullmatch(interaction_id)
+        or type(decision_id) is not str
+        or not ID_RE.fullmatch(decision_id)
+    ):
+        raise BridgeError("native_review_assignment_invalid")
     if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
         raise BridgeError("operation_key_invalid")
     if type(candidate_sha) is not str or not SHA_RE.fullmatch(candidate_sha):
         raise BridgeError("candidate_sha_invalid")
     journal = _load_journal(config, operation_key)
+    if journal.get("schema") != "paperclip-autonomous-operation-v2":
+        raise BridgeError("operation_journal_invalid")
     binding_data = journal.get("binding")
     if type(binding_data) is not dict:
         raise BridgeError("operation_binding_invalid")
@@ -326,6 +329,8 @@ def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> 
     )
     if binding.as_dict() != binding_data or binding.operation_key != operation_key:
         raise BridgeError("operation_binding_mismatch")
+    if source_run_id != binding.run_id:
+        raise BridgeError("native_review_source_run_mismatch")
     if (
         type(journal.get("candidate")) is not dict
         or journal["candidate"].get("candidate_sha") != candidate_sha
@@ -349,8 +354,11 @@ def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> 
     diff = _bounded_candidate_diff(candidate)
     inspection = {
         "reviewer_agent_id": config.reviewer_agent_id,
-        "reviewer_issue_id": config.reviewer_issue_id,
+        "source_issue_id": config.source_issue_id,
         "reviewer_run_id": reviewer_run_id,
+        "source_run_id": source_run_id,
+        "interaction_id": interaction_id,
+        "decision_id": decision_id,
         "candidate_sha": candidate.sha,
         "policy_digest": binding.policy_digest,
         "diff_sha256": hashlib.sha256(diff.encode("utf-8")).hexdigest(),
@@ -396,7 +404,6 @@ class BridgeConfig:
     worker_agent_id: str
     reviewer_agent_id: str
     source_issue_id: str
-    reviewer_issue_id: str
     source_repo: Path
     worker_checkout: Path
     publisher_repo: Path
@@ -417,7 +424,7 @@ class BridgeConfig:
     @classmethod
     def load(cls, path: Path) -> BridgeConfig:
         raw = _read_json(path, MAX_CONFIG_BYTES)
-        if raw.get("schema") != "paperclip-autonomous-bridge-config-v1":
+        if raw.get("schema") != "paperclip-autonomous-bridge-config-v2":
             raise BridgeError("owner_config_schema_invalid")
         allowed_keys = {
             "schema",
@@ -426,7 +433,6 @@ class BridgeConfig:
             "worker_agent_id",
             "reviewer_agent_id",
             "source_issue_id",
-            "reviewer_issue_id",
             "source_repo",
             "worker_checkout",
             "publisher_repo",
@@ -468,7 +474,6 @@ class BridgeConfig:
             "worker_agent_id",
             "reviewer_agent_id",
             "source_issue_id",
-            "reviewer_issue_id",
         )
         if any(type(raw.get(key)) is not str or not ID_RE.fullmatch(raw[key]) for key in ids):
             raise BridgeError("owner_config_identity_invalid")
@@ -592,7 +597,6 @@ class BridgeConfig:
             "worker_agent_id": self.worker_agent_id,
             "reviewer_agent_id": self.reviewer_agent_id,
             "source_issue_id": self.source_issue_id,
-            "reviewer_issue_id": self.reviewer_issue_id,
             "python_executable": str(self.python_executable),
             "owner_roots": self.owner_roots,
             "allowed_scope": self.allowed_scope,
@@ -696,24 +700,11 @@ def _verifier(config: BridgeConfig, candidate_checkout: Path):
 
 def _binding(config: BridgeConfig, payload: dict[str, Any]) -> OperationBinding:
     if set(payload) != {
-        "company_id",
-        "project_id",
-        "source_issue_id",
-        "worker_agent_id",
         "run_id",
         "base_sha",
         "submitted_sha",
     }:
         raise BridgeError("submit_payload_shape_invalid")
-    for name in ("company_id", "project_id", "source_issue_id", "worker_agent_id"):
-        expected = {
-            "company_id": config.company_id,
-            "project_id": config.project_id,
-            "source_issue_id": config.source_issue_id,
-            "worker_agent_id": config.worker_agent_id,
-        }[name]
-        if payload.get(name) != expected:
-            raise BridgeError("actor_or_issue_binding_mismatch")
     for key in ("run_id",):
         if type(payload.get(key)) is not str or not ID_RE.fullmatch(payload[key]):
             raise BridgeError("actor_run_identity_invalid")
@@ -759,10 +750,9 @@ def _prepare_candidate_locked(config: BridgeConfig, binding: OperationBinding) -
         "base_sha": candidate.base_sha,
         "changed_paths": list(candidate.changed_paths),
         "policy_digest": binding.policy_digest,
-        "reviewer_issue_id": config.reviewer_issue_id,
     }
     journal = {
-        "schema": "paperclip-autonomous-operation-v1",
+        "schema": "paperclip-autonomous-operation-v2",
         "operation_key": binding.operation_key,
         "state": "prepared",
         "binding": binding.as_dict(),
@@ -789,33 +779,28 @@ def integrate_candidate(config: BridgeConfig, payload: dict[str, Any]) -> dict[s
 
 def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
     if set(payload) != {
-        "company_id",
-        "project_id",
-        "reviewer_agent_id",
         "reviewer_run_id",
-        "reviewer_issue_id",
+        "source_run_id",
+        "interaction_id",
+        "decision_id",
         "operation_key",
         "candidate_sha",
         "approved",
         "evidence",
     }:
         raise BridgeError("review_payload_shape_invalid")
-    if any(
-        payload.get(key) != expected
-        for key, expected in {
-            "company_id": config.company_id,
-            "project_id": config.project_id,
-            "reviewer_agent_id": config.reviewer_agent_id,
-            "reviewer_issue_id": config.reviewer_issue_id,
-        }.items()
-    ):
-        raise BridgeError("reviewer_actor_or_issue_binding_mismatch")
     operation_key = payload.get("operation_key")
     if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
         raise BridgeError("operation_key_invalid")
+    source_run_id = payload.get("source_run_id")
+    interaction_id = payload.get("interaction_id")
+    decision_id = payload.get("decision_id")
+    for value in (source_run_id, interaction_id, decision_id):
+        if type(value) is not str or not ID_RE.fullmatch(value):
+            raise BridgeError("native_review_assignment_invalid")
     journal = _load_journal(config, operation_key)
     if (
-        journal.get("schema") != "paperclip-autonomous-operation-v1"
+        journal.get("schema") != "paperclip-autonomous-operation-v2"
         or journal.get("operation_key") != operation_key
     ):
         raise BridgeError("operation_journal_invalid")
@@ -838,6 +823,8 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
     )
     if binding.as_dict() != binding_data or binding.operation_key != operation_key:
         raise BridgeError("operation_binding_mismatch")
+    if source_run_id != binding.run_id:
+        raise BridgeError("native_review_source_run_mismatch")
     reviewer_run_id = payload.get("reviewer_run_id")
     if type(reviewer_run_id) is not str or not ID_RE.fullmatch(reviewer_run_id):
         raise BridgeError("reviewer_run_identity_invalid")
@@ -859,8 +846,11 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
                 for item in inspections
                 if type(item) is dict
                 and item.get("reviewer_agent_id") == config.reviewer_agent_id
-                and item.get("reviewer_issue_id") == config.reviewer_issue_id
+                and item.get("source_issue_id") == config.source_issue_id
                 and item.get("reviewer_run_id") == reviewer_run_id
+                and item.get("source_run_id") == source_run_id
+                and item.get("interaction_id") == interaction_id
+                and item.get("decision_id") == decision_id
                 and item.get("candidate_sha") == payload["candidate_sha"]
                 and item.get("policy_digest") == binding.policy_digest
             ),
@@ -891,9 +881,11 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
         "source_issue_id": config.source_issue_id,
         "worker_agent_id": config.worker_agent_id,
         "worker_run_id": binding.run_id,
-        "reviewer_issue_id": config.reviewer_issue_id,
         "reviewer_agent_id": config.reviewer_agent_id,
         "reviewer_run_id": reviewer_run_id,
+        "source_run_id": source_run_id,
+        "interaction_id": interaction_id,
+        "decision_id": decision_id,
         "candidate_sha": payload["candidate_sha"],
         "policy_digest": binding.policy_digest,
         "inspection_digest": inspection_digest,
