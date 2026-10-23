@@ -47,15 +47,21 @@ readback confirmed disabled→pending with no tools→explicit approval→ready.
 owned-server restart and explicit resume preserved completed and pending tasks without new paused
 runs. This excludes mid-publication crash recovery and endurance.
 
-Native Sol created the first finite source/QA pair MEM39/40. Actual binding failed because the
-controller expected providerType=local while the native SDK supplies local_fs. Correcting this exact
-schema assumption is Platform work; source execution remains held until reviewed correction.
-Synthetic fixtures must represent native metadata, not merely agree with the implementation.
+Native Sol created the first finite source/QA pair MEM39/40. The local versus native local_fs
+provider mismatch was independently corrected at22cccc7 and integrated/pushed0b12492; binding and
+source activation then succeeded. Actual source execution completed edits without delivery, while QA
+held before inspection because the binding key was recorded only on the lead. The source contract
+also ambiguously permitted preparation-only completion. Durable child handoff before activation and
+explicit delivery-before-done instructions are being corrected. Preserve the current files/binding;
+operator-assisted recovery is useful delivery but does not qualify an unassisted queue cycle.
 
-Experience, Cortex, Evaluation and Policy completed native source analyses; independent batch QA
-MEM41 is running. These are analysis-only lanes, not arbitrary source-publication qualification.
-Original implementation backlogs remain open. Platform MEM38 and Policy MEM37 ran concurrently;
-timing correction is recorded in department-analysis/batch-qa/cohort-timing-correction.json.
+Experience and Cortex analyses were independently accepted; Evaluation and Policy were qualified
+with explicit source-evidence limits. MEM41 finalized successfully and all20 input files remained
+unchanged. Four projects are in_progress and existing team goals active, with ongoing shared Sol
+lead duties, Research Luna on-demand execution and independent Sol acceptance. These are analysis-only
+lanes; original implementation backlogs remain held. Platform MEM38 and Policy MEM37 overlapped,
+qualifying bounded independent useful concurrency. See department-analysis/batch-qa final receipt
+and cohort-timing-correction.json; departmental reconciliation is in department-analysis/.
 
 Remaining MVP evidence: two successive useful Sol-owned engineering cycles with refreshed bases
 and automatic exact-reviewed canonical publication, plus final combined acceptance. Use native
