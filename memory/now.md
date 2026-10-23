@@ -2,54 +2,49 @@
 
 ## Founder resumption — 2026-10-23
 
-The founder explicitly lifted the October 22 weekly-quota pause for the isolated Paperclip
-program and authorized progression toward operational acceptance, including bounded subscription
-trials and development-branch Brain work after independent qualification. Pilot STOP and protected
-data/runtime restrictions remain. The quota-stop handoff is preserved at
-`/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF-20261022-QUOTA-STOP.md`.
-Live readback: reviewed Paperclip `b853ab3` is healthy on loopback 3310; SDK/plugin emitted bytes
-match independent hashes. Brain integration candidate is `d856c08`; prior root docs checkpoint `88f4115`.
-The bounded synthetic native pipeline passed: lead delegated, worker committed `b77c08e`, private
-plugin prepared GitGate merge `39abfd1`, native producer completion released reviewer via dependency,
-and reviewer accepted/published the exact merge with passing receipt `4f611b4`. Producer completion
-run `d5c476be-82b2-409d-986e-adf8578b2972`; reviewer `4224d0f9-6214-491a-81de-174c6cd00015`.
-Original successful submit run `a8fb11ca-f5d7-4641-948b-755b28b2e668` failed only afterward in fixture
-marker parsing; completion-only recovery preserved its prepared operation without resubmission.
-All five clones are clean. Publisher HEAD remains detached at `3024d98`, while its development ref
-is `39abfd1`; these are deliberately distinct. All failed histories remain retained. Sol accepted
-submission through publication independently; fresh lead raw evidence is also saved for review.
-BRAA is paused with all four tasks done and no live runs; all cohort fixtures are stopped.
-BRAA-4 independently passed bounded native pause, owned-server restart while paused, and explicit
-same-action recovery into a new model session. The known writer stopped before server shutdown;
-the original checkpoint remained unchanged, no delayed write or automatic replay occurred, and
-one new writer created the resume marker. This proves one synthetic cohort, not arbitrary-process
-endurance or interruption during GitGate publication. MEM staffing is paused during provisioning:
-Astra is CEO, Sol Engineering Lead reports to Astra, Luna Senses Engineer reports to that Sol,
-and Sol Independent Reviewer reports separately to Astra. No real autonomous
-engineering, general lifecycle endurance, Brain branch admission or legacy-controller removal yet.
-One bounded read-only subscription Sol task MEM-2 succeeded (run `5223e7f2-d2d0-43e4-9e10-22b924772e3b`):
-native Codex `gpt-6.1-sol`, effort `high`, explicit subscription attribution, unchanged empty workspace.
-This is not engineering/GitGate/lifecycle or real-repository acceptance. No replacement Goal or old supervisor.
-The same bounded subscription check also succeeded for Luna MEM-3, run
-`05874b30-208b-4d20-8bd7-d6cbfe37e5ab`: native `gpt-6-luna`, host effort `high`,
-`subscription_included`, empty workspace unchanged. Sol independently accepted this narrow receipt.
-Paused CEO configuration names
-`gpt-6-astra`/high, with automatic heartbeat and wake disabled; no Astra model invocation was made.
-At 13:06 UTC, accepted controller `d856c08` is published on `org/paperclip-integration`.
-The real source trial uses 227 explicitly qualified source/config/test files projected from
-`brain/development` `dabf14a`, without original Git history or protected records. Real Sol delegated
-MEM-5; Luna committed `692bf66` and submitted once, preparing GitGate candidate `8440fe6`.
-No independent MEM-6 acceptance or publication has occurred. Incorrect producer `needs_review`
-completion triggered same-task review; its stale auth-only instructions were subsequently corrected.
-A completion-only continuation failed in preparation on cross-agent chat ancestry; its unknown
-accounting and native recovery action remain preserved. Board correction marked only the known
-producer work done. Native dependency admission still holds MEM-6 because the failed continuation
-lacks workspace finalization. Do not bypass this barrier or repeat edit/commit/submit.
-At 13:10 UTC Astra paused MEM for the causal repair/deployment; no live runs were present.
-Reviewer is idle, and Astra/lead/Luna remain individually paused.
-The canonical Brain checkout remains unchanged; this is a held first real cycle, not autonomy.
-Astra owns CEO decisions; Sol supplies technical advice/independent acceptance and leads Luna, not permission for Astra.
-Current machine-readable progress/custody: `/Users/root1/Developer/brain-paperclip-lab/state/readiness-20261023/progress.json`.
+The founder lifted the October 22 quota pause for the isolated Paperclip program. Pilot STOP,
+protected data, main/production, market/training/AUTO/trading restrictions remain. Preserve
+`/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF-20261022-QUOTA-STOP.md` and old Goals.
+Astra owns CEO decisions; Sol advises, leads Luna and independently reviews, not permission for Astra.
+No replacement native Goal or old supervisor was started. Paperclip owns the experimental queue.
+
+At 13:40 UTC, reviewed Paperclip `0130291` runs on loopback 3310 (owned PID57006; reverify before use).
+Accepted controller/pin `9747cef` is published on `org/paperclip-integration`. SDK/plugin bytes and
+frozen bridge/GitGate/broker policy remain accepted; the plugin is ready. After cohort closure,
+MEM is active for organizational tracking, with all four staff manually paused and no live runs;
+the five fixture companies remain paused. MEM-7 is an Astra-owned control-plane qualification task,
+implemented by trusted bootstrap Sol/Luna outside the native worker lane; this is explicitly recorded
+in Paperclip. The first useful-source team milestone is achieved, not the long-term corporation Goal.
+CEO configuration is gpt-6-astra/high with automatic wake disabled.
+
+The first real source cycle is independently accepted as recovered and operator-assisted:
+Sol MEM-4 delegated to Luna MEM-5; Luna committed `692bf66` and submitted once under operation
+`759a6540...`, preparing `8440fe6`. All actual Sol/Luna calls used the existing Codex subscription
+(gpt-6.1-sol and gpt-6-luna, high), with no paid API. Native reviewer run
+`da7b0374-55fa-4263-9c39-85f226fd1a0f` inspected and approved exact `8440fe6`; GitGate published it
+in the safe source projection with passing receipt `2f681826...`. Independent sandbox replay:
+16 passed, zero failed/skipped. MEM-4/5/6 are done. Full runtime acceptance receipt:
+`state/sol-review/first-real-source-vertical-runtime-review-20261023.json` in the lab.
+
+The cycle exposed incorrect producer completion, stale role instructions and a native optional-chat
+discovery defect. The narrow `0130291` fix passed independent tests without relaxing chat authority.
+After a paused server restart, explicit new Luna reconciliation `80c12e83-03e7-44cc-bd65-b83827f72114`
+succeeded and actually finalized the same workspace. Original failure `7c749376...`, its established
+native session, unknown accounting and all correction/recovery history remain preserved. No source
+edit/commit/submission was repeated. This is not uninterrupted autonomous backlog acceptance.
+
+Workers received only 227 qualified source/test/config files, without original Git history or
+protected records. Exact two-file canonical candidate `54794735c89f625f2f83ca7c3683a65e67f40f54`
+passed separate Sol review, then owner-only expected-tip CAS/materialization. It is now local and
+remote `brain/development` in `/Users/root1/Developer/memecoin-research`; selected files/index are
+clean. `main` remains `2f8da5f`. This fixes exact transaction version/slot admission in Senses.
+The transfer helper is a private owner-operated artifact, not an unattended canonical publisher.
+
+Synthetic delegation/GitGate and one native writer pause/restart/new-session recovery cohort also
+passed. Still open: repeatable Paperclip-owned backlog admission, unattended canonical publication,
+publication-interruption fencing and broader lifecycle acceptance. Remove no legacy controller
+until equivalence is proved. Machine-readable progress and all private evidence:
+`/Users/root1/Developer/brain-paperclip-lab/state/readiness-20261023/progress.json`.
 
 ## Active founder directive: Paperclip-first experiment
 
@@ -66,7 +61,8 @@ The old thread's `handoff-paused-20261022-01.md` and `-02.md` remain preserved a
 their repeated claim of a new founder pause is stale and does not supersede this directive.
 Bounded Luna subcontractors implement under Astra's current program; no replacement Goal exists.
 
-Paperclip pin `043f2514e67c50320433a0013fb228a75a51325c` is installed in the separate lab with
+Historical first qualification (superseded by the current accepted state above):
+Paperclip pin `043f2514e67c50320433a0013fb228a75a51325c` was installed in the separate lab with
 private state and loopback API `127.0.0.1:3310`. Synthetic native filesystem/network canaries passed
 their first bounded cohort. Separate native child-agent and Goal creation bypassed Paperclip's
 organization ownership despite thread-level configuration. Sol source-reviewed the narrow derivative

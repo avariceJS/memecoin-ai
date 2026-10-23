@@ -10,16 +10,16 @@ Russian. Brain architecture and scientific validity remain owned by `brain-devel
 The founder renewed this authority on 2026-10-23 after the quota pause, explicitly targeting an
 operational company and one useful accepted Brain development task after worker-path qualification.
 The preserved quota-stop handoff lives in the lab state directory. Reviewed Paperclip derivative
-`b853ab3` includes native isolation, owner tool/self-configuration policy, local plugin relay and
+`0130291` includes native isolation, owner tool/self-configuration policy, local plugin relay and
 host-validated run-scoped SDK access for private current/direct-parent-child tasks. Canonical agent
 authorization is retained without board impersonation or broad plugin grants. Brain candidate
-`4f048d9` and emitted plugin/SDK artifacts were independently checked and deployed.
+`9747cef` and emitted plugin/SDK artifacts were independently checked and deployed.
 The bounded synthetic chain passed delegation, worker commit `b77c08e`, private submission,
 native dependency wake, independent review and local GitGate publication of generated merge `39abfd1`.
 A fixture parsing failure after successful submission required completion-only native recovery;
 the prepared operation was not resubmitted. Failed histories remain preserved. Paperclip owns
 completion/finalization and dependency wake; plugins must not clear active task bindings by assigning
-terminal status. The accepted `d856c08` source checkpoint is published on
+terminal status. The accepted `9747cef` source checkpoint is published on
 `org/paperclip-integration`; publication is custody, not operational acceptance.
 One real read-only Sol task succeeded through native Codex `gpt-6.1-sol` at configured high effort,
 with `subscription_included` attribution and unchanged empty workspace. Independent review accepted
@@ -28,13 +28,25 @@ The first real engineering cycle delegated MEM-5 and prepared candidate `8440fe6
 `692bf66` once. Workers receive an independently qualified 227-file source projection from
 `brain/development` `dabf14a`, not the original repository's protected records or reachable history.
 The `d856c08` controller binds the owner-selected development ref, expected base, roots and verifier
-policy to the operation journal and checks them again at publication. Canonical Brain integration
-still requires separately accepted owner-side transfer; the original checkout is unchanged.
-This first real cycle remains held before independent MEM-6 acceptance: incorrect producer
-completion and stale reviewer instructions were corrected, but completion-only continuation failed
-before a native result because optional GitHub tool discovery traversed cross-agent chat ancestry.
-Board producer completion does not certify workspace finalization or code acceptance. Preserve the
-dependency barrier, prepared candidate and unknown accounting; do not replay the source operation.
+policy to the operation journal and checks them again at publication; those bytes remain unchanged
+in the launcher-only `9747cef` increment. The real independent MEM-6 reviewer inspected and accepted
+exact `8440fe6`, and the verifier/GitGate published it under the original prepared operation.
+Independent sandboxed verification passed 16 tests with no failures/skips. Separate exact-candidate
+review accepted canonical `5479473`: the same two resulting blobs and full scoped diff, original
+`dabf14a` parent, all other tree entries unchanged. The reviewed private owner helper performed
+expected-tip CAS and guarded materialization of only those two files into `brain/development`.
+Local and GitHub readback confirm `5479473`; this is owner-assisted canonical publication, not an
+unattended publisher. Original Git history and protected records never entered worker repositories.
+
+This first real cycle is accepted as recovered/operator-assisted. Incorrect producer completion
+and stale reviewer instructions were corrected; completion-only continuation then failed before
+an accepted result because optional GitHub tool discovery traversed cross-agent chat ancestry.
+The narrow `0130291` fix checks persisted task identity and skips only absent GitHub conversations,
+retaining actual chat provenance rejection. A paused restart and explicit new Luna request produced
+a real successful workspace finalization, preserving the failed session/unknown accounting and
+original source operation. Board status correction alone did not qualify finalization or review.
+Repeatable backlog admission, unattended canonical publication and publication-interruption
+qualification remain open. Keep Paperclip's lifecycle/dependency barriers and no-blind-retry rule.
 Company hibernation should consume Paperclip's native per-issue recovery holds and process state,
 plus the broker publication fence. Historical failed rows alone are not active writers; unresolved
 provider-stop or publication outcomes remain holds. Do not build a second recovery ledger.
