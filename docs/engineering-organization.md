@@ -47,13 +47,20 @@ readback confirmed disabled→pending with no tools→explicit approval→ready.
 owned-server restart and explicit resume preserved completed and pending tasks without new paused
 runs. This excludes mid-publication crash recovery and endurance.
 
-Native Sol created the first finite source/QA pair MEM39/40. The local versus native local_fs
-provider mismatch was independently corrected at22cccc7 and integrated/pushed0b12492; binding and
-source activation then succeeded. Actual source execution completed edits without delivery, while QA
-held before inspection because the binding key was recorded only on the lead. The source contract
-also ambiguously permitted preparation-only completion. Durable child handoff before activation and
-explicit delivery-before-done instructions are being corrected. Preserve the current files/binding;
-operator-assisted recovery is useful delivery but does not qualify an unassisted queue cycle.
+Native Sol created MEM39/40; local_fs mismatch and durable handoff were subsequently fixed and
+reviewed (22cccc7, then5a602b3; integration4500875). Child notes precede activation, exact marker
+replays are idempotent, and own-history delivery/review receipts are explicit completion criteria.
+The assisted candidate was rejected for invalid tests; no publication occurred. Fresh MEM42 created
+MEM43/44 itself after a deployment-only correction from0444 to owner-only0400 on unchanged config.
+Luna delivered; native independent QA again rejected wrong causal timestamp expectations. Both rejected
+candidates/receipts remain preserved, no fixed-verifier or publication claim, and stage2 was not started.
+
+Repeated real failures exposed two practical lifecycle gaps: workers cannot access pytest in the
+private verifier environment, and a frozen stage has no native correction after QA rejection. Platform
+is implementing bounded fixed-verifier feedback before final delivery plus at most two immutable
+attempts per stage. A retry requires a new Sol-created pair and the known rejected/finalized previous
+attempt, retaining original accepted bases. It must not reinterpret unknown outcomes or bypass stage2's
+successful projected+canonical predecessor. This is under development, not deployed acceptance.
 
 Experience and Cortex analyses were independently accepted; Evaluation and Policy were qualified
 with explicit source-evidence limits. MEM41 finalized successfully and all20 input files remained

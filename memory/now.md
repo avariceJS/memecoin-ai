@@ -10,7 +10,7 @@ Current receipts: lab `state/resumption-20261023/`; shutdown receipts immutable.
 `engineering/OWNER-DESK.md`. Preserve user-owned untracked prompt/ and all historical holds/WIP.
 
 Server loopback3310 healthy on accepted Paperclip407762f, owned PID47383 (fresh launcher readback).
-Integration5f20acb is pushed/remote-confirmed. Proper plugin lifecycle fix was independently accepted:
+Integration4500875 is pushed; prior5f20acb was remote-confirmed. Proper plugin lifecycle fix was independently accepted:
 disabled → upgrade_pending (no tools) → explicit reviewed capability approval → ready. Receipts in
 capability-release/. MEM alone resumed; old companies paused. Quiescent restart preserved completed
 and pending work; this does not qualify mid-publication crash or endurance.
@@ -21,17 +21,34 @@ both published. This is baseline convergence, not autonomous finite publication.
 passed independent two-stage SDK/TS/Python/Sandbox/projected+canonical CAS acceptance; deployed with
 reviewed roles/config. Initial bases remain4dcb/ad02. Source workers receive noGit227file projection.
 
-Native Sol MEM32 created MEM39 source and MEM40 QA for strict causal cutoff. Actual metadata failure
-was traced to local versus native local_fs provider enum; exact fix22cccc7 independently accepted,
-integrated/pushed0b12492 and plugin supported-upgraded to ready. Receipt local-fs-release/ preserves
-intent/artifacts/ACK and explicit existing-pair continuation. Native Sol successfully bound stage1
-and activated Luna MEM39 run7e4e18bc. Source edited and finalized without delivery; QA run2bd45399
-held beforeinspection because stage_binding_key was not in its context. Journal remainsactive with
-nullcandidate/noQAintent. Binding note was emitted only tolead afteractivation. Luna repairs durable
-source/QA notes beforeCAS plus currenthistory roleinstructions; no manualkeycopy/retry/publication.
-Receipt local-fs-release/mem32-cycle1-observation.json SHA d6429671... preserves the actual failure.
-Second intended cycle is downstream transaction result-shape validation. Two complete autonomous
-engineering cycles remain the main MVP gap.
+Native Sol MEM32 created MEM39 source and MEM40 QA for strict causal cutoff. local_fs metadatafix
+22cccc7 integrated0b12492; handofffix5a602b3 accepted308bcc61... integrated/pushed4500875. Plugin
+upgradedready, scoped own-history/receipt instructions installed (install summary686ca928...).
+First stage was assisted recovery: root temporarily removed lead→QA edge for native binding-note
+backfill then lead restored it; originalsourcefiles unchanged. Explicit source delivery-only resume
+produced op0d27490b92877f9ea8e13db54fbce2eb30c9c56baf3adeddac89f596333fb2ed,
+projectedcandidate198b8d97c6c74aa92c5c9c961bd96789174bec9c. Native independent QA REJECTED: boundarytest
+passes available_ns twice tohelper, plainstringinvalidcase missing. MEM39/40done means delivered and
+reviewcompleted, NOT accepted. Journal review_rejected, verifiernull, canonicalcandidate0e8d9ff1... only
+prepared; no publication. Source/QA receipts and rejectedbytes preserved. Lead completed reconciliation
+run02c0a02b and is blockedv20. Oldstage2 forbidden/unconsumed. No unknownreplay orcandidateoverwrite.
+
+Fresh TWO autonomous cycles are now running through MEM42 (70646e23-336d-4752-9c14-6613149530bf),
+existingSensesgoald4c9/Solfd406. Newworkspace projectIDf0c7e811-1728-4d62-aa66-edae8ac98485, root
+state/resumption-20261023/finite-next-clean/workspace/source, clean227file4dcb/ad02. Newconfigdigest
+2af3cca8... separatejournals; acceptedintegratedreview93129565..., correctedprep28acdc54..., roleproposal
+482fdb57... . V3roles installed with unchangedmodels/high/permissions (ACK47de1f7f...). Rootinstalled
+configLAST and status-onlyCAS activatedMEM42 backlog0→todo1; activationreceipts underfinite-next-clean/.
+No operatorcreatedchildren. Objectives cutoffvalidation fromcleanbase incorporatingpriorQA findings,
+then transactionresultshape; secondstage requiresfirstdualpublication/nativefinalization. Identityingest
+bug deferredbacklog. OldMEM32/39/40/rejectedbytes/journals retained, not replayed or countedaccepted.
+Actual MEM42 created MEM43/44; first bind held dueownerconfig0444, root tightened0400 withoutbytechange
+and resumed SAMEpair (noedge/sourcechange). Luna then deliveredcandidate d1832647...; independentQA
+REJECTED wrongfirst-seen/max timestamp expectations in boundarytests. MEM43/44done reflectsdelivery/
+negativeQA, no verifier/publication. MEM42 nowblockedv8, nosecondcycle; bothrejectionsimmutable.
+Sol now assesses practical worker testfeedback beforedelivery and bounded native rejectioncorrection,
+because requiring a newCEOconfig on eachfailedtest is not a working autonomous company. No newimplementation
+or runtime change authorized until narrowarchitecturedecision/sourceacceptance. Runtimehealthy407/PID47383.
 
 Platform MEM31/33/38 completed native Sol assessments; normal dependency declaration-enabled noEmit
 check passed, not emitted-artifact build. Experience MEM34, Cortex MEM35, Evaluation MEM36 and Policy
