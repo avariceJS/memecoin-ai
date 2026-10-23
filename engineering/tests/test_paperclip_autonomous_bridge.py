@@ -1048,6 +1048,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             },
         )
         self.assertEqual(lookup["stage_binding_key"], first["stage_binding_key"])
+        self.assertIsNone(lookup["predecessor_operation_key"])
+        self.assertIsNone(lookup["predecessor_source_issue_id"])
+        self.assertEqual(lookup["source_instruction_sha256"], "1" * 64)
+        self.assertEqual(lookup["review_instruction_sha256"], "2" * 64)
         self.assertEqual(
             dispatch(config, {"action": "bind_source_stage", "payload": first_payload}), first
         )
@@ -1066,6 +1070,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                         "run_id": "worker-run",
                         "stage_key": "MEM8",
                         "stage_binding_key": first["stage_binding_key"],
+                        "source_instruction_sha256": "1" * 64,
                         "files": [],
                     },
                 },
@@ -1136,10 +1141,43 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         prior = _load_journal(config, operation_key)
         prior["canonical"] = {"status": "published", "candidate": "e" * 40}
         _write_journal(config, operation_key, prior, create=False)
-        second = dispatch(config, {"action": "bind_source_stage", "payload": second_payload})
+        expected_cache = config.bridge_journal_dir / "trusted-stage-sources" / (f"MEM9-{'d' * 40}")
+        with (
+            patch(
+                "engineering.paperclip_autonomous_bridge._create_trusted_stage_source_cache",
+                return_value=(expected_cache, "f" * 40),
+            ),
+            patch(
+                "engineering.paperclip_autonomous_bridge._trusted_stage_source_cache_identity",
+                return_value="f" * 40,
+            ),
+        ):
+            second = dispatch(config, {"action": "bind_source_stage", "payload": second_payload})
         self.assertEqual(second["base_sha"], "d" * 40)
         self.assertEqual(second["canonical_base_sha"], "e" * 40)
         self.assertEqual(second["state"], "bound")
+        with patch(
+            "engineering.paperclip_autonomous_bridge._trusted_stage_source_cache_identity",
+            return_value="f" * 40,
+        ):
+            second_lookup = dispatch(
+                config,
+                {
+                    "action": "lookup_source_stage_binding",
+                    "payload": {
+                        "company_id": config.company_id,
+                        "project_id": config.project_id,
+                        "lead_agent_id": "lead-1",
+                        "lead_issue_id": "lead-issue",
+                        "stage_key": "MEM9",
+                        "source_issue_id": "source-9",
+                        "review_issue_id": "review-9",
+                    },
+                },
+            )
+        self.assertEqual(second_lookup["predecessor_operation_key"], operation_key)
+        self.assertEqual(second_lookup["predecessor_source_issue_id"], "source-8")
+        self.assertEqual(second_lookup["predecessor_review_issue_id"], "review-8")
 
     def test_finite_stage_holds_when_predecessor_publication_or_finalization_is_unknown(self):
         from engineering.paperclip_source_delivery import SOURCE_PATHS
@@ -1300,8 +1338,41 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "run_id": "source-run",
             "stage_key": "MEM8",
             "stage_binding_key": bound["stage_binding_key"],
+            "source_instruction_sha256": "1" * 64,
             "files": files,
         }
+        with self.assertRaisesRegex(BridgeError, "source_stage_instruction_binding_mismatch"):
+            dispatch(
+                config,
+                {
+                    "action": "deliver_source_stage_content",
+                    "payload": {**worker_envelope, "source_instruction_sha256": "9" * 64},
+                },
+            )
+        review_envelope = {
+            "company_id": config.company_id,
+            "project_id": config.project_id,
+            "reviewer_agent_id": config.reviewer_agent_id,
+            "reviewer_run_id": "reviewer-run",
+            "reviewer_issue_id": "review-8",
+            "stage_key": "MEM8",
+            "stage_binding_key": bound["stage_binding_key"],
+            "review_instruction_sha256": "9" * 64,
+        }
+        with self.assertRaisesRegex(BridgeError, "source_stage_reviewer_binding_mismatch"):
+            dispatch(config, {"action": "inspect_bound_source_stage", "payload": review_envelope})
+        with self.assertRaisesRegex(BridgeError, "source_stage_reviewer_binding_mismatch"):
+            dispatch(
+                config,
+                {
+                    "action": "approve_bound_source_stage",
+                    "payload": {
+                        **review_envelope,
+                        "approved": True,
+                        "evidence": {"inspection_digest": "3" * 64},
+                    },
+                },
+            )
         result = {
             "operation_key": "f" * 64,
             "candidate_sha": "c" * 40,
@@ -1324,6 +1395,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 "run_id",
                 "stage_key",
                 "stage_binding_key",
+                "source_instruction_sha256",
                 "files",
             },
         )

@@ -23,6 +23,7 @@ const config = {
 
 const workerRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "worker-1", runId: "worker-run" };
 const reviewerRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "reviewer-1", runId: "reviewer-run" };
+const digest = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
 const contentFiles = [
   ["src/memecoin_brain_sources/events.py", "events = []\n"],
   ["tests/brain/test_raw_sources.py", "def test_raw_sources():\n    assert True\n"],
@@ -345,6 +346,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const issueReads: string[] = [];
     const commentTargets: string[] = [];
     const scopedOrchestration = vi.fn();
+    let sourceDescription = "source instructions";
     const ctx = {
       config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
       executionWorkspaces: { get: vi.fn(async (id: string) => ({
@@ -361,7 +363,8 @@ describe("Paperclip autonomous bridge tools", () => {
             assigneeAgentId: "lead-1", status: "in_progress", executionRunId: null } as never;
           return { id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
             projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
-            assigneeAgentId: "worker-1", status: "in_progress", executionRunId: "source-run" } as never;
+            assigneeAgentId: "worker-1", status: "in_progress", executionRunId: "source-run",
+            description: sourceDescription } as never;
         }),
         getOrchestration: scopedOrchestration.mockImplementation(async ({ issueId }: { issueId: string }) => ({
           runs: [{ id: "source-run", issueId, agentId: "worker-1", status: "running" }], blockedByIssueIds: [],
@@ -380,19 +383,26 @@ describe("Paperclip autonomous bridge tools", () => {
       tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
     } as unknown as PluginContext;
     const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
-    const invoke = vi.fn(async () => ({ operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), base_sha: "b".repeat(40), submitted_sha: "e".repeat(40), policy_digest: "f".repeat(64) }));
+    const invoke = vi.fn(async (action: string) => action === "lookup_source_stage_binding"
+      ? { found: true, stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), review_instruction_sha256: digest("review instructions") }
+      : { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), base_sha: "b".repeat(40), submitted_sha: "e".repeat(40), policy_digest: "f".repeat(64) });
     registerAutonomousTools(ctx, invoke as never);
     await handlers.get("deliver_source_stage_content")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), source_issue_id: "source-8", files: contentFiles,
     }, sourceRun);
-    expect(issueReads).toEqual(["source-8", "source-8", "lead-issue", "source-8"]);
+    sourceDescription = "changed source instructions";
+    await expect(handlers.get("deliver_source_stage_content")!({
+      stage_key: "MEM8", stage_binding_key: "a".repeat(64), source_issue_id: "source-8", files: contentFiles,
+    }, sourceRun)).rejects.toThrow("source_stage_instruction_binding_mismatch");
+    expect(issueReads).toEqual(["source-8", "source-8", "lead-issue", "source-8", "source-8", "source-8"]);
     expect(commentTargets).toEqual(["list:lead-issue", "create:lead-issue"]);
     expect(scopedOrchestration).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith("deliver_source_stage_content", {
       company_id: "company-1", project_id: "project-1", worker_agent_id: "worker-1",
       run_id: "source-run", source_issue_id: "source-8", stage_key: "MEM8",
-      stage_binding_key: "a".repeat(64), files: contentFiles,
+      stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), files: contentFiles,
     }, configPath, "/usr/bin/python3");
+    expect(invoke.mock.calls.filter(([action]) => action === "deliver_source_stage_content")).toHaveLength(1);
   });
 
   it("stage review derives its candidate from the binding without reading the producer sibling", async () => {
@@ -411,6 +421,11 @@ describe("Paperclip autonomous bridge tools", () => {
     await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
     const issueReads: string[] = [];
     const scopedOrchestration = vi.fn();
+    let reviewDescription = "review instructions";
+    let reviewerStatus = "in_progress";
+    const getDependencyReadiness = vi.fn(async () => ({
+      isDependencyReady: true, unresolvedBlockerIssueIds: [], pendingFinalizeBlockerIssueIds: [],
+    }));
     const reviewerTaskRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "reviewer-1", runId: "reviewer-run" };
     const ctx = {
       config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
@@ -428,28 +443,184 @@ describe("Paperclip autonomous bridge tools", () => {
             assigneeAgentId: "lead-1", status: "in_progress", executionRunId: null } as never;
           return { id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
             projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
-            assigneeAgentId: "reviewer-1", status: "in_progress", executionRunId: "reviewer-run" } as never;
+            assigneeAgentId: "reviewer-1", status: reviewerStatus, executionRunId: "reviewer-run",
+            description: reviewDescription } as never;
         }),
         getOrchestration: scopedOrchestration.mockImplementation(async ({ issueId }: { issueId: string }) => ({
           runs: [{ id: "reviewer-run", issueId, agentId: "reviewer-1", status: "running" }], blockedByIssueIds: ["source-8"],
         })) as never,
-        getDependencyReadiness: vi.fn(async () => ({
-          isDependencyReady: true, unresolvedBlockerIssueIds: [], pendingFinalizeBlockerIssueIds: [],
-        })) as never,
+        getDependencyReadiness: getDependencyReadiness as never,
       }) },
       tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
     } as unknown as PluginContext;
     const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
-    const invoke = vi.fn(async () => ({ operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), inspection_digest: "e".repeat(64), diff: "exact diff" }));
+    const invoke = vi.fn(async (action: string) => action === "lookup_source_stage_binding"
+      ? { found: true, stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), review_instruction_sha256: digest("review instructions") }
+      : { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), inspection_digest: "e".repeat(64), diff: "exact diff" });
     registerAutonomousTools(ctx, invoke as never);
     const result = await handlers.get("inspect_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
     }, reviewerTaskRun) as { content: string };
-    expect(issueReads).toEqual(["review-8", "review-8", "lead-issue", "review-8"]);
+    reviewerStatus = "blocked";
+    await expect(handlers.get("inspect_source_stage_candidate")!({
+      stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
+    }, reviewerTaskRun)).rejects.toThrow("host_issue_run_binding_mismatch");
+    reviewerStatus = "in_review";
+    await expect(handlers.get("approve_source_stage_candidate")!({
+      stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
+      approved: true, evidence: { inspection_digest: "f".repeat(64) },
+    }, reviewerTaskRun)).rejects.toThrow("host_issue_run_binding_mismatch");
+    reviewerStatus = "in_progress";
+    reviewDescription = "changed review instructions";
+    await expect(handlers.get("inspect_source_stage_candidate")!({
+      stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
+    }, reviewerTaskRun)).rejects.toThrow("source_stage_instruction_binding_mismatch");
+    await expect(handlers.get("approve_source_stage_candidate")!({
+      stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
+      approved: true, evidence: { inspection_digest: "f".repeat(64) },
+    }, reviewerTaskRun)).rejects.toThrow("source_stage_instruction_binding_mismatch");
+    expect(issueReads).not.toContain("source-8");
     expect(scopedOrchestration).not.toHaveBeenCalled();
+    expect(getDependencyReadiness).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledWith("lookup_source_stage_binding", {
+      company_id: "company-1", project_id: "project-1", lead_agent_id: "lead-1", lead_issue_id: "lead-issue",
+      stage_key: "MEM8", review_issue_id: "review-8",
+    }, configPath, "/usr/bin/python3");
     expect(invoke).toHaveBeenCalledWith("inspect_bound_source_stage", expect.objectContaining({
       reviewer_issue_id: "review-8", stage_binding_key: "a".repeat(64), stage_key: "MEM8",
+      review_instruction_sha256: digest("review instructions"),
     }), configPath, "/usr/bin/python3");
     expect(result.content).toContain("exact diff");
+    expect(invoke.mock.calls.filter(([action]) => action === "inspect_bound_source_stage")).toHaveLength(1);
+    expect(invoke.mock.calls.filter(([action]) => action === "approve_bound_source_stage")).toHaveLength(0);
+  });
+
+  it("rejects an active stage replay when the caller changes any predecessor identity", async () => {
+    await installConfig();
+    const finiteConfig = {
+      schema: "paperclip-autonomous-bridge-config-v1", company_id: "company-1", project_id: "project-1",
+      worker_agent_id: "worker-1", reviewer_agent_id: "reviewer-1", finite_lead_agent_id: "lead-1",
+      finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project",
+      source_workspace_root: "/tmp/brain-source-workspace", python_executable: "/usr/bin/python3",
+      source_stage_catalog: [
+        { stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40), predecessor_stage_key: null,
+          path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
+        { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
+          path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem9" },
+      ],
+    };
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
+    const leadRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "lead-1", runId: "lead-run" };
+    const issueReads: string[] = [];
+    const commentCalls: string[] = [];
+    const ctx = {
+      config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
+      issues: { forCurrentToolRun: () => ({
+        get: vi.fn(async (id: string) => {
+          issueReads.push(id);
+          if (id !== "lead-issue") throw new Error("unexpected_child_read");
+          return { id, companyId: "company-1", projectId: "project-1", assigneeAgentId: "lead-1",
+            status: "in_progress", executionRunId: "lead-run" } as never;
+        }),
+        getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({
+          issueId, runs: [{ id: "lead-run", issueId, agentId: "lead-1", status: "running" }], blockedByIssueIds: [],
+        })) as never,
+        listComments: vi.fn(async (id: string) => { commentCalls.push(`list:${id}`); return [] as never; }),
+        createComment: vi.fn(async (id: string) => { commentCalls.push(`create:${id}`); return {} as never; }),
+      }) },
+      tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
+    } as unknown as PluginContext;
+    const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
+    const invoke = vi.fn(async () => ({
+      found: true, stage_binding_key: "a".repeat(64), base_sha: "c".repeat(40), state: "active",
+      predecessor_operation_key: "d".repeat(64), predecessor_source_issue_id: "source-8",
+      predecessor_review_issue_id: "review-8", source_instruction_sha256: "e".repeat(64),
+      review_instruction_sha256: "f".repeat(64), activation_pending: false,
+    }));
+    registerAutonomousTools(ctx, invoke as never);
+    await expect(handlers.get("bind_source_stage")!({
+      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
+      predecessor: { operation_key: "d".repeat(64), source_issue_id: "changed-source", review_issue_id: "review-8" },
+    }, leadRun)).rejects.toThrow("source_stage_bind_replay_mismatch");
+    expect(issueReads).toEqual(["lead-issue"]);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledWith("lookup_source_stage_binding", {
+      company_id: "company-1", project_id: "project-1", lead_agent_id: "lead-1", lead_issue_id: "lead-issue",
+      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
+    }, configPath, "/usr/bin/python3");
+    expect(commentCalls).toEqual([]);
+  });
+
+  it("holds stage two when the native lead still has a pending QA finalization blocker", async () => {
+    await installConfig();
+    const finiteConfig = {
+      schema: "paperclip-autonomous-bridge-config-v1", company_id: "company-1", project_id: "project-1",
+      worker_agent_id: "worker-1", reviewer_agent_id: "reviewer-1", finite_lead_agent_id: "lead-1",
+      finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project",
+      source_workspace_root: "/tmp/brain-source-workspace", python_executable: "/usr/bin/python3",
+      source_stage_catalog: [
+        { stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40), predecessor_stage_key: null,
+          path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
+        { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
+          path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem9" },
+      ],
+    };
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
+    const leadRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "lead-1", runId: "lead-run" };
+    const rows: Record<string, Record<string, unknown>> = {
+      "lead-issue": { id: "lead-issue", companyId: "company-1", projectId: "project-1", assigneeAgentId: "lead-1",
+        status: "in_progress", statusVersion: 10, executionRunId: "lead-run", projectWorkspaceId: "workspace-project",
+        executionWorkspaceId: "workspace-execution", description: "lead" },
+      "source-8": { id: "source-8", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "worker-1", status: "done", statusVersion: 4, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "prior source" },
+      "review-8": { id: "review-8", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "reviewer-1", status: "done", statusVersion: 5, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "prior QA" },
+      "source-9": { id: "source-9", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "worker-1", status: "backlog", statusVersion: 1, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "next source" },
+      "review-9": { id: "review-9", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "reviewer-1", status: "blocked", statusVersion: 2, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "next QA" },
+    };
+    const updateStatusCompareAndSet = vi.fn();
+    const getDependencyReadiness = vi.fn(async (id: string) => id === "review-9"
+      ? { isDependencyReady: false, unresolvedBlockerIssueIds: ["source-9"], pendingFinalizeBlockerIssueIds: [], blockerIssueIds: ["source-9"] }
+      : id === "review-8"
+        ? { isDependencyReady: true, unresolvedBlockerIssueIds: [], pendingFinalizeBlockerIssueIds: [], blockerIssueIds: ["source-8"] }
+        : { isDependencyReady: true, unresolvedBlockerIssueIds: [], pendingFinalizeBlockerIssueIds: ["review-8"], blockerIssueIds: ["review-8"] });
+    const ctx = {
+      config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
+      executionWorkspaces: { get: vi.fn(async (id: string) => ({
+        id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
+        path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
+        repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+      })) },
+      issues: { forCurrentToolRun: () => ({
+        get: vi.fn(async (id: string) => rows[id] as never),
+        getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({
+          blockedByIssueIds: issueId === "lead-issue" ? ["review-8"] : issueId === "review-9" ? ["source-9"] : ["source-8"],
+          runs: issueId === "lead-issue" ? [{ id: "lead-run", issueId, agentId: "lead-1", status: "running" }] : [],
+        })) as never,
+        getDependencyReadiness: getDependencyReadiness as never,
+        updateStatusCompareAndSet,
+      }) },
+      tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
+    } as unknown as PluginContext;
+    const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
+    const invoke = vi.fn(async (action: string) => action === "lookup_source_stage_binding"
+      ? { found: false }
+      : { stage_binding_key: "a".repeat(64), base_sha: "b".repeat(40), state: "bound" });
+    registerAutonomousTools(ctx, invoke as never);
+    await expect(handlers.get("bind_source_stage")!({
+      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
+      predecessor: { operation_key: "c".repeat(64), source_issue_id: "source-8", review_issue_id: "review-8" },
+    }, leadRun)).rejects.toThrow("source_stage_predecessor_not_finalized");
+    expect(getDependencyReadiness).toHaveBeenCalledWith("lead-issue", "company-1");
+    expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
+    expect(updateStatusCompareAndSet).not.toHaveBeenCalled();
   });
 });

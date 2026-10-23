@@ -303,6 +303,74 @@ function requireSourceStage(owner: OwnerConfig, stageKey: string) {
   return stage;
 }
 
+type StagePredecessor = { operation_key: string; source_issue_id: string; review_issue_id: string };
+
+function readStagePredecessor(
+  stage: NonNullable<OwnerConfig["source_stage_catalog"]>[number],
+  raw: unknown,
+): StagePredecessor | null {
+  if (stage.predecessor_stage_key === null) {
+    if (raw !== undefined) fail("source_stage_unexpected_predecessor");
+    return null;
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("source_stage_predecessor_required");
+  const value = raw as Record<string, unknown>;
+  if (Object.keys(value).length !== 3 || typeof value.operation_key !== "string" || !KEY_RE.test(value.operation_key)
+      || typeof value.source_issue_id !== "string" || !ID_RE.test(value.source_issue_id)
+      || typeof value.review_issue_id !== "string" || !ID_RE.test(value.review_issue_id)) {
+    fail("source_stage_predecessor_invalid");
+  }
+  return {
+    operation_key: value.operation_key,
+    source_issue_id: value.source_issue_id,
+    review_issue_id: value.review_issue_id,
+  };
+}
+
+async function readBoundStage(
+  invoke: BridgeInvoker,
+  owner: OwnerConfig,
+  configPath: string,
+  stageKey: string,
+  issueSide: "source_issue_id" | "review_issue_id",
+  issueId: string,
+  stageBindingKey: string,
+): Promise<BridgeResult> {
+  if (!owner.finite_lead_agent_id || !owner.finite_lead_issue_id) fail("source_stage_not_owner_admitted");
+  const binding = await invoke("lookup_source_stage_binding", {
+    company_id: owner.company_id,
+    project_id: owner.project_id,
+    lead_agent_id: owner.finite_lead_agent_id,
+    lead_issue_id: owner.finite_lead_issue_id,
+    stage_key: stageKey,
+    [issueSide]: issueId,
+  }, configPath, owner.python_executable);
+  if (binding.found !== true || binding.stage_binding_key !== stageBindingKey
+      || typeof binding.source_instruction_sha256 !== "string" || !KEY_RE.test(binding.source_instruction_sha256)
+      || typeof binding.review_instruction_sha256 !== "string" || !KEY_RE.test(binding.review_instruction_sha256)) {
+    fail("source_stage_binding_unavailable");
+  }
+  return binding;
+}
+
+async function assertBoundInstruction(
+  invoke: BridgeInvoker,
+  owner: OwnerConfig,
+  stageKey: string,
+  issueSide: "source_issue_id" | "review_issue_id",
+  issue: { id: string; description?: string | null },
+  stageBindingKey: string,
+): Promise<string> {
+  if (typeof issue.description !== "string" || !issue.description.trim()) fail("source_stage_instruction_missing");
+  const binding = await readBoundStage(
+    invoke, owner, owner.configPath, stageKey, issueSide, issue.id, stageBindingKey,
+  );
+  const digest = instructionDigest(issue.description);
+  const field = issueSide === "source_issue_id" ? "source_instruction_sha256" : "review_instruction_sha256";
+  if (binding[field] !== digest) fail("source_stage_instruction_binding_mismatch");
+  return digest;
+}
+
 async function readNativeIssue(ctx: Pick<PluginContext, "issues">, issueId: string, companyId: string) {
   const issue = await ctx.issues.forCurrentToolRun().get(issueId, companyId);
   if (!issue || issue.id !== issueId || issue.companyId !== companyId) fail("source_stage_issue_unavailable");
@@ -394,18 +462,13 @@ async function validateStageReviewRun(
   if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
       || runCtx.agentId !== owner.reviewer_agent_id) fail("reviewer_actor_binding_mismatch");
   await assertStageCurrentRun(ctx, runCtx, reviewIssueId);
-  const scoped = ctx.issues.forCurrentToolRun();
-  const [review, readiness] = await Promise.all([
-    readNativeIssue(ctx, reviewIssueId, owner.company_id),
-    scoped.getDependencyReadiness(reviewIssueId, owner.company_id),
-  ]);
+  const review = await readNativeIssue(ctx, reviewIssueId, owner.company_id);
   if (review.projectId !== owner.project_id || review.parentId !== owner.finite_lead_issue_id
-      || review.assigneeAgentId !== owner.reviewer_agent_id
-      || readiness.isDependencyReady !== true || readiness.unresolvedBlockerIssueIds.length !== 0
-      || readiness.pendingFinalizeBlockerIssueIds.length !== 0) {
+      || review.assigneeAgentId !== owner.reviewer_agent_id || review.status !== "in_progress"
+      || review.executionRunId !== runCtx.runId) {
     fail("source_stage_review_binding_mismatch");
   }
-  return stage;
+  return { stage, review };
 }
 
 export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoker): void {
@@ -431,6 +494,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)) fail("source_stage_parameters_invalid");
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
     const stage = requireSourceStage(owner, params.stage_key);
+    const predecessorRequest = readStagePredecessor(stage, params.predecessor);
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
         || runCtx.agentId !== owner.finite_lead_agent_id || !owner.finite_lead_issue_id) fail("source_stage_lead_binding_mismatch");
     await assertRunBoundIssue(ctx, runCtx, owner.finite_lead_issue_id);
@@ -443,6 +507,11 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     if (existing.found === true) {
       if (typeof existing.stage_binding_key !== "string" || !KEY_RE.test(existing.stage_binding_key)
           || typeof existing.base_sha !== "string" || !SHA_RE.test(existing.base_sha)) fail("bridge_result_invalid");
+      if (existing.predecessor_operation_key !== (predecessorRequest?.operation_key ?? null)
+          || existing.predecessor_source_issue_id !== (predecessorRequest?.source_issue_id ?? null)
+          || existing.predecessor_review_issue_id !== (predecessorRequest?.review_issue_id ?? null)) {
+        fail("source_stage_bind_replay_mismatch");
+      }
       if (existing.activation_pending === true) fail("source_stage_activation_reconciliation_required");
       if (existing.state === "active") {
         await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, `${existing.stage_binding_key}:bound`, [
@@ -467,12 +536,8 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       review_version: null as number | null, dependency_ready: null as boolean | null,
     };
     if (stage.predecessor_stage_key !== null) {
-      const rawPrior = params.predecessor;
-      if (!rawPrior || typeof rawPrior !== "object" || Array.isArray(rawPrior)) fail("source_stage_predecessor_required");
-      const prior = rawPrior as Record<string, unknown>;
-      if (Object.keys(prior).length !== 3 || typeof prior.operation_key !== "string" || !KEY_RE.test(prior.operation_key)
-          || typeof prior.source_issue_id !== "string" || !ID_RE.test(prior.source_issue_id)
-          || typeof prior.review_issue_id !== "string" || !ID_RE.test(prior.review_issue_id)) fail("source_stage_predecessor_invalid");
+      const prior = predecessorRequest;
+      if (!prior) fail("source_stage_predecessor_required");
       const [priorSource, priorReview] = await Promise.all([
         readNativeIssue(ctx, prior.source_issue_id, owner.company_id),
         readNativeIssue(ctx, prior.review_issue_id, owner.company_id),
@@ -508,7 +573,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         review_version: priorReview.statusVersion as number,
         dependency_ready: predecessorFinalized,
       };
-    } else if (params.predecessor !== undefined) fail("source_stage_unexpected_predecessor");
+    }
     const result = await invoke("bind_source_stage", {
       company_id: owner.company_id, project_id: owner.project_id,
       lead_agent_id: owner.finite_lead_agent_id, lead_issue_id: owner.finite_lead_issue_id,
@@ -563,11 +628,15 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     await assertStageCurrentRun(ctx, runCtx, params.source_issue_id);
     const sourceIssue = await readNativeIssue(ctx, params.source_issue_id, owner.company_id);
     if (sourceIssue.parentId !== owner.finite_lead_issue_id) fail("source_stage_source_parent_mismatch");
+    const sourceInstructionSha256 = await assertBoundInstruction(
+      invoke, owner, stage.stage_key, "source_issue_id", sourceIssue, params.stage_binding_key,
+    );
     await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, sourceIssue.id]);
     const result = await invoke("deliver_source_stage_content", {
       company_id: owner.company_id, project_id: owner.project_id, worker_agent_id: owner.worker_agent_id,
       run_id: runCtx.runId, source_issue_id: params.source_issue_id, stage_key: stage.stage_key,
-      stage_binding_key: params.stage_binding_key, files: params.files,
+      stage_binding_key: params.stage_binding_key, source_instruction_sha256: sourceInstructionSha256,
+      files: params.files,
     }, owner.configPath, owner.python_executable);
     if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
         || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)) fail("bridge_result_invalid");
@@ -636,12 +705,16 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
         || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)) fail("source_stage_review_parameters_invalid");
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
-    const stage = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    const { stage, review } = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    const reviewInstructionSha256 = await assertBoundInstruction(
+      invoke, owner, stage.stage_key, "review_issue_id", review, params.stage_binding_key,
+    );
     await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, params.review_issue_id]);
     const result = await invoke("inspect_bound_source_stage", {
       company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
       reviewer_run_id: runCtx.runId, reviewer_issue_id: params.review_issue_id,
       stage_key: stage.stage_key, stage_binding_key: params.stage_binding_key,
+      review_instruction_sha256: reviewInstructionSha256,
     }, owner.configPath, owner.python_executable);
     if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
         || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)
@@ -683,13 +756,17 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
           || !KEY_RE.test((params.evidence as Record<string, string>).canonical_receipt_digest)
         ))
         || Buffer.byteLength(JSON.stringify(params.evidence), "utf8") > 16_000) fail("source_stage_review_parameters_invalid");
-    await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    const { review } = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    const reviewInstructionSha256 = await assertBoundInstruction(
+      invoke, owner, params.stage_key, "review_issue_id", review, params.stage_binding_key,
+    );
     await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, params.review_issue_id]);
     const result = await invoke("approve_bound_source_stage", {
       company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
       reviewer_run_id: runCtx.runId, reviewer_issue_id: params.review_issue_id,
       stage_key: params.stage_key, stage_binding_key: params.stage_binding_key,
       approved: params.approved, evidence: params.evidence,
+      review_instruction_sha256: reviewInstructionSha256,
     }, owner.configPath, owner.python_executable);
     if (typeof result.status !== "string" || typeof result.evidence_digest !== "string" || !KEY_RE.test(result.evidence_digest)) fail("bridge_result_invalid");
     await persistIssueNote(ctx, owner.finite_lead_issue_id!, owner.company_id, `${String(result.operation_key)}:stage-reviewed`, [

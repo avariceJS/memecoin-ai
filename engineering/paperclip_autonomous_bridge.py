@@ -13,6 +13,7 @@ import json
 import os
 import re
 import resource
+import shutil
 import stat
 import subprocess
 import sys
@@ -222,6 +223,122 @@ def _stage_journal_key(stage_key: str) -> str:
     return hashlib.sha256(_canonical(["paperclip-source-stage-v1", stage_key])).hexdigest()
 
 
+def _trusted_stage_source_cache_path(
+    config: BridgeConfig, stage: SourceStageSpec, base_sha: str
+) -> Path:
+    if (
+        stage.workspace_id != "published"
+        or type(base_sha) is not str
+        or not SHA_RE.fullmatch(base_sha)
+    ):
+        raise BridgeError("source_stage_cache_binding_invalid")
+    return config.bridge_journal_dir / "trusted-stage-sources" / f"{stage.stage_key}-{base_sha}"
+
+
+def _trusted_stage_source_cache_identity(
+    config: BridgeConfig,
+    stage: SourceStageSpec,
+    base_sha: str,
+    path: Path,
+    *,
+    require_expected_path: bool = True,
+) -> str:
+    expected_path = _trusted_stage_source_cache_path(config, stage, base_sha)
+    if (require_expected_path and path != expected_path) or path.is_symlink() or not path.is_dir():
+        raise BridgeError("source_stage_cache_missing_or_changed")
+    if expected_path.parent.is_symlink() or not expected_path.parent.is_dir():
+        raise BridgeError("source_stage_cache_parent_invalid")
+    try:
+        if (
+            expected_path.parent.resolve(strict=True)
+            != config.bridge_journal_dir.resolve(strict=True) / "trusted-stage-sources"
+        ):
+            raise BridgeError("source_stage_cache_parent_invalid")
+    except OSError as exc:
+        raise BridgeError("source_stage_cache_parent_invalid") from exc
+    resolved = path.resolve(strict=True)
+    publisher = config.publisher_repo.resolve(strict=True)
+    if resolved == publisher or resolved in publisher.parents or publisher in resolved.parents:
+        raise BridgeError("source_stage_cache_overlaps_publisher")
+    gate = config.gate()
+    try:
+        head = gate._rev(path, "HEAD")
+        stage_ref = gate._ref_sha(path, config.expected_dev_ref, missing_ok=True)
+        tree = gate._run(path, ["rev-parse", f"{base_sha}^{{tree}}"])
+        tree_sha = tree.stdout.decode("ascii", errors="strict").strip()
+        top = gate._run(path, ["rev-parse", "--show-toplevel"])
+        cache_root = Path(top.stdout.decode("utf-8", errors="strict").strip()).resolve(strict=True)
+        status = gate._run(path, ["status", "--porcelain", "--untracked-files=all"])
+        git_dir = gate._run(path, ["rev-parse", "--git-dir"]).stdout.decode("utf-8").strip()
+    except Exception as exc:
+        raise BridgeError("source_stage_cache_invalid") from exc
+    git_dir_path = Path(git_dir)
+    if not git_dir_path.is_absolute():
+        git_dir_path = path / git_dir_path
+    if (
+        head != base_sha
+        or stage_ref != base_sha
+        or cache_root != resolved
+        or status.stdout
+        or (git_dir_path / "objects" / "info" / "alternates").exists()
+        or not SHA_RE.fullmatch(tree_sha)
+    ):
+        raise BridgeError("source_stage_cache_invalid")
+    return tree_sha
+
+
+def _create_trusted_stage_source_cache(
+    config: BridgeConfig, stage: SourceStageSpec, base_sha: str
+) -> tuple[Path, str]:
+    final_path = _trusted_stage_source_cache_path(config, stage, base_sha)
+    final_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if final_path.parent.is_symlink():
+        raise BridgeError("source_stage_cache_parent_invalid")
+    os.chmod(final_path.parent, 0o700)
+    if final_path.is_symlink():
+        raise BridgeError("source_stage_cache_changed")
+    if final_path.exists():
+        return final_path, _trusted_stage_source_cache_identity(config, stage, base_sha, final_path)
+    gate = config.gate()
+    ref_before = gate._ref_sha(config.publisher_repo, config.expected_dev_ref, missing_ok=True)
+    if ref_before != base_sha:
+        raise BridgeError("source_stage_cache_publisher_tip_changed")
+    temporary = Path(tempfile.mkdtemp(prefix=f".{stage.stage_key}-", dir=final_path.parent))
+    temporary.rmdir()
+    branch = config.expected_dev_ref.removeprefix("refs/heads/")
+    try:
+        gate._run(
+            config.publisher_repo,
+            [
+                "clone",
+                "--no-local",
+                "--single-branch",
+                "--no-tags",
+                "--no-checkout",
+                "--branch",
+                branch,
+                "--",
+                str(config.publisher_repo),
+                str(temporary),
+            ],
+        )
+        gate._run(temporary, ["checkout", "--detach", base_sha])
+        ref_after = gate._ref_sha(config.publisher_repo, config.expected_dev_ref, missing_ok=True)
+        if ref_after != base_sha:
+            raise BridgeError("source_stage_cache_publisher_tip_changed")
+        tree = _trusted_stage_source_cache_identity(
+            config, stage, base_sha, temporary, require_expected_path=False
+        )
+        os.replace(temporary, final_path)
+        if _trusted_stage_source_cache_identity(config, stage, base_sha, final_path) != tree:
+            raise BridgeError("source_stage_cache_changed")
+        return final_path, tree
+    except BaseException:
+        if temporary.exists():
+            shutil.rmtree(temporary, ignore_errors=True)
+        raise
+
+
 def _stage_binding(config: BridgeConfig, stage_binding_key: str) -> dict[str, Any]:
     if type(stage_binding_key) is not str or not HASH_RE.fullmatch(stage_binding_key):
         raise BridgeError("source_stage_binding_key_invalid")
@@ -235,8 +352,33 @@ def _stage_binding(config: BridgeConfig, stage_binding_key: str) -> dict[str, An
                 break
             if record.get("owner_config_digest") != config.owner_config_digest:
                 raise BridgeError("source_stage_owner_config_changed")
+            if stage.workspace_id == "published":
+                cache = record.get("trusted_source_cache")
+                cache_tree = record.get("trusted_source_cache_tree")
+                if (
+                    type(cache) is not str
+                    or type(cache_tree) is not str
+                    or not SHA_RE.fullmatch(cache_tree)
+                ):
+                    raise BridgeError("source_stage_cache_binding_invalid")
+                actual_tree = _trusted_stage_source_cache_identity(
+                    config, stage, record.get("base_sha", ""), Path(cache)
+                )
+                if actual_tree != cache_tree:
+                    raise BridgeError("source_stage_cache_changed")
             return record
     raise BridgeError("source_stage_binding_invalid")
+
+
+def _stage_source_repo(
+    config: BridgeConfig, stage: SourceStageSpec, record: dict[str, Any]
+) -> Path:
+    if stage.workspace_id == "source":
+        return config.source_repo
+    cache = record.get("trusted_source_cache")
+    if type(cache) is not str:
+        raise BridgeError("source_stage_cache_binding_invalid")
+    return Path(cache)
 
 
 def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
@@ -305,6 +447,8 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         "verifier_policy_id": stage.verifier_policy_id,
         "owner_config_digest": config.owner_config_digest,
         "predecessor_operation_key": payload["predecessor_operation_key"],
+        "predecessor_source_issue_id": payload["predecessor_source_issue_id"],
+        "predecessor_review_issue_id": payload["predecessor_review_issue_id"],
         "base_sha": stage.initial_base_sha,
         "canonical_base_sha": config.canonical_expected_tip,
         "state": "bound",
@@ -360,6 +504,8 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             if type(canonical_sha) is not str or not SHA_RE.fullmatch(canonical_sha):
                 raise BridgeError("source_stage_predecessor_candidate_invalid")
             binding_value["canonical_base_sha"] = canonical_sha
+        cache_path = _trusted_stage_source_cache_path(config, stage, binding_value["base_sha"])
+        binding_value["trusted_source_cache"] = str(cache_path)
     else:
         if any(
             payload[name] is not None
@@ -386,6 +532,18 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                 not in {"state", "qa_intent", "source_intent", "operation_key", "candidate_sha"}
             ):
                 raise BridgeError("source_stage_bind_replay_mismatch")
+            if stage.workspace_id == "published":
+                cache_path = existing.get("trusted_source_cache")
+                cache_tree = existing.get("trusted_source_cache_tree")
+                if type(cache_path) is not str or type(cache_tree) is not str:
+                    raise BridgeError("source_stage_cache_binding_invalid")
+                if (
+                    _trusted_stage_source_cache_identity(
+                        config, stage, existing["base_sha"], Path(cache_path)
+                    )
+                    != cache_tree
+                ):
+                    raise BridgeError("source_stage_cache_changed")
             return {
                 "stage_binding_key": existing["stage_binding_key"],
                 "base_sha": existing["base_sha"],
@@ -393,9 +551,17 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                 "workspace_baseline_sha256": existing.get("workspace_baseline_sha256"),
                 "state": existing["state"],
             }
+    if stage.workspace_id == "published":
+        cache_path, cache_tree = _create_trusted_stage_source_cache(
+            config, stage, binding_value["base_sha"]
+        )
+        binding_value["trusted_source_cache"] = str(cache_path)
+        binding_value["trusted_source_cache_tree"] = cache_tree
     if config.source_workspace_root is not None:
         workspace_repo = (
-            config.publisher_repo if stage.workspace_id == "published" else config.source_repo
+            Path(binding_value["trusted_source_cache"])
+            if stage.workspace_id == "published"
+            else config.source_repo
         )
         try:
             binding_value["workspace_baseline_sha256"] = refresh_owner_workspace(
@@ -453,10 +619,14 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         "lead_agent_id",
         "lead_issue_id",
         "stage_key",
-        "source_issue_id",
-        "review_issue_id",
     }
-    if type(payload) is not dict or set(payload) != required:
+    identity_fields = {"source_issue_id", "review_issue_id"}
+    if (
+        type(payload) is not dict
+        or not required.issubset(payload)
+        or set(payload) - required - identity_fields
+        or not (set(payload) & identity_fields)
+    ):
         raise BridgeError("source_stage_lookup_payload_shape_invalid")
     if any(
         payload.get(key) != expected
@@ -477,8 +647,7 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
     if (
         record.get("schema") != "paperclip-source-stage-binding-v1"
         or record.get("owner_config_digest") != config.owner_config_digest
-        or record.get("source_issue_id") != payload["source_issue_id"]
-        or record.get("review_issue_id") != payload["review_issue_id"]
+        or any(record.get(field) != payload[field] for field in identity_fields if field in payload)
     ):
         raise BridgeError("source_stage_bind_replay_mismatch")
     return {
@@ -487,6 +656,11 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         "base_sha": record["base_sha"],
         "canonical_base_sha": record.get("canonical_base_sha"),
         "state": record["state"],
+        "predecessor_operation_key": record.get("predecessor_operation_key"),
+        "predecessor_source_issue_id": record.get("predecessor_source_issue_id"),
+        "predecessor_review_issue_id": record.get("predecessor_review_issue_id"),
+        "source_instruction_sha256": record.get("source_instruction_sha256"),
+        "review_instruction_sha256": record.get("review_instruction_sha256"),
         "activation_pending": record.get("source_intent") is not None
         and record.get("source_intent", {}).get("acknowledged") is not True,
     }
@@ -1222,15 +1396,14 @@ class BridgeConfig:
         reviewer_issue_id: str,
         base_sha: str,
         canonical_base_sha: str | None = None,
+        source_repo: Path | None = None,
     ) -> BridgeConfig:
         return replace(
             self,
             source_issue_id=source_issue_id,
             reviewer_issue_id=reviewer_issue_id,
             reviewer_parent_issue_id=self.finite_lead_issue_id,
-            source_repo=(
-                self.publisher_repo if stage.workspace_id == "published" else self.source_repo
-            ),
+            source_repo=source_repo or self.source_repo,
             allowed_scope=stage.path_ids,
             verifier_policy_id=stage.verifier_policy_id,
             expected_base_sha=base_sha,
@@ -1637,6 +1810,7 @@ def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) 
         "run_id",
         "stage_key",
         "stage_binding_key",
+        "source_instruction_sha256",
         "files",
     }
     if type(payload) is not dict or set(payload) != required:
@@ -1648,6 +1822,8 @@ def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) 
         or record["state"] != "active"
     ):
         raise BridgeError("source_stage_not_active")
+    if payload["source_instruction_sha256"] != record.get("source_instruction_sha256"):
+        raise BridgeError("source_stage_instruction_binding_mismatch")
     stage = config.source_stage(record["stage_key"])
     stage_config = config.for_source_stage(
         stage,
@@ -1655,6 +1831,7 @@ def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) 
         reviewer_issue_id=record["review_issue_id"],
         base_sha=record["base_sha"],
         canonical_base_sha=record.get("canonical_base_sha"),
+        source_repo=_stage_source_repo(config, stage, record),
     )
     content_payload = {
         key: payload[key]
@@ -1697,6 +1874,7 @@ def inspect_bound_source_stage(config: BridgeConfig, payload: dict[str, Any]) ->
         "reviewer_issue_id",
         "stage_key",
         "stage_binding_key",
+        "review_instruction_sha256",
     }
     if type(payload) is not dict or set(payload) != required:
         raise BridgeError("source_stage_review_payload_shape_invalid")
@@ -1707,6 +1885,7 @@ def inspect_bound_source_stage(config: BridgeConfig, payload: dict[str, Any]) ->
         or payload.get("company_id") != config.company_id
         or payload.get("project_id") != config.project_id
         or payload.get("reviewer_agent_id") != config.reviewer_agent_id
+        or payload.get("review_instruction_sha256") != record.get("review_instruction_sha256")
         or type(payload.get("reviewer_run_id")) is not str
         or not ID_RE.fullmatch(payload["reviewer_run_id"])
     ):
@@ -1745,6 +1924,7 @@ def approve_bound_source_stage(config: BridgeConfig, payload: dict[str, Any]) ->
         "stage_binding_key",
         "approved",
         "evidence",
+        "review_instruction_sha256",
     }
     if type(payload) is not dict or set(payload) != required:
         raise BridgeError("source_stage_review_payload_shape_invalid")
@@ -1755,6 +1935,7 @@ def approve_bound_source_stage(config: BridgeConfig, payload: dict[str, Any]) ->
         or payload.get("company_id") != config.company_id
         or payload.get("project_id") != config.project_id
         or payload.get("reviewer_agent_id") != config.reviewer_agent_id
+        or payload.get("review_instruction_sha256") != record.get("review_instruction_sha256")
     ):
         raise BridgeError("source_stage_reviewer_binding_mismatch")
     operation_key = record.get("operation_key")
@@ -1798,6 +1979,7 @@ def _operation_config(config: BridgeConfig, operation_key: str) -> BridgeConfig:
         reviewer_issue_id=record["review_issue_id"],
         base_sha=base_sha,
         canonical_base_sha=record.get("canonical_base_sha"),
+        source_repo=_stage_source_repo(config, stage, record),
     )
     if journal.get("source_stage_key") != stage.stage_key:
         raise BridgeError("source_stage_operation_binding_mismatch")
