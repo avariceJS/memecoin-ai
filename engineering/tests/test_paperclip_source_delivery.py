@@ -27,7 +27,12 @@ def git(path: Path, *args: str) -> str:
 
 def commit(path: Path, message: str) -> str:
     git(path, "add", "-A")
-    git(path, "-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-m", message)
+    git(
+        path,
+        "-c", "user.name=test",
+        "-c", "user.email=test@example.invalid",
+        "commit", "-m", message,
+    )
     return git(path, "rev-parse", "HEAD")
 
 
@@ -39,7 +44,7 @@ def records(contents: tuple[str, str]) -> list[dict]:
             "size": len(content.encode()),
             "sha256": hashlib.sha256(content.encode()).hexdigest(),
         }
-        for path, content in zip(SOURCE_PATHS, contents)
+        for path, content in zip(SOURCE_PATHS, contents, strict=True)
     ]
 
 
@@ -88,21 +93,39 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
             source = root / "source"
             source.mkdir()
             git(source, "init", "-b", "main")
-            for path, content in zip(SOURCE_PATHS, ("old events\n", "old tests\n")):
+            for path, content in zip(
+                SOURCE_PATHS, ("old events\n", "old tests\n"), strict=True
+            ):
                 target = source / path
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(content)
             base = commit(source, "base")
             publisher = root / "publisher"
-            subprocess.run(["git", "clone", str(source), str(publisher)], check=True, capture_output=True)
-            gate = GitGate(source, publisher, VerificationPolicy((("/usr/bin/true",),)), root / "receipts")
+            subprocess.run(
+                ["git", "clone", str(source), str(publisher)],
+                check=True,
+                capture_output=True,
+            )
+            gate = GitGate(
+                source,
+                publisher,
+                VerificationPolicy((("/usr/bin/true",),)),
+                root / "receipts",
+            )
             snapshot = snapshot_records(records(("new events\n", "new tests\n")))
             projection = materialize_owner_projection(gate, base, snapshot)
             try:
-                self.assertEqual(git(projection.checkout, "rev-parse", "HEAD"), projection.submitted_sha)
-                changed = git(projection.checkout, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()
+                self.assertEqual(
+                    git(projection.checkout, "rev-parse", "HEAD"), projection.submitted_sha
+                )
+                changed = git(
+                    projection.checkout,
+                    "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
+                ).splitlines()
                 self.assertEqual(tuple(changed), SOURCE_PATHS)
-                self.assertEqual((projection.checkout / SOURCE_PATHS[0]).read_text(), "new events\n")
+                self.assertEqual(
+                    (projection.checkout / SOURCE_PATHS[0]).read_text(), "new events\n"
+                )
             finally:
                 discard_projection(gate, projection)
             replay = materialize_owner_projection(gate, base, snapshot)
