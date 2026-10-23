@@ -45,9 +45,10 @@ export async function assertRunBoundIssue(
   if (![runCtx.companyId, runCtx.projectId, runCtx.agentId, runCtx.runId].every((id) => typeof id === "string" && ID_RE.test(id))) {
     fail("host_run_context_invalid");
   }
+  const scopedIssues = ctx.issues.forCurrentToolRun();
   const [issue, orchestration] = await Promise.all([
-    ctx.issues.get(issueId, runCtx.companyId),
-    ctx.issues.summaries.getOrchestration({ issueId, companyId: runCtx.companyId }),
+    scopedIssues.get(issueId, runCtx.companyId),
+    scopedIssues.getOrchestration({ issueId, companyId: runCtx.companyId }),
   ]);
   const boundRun = orchestration.runs.find((run) => run.id === runCtx.runId);
   if (!issue || issue.id !== issueId || issue.companyId !== runCtx.companyId || issue.projectId !== runCtx.projectId
@@ -180,45 +181,33 @@ async function persistIssueNote(
   ctx: Pick<PluginContext, "issues">,
   issueId: string,
   companyId: string,
-  actorAgentId: string,
-  actorRunId: string,
   idempotencyKey: string,
   body: string,
 ): Promise<void> {
-  const comments = await ctx.issues.listComments(issueId, companyId);
+  const scopedIssues = ctx.issues.forCurrentToolRun();
+  const comments = await scopedIssues.listComments(issueId, companyId);
   const marker = `brain-autonomous-bridge:${idempotencyKey}`;
   const existing = comments.filter((comment) => comment.body.includes(marker));
   if (existing.some((comment) => comment.body !== body)) fail("paperclip_evidence_replay_mismatch");
   if (existing.length === 0) {
-    await ctx.issues.createComment(issueId, body, companyId, { authorAgentId: actorAgentId });
+    await scopedIssues.createComment(issueId, body, companyId);
   }
-}
-
-async function wakeIssue(
-  ctx: Pick<PluginContext, "issues">,
-  issueId: string,
-  companyId: string,
-  actorAgentId: string,
-  actorRunId: string,
-  idempotencyKey: string,
-): Promise<void> {
-  await ctx.issues.requestWakeup(issueId, companyId, {
-    reason: "Autonomous candidate handoff requires independent review",
-    contextSource: "plugin",
-    idempotencyKey: `brain-autonomous-bridge-${idempotencyKey}`,
-    actorAgentId,
-    actorRunId,
-  });
 }
 
 async function validateReviewerWakeTarget(
   ctx: Pick<PluginContext, "issues">,
   owner: OwnerConfig,
 ): Promise<void> {
-  const issue = await ctx.issues.get(owner.reviewer_issue_id, owner.company_id);
+  const scopedIssues = ctx.issues.forCurrentToolRun();
+  const [issue, orchestration] = await Promise.all([
+    scopedIssues.get(owner.reviewer_issue_id, owner.company_id),
+    scopedIssues.getOrchestration({ issueId: owner.reviewer_issue_id, companyId: owner.company_id }),
+  ]);
   if (!issue || issue.id !== owner.reviewer_issue_id || issue.companyId !== owner.company_id
       || issue.projectId !== owner.project_id || issue.assigneeAgentId !== owner.reviewer_agent_id
-      || !["backlog", "todo"].includes(issue.status) || issue.executionRunId !== null) {
+      || issue.parentId !== owner.source_issue_id || !["backlog", "todo"].includes(issue.status)
+      || issue.executionRunId !== null || orchestration.blockedByIssueIds.length !== 1
+      || orchestration.blockedByIssueIds[0] !== owner.source_issue_id) {
     fail("reviewer_issue_wake_target_mismatch");
   }
 }
@@ -232,7 +221,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const params = validateParams("submit_candidate", raw);
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id || runCtx.agentId !== owner.worker_agent_id) fail("worker_actor_binding_mismatch");
-    await assertRunBoundIssue(ctx, runCtx, owner.source_issue_id, ["in_progress", "in_review"]);
+    await assertRunBoundIssue(ctx, runCtx, owner.source_issue_id);
     await validateReviewerWakeTarget(ctx, owner);
     const result = await invoke("submit_candidate", {
       company_id: owner.company_id,
@@ -253,11 +242,9 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       `submitted_sha:${String(result.submitted_sha ?? params.submitted_sha)}`,
       `policy_digest:${String(result.policy_digest ?? "")}`,
     ].join("\n");
-    await persistIssueNote(ctx, owner.reviewer_issue_id, owner.company_id, runCtx.agentId, runCtx.runId, `${result.operation_key}:submitted`, note);
-    await ctx.issues.update(owner.source_issue_id, { status: "in_review" }, owner.company_id, { actorAgentId: runCtx.agentId, actorRunId: runCtx.runId });
+    await persistIssueNote(ctx, owner.reviewer_issue_id, owner.company_id, `${result.operation_key}:submitted`, note);
     await validateReviewerWakeTarget(ctx, owner);
-    await ctx.issues.update(owner.reviewer_issue_id, { status: "todo" }, owner.company_id, { actorAgentId: runCtx.agentId, actorRunId: runCtx.runId });
-    await wakeIssue(ctx, owner.reviewer_issue_id, owner.company_id, runCtx.agentId, runCtx.runId, `${result.operation_key}:submitted`);
+    await ctx.issues.forCurrentToolRun().update(owner.reviewer_issue_id, "todo", owner.company_id);
     return { content: `operation_key:${result.operation_key}\ncandidate_sha:${result.candidate_sha}` };
   });
 
@@ -318,10 +305,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       `evidence_digest:${result.evidence_digest}`,
       `evidence:${JSON.stringify(params.evidence)}`,
     ].join("\n");
-    const rejected = result.status === "review_rejected";
-    await persistIssueNote(ctx, owner.source_issue_id, owner.company_id, runCtx.agentId, runCtx.runId, `${params.operation_key}:reviewed`, note);
-    await ctx.issues.update(owner.source_issue_id, { status: rejected ? "blocked" : "done" }, owner.company_id, { actorAgentId: runCtx.agentId, actorRunId: runCtx.runId });
-    await ctx.issues.update(owner.reviewer_issue_id, { status: "done" }, owner.company_id, { actorAgentId: runCtx.agentId, actorRunId: runCtx.runId });
+    await persistIssueNote(ctx, owner.source_issue_id, owner.company_id, `${params.operation_key}:reviewed`, note);
     return { content: `status:${result.status}\ncandidate_sha:${String(result.candidate_sha ?? params.candidate_sha)}` };
   });
 }

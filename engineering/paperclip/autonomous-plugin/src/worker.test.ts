@@ -22,17 +22,22 @@ const config = {
 const workerRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "worker-1", runId: "worker-run" };
 const reviewerRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "reviewer-1", runId: "reviewer-run" };
 
-function fixture(configPath: string, reviewerStatus: string = "backlog", reviewerOverrides: Record<string, unknown> = {}) {
+function fixture(
+  configPath: string,
+  reviewerStatus: string = "backlog",
+  reviewerOverrides: Record<string, unknown> = {},
+  reviewerBlockers: string[] = ["issue-worker"],
+) {
   const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
   const issueReads: string[] = [];
   const notes = new Map<string, string[]>();
-  const wakeups: Array<{ issueId: string; options: unknown }> = [];
   const updates: Array<{ issueId: string; patch: unknown }> = [];
   const lifecycle: string[] = [];
   const issue = (id: string, runCtx: ToolRunContext) => ({
     id,
     companyId: runCtx.companyId,
     projectId: runCtx.projectId,
+    ...(id === "issue-reviewer" ? { parentId: "issue-worker" } : {}),
     assigneeAgentId: runCtx.agentId,
     status: id === "issue-reviewer" ? reviewerStatus : "in_progress",
     executionRunId: id === "issue-reviewer" && reviewerStatus !== "in_progress" ? null : runCtx.runId,
@@ -41,19 +46,16 @@ function fixture(configPath: string, reviewerStatus: string = "backlog", reviewe
   const ctx = {
     config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
     issues: {
+      forCurrentToolRun: () => ({
       get: vi.fn(async (id: string, _companyId: string) => {
         issueReads.push(id);
         if (id === "issue-worker") return issue(id, workerRun) as never;
         if (id === "issue-reviewer") return issue(id, reviewerRun) as never;
         return null;
       }),
-      summaries: {
-        getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({
+      getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({
           issueId,
           companyId: "company-1",
-          subtreeIssueIds: [issueId],
-          relations: {},
-          approvals: [],
           runs: [{
             id: issueId === "issue-worker" ? workerRun.runId : reviewerRun.runId,
             issueId,
@@ -66,19 +68,16 @@ function fixture(configPath: string, reviewerStatus: string = "backlog", reviewe
             error: null,
             createdAt: new Date().toISOString(),
           }],
-          costs: {},
-          openBudgetIncidents: [],
-          invocationBlocks: [],
+          blockedByIssueIds: issueId === "issue-reviewer" ? reviewerBlockers : [],
         })) as never,
-      },
       listComments: vi.fn(async (id: string) => (notes.get(id) ?? []).map((body) => ({ body })) as never),
       createComment: vi.fn(async (id: string, body: string) => { lifecycle.push(`comment:${id}`); notes.set(id, [...(notes.get(id) ?? []), body]); return {} as never; }),
-      requestWakeup: vi.fn(async (issueId: string, _company: string, options: unknown) => { lifecycle.push(`wake:${issueId}`); wakeups.push({ issueId, options }); return { queued: true, runId: "wake-run" }; }),
-      update: vi.fn(async (issueId: string, patch: unknown) => { lifecycle.push(`update:${issueId}:${(patch as { status: string }).status}`); updates.push({ issueId, patch }); return {} as never; }),
+      update: vi.fn(async (issueId: string, status: string) => { const patch = { status }; lifecycle.push(`update:${issueId}:${status}`); updates.push({ issueId, patch }); return {} as never; }),
+      }),
     },
     tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
   } as unknown as PluginContext;
-  return { ctx, handlers, issueReads, notes, wakeups, updates, lifecycle };
+  return { ctx, handlers, issueReads, notes, updates, lifecycle };
 }
 
 describe("Paperclip autonomous bridge tools", () => {
@@ -105,7 +104,7 @@ describe("Paperclip autonomous bridge tools", () => {
 
   it("uses only host context and the configured worker issue for candidate submission", async () => {
     await installConfig();
-    const { ctx, handlers, issueReads, notes, wakeups, updates, lifecycle } = fixture(configPath);
+    const { ctx, handlers, issueReads, notes, updates, lifecycle } = fixture(configPath);
     const invoke = vi.fn(async () => ({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40), base_sha: "c".repeat(40), submitted_sha: "d".repeat(40), policy_digest: "e".repeat(64) }));
     registerAutonomousTools(ctx, invoke as never);
     const result = await handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun) as { content: string };
@@ -115,16 +114,10 @@ describe("Paperclip autonomous bridge tools", () => {
     }), configPath, "/usr/bin/python3");
     expect(result.content).toBe(`operation_key:${"a".repeat(64)}\ncandidate_sha:${"b".repeat(40)}`);
     expect(notes.get("issue-reviewer")?.[0]).toContain(`candidate_sha:${"b".repeat(40)}`);
-    expect(wakeups[0].issueId).toBe("issue-reviewer");
-    expect(updates).toEqual([
-      { issueId: "issue-worker", patch: { status: "in_review" } },
-      { issueId: "issue-reviewer", patch: { status: "todo" } },
-    ]);
+    expect(updates).toEqual([{ issueId: "issue-reviewer", patch: { status: "todo" } }]);
     expect(lifecycle).toEqual([
       "comment:issue-reviewer",
-      "update:issue-worker:in_review",
       "update:issue-reviewer:todo",
-      "wake:issue-reviewer",
     ]);
   });
 
@@ -140,24 +133,34 @@ describe("Paperclip autonomous bridge tools", () => {
 
   it("does not submit or wake an incorrectly assigned or already active reviewer issue", async () => {
     await installConfig();
-    const { ctx, handlers, wakeups } = fixture(configPath, "in_progress");
+    const { ctx, handlers } = fixture(configPath, "in_progress");
     const invoke = vi.fn();
     registerAutonomousTools(ctx, invoke as never);
     await expect(handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun))
       .rejects.toThrow("reviewer_issue_wake_target_mismatch");
     expect(invoke).not.toHaveBeenCalled();
-    expect(wakeups).toEqual([]);
   });
 
   it("rejects reviewer issues outside the owner-pinned company/project/assignee", async () => {
     await installConfig();
-    const { ctx, handlers, wakeups } = fixture(configPath, "backlog", { assigneeAgentId: "unrelated-agent" });
+    const { ctx, handlers } = fixture(configPath, "backlog", { assigneeAgentId: "unrelated-agent" });
     const invoke = vi.fn();
     registerAutonomousTools(ctx, invoke as never);
     await expect(handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun))
       .rejects.toThrow("reviewer_issue_wake_target_mismatch");
     expect(invoke).not.toHaveBeenCalled();
-    expect(wakeups).toEqual([]);
+  });
+
+  it("checks the exact native source blocker before invoking the bridge", async () => {
+    await installConfig();
+    const { ctx, handlers, notes, updates } = fixture(configPath, "backlog", {}, ["issue-worker", "unrelated-blocker"]);
+    const invoke = vi.fn();
+    registerAutonomousTools(ctx, invoke as never);
+    await expect(handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun))
+      .rejects.toThrow("reviewer_issue_wake_target_mismatch");
+    expect(invoke).not.toHaveBeenCalled();
+    expect(notes.get("issue-reviewer")).toBeUndefined();
+    expect(updates).toEqual([]);
   });
 
   it("lets only the configured reviewer inspect an exact candidate in its bound issue run", async () => {
@@ -179,38 +182,34 @@ describe("Paperclip autonomous bridge tools", () => {
   it("requires the SDK issue executionRunId and orchestration run summary to match the host run", async () => {
     const { assertRunBoundIssue } = await import("./worker.js");
     const ctx = { issues: {
+      forCurrentToolRun: () => ({
       get: vi.fn(async () => ({
         id: "issue-worker", companyId: "company-1", projectId: "project-1", assigneeAgentId: "worker-1", status: "in_progress",
         executionRunId: "some-other-run",
       })),
-      summaries: { getOrchestration: vi.fn(async () => ({ runs: [{ id: "worker-run", issueId: "issue-worker", agentId: "worker-1", status: "running" }] })) },
+      getOrchestration: vi.fn(async () => ({ runs: [{ id: "worker-run", issueId: "issue-worker", agentId: "worker-1", status: "running" }] })),
+      }),
     } } as unknown as PluginContext;
     await expect(assertRunBoundIssue(ctx, workerRun, "issue-worker")).rejects.toThrow("host_issue_run_binding_mismatch");
   });
 
-  it("persists exact reviewer evidence and wakes the existing worker issue", async () => {
+  it("persists exact reviewer evidence without changing producer or reviewer status", async () => {
     await installConfig();
-    const { ctx, handlers, notes, wakeups, updates } = fixture(configPath, "in_progress");
+    const { ctx, handlers, notes, updates } = fixture(configPath, "in_progress");
     const evidence = { inspection_digest: "d".repeat(64), inspected_paths: ["engineering/example.py"], verdict: "accepted" };
     const invoke = vi.fn(async () => ({ status: "published", candidate_sha: "b".repeat(40), evidence_digest: "c".repeat(64) }));
     registerAutonomousTools(ctx, invoke as never);
     await handlers.get("approve_candidate")!({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40), approved: true, evidence }, reviewerRun);
     expect(notes.get("issue-worker")?.[0]).toContain(`evidence:${JSON.stringify(evidence)}`);
-    expect(wakeups).toEqual([]);
-    expect(updates).toEqual([
-      { issueId: "issue-worker", patch: { status: "done" } },
-      { issueId: "issue-reviewer", patch: { status: "done" } },
-    ]);
+    expect(updates).toEqual([]);
   });
 
-  it("blocks the existing worker issue after terminal rejection without automatic redispatch", async () => {
+  it("preserves producer completion after rejection without automatic dispatch", async () => {
     await installConfig();
-    const { ctx, handlers, wakeups, updates } = fixture(configPath, "in_progress");
+    const { ctx, handlers, updates } = fixture(configPath, "in_progress");
     const invoke = vi.fn(async () => ({ status: "review_rejected", candidate_sha: "b".repeat(40), evidence_digest: "c".repeat(64), operation_key: "a".repeat(64) }));
     registerAutonomousTools(ctx, invoke as never);
     await handlers.get("approve_candidate")!({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40), approved: false, evidence: { inspection_digest: "d".repeat(64), reason: "needs correction" } }, reviewerRun);
-    expect(updates[0]).toEqual({ issueId: "issue-worker", patch: { status: "blocked" } });
-    expect(wakeups).toEqual([]);
-    expect(updates[1]).toEqual({ issueId: "issue-reviewer", patch: { status: "done" } });
+    expect(updates).toEqual([]);
   });
 });

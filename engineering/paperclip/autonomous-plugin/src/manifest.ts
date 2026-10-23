@@ -8,7 +8,7 @@ const manifest: PaperclipPluginManifestV1 = {
   description: "Bounded candidate submission and independent-review handoff for one owner-pinned Brain task pair.",
   author: "Brain Engineering",
   categories: ["automation"],
-  capabilities: ["agent.tools.register", "issues.read", "issues.orchestration.read", "issues.update", "issue.comments.read", "issue.comments.create", "issues.wakeup"],
+  capabilities: ["agent.tools.register", "issues.read", "issues.orchestration.read", "issues.update", "issue.comments.read", "issue.comments.create"],
   instanceConfigSchema: {
     type: "object",
     properties: {
