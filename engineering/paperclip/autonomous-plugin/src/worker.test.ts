@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 
 vi.mock("@paperclipai/plugin-sdk", () => ({
   definePlugin: (value: unknown) => value,
@@ -21,12 +22,18 @@ const config = {
 
 const workerRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "worker-1", runId: "worker-run" };
 const reviewerRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "reviewer-1", runId: "reviewer-run" };
+const contentFiles = [
+  ["src/memecoin_brain_sources/events.py", "events = []\n"],
+  ["tests/brain/test_raw_sources.py", "def test_raw_sources():\n    assert True\n"],
+].map(([path_id, content]) => ({ path_id, content, size: Buffer.byteLength(content), sha256: createHash("sha256").update(content).digest("hex") }));
 
 function fixture(
   configPath: string,
   reviewerStatus: string = "backlog",
   reviewerOverrides: Record<string, unknown> = {},
   reviewerBlockers: string[] = ["issue-worker"],
+  reviewerParentId: string = "issue-worker",
+  sourceParentId?: string,
 ) {
   const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
   const issueReads: string[] = [];
@@ -37,7 +44,7 @@ function fixture(
     id,
     companyId: runCtx.companyId,
     projectId: runCtx.projectId,
-    ...(id === "issue-reviewer" ? { parentId: "issue-worker" } : {}),
+    ...(id === "issue-reviewer" ? { parentId: reviewerParentId } : id === "issue-worker" && sourceParentId ? { parentId: sourceParentId } : {}),
     assigneeAgentId: runCtx.agentId,
     status: id === "issue-reviewer" ? reviewerStatus : "in_progress",
     executionRunId: id === "issue-reviewer" && reviewerStatus !== "in_progress" ? null : runCtx.runId,
@@ -102,15 +109,17 @@ describe("Paperclip autonomous bridge tools", () => {
     await writeFile(configPath, JSON.stringify(config), { mode: 0o600 });
   }
 
-  it("uses only host context and the configured worker issue for candidate submission", async () => {
+  it("uses only host context and delivers bounded source contents", async () => {
     await installConfig();
     const { ctx, handlers, issueReads, notes, updates, lifecycle } = fixture(configPath);
     const invoke = vi.fn(async () => ({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40), base_sha: "c".repeat(40), submitted_sha: "d".repeat(40), policy_digest: "e".repeat(64) }));
     registerAutonomousTools(ctx, invoke as never);
-    const result = await handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun) as { content: string };
+    expect(handlers.has("submit_candidate")).toBe(false);
+    const result = await handlers.get("deliver_source_content")!({ base_sha: "c".repeat(40), files: contentFiles }, workerRun) as { content: string };
     expect(issueReads).toEqual(["issue-worker", "issue-reviewer", "issue-reviewer"]);
-    expect(invoke).toHaveBeenCalledWith("submit_candidate", expect.objectContaining({
+    expect(invoke).toHaveBeenCalledWith("deliver_source_content", expect.objectContaining({
       company_id: "company-1", project_id: "project-1", worker_agent_id: "worker-1", run_id: "worker-run", source_issue_id: "issue-worker",
+      files: contentFiles,
     }), configPath, "/usr/bin/python3");
     expect(result.content).toBe(`operation_key:${"a".repeat(64)}\ncandidate_sha:${"b".repeat(40)}`);
     expect(notes.get("issue-reviewer")?.[0]).toContain(`candidate_sha:${"b".repeat(40)}`);
@@ -136,9 +145,29 @@ describe("Paperclip autonomous bridge tools", () => {
     const { ctx, handlers } = fixture(configPath, "in_progress");
     const invoke = vi.fn();
     registerAutonomousTools(ctx, invoke as never);
-    await expect(handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun))
+    await expect(handlers.get("deliver_source_content")!({ base_sha: "c".repeat(40), files: contentFiles }, workerRun))
       .rejects.toThrow("reviewer_issue_wake_target_mismatch");
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("allows an owner-bound sibling reviewer and verifies both nominated parents", async () => {
+    await installConfig();
+    const { readFile, writeFile } = await import("node:fs/promises");
+    const configured = { ...config, reviewer_parent_issue_id: "issue-parent" };
+    await writeFile(configPath, JSON.stringify(configured), { mode: 0o600 });
+    const { ctx, handlers } = fixture(configPath, "backlog", {}, ["issue-worker"], "issue-parent", "issue-parent");
+    const invoke = vi.fn(async () => ({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40) }));
+    registerAutonomousTools(ctx, invoke as never);
+    await handlers.get("deliver_source_content")!({ base_sha: "c".repeat(40), files: [] }, workerRun);
+    expect(invoke).toHaveBeenCalledTimes(1);
+
+    const unrelated = fixture(configPath, "backlog", {}, ["issue-worker"], "issue-parent", "other-parent");
+    const unrelatedInvoke = vi.fn();
+    registerAutonomousTools(unrelated.ctx, unrelatedInvoke as never);
+    await expect(unrelated.handlers.get("deliver_source_content")!({ base_sha: "c".repeat(40), files: [] }, workerRun))
+      .rejects.toThrow("reviewer_issue_wake_target_mismatch");
+    expect(unrelatedInvoke).not.toHaveBeenCalled();
+    expect(await readFile(configPath, "utf8")).toContain("reviewer_parent_issue_id");
   });
 
   it("rejects reviewer issues outside the owner-pinned company/project/assignee", async () => {
@@ -146,7 +175,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const { ctx, handlers } = fixture(configPath, "backlog", { assigneeAgentId: "unrelated-agent" });
     const invoke = vi.fn();
     registerAutonomousTools(ctx, invoke as never);
-    await expect(handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun))
+    await expect(handlers.get("deliver_source_content")!({ base_sha: "c".repeat(40), files: contentFiles }, workerRun))
       .rejects.toThrow("reviewer_issue_wake_target_mismatch");
     expect(invoke).not.toHaveBeenCalled();
   });
@@ -156,7 +185,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const { ctx, handlers, notes, updates } = fixture(configPath, "backlog", {}, ["issue-worker", "unrelated-blocker"]);
     const invoke = vi.fn();
     registerAutonomousTools(ctx, invoke as never);
-    await expect(handlers.get("submit_candidate")!({ base_sha: "c".repeat(40), submitted_sha: "d".repeat(40) }, workerRun))
+    await expect(handlers.get("deliver_source_content")!({ base_sha: "c".repeat(40), files: contentFiles }, workerRun))
       .rejects.toThrow("reviewer_issue_wake_target_mismatch");
     expect(invoke).not.toHaveBeenCalled();
     expect(notes.get("issue-reviewer")).toBeUndefined();

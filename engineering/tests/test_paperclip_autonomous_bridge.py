@@ -1,4 +1,5 @@
 import json
+import hashlib
 import subprocess
 import sys
 import tempfile
@@ -175,6 +176,122 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(journal["binding"]["run_id"], "worker-run-1")
         self.assertEqual(journal["candidate"]["candidate_sha"], "c" * 40)
         self.assertIsNone(journal["review"])
+
+    def test_content_delivery_needs_no_worker_checkout_and_binds_exact_snapshot(self):
+        root = Path(self.tmp.name) / "content-lane"
+        source = root / "source"
+        publisher = root / "publisher"
+        root.mkdir()
+
+        def git(repo, *args):
+            result = subprocess.run(
+                ["/usr/bin/git", "-C", str(repo), *args],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if result.returncode:
+                raise AssertionError(result.stderr)
+            return result.stdout.strip()
+
+        source.mkdir()
+        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "main", str(source)], check=True)
+        for path in (
+            "src/memecoin_brain_sources/events.py",
+            "tests/brain/test_raw_sources.py",
+        ):
+            target = source / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("# owner base\n")
+        git(source, "add", "-A")
+        git(source, "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "base")
+        base = git(source, "rev-parse", "HEAD")
+        subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(publisher)], check=True)
+        config = replace(
+            self.config,
+            source_repo=source,
+            worker_checkout=None,
+            publisher_repo=publisher,
+            broker_journal_dir=root / "broker-journal",
+            bridge_journal_dir=root / "bridge-journal",
+            receipt_store=root / "receipts",
+            expected_dev_ref="refs/heads/brain/paperclip-integration",
+            fixed_dev_ref="refs/heads/brain/paperclip-integration",
+            expected_base_sha=None,
+            allowed_scope=("attacker/path.py",),
+        )
+        bodies = (
+            "events = ['synthetic']\n",
+            "def test_raw_sources():\n    assert True\n",
+        )
+        files = [
+            {
+                "path_id": path,
+                "content": body,
+                "size": len(body.encode()),
+                "sha256": hashlib.sha256(body.encode()).hexdigest(),
+            }
+            for path, body in zip(
+                ("src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"),
+                bodies,
+            )
+        ]
+        payload = {
+            "company_id": "company-1",
+            "project_id": "project-1",
+            "source_issue_id": "issue-worker",
+            "worker_agent_id": "worker-1",
+            "run_id": "content-run-1",
+            "base_sha": base,
+            "files": files,
+        }
+        dev_bound = replace(
+            config,
+            expected_dev_ref="refs/heads/brain/development",
+            fixed_dev_ref="refs/heads/brain/development",
+            expected_base_sha=base,
+        )
+        with self.assertRaisesRegex(BridgeError, "development_base_not_owner_admitted"):
+            dispatch(dev_bound, {"action": "deliver_source_content", "payload": {**payload, "base_sha": "0" * 40}})
+        prepared = dispatch(config, {"action": "deliver_source_content", "payload": payload})
+        self.assertEqual(
+            prepared["changed_paths"],
+            ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
+        )
+        journal_path = config.bridge_journal_dir / f"operation-{prepared['operation_key']}.json"
+        journal = json.loads(journal_path.read_text())
+        self.assertEqual(journal["source_snapshot_sha256"], prepared["source_snapshot_sha256"])
+        self.assertEqual(journal["binding"]["scope"], [
+            "src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"
+        ])
+        self.assertNotIn(str(self.config.worker_checkout), journal["binding"]["owner_roots"])
+        mutated = {**payload, "files": [dict(item) for item in files]}
+        mutated["files"][0]["content"] += "# different\n"
+        mutated["files"][0]["size"] = len(mutated["files"][0]["content"].encode())
+        mutated["files"][0]["sha256"] = hashlib.sha256(mutated["files"][0]["content"].encode()).hexdigest()
+        with self.assertRaisesRegex(BridgeError, "source_delivery_replay_content_mismatch"):
+            dispatch(config, {"action": "deliver_source_content", "payload": mutated})
+        with self.assertRaisesRegex(BridgeError, "source_delivery_replay_binding_mismatch"):
+            dispatch(config, {"action": "deliver_source_content", "payload": {**payload, "base_sha": "f" * 40}})
+        reviewer = {
+            "company_id": "company-1", "project_id": "project-1",
+            "reviewer_agent_id": "reviewer-1", "reviewer_run_id": "review-run-1",
+            "reviewer_issue_id": "issue-reviewer", "operation_key": prepared["operation_key"],
+            "candidate_sha": prepared["candidate_sha"],
+        }
+        with self.assertRaisesRegex(BridgeError, "candidate_does_not_match_prepared_journal"):
+            dispatch(config, {"action": "inspect_candidate", "payload": {**reviewer, "candidate_sha": "0" * 40}})
+        inspected = dispatch(config, {"action": "inspect_candidate", "payload": reviewer})
+        review = dispatch(config, {"action": "approve_candidate", "payload": {
+            **reviewer,
+            "approved": False,
+            "evidence": {"inspection_digest": inspected["inspection_digest"], "reason": "synthetic decline"},
+        }})
+        self.assertEqual(review["status"], "review_rejected")
+        final_journal = json.loads(journal_path.read_text())
+        self.assertEqual(final_journal["review"]["candidate_sha"], prepared["candidate_sha"])
+        self.assertEqual(final_journal["review"]["reviewer_run_id"], "review-run-1")
+        self.assertEqual(final_journal["review"]["inspection_digest"], inspected["inspection_digest"])
 
     def test_review_requires_configured_reviewer_and_exact_candidate(self):
         with patch.object(
@@ -625,6 +742,15 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(
             BridgeConfig.load(path).expected_dev_ref, "refs/heads/brain/development"
         )
+        raw.pop("worker_checkout")
+        raw["fixed_dev_ref"] = "refs/heads/brain/paperclip-integration"
+        raw["expected_dev_ref"] = "refs/heads/brain/paperclip-integration"
+        raw.pop("expected_base_sha", None)
+        path.write_text(json.dumps(raw))
+        path.chmod(0o600)
+        content_only = BridgeConfig.load(path)
+        self.assertIsNone(content_only.worker_checkout)
+        self.assertNotIn("/tmp/worker", content_only.owner_roots)
         raw["fixed_dev_ref"] = "refs/heads/main"
         raw["expected_dev_ref"] = "refs/heads/main"
         path.write_text(json.dumps(raw))

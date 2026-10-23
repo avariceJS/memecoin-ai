@@ -510,7 +510,13 @@ class GitGate:
             raise GitGateError("candidate checkout has modifications or untracked files")
 
     def _run(
-        self, repo: Path, args: Sequence[str], *, input: bytes | None = None, check: bool = True
+        self,
+        repo: Path,
+        args: Sequence[str],
+        *,
+        input: bytes | None = None,
+        check: bool = True,
+        env_overrides: Mapping[str, str] | None = None,
     ) -> subprocess.CompletedProcess[bytes]:
         env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
         env.update(
@@ -522,6 +528,12 @@ class GitGate:
                 "GIT_NO_REPLACE_OBJECTS": "1",
             }
         )
+        if env_overrides is not None:
+            if set(env_overrides) - {"GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"} or any(
+                type(value) is not str or "\x00" in value for value in env_overrides.values()
+            ):
+                raise GitGateError("Git environment override is not permitted")
+            env.update(env_overrides)
         command = [
             "git",
             "-c",
