@@ -1,5 +1,5 @@
-import json
 import hashlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -204,7 +204,12 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text("# owner base\n")
         git(source, "add", "-A")
-        git(source, "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "base")
+        git(
+            source,
+            "-c", "user.name=owner",
+            "-c", "user.email=owner@example.invalid",
+            "commit", "-m", "base",
+        )
         base = git(source, "rev-parse", "HEAD")
         subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(publisher)], check=True)
         config = replace(
@@ -234,6 +239,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             for path, body in zip(
                 ("src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"),
                 bodies,
+                strict=True,
             )
         ]
         payload = {
@@ -252,7 +258,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             expected_base_sha=base,
         )
         with self.assertRaisesRegex(BridgeError, "development_base_not_owner_admitted"):
-            dispatch(dev_bound, {"action": "deliver_source_content", "payload": {**payload, "base_sha": "0" * 40}})
+            dispatch(
+                dev_bound,
+                {"action": "deliver_source_content", "payload": {**payload, "base_sha": "0" * 40}},
+            )
         prepared = dispatch(config, {"action": "deliver_source_content", "payload": payload})
         self.assertEqual(
             prepared["changed_paths"],
@@ -268,11 +277,16 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         mutated = {**payload, "files": [dict(item) for item in files]}
         mutated["files"][0]["content"] += "# different\n"
         mutated["files"][0]["size"] = len(mutated["files"][0]["content"].encode())
-        mutated["files"][0]["sha256"] = hashlib.sha256(mutated["files"][0]["content"].encode()).hexdigest()
+        mutated["files"][0]["sha256"] = hashlib.sha256(
+            mutated["files"][0]["content"].encode()
+        ).hexdigest()
         with self.assertRaisesRegex(BridgeError, "source_delivery_replay_content_mismatch"):
             dispatch(config, {"action": "deliver_source_content", "payload": mutated})
         with self.assertRaisesRegex(BridgeError, "source_delivery_replay_binding_mismatch"):
-            dispatch(config, {"action": "deliver_source_content", "payload": {**payload, "base_sha": "f" * 40}})
+            dispatch(
+                config,
+                {"action": "deliver_source_content", "payload": {**payload, "base_sha": "f" * 40}},
+            )
         reviewer = {
             "company_id": "company-1", "project_id": "project-1",
             "reviewer_agent_id": "reviewer-1", "reviewer_run_id": "review-run-1",
@@ -280,18 +294,26 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "candidate_sha": prepared["candidate_sha"],
         }
         with self.assertRaisesRegex(BridgeError, "candidate_does_not_match_prepared_journal"):
-            dispatch(config, {"action": "inspect_candidate", "payload": {**reviewer, "candidate_sha": "0" * 40}})
+            dispatch(
+                config,
+                {"action": "inspect_candidate", "payload": {**reviewer, "candidate_sha": "0" * 40}},
+            )
         inspected = dispatch(config, {"action": "inspect_candidate", "payload": reviewer})
         review = dispatch(config, {"action": "approve_candidate", "payload": {
             **reviewer,
             "approved": False,
-            "evidence": {"inspection_digest": inspected["inspection_digest"], "reason": "synthetic decline"},
+            "evidence": {
+                "inspection_digest": inspected["inspection_digest"],
+                "reason": "synthetic decline",
+            },
         }})
         self.assertEqual(review["status"], "review_rejected")
         final_journal = json.loads(journal_path.read_text())
         self.assertEqual(final_journal["review"]["candidate_sha"], prepared["candidate_sha"])
         self.assertEqual(final_journal["review"]["reviewer_run_id"], "review-run-1")
-        self.assertEqual(final_journal["review"]["inspection_digest"], inspected["inspection_digest"])
+        self.assertEqual(
+            final_journal["review"]["inspection_digest"], inspected["inspection_digest"]
+        )
 
     def test_review_requires_configured_reviewer_and_exact_candidate(self):
         with patch.object(
