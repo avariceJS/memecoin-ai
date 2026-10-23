@@ -10,8 +10,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from engineering.paperclip_lab_server import (
+    PAPERCLIP_ANCESTOR_PIN,
     PAPERCLIP_PARENT_PIN,
     PAPERCLIP_PIN,
+    PAPERCLIP_STOP_CUSTODY_PINS,
     PAPERCLIP_UPSTREAM_PIN,
     LabPaths,
     LabServerError,
@@ -25,8 +27,9 @@ from engineering.paperclip_lab_server import (
 
 class PaperclipLabServerTests(unittest.TestCase):
     def test_source_pin_is_exact_commit_with_exact_predecessor_chain(self):
-        self.assertEqual(PAPERCLIP_PIN, "519c892646ec7b06996e990e9e728f794e1a689e")
-        self.assertEqual(PAPERCLIP_PARENT_PIN, "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595")
+        self.assertEqual(PAPERCLIP_PIN, "fecf7b18def542fb6b58e7e665011e66599ffffb")
+        self.assertEqual(PAPERCLIP_PARENT_PIN, "519c892646ec7b06996e990e9e728f794e1a689e")
+        self.assertEqual(PAPERCLIP_ANCESTOR_PIN, "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595")
         self.assertEqual(PAPERCLIP_UPSTREAM_PIN, "043f2514e67c50320433a0013fb228a75a51325c")
         with tempfile.TemporaryDirectory() as directory:
             paths = LabPaths.resolve(Path(directory))
@@ -36,6 +39,7 @@ class PaperclipLabServerTests(unittest.TestCase):
                 side_effect=(
                     PAPERCLIP_PIN,
                     PAPERCLIP_PARENT_PIN,
+                    PAPERCLIP_ANCESTOR_PIN,
                     PAPERCLIP_UPSTREAM_PIN,
                     "",
                 ),
@@ -53,13 +57,29 @@ class PaperclipLabServerTests(unittest.TestCase):
                 with self.assertRaisesRegex(LabServerError, "parent_pin_mismatch"):
                     _validate_source(paths)
 
+    def test_source_pin_rejects_unexpected_second_predecessor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = LabPaths.resolve(Path(directory))
+            paths.source.mkdir()
+            with patch(
+                "engineering.paperclip_lab_server._run",
+                side_effect=(PAPERCLIP_PIN, PAPERCLIP_PARENT_PIN, "unexpected-ancestor"),
+            ):
+                with self.assertRaisesRegex(LabServerError, "ancestor_pin_mismatch"):
+                    _validate_source(paths)
+
     def test_source_pin_rejects_unexpected_upstream_ancestor(self):
         with tempfile.TemporaryDirectory() as directory:
             paths = LabPaths.resolve(Path(directory))
             paths.source.mkdir()
             with patch(
                 "engineering.paperclip_lab_server._run",
-                side_effect=(PAPERCLIP_PIN, PAPERCLIP_PARENT_PIN, "unexpected-upstream"),
+                side_effect=(
+                    PAPERCLIP_PIN,
+                    PAPERCLIP_PARENT_PIN,
+                    PAPERCLIP_ANCESTOR_PIN,
+                    "unexpected-upstream",
+                ),
             ):
                 with self.assertRaisesRegex(LabServerError, "upstream_pin_mismatch"):
                     _validate_source(paths)
@@ -69,14 +89,25 @@ class PaperclipLabServerTests(unittest.TestCase):
         pin_path = engineering / "paperclip" / "source-pin.json"
         pin = json.loads(pin_path.read_text(encoding="utf-8"))
         patch_path = pin_path.parent / pin["patch"]
-        self.assertEqual(pin["schema"], "brain-paperclip-source-v2")
+        self.assertEqual(pin["schema"], "brain-paperclip-source-v3")
         self.assertEqual(pin["upstream_commit"], PAPERCLIP_UPSTREAM_PIN)
         self.assertEqual(pin["predecessor_commit"], PAPERCLIP_PARENT_PIN)
+        self.assertEqual(
+            pin["predecessor_chain"],
+            [PAPERCLIP_PARENT_PIN, PAPERCLIP_ANCESTOR_PIN, PAPERCLIP_UPSTREAM_PIN],
+        )
         self.assertEqual(pin["derivative_commit"], PAPERCLIP_PIN)
         self.assertEqual(pin["patch_sha256"], hashlib.sha256(patch_path.read_bytes()).hexdigest())
         self.assertEqual(pin["source_review"]["status"], "accepted_source_only")
         self.assertEqual(pin["source_review"]["commit"], PAPERCLIP_PIN)
         self.assertEqual(pin["source_review"]["parent"], PAPERCLIP_PARENT_PIN)
+        self.assertEqual(pin["source_review_chain"][0]["commit"], PAPERCLIP_PARENT_PIN)
+        self.assertEqual(pin["source_review_chain"][-1]["commit"], PAPERCLIP_PIN)
+        self.assertEqual(
+            pin["source_review"]["receipt_sha256"],
+            "01bfa783e7cce23c8e126809f34e9c8118dd9e947857bd4911ef3b1322be3361",
+        )
+        self.assertEqual(set(pin["stop_custody_source_pins"]), PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertEqual(pin["runtime_acceptance"], "pending")
 
     def test_command_uses_the_pinned_source_loader_and_private_env_file(self):
@@ -156,7 +187,7 @@ class PaperclipLabServerTests(unittest.TestCase):
             with self.assertRaisesRegex(LabServerError, "manifest_invalid"):
                 _read_manifest(manifest)
 
-    def test_historical_source_custody_is_opt_in_for_owned_process_cleanup(self):
+    def test_old_source_custody_is_opt_in_for_owned_process_cleanup(self):
         with tempfile.TemporaryDirectory() as directory:
             paths = LabPaths.resolve(Path(directory))
             paths.pid_file.parent.mkdir(parents=True)
@@ -164,33 +195,43 @@ class PaperclipLabServerTests(unittest.TestCase):
             command = (
                 f"node --env-file={paths.env_file} --import {paths.loader} server/src/index.ts"
             )
-            manifest = {
-                "schema": "paperclip-lab-process-v3",
-                "pid": 1234,
-                "birth_identity": birth_identity,
-                "command_sha256": hashlib.sha256(command.encode()).hexdigest(),
-                "source_pin": PAPERCLIP_PARENT_PIN,
-                "upstream_pin": PAPERCLIP_UPSTREAM_PIN,
-                "node_version": "v24.22.0",
-            }
-            paths.pid_file.write_text(json.dumps(manifest), encoding="utf-8")
+            for old_pin in sorted(PAPERCLIP_STOP_CUSTODY_PINS):
+                manifest = {
+                    "schema": "paperclip-lab-process-v3",
+                    "pid": 1234,
+                    "birth_identity": birth_identity,
+                    "command_sha256": hashlib.sha256(command.encode()).hexdigest(),
+                    "source_pin": old_pin,
+                    "upstream_pin": PAPERCLIP_UPSTREAM_PIN,
+                    "node_version": "v24.22.0",
+                }
+                paths.pid_file.write_text(json.dumps(manifest), encoding="utf-8")
+                paths.pid_file.chmod(0o600)
+                with self.assertRaisesRegex(LabServerError, "manifest_invalid"):
+                    _read_manifest(paths.pid_file)
+                self.assertEqual(
+                    _read_manifest(paths.pid_file, allow_historical_source=True), manifest
+                )
+                with (
+                    patch(
+                        "engineering.paperclip_lab_server._process_info",
+                        return_value=("synthetic-start", command),
+                    ),
+                    patch(
+                        "engineering.paperclip_lab_server.process_identity",
+                        return_value=birth_identity,
+                    ),
+                ):
+                    self.assertEqual(
+                        _owned_process(paths, allow_historical_source=True)[1], "running"
+                    )
+                    with self.assertRaisesRegex(LabServerError, "manifest_invalid"):
+                        _owned_process(paths)
+            unsupported = {**manifest, "source_pin": PAPERCLIP_UPSTREAM_PIN}
+            paths.pid_file.write_text(json.dumps(unsupported), encoding="utf-8")
             paths.pid_file.chmod(0o600)
             with self.assertRaisesRegex(LabServerError, "manifest_invalid"):
-                _read_manifest(paths.pid_file)
-            self.assertEqual(_read_manifest(paths.pid_file, allow_historical_source=True), manifest)
-            with (
-                patch(
-                    "engineering.paperclip_lab_server._process_info",
-                    return_value=("synthetic-start", command),
-                ),
-                patch(
-                    "engineering.paperclip_lab_server.process_identity",
-                    return_value=birth_identity,
-                ),
-            ):
-                self.assertEqual(_owned_process(paths, allow_historical_source=True)[1], "running")
-                with self.assertRaisesRegex(LabServerError, "manifest_invalid"):
-                    _owned_process(paths)
+                _read_manifest(paths.pid_file, allow_historical_source=True)
 
 
 if __name__ == "__main__":

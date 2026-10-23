@@ -25,8 +25,10 @@ from typing import Any
 from engineering.processes import process_identity, terminate_owned
 
 PAPERCLIP_UPSTREAM_PIN = "043f2514e67c50320433a0013fb228a75a51325c"
-PAPERCLIP_PARENT_PIN = "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595"
-PAPERCLIP_PIN = "519c892646ec7b06996e990e9e728f794e1a689e"
+PAPERCLIP_ANCESTOR_PIN = "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595"
+PAPERCLIP_PARENT_PIN = "519c892646ec7b06996e990e9e728f794e1a689e"
+PAPERCLIP_PIN = "fecf7b18def542fb6b58e7e665011e66599ffffb"
+PAPERCLIP_STOP_CUSTODY_PINS = frozenset({PAPERCLIP_PARENT_PIN, PAPERCLIP_ANCESTOR_PIN})
 DEFAULT_LAB_ROOT = Path("/Users/root1/Developer/brain-paperclip-lab")
 PORT = 3310
 HEALTH_URL = f"http://127.0.0.1:{PORT}/api/health"
@@ -101,7 +103,10 @@ def _validate_source(paths: LabPaths) -> str:
     parent = _run(["git", "rev-parse", "HEAD^"], cwd=paths.source)
     if parent != PAPERCLIP_PARENT_PIN:
         raise LabServerError("paperclip_parent_pin_mismatch")
-    upstream = _run(["git", "rev-parse", f"{parent}^"], cwd=paths.source)
+    ancestor = _run(["git", "rev-parse", f"{parent}^"], cwd=paths.source)
+    if ancestor != PAPERCLIP_ANCESTOR_PIN:
+        raise LabServerError("paperclip_ancestor_pin_mismatch")
+    upstream = _run(["git", "rev-parse", f"{ancestor}^"], cwd=paths.source)
     if upstream != PAPERCLIP_UPSTREAM_PIN:
         raise LabServerError("paperclip_upstream_pin_mismatch")
     dirty = _run(["git", "status", "--porcelain", "--untracked-files=normal"], cwd=paths.source)
@@ -212,7 +217,8 @@ def _read_manifest(path: Path, *, allow_historical_source: bool = False) -> dict
     )
     historical_source = (
         type(data) is dict
-        and data.get("source_pin") == PAPERCLIP_PARENT_PIN
+        and type(data.get("source_pin")) is str
+        and data.get("source_pin") in PAPERCLIP_STOP_CUSTODY_PINS
         and data.get("upstream_pin") == PAPERCLIP_UPSTREAM_PIN
     )
     if (

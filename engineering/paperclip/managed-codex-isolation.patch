@@ -15,10 +15,10 @@ index fbbdd91..99977fc 100644
  
  Capability ID: `agents/organization`.
 diff --git a/maps/agent-access-map/runs-adapters.md b/maps/agent-access-map/runs-adapters.md
-index 23d4523..cd09713 100644
+index 23d4523..e28196e 100644
 --- a/maps/agent-access-map/runs-adapters.md
 +++ b/maps/agent-access-map/runs-adapters.md
-@@ -255,6 +255,17 @@ Gaps: Task-session listing and execution-context reset require board agent
+@@ -255,6 +255,24 @@ Gaps: Task-session listing and execution-context reset require board agent
  management at their HTTP routes. Native `call_api` preserves these denials; native
  continuation remains server-owned.
  
@@ -32,6 +32,13 @@ index 23d4523..cd09713 100644
 +discovery and execution. Enforcement: [session binding](../../server/src/services/native-runtime/native-session-executor.ts),
 +[native authority](../../server/src/services/native-runtime/paperclip-runner-tool-authority.ts),
 +and [assigned tools](../../server/src/services/native-runtime/assigned-mcp-tools.ts).
++
++Native MCP assignment snapshots also include exact agent-visible plugin tool names,
++sorted into the assignment digest and profile. Plugin-only assignments receive the
++same authenticated aggregate gateway; a changed name set fails the pinned digest
++check. Local managed Codex uses the controller PRP relay only when the owner has an
++explicit native tool allowlist, and the gateway URL and token are removed from the
++child environment. Without that policy, existing local delivery behavior is retained.
 +
  Scoped source-only evidence: [configuration changes](../../server/src/services/agent-configuration.ts)
  and [native execution/recovery](../../server/src/services/native-runtime/native-session-executor.ts)
@@ -644,6 +651,97 @@ index a2b2892..55995cc 100644
    it("enforces direct or consented suggest grants for skill configuration changes", async () => {
      const company = await createCompany(db, "SkillChangeGrant");
      const directAgent = await createAgent(db, company.id);
+diff --git a/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts b/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts
+index 930c361..f8fe6ba 100644
+--- a/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts
++++ b/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts
+@@ -1,9 +1,9 @@
+-import { randomUUID } from "node:crypto";
++import { createHash, randomUUID } from "node:crypto";
+ import express from "express";
+ import request from "supertest";
+ import { mcpGatewayProtocolRoutes } from "../routes/tool-gateway.js";
+ import { eq, sql } from "drizzle-orm";
+-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
++import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+ import {
+   agents,
+   activityLog,
+@@ -29,6 +29,7 @@ import {
+ } from "./helpers/embedded-postgres.js";
+ import { buildPaperclipRuntimeMcpServers, createManagedMcpRunConfig } from "../services/heartbeat.js";
+ import { createToolGatewayService, ToolGatewayHttpError } from "../services/tool-gateway.js";
++import { registerAssignedMcpGateway } from "../services/native-runtime/assigned-mcp-tools.js";
+ 
+ import { toolAccessService } from "../services/tool-access.js";
+ 
+@@ -63,6 +64,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
+     await db.delete(agents);
+     await db.delete(companyMemberships);
+     await db.delete(companies);
++    registerAssignedMcpGateway(db, createToolGatewayService(db));
+   });
+ 
+   afterAll(async () => {
+@@ -205,6 +207,58 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
+     ).resolves.toBeNull();
+   });
+ 
++  it("provisions a plugin-only gateway from exact agent-visible tool names", async () => {
++    process.env.PAPERCLIP_API_URL = "https://paperclip.example.test";
++    const [company] = await db.insert(companies).values({
++      name: `Runtime MCP plugin ${randomUUID()}`,
++      issuePrefix: `RP${randomUUID().slice(0, 5).toUpperCase()}`,
++    }).returning();
++    const [agent] = await db.insert(agents).values({
++      companyId: company!.id, name: "Plugin-only Agent", role: "engineer", adapterType: "codex_local", adapterConfig: {},
++    }).returning();
++    const [run] = await db.insert(heartbeatRuns).values({
++      companyId: company!.id, agentId: agent!.id, status: "running", runtimeMode: "native",
++    }).returning();
++    const selected = "brain.autonomous-bridge:submit_candidate";
++    const visibleButUnselected = "brain.autonomous-bridge:approve_candidate";
++    const [profile] = await db.insert(toolProfiles).values({
++      companyId: company!.id, profileKey: `plugins:${randomUUID()}`, name: "Selected plugin tools", defaultAction: "deny",
++    }).returning();
++    await db.insert(toolProfileEntries).values({
++      companyId: company!.id, profileId: profile!.id, selectorType: "tool_name", effect: "include", toolName: selected,
++    });
++    await db.insert(toolProfileBindings).values({
++      companyId: company!.id, profileId: profile!.id, targetType: "agent", targetId: agent!.id,
++    });
++    const pluginToolDispatcher = {
++      listToolsForAgent: () => [selected, visibleButUnselected].map((name) => ({
++        name, displayName: name, description: name, parametersSchema: { type: "object" }, pluginId: "brain.autonomous-bridge",
++      })),
++      executeTool: vi.fn(),
++    };
++    const gateway = createToolGatewayService(db, { pluginToolDispatcher: pluginToolDispatcher as never });
++    registerAssignedMcpGateway(db, gateway);
++
++    const [server] = await buildPaperclipRuntimeMcpServers({ db, agent: agent!, runId: run!.id });
++    expect(server).toMatchObject({ name: "paperclip-assigned", connectionId: expect.stringMatching(/^assignment:[a-f0-9]{64}$/) });
++    const digest = server!.connectionId.slice("assignment:".length);
++    expect(digest).toBe(createHash("sha256").update(JSON.stringify({
++      version: 1, agentId: agent!.id, connections: [], tools: [], pluginTools: [selected],
++    })).digest("hex"));
++    const nativeProfile = await db.select().from(toolProfiles).where(eq(toolProfiles.profileKey, `native:${agent!.id}:${digest}`));
++    expect(nativeProfile).toHaveLength(1);
++    const entries = await db.select().from(toolProfileEntries).where(eq(toolProfileEntries.profileId, nativeProfile[0]!.id));
++    expect(entries).toEqual([expect.objectContaining({ selectorType: "tool_name", effect: "include", toolName: selected })]);
++
++    const gatewayPublicId = new URL(server!.url).pathname.split("/").at(-1)!;
++    const visibleTools = await gateway.listToolsForNamedGateway({ gatewayPublicId, bearerToken: server!.token });
++    expect(visibleTools.map((tool) => tool.name)).toContain(selected);
++    expect(visibleTools.map((tool) => tool.name)).not.toContain(visibleButUnselected);
++    await expect(buildPaperclipRuntimeMcpServers({ db, agent: agent!, runId: run!.id, expectedAssignmentDigest: "0".repeat(64) }))
++      .resolves.toEqual([]);
++    expect(await db.select().from(toolMcpGatewayTokens)).toHaveLength(1);
++  });
++
+   async function seedAssignedAgents(count: number) {
+     process.env.PAPERCLIP_API_URL = "https://paperclip.example.test";
+     const [company] = await db.insert(companies).values({
 diff --git a/server/src/services/authorization.ts b/server/src/services/authorization.ts
 index 71d4aff..b42e248 100644
 --- a/server/src/services/authorization.ts
@@ -676,11 +774,81 @@ index 71d4aff..b42e248 100644
      if (input.actor.keyScope?.kind === "skill_test") {
        const skillTestDecision = decideSkillTestAccess({
          action: input.action,
+diff --git a/server/src/services/heartbeat/run-preparation.ts b/server/src/services/heartbeat/run-preparation.ts
+index 7c635e5..df0bff3 100644
+--- a/server/src/services/heartbeat/run-preparation.ts
++++ b/server/src/services/heartbeat/run-preparation.ts
+@@ -87,6 +87,8 @@ import {
+   type MissingRuntimeBinding,
+ } from "../secrets.js";
+ import { createToolGatewayService } from "../tool-gateway.js";
++import { getAssignedMcpGatewayIfAvailable } from "../native-runtime/assigned-mcp-tools.js";
++import { nativeMcpAssignment, nativeMcpPluginToolNames } from "../native-runtime/native-mcp-assignment.js";
+ import { toolAccessService } from "../tool-access.js";
+ import {
+   buildDocumentReviewContext,
+@@ -1029,8 +1031,13 @@ export async function buildPaperclipRuntimeMcpServers(input: {
+   const assignedTools = effective.allowedTools.filter((tool) =>
+     assignedConnectionIds.has(tool.connectionId),
+   );
+-  const service = createToolGatewayService(input.db);
+-  if (assignedConnections.length === 0) {
++  const registeredGateway = getAssignedMcpGatewayIfAvailable(input.db);
++  const pluginTools = nativeMcpPluginToolNames(
++    effective.allowedToolNames,
++    registeredGateway?.listPluginToolNamesForAssignment() ?? [],
++  );
++  const service = registeredGateway ?? createToolGatewayService(input.db);
++  if (assignedConnections.length === 0 && pluginTools.length === 0) {
+     await service.recordRuntimeMcpDeliveryDiagnostic({
+       companyId: input.agent.companyId,
+       agentId: input.agent.id,
+@@ -1039,12 +1046,12 @@ export async function buildPaperclipRuntimeMcpServers(input: {
+     });
+     return [];
+   }
+-  const assignment = {
+-    version: 1,
++  const assignment = nativeMcpAssignment({
+     agentId: input.agent.id,
+-    connections: assignedConnections.map((connection) => connection.id).sort(),
+-    tools: assignedTools.map((tool) => tool.id).sort(),
+-  };
++    connections: assignedConnections.map((connection) => connection.id),
++    tools: assignedTools.map((tool) => tool.id),
++    pluginTools,
++  });
+   const assignmentDigest = createHash("sha256")
+     .update(JSON.stringify(assignment))
+     .digest("hex");
+@@ -1097,6 +1104,11 @@ export async function buildPaperclipRuntimeMcpServers(input: {
+           connectionId: tool.connectionId,
+           catalogEntryId: tool.id,
+         })),
++      ...pluginTools.map((toolName) => ({
++        selectorType: "tool_name" as const,
++        effect: "include" as const,
++        toolName,
++      })),
+     ];
+     // The 250-entry limit bounds a public profile-edit request, not the
+     // effective assignment assembled from existing profiles. Keep every exact
 diff --git a/server/src/services/native-runtime/assigned-mcp-tools.ts b/server/src/services/native-runtime/assigned-mcp-tools.ts
-index 535b265..9bd25de 100644
+index 535b265..efd9b4e 100644
 --- a/server/src/services/native-runtime/assigned-mcp-tools.ts
 +++ b/server/src/services/native-runtime/assigned-mcp-tools.ts
-@@ -86,6 +86,7 @@ export async function createAssignedMcpTools(input: {
+@@ -64,6 +64,10 @@ export function getAssignedMcpGateway(db: Db): ToolGatewayService {
+   return gateway;
+ }
+ 
++export function getAssignedMcpGatewayIfAvailable(db: Db): ToolGatewayService | null {
++  return assignedMcpGateways.get(db) ?? null;
++}
++
+ /** No configured gateway means no authorized connection tools or instructions. */
+ export async function resolveAssignedConnectionInstructionsForRun(db: Db, binding: { companyId: string; agentId: string; runId: string }) {
+   const gateway = assignedMcpGateways.get(db);
+@@ -86,6 +90,7 @@ export async function createAssignedMcpTools(input: {
    gatewayPublicId: string;
    bearerToken: string;
    workMode?: WorkMode;
@@ -688,7 +856,7 @@ index 535b265..9bd25de 100644
  }) {
    const listed = await input.gateway.listToolsForNamedGateway({
      gatewayPublicId: input.gatewayPublicId,
-@@ -103,8 +104,11 @@ export async function createAssignedMcpTools(input: {
+@@ -103,8 +108,11 @@ export async function createAssignedMcpTools(input: {
      tools.set(name, descriptor);
    }
    const permits = (tool: ToolGatewayDescriptor, mode: WorkMode = input.workMode ?? "standard") => mode === "standard" || tool.risk === "read";
@@ -701,7 +869,7 @@ index 535b265..9bd25de 100644
      const args = object(argumentsValue);
      const offset = args.offset ?? 0;
      const limit = args.limit ?? 5;
-@@ -123,7 +127,7 @@ export async function createAssignedMcpTools(input: {
+@@ -123,7 +131,7 @@ export async function createAssignedMcpTools(input: {
        gatewayPublicId: input.gatewayPublicId, bearerToken: input.bearerToken,
      })).map(tool => [tool.name, tool]));
      const terms = args.query.toLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -710,7 +878,7 @@ index 535b265..9bd25de 100644
        const fresh = current.get(tool.name);
        return fresh && permits(tool) && permits(tool, currentWorkMode) &&
          permits(fresh) && permits(fresh, currentWorkMode);
-@@ -159,9 +163,10 @@ export async function createAssignedMcpTools(input: {
+@@ -159,9 +167,10 @@ export async function createAssignedMcpTools(input: {
    }
  
    return {
@@ -723,7 +891,7 @@ index 535b265..9bd25de 100644
        const compact = structuredClone(ON_DEMAND_TOOLS);
        if (!fits(compact)) throw new Error("assigned_mcp_tool_catalog_capacity_exceeded");
        return compact;
-@@ -169,8 +174,18 @@ export async function createAssignedMcpTools(input: {
+@@ -169,8 +178,18 @@ export async function createAssignedMcpTools(input: {
      has(name: string): boolean {
        return tools.has(name) || name === SEARCH_TOOL || name === CALL_TOOL;
      },
@@ -744,7 +912,7 @@ index 535b265..9bd25de 100644
        let name = call.tool;
        let parameters = call.arguments;
        if (name === CALL_TOOL) {
-@@ -181,6 +196,9 @@ export async function createAssignedMcpTools(input: {
+@@ -181,6 +200,9 @@ export async function createAssignedMcpTools(input: {
        }
        const descriptor = tools.get(name);
        if (!descriptor) throw new Error("assigned_mcp_tool_unknown");
@@ -754,8 +922,199 @@ index 535b265..9bd25de 100644
        if (!permits(descriptor) || !permits(descriptor, currentWorkMode)) throw new Error("paperclip_runner_tool_mode_denied");
        // Reauthorize through the existing gateway on every call. Discovery is
        // not a grant: revocation, policy, approval, and audit remain server-owned.
+diff --git a/server/src/services/native-runtime/native-mcp-assignment.test.ts b/server/src/services/native-runtime/native-mcp-assignment.test.ts
+new file mode 100644
+index 0000000..56f8361
+--- /dev/null
++++ b/server/src/services/native-runtime/native-mcp-assignment.test.ts
+@@ -0,0 +1,30 @@
++import { createHash } from "node:crypto";
++import { describe, expect, it } from "vitest";
++import { nativeMcpAssignment, nativeMcpPluginToolNames } from "./native-mcp-assignment.js";
++
++describe("native MCP assignment snapshot", () => {
++  it("intersects exact agent-visible names with registered plugin names and sorts them", () => {
++    expect(nativeMcpPluginToolNames(
++      ["z-plugin:run", "missing-plugin:run", "a-plugin:inspect", "z-plugin:run"],
++      ["a-plugin:inspect", "z-plugin:run", "unassigned-plugin:approve"],
++    )).toEqual(["a-plugin:inspect", "z-plugin:run"]);
++  });
++
++  it("preserves the legacy digest shape when no plugin tools are assigned", () => {
++    const oldShape = { version: 1, agentId: "agent", connections: ["connection"], tools: ["tool"] };
++    const assignment = nativeMcpAssignment({ agentId: "agent", connections: ["connection"], tools: ["tool"] });
++    expect(assignment).toEqual(oldShape);
++    expect(createHash("sha256").update(JSON.stringify(assignment)).digest("hex"))
++      .toBe(createHash("sha256").update(JSON.stringify(oldShape)).digest("hex"));
++  });
++
++  it("pins plugin names in sorted digest material so any assignment drift changes the digest", () => {
++    const first = nativeMcpAssignment({ agentId: "agent", connections: [], tools: [], pluginTools: ["z:run", "a:inspect"] });
++    const reordered = nativeMcpAssignment({ agentId: "agent", connections: [], tools: [], pluginTools: ["a:inspect", "z:run"] });
++    const drifted = nativeMcpAssignment({ agentId: "agent", connections: [], tools: [], pluginTools: ["z:run"] });
++    const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
++    expect(first.pluginTools).toEqual(["a:inspect", "z:run"]);
++    expect(digest(first)).toBe(digest(reordered));
++    expect(digest(first)).not.toBe(digest(drifted));
++  });
++});
+diff --git a/server/src/services/native-runtime/native-mcp-assignment.ts b/server/src/services/native-runtime/native-mcp-assignment.ts
+new file mode 100644
+index 0000000..10d1a2e
+--- /dev/null
++++ b/server/src/services/native-runtime/native-mcp-assignment.ts
+@@ -0,0 +1,25 @@
++export function nativeMcpPluginToolNames(
++  agentVisibleNames: readonly string[],
++  registeredPluginNames: readonly string[],
++): string[] {
++  const registered = new Set(registeredPluginNames);
++  return [...new Set(agentVisibleNames)]
++    .filter((name) => registered.has(name))
++    .sort();
++}
++
++export function nativeMcpAssignment(input: {
++  agentId: string;
++  connections: readonly string[];
++  tools: readonly string[];
++  pluginTools?: readonly string[];
++}) {
++  const pluginTools = [...new Set(input.pluginTools ?? [])].sort();
++  return {
++    version: 1,
++    agentId: input.agentId,
++    connections: [...new Set(input.connections)].sort(),
++    tools: [...new Set(input.tools)].sort(),
++    ...(pluginTools.length ? { pluginTools } : {}),
++  };
++}
+diff --git a/server/src/services/native-runtime/native-session-executor.test.ts b/server/src/services/native-runtime/native-session-executor.test.ts
+index 98605fe..85ca35e 100644
+--- a/server/src/services/native-runtime/native-session-executor.test.ts
++++ b/server/src/services/native-runtime/native-session-executor.test.ts
+@@ -30,6 +30,7 @@ import { tmpdir } from "node:os";
+ import { inspect } from "node:util";
+ import { dirname, join } from "node:path";
+ import {
++  agents,
+   heartbeatRuns,
+   heartbeatRunEvents,
+   issues,
+@@ -127,6 +128,7 @@ type BackendFactoryOptions = {
+ };
+ 
+ type RunnerTransportOptions = {
++  environment?: NodeJS.ProcessEnv;
+   acpxRuntimeDirectory?: string;
+   adoptExistingRunner?: { pid: number; isAlive: () => Promise<boolean> | boolean };
+   stateDirectory?: string;
+@@ -271,7 +273,8 @@ vi.mock("@paperclipai/adapter-codex-local/server", async (importOriginal) => ({
+   copyBackCodexAuth: state.copyBackCodexAuth,
+ }));
+ 
+-vi.mock("./paperclip-runner-tool-authority.js", () => ({
++vi.mock("./paperclip-runner-tool-authority.js", async (importOriginal) => ({
++  ...await importOriginal<typeof import("./paperclip-runner-tool-authority.js")>(),
+   PaperclipRunnerToolAuthority: class {
+     close() {}
+     readonly binding: Record<string, unknown>;
+@@ -293,6 +296,7 @@ vi.mock("./paperclip-runner-tool-authority.js", () => ({
+ vi.mock("./assigned-mcp-tools.js", () => ({
+   createAssignedMcpTools: state.createAssignedMcpTools,
+   getAssignedMcpGateway: () => ({}),
++  getAssignedMcpGatewayIfAvailable: () => null,
+ }));
+ 
+ vi.mock("./native-runner-file-handoff.js", () => ({
+@@ -5575,6 +5579,7 @@ function leaseDb(
+   runnerProfileJson: Record<string, unknown> = {},
+   runStatus = "running",
+   priorAccountingEvents: PrpEvent[] = [],
++  agentPermissions: Record<string, unknown> = {},
+ ): Db {
+   const coordinator: LeaseCoordinator = {
+     runId: boundExecution.binding.runId,
+@@ -5609,6 +5614,8 @@ function leaseDb(
+       const rows =
+         table === nativeRunFinalizations
+           ? [coordinator]
++          : table === agents
++            ? [{ config: {}, permissions: agentPermissions }]
+           : table === heartbeatRuns
+             ? [
+                 {
+@@ -11166,6 +11173,68 @@ describe("runnerd provider runtime wiring", () => {
+     }
+   });
+ 
++  it("relays local Codex assigned tools only with explicit owner nativeToolAllowlist and strips child MCP credentials", async () => {
++    const assignedMcpTools = { definitions: () => [], has: () => false, execute: vi.fn() };
++    state.createAssignedMcpTools.mockResolvedValueOnce(assignedMcpTools);
++    state.createBackend.mockClear();
++    state.createTransport.mockClear();
++    state.toolAuthorityDefinitions.mockClear();
++    const runnerEnvironment = {
++      PAPERCLIP_NATIVE_MCP_NAME: "paperclip-assigned",
++      PAPERCLIP_NATIVE_MCP_URL: "http://127.0.0.1:3217/mcp/gateways/local-opt-in",
++      PAPERCLIP_NATIVE_MCP_TOKEN: "private-local-token",
++    };
++    const optedInExecution = { ...execution, binding: { ...execution.binding, runId: "run-local-mcp-opt-in" },
++      session: { ...execution.session, normalizedSessionId: "session-local-mcp-opt-in" } };
++    await createRunnerdBackend({
++      db: leaseDb(optedInExecution, {}, {}, [], {}, "running", [], {
++        nativeToolAllowlist: ["brain.autonomous-bridge:submit_candidate"],
++      }),
++      execution: optedInExecution,
++      runnerInstanceId: "runner-local-mcp-opt-in",
++      runnerEnvironment,
++    });
++    expect(state.createAssignedMcpTools).toHaveBeenCalledWith(expect.objectContaining({
++      gatewayPublicId: "local-opt-in", bearerToken: "private-local-token",
++      nativeToolAllowlist: ["brain.autonomous-bridge:submit_candidate"],
++    }));
++    expect(state.toolAuthorityDefinitions).toHaveBeenCalledWith(expect.objectContaining({ assignedMcpTools }));
++    state.createBackend.mock.calls[0]![1].codexTransportFactory!();
++    const childEnvironment = state.createTransport.mock.calls[0]![0].environment!;
++    expect(childEnvironment.PAPERCLIP_NATIVE_MCP_NAME).toBeUndefined();
++    expect(childEnvironment.PAPERCLIP_NATIVE_MCP_URL).toBeUndefined();
++    expect(childEnvironment.PAPERCLIP_NATIVE_MCP_TOKEN).toBeUndefined();
++    expect(JSON.stringify(childEnvironment)).not.toContain("private-local-token");
++
++    state.createAssignedMcpTools.mockClear();
++    state.createBackend.mockClear();
++    state.createTransport.mockClear();
++    const legacyExecution = { ...execution, binding: { ...execution.binding, runId: "run-local-mcp-legacy" },
++      session: { ...execution.session, normalizedSessionId: "session-local-mcp-legacy" } };
++    await createRunnerdBackend({
++      db: leaseDb(legacyExecution), execution: legacyExecution, runnerInstanceId: "runner-local-mcp-legacy", runnerEnvironment,
++    });
++    expect(state.createAssignedMcpTools).not.toHaveBeenCalled();
++    state.createBackend.mock.calls[0]![1].codexTransportFactory!();
++    const legacyChildEnvironment = state.createTransport.mock.calls[0]![0].environment!;
++    expect(legacyChildEnvironment.PAPERCLIP_NATIVE_MCP_NAME).toBe("paperclip-assigned");
++    expect(legacyChildEnvironment.PAPERCLIP_NATIVE_MCP_TOKEN).toBe("private-local-token");
++
++    state.createAssignedMcpTools.mockResolvedValueOnce({ definitions: () => [], has: () => false, execute: vi.fn() });
++    state.createBackend.mockClear();
++    state.createTransport.mockClear();
++    const malformedExecution = { ...execution, binding: { ...execution.binding, runId: "run-local-mcp-malformed" },
++      session: { ...execution.session, normalizedSessionId: "session-local-mcp-malformed" } };
++    await createRunnerdBackend({
++      db: leaseDb(malformedExecution, {}, {}, [], {}, "running", [], { nativeToolAllowlist: "malformed" }),
++      execution: malformedExecution, runnerInstanceId: "runner-local-mcp-malformed", runnerEnvironment,
++    });
++    expect(state.createAssignedMcpTools).toHaveBeenLastCalledWith(expect.objectContaining({ nativeToolAllowlist: null }));
++    state.createBackend.mock.calls[0]![1].codexTransportFactory!();
++    const malformedChildEnvironment = state.createTransport.mock.calls[0]![0].environment!;
++    expect(malformedChildEnvironment.PAPERCLIP_NATIVE_MCP_TOKEN).toBeUndefined();
++  });
++
+   it("makes remote authority archival idempotent and returns the archived state", async () => {
+     const remoteExecute = vi.fn();
+     const remoteTarget = {
 diff --git a/server/src/services/native-runtime/native-session-executor.ts b/server/src/services/native-runtime/native-session-executor.ts
-index 7e18fd0..687bd66 100644
+index 7e18fd0..49f2ff1 100644
 --- a/server/src/services/native-runtime/native-session-executor.ts
 +++ b/server/src/services/native-runtime/native-session-executor.ts
 @@ -157,7 +157,7 @@ import { PaperclipControlPlanePort } from "./paperclip-control-plane-port.js";
@@ -767,19 +1126,24 @@ index 7e18fd0..687bd66 100644
  import { createAssignedMcpTools, getAssignedMcpGateway } from "./assigned-mcp-tools.js";
  import { getNativeReviewAssignment, readNativeReviewAssignmentContext } from "./native-review-participant.js";
  import { NativeChatAttachmentReadScope } from "./chat-attachment-read.js";
-@@ -11692,6 +11692,11 @@ async function createRunnerdBackendWithinSessionClaim(
-   if (relayAssignedMcp && hasAssignedMcp && !assignedGatewayPublicId) {
-     throw new Error("assigned native MCP gateway path is invalid");
-   }
+@@ -11678,7 +11678,15 @@ async function createRunnerdBackendWithinSessionClaim(
+   // Remote Codex already sends dynamic tool calls over authenticated PRP. Keep
+   // the assigned gateway on the control plane instead of asking the sandbox to
+   // reach the host's HTTP origin (which may be private or loopback-only).
+-  const relayAssignedMcp = Boolean(pluginTask) || (remoteTarget !== null && input.execution.provider.kind === "codex") || input.execution.schema === "paperclip.native-execution-input.v6";
 +  const [nativeToolOwner] = await input.db.select({ config: agents.adapterConfig, permissions: agents.permissions }).from(agents).where(and(
 +    eq(agents.id, input.execution.binding.agentId), eq(agents.companyId, input.execution.binding.companyId),
 +  )).limit(1);
 +  if (!nativeToolOwner) throw new Error("native tool policy owner is unavailable");
 +  const nativeToolAllowlist = nativeToolAllowlistFromPermissions(nativeToolOwner.permissions);
-   const [preparedEnvironment, preparedAssignedMcp] = await Promise.allSettled([
-     Promise.resolve().then(() => input.prepareRunnerEnvironment?.() ?? input.runnerEnvironment),
-     Promise.resolve().then(() => relayAssignedMcp && !nativeReview && assignedMcpUrl && assignedMcpToken
-@@ -11700,6 +11705,7 @@ async function createRunnerdBackendWithinSessionClaim(
++  const relayLocalCodexByOwnerPolicy = input.execution.provider.kind === "codex" && target.kind === "local"
++    && !nativeReview && nativeToolAllowlist !== undefined;
++  const relayAssignedMcp = Boolean(pluginTask) || (remoteTarget !== null && input.execution.provider.kind === "codex")
++    || input.execution.schema === "paperclip.native-execution-input.v6" || relayLocalCodexByOwnerPolicy;
+   const assignedMcpUrl = input.runnerEnvironment?.PAPERCLIP_NATIVE_MCP_URL;
+   const assignedMcpToken = input.runnerEnvironment?.PAPERCLIP_NATIVE_MCP_TOKEN;
+   const assignedMcpName = input.runnerEnvironment?.PAPERCLIP_NATIVE_MCP_NAME;
+@@ -11700,6 +11708,7 @@ async function createRunnerdBackendWithinSessionClaim(
          gatewayPublicId: assignedGatewayPublicId!,
          bearerToken: assignedMcpToken,
          workMode: input.execution.task.workMode,
@@ -787,7 +1151,7 @@ index 7e18fd0..687bd66 100644
        }))
        : undefined),
    ]);
-@@ -11707,10 +11713,7 @@ async function createRunnerdBackendWithinSessionClaim(
+@@ -11707,10 +11716,7 @@ async function createRunnerdBackendWithinSessionClaim(
    if (preparedAssignedMcp.status === "rejected") throw preparedAssignedMcp.reason;
    const runnerEnvironment = preparedEnvironment.value;
    const assignedMcpTools = preparedAssignedMcp.value;
@@ -799,7 +1163,7 @@ index 7e18fd0..687bd66 100644
    const authority = new PaperclipRunnerToolAuthority(input.db, {
      casesEnabled: input.casesEnabled === true,
      ...(nativeReview ? { nativeReview } : {}),
-@@ -11720,6 +11723,7 @@ async function createRunnerdBackendWithinSessionClaim(
+@@ -11720,6 +11726,7 @@ async function createRunnerdBackendWithinSessionClaim(
      issueId: input.execution.binding.issueId,
      runId: input.execution.binding.runId,
      agentId: input.execution.binding.agentId,
@@ -1083,3 +1447,108 @@ index e4d7b4b..60eedb3 100644
        return captureRunnerToolResult(result, this.#responseCaptureIo("runner.assigned_tool"));
      }
      if (isConnectorTool(call.tool)) {
+diff --git a/server/src/services/native-runtime/runtime-context.test.ts b/server/src/services/native-runtime/runtime-context.test.ts
+index 5af8520..5178cc4 100644
+--- a/server/src/services/native-runtime/runtime-context.test.ts
++++ b/server/src/services/native-runtime/runtime-context.test.ts
+@@ -12,6 +12,7 @@ const serviceMocks = vi.hoisted(() => ({
+   exportFiles: vi.fn(),
+   readCommittedForRuntime: vi.fn(),
+   getEffectiveToolAssignmentsForAgent: vi.fn(),
++  listPluginToolNamesForAssignment: vi.fn((): string[] => []),
+   githubBotConnectionIdsForRun: vi.fn(),
+   spekoToolsForSession: vi.fn(),
+ }));
+@@ -35,6 +36,11 @@ vi.mock("../tool-access.js", () => ({
+     getEffectiveToolAssignmentsForAgent: serviceMocks.getEffectiveToolAssignmentsForAgent,
+   }),
+ }));
++vi.mock("./assigned-mcp-tools.js", () => ({
++  getAssignedMcpGatewayIfAvailable: () => ({
++    listPluginToolNamesForAssignment: serviceMocks.listPluginToolNamesForAssignment,
++  }),
++}));
+ 
+ import { createHash } from "node:crypto";
+ import { context as otelContext, trace } from "@opentelemetry/api";
+@@ -410,6 +416,24 @@ it("pins both permitted GitHub tool catalogs even when another user’s health p
+   expect(limit).toHaveBeenCalledOnce();
+ });
+ 
++it("includes only registered agent-visible plugin tools in the immutable MCP assignment digest", async () => {
++  serviceMocks.getEffectiveToolAssignmentsForAgent.mockResolvedValue({
++    entries: [], installedConnections: [], allowedTools: [],
++    allowedToolNames: ["brain.autonomous-bridge:submit_candidate", "not-a-plugin:read"],
++  });
++  serviceMocks.listPluginToolNamesForAssignment.mockReturnValue([
++    "brain.autonomous-bridge:submit_candidate", "brain.autonomous-bridge:inspect_candidate",
++  ]);
++  const input = { db: {} as Db, agent: { id: "agent-1", companyId: "company-1" }, runId: "run-1" };
++  const snapshot = await resolveNativeRuntimeMcpSnapshot(input);
++  const expected = createHash("sha256").update(JSON.stringify({
++    version: 1, agentId: "agent-1", connections: [], tools: [],
++    pluginTools: ["brain.autonomous-bridge:submit_candidate"],
++  })).digest("hex");
++  expect(snapshot.digest).toBe(expected);
++  expect(snapshot.bindingId).toBe("native-mcp:run-1");
++});
++
+ it("pins channel tools only when the current task run is bound to that bot", async () => {
+   serviceMocks.getEffectiveToolAssignmentsForAgent.mockResolvedValue({
+     entries: [{ effect: "include", connectionId: "bot-connection" }],
+diff --git a/server/src/services/native-runtime/runtime-context.ts b/server/src/services/native-runtime/runtime-context.ts
+index 174a6fd..0e9bdfc 100644
+--- a/server/src/services/native-runtime/runtime-context.ts
++++ b/server/src/services/native-runtime/runtime-context.ts
+@@ -28,6 +28,8 @@ import { resolvePaperclipInstanceRoot } from "../../home-paths.js";
+ import { agentInstructionsService, agentInstructionsBundleMode } from "../agent-instructions.js";
+ import { agentInstructionRevisionService } from "../agent-instruction-revisions.js";
+ import { toolAccessService } from "../tool-access.js";
++import { getAssignedMcpGatewayIfAvailable } from "./assigned-mcp-tools.js";
++import { nativeMcpAssignment, nativeMcpPluginToolNames } from "./native-mcp-assignment.js";
+ import { filterResolvedGitHubConnectionsForRun } from "../git-credentials.js";
+ 
+ const MAX_ASSET_FILES = 10_000;
+@@ -238,17 +240,20 @@ export async function resolveNativeRuntimeMcpSnapshot(input: { db: Db; agent: Pi
+       || !isToolConnectionAttentionHealth(connection.healthStatus))
+     && (["mcp_remote", "local_stdio"].includes(connection.transport) || isBrowserUseConnection(connection) || githubBotConnectionIds.has(connection.id) || spekoConnectionIds.has(connection.id))
+   ).map((connection) => connection.id));
+-  const assignment = {
+-    version: 1,
++  const pluginTools = nativeMcpPluginToolNames(
++    effective.allowedToolNames,
++    getAssignedMcpGatewayIfAvailable(input.db)?.listPluginToolNamesForAssignment() ?? [],
++  );
++  const assignment = nativeMcpAssignment({
+     agentId: input.agent.id,
+-    connections: [...availableConnectionIds].sort(),
++    connections: [...availableConnectionIds],
+     tools: effective.allowedTools
+       .filter((tool) => availableConnectionIds.has(tool.connectionId))
+-      .map((tool) => tool.id)
+-      .sort(),
+-  };
++      .map((tool) => tool.id),
++    pluginTools,
++  });
+   const assignmentDigest = sha256(JSON.stringify(assignment));
+-  return { assignmentSetId: `sha256:${assignmentDigest}`, digest: assignmentDigest, bindingId: assignment.connections.length ? `native-mcp:${input.runId}` : null };
++  return { assignmentSetId: `sha256:${assignmentDigest}`, digest: assignmentDigest, bindingId: assignment.connections.length || pluginTools.length ? `native-mcp:${input.runId}` : null };
+ }
+ 
+ export async function buildNativeRuntimeContext(input: { db: Db; agent: RuntimeAgent; runId: string; runtimeConfig: Record<string, unknown>; runtimeSkillEntries: PaperclipSkillEntry[]; instructionWorkingCopy?: { rootPath: string; entryPath: string; kind?: "agent_files" } }): Promise<NativeRuntimeContextSnapshot> {
+diff --git a/server/src/services/tool-gateway.ts b/server/src/services/tool-gateway.ts
+index 3e97a9f..f3c35a3 100644
+--- a/server/src/services/tool-gateway.ts
++++ b/server/src/services/tool-gateway.ts
+@@ -9070,6 +9070,10 @@ export function createToolGatewayService(
+       return tools;
+     },
+ 
++    listPluginToolNamesForAssignment(): string[] {
++      return pluginTools().map((tool) => tool.name).sort();
++    },
++
+     async executeContextForNamedGateway(input: {
+       gatewayId?: string | null;
+       gatewayPublicId?: string | null;
