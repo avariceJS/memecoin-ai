@@ -374,8 +374,7 @@ describe("Paperclip autonomous bridge tools", () => {
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
         { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem9" },
-      ], canonical_repo: "/tmp/brain-canonical", canonical_ref: "refs/heads/brain/development",
-      canonical_expected_tip: "f".repeat(40), python_executable: "/usr/bin/python3",
+      ], python_executable: "/usr/bin/python3",
     };
     const { writeFile } = await import("node:fs/promises");
     await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
@@ -458,7 +457,8 @@ describe("Paperclip autonomous bridge tools", () => {
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
         { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem9" },
-      ], python_executable: "/usr/bin/python3",
+      ], canonical_repo: "/tmp/brain-canonical", canonical_ref: "refs/heads/brain/development",
+      canonical_expected_tip: "f".repeat(40), python_executable: "/usr/bin/python3",
     };
     const { writeFile } = await import("node:fs/promises");
     await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
@@ -514,9 +514,9 @@ describe("Paperclip autonomous bridge tools", () => {
       ? { found: true, stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), review_instruction_sha256: digest("review instructions") }
       : action === "approve_bound_source_stage"
         ? { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), status: "published", evidence_digest: "f".repeat(64),
-          projection_status: "published", canonical_status: "published", canonical_candidate_sha: "g".repeat(40), canonical_receipt_digest: "h".repeat(64) }
+          projection_status: "published", canonical_status: "published", canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) }
         : { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), inspection_digest: "e".repeat(64), diff: "exact diff",
-          canonical_candidate_sha: "g".repeat(40), canonical_receipt_digest: "h".repeat(64), canonical_diff: "canonical diff" });
+          canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64), canonical_diff: "canonical diff" });
     registerAutonomousTools(ctx, invoke as never);
     const result = await handlers.get("inspect_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
@@ -528,7 +528,7 @@ describe("Paperclip autonomous bridge tools", () => {
     reviewerStatus = "in_review";
     await expect(handlers.get("approve_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
-      approved: true, evidence: { inspection_digest: "f".repeat(64) },
+      approved: true, evidence: { inspection_digest: "f".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) },
     }, reviewerTaskRun)).rejects.toThrow("host_issue_run_binding_mismatch");
     reviewerStatus = "in_progress";
     reviewDescription = "changed review instructions";
@@ -537,7 +537,7 @@ describe("Paperclip autonomous bridge tools", () => {
     }, reviewerTaskRun)).rejects.toThrow("source_stage_instruction_binding_mismatch");
     await expect(handlers.get("approve_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
-      approved: true, evidence: { inspection_digest: "f".repeat(64) },
+      approved: true, evidence: { inspection_digest: "f".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) },
     }, reviewerTaskRun)).rejects.toThrow("source_stage_instruction_binding_mismatch");
     reviewDescription = "review instructions";
     expect(issueReads).not.toContain("source-8");
@@ -556,15 +556,15 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(invoke.mock.calls.filter(([action]) => action === "approve_bound_source_stage")).toHaveLength(0);
     const approval = await handlers.get("approve_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
-      approved: true, evidence: { inspection_digest: "e".repeat(64), canonical_candidate_sha: "g".repeat(40), canonical_receipt_digest: "h".repeat(64) },
+      approved: true, evidence: { inspection_digest: "e".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) },
     }, reviewerTaskRun) as { content: string };
     expect(approval.content).toContain("status:published");
     expect(issueNotes.get("review-8")?.[0]).toContain(`brain-autonomous-bridge:${"c".repeat(64)}:stage-reviewed`);
     expect(issueNotes.get("review-8")?.[0]).toContain(`evidence_digest:${"f".repeat(64)}`);
     expect(issueNotes.get("review-8")?.[0]).toContain("projection_status:published");
     expect(issueNotes.get("review-8")?.[0]).toContain("canonical_status:published");
-    expect(issueNotes.get("review-8")?.[0]).toContain(`canonical_candidate_sha:${"g".repeat(40)}`);
-    expect(issueNotes.get("review-8")?.[0]).toContain(`canonical_receipt_digest:${"h".repeat(64)}`);
+    expect(issueNotes.get("review-8")?.[0]).toContain(`canonical_candidate_sha:${"7".repeat(40)}`);
+    expect(issueNotes.get("review-8")?.[0]).toContain(`canonical_receipt_digest:${"8".repeat(64)}`);
     expect(commentTargets).toEqual(["list:review-8", "create:review-8", "list:lead-issue", "create:lead-issue"]);
     expect(issueReads).not.toContain("source-8");
   });
@@ -624,6 +624,69 @@ describe("Paperclip autonomous bridge tools", () => {
       stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
     }, configPath, "/usr/bin/python3");
     expect(commentCalls).toEqual([]);
+  });
+
+  it("persists a canonical QA rejection receipt from the real controller result shape", async () => {
+    await installConfig();
+    const finiteConfig = {
+      schema: "paperclip-autonomous-bridge-config-v1", company_id: "company-1", project_id: "project-1",
+      worker_agent_id: "worker-1", reviewer_agent_id: "reviewer-1", finite_lead_agent_id: "lead-1",
+      finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project",
+      source_workspace_root: "/tmp/brain-source-workspace", canonical_repo: "/tmp/brain-canonical",
+      canonical_ref: "refs/heads/brain/development", canonical_expected_tip: "f".repeat(40),
+      source_stage_catalog: [
+        { stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40), predecessor_stage_key: null,
+          path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
+        { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
+          path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem9" },
+      ], python_executable: "/usr/bin/python3",
+    };
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
+    const reviewerRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "reviewer-1", runId: "reviewer-run" };
+    const comments = new Map<string, string[]>();
+    const issue = (id: string) => id === "review-8"
+      ? { id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue", assigneeAgentId: "reviewer-1",
+        status: "in_progress", executionRunId: "reviewer-run", description: "review instructions",
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution" }
+      : { id, companyId: "company-1", projectId: "project-1", assigneeAgentId: "lead-1",
+        status: "in_progress", executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution" };
+    const ctx = {
+      config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
+      executionWorkspaces: { get: vi.fn(async (id: string) => ({
+        id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
+        path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
+        repoUrl: null, baseRef: null, branchName: null, providerType: "local_fs", providerMetadata: null,
+      })) },
+      issues: { forCurrentToolRun: () => ({
+        get: vi.fn(async (id: string) => issue(id) as never),
+        listComments: vi.fn(async (id: string) => (comments.get(id) ?? []).map((body) => ({ body })) as never),
+        createComment: vi.fn(async (id: string, body: string) => {
+          comments.set(id, [...(comments.get(id) ?? []), body]);
+          return {} as never;
+        }),
+      }) },
+      tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
+    } as unknown as PluginContext;
+    const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
+    const invoke = vi.fn(async (action: string) => action === "lookup_source_stage_binding"
+      ? { found: true, stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), review_instruction_sha256: digest("review instructions") }
+      : { status: "review_rejected", candidate_sha: "d".repeat(40), operation_key: "c".repeat(64), evidence_digest: "f".repeat(64) });
+    registerAutonomousTools(ctx, invoke as never);
+    const result = await handlers.get("approve_source_stage_candidate")!({
+      stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8", approved: false,
+      evidence: { inspection_digest: "e".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) },
+    }, reviewerRun) as { content: string };
+    expect(result.content).toContain("status:review_rejected");
+    const note = comments.get("review-8")?.[0] ?? "";
+    expect(note).toContain(`brain-autonomous-bridge:${"c".repeat(64)}:stage-reviewed`);
+    expect(note).toContain("status:review_rejected");
+    expect(note).toContain(`canonical_candidate_sha:${"7".repeat(40)}`);
+    expect(note).toContain(`canonical_receipt_digest:${"8".repeat(64)}`);
+    expect(note).toContain("canonical_publication:not_attempted_review_rejected");
+    expect(note).not.toContain("canonical_status:");
+    expect(comments.get("lead-issue")?.[0]).toBe(note);
   });
 
   it("backfills the bound note to source and QA history on active replay without activating again", async () => {
