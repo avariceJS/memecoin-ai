@@ -265,10 +265,67 @@ async function persistIssueNote(
   const scopedIssues = ctx.issues.forCurrentToolRun();
   const comments = await scopedIssues.listComments(issueId, companyId);
   const marker = `brain-autonomous-bridge:${idempotencyKey}`;
-  const existing = comments.filter((comment) => comment.body.includes(marker));
+  if (!body.split("\n").includes(marker)) fail("paperclip_evidence_marker_missing");
+  const existing = comments.filter((comment) => comment.body.split("\n").includes(marker));
+  if (existing.length > 1) fail("paperclip_evidence_replay_duplicate");
   if (existing.some((comment) => comment.body !== body)) fail("paperclip_evidence_replay_mismatch");
   if (existing.length === 0) {
     await scopedIssues.createComment(issueId, body, companyId);
+  }
+}
+
+function sourceStageBoundNote(
+  stageKey: string,
+  stageBindingKey: string,
+  baseSha: string,
+  sourceIssueId: string,
+  reviewIssueId: string,
+  sourceInstructionSha256: string,
+  reviewInstructionSha256: string,
+): { idempotencyKey: string; body: string } {
+  const idempotencyKey = `${stageBindingKey}:bound`;
+  return {
+    idempotencyKey,
+    body: [
+      `brain-autonomous-bridge:${idempotencyKey}`,
+      `brain-source-stage:${stageBindingKey}:bound`,
+      `stage_key:${stageKey}`,
+      `stage_binding_key:${stageBindingKey}`,
+      `base_sha:${baseSha}`,
+      `source_issue_id:${sourceIssueId}`,
+      `review_issue_id:${reviewIssueId}`,
+      `source_instruction_sha256:${sourceInstructionSha256}`,
+      `review_instruction_sha256:${reviewInstructionSha256}`,
+    ].join("\n"),
+  };
+}
+
+async function persistSourceStageBoundNotes(
+  ctx: Pick<PluginContext, "issues">,
+  owner: OwnerConfig,
+  note: { idempotencyKey: string; body: string },
+  sourceIssueId: string,
+  reviewIssueId: string,
+  sourceInstructionSha256: string,
+  reviewInstructionSha256: string,
+  includeLead: boolean,
+): Promise<void> {
+  const [source, review] = await Promise.all([
+    readNativeIssue(ctx, sourceIssueId, owner.company_id),
+    readNativeIssue(ctx, reviewIssueId, owner.company_id),
+  ]);
+  if (source.projectId !== owner.project_id || source.parentId !== owner.finite_lead_issue_id
+      || source.assigneeAgentId !== owner.worker_agent_id
+      || review.projectId !== owner.project_id || review.parentId !== owner.finite_lead_issue_id
+      || review.assigneeAgentId !== owner.reviewer_agent_id
+      || instructionDigest(source.description) !== sourceInstructionSha256
+      || instructionDigest(review.description) !== reviewInstructionSha256) {
+    fail("source_stage_instruction_binding_mismatch");
+  }
+  await persistIssueNote(ctx, sourceIssueId, owner.company_id, note.idempotencyKey, note.body);
+  await persistIssueNote(ctx, reviewIssueId, owner.company_id, note.idempotencyKey, note.body);
+  if (includeLead && owner.finite_lead_issue_id) {
+    await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, note.idempotencyKey, note.body);
   }
 }
 
@@ -514,11 +571,18 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       }
       if (existing.activation_pending === true) fail("source_stage_activation_reconciliation_required");
       if (existing.state === "active") {
-        await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, `${existing.stage_binding_key}:bound`, [
-          `brain-source-stage:${existing.stage_binding_key}:bound`, `stage_key:${stage.stage_key}`,
-          `stage_binding_key:${existing.stage_binding_key}`, `base_sha:${existing.base_sha}`,
-          `source_issue_id:${params.source_issue_id}`, `review_issue_id:${params.review_issue_id}`,
-        ].join("\n"));
+        if (typeof existing.source_instruction_sha256 !== "string" || !KEY_RE.test(existing.source_instruction_sha256)
+            || typeof existing.review_instruction_sha256 !== "string" || !KEY_RE.test(existing.review_instruction_sha256)) {
+          fail("source_stage_binding_unavailable");
+        }
+        const note = sourceStageBoundNote(
+          stage.stage_key, existing.stage_binding_key, existing.base_sha, params.source_issue_id, params.review_issue_id,
+          existing.source_instruction_sha256, existing.review_instruction_sha256,
+        );
+        await persistSourceStageBoundNotes(
+          ctx, owner, note, params.source_issue_id, params.review_issue_id,
+          existing.source_instruction_sha256, existing.review_instruction_sha256, true,
+        );
         return { content: `stage_key:${stage.stage_key}\nstage_binding_key:${existing.stage_binding_key}\nbase_sha:${existing.base_sha}\nstate:active` };
       }
       if (existing.state !== "bound") fail("source_stage_activation_reconciliation_required");
@@ -574,14 +638,16 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         dependency_ready: predecessorFinalized,
       };
     }
+    const sourceInstructionSha256 = instructionDigest(source.description);
+    const reviewInstructionSha256 = instructionDigest(review.description);
     const result = await invoke("bind_source_stage", {
       company_id: owner.company_id, project_id: owner.project_id,
       lead_agent_id: owner.finite_lead_agent_id, lead_issue_id: owner.finite_lead_issue_id,
       lead_run_id: runCtx.runId, stage_key: stage.stage_key,
       source_issue_id: source.id, source_version: source.statusVersion,
       review_issue_id: review.id, review_version: review.statusVersion,
-      source_instruction_sha256: instructionDigest(source.description),
-      review_instruction_sha256: instructionDigest(review.description),
+      source_instruction_sha256: sourceInstructionSha256,
+      review_instruction_sha256: reviewInstructionSha256,
       predecessor_operation_key: predecessor.operation_key,
       predecessor_source_status: predecessor.source_status,
       predecessor_source_version: predecessor.source_version,
@@ -593,15 +659,17 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     }, owner.configPath, owner.python_executable);
     if (typeof result.stage_binding_key !== "string" || !KEY_RE.test(result.stage_binding_key)
         || typeof result.base_sha !== "string" || !SHA_RE.test(result.base_sha)) fail("bridge_result_invalid");
+    if (result.state !== "bound" && result.state !== "active") fail("source_stage_activation_reconciliation_required");
+    const note = sourceStageBoundNote(
+      stage.stage_key, result.stage_binding_key, result.base_sha, source.id, review.id,
+      sourceInstructionSha256, reviewInstructionSha256,
+    );
+    await persistSourceStageBoundNotes(
+      ctx, owner, note, source.id, review.id, sourceInstructionSha256, reviewInstructionSha256, true,
+    );
     if (result.state === "bound") await activateSourceStage(ctx, invoke, owner, owner.configPath, result.stage_binding_key, {
       id: source.id, status: source.status, statusVersion: source.statusVersion as number,
     });
-    else if (result.state !== "active") fail("source_stage_activation_reconciliation_required");
-    await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, `${result.stage_binding_key}:bound`, [
-      `brain-source-stage:${result.stage_binding_key}:bound`, `stage_key:${stage.stage_key}`,
-      `stage_binding_key:${result.stage_binding_key}`, `base_sha:${result.base_sha}`,
-      `source_issue_id:${source.id}`, `review_issue_id:${review.id}`,
-    ].join("\n"));
     return { content: `stage_key:${stage.stage_key}\nstage_binding_key:${result.stage_binding_key}\nbase_sha:${result.base_sha}\nstate:active` };
   });
 
@@ -650,6 +718,9 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       `submitted_sha:${String(result.submitted_sha ?? "controller-generated")}`,
       `policy_digest:${String(result.policy_digest ?? "")}`,
     ].join("\n");
+    await persistIssueNote(
+      ctx, sourceIssue.id, owner.company_id, `${result.operation_key}:submitted`, note,
+    );
     await persistIssueNote(
       ctx, owner.finite_lead_issue_id!, owner.company_id, `${result.operation_key}:submitted`, note,
     );
@@ -768,11 +839,27 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       approved: params.approved, evidence: params.evidence,
       review_instruction_sha256: reviewInstructionSha256,
     }, owner.configPath, owner.python_executable);
-    if (typeof result.status !== "string" || typeof result.evidence_digest !== "string" || !KEY_RE.test(result.evidence_digest)) fail("bridge_result_invalid");
-    await persistIssueNote(ctx, owner.finite_lead_issue_id!, owner.company_id, `${String(result.operation_key)}:stage-reviewed`, [
+    if (typeof result.status !== "string" || typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
+        || typeof result.evidence_digest !== "string" || !KEY_RE.test(result.evidence_digest)) fail("bridge_result_invalid");
+    if (owner.canonical_repo && (typeof result.projection_status !== "string"
+        || typeof result.canonical_status !== "string"
+        || typeof result.canonical_candidate_sha !== "string" || !SHA_RE.test(result.canonical_candidate_sha)
+        || typeof result.canonical_receipt_digest !== "string" || !KEY_RE.test(result.canonical_receipt_digest))) {
+      fail("bridge_result_invalid");
+    }
+    const idempotencyKey = `${result.operation_key}:stage-reviewed`;
+    const noteFields = [
+      `brain-autonomous-bridge:${idempotencyKey}`,
       `brain-source-stage:${params.stage_binding_key}:reviewed`, `status:${result.status}`,
       `candidate_sha:${String(result.candidate_sha ?? "")}`, `evidence_digest:${result.evidence_digest}`,
-    ].join("\n"));
+    ];
+    if (typeof result.projection_status === "string") noteFields.push(`projection_status:${result.projection_status}`);
+    if (typeof result.canonical_status === "string") noteFields.push(`canonical_status:${result.canonical_status}`);
+    if (typeof result.canonical_candidate_sha === "string") noteFields.push(`canonical_candidate_sha:${result.canonical_candidate_sha}`);
+    if (typeof result.canonical_receipt_digest === "string") noteFields.push(`canonical_receipt_digest:${result.canonical_receipt_digest}`);
+    const note = noteFields.join("\n");
+    await persistIssueNote(ctx, review.id, owner.company_id, idempotencyKey, note);
+    await persistIssueNote(ctx, owner.finite_lead_issue_id!, owner.company_id, idempotencyKey, note);
     return { content: `status:${result.status}\ncandidate_sha:${String(result.candidate_sha ?? params.candidate_sha)}` };
   });
 
