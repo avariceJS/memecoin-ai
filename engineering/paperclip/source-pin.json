@@ -2,35 +2,35 @@
   "schema": "brain-paperclip-source-v5",
   "upstream_repository": "https://github.com/paperclipai/paperclip",
   "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
-  "predecessor_commit": "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
+  "predecessor_commit": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
   "predecessor_chain": [
+    "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+    "01302914b5501fbb274b39477e087ac1692d9b6a",
     "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
     "fecf7b18def542fb6b58e7e665011e66599ffffb",
     "519c892646ec7b06996e990e9e728f794e1a689e",
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
     "043f2514e67c50320433a0013fb228a75a51325c"
   ],
-  "derivative_commit": "01302914b5501fbb274b39477e087ac1692d9b6a",
+  "derivative_commit": "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
   "patch": "managed-codex-isolation.patch",
-  "patch_sha256": "6f4082bbb362c22edea9c823eabe154a3a4fecd8fb97b802daa5d11c0ac1f53d",
+  "patch_sha256": "46a110da2c5dfa3f7a00b8fe08a7459c2351391dc407a889893031041fa95efd",
   "source_review": {
     "status": "accepted_source_only",
     "reviewer": "Sol-6.1 High",
-    "receipt": "state/sol-review/optional-github-discovery-source-review-20261023.json",
-    "receipt_sha256": "310433e2b74aece765763cbf24b588713ad7eb9c73a92f40a5677336d529b445",
-    "commit": "01302914b5501fbb274b39477e087ac1692d9b6a",
-    "parent": "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
-    "diff_sha256": "a6f60ecbc54b931630b339b0a65f1fe2572013f92374a1a3623b889f83039178",
+    "receipt": "state/resumption-20261023/native-stage-sdk-final-independent-review.json",
+    "receipt_sha256": "fa9d9c89e76546c07a56749189fa5dbcc84b72942d60405b29d6bf37238edbfa",
+    "commit": "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
+    "parent": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+    "diff_sha256": "e602f522e5255495de85bfce4468fba6633902ee46554e3f716c46e296aa5bfa",
     "scope": [
-      "validate all session UUIDs and persisted exact company, agent and bound issue before the absence shortcut",
-      "skip guest-origin resolution only when no same-company current-issue GitHub conversation exists",
-      "retain original provenance and guest selection for real GitHub tasks, including cross-agent ancestry denial",
-      "retain valid bound guest connection behavior"
+      "run-scoped updateStatusCompareAndSet backlog-to-todo performs current run, issue, direct relationship, privacy, and actor revalidation under the native CAS transaction",
+      "dependency readiness remains bounded to current tool run and existing native readiness semantics"
     ],
     "limits": [
-      "source-only acceptance; no deployed or native recovery acceptance",
-      "MEM5 failed continuation, unknown accounting and finalization barrier remain pending supported recovery",
-      "frozen Brain controller d856 and owner bridge configuration unchanged"
+      "source-only acceptance; no deployment or runtime acceptance",
+      "full declaration-mode server typecheck/build remains unqualified",
+      "unknown acknowledgements remain held; no blind replay"
     ]
   },
   "source_review_chain": [
@@ -104,14 +104,42 @@
         "MEM5 failed continuation, unknown accounting and finalization barrier remain pending supported recovery",
         "frozen Brain controller d856 and owner bridge configuration unchanged"
       ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261023/native-stage-sdk-final-independent-review.json",
+      "receipt_sha256": "fa9d9c89e76546c07a56749189fa5dbcc84b72942d60405b29d6bf37238edbfa",
+      "commit": "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
+      "parent": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+      "diff_sha256": "e602f522e5255495de85bfce4468fba6633902ee46554e3f716c46e296aa5bfa",
+      "scope": [
+        "atomic revalidation of current tool-run authorization while preserving native backlog-to-todo CAS",
+        "readiness query returns existing dependency readiness result"
+      ],
+      "limits": [
+        "bounded source/SDK boundary only; no deployment, runtime or finite-stage continuation acceptance"
+      ]
     }
   ],
   "stop_custody_source_pins": [
+    "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+    "01302914b5501fbb274b39477e087ac1692d9b6a",
     "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
     "fecf7b18def542fb6b58e7e665011e66599ffffb",
     "519c892646ec7b06996e990e9e728f794e1a689e",
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595"
   ],
   "runtime_acceptance": "pending",
-  "launcher_scope": "managed Codex startup; preconfigured home excluded from lab qualification"
+  "launcher_scope": "managed Codex startup; preconfigured home excluded from lab qualification",
+  "source_history": [
+    {
+      "status": "rejected",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261023/native-stage-sdk-independent-review.json",
+      "receipt_sha256": "8703852143126e783ad5a91870175cb17d3ed74471934a21bd121828787db140",
+      "commit": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+      "reason": "SDK-SCOPE-001 CAS authorization race; superseded by accepted child 67ae034 without rewriting history"
+    }
+  ]
 }
