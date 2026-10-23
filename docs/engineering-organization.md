@@ -19,11 +19,22 @@ native dependency wake, independent review and local GitGate publication of gene
 A fixture parsing failure after successful submission required completion-only native recovery;
 the prepared operation was not resubmitted. Failed histories remain preserved. Paperclip owns
 completion/finalization and dependency wake; plugins must not clear active task bindings by assigning
-terminal status. The accepted `4f048d9` source checkpoint is published on
+terminal status. The accepted `d856c08` source checkpoint is published on
 `org/paperclip-integration`; publication is custody, not operational acceptance.
 One real read-only Sol task succeeded through native Codex `gpt-6.1-sol` at configured high effort,
 with `subscription_included` attribution and unchanged empty workspace. Independent review accepted
-that narrow evidence. This does not qualify the real engineering/reviewer/GitGate path.
+that narrow evidence. The same bounded subscription identity check passed for Luna.
+The first real engineering cycle delegated MEM-5 and prepared candidate `8440fe6` from Luna's
+`692bf66` once. Workers receive an independently qualified 227-file source projection from
+`brain/development` `dabf14a`, not the original repository's protected records or reachable history.
+The `d856c08` controller binds the owner-selected development ref, expected base, roots and verifier
+policy to the operation journal and checks them again at publication. Canonical Brain integration
+still requires separately accepted owner-side transfer; the original checkout is unchanged.
+This first real cycle remains held before independent MEM-6 acceptance: incorrect producer
+completion and stale reviewer instructions were corrected, but completion-only continuation failed
+before a native result because optional GitHub tool discovery traversed cross-agent chat ancestry.
+Board producer completion does not certify workspace finalization or code acceptance. Preserve the
+dependency barrier, prepared candidate and unknown accounting; do not replay the source operation.
 Company hibernation should consume Paperclip's native per-issue recovery holds and process state,
 plus the broker publication fence. Historical failed rows alone are not active writers; unresolved
 provider-stop or publication outcomes remain holds. Do not build a second recovery ledger.

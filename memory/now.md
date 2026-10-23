@@ -8,7 +8,7 @@ trials and development-branch Brain work after independent qualification. Pilot 
 data/runtime restrictions remain. The quota-stop handoff is preserved at
 `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF-20261022-QUOTA-STOP.md`.
 Live readback: reviewed Paperclip `b853ab3` is healthy on loopback 3310; SDK/plugin emitted bytes
-match independent hashes. Brain integration candidate is `4f048d9`; root docs checkpoint `850adb2`.
+match independent hashes. Brain integration candidate is `d856c08`; prior root docs checkpoint `88f4115`.
 The bounded synthetic native pipeline passed: lead delegated, worker committed `b77c08e`, private
 plugin prepared GitGate merge `39abfd1`, native producer completion released reviewer via dependency,
 and reviewer accepted/published the exact merge with passing receipt `4f611b4`. Producer completion
@@ -32,9 +32,22 @@ native Codex `gpt-6.1-sol`, effort `high`, explicit subscription attribution, un
 This is not engineering/GitGate/lifecycle or real-repository acceptance. No replacement Goal or old supervisor.
 The same bounded subscription check also succeeded for Luna MEM-3, run
 `05874b30-208b-4d20-8bd7-d6cbfe37e5ab`: native `gpt-6-luna`, host effort `high`,
-`subscription_included`, empty workspace unchanged. Luna and MEM are paused again for source-lane
-qualification; Sol independently accepted this narrow receipt. Paused CEO configuration now names
+`subscription_included`, empty workspace unchanged. Sol independently accepted this narrow receipt.
+Paused CEO configuration names
 `gpt-6-astra`/high, with automatic heartbeat and wake disabled; no Astra model invocation was made.
+At 13:06 UTC, accepted controller `d856c08` is published on `org/paperclip-integration`.
+The real source trial uses 227 explicitly qualified source/config/test files projected from
+`brain/development` `dabf14a`, without original Git history or protected records. Real Sol delegated
+MEM-5; Luna committed `692bf66` and submitted once, preparing GitGate candidate `8440fe6`.
+No independent MEM-6 acceptance or publication has occurred. Incorrect producer `needs_review`
+completion triggered same-task review; its stale auth-only instructions were subsequently corrected.
+A completion-only continuation failed in preparation on cross-agent chat ancestry; its unknown
+accounting and native recovery action remain preserved. Board correction marked only the known
+producer work done. Native dependency admission still holds MEM-6 because the failed continuation
+lacks workspace finalization. Do not bypass this barrier or repeat edit/commit/submit.
+At 13:10 UTC Astra paused MEM for the causal repair/deployment; no live runs were present.
+Reviewer is idle, and Astra/lead/Luna remain individually paused.
+The canonical Brain checkout remains unchanged; this is a held first real cycle, not autonomy.
 Astra owns CEO decisions; Sol supplies technical advice/independent acceptance and leads Luna, not permission for Astra.
 Current machine-readable progress/custody: `/Users/root1/Developer/brain-paperclip-lab/state/readiness-20261023/progress.json`.
 
