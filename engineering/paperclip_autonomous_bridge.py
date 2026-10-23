@@ -231,10 +231,16 @@ def _stage_journal_key(stage_key: str, attempt: int = 1) -> str:
     ).hexdigest()
 
 
-def _stage_record_key(record: dict[str, Any]) -> str:
-    attempt = record.get("attempt", 1)
+def _record_attempt(record: dict[str, Any]) -> int:
+    """Treat only a missing legacy field as attempt 1; reject bool/int aliases."""
+    attempt = record["attempt"] if "attempt" in record else 1
     if type(attempt) is not int or attempt not in (1, 2):
         raise BridgeError("source_stage_attempt_invalid")
+    return attempt
+
+
+def _stage_record_key(record: dict[str, Any]) -> str:
+    attempt = _record_attempt(record)
     return _stage_journal_key(record.get("stage_key", ""), attempt)
 
 
@@ -570,7 +576,7 @@ def _stage_binding(config: BridgeConfig, stage_binding_key: str) -> dict[str, An
             )
             if record.get("schema") != expected_schema:
                 raise BridgeError("source_stage_binding_invalid")
-            if "attempt" in record and record["attempt"] != attempt:
+            if _record_attempt(record) != attempt:
                 raise BridgeError("source_stage_attempt_invalid")
             if record.get("schema") != "paperclip-source-stage-binding-v1":
                 if attempt != 2:
@@ -838,7 +844,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             or retry_binding.get("operation_key") != retry_operation_key
             or retry_binding.get("review_issue_id") == payload["review_issue_id"]
             or retry_binding.get("source_issue_id") == payload["source_issue_id"]
-            or retry_binding.get("attempt", 1) != 1
+            or _record_attempt(retry_binding) != 1
             or retry_binding.get("base_sha") != binding_value.get("base_sha")
             or retry_binding.get("canonical_base_sha") != binding_value.get("canonical_base_sha")
             or any(retry_binding.get(key) != value for key, value in expected_predecessor.items())
@@ -1003,7 +1009,7 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
     stage = config.source_stage(payload["stage_key"])
     if "stage_binding_key" in payload:
         record = _stage_binding(config, payload["stage_binding_key"])
-        attempt = record.get("attempt", 1)
+        attempt = _record_attempt(record)
         if (
             type(attempt) is not int
             or attempt not in (1, 2)
@@ -1027,7 +1033,7 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
             else "paperclip-source-stage-binding-attempt-v2"
         )
         or record.get("owner_config_digest") != config.owner_config_digest
-        or record.get("attempt", 1) != attempt
+        or _record_attempt(record) != attempt
         or any(record.get(field) != payload[field] for field in identity_fields if field in payload)
     ):
         raise BridgeError("source_stage_bind_replay_mismatch")

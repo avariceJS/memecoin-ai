@@ -1052,6 +1052,68 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertIsNone(lookup["predecessor_source_issue_id"])
         self.assertEqual(lookup["source_instruction_sha256"], "1" * 64)
         self.assertEqual(lookup["review_instruction_sha256"], "2" * 64)
+        first_stage_key = _stage_journal_key("MEM8")
+        first_stage_record = _load_journal(config, first_stage_key)
+        for invalid_attempt in (True, None, "1", 0, 3):
+            malformed = {**first_stage_record, "attempt": invalid_attempt}
+            _write_journal(config, first_stage_key, malformed, create=False)
+            with self.subTest(stored_attempt=invalid_attempt):
+                for lookup_payload in (
+                    {
+                        "company_id": config.company_id,
+                        "project_id": config.project_id,
+                        "lead_agent_id": "lead-1",
+                        "lead_issue_id": "lead-issue",
+                        "stage_key": "MEM8",
+                        "attempt": 1,
+                    },
+                    {
+                        "company_id": config.company_id,
+                        "project_id": config.project_id,
+                        "lead_agent_id": "lead-1",
+                        "lead_issue_id": "lead-issue",
+                        "stage_key": "MEM8",
+                        "stage_binding_key": first["stage_binding_key"],
+                    },
+                ):
+                    with self.assertRaisesRegex(BridgeError, "source_stage_attempt_invalid"):
+                        dispatch(
+                            config,
+                            {
+                                "action": "lookup_source_stage_binding",
+                                "payload": lookup_payload,
+                            },
+                        )
+                with self.assertRaisesRegex(BridgeError, "source_stage_attempt_invalid"):
+                    dispatch(
+                        config,
+                        {
+                            "action": "source_stage_activation",
+                            "payload": {
+                                "step": "intent",
+                                "stage_binding_key": first["stage_binding_key"],
+                                "issue_id": "source-8",
+                                "observed_status": "backlog",
+                                "observed_version": 1,
+                            },
+                        },
+                    )
+        _write_journal(config, first_stage_key, first_stage_record, create=False)
+        legacy_lookup = dispatch(
+            config,
+            {
+                "action": "lookup_source_stage_binding",
+                "payload": {
+                    "company_id": config.company_id,
+                    "project_id": config.project_id,
+                    "lead_agent_id": "lead-1",
+                    "lead_issue_id": "lead-issue",
+                    "stage_key": "MEM8",
+                    "attempt": 1,
+                },
+            },
+        )
+        self.assertEqual(legacy_lookup["stage_binding_key"], first["stage_binding_key"])
         self.assertEqual(
             dispatch(config, {"action": "bind_source_stage", "payload": first_payload}), first
         )
