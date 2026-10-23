@@ -904,7 +904,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
 
   ctx.tools.register("inspect_source_stage_candidate", {
     displayName: "Inspect Finite Brain Source Candidate",
-    description: "Inspect the candidate derived from this immutable source stage binding.",
+    description: "Inspect the exact passed source-preflight receipt and candidate. The final fixed verifier is pending independent QA.",
     parametersSchema: { type: "object", properties: {
       stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
     }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
@@ -930,6 +930,16 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)
         || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 60_000
         || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)) fail("bridge_result_invalid");
+    const preflight = result.source_preflight as Record<string, unknown> | undefined;
+    if (!preflight || typeof preflight !== "object" || Array.isArray(preflight)
+        || preflight.status !== "passed"
+        || typeof preflight.content_check_id !== "string" || !KEY_RE.test(preflight.content_check_id)
+        || typeof preflight.snapshot_sha256 !== "string" || !KEY_RE.test(preflight.snapshot_sha256)
+        || typeof preflight.policy_digest !== "string" || !KEY_RE.test(preflight.policy_digest)
+        || typeof preflight.receipt_sha256 !== "string" || !KEY_RE.test(preflight.receipt_sha256)
+        || typeof preflight.commands_sha256 !== "string" || !KEY_RE.test(preflight.commands_sha256)
+        || !["pending_after_independent_QA", "passed_before_publication", "not_run_review_rejected"]
+          .includes(String(result.final_verifier_phase))) fail("bridge_result_invalid");
     const metadata = { ...result }; delete metadata.diff;
     const canonicalDiff = result.canonical_diff;
     if (owner.canonical_repo && (typeof result.canonical_candidate_sha !== "string"
@@ -942,7 +952,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
 
   ctx.tools.register("approve_source_stage_candidate", {
     displayName: "Approve Finite Brain Source Candidate",
-    description: "Record independent evidence for the candidate bound to this finite source stage.",
+    description: "Record independent evidence. Approval runs the mandatory final fixed verifier before projected or canonical publication; rejection does not publish.",
     parametersSchema: { type: "object", properties: {
       stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
       approved: { type: "boolean" }, evidence: { type: "object", properties: {

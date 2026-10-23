@@ -51,7 +51,7 @@ const manifest: PaperclipPluginManifestV1 = {
     {
       name: "inspect_source_stage_candidate",
       displayName: "Inspect Finite Brain Source Candidate",
-      description: "Inspect the projected and canonical candidates derived from this immutable source stage binding.",
+      description: "Inspect the exact passed source-preflight receipt and candidate. The final fixed verifier is pending independent QA.",
       parametersSchema: { type: "object", properties: {
         stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
       }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
@@ -59,7 +59,7 @@ const manifest: PaperclipPluginManifestV1 = {
     {
       name: "approve_source_stage_candidate",
       displayName: "Approve Finite Brain Source Candidate",
-      description: "Approve only the exact inspected projected and canonical candidate identities.",
+      description: "Record independent evidence. Approval runs the mandatory final fixed verifier before projected or canonical publication; rejection does not publish.",
       parametersSchema: { type: "object", properties: {
         stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
         approved: { type: "boolean" }, evidence: { type: "object", properties: {

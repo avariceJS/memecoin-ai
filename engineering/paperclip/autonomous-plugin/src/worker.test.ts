@@ -550,11 +550,16 @@ describe("Paperclip autonomous bridge tools", () => {
         ? { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), status: "published", evidence_digest: "f".repeat(64),
           projection_status: "published", canonical_status: "published", canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) }
         : { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), inspection_digest: "e".repeat(64), diff: "exact diff",
+          source_preflight: { status: "passed", content_check_id: "1".repeat(64), snapshot_sha256: "2".repeat(64),
+            policy_digest: "3".repeat(64), receipt_sha256: "4".repeat(64), commands_sha256: "5".repeat(64) },
+          final_verifier_phase: "pending_after_independent_QA",
           canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64), canonical_diff: "canonical diff" });
     registerAutonomousTools(ctx, invoke as never);
     const result = await handlers.get("inspect_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
     }, reviewerTaskRun) as { content: string };
+    expect(result.content).toContain('"status": "passed"');
+    expect(result.content).toContain('"final_verifier_phase": "pending_after_independent_QA"');
     reviewerStatus = "blocked";
     await expect(handlers.get("inspect_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",

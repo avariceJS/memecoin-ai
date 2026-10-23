@@ -1241,16 +1241,183 @@ def _bounded_candidate_diff(candidate: Candidate) -> str:
     return diff
 
 
+def _source_preflight_inspection(
+    config: BridgeConfig, journal: dict[str, Any]
+) -> tuple[dict[str, Any], str] | None:
+    stage_binding_key = journal.get("source_stage_binding")
+    if stage_binding_key is None:
+        return None
+    if type(stage_binding_key) is not str or not HASH_RE.fullmatch(stage_binding_key):
+        raise BridgeError("source_preflight_stage_binding_invalid")
+    record = _stage_binding(config, stage_binding_key)
+    stage = config.source_stage(record.get("stage_key", ""))
+    stage_config = config.for_source_stage(
+        stage,
+        source_issue_id=record["source_issue_id"],
+        reviewer_issue_id=record["review_issue_id"],
+        base_sha=record["base_sha"],
+        canonical_base_sha=record.get("canonical_base_sha"),
+        source_repo=_stage_source_repo(config, stage, record),
+    )
+    binding = journal.get("binding")
+    candidate = journal.get("candidate")
+    content_check_id = journal.get("preflight_check_id")
+    if (
+        journal.get("schema") != "paperclip-autonomous-operation-v1"
+        or journal.get("state")
+        not in {
+            "prepared",
+            "review_custodied",
+            "review_rejected",
+            "projection_published",
+            "published",
+            "canonical_publish_intent",
+            "canonical_publish_held",
+        }
+        or type(binding) is not dict
+        or type(candidate) is not dict
+        or type(content_check_id) is not str
+        or not HASH_RE.fullmatch(content_check_id)
+        or record.get("owner_config_digest") != config.owner_config_digest
+        or record.get("stage_key") != journal.get("source_stage_key")
+        or record.get("operation_key") != journal.get("operation_key")
+        or record.get("candidate_sha") != candidate.get("candidate_sha")
+        or record.get("source_issue_id") != binding.get("issue_id")
+        or record.get("base_sha") != binding.get("base_sha")
+        or record.get("base_sha") != candidate.get("base_sha")
+        or record.get("canonical_base_sha") != (journal.get("canonical") or {}).get("expected_tip")
+        or binding.get("policy_digest") != stage_config.policy().digest
+        or candidate.get("policy_digest") != stage_config.policy().digest
+        or candidate.get("preflight_check_id") != content_check_id
+        or type(journal.get("source_snapshot_sha256")) is not str
+        or not HASH_RE.fullmatch(journal["source_snapshot_sha256"])
+    ):
+        raise BridgeError("source_preflight_operation_binding_mismatch")
+    try:
+        snapshot_document = _load_preflight_json(config, "snapshot", content_check_id)
+        intent = _load_preflight_json(config, "intent", content_check_id)
+        result = _load_preflight_json(config, "result", content_check_id)
+    except BridgeError as exc:
+        raise BridgeError("source_preflight_receipt_unavailable") from exc
+    if (
+        set(snapshot_document) != {"schema", "snapshot_sha256", "files"}
+        or snapshot_document.get("schema") != "paperclip-source-preflight-snapshot-v1"
+        or type(snapshot_document.get("files")) is not list
+    ):
+        raise BridgeError("source_preflight_snapshot_invalid")
+    try:
+        snapshot = snapshot_records(snapshot_document["files"])
+    except SourceDeliveryError as exc:
+        raise BridgeError("source_preflight_snapshot_invalid") from exc
+    snapshot_sha256 = snapshot.digest
+    snapshot_artifact_sha256 = hashlib.sha256(_canonical(snapshot_document)).hexdigest()
+    policy_digest = stage_config.policy().digest
+    operation_key = journal.get("operation_key")
+    run_id = binding.get("run_id")
+    expected_check_id = hashlib.sha256(
+        _canonical(
+            [
+                "finite-preflight-v1",
+                config.owner_config_digest,
+                stage_binding_key,
+                record["source_issue_id"],
+                run_id,
+                record["base_sha"],
+                record.get("canonical_base_sha"),
+                policy_digest,
+                snapshot_sha256,
+            ]
+        )
+    ).hexdigest()
+    file_manifest = [
+        {"path_id": item.path_id, "size": item.size, "sha256": item.sha256}
+        for item in snapshot.files
+    ]
+    if (
+        snapshot_document.get("snapshot_sha256") != snapshot_sha256
+        or snapshot_sha256 != journal.get("source_snapshot_sha256")
+        or journal.get("source_files") != file_manifest
+        or expected_check_id != content_check_id
+        or set(intent)
+        != {
+            "schema",
+            "content_check_id",
+            "owner_config_digest",
+            "stage_binding_key",
+            "source_issue_id",
+            "run_id",
+            "base_sha",
+            "canonical_base_sha",
+            "policy_digest",
+            "snapshot_sha256",
+            "snapshot_artifact_sha256",
+        }
+        or intent.get("schema") != "paperclip-source-preflight-intent-v1"
+        or intent.get("content_check_id") != content_check_id
+        or intent.get("owner_config_digest") != config.owner_config_digest
+        or intent.get("stage_binding_key") != stage_binding_key
+        or intent.get("source_issue_id") != record.get("source_issue_id")
+        or intent.get("run_id") != run_id
+        or intent.get("base_sha") != record.get("base_sha")
+        or intent.get("canonical_base_sha") != record.get("canonical_base_sha")
+        or intent.get("policy_digest") != policy_digest
+        or intent.get("snapshot_sha256") != snapshot_sha256
+        or intent.get("snapshot_artifact_sha256") != snapshot_artifact_sha256
+        or result.get("schema") != "paperclip-source-preflight-result-v1"
+        or result.get("status") != "passed"
+        or result.get("content_check_id") != content_check_id
+        or result.get("snapshot_sha256") != snapshot_sha256
+        or result.get("snapshot_artifact_sha256") != snapshot_artifact_sha256
+        or result.get("policy_digest") != policy_digest
+        or type(result.get("commands_sha256")) is not str
+        or not HASH_RE.fullmatch(result["commands_sha256"])
+        or candidate.get("operation_key") != operation_key
+    ):
+        raise BridgeError("source_preflight_receipt_mismatch")
+    receipt_sha256 = hashlib.sha256(_canonical(result)).hexdigest()
+    phase = (
+        "pending_after_independent_QA"
+        if journal.get("state") == "prepared"
+        else "passed_before_publication"
+        if journal.get("state")
+        in {
+            "projection_published",
+            "published",
+            "canonical_publish_intent",
+            "canonical_publish_held",
+        }
+        else "not_run_review_rejected"
+        if journal.get("state") == "review_rejected"
+        else None
+    )
+    if phase is None:
+        raise BridgeError("source_final_verifier_phase_unavailable")
+    return {
+        "status": "passed",
+        "content_check_id": content_check_id,
+        "snapshot_sha256": snapshot_sha256,
+        "policy_digest": policy_digest,
+        "receipt_sha256": receipt_sha256,
+        "commands_sha256": result["commands_sha256"],
+    }, phase
+
+
 def inspect_candidate(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
     operation_key = payload.get("operation_key")
     if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
         raise BridgeError("operation_key_invalid")
-    config = _operation_config(config, operation_key)
     with _operation_lock(config, operation_key):
-        return _inspect_candidate_locked(config, payload)
+        journal = _load_journal(config, operation_key)
+        source_preflight = _source_preflight_inspection(config, journal)
+        operation_config = _operation_config(config, operation_key)
+        return _inspect_candidate_locked(operation_config, payload, source_preflight)
 
 
-def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+def _inspect_candidate_locked(
+    config: BridgeConfig,
+    payload: dict[str, Any],
+    source_preflight: tuple[dict[str, Any], str] | None = None,
+) -> dict[str, Any]:
     if set(payload) != {
         "company_id",
         "project_id",
@@ -1386,6 +1553,11 @@ def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> 
         "source_workspace_baseline_sha256": journal.get("source_workspace_baseline_sha256"),
         "policy_digest": binding.policy_digest,
         "diff_sha256": hashlib.sha256(diff.encode("utf-8")).hexdigest(),
+        **(
+            {"source_preflight": source_preflight[0], "final_verifier_phase": source_preflight[1]}
+            if source_preflight is not None
+            else {}
+        ),
         **(canonical_details or {}),
     }
     inspections = journal.get("inspections", [])
@@ -1417,6 +1589,11 @@ def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> 
             "receipt_digest": receipt_digest,
             "receipt": receipt_summary,
         },
+        **(
+            {"source_preflight": source_preflight[0], "final_verifier_phase": source_preflight[1]}
+            if source_preflight is not None
+            else {}
+        ),
         "diff": diff,
         **({"canonical_diff": canonical_diff, **canonical_details} if canonical_details else {}),
         "inspection_digest": hashlib.sha256(_canonical(inspection)).hexdigest(),
@@ -2630,12 +2807,18 @@ def integrate_candidate(config: BridgeConfig, payload: dict[str, Any]) -> dict[s
     operation_key = payload.get("operation_key")
     if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
         raise BridgeError("operation_key_invalid")
-    config = _operation_config(config, operation_key)
     with _operation_lock(config, operation_key):
-        return _integrate_candidate_locked(config, payload)
+        journal = _load_journal(config, operation_key)
+        source_preflight = _source_preflight_inspection(config, journal)
+        operation_config = _operation_config(config, operation_key)
+        return _integrate_candidate_locked(operation_config, payload, source_preflight)
 
 
-def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+def _integrate_candidate_locked(
+    config: BridgeConfig,
+    payload: dict[str, Any],
+    source_preflight: tuple[dict[str, Any], str] | None = None,
+) -> dict[str, Any]:
     if set(payload) != {
         "company_id",
         "project_id",
@@ -2719,6 +2902,11 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
     )
     if inspection is None:
         raise BridgeError("reviewer_must_inspect_candidate_first")
+    if source_preflight is not None:
+        if inspection.get("source_preflight") != source_preflight[0] or inspection.get(
+            "final_verifier_phase"
+        ) not in {"pending_after_independent_QA", "passed_before_publication"}:
+            raise BridgeError("source_preflight_inspection_binding_mismatch")
     inspection_digest = hashlib.sha256(_canonical(inspection)).hexdigest()
     approved = payload.get("approved")
     if type(approved) is not bool:

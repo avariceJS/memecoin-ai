@@ -648,6 +648,13 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             return result.stdout.strip()
 
         source.mkdir()
+        for directory in (
+            root / "broker-journal",
+            root / "bridge-journal",
+            root / "receipts",
+            root / "scratch",
+        ):
+            directory.mkdir(mode=0o700)
         subprocess.run(["/usr/bin/git", "init", "-q", "-b", "main", str(source)], check=True)
         git(source, "config", "user.name", "Bridge Owner")
         git(source, "config", "user.email", "bridge-owner@example.invalid")
@@ -2005,6 +2012,304 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 "base_sha",
             },
         )
+
+    def test_inspection_binds_passed_preflight_and_final_verifier_failure_holds_both_refs(self):
+        from engineering.paperclip_autonomous_bridge import _load_journal, _write_journal
+        from engineering.paperclip_git_broker import BrokerError
+        from engineering.paperclip_source_delivery import SOURCE_PATHS
+
+        root = Path(self.tmp.name) / "inspection-phase"
+        source = root / "source"
+        publisher = root / "publisher"
+        canonical = root / "canonical"
+        root.mkdir()
+
+        def git(repo, *args):
+            result = subprocess.run(
+                ["/usr/bin/git", "-C", str(repo), *args],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if result.returncode:
+                raise AssertionError(result.stderr)
+            return result.stdout.strip()
+
+        source.mkdir()
+        for directory in (
+            root / "broker-journal",
+            root / "bridge-journal",
+            root / "receipts",
+            root / "scratch",
+        ):
+            directory.mkdir(mode=0o700)
+        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "main", str(source)], check=True)
+        git(source, "config", "user.name", "Inspection Owner")
+        git(source, "config", "user.email", "inspection-owner@example.invalid")
+        for path in SOURCE_PATHS:
+            target = source / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("owner baseline\n")
+        git(source, "add", "-A")
+        git(source, "commit", "-qm", "initial source base")
+        base = git(source, "rev-parse", "HEAD")
+        git(source, "branch", "brain/development", base)
+        for clone in (publisher, canonical):
+            subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(clone)], check=True)
+            git(clone, "config", "user.name", "Inspection Publisher")
+            git(clone, "config", "user.email", "inspection-publisher@example.invalid")
+            git(clone, "branch", "brain/development", base)
+        git(publisher, "checkout", "--detach", base)
+
+        config = replace(
+            self.config,
+            source_issue_id=None,
+            reviewer_issue_id=None,
+            worker_checkout=None,
+            source_repo=source,
+            publisher_repo=publisher,
+            broker_journal_dir=root / "broker-journal",
+            bridge_journal_dir=root / "bridge-journal",
+            receipt_store=root / "receipts",
+            verifier_scratch_root=root / "scratch",
+            python_executable=Path(sys.executable).resolve(),
+            allowed_scope=SOURCE_PATHS,
+            verifier_commands=((sys.executable, "-c", "raise SystemExit(0)"),),
+            verifier_env=(),
+            verifier_policy_id="inspection-policy",
+            fixed_dev_ref="refs/heads/brain/development",
+            expected_dev_ref="refs/heads/brain/development",
+            expected_base_sha=base,
+            finite_lead_agent_id="lead-1",
+            finite_lead_issue_id="lead-issue",
+            source_stage_catalog=(
+                SourceStageSpec("MEM8", "source", base, None, SOURCE_PATHS, "inspection-policy"),
+                SourceStageSpec(
+                    "MEM9", "published", None, "MEM8", SOURCE_PATHS, "inspection-policy"
+                ),
+            ),
+            canonical_repo=canonical,
+            canonical_ref="refs/heads/brain/development",
+            canonical_expected_tip=base,
+        )
+        bind_payload = {
+            "company_id": config.company_id,
+            "project_id": config.project_id,
+            "lead_agent_id": "lead-1",
+            "lead_issue_id": "lead-issue",
+            "lead_run_id": "lead-run",
+            "stage_key": "MEM8",
+            "source_issue_id": "source-8",
+            "source_version": 1,
+            "review_issue_id": "review-8",
+            "review_version": 1,
+            "predecessor_operation_key": None,
+            "predecessor_source_status": None,
+            "predecessor_source_version": None,
+            "predecessor_review_status": None,
+            "predecessor_review_version": None,
+            "predecessor_source_issue_id": None,
+            "predecessor_review_issue_id": None,
+            "predecessor_dependency_ready": None,
+            "source_instruction_sha256": "1" * 64,
+            "review_instruction_sha256": "2" * 64,
+        }
+        bound = dispatch(config, {"action": "bind_source_stage", "payload": bind_payload})
+        dispatch(
+            config,
+            {
+                "action": "source_stage_activation",
+                "payload": {
+                    "step": "intent",
+                    "stage_binding_key": bound["stage_binding_key"],
+                    "issue_id": "source-8",
+                    "observed_status": "backlog",
+                    "observed_version": 1,
+                },
+            },
+        )
+        dispatch(
+            config,
+            {
+                "action": "source_stage_activation",
+                "payload": {
+                    "step": "ack",
+                    "stage_binding_key": bound["stage_binding_key"],
+                    "issue_id": "source-8",
+                    "mutation_status": "todo",
+                    "mutation_status_version": 2,
+                },
+            },
+        )
+        contents = ("events = ['candidate']\n", "def test_raw_sources():\n    assert True\n")
+        files = [
+            {
+                "path_id": path,
+                "content": content,
+                "size": len(content.encode("utf-8")),
+                "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            }
+            for path, content in zip(SOURCE_PATHS, contents, strict=True)
+        ]
+
+        def verifier_factory(_config, _checkout, *, content_only=False, capture_failure=False):
+            if capture_failure:
+                return lambda *_args: {"status": "passed", "commands_sha256": "a" * 64}, None
+
+            def fail_final_verifier(*_args):
+                raise BridgeError("sandboxed_verifier_failed")
+
+            return fail_final_verifier, None
+
+        with patch(
+            "engineering.paperclip_autonomous_bridge._verifier", side_effect=verifier_factory
+        ):
+            prepared = dispatch(
+                config,
+                {
+                    "action": "deliver_source_stage_content",
+                    "payload": {
+                        "company_id": config.company_id,
+                        "project_id": config.project_id,
+                        "source_issue_id": "source-8",
+                        "worker_agent_id": config.worker_agent_id,
+                        "run_id": "source-run",
+                        "stage_key": "MEM8",
+                        "stage_binding_key": bound["stage_binding_key"],
+                        "source_instruction_sha256": "1" * 64,
+                        "files": files,
+                    },
+                },
+            )
+            operation = _load_journal(config, prepared["operation_key"])
+            legacy_inspection = {
+                "reviewer_agent_id": config.reviewer_agent_id,
+                "reviewer_issue_id": "review-8",
+                "reviewer_run_id": "reviewer-run-old",
+                "candidate_sha": prepared["candidate_sha"],
+                "policy_digest": operation["binding"]["policy_digest"],
+                "legacy_marker": "preserve byte-for-byte",
+            }
+            operation["inspections"] = [legacy_inspection]
+            _write_journal(config, prepared["operation_key"], operation, create=False)
+            operation_bytes_before = _load_journal(config, prepared["operation_key"])
+            review_envelope = {
+                "company_id": config.company_id,
+                "project_id": config.project_id,
+                "reviewer_agent_id": config.reviewer_agent_id,
+                "reviewer_run_id": "reviewer-run-old",
+                "reviewer_issue_id": "review-8",
+                "stage_key": "MEM8",
+                "stage_binding_key": bound["stage_binding_key"],
+                "review_instruction_sha256": "2" * 64,
+            }
+            with self.assertRaisesRegex(BridgeError, "inspection_replay_mismatch"):
+                dispatch(
+                    config, {"action": "inspect_bound_source_stage", "payload": review_envelope}
+                )
+            after_old_replay = _load_journal(config, prepared["operation_key"])
+            self.assertEqual(after_old_replay["inspections"], [legacy_inspection])
+            self.assertIsNone(after_old_replay["review"])
+            self.assertEqual(after_old_replay["state"], "prepared")
+
+            from engineering.paperclip_autonomous_bridge import _load_preflight_json
+
+            original_loader = _load_preflight_json
+
+            def foreign_receipt_loader(cfg, kind, check_id):
+                value = original_loader(cfg, kind, check_id)
+                if kind == "result":
+                    return {**value, "policy_digest": "f" * 64}
+                return value
+
+            with patch(
+                "engineering.paperclip_autonomous_bridge._load_preflight_json",
+                side_effect=foreign_receipt_loader,
+            ):
+                with self.assertRaisesRegex(BridgeError, "source_preflight_receipt_mismatch"):
+                    dispatch(
+                        config,
+                        {
+                            "action": "inspect_bound_source_stage",
+                            "payload": {
+                                **review_envelope,
+                                "reviewer_run_id": "reviewer-run-foreign",
+                            },
+                        },
+                    )
+
+            def missing_receipt_loader(cfg, kind, check_id):
+                if kind == "result":
+                    raise BridgeError("owner_file_unavailable")
+                return original_loader(cfg, kind, check_id)
+
+            with patch(
+                "engineering.paperclip_autonomous_bridge._load_preflight_json",
+                side_effect=missing_receipt_loader,
+            ):
+                with self.assertRaisesRegex(BridgeError, "source_preflight_receipt_unavailable"):
+                    dispatch(
+                        config,
+                        {
+                            "action": "inspect_bound_source_stage",
+                            "payload": {
+                                **review_envelope,
+                                "reviewer_run_id": "reviewer-run-missing",
+                            },
+                        },
+                    )
+
+            inspected = dispatch(
+                config,
+                {
+                    "action": "inspect_bound_source_stage",
+                    "payload": {**review_envelope, "reviewer_run_id": "reviewer-run-new"},
+                },
+            )
+            self.assertEqual(inspected["source_preflight"]["status"], "passed")
+            self.assertEqual(
+                inspected["source_preflight"]["content_check_id"], prepared["preflight_check_id"]
+            )
+            self.assertEqual(inspected["final_verifier_phase"], "pending_after_independent_QA")
+            updated_operation = _load_journal(config, prepared["operation_key"])
+            self.assertEqual(updated_operation["inspections"][0], legacy_inspection)
+            self.assertIsNone(updated_operation["review"])
+            self.assertEqual(updated_operation["state"], "prepared")
+            self.assertEqual(updated_operation["candidate"], operation_bytes_before["candidate"])
+            self.assertEqual(
+                updated_operation["source_snapshot_sha256"],
+                operation_bytes_before["source_snapshot_sha256"],
+            )
+            self.assertEqual(updated_operation["canonical"], operation_bytes_before["canonical"])
+            self.assertEqual(len(updated_operation["inspections"]), 2)
+            self.assertEqual(
+                updated_operation["inspections"][1]["final_verifier_phase"],
+                "pending_after_independent_QA",
+            )
+            with self.assertRaisesRegex(BrokerError, "verification outcome is held"):
+                dispatch(
+                    config,
+                    {
+                        "action": "approve_bound_source_stage",
+                        "payload": {
+                            **review_envelope,
+                            "reviewer_run_id": "reviewer-run-new",
+                            "approved": True,
+                            "evidence": {
+                                "inspection_digest": inspected["inspection_digest"],
+                                "canonical_candidate_sha": inspected["canonical_candidate_sha"],
+                                "canonical_receipt_digest": inspected["canonical_receipt_digest"],
+                                "rationale": "exact prepared candidate inspected",
+                            },
+                        },
+                    },
+                )
+        self.assertEqual(git(publisher, "rev-parse", "refs/heads/brain/development"), base)
+        self.assertEqual(git(canonical, "rev-parse", "refs/heads/brain/development"), base)
+        final_operation = _load_journal(config, prepared["operation_key"])
+        self.assertEqual(final_operation["state"], "review_custodied")
+        self.assertEqual(final_operation["canonical"]["status"], "prepared")
+        self.assertEqual(final_operation["candidate"]["candidate_sha"], prepared["candidate_sha"])
 
     def test_stage_bind_refreshes_owner_root_and_replay_does_not_overwrite_source_edits(self):
         from engineering.paperclip_source_delivery import SOURCE_PATHS
