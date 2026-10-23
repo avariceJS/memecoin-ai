@@ -576,9 +576,7 @@ class BridgeConfig:
 
     def broker(self) -> PaperclipGitBroker:
         gate = self.gate()
-        broker = PaperclipGitBroker(
-            gate, self.broker_journal_dir, active_ref=self.expected_dev_ref
-        )
+        broker = PaperclipGitBroker(gate, self.broker_journal_dir, active_ref=self.expected_dev_ref)
         if broker.active_ref != self.expected_dev_ref:
             raise BridgeError("configured_active_ref_mismatch")
         return broker
@@ -804,8 +802,13 @@ def _prepare_candidate_locked(config: BridgeConfig, binding: OperationBinding) -
 def prepare_source_content(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
     """Prepare one candidate from bounded complete file contents, never worker Git."""
     if type(payload) is not dict or set(payload) != {
-        "company_id", "project_id", "source_issue_id", "worker_agent_id", "run_id",
-        "base_sha", "files",
+        "company_id",
+        "project_id",
+        "source_issue_id",
+        "worker_agent_id",
+        "run_id",
+        "base_sha",
+        "files",
     }:
         raise BridgeError("source_delivery_payload_shape_invalid")
     expected = {

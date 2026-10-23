@@ -206,9 +206,13 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         git(source, "add", "-A")
         git(
             source,
-            "-c", "user.name=owner",
-            "-c", "user.email=owner@example.invalid",
-            "commit", "-m", "base",
+            "-c",
+            "user.name=owner",
+            "-c",
+            "user.email=owner@example.invalid",
+            "commit",
+            "-m",
+            "base",
         )
         base = git(source, "rev-parse", "HEAD")
         subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(publisher)], check=True)
@@ -270,9 +274,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         journal_path = config.bridge_journal_dir / f"operation-{prepared['operation_key']}.json"
         journal = json.loads(journal_path.read_text())
         self.assertEqual(journal["source_snapshot_sha256"], prepared["source_snapshot_sha256"])
-        self.assertEqual(journal["binding"]["scope"], [
-            "src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"
-        ])
+        self.assertEqual(
+            journal["binding"]["scope"],
+            ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
+        )
         self.assertNotIn(str(self.config.worker_checkout), journal["binding"]["owner_roots"])
         mutated = {**payload, "files": [dict(item) for item in files]}
         mutated["files"][0]["content"] += "# different\n"
@@ -288,9 +293,12 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 {"action": "deliver_source_content", "payload": {**payload, "base_sha": "f" * 40}},
             )
         reviewer = {
-            "company_id": "company-1", "project_id": "project-1",
-            "reviewer_agent_id": "reviewer-1", "reviewer_run_id": "review-run-1",
-            "reviewer_issue_id": "issue-reviewer", "operation_key": prepared["operation_key"],
+            "company_id": "company-1",
+            "project_id": "project-1",
+            "reviewer_agent_id": "reviewer-1",
+            "reviewer_run_id": "review-run-1",
+            "reviewer_issue_id": "issue-reviewer",
+            "operation_key": prepared["operation_key"],
             "candidate_sha": prepared["candidate_sha"],
         }
         with self.assertRaisesRegex(BridgeError, "candidate_does_not_match_prepared_journal"):
@@ -299,14 +307,20 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 {"action": "inspect_candidate", "payload": {**reviewer, "candidate_sha": "0" * 40}},
             )
         inspected = dispatch(config, {"action": "inspect_candidate", "payload": reviewer})
-        review = dispatch(config, {"action": "approve_candidate", "payload": {
-            **reviewer,
-            "approved": False,
-            "evidence": {
-                "inspection_digest": inspected["inspection_digest"],
-                "reason": "synthetic decline",
+        review = dispatch(
+            config,
+            {
+                "action": "approve_candidate",
+                "payload": {
+                    **reviewer,
+                    "approved": False,
+                    "evidence": {
+                        "inspection_digest": inspected["inspection_digest"],
+                        "reason": "synthetic decline",
+                    },
+                },
             },
-        }})
+        )
         self.assertEqual(review["status"], "review_rejected")
         final_journal = json.loads(journal_path.read_text())
         self.assertEqual(final_journal["review"]["candidate_sha"], prepared["candidate_sha"])
@@ -630,9 +644,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         lane_binding = _binding(development, self.worker_payload())
         moved_root = replace(development, publisher_repo=Path(self.tmp.name) / "other-publisher")
         roots_binding = _binding(moved_root, self.worker_payload())
-        executable_alias = replace(
-            development, python_executable=Path("/usr/bin/../bin/python3")
-        )
+        executable_alias = replace(development, python_executable=Path("/usr/bin/../bin/python3"))
         alias_binding = _binding(executable_alias, self.worker_payload())
         self.assertEqual(original.active_ref, "refs/heads/brain/paperclip-integration")
         self.assertEqual(lane_binding.active_ref, "refs/heads/brain/development")
@@ -642,9 +654,11 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertNotEqual(lane_binding.owner_config_digest, alias_binding.owner_config_digest)
 
     def test_prepared_journal_cannot_replay_under_different_lane(self):
-        with patch.object(BridgeConfig, "broker", return_value=FakeBroker(
-            self.candidate, self.config.broker_journal_dir
-        )):
+        with patch.object(
+            BridgeConfig,
+            "broker",
+            return_value=FakeBroker(self.candidate, self.config.broker_journal_dir),
+        ):
             result = dispatch(
                 self.config,
                 {"action": "submit_candidate", "payload": self.worker_payload()},
@@ -709,9 +723,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         (publisher / "private-marker").write_text("publisher-owned\n")
         config = replace(self.config, verifier_runtime_read_roots=(publisher,))
         with patch("engineering.paperclip_autonomous_bridge.python_runtime_roots", return_value=()):
-            with self.assertRaisesRegex(
-                BridgeError, "verifier_runtime_root_overlaps_publisher"
-            ):
+            with self.assertRaisesRegex(BridgeError, "verifier_runtime_root_overlaps_publisher"):
                 _verifier(config, Path(self.tmp.name) / "candidate")
 
     def test_owner_config_rejects_loose_permissions_and_non_absolute_paths(self):
@@ -761,9 +773,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         raw["expected_base_sha"] = "a" * 40
         path.write_text(json.dumps(raw))
         path.chmod(0o600)
-        self.assertEqual(
-            BridgeConfig.load(path).expected_dev_ref, "refs/heads/brain/development"
-        )
+        self.assertEqual(BridgeConfig.load(path).expected_dev_ref, "refs/heads/brain/development")
         raw.pop("worker_checkout")
         raw["fixed_dev_ref"] = "refs/heads/brain/paperclip-integration"
         raw["expected_dev_ref"] = "refs/heads/brain/paperclip-integration"

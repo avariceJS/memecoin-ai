@@ -29,9 +29,13 @@ def commit(path: Path, message: str) -> str:
     git(path, "add", "-A")
     git(
         path,
-        "-c", "user.name=test",
-        "-c", "user.email=test@example.invalid",
-        "commit", "-m", message,
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit",
+        "-m",
+        message,
     )
     return git(path, "rev-parse", "HEAD")
 
@@ -93,9 +97,7 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
             source = root / "source"
             source.mkdir()
             git(source, "init", "-b", "main")
-            for path, content in zip(
-                SOURCE_PATHS, ("old events\n", "old tests\n"), strict=True
-            ):
+            for path, content in zip(SOURCE_PATHS, ("old events\n", "old tests\n"), strict=True):
                 target = source / path
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(content)
@@ -120,7 +122,11 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
                 )
                 changed = git(
                     projection.checkout,
-                    "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
+                    "diff-tree",
+                    "--no-commit-id",
+                    "--name-only",
+                    "-r",
+                    "HEAD",
                 ).splitlines()
                 self.assertEqual(tuple(changed), SOURCE_PATHS)
                 self.assertEqual(

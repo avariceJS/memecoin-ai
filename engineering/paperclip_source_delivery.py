@@ -141,9 +141,14 @@ def materialize_owner_projection(
         gate._run(
             checkout,
             [
-                "-c", "user.name=PaperclipContentDelivery",
-                "-c", "user.email=paperclip-content@localhost",
-                "commit", "--no-gpg-sign", "-m", f"Paperclip content delivery {snapshot.digest}",
+                "-c",
+                "user.name=PaperclipContentDelivery",
+                "-c",
+                "user.email=paperclip-content@localhost",
+                "commit",
+                "--no-gpg-sign",
+                "-m",
+                f"Paperclip content delivery {snapshot.digest}",
             ],
             env_overrides={"GIT_AUTHOR_DATE": "@0 +0000", "GIT_COMMITTER_DATE": "@0 +0000"},
         )
