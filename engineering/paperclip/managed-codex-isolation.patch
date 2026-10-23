@@ -1490,6 +1490,190 @@ index 71d4aff..b42e248 100644
      if (input.actor.keyScope?.kind === "skill_test") {
        const skillTestDecision = decideSkillTestAccess({
          action: input.action,
+diff --git a/server/src/services/chat-github-tools.test.ts b/server/src/services/chat-github-tools.test.ts
+new file mode 100644
+index 0000000..e13927e
+--- /dev/null
++++ b/server/src/services/chat-github-tools.test.ts
+@@ -0,0 +1,96 @@
++import { randomUUID } from "node:crypto";
++import { eq } from "drizzle-orm";
++import { afterAll, beforeAll, describe, expect, it } from "vitest";
++import {
++  agents,
++  chatConversations,
++  chatDeliveries,
++  chatEndpoints,
++  chatMessageLinks,
++  companies,
++  createDb,
++  heartbeatRuns,
++  issueComments,
++  issues,
++  runIdentityContexts,
++  toolApplications,
++  toolConnections,
++} from "@paperclipai/db";
++import {
++  getEmbeddedPostgresTestSupport,
++  startEmbeddedPostgresTestDatabase,
++} from "../__tests__/helpers/embedded-postgres.js";
++import { githubGuestBotConnectionForSession } from "./chat-github-tools.js";
++
++const support = await getEmbeddedPostgresTestSupport();
++(support.supported ? describe : describe.skip)("GitHub guest connection run binding", () => {
++  let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
++  let db: ReturnType<typeof createDb>;
++
++  beforeAll(async () => {
++    database = await startEmbeddedPostgresTestDatabase("paperclip-github-guest-binding-");
++    db = createDb(database.connectionString);
++  }, 30_000);
++  afterAll(async () => { await database?.cleanup(); }, 60_000);
++
++  async function seed(options: { githubConversation?: boolean; crossAgentParent?: boolean; guest?: boolean; malformedBinding?: boolean } = {}) {
++    const [company] = await db.insert(companies).values({ name: "GitHub guest binding", issuePrefix: randomUUID().slice(0, 8) }).returning();
++    const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Current agent", adapterType: "codex_local" }).returning();
++    const [issue] = await db.insert(issues).values({ companyId: company.id, title: "Current issue", assigneeAgentId: agent.id }).returning();
++    const [run] = await db.insert(heartbeatRuns).values({ companyId: company.id, agentId: agent.id, status: "running", nativeIssueId: options.malformedBinding ? null : issue.id, contextSnapshot: options.malformedBinding ? { issueId: "malformed" } : {}, responsibleUserId: "requester" }).returning();
++    let parentContextId: string | undefined;
++    let conversationAgentId = agent.id;
++    if (options.crossAgentParent) {
++      const [otherAgent] = await db.insert(agents).values({ companyId: company.id, name: "Other reviewer", adapterType: "codex_local" }).returning();
++      conversationAgentId = otherAgent.id;
++      const [parentRun] = await db.insert(heartbeatRuns).values({ companyId: company.id, agentId: otherAgent.id, status: "succeeded", nativeIssueId: issue.id, responsibleUserId: "requester" }).returning();
++      const [parent] = await db.insert(runIdentityContexts).values({ companyId: company.id, runId: parentRun.id, revision: 1, responsibleUserId: "requester", cause: "instruction", correlationId: "other-run" }).returning();
++      parentContextId = parent.id;
++    }
++    const [context] = await db.insert(runIdentityContexts).values({ companyId: company.id, runId: run.id, revision: 1, responsibleUserId: "requester", parentContextId, cause: "monitor", correlationId: "current-run" }).returning();
++    const [boundRun] = await db.update(heartbeatRuns).set({ activeIdentityContextId: context.id }).where(eq(heartbeatRuns.id, run.id)).returning();
++    let connectionId: string | undefined;
++    if (options.githubConversation) {
++      const [application] = await db.insert(toolApplications).values({ companyId: company.id, applicationKey: randomUUID(), name: "GitHub chat", type: "chat" }).returning();
++      const [connection] = await db.insert(toolConnections).values({ companyId: company.id, applicationId: application.id, name: "GitHub chat", uid: randomUUID(), transport: "chat_sdk", connectionPurpose: "channel" }).returning();
++      connectionId = connection.id;
++      const [endpoint] = await db.insert(chatEndpoints).values({ companyId: company.id, connectionId, provider: "github", publicId: randomUUID(), assignedAgentId: conversationAgentId }).returning();
++      const [conversation] = await db.insert(chatConversations).values({ companyId: company.id, endpointId: endpoint.id, issueId: issue.id, externalConversationId: randomUUID(), externalLabel: "PR request" }).returning();
++      if (options.guest) {
++        const [comment] = await db.insert(issueComments).values({ companyId: company.id, issueId: issue.id, authorType: "user", authorUserId: "requester", body: "Please review" }).returning();
++        await db.update(runIdentityContexts).set({ messageId: comment.id }).where(eq(runIdentityContexts.id, context.id));
++        await db.update(heartbeatRuns).set({ contextSnapshot: {} }).where(eq(heartbeatRuns.id, run.id));
++        const [delivery] = await db.insert(chatDeliveries).values({ companyId: company.id, endpointId: endpoint.id, conversationId: conversation.id, providerEventId: randomUUID(), deduplicationKey: randomUUID(), eventKind: "message", normalizedEvent: { githubAuthority: { guest: true } } }).returning();
++        await db.insert(chatMessageLinks).values({ companyId: company.id, endpointId: endpoint.id, conversationId: conversation.id, deliveryId: delivery.id, commentId: comment.id, providerMessageId: randomUUID(), direction: "inbound" });
++      }
++    }
++    return { company, agent, issue, boundRun, connectionId };
++  }
++
++  it.each(["malformed", "mismatched"])("fails closed for a %s persisted issue binding", async fault => {
++    const f = await seed({ malformedBinding: fault === "malformed" });
++    const [otherIssue] = fault === "mismatched" ? await db.insert(issues).values({ companyId: f.company.id, title: "Spoofed issue" }).returning() : [f.issue];
++    await expect(githubGuestBotConnectionForSession(db, { companyId: f.company.id, agentId: f.agent.id, runId: f.boundRun.id, issueId: otherIssue.id })).resolves.toBeNull();
++  });
++
++  it.each(["companyId", "agentId", "runId", "issueId"] as const)("ignores a malformed session %s before querying run authority", async field => {
++    const f = await seed();
++    const session = { companyId: f.company.id, agentId: f.agent.id, runId: f.boundRun.id, issueId: f.issue.id };
++    await expect(githubGuestBotConnectionForSession(db, { ...session, [field]: "malformed" })).resolves.toBeNull();
++  });
++
++  it("does not traverse cross-agent ancestry when the bound issue has no GitHub conversation", async () => {
++    const f = await seed({ crossAgentParent: true });
++    await expect(githubGuestBotConnectionForSession(db, { companyId: f.company.id, agentId: f.agent.id, runId: f.boundRun.id, issueId: f.issue.id })).resolves.toBeNull();
++  });
++
++  it("keeps provenance rejection when the GitHub endpoint belongs to another agent", async () => {
++    const f = await seed({ githubConversation: true, crossAgentParent: true });
++    await expect(githubGuestBotConnectionForSession(db, { companyId: f.company.id, agentId: f.agent.id, runId: f.boundRun.id, issueId: f.issue.id })).rejects.toMatchObject({ status: 403, message: "Chat tools cannot be inherited by another task" });
++  });
++
++  it("still returns the bound guest bot connection for valid GitHub provenance", async () => {
++    const f = await seed({ githubConversation: true, guest: true });
++    await expect(githubGuestBotConnectionForSession(db, { companyId: f.company.id, agentId: f.agent.id, runId: f.boundRun.id, issueId: f.issue.id })).resolves.toBe(f.connectionId);
++  });
++});
+diff --git a/server/src/services/chat-github-tools.ts b/server/src/services/chat-github-tools.ts
+index f87a9f1..6915670 100644
+--- a/server/src/services/chat-github-tools.ts
++++ b/server/src/services/chat-github-tools.ts
+@@ -1,6 +1,6 @@
+ import { createHash } from "node:crypto";
+ import { z } from "zod";
+-import { githubReviewAssessmentSchema } from "@paperclipai/shared";
++import { githubReviewAssessmentSchema, isUuidLike } from "@paperclipai/shared";
+ import { and, eq, isNull, sql } from "drizzle-orm";
+ import {
+   chatDeliveries,
+@@ -384,7 +384,16 @@ export async function githubGuestBotConnectionForSession(
+     "companyId" | "agentId" | "runId" | "issueId"
+   >,
+ ): Promise<string | null> {
+-  if (!session.runId || !session.agentId || !session.issueId) return null;
++  const { agentId, runId, issueId } = session;
++  if (
++    !isUuidLike(session.companyId) ||
++    !agentId ||
++    !runId ||
++    !issueId ||
++    !isUuidLike(agentId) ||
++    !isUuidLike(runId) ||
++    !isUuidLike(issueId)
++  ) return null;
+   const [run] = await db
+     .select({
+       id: heartbeatRuns.id,
+@@ -400,11 +409,34 @@ export async function githubGuestBotConnectionForSession(
+     .where(
+       and(
+         eq(heartbeatRuns.companyId, session.companyId),
+-        eq(heartbeatRuns.agentId, session.agentId),
+-        eq(heartbeatRuns.id, session.runId),
++        eq(heartbeatRuns.agentId, agentId),
++        eq(heartbeatRuns.id, runId),
+       ),
+     );
+-  const commentId = run ? await chatRunSourceMessageId(db, run, { allowLegacyWakeComment: true, provider: "github" }) : null;
++  const boundIssueId = run?.issueId;
++  if (
++    !run ||
++    run.companyId !== session.companyId ||
++    run.agentId !== agentId ||
++    typeof boundIssueId !== "string" ||
++    !isUuidLike(boundIssueId) ||
++    boundIssueId !== session.issueId
++  ) return null;
++  const [conversation] = await db
++    .select({ id: chatConversations.id })
++    .from(chatConversations)
++    .innerJoin(chatEndpoints, eq(chatEndpoints.id, chatConversations.endpointId))
++    .where(
++      and(
++        eq(chatConversations.companyId, run.companyId),
++        eq(chatConversations.issueId, boundIssueId),
++        eq(chatEndpoints.companyId, run.companyId),
++        eq(chatEndpoints.provider, "github"),
++      ),
++    )
++    .limit(1);
++  if (!conversation) return null;
++  const commentId = await chatRunSourceMessageId(db, run, { allowLegacyWakeComment: true, provider: "github" });
+   if (typeof commentId !== "string") return null;
+   const [source] = await db
+     .select({
+@@ -426,10 +458,10 @@ export async function githubGuestBotConnectionForSession(
+     )
+     .where(
+       and(
+-        eq(chatMessageLinks.companyId, session.companyId),
++        eq(chatMessageLinks.companyId, run.companyId),
+         eq(chatMessageLinks.commentId, commentId),
+-        eq(chatConversations.issueId, session.issueId),
+-        eq(chatEndpoints.assignedAgentId, session.agentId),
++        eq(chatConversations.issueId, boundIssueId),
++        eq(chatEndpoints.assignedAgentId, agentId),
+         eq(chatEndpoints.provider, "github"),
+       ),
+     );
 diff --git a/server/src/services/heartbeat/run-preparation.ts b/server/src/services/heartbeat/run-preparation.ts
 index 7c635e5..df0bff3 100644
 --- a/server/src/services/heartbeat/run-preparation.ts
