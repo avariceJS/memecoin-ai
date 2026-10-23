@@ -1,38 +1,34 @@
-# Current state — 2026-10-23, resumed / import-review hold
+# Current state — 2026-10-23, practical MVP in progress
 
-The founder explicitly resumed Paperclip MVP development/testing through `prompt/prompt.md`.
-Historical Pilot STOP, protected data, main/production, paid API, market/training/AUTO/trading
-restrictions remain. No new native Goal or competing controller was created; current root Goal
-API returned null, which says nothing about another thread's preserved Luna Goal.
+Founder resumed and clarified: local path holds do not freeze independent useful work. CEO owns
+architecture. Keep no paid API, main/production/protected-data/market/training/AUTO/trading and
+historical Pilot STOP boundaries. No competing native Goal/scheduler; current root Goal API null.
+Paperclip remains sole organizational lifecycle owner; old supervisor stays stopped.
 
 Canonical private handoff: `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md`.
-Current receipts: lab `state/resumption-20261023/`; historical immutable shutdown receipts:
-`state/shutdown-20261023/`. Russian founder report: `engineering/OWNER-DESK.md`.
-Paperclip is sole organizational lifecycle owner; old supervisor remains stopped.
+Current receipts: lab `state/resumption-20261023/`; shutdown receipts immutable. Founder report:
+`engineering/OWNER-DESK.md`. Preserve user-owned untracked prompt/ and all historical holds/WIP.
 
-Pinned server restarted successfully on loopback3310. Fresh API readback: six existing companies
-and 13 agents paused, zero live runs. No old operation or unknown outcome was replayed.
-Twelve historical recovery holds and old7c unknown outcome/accounting remain preserved.
-Sol prepared source-only backlog; Luna registered six department projects, six planned team
-goals and 12 backlog issues with existing shared lead/engineer/reviewer. Senses history and the
-achieved first-source goal are retained. This is preparation, not operational acceptance.
+Server loopback3310 running on accepted Paperclip0130291. MEM active; other historical companies
+paused. Six department projects/goals/backlogs exist; shared Sol/Luna/independent QA interim staffing.
+Actual native Luna/high and Sol6.1/high subscription runs verified. MEM26/27 are done: content-v2
+operation812fa3145c9503694fd3296faa4111df33022b26ea231956b0328f8bfa741aa5 published projected
+candidate4dcb736a1d65cbd53df2b126c24f65c20146cd95. Safe publisher ref matches; canonical remains5479473.
+Capacity invalid types now ValueError; prior rejected TypeError candidate and relationship failures
+remain historical. No protected Git history exposed to worker; noGit safe projection227files.
 
-Critical external blocker: prior automatic safety-filter rejection of Git-import independent
-review, including defensive review. No retry through another agent/context. Five WIP files remain
-unaccepted/undeployed; current diff exactly matches private patch SHA
-`75d78645620640e65b63ae2ad31bc95aceee2323f360c38ed5e63272f92b9d25`.
-New real engineering admission/publication through this path stays closed.
-Native-review WIP43c998b/6ec6b99 and old hibernation WIPa3abfe2 remain unaccepted and preserved.
+Content-only route accepted776cfb1 integrated/pushed874f535; plugin rebuilt/upgraded. Immutable
+owner config required per operation, CD-02 policy drift backlog fails closed at inspection/integration.
+Old refused Git-import WIP untouched. SDK67ae034 independently accepted after reparent/CAS correction;
+Luna preparing launcher pin/portable patch release, not deployed yet. Canonical publisher3fe7f77
+independently accepted as module, one-time capacity catchup candidate preparation underway, no CAS yet.
 
-Current source pins verified: Paperclip01302914b5501fbb274b39477e087ac1692d9b6a;
-Brain integration9747cef4d8b52b38985858d0a2d0d660d10f5b90; canonical Brain
-54794735c89f625f2f83ca7c3683a65e67f40f54; main2f8da5f unchanged.
-MEM4/5/6 done, MEM7 backlog/no run. Completed publication759a and synthetic3c69 must not repeat.
-The first Senses cycle remains recovered/operator-assisted, not autonomous canonical publication.
+Combined queue candidate source-candidates/finite-canonical-mvp-20261023 under Luna implementation;
+frozen predecessor6d723f rejected for manifest/envelope/config/replay issues, not deployed. Queue uses
+native finite lead children/dependencies, source-only writer in explicitly bound shared noGit root,
+QA immutable candidate inspection, fresh source base between stages. Combined independent acceptance
+still required. MVP incomplete: autonomous successive work, automatic canonical publication,
+useful native two-department concurrency, combined stop/restart/resume. Root docs dirty with progress.
 
-After the review restriction is resolved: bounded import acceptance; safe refreshed bases and
-finite two-task Sol continuation; narrow canonical publisher; publication-stop/resume; useful
-Platform plus Senses/Experience concurrency. Six working departments and MVP are not accepted.
-
-Shutdown backup `paperclip-20261023-173235.sql.gz` integrity/hash reverified; no restore or pruning.
-Preserve archive refs, frozen pilot worktrees, all predecessor history and prompt/ user files.
+No unknown operation replay; 12 historical recovery records and old7c uncertainty retained.
+Shutdown backup integrity/hash reverified earlier; no restore/pruning. Preserve archives/Goals.

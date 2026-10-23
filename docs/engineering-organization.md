@@ -1,5 +1,11 @@
 # Brain Engineering Organization
 
+Founder clarification (2026-10-23): a local component hold does not prohibit independent useful
+work. CEO owns architecture and may remove the affected path rather than repair it, without
+circumventing protective refusals. Qualified source-only work may proceed with publication held;
+Platform owns infrastructure remediation in parallel. All prior critical restrictions remain.
+Decision receipt: lab `state/resumption-20261023/practical-mvp-directive.json`.
+
 Canonical owner of the engineering control system, separate from the Brain research and production
 runtimes. Technical documentation is English; the [Founder Desk](../engineering/OWNER-DESK.md) is
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
@@ -7,41 +13,41 @@ Russian. Brain architecture and scientific validity remain owned by `brain-devel
 
 ## Current authorized resumption and minimum company target — 2026-10-23
 
-The founder resumed MVP development/testing through `prompt/prompt.md`. The earlier manual
-shutdown below is historical; all independent restrictions remain. The pinned local Paperclip
-server is running for reconciliation and organizational preparation. All six existing companies
-and 13 agents remain paused with zero live runs at fresh API readback. No unknown operation was
-replayed and no new native Goal was created.
+The founder resumed development/testing and delegated practical architecture decisions to the CEO.
+Paperclip remains the sole lifecycle owner; no competing Goal or scheduler was created. MEM is
+active for admitted tasks, while historical experimental companies and unknown operations remain held.
+Six department projects/goals and permitted backlogs exist with an interim shared Sol lead, Luna
+engineer and separate Sol reviewer. This structure alone is not operational acceptance.
 
-The previous automatic safety-filter rejection of Git-import review remains an external tool
-blocker. Do not retry the rejected work through a different agent/context. The import candidate
-is preserved and unaccepted; dependent engineering admission/publication remains closed.
-Six department projects, six planned team goals and twelve backlog issues are registered in
-the existing MEM company. One existing Sol lead is interim accountable owner, with shared Luna
-and a separate reviewer. Senses history/workspaces and the achieved first-source goal are retained.
-No new agent profiles/workspaces are qualified by this administrative setup. All execution stays
-paused; this configuration does not establish six operational departments.
-Current private evidence is in lab `state/resumption-20261023/`; canonical operational handoff:
-`/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md`. Russian founder reporting remains
-`engineering/OWNER-DESK.md`; volatile state remains `memory/now.md`.
+The rejected worker Git-import path remains preserved and unused. The accepted replacement takes
+bounded full-text content for two owner-defined files, then constructs a controller-owned candidate;
+it does not import worker Git objects. Exact source776cfb1 is integrated as874f535. Owner policy
+must remain immutable per operation; policy-drift stale-prepare behavior is Platform backlog CD-02,
+with inspection/integration rejecting mismatches.
 
-The first real subscribed source cycle and separately reviewed owner-operated canonical Senses
-publication are accepted within their stated scopes. Six operational departments, repeatable
-backlog, two-department concurrency and unattended canonical publication are not yet accepted.
-The next founder-defined MVP uses six real departments (Senses, Experience, Cortex, Evaluation,
-Policy, Platform), each with goals, permitted work queues, Sol leadership and Luna execution on
-demand. Platform is permanent. Two departments must make useful progress concurrently with
-independent review and safe integration; publisher serialization is acceptable initially.
-Cortex/Policy tasks remain source/test/infrastructure only under existing restrictions.
+Real MEM26/27 completed source delivery, independent Sol review, fixed verification and projected
+publication: operation812fa3145c9503694fd3296faa4111df33022b26ea231956b0328f8bfa741aa5,
+candidate4dcb736a1d65cbd53df2b126c24f65c20146cd95. The capacity validation improvement rejects
+invalid/unrepresentable input with ValueError while preserving valid formulas. Previous failed
+relationship admission and the rejected TypeError candidate remain recorded, not replayed as success.
+Canonical Brain remains5479473; projected publication is not canonical transfer or full autonomy.
 
-Before new real engineering admission, resolve the host Git import boundary and independently
-accept the exact correction. Then qualify refreshed safe bases between two tasks, narrow canonical
-publication, and minimum founder stop/restart/resume including held unknown publication outcomes.
-Reuse native issues/dependencies/recovery holds and broker receipts; retain ordinary independent
-QA/publication tasks instead of extending restricted native review. Do not require monthly
-endurance, exhaustive crash coverage, broad scaling or exact quota accounting before this MVP.
-Those improvements and gradual evidence-based removal of duplicate old organization code belong
-to Platform after the minimum safe lane works. Historical STOP receipts remain immutable; resumed department preparation is not operational acceptance.
+The narrow native SDK CAS/readiness extension67ae034 passed independent source review, including
+the corrected concurrent-reparent race; deployment is pending. The bounded canonical publisher3fe7f77
+also passed independent module review. Combined finite queue/publication code remains under development
+following independent findings; component tests do not establish the combined runtime path.
+
+Remaining MVP evidence: Sol creates successive useful source/review tasks without CEO pairing;
+refreshed source bases and automatic exact-reviewed canonical publication; useful native Platform
+and Brain work in parallel; bounded stop/restart/resume with unknown outcomes preserved. Use existing
+native task/dependency/workspace/recovery mechanisms. A serialized shared noGit workspace is acceptable
+for the finite Senses lane, with only Luna writing and QA inspecting immutable controller snapshots.
+It is not separate per-role filesystem isolation. Monthly endurance and broad scaling belong to Platform.
+
+Current private evidence: lab `state/resumption-20261023/`; canonical operational handoff:
+`/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md`. Founder reporting remains
+`engineering/OWNER-DESK.md`; volatile state remains `memory/now.md`. All paid-API, protected-data,
+main/production, market/training/AUTO/trading restrictions and historical Pilot STOP remain.
 
 ## Paperclip-first experimental integration — founder authorization 2026-10-22
 
