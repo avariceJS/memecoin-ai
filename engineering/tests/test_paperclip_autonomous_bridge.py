@@ -1143,6 +1143,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         _write_journal(config, operation_key, prior, create=False)
         expected_cache = config.bridge_journal_dir / "trusted-stage-sources" / (f"MEM9-{'d' * 40}")
         with (
+            patch.object(BridgeConfig, "gate", return_value=SimpleNamespace()),
             patch(
                 "engineering.paperclip_autonomous_bridge._create_trusted_stage_source_cache",
                 return_value=(expected_cache, "f" * 40),
@@ -1264,6 +1265,344 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(BridgeError, "source_stage_predecessor_not_finalized"):
             dispatch(config, {"action": "bind_source_stage", "payload": second})
 
+    def test_attempt_two_uses_separate_journal_and_requires_exact_finalized_rejection(self):
+        from engineering.paperclip_source_delivery import SOURCE_PATHS
+
+        stages = (
+            SourceStageSpec("MEM8", "source", "a" * 40, None, SOURCE_PATHS, "policy-mem8"),
+            SourceStageSpec("MEM9", "published", None, "MEM8", SOURCE_PATHS, "policy-mem9"),
+        )
+        config = replace(
+            self.config,
+            source_issue_id=None,
+            reviewer_issue_id=None,
+            worker_checkout=None,
+            expected_base_sha="a" * 40,
+            finite_lead_agent_id="lead-1",
+            finite_lead_issue_id="lead-issue",
+            source_stage_catalog=stages,
+            canonical_repo=Path(self.tmp.name) / "canonical",
+            canonical_ref="refs/heads/brain/development",
+            canonical_expected_tip="f" * 40,
+        )
+        first_payload = {
+            "company_id": config.company_id,
+            "project_id": config.project_id,
+            "lead_agent_id": "lead-1",
+            "lead_issue_id": "lead-issue",
+            "lead_run_id": "lead-run-1",
+            "stage_key": "MEM8",
+            "source_issue_id": "source-1",
+            "source_version": 1,
+            "review_issue_id": "review-1",
+            "review_version": 1,
+            "predecessor_operation_key": None,
+            "predecessor_source_status": None,
+            "predecessor_source_version": None,
+            "predecessor_review_status": None,
+            "predecessor_review_version": None,
+            "predecessor_source_issue_id": None,
+            "predecessor_review_issue_id": None,
+            "predecessor_dependency_ready": None,
+            "source_instruction_sha256": "1" * 64,
+            "review_instruction_sha256": "2" * 64,
+        }
+        first = dispatch(config, {"action": "bind_source_stage", "payload": first_payload})
+        first_journal_key = _stage_journal_key("MEM8")
+        first_journal_path = config.bridge_journal_dir / f"operation-{first_journal_key}.json"
+        first_record = _load_journal(config, first_journal_key)
+        first_record.update(
+            {"state": "active", "operation_key": "f" * 64, "candidate_sha": "b" * 40}
+        )
+        _write_journal(config, first_journal_key, first_record, create=False)
+        first_bytes = first_journal_path.read_bytes()
+        snapshot_sha = "c" * 64
+        rejected_operation = {
+            "schema": "paperclip-autonomous-operation-v1",
+            "operation_key": "f" * 64,
+            "state": "review_rejected",
+            "source_stage_binding": first["stage_binding_key"],
+            "source_snapshot_sha256": snapshot_sha,
+            "source_files": [
+                {"path_id": path, "size": 1, "sha256": "d" * 64} for path in SOURCE_PATHS
+            ],
+            "candidate": {"operation_key": "f" * 64, "candidate_sha": "b" * 40},
+            "review": {"approved": False},
+            "canonical": {
+                "status": "prepared",
+                "candidate": "9" * 40,
+                "receipt_digest": "8" * 64,
+            },
+        }
+        _write_journal(config, "f" * 64, rejected_operation, create=True)
+        retry_payload = {
+            **first_payload,
+            "lead_run_id": "lead-run-2",
+            "source_issue_id": "source-2",
+            "source_version": 2,
+            "review_issue_id": "review-2",
+            "review_version": 2,
+            "source_instruction_sha256": "5" * 64,
+            "review_instruction_sha256": "6" * 64,
+            "attempt": 2,
+            "retry_of_operation_key": "f" * 64,
+            "retry_of_source_status": "done",
+            "retry_of_source_version": 3,
+            "retry_of_review_status": "done",
+            "retry_of_review_version": 3,
+            "retry_of_dependency_ready": True,
+        }
+        with patch(
+            "engineering.paperclip_autonomous_bridge._snapshot_rejected_workspace",
+            return_value=(snapshot_sha, "e" * 64),
+        ):
+            second = dispatch(config, {"action": "bind_source_stage", "payload": retry_payload})
+        self.assertEqual(first_journal_path.read_bytes(), first_bytes)
+        self.assertNotEqual(first["stage_binding_key"], second["stage_binding_key"])
+        self.assertEqual(second["attempt"], 2)
+        second_key = _stage_journal_key("MEM8", 2)
+        second_record = _load_journal(config, second_key)
+        self.assertEqual(second_record["retry_of_operation_key"], "f" * 64)
+        self.assertEqual(second_record["base_sha"], first_record["base_sha"])
+        lookup = dispatch(
+            config,
+            {
+                "action": "lookup_source_stage_binding",
+                "payload": {
+                    "company_id": config.company_id,
+                    "project_id": config.project_id,
+                    "lead_agent_id": "lead-1",
+                    "lead_issue_id": "lead-issue",
+                    "stage_key": "MEM8",
+                    "attempt": 2,
+                },
+            },
+        )
+        self.assertEqual(lookup["stage_binding_key"], second["stage_binding_key"])
+        self.assertEqual(lookup["retry_of_operation_key"], "f" * 64)
+        second_record["state"] = "active"
+        second_record["operation_key"] = "7" * 64
+        second_record["candidate_sha"] = "c" * 40
+        _write_journal(config, second_key, second_record, create=False)
+        _write_journal(
+            config,
+            "7" * 64,
+            {
+                "schema": "paperclip-autonomous-operation-v1",
+                "operation_key": "7" * 64,
+                "state": "published",
+                "source_stage_binding": second["stage_binding_key"],
+                "candidate": {"operation_key": "7" * 64, "candidate_sha": "c" * 40},
+                "canonical": {"status": "published", "candidate": "8" * 40},
+            },
+            create=True,
+        )
+        second_stage_payload = {
+            **first_payload,
+            "lead_run_id": "lead-run-3",
+            "stage_key": "MEM9",
+            "source_issue_id": "source-3",
+            "review_issue_id": "review-3",
+            "predecessor_operation_key": "7" * 64,
+            "predecessor_source_status": "done",
+            "predecessor_source_version": 3,
+            "predecessor_review_status": "done",
+            "predecessor_review_version": 3,
+            "predecessor_source_issue_id": "source-2",
+            "predecessor_review_issue_id": "review-2",
+            "predecessor_dependency_ready": True,
+        }
+        trusted_cache = Path(self.tmp.name) / "trusted-stage-cache"
+        with (
+            patch(
+                "engineering.paperclip_autonomous_bridge._create_trusted_stage_source_cache",
+                return_value=(trusted_cache, "a" * 64),
+            ),
+            patch(
+                "engineering.paperclip_autonomous_bridge._trusted_stage_source_cache_identity",
+                return_value="a" * 64,
+            ),
+        ):
+            next_stage = dispatch(
+                config, {"action": "bind_source_stage", "payload": second_stage_payload}
+            )
+        self.assertEqual(next_stage["base_sha"], "c" * 40)
+        self.assertEqual(next_stage["canonical_base_sha"], "8" * 40)
+        self.assertEqual(next_stage["attempt"], 1)
+        next_record = _load_journal(config, _stage_journal_key("MEM9"))
+        self.assertEqual(next_record["predecessor_operation_key"], "7" * 64)
+        self.assertNotIn("retry_of_operation_key", next_record)
+        with self.assertRaisesRegex(BridgeError, "source_stage_retry_not_admitted"):
+            dispatch(
+                config,
+                {
+                    "action": "bind_source_stage",
+                    "payload": {**retry_payload, "retry_of_operation_key": "9" * 64},
+                },
+            )
+        with self.assertRaisesRegex(BridgeError, "source_stage_attempt_invalid"):
+            dispatch(
+                config,
+                {"action": "bind_source_stage", "payload": {**retry_payload, "attempt": 3}},
+            )
+
+    def test_content_preflight_failure_is_immutable_and_changed_bytes_can_pass_before_prepare(self):
+        from engineering.paperclip_autonomous_bridge import _preflight_source_stage_content
+        from engineering.paperclip_source_delivery import SOURCE_PATHS, snapshot_records
+
+        scratch = Path(self.tmp.name) / "preflight-scratch"
+        scratch.mkdir()
+        config = replace(
+            self.config,
+            verifier_scratch_root=scratch,
+            bridge_journal_dir=Path(self.tmp.name) / "bridge-journal",
+            broker_journal_dir=Path(self.tmp.name) / "broker-journal",
+        )
+        config.broker_journal_dir.mkdir(mode=0o700, exist_ok=True)
+        binding = {
+            "stage_binding_key": "d" * 64,
+            "base_sha": "a" * 40,
+            "canonical_base_sha": None,
+        }
+        payload = {"source_issue_id": "source-8", "run_id": "source-run"}
+
+        def records(contents):
+            return [
+                {
+                    "path_id": path,
+                    "content": content,
+                    "size": len(content.encode()),
+                    "sha256": hashlib.sha256(content.encode()).hexdigest(),
+                }
+                for path, content in zip(SOURCE_PATHS, contents, strict=True)
+            ]
+
+        failed_result = {
+            "status": "preflight_failed",
+            "failure_code": "sandboxed_verifier_failed",
+            "command_index": 0,
+            "returncode": 1,
+            "timed_out": False,
+            "output_truncated": False,
+            "stdout": "AssertionError: expected boundary",
+            "stderr": "",
+            "stdout_sha256": "1" * 64,
+            "stderr_sha256": "2" * 64,
+            "sandbox_profile_sha256": "3" * 64,
+            "prior_commands_sha256": "4" * 64,
+        }
+        checkout = Path(self.tmp.name) / "candidate"
+        projection = SimpleNamespace(checkout=checkout, submitted_sha="b" * 40)
+        with (
+            patch.object(BridgeConfig, "gate", return_value=SimpleNamespace()),
+            patch(
+                "engineering.paperclip_autonomous_bridge.materialize_owner_projection",
+                return_value=projection,
+            ) as materialize,
+            patch("engineering.paperclip_autonomous_bridge.discard_projection"),
+            patch(
+                "engineering.paperclip_autonomous_bridge._verifier",
+                return_value=(lambda *_args: failed_result, scratch / "unused-verifier-scratch"),
+            ) as verifier,
+        ):
+            failed = _preflight_source_stage_content(
+                config,
+                config,
+                binding,
+                payload,
+                snapshot_records(records(["bad events", "bad tests"])),
+            )
+            replay = _preflight_source_stage_content(
+                config,
+                config,
+                binding,
+                payload,
+                snapshot_records(records(["bad events", "bad tests"])),
+            )
+        self.assertEqual(failed["status"], "preflight_failed")
+        self.assertEqual(failed["stdout"], failed_result["stdout"])
+        self.assertEqual(replay, failed)
+        self.assertNotIn("operation_key", failed)
+        self.assertNotIn("candidate_sha", failed)
+        self.assertEqual(verifier.call_count, 1)
+        candidate_parent = materialize.call_args.kwargs["checkout_parent"]
+        self.assertEqual(candidate_parent.parent, scratch.resolve())
+        self.assertNotEqual(candidate_parent, config.source_repo)
+        changed_snapshot = snapshot_records(records(["corrected events", "corrected tests"]))
+        with (
+            patch.object(BridgeConfig, "gate", return_value=SimpleNamespace()),
+            patch(
+                "engineering.paperclip_autonomous_bridge.materialize_owner_projection",
+                return_value=projection,
+            ),
+            patch("engineering.paperclip_autonomous_bridge.discard_projection"),
+            patch(
+                "engineering.paperclip_autonomous_bridge._verifier",
+                return_value=(
+                    lambda *_args: {"status": "passed", "commands_sha256": "5" * 64},
+                    scratch / "unused",
+                ),
+            ) as passing_verifier,
+        ):
+            passed = _preflight_source_stage_content(
+                config, config, binding, payload, changed_snapshot
+            )
+        self.assertEqual(passed["status"], "passed")
+        self.assertNotEqual(passed["content_check_id"], failed["content_check_id"])
+        self.assertEqual(passing_verifier.call_count, 1)
+        preflight_root = config.bridge_journal_dir / "source-preflight-v1"
+        self.assertEqual(len(list(preflight_root.glob("snapshot-*.json"))), 2)
+        self.assertEqual(len(list(preflight_root.glob("result-*.json"))), 2)
+        self.assertFalse(list(config.bridge_journal_dir.glob("operation-*.json")))
+
+    def test_content_preflight_unknown_intent_is_not_reexecuted(self):
+        from engineering.paperclip_autonomous_bridge import _preflight_source_stage_content
+        from engineering.paperclip_source_delivery import SOURCE_PATHS, snapshot_records
+
+        scratch = Path(self.tmp.name) / "preflight-scratch"
+        scratch.mkdir()
+        config = replace(
+            self.config,
+            verifier_scratch_root=scratch,
+            bridge_journal_dir=Path(self.tmp.name) / "bridge-journal",
+            broker_journal_dir=Path(self.tmp.name) / "broker-journal",
+        )
+        config.broker_journal_dir.mkdir(mode=0o700, exist_ok=True)
+        records = [
+            {
+                "path_id": path,
+                "content": "synthetic\n",
+                "size": 10,
+                "sha256": hashlib.sha256(b"synthetic\n").hexdigest(),
+            }
+            for path in SOURCE_PATHS
+        ]
+        snapshot = snapshot_records(records)
+        binding = {"stage_binding_key": "d" * 64, "base_sha": "a" * 40, "canonical_base_sha": None}
+        payload = {"source_issue_id": "source-8", "run_id": "source-run"}
+        projection = SimpleNamespace(
+            checkout=Path(self.tmp.name) / "candidate", submitted_sha="b" * 40
+        )
+        with (
+            patch.object(BridgeConfig, "gate", return_value=SimpleNamespace()),
+            patch(
+                "engineering.paperclip_autonomous_bridge.materialize_owner_projection",
+                return_value=projection,
+            ) as materialize,
+            patch("engineering.paperclip_autonomous_bridge.discard_projection"),
+            patch(
+                "engineering.paperclip_autonomous_bridge._verifier",
+                side_effect=BridgeError("sandbox_unavailable"),
+            ) as verifier,
+        ):
+            first = _preflight_source_stage_content(config, config, binding, payload, snapshot)
+            second = _preflight_source_stage_content(config, config, binding, payload, snapshot)
+        self.assertEqual(first["status"], "preflight_unknown")
+        self.assertEqual(first, second)
+        self.assertEqual(materialize.call_count, 1)
+        self.assertEqual(verifier.call_count, 1)
+        self.assertFalse(list(config.bridge_journal_dir.glob("operation-*.json")))
+
     def test_stage_delivery_accepts_exact_worker_envelope_and_derives_reviewer_from_binding(self):
         from engineering.paperclip_source_delivery import SOURCE_PATHS
 
@@ -1378,9 +1717,16 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "candidate_sha": "c" * 40,
             "base_sha": "a" * 40,
         }
-        with patch(
-            "engineering.paperclip_autonomous_bridge.prepare_source_content", return_value=result
-        ) as prepare:
+        with (
+            patch(
+                "engineering.paperclip_autonomous_bridge._preflight_source_stage_content",
+                return_value={"status": "passed", "content_check_id": "e" * 64},
+            ),
+            patch(
+                "engineering.paperclip_autonomous_bridge.prepare_source_content",
+                return_value=result,
+            ) as prepare,
+        ):
             delivered = dispatch(
                 config, {"action": "deliver_source_stage_content", "payload": worker_envelope}
             )
@@ -1403,6 +1749,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         delegated_config, delegated_payload = prepare.call_args.args[:2]
         self.assertEqual(delegated_config.reviewer_issue_id, "review-8")
         self.assertEqual(delegated_payload["base_sha"], "a" * 40)
+        self.assertEqual(prepare.call_args.kwargs["preflight_check_id"], "e" * 64)
         self.assertEqual(
             set(delegated_payload),
             {

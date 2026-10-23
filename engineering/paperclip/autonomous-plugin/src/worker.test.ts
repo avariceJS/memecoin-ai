@@ -421,18 +421,42 @@ describe("Paperclip autonomous bridge tools", () => {
       tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
     } as unknown as PluginContext;
     const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
-    const invoke = vi.fn(async (action: string) => action === "lookup_source_stage_binding"
-      ? { found: true, stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), review_instruction_sha256: digest("review instructions") }
-      : { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), base_sha: "b".repeat(40), submitted_sha: "e".repeat(40), policy_digest: "f".repeat(64) });
+    let deliveryCalls = 0;
+    const preflightFailure = {
+      status: "preflight_failed", content_check_id: "9".repeat(64), snapshot_sha256: "a".repeat(64),
+      policy_digest: "b".repeat(64), failure_code: "sandboxed_verifier_failed", command_index: 0,
+      returncode: 1, timed_out: false, output_truncated: false, stdout: "assertion failed", stderr: "",
+      stdout_sha256: "c".repeat(64), stderr_sha256: "d".repeat(64), sandbox_profile_sha256: "e".repeat(64),
+    };
+    const correctedFiles = contentFiles.map((file) => ({
+      ...file, content: `${file.content}# corrected\n`,
+      size: Buffer.byteLength(`${file.content}# corrected\n`),
+      sha256: digest(`${file.content}# corrected\n`),
+    }));
+    const invoke = vi.fn(async (action: string) => {
+      if (action === "lookup_source_stage_binding") {
+        return { found: true, stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), review_instruction_sha256: digest("review instructions") };
+      }
+      deliveryCalls += 1;
+      if (deliveryCalls === 1) return preflightFailure;
+      return { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), base_sha: "b".repeat(40), submitted_sha: "e".repeat(40), policy_digest: "f".repeat(64), preflight_check_id: "8".repeat(64) };
+    });
     registerAutonomousTools(ctx, invoke as never);
-    await handlers.get("deliver_source_stage_content")!({
+    const failed = await handlers.get("deliver_source_stage_content")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), source_issue_id: "source-8", files: contentFiles,
-    }, sourceRun);
+    }, sourceRun) as { content: string };
+    expect(JSON.parse(failed.content)).toMatchObject({ status: "preflight_failed", content_check_id: "9".repeat(64) });
+    expect(issueNotes.get("source-8")).toBeUndefined();
+    expect(issueNotes.get("lead-issue")).toBeUndefined();
+    const delivered = await handlers.get("deliver_source_stage_content")!({
+      stage_key: "MEM8", stage_binding_key: "a".repeat(64), source_issue_id: "source-8", files: correctedFiles,
+    }, sourceRun) as { content: string };
+    expect(delivered.content).toContain(`operation_key:${"c".repeat(64)}`);
     sourceDescription = "changed source instructions";
     await expect(handlers.get("deliver_source_stage_content")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), source_issue_id: "source-8", files: contentFiles,
     }, sourceRun)).rejects.toThrow("source_stage_instruction_binding_mismatch");
-    expect(issueReads).toEqual(["source-8", "source-8", "lead-issue", "source-8", "source-8", "source-8"]);
+    expect(issueReads).toEqual(["source-8", "source-8", "lead-issue", "source-8", "source-8", "source-8", "lead-issue", "source-8", "source-8", "source-8"]);
     expect(commentTargets).toEqual([
       "list:source-8", "create:source-8", "list:lead-issue", "create:lead-issue",
     ]);
@@ -442,9 +466,9 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(invoke).toHaveBeenCalledWith("deliver_source_stage_content", {
       company_id: "company-1", project_id: "project-1", worker_agent_id: "worker-1",
       run_id: "source-run", source_issue_id: "source-8", stage_key: "MEM8",
-      stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), files: contentFiles,
+      stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), files: correctedFiles,
     }, configPath, "/usr/bin/python3");
-    expect(invoke.mock.calls.filter(([action]) => action === "deliver_source_stage_content")).toHaveLength(1);
+    expect(invoke.mock.calls.filter(([action]) => action === "deliver_source_stage_content")).toHaveLength(2);
   });
 
   it("stage review derives its candidate from the binding without reading the producer sibling", async () => {
@@ -528,7 +552,7 @@ describe("Paperclip autonomous bridge tools", () => {
     reviewerStatus = "in_review";
     await expect(handlers.get("approve_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
-      approved: true, evidence: { inspection_digest: "f".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) },
+      approved: true, evidence: { inspection_digest: "f".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64), rationale: "approved" },
     }, reviewerTaskRun)).rejects.toThrow("host_issue_run_binding_mismatch");
     reviewerStatus = "in_progress";
     reviewDescription = "changed review instructions";
@@ -537,7 +561,7 @@ describe("Paperclip autonomous bridge tools", () => {
     }, reviewerTaskRun)).rejects.toThrow("source_stage_instruction_binding_mismatch");
     await expect(handlers.get("approve_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
-      approved: true, evidence: { inspection_digest: "f".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) },
+      approved: true, evidence: { inspection_digest: "f".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64), rationale: "approved" },
     }, reviewerTaskRun)).rejects.toThrow("source_stage_instruction_binding_mismatch");
     reviewDescription = "review instructions";
     expect(issueReads).not.toContain("source-8");
@@ -545,7 +569,7 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(getDependencyReadiness).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith("lookup_source_stage_binding", {
       company_id: "company-1", project_id: "project-1", lead_agent_id: "lead-1", lead_issue_id: "lead-issue",
-      stage_key: "MEM8", review_issue_id: "review-8",
+      stage_key: "MEM8", review_issue_id: "review-8", stage_binding_key: "a".repeat(64),
     }, configPath, "/usr/bin/python3");
     expect(invoke).toHaveBeenCalledWith("inspect_bound_source_stage", expect.objectContaining({
       reviewer_issue_id: "review-8", stage_binding_key: "a".repeat(64), stage_key: "MEM8",
@@ -556,7 +580,7 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(invoke.mock.calls.filter(([action]) => action === "approve_bound_source_stage")).toHaveLength(0);
     const approval = await handlers.get("approve_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
-      approved: true, evidence: { inspection_digest: "e".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) },
+      approved: true, evidence: { inspection_digest: "e".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64), rationale: "approved" },
     }, reviewerTaskRun) as { content: string };
     expect(approval.content).toContain("status:published");
     expect(issueNotes.get("review-8")?.[0]).toContain(`brain-autonomous-bridge:${"c".repeat(64)}:stage-reviewed`);
@@ -607,21 +631,21 @@ describe("Paperclip autonomous bridge tools", () => {
     } as unknown as PluginContext;
     const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
     const invoke = vi.fn(async () => ({
-      found: true, stage_binding_key: "a".repeat(64), base_sha: "c".repeat(40), state: "active",
+      found: true, attempt: 1, stage_binding_key: "a".repeat(64), base_sha: "c".repeat(40), state: "active",
       predecessor_operation_key: "d".repeat(64), predecessor_source_issue_id: "source-8",
       predecessor_review_issue_id: "review-8", source_instruction_sha256: "e".repeat(64),
       review_instruction_sha256: "f".repeat(64), activation_pending: false,
     }));
     registerAutonomousTools(ctx, invoke as never);
     await expect(handlers.get("bind_source_stage")!({
-      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
+      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9", attempt: 1,
       predecessor: { operation_key: "d".repeat(64), source_issue_id: "changed-source", review_issue_id: "review-8" },
     }, leadRun)).rejects.toThrow("source_stage_bind_replay_mismatch");
     expect(issueReads).toEqual(["lead-issue"]);
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith("lookup_source_stage_binding", {
       company_id: "company-1", project_id: "project-1", lead_agent_id: "lead-1", lead_issue_id: "lead-issue",
-      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
+      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9", attempt: 1,
     }, configPath, "/usr/bin/python3");
     expect(commentCalls).toEqual([]);
   });
@@ -676,7 +700,7 @@ describe("Paperclip autonomous bridge tools", () => {
     registerAutonomousTools(ctx, invoke as never);
     const result = await handlers.get("approve_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8", approved: false,
-      evidence: { inspection_digest: "e".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) },
+      evidence: { inspection_digest: "e".repeat(64), canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64), rationale: "incorrect boundary expectation" },
     }, reviewerRun) as { content: string };
     expect(result.content).toContain("status:review_rejected");
     const note = comments.get("review-8")?.[0] ?? "";
@@ -743,7 +767,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const sourceHash = digest("source instructions");
     const reviewHash = digest("review instructions");
     const invoke = vi.fn(async () => ({
-      found: true, stage_binding_key: "a".repeat(64), base_sha: "b".repeat(40), state: "active",
+      found: true, attempt: 1, stage_binding_key: "a".repeat(64), base_sha: "b".repeat(40), state: "active",
       predecessor_operation_key: null, predecessor_source_issue_id: null, predecessor_review_issue_id: null,
       source_instruction_sha256: sourceHash, review_instruction_sha256: reviewHash, activation_pending: false,
     }));

@@ -57,6 +57,8 @@ MAX_REQUEST_BYTES = 1_700_000
 MAX_EVIDENCE_BYTES = 16_000
 MAX_REVIEW_DIFF_BYTES = 60_000
 MAX_GIT_ERROR_BYTES = 16_000
+MAX_PREFLIGHT_ARTIFACT_BYTES = 2_000_000
+MAX_PREFLIGHT_OUTPUT_BYTES = 16_000
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -219,8 +221,219 @@ def _load_journal(config: BridgeConfig, operation_key: str) -> dict[str, Any]:
         return _read_json(_journal_path(config, operation_key), MAX_CONFIG_BYTES)
 
 
-def _stage_journal_key(stage_key: str) -> str:
-    return hashlib.sha256(_canonical(["paperclip-source-stage-v1", stage_key])).hexdigest()
+def _stage_journal_key(stage_key: str, attempt: int = 1) -> str:
+    if type(attempt) is not int or attempt not in (1, 2):
+        raise BridgeError("source_stage_attempt_invalid")
+    if attempt == 1:
+        return hashlib.sha256(_canonical(["paperclip-source-stage-v1", stage_key])).hexdigest()
+    return hashlib.sha256(
+        _canonical(["paperclip-source-stage-attempt-v1", stage_key, attempt])
+    ).hexdigest()
+
+
+def _stage_record_key(record: dict[str, Any]) -> str:
+    attempt = record.get("attempt", 1)
+    if type(attempt) is not int or attempt not in (1, 2):
+        raise BridgeError("source_stage_attempt_invalid")
+    return _stage_journal_key(record.get("stage_key", ""), attempt)
+
+
+def _preflight_dir(config: BridgeConfig) -> Path:
+    root = config.bridge_journal_dir
+    if root.is_symlink():
+        raise BridgeError("bridge_journal_directory_invalid")
+    directory = root / "source-preflight-v1"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    info = directory.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+        raise BridgeError("source_preflight_directory_permissions_invalid")
+    return directory
+
+
+def _preflight_path(config: BridgeConfig, kind: str, content_check_id: str) -> Path:
+    if kind not in {"snapshot", "intent", "result", "retry-snapshot"} or not HASH_RE.fullmatch(
+        content_check_id
+    ):
+        raise BridgeError("source_preflight_identity_invalid")
+    return _preflight_dir(config) / f"{kind}-{content_check_id}.json"
+
+
+def _write_immutable_file(path: Path, encoded: bytes, *, limit: int) -> str:
+    if len(encoded) > limit:
+        raise BridgeError("source_preflight_artifact_too_large")
+    parent = path.parent
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=parent)
+    temporary = Path(temp_name)
+    digest = hashlib.sha256(encoded).hexdigest()
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "wb", closefd=True) as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary, path, follow_symlinks=False)
+        except FileExistsError:
+            existing = _read_json(path, limit)
+            if _canonical(existing) != encoded:
+                raise BridgeError("source_preflight_artifact_replay_mismatch") from None
+        directory_fd = os.open(parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+        return digest
+    except OSError as exc:
+        raise BridgeError("source_preflight_artifact_write_failed") from exc
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _persist_preflight_json(
+    config: BridgeConfig, kind: str, content_check_id: str, value: dict[str, Any]
+) -> str:
+    path = _preflight_path(config, kind, content_check_id)
+    encoded = _canonical(value)
+    with company_operation(config.broker_journal_dir, config.company_id):
+        require_company_open(config.broker_journal_dir, config.company_id)
+        return _write_immutable_file(path, encoded, limit=MAX_PREFLIGHT_ARTIFACT_BYTES)
+
+
+def _load_preflight_json(config: BridgeConfig, kind: str, content_check_id: str) -> dict[str, Any]:
+    path = _preflight_path(config, kind, content_check_id)
+    with company_operation(config.broker_journal_dir, config.company_id):
+        require_company_open(config.broker_journal_dir, config.company_id)
+        return _read_json(path, MAX_PREFLIGHT_ARTIFACT_BYTES)
+
+
+def _snapshot_rejected_workspace(
+    config: BridgeConfig,
+    operation: dict[str, Any],
+    binding: dict[str, Any],
+    stage: SourceStageSpec,
+) -> tuple[str, str]:
+    """Archive and compare the exact owner workspace bytes before retry refresh."""
+    if config.source_workspace_root is None:
+        raise BridgeError("source_stage_retry_workspace_unavailable")
+    candidate_sha = operation.get("candidate", {}).get("candidate_sha")
+    if type(candidate_sha) is not str or not SHA_RE.fullmatch(candidate_sha):
+        raise BridgeError("source_stage_retry_candidate_missing")
+    metadata = operation.get("source_files")
+    if type(metadata) is not list or len(metadata) != len(SOURCE_PATHS):
+        raise BridgeError("source_stage_retry_snapshot_metadata_invalid")
+    metadata_by_path = {row.get("path_id"): row for row in metadata if type(row) is dict}
+    if set(metadata_by_path) != set(SOURCE_PATHS):
+        raise BridgeError("source_stage_retry_snapshot_metadata_invalid")
+    gate = config.gate()
+    expected_records: list[dict[str, Any]] = []
+    for path_id in SOURCE_PATHS:
+        try:
+            data = gate._run(gate.repo, ["show", f"{candidate_sha}:{path_id}"]).stdout
+        except Exception as exc:
+            raise BridgeError("source_stage_retry_candidate_missing") from exc
+        row = metadata_by_path[path_id]
+        if (
+            len(data) > 1_000_000
+            or len(data) != row.get("size")
+            or hashlib.sha256(data).hexdigest() != row.get("sha256")
+        ):
+            raise BridgeError("source_stage_retry_candidate_snapshot_mismatch")
+        try:
+            content = data.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as exc:
+            raise BridgeError("source_stage_retry_candidate_snapshot_invalid") from exc
+        expected_records.append(
+            {
+                "path_id": path_id,
+                "content": content,
+                "size": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+        )
+    try:
+        expected_snapshot = snapshot_records(expected_records)
+        if expected_snapshot.digest != operation.get("source_snapshot_sha256"):
+            raise BridgeError("source_stage_retry_candidate_snapshot_mismatch")
+        actual_records = _snapshot_owner_workspace(config.source_workspace_root)
+        actual_snapshot = snapshot_records(actual_records)
+    except SourceDeliveryError as exc:
+        raise BridgeError("source_stage_retry_workspace_changed") from exc
+    if actual_snapshot.digest != expected_snapshot.digest:
+        raise BridgeError("source_stage_retry_workspace_changed")
+    archive_key = hashlib.sha256(
+        _canonical(
+            [
+                "source-stage-retry-workspace-v1",
+                binding.get("stage_binding_key"),
+                operation.get("operation_key"),
+                actual_snapshot.digest,
+            ]
+        )
+    ).hexdigest()
+    archive = _preflight_snapshot_document(actual_snapshot)
+    archive["schema"] = "paperclip-source-stage-retry-workspace-v1"
+    artifact_digest = _persist_preflight_json(config, "retry-snapshot", archive_key, archive)
+    return actual_snapshot.digest, artifact_digest
+
+
+def _snapshot_owner_workspace(workspace_root: Path) -> list[dict[str, Any]]:
+    if workspace_root.is_symlink() or not workspace_root.is_absolute():
+        raise SourceDeliveryError("source_workspace_binding_invalid")
+    try:
+        resolved_root = workspace_root.resolve(strict=True)
+    except OSError as exc:
+        raise SourceDeliveryError("source_workspace_binding_invalid") from exc
+    records = []
+    for path_id in SOURCE_PATHS:
+        target = resolved_root / path_id
+        parent = resolved_root
+        for component in Path(path_id).parts[:-1]:
+            parent = parent / component
+            if parent.is_symlink() or not parent.is_dir():
+                raise SourceDeliveryError("source_workspace_path_parent_invalid")
+        try:
+            descriptor = os.open(target, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0))
+        except OSError as exc:
+            raise SourceDeliveryError("source_workspace_target_invalid") from exc
+        try:
+            before = os.fstat(descriptor)
+            if not stat.S_ISREG(before.st_mode) or before.st_size > 1_000_000:
+                raise SourceDeliveryError("source_workspace_target_invalid")
+            data = bytearray()
+            while chunk := os.read(descriptor, 64 * 1024):
+                data.extend(chunk)
+                if len(data) > 1_000_000:
+                    raise SourceDeliveryError("source_workspace_file_exceeds_limit")
+            after = os.fstat(descriptor)
+            if (
+                before.st_dev,
+                before.st_ino,
+                before.st_size,
+                before.st_mtime_ns,
+                before.st_ctime_ns,
+            ) != (
+                after.st_dev,
+                after.st_ino,
+                after.st_size,
+                after.st_mtime_ns,
+                after.st_ctime_ns,
+            ) or len(data) != before.st_size:
+                raise SourceDeliveryError("source_workspace_file_changed")
+        finally:
+            os.close(descriptor)
+        try:
+            content = bytes(data).decode("utf-8", errors="strict")
+        except UnicodeDecodeError as exc:
+            raise SourceDeliveryError("source_workspace_file_not_utf8") from exc
+        records.append(
+            {
+                "path_id": path_id,
+                "content": content,
+                "size": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+        )
+    return records
 
 
 def _trusted_stage_source_cache_path(
@@ -343,13 +556,25 @@ def _stage_binding(config: BridgeConfig, stage_binding_key: str) -> dict[str, An
     if type(stage_binding_key) is not str or not HASH_RE.fullmatch(stage_binding_key):
         raise BridgeError("source_stage_binding_key_invalid")
     for stage in config.source_stage_catalog:
-        try:
-            record = _load_journal(config, _stage_journal_key(stage.stage_key))
-        except BridgeError:
-            continue
-        if record.get("stage_binding_key") == stage_binding_key:
+        for attempt in (1, 2):
+            try:
+                record = _load_journal(config, _stage_journal_key(stage.stage_key, attempt))
+            except BridgeError:
+                continue
+            if record.get("stage_binding_key") != stage_binding_key:
+                continue
+            expected_schema = (
+                "paperclip-source-stage-binding-v1"
+                if attempt == 1
+                else "paperclip-source-stage-binding-attempt-v2"
+            )
+            if record.get("schema") != expected_schema:
+                raise BridgeError("source_stage_binding_invalid")
+            if "attempt" in record and record["attempt"] != attempt:
+                raise BridgeError("source_stage_attempt_invalid")
             if record.get("schema") != "paperclip-source-stage-binding-v1":
-                break
+                if attempt != 2:
+                    raise BridgeError("source_stage_binding_invalid")
             if record.get("owner_config_digest") != config.owner_config_digest:
                 raise BridgeError("source_stage_owner_config_changed")
             if stage.workspace_id == "published":
@@ -406,8 +631,28 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         "source_instruction_sha256",
         "review_instruction_sha256",
     }
-    if type(payload) is not dict or set(payload) != required:
+    optional_attempt_fields = {
+        "attempt",
+        "retry_of_operation_key",
+        "retry_of_source_status",
+        "retry_of_source_version",
+        "retry_of_review_status",
+        "retry_of_review_version",
+        "retry_of_dependency_ready",
+    }
+    if (
+        type(payload) is not dict
+        or not required.issubset(payload)
+        or set(payload) - required - optional_attempt_fields
+    ):
         raise BridgeError("source_stage_bind_payload_shape_invalid")
+    attempt = payload["attempt"] if "attempt" in payload else 1
+    if type(attempt) is not int or attempt not in (1, 2):
+        raise BridgeError("source_stage_attempt_invalid")
+    if attempt == 1 and set(payload) & (optional_attempt_fields - {"attempt"}):
+        raise BridgeError("source_stage_retry_unexpected")
+    if attempt == 2 and not (optional_attempt_fields - {"attempt"}).issubset(payload):
+        raise BridgeError("source_stage_retry_required")
     if any(
         payload[name] != expected
         for name, expected in {
@@ -427,11 +672,28 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
     for name in ("source_instruction_sha256", "review_instruction_sha256"):
         if type(payload[name]) is not str or not HASH_RE.fullmatch(payload[name]):
             raise BridgeError("source_stage_instruction_binding_invalid")
+    if attempt == 2:
+        if (
+            type(payload["retry_of_operation_key"]) is not str
+            or not OPERATION_RE.fullmatch(payload["retry_of_operation_key"])
+            or payload["retry_of_source_status"] != "done"
+            or payload["retry_of_review_status"] != "done"
+            or type(payload["retry_of_source_version"]) is not int
+            or payload["retry_of_source_version"] < 0
+            or type(payload["retry_of_review_version"]) is not int
+            or payload["retry_of_review_version"] < 0
+            or payload["retry_of_dependency_ready"] is not True
+        ):
+            raise BridgeError("source_stage_retry_validation_invalid")
     stage = config.source_stage(payload["stage_key"])
     if payload["source_issue_id"] == payload["review_issue_id"]:
         raise BridgeError("source_stage_issue_pair_invalid")
     binding_value: dict[str, Any] = {
-        "schema": "paperclip-source-stage-binding-v1",
+        "schema": (
+            "paperclip-source-stage-binding-v1"
+            if attempt == 1
+            else "paperclip-source-stage-binding-attempt-v2"
+        ),
         "stage_key": stage.stage_key,
         "source_issue_id": payload["source_issue_id"],
         "review_issue_id": payload["review_issue_id"],
@@ -457,6 +719,16 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         "operation_key": None,
         "candidate_sha": None,
     }
+    if attempt == 2:
+        binding_value["attempt"] = 2
+        binding_value["retry_of_operation_key"] = payload["retry_of_operation_key"]
+        binding_value["retry_validation"] = {
+            "source_status": payload["retry_of_source_status"],
+            "source_version": payload["retry_of_source_version"],
+            "review_status": payload["retry_of_review_status"],
+            "review_version": payload["retry_of_review_version"],
+            "dependency_ready": payload["retry_of_dependency_ready"],
+        }
     if stage.predecessor_stage_key is not None:
         operation_key = payload["predecessor_operation_key"]
         if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
@@ -521,7 +793,84 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             )
         ):
             raise BridgeError("source_stage_unexpected_predecessor")
-    stage_journal_key = _stage_journal_key(stage.stage_key)
+    if attempt == 2:
+        retry_operation_key = payload["retry_of_operation_key"]
+        try:
+            retry_operation = _load_journal(config, retry_operation_key)
+        except BridgeError as exc:
+            if str(exc) == "owner_file_unavailable":
+                raise BridgeError("source_stage_retry_not_admitted") from None
+            raise
+        retry_binding_key = retry_operation.get("source_stage_binding")
+        retry_binding = (
+            _stage_binding(config, retry_binding_key) if type(retry_binding_key) is str else None
+        )
+        retry_review = retry_operation.get("review")
+        retry_canonical = retry_operation.get("canonical")
+        canonical_retry_invalid = (
+            config.canonical_repo is not None
+            and (
+                type(retry_canonical) is not dict
+                or retry_canonical.get("status") != "prepared"
+                or type(retry_canonical.get("candidate")) is not str
+                or not SHA_RE.fullmatch(retry_canonical["candidate"])
+                or type(retry_canonical.get("receipt_digest")) is not str
+                or not HASH_RE.fullmatch(retry_canonical["receipt_digest"])
+            )
+        ) or (config.canonical_repo is None and retry_canonical is not None)
+        expected_predecessor = {
+            key: binding_value.get(key)
+            for key in (
+                "predecessor_operation_key",
+                "predecessor_source_issue_id",
+                "predecessor_review_issue_id",
+                "base_sha",
+                "canonical_base_sha",
+            )
+        }
+        if (
+            retry_operation.get("state") != "review_rejected"
+            or type(retry_review) is not dict
+            or retry_review.get("approved") is not False
+            or retry_binding is None
+            or retry_binding.get("stage_key") != stage.stage_key
+            or retry_binding.get("owner_config_digest") != config.owner_config_digest
+            or retry_binding.get("operation_key") != retry_operation_key
+            or retry_binding.get("review_issue_id") == payload["review_issue_id"]
+            or retry_binding.get("source_issue_id") == payload["source_issue_id"]
+            or retry_binding.get("attempt", 1) != 1
+            or retry_binding.get("base_sha") != binding_value.get("base_sha")
+            or retry_binding.get("canonical_base_sha") != binding_value.get("canonical_base_sha")
+            or any(retry_binding.get(key) != value for key, value in expected_predecessor.items())
+            or canonical_retry_invalid
+            or payload["retry_of_source_status"] != "done"
+            or payload["retry_of_review_status"] != "done"
+            or payload["retry_of_source_version"] <= retry_binding.get("source_version", -1)
+            or payload["retry_of_review_version"] <= retry_binding.get("review_version", -1)
+        ):
+            raise BridgeError("source_stage_retry_not_admitted")
+        binding_value["retry_of_stage_binding_key"] = retry_binding["stage_binding_key"]
+        retry_stage_path = _journal_path(config, _stage_journal_key(stage.stage_key, attempt))
+        if retry_stage_path.exists():
+            existing_retry = _load_journal(config, _stage_journal_key(stage.stage_key, attempt))
+            workspace_digest = existing_retry.get("retry_workspace_snapshot_sha256")
+            workspace_artifact_digest = existing_retry.get("retry_workspace_artifact_sha256")
+            if (
+                type(workspace_digest) is not str
+                or not HASH_RE.fullmatch(workspace_digest)
+                or type(workspace_artifact_digest) is not str
+                or not HASH_RE.fullmatch(workspace_artifact_digest)
+            ):
+                raise BridgeError("source_stage_retry_snapshot_missing")
+            binding_value["retry_workspace_snapshot_sha256"] = workspace_digest
+            binding_value["retry_workspace_artifact_sha256"] = workspace_artifact_digest
+        else:
+            workspace_digest, workspace_artifact_digest = _snapshot_rejected_workspace(
+                config, retry_operation, retry_binding, stage
+            )
+            binding_value["retry_workspace_snapshot_sha256"] = workspace_digest
+            binding_value["retry_workspace_artifact_sha256"] = workspace_artifact_digest
+    stage_journal_key = _stage_journal_key(stage.stage_key, attempt)
     if _journal_path(config, stage_journal_key).exists():
         with _operation_lock(config, stage_journal_key):
             existing = _load_journal(config, stage_journal_key)
@@ -546,6 +895,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                     raise BridgeError("source_stage_cache_changed")
             return {
                 "stage_binding_key": existing["stage_binding_key"],
+                "attempt": attempt,
                 "base_sha": existing["base_sha"],
                 "canonical_base_sha": existing.get("canonical_base_sha"),
                 "workspace_baseline_sha256": existing.get("workspace_baseline_sha256"),
@@ -576,7 +926,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         binding_value["workspace_baseline_sha256"] = None
     binding_key = hashlib.sha256(_canonical(binding_value)).hexdigest()
     binding_value["stage_binding_key"] = binding_key
-    stage_key = _stage_journal_key(stage.stage_key)
+    stage_key = _stage_journal_key(stage.stage_key, attempt)
     with _operation_lock(config, stage_key):
         path = _journal_path(config, stage_key)
         if path.exists():
@@ -597,6 +947,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                 raise BridgeError("source_stage_bind_replay_mismatch")
             return {
                 "stage_binding_key": existing["stage_binding_key"],
+                "attempt": attempt,
                 "base_sha": existing["base_sha"],
                 "canonical_base_sha": existing.get("canonical_base_sha"),
                 "workspace_baseline_sha256": existing.get("workspace_baseline_sha256"),
@@ -605,6 +956,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         _write_journal(config, stage_key, binding_value, create=True)
     return {
         "stage_binding_key": binding_key,
+        "attempt": attempt,
         "base_sha": binding_value["base_sha"],
         "canonical_base_sha": binding_value.get("canonical_base_sha"),
         "workspace_baseline_sha256": binding_value.get("workspace_baseline_sha256"),
@@ -621,13 +973,23 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         "stage_key",
     }
     identity_fields = {"source_issue_id", "review_issue_id"}
+    optional_fields = identity_fields | {"attempt", "stage_binding_key"}
     if (
         type(payload) is not dict
         or not required.issubset(payload)
-        or set(payload) - required - identity_fields
-        or not (set(payload) & identity_fields)
+        or set(payload) - required - optional_fields
+        or (
+            not (set(payload) & identity_fields)
+            and "stage_binding_key" not in payload
+            and "attempt" not in payload
+        )
     ):
         raise BridgeError("source_stage_lookup_payload_shape_invalid")
+    requested_attempt = payload["attempt"] if "attempt" in payload else None
+    if "attempt" in payload and (
+        type(requested_attempt) is not int or requested_attempt not in (1, 2)
+    ):
+        raise BridgeError("source_stage_attempt_invalid")
     if any(
         payload.get(key) != expected
         for key, expected in {
@@ -639,23 +1001,53 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
     ):
         raise BridgeError("source_stage_lead_binding_mismatch")
     stage = config.source_stage(payload["stage_key"])
-    try:
-        _journal_path(config, _stage_journal_key(stage.stage_key)).lstat()
-    except FileNotFoundError:
-        return {"found": False}
-    record = _load_journal(config, _stage_journal_key(stage.stage_key))
+    if "stage_binding_key" in payload:
+        record = _stage_binding(config, payload["stage_binding_key"])
+        attempt = record.get("attempt", 1)
+        if (
+            type(attempt) is not int
+            or attempt not in (1, 2)
+            or record.get("stage_key") != stage.stage_key
+            or (requested_attempt is not None and attempt != requested_attempt)
+        ):
+            raise BridgeError("source_stage_bind_replay_mismatch")
+    else:
+        attempt = requested_attempt if requested_attempt is not None else 1
+        journal_key = _stage_journal_key(stage.stage_key, attempt)
+        try:
+            _journal_path(config, journal_key).lstat()
+        except FileNotFoundError:
+            return {"found": False, "attempt": attempt}
+        record = _load_journal(config, journal_key)
     if (
-        record.get("schema") != "paperclip-source-stage-binding-v1"
+        record.get("schema")
+        != (
+            "paperclip-source-stage-binding-v1"
+            if attempt == 1
+            else "paperclip-source-stage-binding-attempt-v2"
+        )
         or record.get("owner_config_digest") != config.owner_config_digest
+        or record.get("attempt", 1) != attempt
         or any(record.get(field) != payload[field] for field in identity_fields if field in payload)
     ):
         raise BridgeError("source_stage_bind_replay_mismatch")
-    return {
+    result = {
         "found": True,
+        "attempt": attempt,
         "stage_binding_key": record["stage_binding_key"],
+        "source_issue_id": record.get("source_issue_id"),
+        "review_issue_id": record.get("review_issue_id"),
+        "source_version": record.get("source_version"),
+        "review_version": record.get("review_version"),
         "base_sha": record["base_sha"],
         "canonical_base_sha": record.get("canonical_base_sha"),
         "state": record["state"],
+        "operation_key": record.get("operation_key"),
+        "candidate_sha": record.get("candidate_sha"),
+        "retry_of_operation_key": record.get("retry_of_operation_key"),
+        "operation_state": None,
+        "operation_review_approved": None,
+        "canonical_status": None,
         "predecessor_operation_key": record.get("predecessor_operation_key"),
         "predecessor_source_issue_id": record.get("predecessor_source_issue_id"),
         "predecessor_review_issue_id": record.get("predecessor_review_issue_id"),
@@ -664,6 +1056,16 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         "activation_pending": record.get("source_intent") is not None
         and record.get("source_intent", {}).get("acknowledged") is not True,
     }
+    if type(record.get("operation_key")) is str:
+        operation = _load_journal(config, record["operation_key"])
+        review = operation.get("review")
+        canonical = operation.get("canonical")
+        result["operation_state"] = operation.get("state")
+        result["operation_review_approved"] = (
+            review.get("approved") if type(review) is dict else None
+        )
+        result["canonical_status"] = canonical.get("status") if type(canonical) is dict else None
+    return result
 
 
 def source_stage_activation(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
@@ -683,7 +1085,7 @@ def source_stage_activation(config: BridgeConfig, payload: dict[str, Any]) -> di
     expected_prior = record["source_version"]
     target_status = "todo"
     field = "source_intent"
-    stage_key = _stage_journal_key(record["stage_key"])
+    stage_key = _stage_record_key(record)
     with _operation_lock(config, stage_key):
         record = _stage_binding(config, payload["stage_binding_key"])
         if action == "intent":
@@ -1415,7 +1817,13 @@ class BridgeConfig:
         )
 
 
-def _verifier(config: BridgeConfig, candidate_checkout: Path, *, content_only: bool = False):
+def _verifier(
+    config: BridgeConfig,
+    candidate_checkout: Path,
+    *,
+    content_only: bool = False,
+    capture_failure: bool = False,
+):
     """Build trusted verifier callback; only fixed commands execute in sandboxed children."""
     config.verifier_scratch_root.mkdir(parents=True, exist_ok=True)
     if config.verifier_scratch_root.is_symlink() or not config.verifier_scratch_root.is_dir():
@@ -1465,7 +1873,7 @@ def _verifier(config: BridgeConfig, candidate_checkout: Path, *, content_only: b
 
     def run(
         _checkout: Path, candidate_sha: str, fixed_policy: VerificationPolicy
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         if fixed_policy.digest != policy.digest or _checkout != candidate_checkout:
             raise BridgeError("verifier_policy_or_checkout_changed")
         results: list[dict[str, Any]] = []
@@ -1485,7 +1893,29 @@ def _verifier(config: BridgeConfig, candidate_checkout: Path, *, content_only: b
                 max_output_bytes=200_000,
                 env_overrides=dict(policy.env),
             )
-            if result.returncode != 0 or result.timed_out or result.output_truncated:
+            failed = result.returncode != 0 or result.timed_out or result.output_truncated
+            if failed and capture_failure:
+
+                def bounded_output(value: str) -> str:
+                    return value.encode("utf-8")[:MAX_PREFLIGHT_OUTPUT_BYTES].decode(
+                        "utf-8", errors="ignore"
+                    )
+
+                return {
+                    "status": "preflight_failed",
+                    "failure_code": "sandboxed_verifier_failed",
+                    "command_index": len(results),
+                    "returncode": result.returncode,
+                    "timed_out": result.timed_out,
+                    "output_truncated": result.output_truncated,
+                    "stdout": bounded_output(result.stdout),
+                    "stderr": bounded_output(result.stderr),
+                    "stdout_sha256": hashlib.sha256(result.stdout.encode("utf-8")).hexdigest(),
+                    "stderr_sha256": hashlib.sha256(result.stderr.encode("utf-8")).hexdigest(),
+                    "sandbox_profile_sha256": result.profile_sha256,
+                    "prior_commands_sha256": hashlib.sha256(_canonical(results)).hexdigest(),
+                }
+            if failed:
                 raise BridgeError("sandboxed_verifier_failed")
             results.append(
                 {
@@ -1597,6 +2027,7 @@ def prepare_source_content(
     stage_binding_key: str | None = None,
     source_stage_key: str | None = None,
     source_workspace_baseline_sha256: str | None = None,
+    preflight_check_id: str | None = None,
 ) -> dict[str, Any]:
     """Prepare one candidate from bounded complete file contents, never worker Git."""
     if type(payload) is not dict or set(payload) != {
@@ -1644,6 +2075,8 @@ def prepare_source_content(
                 raise BridgeError("source_delivery_replay_binding_mismatch")
             if journal.get("source_stage_binding") != stage_binding_key:
                 raise BridgeError("source_delivery_replay_stage_mismatch")
+            if journal.get("preflight_check_id") != preflight_check_id:
+                raise BridgeError("source_delivery_replay_preflight_mismatch")
             return journal["candidate"]
         return _prepare_source_content_locked(
             config,
@@ -1653,6 +2086,7 @@ def prepare_source_content(
             stage_binding_key=stage_binding_key,
             source_stage_key=source_stage_key,
             source_workspace_baseline_sha256=source_workspace_baseline_sha256,
+            preflight_check_id=preflight_check_id,
         )
 
 
@@ -1665,6 +2099,7 @@ def _prepare_source_content_locked(
     stage_binding_key=None,
     source_stage_key=None,
     source_workspace_baseline_sha256=None,
+    preflight_check_id=None,
 ):
     gate = config.gate()
     try:
@@ -1770,6 +2205,7 @@ def _prepare_source_content_locked(
         "policy_digest": binding.policy_digest,
         "reviewer_issue_id": config.reviewer_issue_id,
         "source_snapshot_sha256": snapshot.digest,
+        **({"preflight_check_id": preflight_check_id} if preflight_check_id is not None else {}),
         **(
             {
                 "canonical_candidate_sha": canonical_record["candidate"],
@@ -1790,6 +2226,7 @@ def _prepare_source_content_locked(
         "source_stage_binding": stage_binding_key,
         "source_stage_key": (source_stage_key if source_stage_key is not None else None),
         "source_workspace_baseline_sha256": source_workspace_baseline_sha256,
+        "preflight_check_id": preflight_check_id,
         "source_files": [
             {"path_id": item.path_id, "size": item.size, "sha256": item.sha256}
             for item in snapshot.files
@@ -1799,6 +2236,167 @@ def _prepare_source_content_locked(
     }
     _write_journal(config, operation_key, journal, create=True)
     return result
+
+
+def _preflight_snapshot_document(snapshot) -> dict[str, Any]:
+    return {
+        "schema": "paperclip-source-preflight-snapshot-v1",
+        "snapshot_sha256": snapshot.digest,
+        "files": [
+            {
+                "path_id": item.path_id,
+                "size": item.size,
+                "sha256": item.sha256,
+                "content": item.data.decode("utf-8"),
+            }
+            for item in snapshot.files
+        ],
+    }
+
+
+def _preflight_source_stage_content(
+    config: BridgeConfig,
+    stage_config: BridgeConfig,
+    binding: dict[str, Any],
+    payload: dict[str, Any],
+    snapshot,
+) -> dict[str, Any]:
+    policy = stage_config.policy()
+    check_id = hashlib.sha256(
+        _canonical(
+            [
+                "finite-preflight-v1",
+                config.owner_config_digest,
+                binding["stage_binding_key"],
+                payload["source_issue_id"],
+                payload["run_id"],
+                binding["base_sha"],
+                binding.get("canonical_base_sha"),
+                policy.digest,
+                snapshot.digest,
+            ]
+        )
+    ).hexdigest()
+    with _operation_lock(config, check_id):
+        try:
+            result = _load_preflight_json(config, "result", check_id)
+        except BridgeError as exc:
+            if str(exc) != "owner_file_unavailable":
+                raise
+        else:
+            if (
+                result.get("content_check_id") != check_id
+                or result.get("snapshot_sha256") != snapshot.digest
+                or result.get("policy_digest") != policy.digest
+                or result.get("status") not in {"passed", "preflight_failed"}
+            ):
+                raise BridgeError("source_preflight_result_identity_mismatch")
+            intent = _load_preflight_json(config, "intent", check_id)
+            snapshot_document = _load_preflight_json(config, "snapshot", check_id)
+            if (
+                intent.get("content_check_id") != check_id
+                or intent.get("snapshot_sha256") != snapshot.digest
+                or intent.get("snapshot_artifact_sha256")
+                != hashlib.sha256(_canonical(snapshot_document)).hexdigest()
+                or snapshot_document != _preflight_snapshot_document(snapshot)
+            ):
+                raise BridgeError("source_preflight_artifact_identity_mismatch")
+            return result
+        try:
+            intent = _load_preflight_json(config, "intent", check_id)
+        except BridgeError as exc:
+            if str(exc) != "owner_file_unavailable":
+                raise
+            intent = None
+        if intent is not None:
+            snapshot_document = _load_preflight_json(config, "snapshot", check_id)
+            if (
+                intent.get("content_check_id") != check_id
+                or intent.get("snapshot_sha256") != snapshot.digest
+                or intent.get("owner_config_digest") != config.owner_config_digest
+                or intent.get("stage_binding_key") != binding["stage_binding_key"]
+                or intent.get("source_issue_id") != payload["source_issue_id"]
+                or intent.get("run_id") != payload["run_id"]
+                or intent.get("base_sha") != binding["base_sha"]
+                or intent.get("canonical_base_sha") != binding.get("canonical_base_sha")
+                or intent.get("policy_digest") != policy.digest
+                or intent.get("snapshot_artifact_sha256")
+                != hashlib.sha256(_canonical(snapshot_document)).hexdigest()
+                or snapshot_document != _preflight_snapshot_document(snapshot)
+            ):
+                raise BridgeError("source_preflight_intent_identity_mismatch")
+            return {
+                "status": "preflight_unknown",
+                "content_check_id": check_id,
+                "snapshot_sha256": snapshot.digest,
+                "policy_digest": policy.digest,
+                "reconcile_required": True,
+            }
+        snapshot_document = _preflight_snapshot_document(snapshot)
+        snapshot_artifact_sha256 = _persist_preflight_json(
+            config, "snapshot", check_id, snapshot_document
+        )
+        intent = {
+            "schema": "paperclip-source-preflight-intent-v1",
+            "content_check_id": check_id,
+            "owner_config_digest": config.owner_config_digest,
+            "stage_binding_key": binding["stage_binding_key"],
+            "source_issue_id": payload["source_issue_id"],
+            "run_id": payload["run_id"],
+            "base_sha": binding["base_sha"],
+            "canonical_base_sha": binding.get("canonical_base_sha"),
+            "policy_digest": policy.digest,
+            "snapshot_sha256": snapshot.digest,
+            "snapshot_artifact_sha256": snapshot_artifact_sha256,
+        }
+        _persist_preflight_json(config, "intent", check_id, intent)
+        candidate_parent = config.verifier_scratch_root / "finite-preflight-worktrees"
+        candidate_parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if candidate_parent.is_symlink():
+            raise BridgeError("source_preflight_checkout_root_invalid")
+        candidate_parent = candidate_parent.resolve(strict=True)
+        projection = None
+        verifier_scratch = None
+        try:
+            projection = materialize_owner_projection(
+                stage_config.gate(), binding["base_sha"], snapshot, checkout_parent=candidate_parent
+            )
+            verifier, verifier_scratch = _verifier(
+                stage_config, projection.checkout, content_only=True, capture_failure=True
+            )
+            verification = verifier(projection.checkout, projection.submitted_sha, policy)
+            receipt = {
+                "schema": "paperclip-source-preflight-result-v1",
+                "content_check_id": check_id,
+                "snapshot_sha256": snapshot.digest,
+                "snapshot_artifact_sha256": snapshot_artifact_sha256,
+                "policy_digest": policy.digest,
+                **verification,
+            }
+        except Exception:
+            return {
+                "status": "preflight_unknown",
+                "content_check_id": check_id,
+                "snapshot_sha256": snapshot.digest,
+                "policy_digest": policy.digest,
+                "reconcile_required": True,
+            }
+        finally:
+            if verifier_scratch is not None:
+                shutil.rmtree(verifier_scratch, ignore_errors=True)
+            if projection is not None:
+                discard_projection(stage_config.gate(), projection)
+        try:
+            _persist_preflight_json(config, "result", check_id, receipt)
+        except BridgeError:
+            return {
+                "status": "preflight_unknown",
+                "content_check_id": check_id,
+                "snapshot_sha256": snapshot.digest,
+                "policy_digest": policy.digest,
+                "reconcile_required": True,
+            }
+        return receipt
 
 
 def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1845,14 +2443,24 @@ def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) 
         )
     }
     content_payload["base_sha"] = record["base_sha"]
+    try:
+        snapshot = snapshot_records(content_payload["files"])
+    except SourceDeliveryError as exc:
+        raise BridgeError(str(exc)) from exc
+    preflight = _preflight_source_stage_content(
+        config, stage_config, record, content_payload, snapshot
+    )
+    if preflight.get("status") != "passed":
+        return preflight
     result = prepare_source_content(
         stage_config,
         content_payload,
         stage_binding_key=payload["stage_binding_key"],
         source_stage_key=record["stage_key"],
         source_workspace_baseline_sha256=record.get("workspace_baseline_sha256"),
+        preflight_check_id=preflight["content_check_id"],
     )
-    stage_journal_key = _stage_journal_key(record["stage_key"])
+    stage_journal_key = _stage_record_key(record)
     with _operation_lock(config, stage_journal_key):
         current = _stage_binding(config, payload["stage_binding_key"])
         if current.get("operation_key") not in (None, result["operation_key"]):
@@ -2086,6 +2694,11 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
     evidence = payload.get("evidence")
     if type(evidence) is not dict or len(_canonical(evidence)) > MAX_EVIDENCE_BYTES:
         raise BridgeError("review_evidence_invalid")
+    if journal.get("source_stage_binding") is not None and (
+        type(evidence.get("rationale")) is not str
+        or len(evidence["rationale"].encode("utf-8")) > 4_000
+    ):
+        raise BridgeError("review_rationale_invalid")
     if evidence.get("inspection_digest") != inspection_digest:
         error = (
             "review_evidence_replay_mismatch"

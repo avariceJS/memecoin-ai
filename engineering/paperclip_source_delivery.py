@@ -105,7 +105,11 @@ def snapshot_records(records: Any) -> SourceSnapshot:
 
 
 def materialize_owner_projection(
-    gate: GitGate, base_sha: str, snapshot: SourceSnapshot
+    gate: GitGate,
+    base_sha: str,
+    snapshot: SourceSnapshot,
+    *,
+    checkout_parent: Path | None = None,
 ) -> MaterializedProjection:
     """Create an owner-controlled source commit from the validated snapshot."""
     if type(base_sha) is not str or not GIT_SHA_RE.fullmatch(base_sha):
@@ -119,7 +123,9 @@ def materialize_owner_projection(
         source_tip = source_tip or gate._rev(gate.source_repo, "HEAD")
         if base != base_sha or not gate._is_ancestor(gate.source_repo, base, source_tip):
             raise SourceDeliveryError("source_base_not_owner_admitted")
-        parent = gate.repo / ".git" / "git-gate-source-projections"
+        parent = checkout_parent or gate.repo / ".git" / "git-gate-source-projections"
+        if parent.is_symlink():
+            raise SourceDeliveryError("owner_source_projection_parent_invalid")
         parent.mkdir(parents=True, exist_ok=True)
         checkout = Path(tempfile.mkdtemp(prefix="content-", dir=parent))
         checkout.rmdir()

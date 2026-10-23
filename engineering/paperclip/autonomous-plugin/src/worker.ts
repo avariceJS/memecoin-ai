@@ -282,6 +282,8 @@ function sourceStageBoundNote(
   reviewIssueId: string,
   sourceInstructionSha256: string,
   reviewInstructionSha256: string,
+  attempt = 1,
+  retryOfOperationKey: string | null = null,
 ): { idempotencyKey: string; body: string } {
   const idempotencyKey = `${stageBindingKey}:bound`;
   return {
@@ -290,6 +292,8 @@ function sourceStageBoundNote(
       `brain-autonomous-bridge:${idempotencyKey}`,
       `brain-source-stage:${stageBindingKey}:bound`,
       `stage_key:${stageKey}`,
+      ...(attempt === 1 ? [] : [`attempt:${attempt}`]),
+      ...(retryOfOperationKey === null ? [] : [`retry_of_operation_key:${retryOfOperationKey}`]),
       `stage_binding_key:${stageBindingKey}`,
       `base_sha:${baseSha}`,
       `source_issue_id:${sourceIssueId}`,
@@ -400,6 +404,7 @@ async function readBoundStage(
     lead_agent_id: owner.finite_lead_agent_id,
     lead_issue_id: owner.finite_lead_issue_id,
     stage_key: stageKey,
+    stage_binding_key: stageBindingKey,
     [issueSide]: issueId,
   }, configPath, owner.python_executable);
   if (binding.found !== true || binding.stage_binding_key !== stageBindingKey
@@ -483,6 +488,83 @@ async function validateStagePair(
   return { source, review };
 }
 
+async function validateStageRetry(
+  ctx: Pick<PluginContext, "issues">,
+  owner: OwnerConfig,
+  stageKey: string,
+  retryOfOperationKey: string,
+  source: { id: string },
+  review: { id: string },
+  predecessor: StagePredecessor | null,
+  invoke: BridgeInvoker,
+): Promise<BridgeResult> {
+  if (!owner.finite_lead_issue_id || !owner.finite_lead_agent_id) fail("source_stage_not_owner_admitted");
+  const prior = await invoke("lookup_source_stage_binding", {
+    company_id: owner.company_id,
+    project_id: owner.project_id,
+    lead_agent_id: owner.finite_lead_agent_id,
+    lead_issue_id: owner.finite_lead_issue_id,
+    stage_key: stageKey,
+    attempt: 1,
+  }, owner.configPath, owner.python_executable);
+  if (prior.found !== true || prior.attempt !== 1 || prior.operation_key !== retryOfOperationKey
+      || prior.operation_state !== "review_rejected" || prior.operation_review_approved !== false
+      || prior.state !== "active" || prior.activation_pending === true
+      || typeof prior.source_issue_id !== "string" || typeof prior.review_issue_id !== "string"
+      || prior.source_issue_id === source.id || prior.review_issue_id === review.id
+      || typeof prior.stage_binding_key !== "string" || !KEY_RE.test(prior.stage_binding_key)
+      || typeof prior.source_version !== "number" || !Number.isSafeInteger(prior.source_version)
+      || typeof prior.review_version !== "number" || !Number.isSafeInteger(prior.review_version)
+      || (owner.canonical_repo && prior.canonical_status !== "prepared")
+      || prior.predecessor_operation_key !== (predecessor?.operation_key ?? null)
+      || prior.predecessor_source_issue_id !== (predecessor?.source_issue_id ?? null)
+      || prior.predecessor_review_issue_id !== (predecessor?.review_issue_id ?? null)) {
+    fail("source_stage_retry_not_admitted");
+  }
+  const [oldSource, oldReview] = await Promise.all([
+    readNativeIssue(ctx, prior.source_issue_id, owner.company_id),
+    readNativeIssue(ctx, prior.review_issue_id, owner.company_id),
+  ]);
+  const scoped = ctx.issues.forCurrentToolRun();
+  const [oldReviewOrchestration, oldReviewReadiness, leadOrchestration, leadReadiness] = await Promise.all([
+    scoped.getOrchestration({ issueId: oldReview.id, companyId: owner.company_id }),
+    scoped.getDependencyReadiness(oldReview.id, owner.company_id),
+    scoped.getOrchestration({ issueId: owner.finite_lead_issue_id, companyId: owner.company_id }),
+    scoped.getDependencyReadiness(owner.finite_lead_issue_id, owner.company_id),
+  ]);
+  if (oldSource.projectId !== owner.project_id || oldSource.parentId !== owner.finite_lead_issue_id
+      || oldSource.assigneeAgentId !== owner.worker_agent_id || oldSource.status !== "done"
+      || oldSource.executionRunId !== null || !Number.isSafeInteger(oldSource.statusVersion)
+      || (oldSource.statusVersion as number) <= prior.source_version
+      || instructionDigest(oldSource.description) !== prior.source_instruction_sha256
+      || oldReview.projectId !== owner.project_id || oldReview.parentId !== owner.finite_lead_issue_id
+      || oldReview.assigneeAgentId !== owner.reviewer_agent_id || oldReview.status !== "done"
+      || oldReview.executionRunId !== null || !Number.isSafeInteger(oldReview.statusVersion)
+      || (oldReview.statusVersion as number) <= prior.review_version
+      || instructionDigest(oldReview.description) !== prior.review_instruction_sha256
+      || oldReviewOrchestration.blockedByIssueIds.length !== 1
+      || oldReviewOrchestration.blockedByIssueIds[0] !== oldSource.id
+      || oldReviewReadiness.isDependencyReady !== true
+      || oldReviewReadiness.unresolvedBlockerIssueIds.length !== 0
+      || oldReviewReadiness.blockerIssueIds.length !== 1
+      || oldReviewReadiness.blockerIssueIds[0] !== oldSource.id
+      || oldReviewReadiness.pendingFinalizeBlockerIssueIds.length !== 0
+      || leadOrchestration.blockedByIssueIds.length !== 1
+      || leadOrchestration.blockedByIssueIds[0] !== oldReview.id
+      || leadReadiness.isDependencyReady !== true
+      || leadReadiness.unresolvedBlockerIssueIds.length !== 0
+      || leadReadiness.pendingFinalizeBlockerIssueIds.length !== 0) {
+    fail("source_stage_retry_not_finalized");
+  }
+  return {
+    source_status: oldSource.status,
+    source_version: oldSource.statusVersion,
+    review_status: oldReview.status,
+    review_version: oldReview.statusVersion,
+    dependency_ready: true,
+  };
+}
+
 async function activateSourceStage(
   ctx: Pick<PluginContext, "issues">,
   invoke: BridgeInvoker,
@@ -536,6 +618,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       type: "object",
       properties: {
         stage_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
+        attempt: { type: "integer", minimum: 1, maximum: 2 }, retry_of_operation_key: { type: "string", pattern: "^[0-9a-f]{64}$" },
         predecessor: { type: "object", properties: {
           operation_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
         }, required: ["operation_key", "source_issue_id", "review_issue_id"], additionalProperties: false },
@@ -545,10 +628,16 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
   }, async (raw, runCtx): Promise<ToolResult> => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
     const params = raw as Record<string, unknown>;
-    if (Object.keys(params).some((key) => !["stage_key", "source_issue_id", "review_issue_id", "predecessor"].includes(key))
+    if (Object.keys(params).some((key) => !["stage_key", "source_issue_id", "review_issue_id", "predecessor", "attempt", "retry_of_operation_key"].includes(key))
         || typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
         || typeof params.source_issue_id !== "string" || !ID_RE.test(params.source_issue_id)
         || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)) fail("source_stage_parameters_invalid");
+    const attempt = Object.prototype.hasOwnProperty.call(params, "attempt") ? params.attempt : 1;
+    if (typeof attempt !== "number" || !Number.isSafeInteger(attempt) || (attempt !== 1 && attempt !== 2)
+        || (attempt === 1 && Object.prototype.hasOwnProperty.call(params, "retry_of_operation_key"))
+        || (attempt === 2 && (typeof params.retry_of_operation_key !== "string" || !KEY_RE.test(params.retry_of_operation_key)))) {
+      fail("source_stage_attempt_invalid");
+    }
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
     const stage = requireSourceStage(owner, params.stage_key);
     const predecessorRequest = readStagePredecessor(stage, params.predecessor);
@@ -559,11 +648,13 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       company_id: owner.company_id, project_id: owner.project_id,
       lead_agent_id: owner.finite_lead_agent_id, lead_issue_id: owner.finite_lead_issue_id,
       stage_key: stage.stage_key, source_issue_id: params.source_issue_id,
-      review_issue_id: params.review_issue_id,
+      review_issue_id: params.review_issue_id, attempt,
     }, owner.configPath, owner.python_executable);
     if (existing.found === true) {
       if (typeof existing.stage_binding_key !== "string" || !KEY_RE.test(existing.stage_binding_key)
-          || typeof existing.base_sha !== "string" || !SHA_RE.test(existing.base_sha)) fail("bridge_result_invalid");
+          || typeof existing.base_sha !== "string" || !SHA_RE.test(existing.base_sha)
+          || existing.attempt !== attempt
+          || (attempt === 2 && existing.retry_of_operation_key !== params.retry_of_operation_key)) fail("bridge_result_invalid");
       if (existing.predecessor_operation_key !== (predecessorRequest?.operation_key ?? null)
           || existing.predecessor_source_issue_id !== (predecessorRequest?.source_issue_id ?? null)
           || existing.predecessor_review_issue_id !== (predecessorRequest?.review_issue_id ?? null)) {
@@ -578,6 +669,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         const note = sourceStageBoundNote(
           stage.stage_key, existing.stage_binding_key, existing.base_sha, params.source_issue_id, params.review_issue_id,
           existing.source_instruction_sha256, existing.review_instruction_sha256,
+          attempt, attempt === 2 ? String(existing.retry_of_operation_key) : null,
         );
         await persistSourceStageBoundNotes(
           ctx, owner, note, params.source_issue_id, params.review_issue_id,
@@ -638,6 +730,18 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         dependency_ready: predecessorFinalized,
       };
     }
+    const retryValidation = attempt === 2
+      ? await validateStageRetry(
+        ctx, owner, stage.stage_key, params.retry_of_operation_key as string,
+        source, review,
+        predecessor.operation_key === null ? null : {
+          operation_key: predecessor.operation_key,
+          source_issue_id: predecessor.source_issue_id!,
+          review_issue_id: predecessor.review_issue_id!,
+        },
+        invoke,
+      )
+      : null;
     const sourceInstructionSha256 = instructionDigest(source.description);
     const reviewInstructionSha256 = instructionDigest(review.description);
     const result = await invoke("bind_source_stage", {
@@ -656,6 +760,15 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       predecessor_source_issue_id: predecessor.source_issue_id,
       predecessor_review_issue_id: predecessor.review_issue_id,
       predecessor_dependency_ready: predecessor.dependency_ready,
+      ...(attempt === 2 ? {
+        attempt: 2,
+        retry_of_operation_key: params.retry_of_operation_key,
+        retry_of_source_status: retryValidation!.source_status,
+        retry_of_source_version: retryValidation!.source_version,
+        retry_of_review_status: retryValidation!.review_status,
+        retry_of_review_version: retryValidation!.review_version,
+        retry_of_dependency_ready: retryValidation!.dependency_ready,
+      } : {}),
     }, owner.configPath, owner.python_executable);
     if (typeof result.stage_binding_key !== "string" || !KEY_RE.test(result.stage_binding_key)
         || typeof result.base_sha !== "string" || !SHA_RE.test(result.base_sha)) fail("bridge_result_invalid");
@@ -663,6 +776,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const note = sourceStageBoundNote(
       stage.stage_key, result.stage_binding_key, result.base_sha, source.id, review.id,
       sourceInstructionSha256, reviewInstructionSha256,
+      attempt, attempt === 2 ? params.retry_of_operation_key as string : null,
     );
     await persistSourceStageBoundNotes(
       ctx, owner, note, source.id, review.id, sourceInstructionSha256, reviewInstructionSha256, true,
@@ -670,7 +784,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     if (result.state === "bound") await activateSourceStage(ctx, invoke, owner, owner.configPath, result.stage_binding_key, {
       id: source.id, status: source.status, statusVersion: source.statusVersion as number,
     });
-    return { content: `stage_key:${stage.stage_key}\nstage_binding_key:${result.stage_binding_key}\nbase_sha:${result.base_sha}\nstate:active` };
+    return { content: `stage_key:${stage.stage_key}\nattempt:${attempt}\nstage_binding_key:${result.stage_binding_key}\nbase_sha:${result.base_sha}\nstate:active` };
   });
 
   ctx.tools.register("deliver_source_stage_content", {
@@ -706,13 +820,35 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       stage_binding_key: params.stage_binding_key, source_instruction_sha256: sourceInstructionSha256,
       files: params.files,
     }, owner.configPath, owner.python_executable);
+    if (result.status === "preflight_failed" || result.status === "preflight_unknown") {
+      if (typeof result.content_check_id !== "string" || !KEY_RE.test(result.content_check_id)
+          || typeof result.snapshot_sha256 !== "string" || !KEY_RE.test(result.snapshot_sha256)
+          || typeof result.policy_digest !== "string" || !KEY_RE.test(result.policy_digest)
+          || "operation_key" in result || "candidate_sha" in result) fail("bridge_result_invalid");
+      if (result.status === "preflight_unknown" && result.reconcile_required !== true) fail("bridge_result_invalid");
+      if (result.status === "preflight_failed"
+          && (result.failure_code !== "sandboxed_verifier_failed"
+            || typeof result.command_index !== "number" || !Number.isSafeInteger(result.command_index) || result.command_index < 0
+            || typeof result.returncode !== "number" || !Number.isSafeInteger(result.returncode)
+            || typeof result.timed_out !== "boolean" || typeof result.output_truncated !== "boolean"
+            || typeof result.stderr !== "string" || typeof result.stdout !== "string"
+            || Buffer.byteLength(result.stderr, "utf8") > 16_000 || Buffer.byteLength(result.stdout, "utf8") > 16_000
+            || typeof result.stdout_sha256 !== "string" || !KEY_RE.test(result.stdout_sha256)
+            || typeof result.stderr_sha256 !== "string" || !KEY_RE.test(result.stderr_sha256)
+            || typeof result.sandbox_profile_sha256 !== "string" || !KEY_RE.test(result.sandbox_profile_sha256))) {
+        fail("bridge_result_invalid");
+      }
+      return { content: JSON.stringify(result, null, 2) };
+    }
     if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
         || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)) fail("bridge_result_invalid");
+    if (typeof result.preflight_check_id !== "string" || !KEY_RE.test(result.preflight_check_id)) fail("bridge_result_invalid");
     const note = [
       `operation_key:${result.operation_key}`,
       `brain-autonomous-bridge:${result.operation_key}:submitted`,
       `stage_key:${stage.stage_key}`,
       `stage_binding_key:${params.stage_binding_key}`,
+      `preflight_check_id:${String(result.preflight_check_id ?? "")}`,
       `candidate_sha:${result.candidate_sha}`,
       `base_sha:${String(result.base_sha ?? "")}`,
       `submitted_sha:${String(result.submitted_sha ?? "controller-generated")}`,
@@ -808,7 +944,8 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
       approved: { type: "boolean" }, evidence: { type: "object", properties: {
         inspection_digest: { type: "string" }, canonical_candidate_sha: { type: "string" }, canonical_receipt_digest: { type: "string" },
-      }, required: ["inspection_digest"], additionalProperties: true },
+        rationale: { type: "string", maxLength: 4000 },
+      }, required: ["inspection_digest", "rationale"], additionalProperties: true },
     }, required: ["stage_key", "stage_binding_key", "review_issue_id", "approved", "evidence"], additionalProperties: false },
   }, async (raw, runCtx): Promise<ToolResult> => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
@@ -820,6 +957,8 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || typeof params.approved !== "boolean" || !params.evidence || typeof params.evidence !== "object" || Array.isArray(params.evidence)
         || typeof (params.evidence as Record<string, unknown>).inspection_digest !== "string"
         || !KEY_RE.test((params.evidence as Record<string, string>).inspection_digest)
+        || typeof (params.evidence as Record<string, unknown>).rationale !== "string"
+        || Buffer.byteLength((params.evidence as Record<string, string>).rationale, "utf8") > 4_000
         || (owner.canonical_repo !== undefined && (
           typeof (params.evidence as Record<string, unknown>).canonical_candidate_sha !== "string"
           || !SHA_RE.test((params.evidence as Record<string, string>).canonical_candidate_sha)
@@ -854,6 +993,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       `brain-autonomous-bridge:${idempotencyKey}`,
       `brain-source-stage:${params.stage_binding_key}:reviewed`, `status:${result.status}`,
       `candidate_sha:${result.candidate_sha}`, `evidence_digest:${result.evidence_digest}`,
+      `review_rationale:${JSON.stringify(evidence.rationale)}`,
     ];
     if (typeof result.projection_status === "string") noteFields.push(`projection_status:${result.projection_status}`);
     if (typeof result.canonical_status === "string") noteFields.push(`canonical_status:${result.canonical_status}`);
