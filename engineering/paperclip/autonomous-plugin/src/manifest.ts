@@ -39,16 +39,29 @@ const manifest: PaperclipPluginManifestV1 = {
       },
     },
     {
-      name: "submit_candidate",
-      displayName: "Submit Brain Candidate",
-      description: "Bind the current worker run to its configured Paperclip issue and prepare its exact Git candidate for independent review.",
+      name: "deliver_source_content",
+      displayName: "Deliver Brain Source Content",
+      description: "Bind the current worker run to its configured Paperclip issue and deliver complete bounded contents for owner-defined paths for controller-side preparation.",
       parametersSchema: {
         type: "object",
         properties: {
           base_sha: { type: "string", minLength: 40, maxLength: 64 },
-          submitted_sha: { type: "string", minLength: 40, maxLength: 64 },
+          files: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                path_id: { type: "string" },
+                content: { type: "string" },
+                size: { type: "integer", minimum: 0, maximum: 1000000 },
+                sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+              },
+              required: ["path_id", "content", "size", "sha256"],
+              additionalProperties: false,
+            },
+          },
         },
-        required: ["base_sha", "submitted_sha"],
+        required: ["base_sha", "files"],
         additionalProperties: false,
       },
     },

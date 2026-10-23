@@ -41,9 +41,16 @@ from engineering.paperclip_git_broker import (  # noqa: E402
     company_operation,
     require_company_open,
 )
+from engineering.paperclip_source_delivery import (  # noqa: E402
+    SOURCE_PATHS,
+    SourceDeliveryError,
+    discard_projection,
+    materialize_owner_projection,
+    snapshot_records,
+)
 
 MAX_CONFIG_BYTES = 128_000
-MAX_REQUEST_BYTES = 32_000
+MAX_REQUEST_BYTES = 1_700_000
 MAX_EVIDENCE_BYTES = 16_000
 MAX_REVIEW_DIFF_BYTES = 60_000
 MAX_GIT_ERROR_BYTES = 16_000
@@ -318,7 +325,7 @@ def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> 
         reviewer_agent_id=config.reviewer_agent_id,
         base_sha=binding_data.get("base_sha", ""),
         submitted_sha=binding_data.get("submitted_sha", ""),
-        scope=config.allowed_scope,
+        scope=SOURCE_PATHS if journal.get("source_snapshot_sha256") else config.allowed_scope,
         policy_digest=config.policy().digest,
         active_ref=config.expected_dev_ref,
         owner_config_digest=config.owner_config_digest,
@@ -398,7 +405,7 @@ class BridgeConfig:
     source_issue_id: str
     reviewer_issue_id: str
     source_repo: Path
-    worker_checkout: Path
+    worker_checkout: Path | None
     publisher_repo: Path
     broker_journal_dir: Path
     bridge_journal_dir: Path
@@ -413,6 +420,7 @@ class BridgeConfig:
     expected_dev_ref: str
     expected_base_sha: str | None = None
     verifier_runtime_read_roots: tuple[Path, ...] = ()
+    reviewer_parent_issue_id: str | None = None
 
     @classmethod
     def load(cls, path: Path) -> BridgeConfig:
@@ -427,6 +435,7 @@ class BridgeConfig:
             "reviewer_agent_id",
             "source_issue_id",
             "reviewer_issue_id",
+            "reviewer_parent_issue_id",
             "source_repo",
             "worker_checkout",
             "publisher_repo",
@@ -448,7 +457,6 @@ class BridgeConfig:
             raise BridgeError("owner_config_unknown_fields")
         path_values = (
             "source_repo",
-            "worker_checkout",
             "publisher_repo",
             "broker_journal_dir",
             "bridge_journal_dir",
@@ -457,10 +465,13 @@ class BridgeConfig:
             "python_executable",
         )
         try:
-            paths = {key: Path(raw[key]) for key in path_values}
+            paths = {key: Path(raw[key]) for key in path_values if key in raw}
+            worker_checkout = Path(raw["worker_checkout"]) if "worker_checkout" in raw else None
         except (KeyError, TypeError):
             raise BridgeError("owner_config_paths_invalid") from None
-        if any(not value.is_absolute() for value in paths.values()):
+        if any(not value.is_absolute() for value in paths.values()) or (
+            worker_checkout is not None and not worker_checkout.is_absolute()
+        ):
             raise BridgeError("owner_config_paths_must_be_absolute")
         ids = (
             "company_id",
@@ -474,6 +485,9 @@ class BridgeConfig:
             raise BridgeError("owner_config_identity_invalid")
         if raw["worker_agent_id"] == raw["reviewer_agent_id"]:
             raise BridgeError("owner_config_agents_must_be_distinct")
+        reviewer_parent = raw.get("reviewer_parent_issue_id", raw["source_issue_id"])
+        if type(reviewer_parent) is not str or not ID_RE.fullmatch(reviewer_parent):
+            raise BridgeError("owner_config_reviewer_parent_invalid")
         scope = raw.get("allowed_scope")
         if type(scope) is not list or not scope or any(type(item) is not str for item in scope):
             raise BridgeError("owner_config_scope_invalid")
@@ -531,6 +545,7 @@ class BridgeConfig:
         return cls(
             **{key: raw[key] for key in ids},
             **paths,
+            worker_checkout=worker_checkout,
             allowed_scope=tuple(scope),
             verifier_commands=tuple(command_rows),
             verifier_env=tuple(sorted(env.items())),
@@ -539,6 +554,7 @@ class BridgeConfig:
             expected_dev_ref=raw["expected_dev_ref"],
             expected_base_sha=expected_base,
             verifier_runtime_read_roots=runtime_roots,
+            reviewer_parent_issue_id=reviewer_parent,
         )
 
     def policy(self) -> VerificationPolicy:
@@ -573,7 +589,6 @@ class BridgeConfig:
             str(path.resolve(strict=False))
             for path in (
                 self.source_repo,
-                self.worker_checkout,
                 self.publisher_repo,
                 self.broker_journal_dir,
                 self.bridge_journal_dir,
@@ -593,6 +608,7 @@ class BridgeConfig:
             "reviewer_agent_id": self.reviewer_agent_id,
             "source_issue_id": self.source_issue_id,
             "reviewer_issue_id": self.reviewer_issue_id,
+            "reviewer_parent_issue_id": self.reviewer_parent_issue_id or self.source_issue_id,
             "python_executable": str(self.python_executable),
             "owner_roots": self.owner_roots,
             "allowed_scope": self.allowed_scope,
@@ -610,7 +626,7 @@ class BridgeConfig:
         return hashlib.sha256(_canonical(value)).hexdigest()
 
 
-def _verifier(config: BridgeConfig, candidate_checkout: Path):
+def _verifier(config: BridgeConfig, candidate_checkout: Path, *, content_only: bool = False):
     """Build trusted verifier callback; only fixed commands execute in sandboxed children."""
     config.verifier_scratch_root.mkdir(parents=True, exist_ok=True)
     if config.verifier_scratch_root.is_symlink() or not config.verifier_scratch_root.is_dir():
@@ -639,7 +655,7 @@ def _verifier(config: BridgeConfig, candidate_checkout: Path):
             home=scratch,
             protected_roots=[
                 config.source_repo,
-                config.worker_checkout,
+                *((config.worker_checkout,) if not content_only and config.worker_checkout is not None else ()),
                 # The candidate worktree is nested under GitGate's publisher .git directory.
                 # The publisher is not a granted read/write root; keeping it out of protected
                 # roots lets Seatbelt grant only the exact candidate worktree below it.
@@ -725,6 +741,8 @@ def _binding(config: BridgeConfig, payload: dict[str, Any]) -> OperationBinding:
         and payload["base_sha"] != config.expected_base_sha
     ):
         raise BridgeError("development_base_not_owner_admitted")
+    if config.worker_checkout is None:
+        raise BridgeError("legacy_git_submission_disabled")
     policy = config.policy()
     return OperationBinding(
         company_id=config.company_id,
@@ -779,6 +797,99 @@ def _prepare_candidate_locked(config: BridgeConfig, binding: OperationBinding) -
     return result
 
 
+def prepare_source_content(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+    """Prepare one candidate from bounded complete file contents, never worker Git."""
+    if type(payload) is not dict or set(payload) != {
+        "company_id", "project_id", "source_issue_id", "worker_agent_id", "run_id",
+        "base_sha", "files",
+    }:
+        raise BridgeError("source_delivery_payload_shape_invalid")
+    expected = {
+        "company_id": config.company_id,
+        "project_id": config.project_id,
+        "source_issue_id": config.source_issue_id,
+        "worker_agent_id": config.worker_agent_id,
+    }
+    if any(payload.get(key) != value for key, value in expected.items()):
+        raise BridgeError("actor_or_issue_binding_mismatch")
+    if type(payload.get("run_id")) is not str or not ID_RE.fullmatch(payload["run_id"]):
+        raise BridgeError("actor_run_identity_invalid")
+    base_sha = payload.get("base_sha")
+    if type(base_sha) is not str or not SHA_RE.fullmatch(base_sha):
+        raise BridgeError("source_base_sha_invalid")
+    if config.expected_dev_ref == "refs/heads/brain/development" and base_sha != config.expected_base_sha:
+        raise BridgeError("development_base_not_owner_admitted")
+    try:
+        snapshot = snapshot_records(payload["files"])
+    except SourceDeliveryError as exc:
+        raise BridgeError(str(exc)) from exc
+    operation_key = hashlib.sha256(
+        _canonical([config.company_id, config.source_issue_id, payload["run_id"]])
+    ).hexdigest()
+    with _operation_lock(config, operation_key):
+        journal_path = _journal_path(config, operation_key)
+        if journal_path.exists():
+            journal = _load_journal(config, operation_key)
+            if journal.get("source_snapshot_sha256") != snapshot.digest:
+                raise BridgeError("source_delivery_replay_content_mismatch")
+            if journal.get("binding", {}).get("base_sha") != base_sha:
+                raise BridgeError("source_delivery_replay_binding_mismatch")
+            return journal["candidate"]
+        return _prepare_source_content_locked(config, payload, snapshot, operation_key)
+
+
+def _prepare_source_content_locked(config, payload, snapshot, operation_key):
+    gate = config.gate()
+    try:
+        projection = materialize_owner_projection(gate, payload["base_sha"], snapshot)
+    except SourceDeliveryError as exc:
+        raise BridgeError(str(exc)) from exc
+    policy = config.policy()
+    binding = OperationBinding(
+        company_id=config.company_id,
+        issue_id=config.source_issue_id,
+        run_id=payload["run_id"],
+        worker_agent_id=config.worker_agent_id,
+        reviewer_agent_id=config.reviewer_agent_id,
+        base_sha=projection.base_sha,
+        submitted_sha=projection.submitted_sha,
+        scope=SOURCE_PATHS,
+        policy_digest=policy.digest,
+        active_ref=config.expected_dev_ref,
+        owner_config_digest=config.owner_config_digest,
+        owner_roots=config.owner_roots,
+    )
+    try:
+        candidate = config.broker().prepare(binding, projection.checkout)
+    finally:
+        discard_projection(gate, projection)
+    result = {
+        "operation_key": operation_key,
+        "candidate_sha": candidate.sha,
+        "submitted_sha": candidate.submitted_sha,
+        "base_sha": candidate.base_sha,
+        "changed_paths": list(candidate.changed_paths),
+        "policy_digest": binding.policy_digest,
+        "reviewer_issue_id": config.reviewer_issue_id,
+        "source_snapshot_sha256": snapshot.digest,
+    }
+    journal = {
+        "schema": "paperclip-autonomous-operation-v1",
+        "operation_key": operation_key,
+        "state": "prepared",
+        "binding": binding.as_dict(),
+        "candidate": result,
+        "source_snapshot_sha256": snapshot.digest,
+        "source_files": [
+            {"path_id": item.path_id, "size": item.size, "sha256": item.sha256}
+            for item in snapshot.files
+        ],
+        "review": None,
+    }
+    _write_journal(config, operation_key, journal, create=True)
+    return result
+
+
 def integrate_candidate(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
     operation_key = payload.get("operation_key")
     if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
@@ -830,7 +941,7 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
         reviewer_agent_id=config.reviewer_agent_id,
         base_sha=binding_data.get("base_sha", ""),
         submitted_sha=binding_data.get("submitted_sha", ""),
-        scope=config.allowed_scope,
+        scope=SOURCE_PATHS if journal.get("source_snapshot_sha256") else config.allowed_scope,
         policy_digest=config.policy().digest,
         active_ref=config.expected_dev_ref,
         owner_config_digest=config.owner_config_digest,
@@ -944,7 +1055,9 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
         }
     scratch = None
     if broker_record.get("state") == "prepared":
-        verifier, scratch = _verifier(config, candidate.checkout)
+        verifier, scratch = _verifier(
+            config, candidate.checkout, content_only=bool(journal.get("source_snapshot_sha256"))
+        )
     else:
 
         def verifier(*_args):
@@ -976,6 +1089,8 @@ def dispatch(config: BridgeConfig, request: dict[str, Any]) -> dict[str, Any]:
         raise BridgeError("request_payload_invalid")
     if action == "submit_candidate":
         return prepare_candidate(config, payload)
+    if action == "deliver_source_content":
+        return prepare_source_content(config, payload)
     if action == "approve_candidate":
         return integrate_candidate(config, payload)
     if action == "inspect_candidate":

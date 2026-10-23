@@ -13,7 +13,7 @@ const SHA_RE = /^[0-9a-f]{40,64}$/;
 const KEY_RE = /^[0-9a-f]{64}$/;
 const CONFIG_SCHEMA = "paperclip-autonomous-bridge-config-v1";
 
-type ToolAction = "submit_candidate" | "inspect_candidate" | "approve_candidate";
+type ToolAction = "deliver_source_content" | "inspect_candidate" | "approve_candidate";
 type BridgeResult = Record<string, unknown>;
 type BridgeInvoker = (
   action: ToolAction,
@@ -28,6 +28,7 @@ type OwnerConfig = {
   reviewer_agent_id: string;
   source_issue_id: string;
   reviewer_issue_id: string;
+  reviewer_parent_issue_id?: string;
   python_executable: string;
   configPath: string;
 };
@@ -84,8 +85,15 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
         || typeof parsed.python_executable !== "string" || !isAbsolute(parsed.python_executable)) {
       fail("owner_bridge_config_invalid");
     }
+    if ("reviewer_parent_issue_id" in parsed
+        && (typeof parsed.reviewer_parent_issue_id !== "string" || !ID_RE.test(parsed.reviewer_parent_issue_id))) {
+      fail("owner_bridge_config_invalid");
+    }
     return {
       ...Object.fromEntries(keys.map((key) => [key, parsed[key]])),
+      ...(typeof parsed.reviewer_parent_issue_id === "string"
+        ? { reviewer_parent_issue_id: parsed.reviewer_parent_issue_id }
+        : {}),
       python_executable: parsed.python_executable,
       configPath,
     } as OwnerConfig;
@@ -155,13 +163,13 @@ function privateBridgeInvoker(): BridgeInvoker {
 function validateParams(action: ToolAction, value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) fail("tool_parameters_invalid");
   const params = value as Record<string, unknown>;
-  const keys = action === "submit_candidate" ? ["base_sha", "submitted_sha"]
+  const keys = action === "deliver_source_content" ? ["base_sha", "files"]
     : action === "inspect_candidate" ? ["operation_key", "candidate_sha"]
       : ["operation_key", "candidate_sha", "approved", "evidence"];
   if (Object.keys(params).some((key) => !keys.includes(key)) || keys.some((key) => !(key in params))) fail("tool_parameters_invalid");
-  if (action === "submit_candidate") {
+  if (action === "deliver_source_content") {
     if (typeof params.base_sha !== "string" || !SHA_RE.test(params.base_sha)
-        || typeof params.submitted_sha !== "string" || !SHA_RE.test(params.submitted_sha)) fail("candidate_identity_invalid");
+        || !Array.isArray(params.files) || Buffer.byteLength(JSON.stringify(params.files), "utf8") > 1_600_000) fail("source_delivery_invalid");
   } else if (action === "inspect_candidate") {
     if (typeof params.operation_key !== "string" || !KEY_RE.test(params.operation_key)
         || typeof params.candidate_sha !== "string" || !SHA_RE.test(params.candidate_sha)) fail("candidate_identity_invalid");
@@ -199,13 +207,19 @@ async function validateReviewerWakeTarget(
   owner: OwnerConfig,
 ): Promise<void> {
   const scopedIssues = ctx.issues.forCurrentToolRun();
-  const [issue, orchestration] = await Promise.all([
+  const explicitParent = owner.reviewer_parent_issue_id;
+  const [issue, orchestration, sourceIssue] = await Promise.all([
     scopedIssues.get(owner.reviewer_issue_id, owner.company_id),
     scopedIssues.getOrchestration({ issueId: owner.reviewer_issue_id, companyId: owner.company_id }),
+    explicitParent ? scopedIssues.get(owner.source_issue_id, owner.company_id) : Promise.resolve(null),
   ]);
   if (!issue || issue.id !== owner.reviewer_issue_id || issue.companyId !== owner.company_id
       || issue.projectId !== owner.project_id || issue.assigneeAgentId !== owner.reviewer_agent_id
-      || issue.parentId !== owner.source_issue_id || !["backlog", "todo"].includes(issue.status)
+      || issue.parentId !== (explicitParent ?? owner.source_issue_id)
+      || (explicitParent !== undefined && (!sourceIssue || sourceIssue.id !== owner.source_issue_id
+        || sourceIssue.companyId !== owner.company_id || sourceIssue.projectId !== owner.project_id
+        || sourceIssue.parentId !== explicitParent))
+      || !["backlog", "todo"].includes(issue.status)
       || issue.executionRunId !== null || orchestration.blockedByIssueIds.length !== 1
       || orchestration.blockedByIssueIds[0] !== owner.source_issue_id) {
     fail("reviewer_issue_wake_target_mismatch");
@@ -213,24 +227,24 @@ async function validateReviewerWakeTarget(
 }
 
 export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoker): void {
-  ctx.tools.register("submit_candidate", {
-    displayName: "Submit Brain Candidate",
-    description: "Submit this exact worker checkout commit for owner-pinned verification and independent review.",
-    parametersSchema: { type: "object", properties: { base_sha: { type: "string" }, submitted_sha: { type: "string" } }, required: ["base_sha", "submitted_sha"], additionalProperties: false },
+  ctx.tools.register("deliver_source_content", {
+    displayName: "Deliver Brain Source Content",
+    description: "Deliver complete bounded contents for the owner-defined source paths for controller-side candidate preparation and independent review.",
+    parametersSchema: { type: "object", properties: { base_sha: { type: "string" }, files: { type: "array", items: { type: "object", properties: { path_id: { type: "string" }, content: { type: "string" }, size: { type: "integer" }, sha256: { type: "string" } }, required: ["path_id", "content", "size", "sha256"], additionalProperties: false } } }, required: ["base_sha", "files"], additionalProperties: false },
   }, async (raw, runCtx): Promise<ToolResult> => {
-    const params = validateParams("submit_candidate", raw);
+    const params = validateParams("deliver_source_content", raw);
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id || runCtx.agentId !== owner.worker_agent_id) fail("worker_actor_binding_mismatch");
     await assertRunBoundIssue(ctx, runCtx, owner.source_issue_id);
     await validateReviewerWakeTarget(ctx, owner);
-    const result = await invoke("submit_candidate", {
+    const result = await invoke("deliver_source_content", {
       company_id: owner.company_id,
       project_id: owner.project_id,
       worker_agent_id: owner.worker_agent_id,
       run_id: runCtx.runId,
       source_issue_id: owner.source_issue_id,
       base_sha: params.base_sha,
-      submitted_sha: params.submitted_sha,
+      files: params.files,
     }, owner.configPath, owner.python_executable);
     if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
         || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)) fail("bridge_result_invalid");
@@ -239,7 +253,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       `brain-autonomous-bridge:${result.operation_key}:submitted`,
       `candidate_sha:${result.candidate_sha}`,
       `base_sha:${String(result.base_sha ?? params.base_sha)}`,
-      `submitted_sha:${String(result.submitted_sha ?? params.submitted_sha)}`,
+      `submitted_sha:${String(result.submitted_sha ?? "controller-generated")}`,
       `policy_digest:${String(result.policy_digest ?? "")}`,
     ].join("\n");
     await persistIssueNote(ctx, owner.reviewer_issue_id, owner.company_id, `${result.operation_key}:submitted`, note);
