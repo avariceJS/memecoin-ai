@@ -30,10 +30,13 @@ publication: operation812fa3145c9503694fd3296faa4111df33022b26ea231956b0328f8bfa
 candidate4dcb736a1d65cbd53df2b126c24f65c20146cd95. The capacity validation improvement rejects
 invalid/unrepresentable input with ValueError while preserving valid formulas. Previous failed
 relationship admission and the rejected TypeError candidate remain recorded, not replayed as success.
-Canonical Brain remains5479473; projected publication is not canonical transfer or full autonomy.
+Canonical catchupad02f26 was separately exact-reviewed and operator-assisted published/reconciled,
+then remote-confirmed. This establishes aligned selected-file bases, not autonomous publication.
 
 The narrow native SDK CAS/readiness extension67ae034 passed independent source review, including
-the corrected concurrent-reparent race; deployment is pending. The bounded canonical publisher3fe7f77
+the corrected concurrent-reparent race; reviewed packagingbdf380c is deployed throughd5f4db9.
+Quiescent MEM pause, owned-server restart and explicit resume preserved done tasks and produced no
+new run during the paused interval. This excludes mid-publication crash recovery and endurance. The bounded canonical publisher3fe7f77
 also passed independent module review. Combined finite queue/publication code remains under development
 following independent findings; component tests do not establish the combined runtime path.
 
