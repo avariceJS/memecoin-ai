@@ -1533,6 +1533,361 @@ index 930c361da494095eea17bd965ade075a1e1e9160..f8fe6ba142f10d130d6fd3137e2110e4
    async function seedAssignedAgents(count: number) {
      process.env.PAPERCLIP_API_URL = "https://paperclip.example.test";
      const [company] = await db.insert(companies).values({
+diff --git a/server/src/__tests__/issue-comment-reopen-routes.test.ts b/server/src/__tests__/issue-comment-reopen-routes.test.ts
+index dbbef012e9ff743f614710c7ec9f68192f09d711..fedd9ed60dd51676c7305af4cb47099ed34c3330 100644
+--- a/server/src/__tests__/issue-comment-reopen-routes.test.ts
++++ b/server/src/__tests__/issue-comment-reopen-routes.test.ts
+@@ -804,7 +804,9 @@ describe("issue comment reopen routes", () => {
+ 
+   it("implicitly reopens closed issues via POST comments when an agent is assigned", async () => {
+     const issue = makeIssue("done");
+-    mockIssueService.getById.mockResolvedValue(issue);
++    mockIssueService.getById
++      .mockResolvedValueOnce(issue)
++      .mockResolvedValueOnce({ ...issue, status: "todo" });
+     mockIssueService.update.mockImplementation(
+       async (_id: string, patch: Record<string, unknown>) =>
+         makeIssueUpdateReceipt(issue, patch),
+@@ -2364,7 +2366,9 @@ describe("issue comment reopen routes", () => {
+   });
+ 
+   it("explicit same-agent resume comments reopen closed issues and mark the wake payload", async () => {
+-    mockIssueService.getById.mockResolvedValue(makeIssue("done"));
++    mockIssueService.getById
++      .mockResolvedValueOnce(makeIssue("done"))
++      .mockResolvedValueOnce(makeIssue("todo"));
+     mockIssueService.update.mockImplementation(
+       async (_id: string, patch: Record<string, unknown>) => ({
+         ...makeIssue("done"),
+@@ -2412,7 +2416,9 @@ describe("issue comment reopen routes", () => {
+   });
+ 
+   it("honors explicit agent resume intent from a default-open peer as an agent-class wake", async () => {
+-    mockIssueService.getById.mockResolvedValue(makeIssue("done"));
++    mockIssueService.getById
++      .mockResolvedValueOnce(makeIssue("done"))
++      .mockResolvedValueOnce(makeIssue("todo"));
+     mockIssueService.update.mockImplementation(
+       async (_id: string, patch: Record<string, unknown>) => ({
+         ...makeIssue("done"),
+@@ -2763,7 +2769,9 @@ describe("issue comment reopen routes", () => {
+   });
+ 
+   it("honors explicit resume intent on cancelled issues", async () => {
+-    mockIssueService.getById.mockResolvedValue(makeIssue("cancelled"));
++    mockIssueService.getById
++      .mockResolvedValueOnce(makeIssue("cancelled"))
++      .mockResolvedValueOnce(makeIssue("todo"));
+     mockIssueService.update.mockImplementation(
+       async (_id: string, patch: Record<string, unknown>) => ({
+         ...makeIssue("cancelled"),
+diff --git a/server/src/__tests__/issue-update-comment-wakeup-routes.test.ts b/server/src/__tests__/issue-update-comment-wakeup-routes.test.ts
+index 842159d91bfebc7d113ba9443a678fc883d0b38c..74e8d6118fa06f63213329d6dbd44e3c8b011e41 100644
+--- a/server/src/__tests__/issue-update-comment-wakeup-routes.test.ts
++++ b/server/src/__tests__/issue-update-comment-wakeup-routes.test.ts
+@@ -52,6 +52,18 @@ const mockRunnerGoalService = vi.hoisted(() => ({
+   projection: vi.fn(async () => null),
+   act: vi.fn(),
+ }));
++const mockFindExistingIssueBlockersResolvedWakeForReadyState = vi.hoisted(() => vi.fn(async () => null));
++
++vi.mock("../services/issue-dependency-wakeups.js", async () => {
++  const actual = await vi.importActual<typeof import("../services/issue-dependency-wakeups.js")>(
++    "../services/issue-dependency-wakeups.js",
++  );
++  return {
++    ...actual,
++    findExistingIssueBlockersResolvedWakeForReadyState:
++      mockFindExistingIssueBlockersResolvedWakeForReadyState,
++  };
++});
+ 
+ vi.mock("../services/native-runtime/native-question-bridge.js", () => ({
+   deliverNativeQuestionResponse: vi.fn(async () => "not_native"),
+@@ -289,6 +301,7 @@ describe("issue update comment wakeups", () => {
+     mockIssueService.getWakeableParentAfterChildCompletion.mockResolvedValue(null);
+     mockIssueService.getCurrentScheduledRetry.mockResolvedValue(null);
+     mockIssueService.listReviewAttention.mockResolvedValue(new Map());
++    mockFindExistingIssueBlockersResolvedWakeForReadyState.mockResolvedValue(null);
+   });
+ 
+   it.each(["post", "patch"] as const)("rejects %s board messages under an inherited pause before any mutation", async (method) => {
+@@ -329,6 +342,264 @@ describe("issue update comment wakeups", () => {
+     },
+   );
+ 
++  it.each(["done", "cancelled"] as const)(
++    "does not wake the changed issue when a backlog update closes it as %s, but still wakes released dependents",
++    async (status) => {
++      const existing = makeIssue({ status: "backlog", assigneeAgentId: ASSIGNEE_AGENT_ID });
++      const updated = makeIssue({ status, assigneeAgentId: ASSIGNEE_AGENT_ID });
++      const dependent = makeIssue({
++        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
++        identifier: "PAP-1000",
++        status: "blocked",
++        assigneeAgentId: MENTIONED_AGENT_ID,
++      });
++      mockIssueService.getById.mockResolvedValue(existing);
++      mockIssueService.update.mockResolvedValue(updated);
++      mockIssueService.getDependencyReadiness.mockResolvedValue({
++        unresolvedBlockerCount: 1,
++        blockerIssueIds: [],
++        isDependencyReady: false,
++      });
++      mockIssueService.listWakeableBlockedDependents.mockResolvedValue(status === "done" ? [{
++        ...dependent,
++        blockerIssueIds: [existing.id],
++        blockedTransitionAt: new Date("2026-07-24T00:00:00.000Z"),
++      }] : []);
++
++      const res = await request(await createApp())
++        .patch(`/api/issues/${existing.id}`)
++        .send({ status });
++
++      expect(res.status).toBe(200);
++      if (status === "done") {
++        await vi.waitFor(() => expect(mockHeartbeatService.wakeup).toHaveBeenCalledTimes(1));
++        expect(mockHeartbeatService.wakeup).toHaveBeenCalledWith(
++          MENTIONED_AGENT_ID,
++          expect.objectContaining({
++            reason: "issue_blockers_resolved",
++            payload: expect.objectContaining({ issueId: dependent.id, resolvedBlockerIssueId: existing.id }),
++          }),
++        );
++      } else {
++        await new Promise((resolve) => setImmediate(resolve));
++        expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
++      }
++      expect(mockHeartbeatService.wakeup).not.toHaveBeenCalledWith(
++        ASSIGNEE_AGENT_ID,
++        expect.objectContaining({ payload: expect.objectContaining({ issueId: existing.id }) }),
++      );
++    },
++  );
++
++  it.each(["assignment", "patch_comment", "post_comment"] as const)(
++    "keeps incidental %s wakes on a board-owned blocked hold suppressed",
++    async (mutation) => {
++      const existing = makeIssue({
++        status: "blocked",
++        assigneeAgentId: mutation === "assignment" ? null : ASSIGNEE_AGENT_ID,
++        assigneeUserId: null,
++        unblockDescriptor: { owner: "board", action: "Wait for operator review" },
++      });
++      const updated = makeIssue({
++        ...existing,
++        assigneeAgentId: ASSIGNEE_AGENT_ID,
++        unblockDescriptor: { owner: "board", action: "Wait for operator review" },
++      });
++      mockIssueService.getById.mockResolvedValue(existing);
++      mockIssueService.update.mockResolvedValue(updated);
++      mockIssueService.getDependencyReadiness.mockResolvedValue({
++        unresolvedBlockerCount: 1,
++        blockerIssueIds: [],
++        isDependencyReady: false,
++      });
++      mockIssueService.addComment.mockResolvedValue({
++        id: "board-hold-comment",
++        issueId: existing.id,
++        companyId: existing.companyId,
++        body: "Please continue when ready.",
++      });
++
++      const app = await createApp();
++      const res = mutation === "post_comment"
++        ? await request(app)
++          .post(`/api/issues/${existing.id}/comments`)
++          .send({ body: "Please continue when ready." })
++        : await request(app)
++          .patch(`/api/issues/${existing.id}`)
++          .send(mutation === "assignment"
++            ? { assigneeAgentId: ASSIGNEE_AGENT_ID }
++            : { comment: "Please continue when ready." });
++
++      expect(res.status).toBe(mutation === "post_comment" ? 201 : 200);
++      await new Promise((resolve) => setImmediate(resolve));
++      expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
++    },
++  );
++
++  it.each([
++    {
++      name: "a board hold that lands before dispatch",
++      initial: { status: "in_progress", unblockDescriptor: null },
++      fresh: { status: "blocked", unblockDescriptor: { owner: "board", action: "Wait for review" } },
++      shouldWake: false,
++    },
++    {
++      name: "a board hold released before dispatch",
++      initial: { status: "blocked", unblockDescriptor: { owner: "board", action: "Wait for review" } },
++      fresh: { status: "todo", unblockDescriptor: null },
++      shouldWake: true,
++    },
++  ])("uses the refreshed issue state for post-comment wake eligibility: $name", async ({ initial, fresh, shouldWake }) => {
++    const issueAtWrite = makeIssue({
++      ...initial,
++      assigneeAgentId: ASSIGNEE_AGENT_ID,
++      assigneeUserId: null,
++    });
++    const issueAtDispatch = makeIssue({
++      ...fresh,
++      assigneeAgentId: ASSIGNEE_AGENT_ID,
++      assigneeUserId: null,
++    });
++    mockIssueService.getById
++      .mockResolvedValueOnce(issueAtWrite)
++      .mockResolvedValueOnce(issueAtDispatch);
++    mockIssueService.addComment.mockResolvedValue({
++      id: "concurrent-hold-comment",
++      issueId: issueAtWrite.id,
++      companyId: issueAtWrite.companyId,
++      body: "Please continue when ready.",
++    });
++
++    const res = await request(await createApp())
++      .post(`/api/issues/${issueAtWrite.id}/comments`)
++      .send({ body: "Please continue when ready." });
++
++    expect(res.status).toBe(201);
++    if (shouldWake) {
++      await vi.waitFor(() => expect(mockHeartbeatService.wakeup).toHaveBeenCalledTimes(1));
++      expect(mockHeartbeatService.wakeup).toHaveBeenCalledWith(
++        ASSIGNEE_AGENT_ID,
++        expect.objectContaining({ reason: "issue_commented" }),
++      );
++    } else {
++      await new Promise((resolve) => setImmediate(resolve));
++      expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
++    }
++  });
++
++  it("lets a fresh board-owned hold suppress a wake after a comment-triggered reopen", async () => {
++    const issueBeforeReopen = makeIssue({
++      status: "done",
++      assigneeAgentId: ASSIGNEE_AGENT_ID,
++      assigneeUserId: null,
++    });
++    const issueAfterConcurrentHold = makeIssue({
++      status: "blocked",
++      assigneeAgentId: ASSIGNEE_AGENT_ID,
++      assigneeUserId: null,
++      unblockDescriptor: { owner: "board", action: "Wait for operator review" },
++    });
++    mockIssueService.getById
++      .mockResolvedValueOnce(issueBeforeReopen)
++      .mockResolvedValueOnce(issueAfterConcurrentHold);
++    mockIssueService.update.mockResolvedValue({ ...issueBeforeReopen, status: "todo" });
++    mockIssueService.addComment.mockResolvedValue({
++      id: "reopen-raced-board-hold",
++      issueId: issueBeforeReopen.id,
++      companyId: issueBeforeReopen.companyId,
++      body: "Please continue.",
++    });
++
++    const res = await request(await createApp())
++      .post(`/api/issues/${issueBeforeReopen.id}/comments`)
++      .send({ body: "Please continue." });
++
++    expect(res.status).toBe(201);
++    expect(mockIssueService.update).toHaveBeenCalledWith(
++      issueBeforeReopen.id,
++      expect.objectContaining({ status: "todo" }),
++    );
++    await new Promise((resolve) => setImmediate(resolve));
++    expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
++  });
++
++  it("keeps an explicit todo release runnable when the old board descriptor is present in the response", async () => {
++    const existing = makeIssue({
++      status: "blocked",
++      assigneeAgentId: ASSIGNEE_AGENT_ID,
++      unblockDescriptor: { owner: "board", action: "Wait for operator review" },
++    });
++    const updated = makeIssue({
++      status: "todo",
++      assigneeAgentId: ASSIGNEE_AGENT_ID,
++      unblockDescriptor: { owner: "board", action: "Wait for operator review" },
++    });
++    mockIssueService.getById.mockResolvedValue(existing);
++    mockIssueService.update.mockResolvedValue(updated);
++
++    const res = await request(await createApp())
++      .patch(`/api/issues/${existing.id}`)
++      .send({ status: "todo" });
++
++    expect(res.status).toBe(200);
++    await vi.waitFor(() => expect(mockHeartbeatService.wakeup).toHaveBeenCalledTimes(1));
++    expect(mockHeartbeatService.wakeup).toHaveBeenCalledWith(
++      ASSIGNEE_AGENT_ID,
++      expect.objectContaining({ reason: "issue_status_changed" }),
++    );
++  });
++
++  it("preserves supported backlog-to-in_progress admission", async () => {
++    const existing = makeIssue({ status: "backlog", assigneeAgentId: ASSIGNEE_AGENT_ID });
++    const updated = makeIssue({ status: "in_progress", assigneeAgentId: ASSIGNEE_AGENT_ID });
++    mockIssueService.getById.mockResolvedValue(existing);
++    mockIssueService.update.mockResolvedValue(updated);
++
++    const res = await request(await createApp())
++      .patch(`/api/issues/${existing.id}`)
++      .send({ status: "in_progress" });
++
++    expect(res.status).toBe(200);
++    await vi.waitFor(() => expect(mockHeartbeatService.wakeup).toHaveBeenCalledTimes(1));
++    expect(mockHeartbeatService.wakeup).toHaveBeenCalledWith(
++      ASSIGNEE_AGENT_ID,
++      expect.objectContaining({ reason: "issue_status_changed" }),
++    );
++  });
++
++  it("preserves agent-owned blocked assignment routing", async () => {
++    const existing = makeIssue({
++      status: "blocked",
++      assigneeAgentId: null,
++      assigneeUserId: null,
++      unblockDescriptor: { owner: { agentId: ASSIGNEE_AGENT_ID }, action: "Resolve the blocker" },
++    });
++    const updated = makeIssue({
++      status: "blocked",
++      assigneeAgentId: ASSIGNEE_AGENT_ID,
++      assigneeUserId: null,
++      unblockDescriptor: { owner: { agentId: ASSIGNEE_AGENT_ID }, action: "Resolve the blocker" },
++    });
++    mockIssueService.getById.mockResolvedValue(existing);
++    mockIssueService.update.mockResolvedValue(updated);
++    mockIssueService.getDependencyReadiness.mockResolvedValue({
++      unresolvedBlockerCount: 1,
++      blockerIssueIds: [],
++      isDependencyReady: false,
++    });
++
++    const res = await request(await createApp())
++      .patch(`/api/issues/${existing.id}`)
++      .send({ assigneeAgentId: ASSIGNEE_AGENT_ID });
++
++    expect(res.status).toBe(200);
++    await vi.waitFor(() => expect(mockHeartbeatService.wakeup).toHaveBeenCalledTimes(1));
++    expect(mockHeartbeatService.wakeup).toHaveBeenCalledWith(
++      ASSIGNEE_AGENT_ID,
++      expect.objectContaining({ reason: "issue_assigned" }),
++    );
++  });
++
+   it.each([false, true])("still wakes explicitly reopened work (reassigned: %s)", async (reassigned) => {
+     const existing = makeIssue({ status: "done", assigneeAgentId: PREVIOUS_AGENT_ID, assigneeUserId: null });
+     const agentId = reassigned ? ASSIGNEE_AGENT_ID : PREVIOUS_AGENT_ID;
+@@ -706,7 +977,9 @@ describe("issue update comment wakeups", () => {
+   it("retains the Slack session key when reopening strips the read-only conversation projection", async () => {
+     const existing = makeIssue({ externalConversationState: "active", status: "done", assigneeAgentId: ASSIGNEE_AGENT_ID });
+     const updated = makeIssue({ status: "todo", assigneeAgentId: ASSIGNEE_AGENT_ID });
+-    mockIssueService.getById.mockResolvedValue(existing);
++    mockIssueService.getById
++      .mockResolvedValueOnce(existing)
++      .mockResolvedValueOnce(updated);
+     mockIssueService.update.mockResolvedValue(updated);
+     mockIssueService.addComment.mockResolvedValue({ id: "comment-reopen-slack", issueId: existing.id, companyId: existing.companyId, body: "Continue from Paperclip" });
+     const res = await request(await createApp()).post(`/api/issues/${existing.id}/comments`).send({ body: "Continue from Paperclip", reopen: true });
 diff --git a/server/src/__tests__/plugin-capability-approval-lifecycle.test.ts b/server/src/__tests__/plugin-capability-approval-lifecycle.test.ts
 new file mode 100644
 index 0000000000000000000000000000000000000000..e942905e5fad4a979e1ff5ea255a62f87cdaecd8
@@ -2107,6 +2462,85 @@ index c97c14a83558376c2491e391d56276f0af552278..32acbe1b52e6a5084d91647bfaf18dd8
    it("passes echoed invocation scope to worker-to-host handlers", async () => {
      const companiesGet = vi.fn(async () => ({ id: "company-1" }));
      const handle = createPluginWorkerHandle("test.plugin", {
+diff --git a/server/src/routes/issues.ts b/server/src/routes/issues.ts
+index 7ea94ad5479ee14a261230b08484b8a76f9672da..0252771f128075e45aec35a36af174c1ef553fdc 100644
+--- a/server/src/routes/issues.ts
++++ b/server/src/routes/issues.ts
+@@ -15491,6 +15491,20 @@ export function issueRoutes(
+             typeof wakeup.payload.issueId === "string"
+               ? wakeup.payload.issueId
+               : issue.id;
++          // An update may enqueue work for the issue it changed, or for a
++          // dependent released by that issue. Suppress only incidental wakes
++          // targeting the changed issue when its effective state is closed or
++          // it remains blocked under board ownership. A completed blocker must
++          // still release its dependents, and explicit runnable transitions
++          // (such as backlog/blocked -> todo) are represented by the post-update
++          // status and continue through this path.
++          if (
++            wakeIssueId === issue.id &&
++            (isClosedIssueStatus(issue.status) ||
++              (issue.status === "blocked" && issue.unblockDescriptor?.owner === "board"))
++          ) {
++            return;
++          }
+           // Provider turns use the task identifier as their session key. Board
+           // messages must resume that same session instead of creating a UUID-keyed fork.
+           if (wakeIssueId === issue.id && issue.externalConversationState && issue.identifier) {
+@@ -18982,6 +18996,7 @@ export function issueRoutes(
+           string,
+           { agentId: string; wakeup: WakeupRequest }
+         >();
++        let effectiveIssueForWake = currentIssue;
+         const addWakeup = (agentId: string, wakeup: WakeupRequest) => {
+           const wakeIssueId =
+             wakeup.payload &&
+@@ -18989,6 +19004,17 @@ export function issueRoutes(
+             typeof wakeup.payload.issueId === "string"
+               ? wakeup.payload.issueId
+               : currentIssue.id;
++          // Keep incidental work for a board-held or closed issue suppressed.
++          // Comment-triggered wakes for released dependents have a different
++          // target and continue through this accumulator.
++          if (
++            wakeIssueId === effectiveIssueForWake.id &&
++            (isClosedIssueStatus(effectiveIssueForWake.status) ||
++              (effectiveIssueForWake.status === "blocked" &&
++                effectiveIssueForWake.unblockDescriptor?.owner === "board"))
++          ) {
++            return;
++          }
+           const key = `${agentId}:${wakeIssueId}`;
+           if (wakeups.has(key)) return;
+           if (wakeIssueId === currentIssue.id && issue.externalConversationState && currentIssue.identifier) {
+@@ -19047,13 +19073,6 @@ export function issueRoutes(
+           });
+         };
+ 
+-        if (commentDecisionStageWakeup) {
+-          addWakeup(
+-            commentDecisionStageWakeup.agentId,
+-            commentDecisionStageWakeup.wakeup,
+-          );
+-        }
+-
+         // Re-fetch immediately before deciding whether to wake anyone: outside
+         // the reopen/auto-approval branches above, `currentIssue` is still the
+         // snapshot read before the comment was inserted, so a concurrent
+@@ -19069,6 +19088,13 @@ export function issueRoutes(
+             );
+             return null;
+           })) ?? currentIssue;
++        effectiveIssueForWake = wakeIssueSnapshot;
++        if (commentDecisionStageWakeup) {
++          addWakeup(
++            commentDecisionStageWakeup.agentId,
++            commentDecisionStageWakeup.wakeup,
++          );
++        }
+         const assigneeId = wakeIssueSnapshot.assigneeAgentId;
+         const actorIsAgent = actor.actorType === "agent";
+         const selfComment =
 diff --git a/server/src/services/authorization.ts b/server/src/services/authorization.ts
 index 71d4affa17475640ca8ed44a7a238965b1d681f7..b42e248b154fe3a9f32f6ad5ccca9cc7ca1fdd49 100644
 --- a/server/src/services/authorization.ts
