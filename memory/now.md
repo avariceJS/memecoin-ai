@@ -43,7 +43,11 @@ The transfer helper is a private owner-operated artifact, not an unattended cano
 Synthetic delegation/GitGate and one native writer pause/restart/new-session recovery cohort also
 passed. Still open: repeatable Paperclip-owned backlog admission, unattended canonical publication,
 publication-interruption fencing and broader lifecycle acceptance. Remove no legacy controller
-until equivalence is proved. Machine-readable progress and all private evidence:
+until equivalence is proved. MEM-7 now retains ordinary QA/publication tasks; native-review WIP
+`43c998b`/`6ec6b99` is preserved unaccepted. New real model admission is held pending confined Git
+import: a synthetic-only object-store indirection probe found a host-read boundary failure.
+The known Senses candidate remains byte-proven; no real protected data was involved.
+Machine-readable progress and all private evidence:
 `/Users/root1/Developer/brain-paperclip-lab/state/readiness-20261023/progress.json`.
 
 ## Active founder directive: Paperclip-first experiment

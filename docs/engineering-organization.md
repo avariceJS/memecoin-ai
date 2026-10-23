@@ -47,6 +47,15 @@ a real successful workspace finalization, preserving the failed session/unknown 
 original source operation. Board status correction alone did not qualify finalization or review.
 Repeatable backlog admission, unattended canonical publication and publication-interruption
 qualification remain open. Keep Paperclip's lifecycle/dependency barriers and no-blind-retry rule.
+For the next slice, retain ordinary independent QA/publication tasks in Paperclip. Native completion
+review deliberately restricts plugin tools; expanding it would require additional authority after
+native resolution, pre-verification state and cross-store interruption handling. Unaccepted native
+review checkpoints `43c998b` (Paperclip) and `6ec6b99` (Brain) are preserved, not deployed.
+Before new real model admission, qualify defensive Git import: a synthetic-only probe demonstrated
+that host Git could follow worker-controlled object-store indirection. The known accepted Senses
+candidate remains byte-proven; this finding blocks hostile-worker/unattended publication readiness.
+Only owner-normalized input seeded from a qualified safe source projection may reach trusted Git;
+worker Git processing must remain confined. No new organizational scheduler is needed.
 Company hibernation should consume Paperclip's native per-issue recovery holds and process state,
 plus the broker publication fence. Historical failed rows alone are not active writers; unresolved
 provider-stop or publication outcomes remain holds. Do not build a second recovery ledger.
