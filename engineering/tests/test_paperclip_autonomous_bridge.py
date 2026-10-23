@@ -3,6 +3,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -11,7 +12,9 @@ from engineering.git_gate import Candidate
 from engineering.paperclip_autonomous_bridge import (
     BridgeConfig,
     BridgeError,
+    _binding,
     _bounded_candidate_diff,
+    _verifier,
     dispatch,
 )
 
@@ -363,7 +366,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         git(source, "add", "-A")
         git(source, "commit", "-qm", "base")
         base = git(source, "rev-parse", "HEAD")
-        git(source, "branch", "brain/paperclip-integration", base)
+        git(source, "branch", "brain/development", base)
         subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(worker)], check=True)
         subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(publisher)], check=True)
         for repo, name, email in (
@@ -372,7 +375,8 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         ):
             git(repo, "config", "user.name", name)
             git(repo, "config", "user.email", email)
-        git(publisher, "branch", "brain/paperclip-integration", base)
+        git(publisher, "branch", "brain/development", base)
+        git(publisher, "checkout", "--detach", base)
         (worker / "src" / "sample.py").write_text("value = 2\n")
         git(worker, "add", "-A")
         git(worker, "commit", "-qm", "candidate")
@@ -407,8 +411,9 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             ),
             verifier_env=(),
             verifier_policy_id="integrated-test",
-            fixed_dev_ref="refs/heads/brain/paperclip-integration",
-            expected_dev_ref="refs/heads/brain/paperclip-integration",
+            fixed_dev_ref="refs/heads/brain/development",
+            expected_dev_ref="refs/heads/brain/development",
+            expected_base_sha=base,
         )
         worker_payload = {
             "company_id": "company-1",
@@ -445,7 +450,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         published = dispatch(config, {"action": "approve_candidate", "payload": review_payload})
         self.assertEqual(published["status"], "published")
         self.assertEqual(
-            git(publisher, "rev-parse", "refs/heads/brain/paperclip-integration"),
+            git(publisher, "rev-parse", "refs/heads/brain/development"),
             published["candidate_sha"],
         )
         published_inspection = dispatch(
@@ -474,6 +479,101 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             dispatch(
                 self.config, {"action": "approve_candidate", "payload": {"worker_run_id": "forged"}}
             )
+
+    def test_owner_config_digest_and_lane_are_bound_into_operation(self):
+        original = _binding(self.config, self.worker_payload())
+        development = replace(
+            self.config,
+            fixed_dev_ref="refs/heads/brain/development",
+            expected_dev_ref="refs/heads/brain/development",
+            expected_base_sha="a" * 40,
+        )
+        lane_binding = _binding(development, self.worker_payload())
+        moved_root = replace(development, publisher_repo=Path(self.tmp.name) / "other-publisher")
+        roots_binding = _binding(moved_root, self.worker_payload())
+        executable_alias = replace(
+            development, python_executable=Path("/usr/bin/../bin/python3")
+        )
+        alias_binding = _binding(executable_alias, self.worker_payload())
+        self.assertEqual(original.active_ref, "refs/heads/brain/paperclip-integration")
+        self.assertEqual(lane_binding.active_ref, "refs/heads/brain/development")
+        self.assertNotEqual(original.owner_config_digest, lane_binding.owner_config_digest)
+        self.assertNotEqual(lane_binding.owner_roots, roots_binding.owner_roots)
+        self.assertNotEqual(lane_binding.owner_config_digest, roots_binding.owner_config_digest)
+        self.assertNotEqual(lane_binding.owner_config_digest, alias_binding.owner_config_digest)
+
+    def test_prepared_journal_cannot_replay_under_different_lane(self):
+        with patch.object(BridgeConfig, "broker", return_value=FakeBroker(
+            self.candidate, self.config.broker_journal_dir
+        )):
+            result = dispatch(
+                self.config,
+                {"action": "submit_candidate", "payload": self.worker_payload()},
+            )
+        development = replace(
+            self.config,
+            fixed_dev_ref="refs/heads/brain/development",
+            expected_dev_ref="refs/heads/brain/development",
+            expected_base_sha="a" * 40,
+        )
+        payload = {
+            "company_id": "company-1",
+            "project_id": "project-1",
+            "reviewer_agent_id": "reviewer-1",
+            "reviewer_run_id": "reviewer-run-1",
+            "reviewer_issue_id": "issue-reviewer",
+            "operation_key": result["operation_key"],
+            "candidate_sha": self.candidate.sha,
+        }
+        with self.assertRaisesRegex(BridgeError, "operation_binding_mismatch"):
+            dispatch(development, {"action": "inspect_candidate", "payload": payload})
+
+    def test_development_submit_rejects_unadmitted_worker_base(self):
+        development = replace(
+            self.config,
+            fixed_dev_ref="refs/heads/brain/development",
+            expected_dev_ref="refs/heads/brain/development",
+            expected_base_sha="b" * 40,
+        )
+        with self.assertRaisesRegex(BridgeError, "development_base_not_owner_admitted"):
+            dispatch(
+                development,
+                {"action": "submit_candidate", "payload": self.worker_payload()},
+            )
+
+    def test_prepared_journal_cannot_replay_after_owner_root_drift(self):
+        with patch.object(
+            BridgeConfig,
+            "broker",
+            return_value=FakeBroker(self.candidate, self.config.broker_journal_dir),
+        ):
+            result = dispatch(
+                self.config,
+                {"action": "submit_candidate", "payload": self.worker_payload()},
+            )
+        changed = replace(self.config, publisher_repo=Path(self.tmp.name) / "changed-publisher")
+        payload = {
+            "company_id": "company-1",
+            "project_id": "project-1",
+            "reviewer_agent_id": "reviewer-1",
+            "reviewer_run_id": "reviewer-run-1",
+            "reviewer_issue_id": "issue-reviewer",
+            "operation_key": result["operation_key"],
+            "candidate_sha": self.candidate.sha,
+        }
+        with self.assertRaisesRegex(BridgeError, "operation_binding_mismatch"):
+            dispatch(changed, {"action": "inspect_candidate", "payload": payload})
+
+    def test_verifier_runtime_root_cannot_grant_publisher_contents(self):
+        publisher = Path(self.tmp.name) / "publisher"
+        publisher.mkdir()
+        (publisher / "private-marker").write_text("publisher-owned\n")
+        config = replace(self.config, verifier_runtime_read_roots=(publisher,))
+        with patch("engineering.paperclip_autonomous_bridge.python_runtime_roots", return_value=()):
+            with self.assertRaisesRegex(
+                BridgeError, "verifier_runtime_root_overlaps_publisher"
+            ):
+                _verifier(config, Path(self.tmp.name) / "candidate")
 
     def test_owner_config_rejects_loose_permissions_and_non_absolute_paths(self):
         raw = {
@@ -515,6 +615,21 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         path.write_text(json.dumps(raw))
         path.chmod(0o600)
         with self.assertRaisesRegex(BridgeError, "owner_config_verifier_environment_invalid"):
+            BridgeConfig.load(path)
+        raw["verifier_env"] = {}
+        raw["fixed_dev_ref"] = "refs/heads/brain/development"
+        raw["expected_dev_ref"] = "refs/heads/brain/development"
+        raw["expected_base_sha"] = "a" * 40
+        path.write_text(json.dumps(raw))
+        path.chmod(0o600)
+        self.assertEqual(
+            BridgeConfig.load(path).expected_dev_ref, "refs/heads/brain/development"
+        )
+        raw["fixed_dev_ref"] = "refs/heads/main"
+        raw["expected_dev_ref"] = "refs/heads/main"
+        path.write_text(json.dumps(raw))
+        path.chmod(0o600)
+        with self.assertRaisesRegex(BridgeError, "owner_config_development_ref_invalid"):
             BridgeConfig.load(path)
 
     def test_preparation_failure_propagates_as_failure_without_claiming_candidate(self):

@@ -102,7 +102,9 @@ class PaperclipGitBrokerTests(unittest.TestCase):
     def test_prepare_review_verify_and_publish_are_bound_and_idempotent(self) -> None:
         candidate = self.broker.prepare(self.binding, self.worker)
         self.assertEqual(candidate, self.broker.prepare(self.binding, self.worker))
-        self.assertEqual(self.gate.ACTIVE_REF, ACTIVE_REF)
+        self.assertEqual(self.broker.gate.active_ref, ACTIVE_REF)
+        with self.assertRaises(AttributeError):
+            self.broker.active_ref = "refs/heads/main"
         verify_calls = 0
 
         def verifier(checkout, sha, policy):
@@ -125,6 +127,80 @@ class PaperclipGitBrokerTests(unittest.TestCase):
         )
         self.assertEqual(journal["approval"]["reviewer_run_id"], "review-run-9")
         self.assertEqual(journal["approval"]["evidence_digest"], "e" * 64)
+
+    def test_old_unbound_journal_is_not_replayed(self) -> None:
+        self.broker.prepare(self.binding, self.worker)
+        path = self.root / "journal" / f"{self.binding.operation_key}.json"
+        journal = json.loads(path.read_text())
+        journal["binding"].pop("active_ref")
+        journal["binding"].pop("owner_config_digest")
+        journal["binding"].pop("owner_roots")
+        path.write_text(json.dumps(journal, sort_keys=True, separators=(",", ":")))
+        with self.assertRaisesRegex(BrokerError, "substituted binding"):
+            self.broker.recover_candidate(self.binding)
+
+    def test_development_lane_rejects_unbound_direct_binding(self) -> None:
+        gate = GitGate(
+            self.source,
+            self.integration,
+            self.policy,
+            self.root / "dev-receipts",
+            active_ref="refs/heads/brain/development",
+        )
+        broker = PaperclipGitBroker(
+            gate,
+            self.root / "dev-journal",
+            active_ref="refs/heads/brain/development",
+        )
+        binding = OperationBinding(
+            self.binding.company_id,
+            self.binding.issue_id,
+            self.binding.run_id,
+            self.binding.worker_agent_id,
+            self.binding.reviewer_agent_id,
+            self.binding.base_sha,
+            self.binding.submitted_sha,
+            self.binding.scope,
+            self.binding.policy_digest,
+            active_ref="refs/heads/brain/development",
+        )
+        with self.assertRaisesRegex(BrokerError, "requires owner config and roots"):
+            broker.prepare(binding, self.worker)
+
+    def test_development_lane_requires_detached_publisher_head(self) -> None:
+        ref = "refs/heads/brain/development"
+        git(self.source, "update-ref", ref, self.base)
+        git(self.integration, "update-ref", ref, self.base)
+        receipts = self.root / "bound-receipts"
+        journal = self.root / "bound-journal"
+        gate = GitGate(
+            self.source,
+            self.integration,
+            self.policy,
+            receipts,
+            active_ref=ref,
+        )
+        broker = PaperclipGitBroker(gate, journal, active_ref=ref)
+        roots = tuple(
+            str(path.resolve())
+            for path in (self.source, self.integration, receipts, journal, self.worker)
+        )
+        binding = OperationBinding(
+            self.binding.company_id,
+            self.binding.issue_id,
+            self.binding.run_id,
+            self.binding.worker_agent_id,
+            self.binding.reviewer_agent_id,
+            self.binding.base_sha,
+            self.binding.submitted_sha,
+            self.binding.scope,
+            self.binding.policy_digest,
+            active_ref=ref,
+            owner_config_digest="f" * 64,
+            owner_roots=roots,
+        )
+        with self.assertRaisesRegex(BrokerError, "preparation outcome is held"):
+            broker.prepare(binding, self.worker)
 
     def test_candidate_recovery_settles_publish_intent_from_exact_ref_and_receipt(self) -> None:
         candidate = self.broker.prepare(self.binding, self.worker)
@@ -209,13 +285,13 @@ class PaperclipGitBrokerTests(unittest.TestCase):
 
     def test_lost_publication_ack_is_reconciled_from_exact_dev_ref(self) -> None:
         candidate = self.broker.prepare(self.binding, self.worker)
-        original_publish = self.gate.publish
+        original_publish = self.broker.gate.publish
 
         def publish_then_lose_ack(*args, **kwargs):
             original_publish(*args, **kwargs)
             raise TimeoutError("synthetic lost acknowledgement")
 
-        self.gate.publish = publish_then_lose_ack
+        self.broker.gate.publish = publish_then_lose_ack
         result = self.broker.integrate(
             self.binding,
             candidate,
@@ -346,7 +422,7 @@ print(broker.integrate(binding, candidate, approval, verify).status)
             calls += 1
             return {"status": "passed"}
 
-        self.gate.publish = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        self.broker.gate.publish = lambda *_args, **_kwargs: (_ for _ in ()).throw(
             TimeoutError("synthetic unknown publication outcome")
         )
         for _ in range(2):

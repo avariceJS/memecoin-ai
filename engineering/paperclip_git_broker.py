@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from engineering.git_gate import Candidate, GitGate, GitGateError, Verifier
+from engineering.git_gate import OWNER_ACTIVE_REFS, Candidate, GitGate, GitGateError, Verifier
 
 ACTIVE_REF = "refs/heads/brain/paperclip-integration"
 SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
@@ -48,6 +48,9 @@ class OperationBinding:
     submitted_sha: str
     scope: tuple[str, ...]
     policy_digest: str
+    active_ref: str = ACTIVE_REF
+    owner_config_digest: str = "0" * 64
+    owner_roots: tuple[str, ...] = ()
 
     def validate(self, gate: GitGate) -> None:
         for value in (
@@ -71,6 +74,27 @@ class OperationBinding:
             raise BrokerError("binding policy digest is invalid")
         if self.policy_digest != gate.policy.digest:
             raise BrokerError("binding policy digest differs from the configured verifier")
+        if self.active_ref not in OWNER_ACTIVE_REFS or self.active_ref != gate.active_ref:
+            raise BrokerError("binding active ref differs from the configured owner target")
+        if type(self.owner_config_digest) is not str or not re.fullmatch(
+            r"[0-9a-f]{64}", self.owner_config_digest
+        ):
+            raise BrokerError("binding owner config digest is invalid")
+        if type(self.owner_roots) is not tuple or any(
+            type(root) is not str or not Path(root).is_absolute() for root in self.owner_roots
+        ):
+            raise BrokerError("binding owner roots are invalid")
+        if self.active_ref == "refs/heads/brain/development" and (
+            not self.owner_roots or self.owner_config_digest == "0" * 64
+        ):
+            raise BrokerError("development lane requires owner config and roots")
+        required_roots = {
+            str(gate.source_repo),
+            str(gate.repo),
+            str(gate.receipt_store),
+        }
+        if self.owner_roots and not required_roots.issubset(self.owner_roots):
+            raise BrokerError("binding owner roots differ from configured GitGate roots")
         if type(self.scope) is not tuple or not self.scope:
             raise BrokerError("binding scope must be a non-empty tuple")
         for path in self.scope:
@@ -88,6 +112,9 @@ class OperationBinding:
             "submitted_sha": self.submitted_sha,
             "scope": list(self.scope),
             "policy_digest": self.policy_digest,
+            "active_ref": self.active_ref,
+            "owner_config_digest": self.owner_config_digest,
+            "owner_roots": list(self.owner_roots),
         }
 
     @property
@@ -338,27 +365,58 @@ def safe_git(repo: Path, args: tuple[str, ...]) -> subprocess.CompletedProcess[b
 class PaperclipGitBroker:
     """One-shot task candidate broker with durable intent and unknown-outcome holds."""
 
-    def __init__(self, gate: GitGate, journal_dir: Path) -> None:
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "_active_ref" and hasattr(self, "_active_ref"):
+            raise AttributeError("PaperclipGitBroker active ref is immutable")
+        super().__setattr__(name, value)
+
+    def __init__(
+        self, gate: GitGate, journal_dir: Path, *, active_ref: str | None = None
+    ) -> None:
         if gate.remote is not None:
             raise BrokerError("Paperclip broker requires local-only GitGate publication")
-        if gate.ACTIVE_REF != GitGate.ACTIVE_REF:
-            raise BrokerError("GitGate active ref was already customized")
-        gate.ACTIVE_REF = ACTIVE_REF
-        self.gate = gate
+        target_ref = active_ref or (
+            gate.active_ref if gate.active_ref in OWNER_ACTIVE_REFS else ACTIVE_REF
+        )
+        if target_ref not in OWNER_ACTIVE_REFS:
+            raise BrokerError("broker active ref is not an approved owner target")
+        self.gate = gate if gate.active_ref == target_ref else GitGate(
+            gate.source_repo,
+            gate.repo,
+            gate.policy,
+            gate.receipt_store,
+            remote=None,
+            operation_guard=gate.operation_guard,
+            active_ref=target_ref,
+        )
+        self._active_ref = target_ref
         self.journal_dir = Path(journal_dir).resolve()
         self.journal_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
 
+    @property
+    def active_ref(self) -> str:
+        return self._active_ref
+
+    def _validate_binding(self, binding: OperationBinding) -> None:
+        binding.validate(self.gate)
+        if binding.owner_roots and str(self.journal_dir) not in binding.owner_roots:
+            raise BrokerError("binding owner roots differ from configured journal root")
+        if self.active_ref == "refs/heads/brain/development" and (
+            not binding.owner_roots or binding.owner_config_digest == "0" * 64
+        ):
+            raise BrokerError("development lane requires owner config and roots")
+
     def prepare(self, binding: OperationBinding, worker_checkout: Path) -> Candidate:
         """Record intent, then import and merge one submitted commit into a detached candidate."""
-        binding.validate(self.gate)
+        self._validate_binding(binding)
         with self._lock, company_operation(self.journal_dir, binding.company_id):
             require_company_open(self.journal_dir, binding.company_id)
             return self._prepare_locked(binding, worker_checkout)
 
     def recover_candidate(self, binding: OperationBinding) -> tuple[dict, Candidate]:
         """Load a custodied candidate and reconcile a published ref without rerunning work."""
-        binding.validate(self.gate)
+        self._validate_binding(binding)
         with self._lock, company_operation(self.journal_dir, binding.company_id):
             require_company_open(self.journal_dir, binding.company_id)
             with self._operation_lock(binding):
@@ -389,7 +447,7 @@ class PaperclipGitBroker:
         approval: ReviewerApproval,
     ) -> RejectionResult:
         """Durably terminalize an exact reviewer rejection without verification or publication."""
-        binding.validate(self.gate)
+        self._validate_binding(binding)
         if not isinstance(approval, ReviewerApproval) or approval.approved is not False:
             raise BrokerError("review rejection must contain an explicit declined approval")
         with self._lock, company_operation(self.journal_dir, binding.company_id):
@@ -428,7 +486,9 @@ class PaperclipGitBroker:
                     return candidate
                 raise BrokerError(f"operation is held in state {record['state']}")
 
-            expected_tip = self.gate._ref_sha(self.gate.repo, ACTIVE_REF, missing_ok=True)
+            expected_tip = self.gate._ref_sha(
+                self.gate.repo, self.active_ref, missing_ok=True
+            )
             record = {
                 "schema": "paperclip-git-operation-v1",
                 "operation_key": binding.operation_key,
@@ -438,11 +498,25 @@ class PaperclipGitBroker:
             }
             self._create(path, record)
             try:
+                if self.active_ref == "refs/heads/brain/development" and not (
+                    self.gate.is_detached()
+                ):
+                    raise GitGateError("development publisher HEAD must be detached")
                 candidate = self.gate.submit(
                     Path(worker_checkout),
                     binding.submitted_sha,
                     binding.base_sha,
                     binding.scope,
+                    expected_source_tip=(
+                        binding.base_sha
+                        if self.active_ref == "refs/heads/brain/development"
+                        else None
+                    ),
+                    expected_integration_tip=(
+                        binding.base_sha
+                        if self.active_ref == "refs/heads/brain/development"
+                        else None
+                    ),
                 )
             except BaseException as exc:
                 self._mark_held(path, "preparing", exc)
@@ -472,7 +546,7 @@ class PaperclipGitBroker:
         verifier: Verifier,
     ) -> IntegrationResult:
         """Check exact independent approval, verify once, then locally CAS-publish once."""
-        binding.validate(self.gate)
+        self._validate_binding(binding)
         with self._lock, company_operation(self.journal_dir, binding.company_id):
             require_company_open(self.journal_dir, binding.company_id)
             return self._integrate_locked(binding, candidate, approval, verifier)
@@ -724,7 +798,7 @@ class PaperclipGitBroker:
             ) from exc
 
     def _active_tip(self) -> str | None:
-        return self.gate._ref_sha(self.gate.repo, ACTIVE_REF, missing_ok=True)
+        return self.gate._ref_sha(self.gate.repo, self.active_ref, missing_ok=True)
 
     def _reconcile_published(self, candidate_sha: str) -> None:
         if self._active_tip() != candidate_sha:

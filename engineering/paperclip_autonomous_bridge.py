@@ -320,6 +320,9 @@ def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> 
         submitted_sha=binding_data.get("submitted_sha", ""),
         scope=config.allowed_scope,
         policy_digest=config.policy().digest,
+        active_ref=config.expected_dev_ref,
+        owner_config_digest=config.owner_config_digest,
+        owner_roots=config.owner_roots,
     )
     if binding.as_dict() != binding_data or binding.operation_key != operation_key:
         raise BridgeError("operation_binding_mismatch")
@@ -408,12 +411,41 @@ class BridgeConfig:
     verifier_policy_id: str
     fixed_dev_ref: str
     expected_dev_ref: str
+    expected_base_sha: str | None = None
+    verifier_runtime_read_roots: tuple[Path, ...] = ()
 
     @classmethod
     def load(cls, path: Path) -> BridgeConfig:
         raw = _read_json(path, MAX_CONFIG_BYTES)
         if raw.get("schema") != "paperclip-autonomous-bridge-config-v1":
             raise BridgeError("owner_config_schema_invalid")
+        allowed_keys = {
+            "schema",
+            "company_id",
+            "project_id",
+            "worker_agent_id",
+            "reviewer_agent_id",
+            "source_issue_id",
+            "reviewer_issue_id",
+            "source_repo",
+            "worker_checkout",
+            "publisher_repo",
+            "broker_journal_dir",
+            "bridge_journal_dir",
+            "receipt_store",
+            "verifier_scratch_root",
+            "python_executable",
+            "allowed_scope",
+            "verifier_commands",
+            "verifier_env",
+            "verifier_policy_id",
+            "fixed_dev_ref",
+            "expected_dev_ref",
+            "expected_base_sha",
+            "verifier_runtime_read_roots",
+        }
+        if set(raw) - allowed_keys:
+            raise BridgeError("owner_config_unknown_fields")
         path_values = (
             "source_repo",
             "worker_checkout",
@@ -468,10 +500,30 @@ class BridgeConfig:
             raise BridgeError("owner_config_verifier_environment_invalid")
         if set(env) - VERIFIER_ENV_KEYS:
             raise BridgeError("owner_config_verifier_environment_invalid")
-        if raw.get("fixed_dev_ref") != "refs/heads/brain/paperclip-integration":
+        runtime_roots_raw = raw.get("verifier_runtime_read_roots", [])
+        if type(runtime_roots_raw) is not list or any(
+            type(item) is not str
+            or not Path(item).is_absolute()
+            or ".." in Path(item).parts
+            or item != str(Path(item))
+            or Path(item) in {Path("/"), Path("/Users"), Path("/opt"), Path("/tmp")}
+            for item in runtime_roots_raw
+        ):
+            raise BridgeError("owner_config_verifier_runtime_roots_invalid")
+        runtime_roots = tuple(Path(item) for item in runtime_roots_raw)
+        allowed_refs = {
+            "refs/heads/brain/paperclip-integration",
+            "refs/heads/brain/development",
+        }
+        if raw.get("fixed_dev_ref") not in allowed_refs:
             raise BridgeError("owner_config_development_ref_invalid")
         if raw.get("expected_dev_ref") != raw["fixed_dev_ref"]:
             raise BridgeError("owner_config_expected_ref_mismatch")
+        expected_base = raw.get("expected_base_sha")
+        if raw["fixed_dev_ref"] == "refs/heads/brain/development" and (
+            type(expected_base) is not str or not SHA_RE.fullmatch(expected_base)
+        ):
+            raise BridgeError("owner_config_expected_base_invalid")
         if type(raw.get("verifier_policy_id")) is not str or not ID_RE.fullmatch(
             raw["verifier_policy_id"]
         ):
@@ -485,6 +537,8 @@ class BridgeConfig:
             verifier_policy_id=raw["verifier_policy_id"],
             fixed_dev_ref=raw["fixed_dev_ref"],
             expected_dev_ref=raw["expected_dev_ref"],
+            expected_base_sha=expected_base,
+            verifier_runtime_read_roots=runtime_roots,
         )
 
     def policy(self) -> VerificationPolicy:
@@ -501,14 +555,59 @@ class BridgeConfig:
             self.policy(),
             self.receipt_store,
             remote=None,
+            active_ref=self.expected_dev_ref,
         )
 
     def broker(self) -> PaperclipGitBroker:
         gate = self.gate()
-        broker = PaperclipGitBroker(gate, self.broker_journal_dir)
-        if gate.ACTIVE_REF != self.expected_dev_ref:
+        broker = PaperclipGitBroker(
+            gate, self.broker_journal_dir, active_ref=self.expected_dev_ref
+        )
+        if broker.active_ref != self.expected_dev_ref:
             raise BridgeError("configured_active_ref_mismatch")
         return broker
+
+    @property
+    def owner_roots(self) -> tuple[str, ...]:
+        return tuple(
+            str(path.resolve(strict=False))
+            for path in (
+                self.source_repo,
+                self.worker_checkout,
+                self.publisher_repo,
+                self.broker_journal_dir,
+                self.bridge_journal_dir,
+                self.receipt_store,
+                self.verifier_scratch_root,
+                self.python_executable,
+                *self.verifier_runtime_read_roots,
+            )
+        )
+
+    @property
+    def owner_config_digest(self) -> str:
+        value = {
+            "company_id": self.company_id,
+            "project_id": self.project_id,
+            "worker_agent_id": self.worker_agent_id,
+            "reviewer_agent_id": self.reviewer_agent_id,
+            "source_issue_id": self.source_issue_id,
+            "reviewer_issue_id": self.reviewer_issue_id,
+            "python_executable": str(self.python_executable),
+            "owner_roots": self.owner_roots,
+            "allowed_scope": self.allowed_scope,
+            "verifier_commands": self.verifier_commands,
+            "verifier_env": self.verifier_env,
+            "verifier_policy_id": self.verifier_policy_id,
+            "policy_digest": self.policy().digest,
+            "fixed_dev_ref": self.fixed_dev_ref,
+            "expected_dev_ref": self.expected_dev_ref,
+            "expected_base_sha": self.expected_base_sha,
+            "verifier_runtime_read_roots": tuple(
+                str(path) for path in self.verifier_runtime_read_roots
+            ),
+        }
+        return hashlib.sha256(_canonical(value)).hexdigest()
 
 
 def _verifier(config: BridgeConfig, candidate_checkout: Path):
@@ -521,9 +620,22 @@ def _verifier(config: BridgeConfig, candidate_checkout: Path):
         os.chmod(scratch, 0o700)
         policy = config.policy()
         python = str(config.python_executable)
+        publisher_root = config.publisher_repo.resolve(strict=False)
+        dependency_roots = [
+            *python_runtime_roots(python),
+            *config.verifier_runtime_read_roots,
+        ]
+        for dependency in dependency_roots:
+            root = Path(dependency).resolve(strict=False)
+            if (
+                root == publisher_root
+                or root in publisher_root.parents
+                or publisher_root in root.parents
+            ):
+                raise BridgeError("verifier_runtime_root_overlaps_publisher")
         box = SandboxRunner(
             writable_roots=[scratch],
-            read_roots=[candidate_checkout, *python_runtime_roots(python)],
+            read_roots=[candidate_checkout, *dependency_roots],
             home=scratch,
             protected_roots=[
                 config.source_repo,
@@ -608,6 +720,11 @@ def _binding(config: BridgeConfig, payload: dict[str, Any]) -> OperationBinding:
     for key in ("base_sha", "submitted_sha"):
         if type(payload.get(key)) is not str or not SHA_RE.fullmatch(payload[key]):
             raise BridgeError("submitted_sha_invalid")
+    if (
+        config.expected_dev_ref == "refs/heads/brain/development"
+        and payload["base_sha"] != config.expected_base_sha
+    ):
+        raise BridgeError("development_base_not_owner_admitted")
     policy = config.policy()
     return OperationBinding(
         company_id=config.company_id,
@@ -619,6 +736,9 @@ def _binding(config: BridgeConfig, payload: dict[str, Any]) -> OperationBinding:
         submitted_sha=payload["submitted_sha"],
         scope=config.allowed_scope,
         policy_digest=policy.digest,
+        active_ref=config.expected_dev_ref,
+        owner_config_digest=config.owner_config_digest,
+        owner_roots=config.owner_roots,
     )
 
 
@@ -629,7 +749,9 @@ def prepare_candidate(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
 
 
 def _prepare_candidate_locked(config: BridgeConfig, binding: OperationBinding) -> dict[str, Any]:
-    candidate = config.broker().prepare(binding, config.worker_checkout)
+    broker = config.broker()
+    bridge_path = _journal_path(config, binding.operation_key)
+    candidate = broker.prepare(binding, config.worker_checkout)
     result = {
         "operation_key": binding.operation_key,
         "candidate_sha": candidate.sha,
@@ -647,7 +769,7 @@ def _prepare_candidate_locked(config: BridgeConfig, binding: OperationBinding) -
         "candidate": result,
         "review": None,
     }
-    path = _journal_path(config, binding.operation_key)
+    path = bridge_path
     if path.exists():
         existing = _load_journal(config, binding.operation_key)
         if existing.get("binding") != binding.as_dict() or existing.get("candidate") != result:
@@ -710,6 +832,9 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
         submitted_sha=binding_data.get("submitted_sha", ""),
         scope=config.allowed_scope,
         policy_digest=config.policy().digest,
+        active_ref=config.expected_dev_ref,
+        owner_config_digest=config.owner_config_digest,
+        owner_roots=config.owner_roots,
     )
     if binding.as_dict() != binding_data or binding.operation_key != operation_key:
         raise BridgeError("operation_binding_mismatch")
