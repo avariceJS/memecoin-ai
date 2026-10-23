@@ -351,6 +351,9 @@ describe("Paperclip autonomous bridge tools", () => {
     await expect(handlers.get("bind_source_stage")!({
       ...params, attempt: 3, retry_of_operation_key: "f".repeat(64),
     }, leadRun)).rejects.toThrow("source_stage_retry_not_admitted");
+    await expect(handlers.get("bind_source_stage")!({
+      ...params, attempt: 4, retry_of_operation_key: "f".repeat(64),
+    }, leadRun)).rejects.toThrow("source_stage_attempt_invalid");
     expect(invoke).toHaveBeenCalledWith("lookup_source_stage_binding", expect.objectContaining({
       stage_key: "MEM8", attempt: 2,
     }), configPath, "/usr/bin/python3");
@@ -890,7 +893,12 @@ describe("Paperclip autonomous bridge tools", () => {
       stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
       attempt: 3, retry_of_operation_key: "c".repeat(64),
       predecessor: { operation_key: "c".repeat(64), source_issue_id: "source-8", review_issue_id: "review-8" },
-    }, leadRun)).rejects.toThrow("source_stage_attempt_limit_exceeded");
+    }, leadRun)).rejects.toThrow("source_stage_retry_not_admitted");
+    await expect(handlers.get("bind_source_stage")!({
+      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
+      attempt: 4, retry_of_operation_key: "c".repeat(64),
+      predecessor: { operation_key: "c".repeat(64), source_issue_id: "source-8", review_issue_id: "review-8" },
+    }, leadRun)).rejects.toThrow("source_stage_attempt_invalid");
     expect(getDependencyReadiness).toHaveBeenCalledWith("lead-issue", "company-1");
     expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
     expect(updateStatusCompareAndSet).not.toHaveBeenCalled();
@@ -994,7 +1002,15 @@ describe("Paperclip autonomous bridge tools", () => {
       if (action === "lookup_source_stage_binding") {
         return payload.attempt === 2 ? { found: false, attempt: 2 } : oldStageBinding;
       }
-      if (action === "bind_source_stage") return { stage_binding_key: "f".repeat(64), base_sha: "e".repeat(40), state: "bound" };
+      if (action === "bind_source_stage") return {
+        stage_binding_key: "f".repeat(64), base_sha: "e".repeat(40), state: "bound",
+        ...(payload.attempt === 2 ? {
+          retry_of_operation_key: oldOperationKey,
+          retry_of_candidate_sha: "c".repeat(40),
+          retry_workspace_snapshot_sha256: "d".repeat(64),
+          retry_workspace_artifact_sha256: "a".repeat(64),
+        } : {}),
+      };
       return payload.step === "intent" ? { intent: "created" } : { acknowledged: true };
     });
     registerAutonomousTools(ctx, invoke as never);

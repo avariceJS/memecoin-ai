@@ -255,3 +255,55 @@ def refresh_owner_workspace(
         for path, size, digest in digests
     )
     return hashlib.sha256(body).hexdigest()
+
+
+def restore_owner_workspace_snapshot(
+    workspace_root: Path, records: Any, expected_digest: str
+) -> str:
+    """Restore only an already-validated exact snapshot of the two admitted files."""
+    if (
+        workspace_root.is_symlink()
+        or not workspace_root.is_absolute()
+        or not workspace_root.is_dir()
+        or type(expected_digest) is not str
+        or not SHA256_RE.fullmatch(expected_digest)
+    ):
+        raise SourceDeliveryError("source_workspace_binding_invalid")
+    snapshot = snapshot_records(records)
+    if snapshot.digest != expected_digest:
+        raise SourceDeliveryError("source_workspace_snapshot_mismatch")
+    try:
+        resolved_root = workspace_root.resolve(strict=True)
+    except OSError as exc:
+        raise SourceDeliveryError("source_workspace_binding_invalid") from exc
+    for item in snapshot.files:
+        target = resolved_root / item.path
+        parent = resolved_root
+        for component in Path(item.path).parts[:-1]:
+            parent = parent / component
+            if parent.is_symlink():
+                raise SourceDeliveryError("source_workspace_path_parent_invalid")
+            parent.mkdir(mode=0o755, exist_ok=True)
+            if not parent.is_dir():
+                raise SourceDeliveryError("source_workspace_path_parent_invalid")
+        if target.is_symlink():
+            raise SourceDeliveryError("source_workspace_target_invalid")
+        try:
+            info = target.lstat()
+        except FileNotFoundError:
+            info = None
+        if info is not None and not stat.S_ISREG(info.st_mode):
+            raise SourceDeliveryError("source_workspace_target_invalid")
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=".paperclip-source-seed-", dir=target.parent
+        )
+        try:
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(item.data)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chmod(temporary_name, 0o644)
+            os.replace(temporary_name, target)
+        finally:
+            Path(temporary_name).unlink(missing_ok=True)
+    return snapshot.digest

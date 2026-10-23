@@ -1596,40 +1596,21 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 config,
                 {"action": "bind_source_stage", "payload": {**attempt_three_payload, "attempt": 4}},
             )
-        with self.assertRaisesRegex(BridgeError, "source_stage_attempt_limit_exceeded"):
-            dispatch(
-                config,
-                {
-                    "action": "bind_source_stage",
-                    "payload": {
-                        **attempt_three_payload,
-                        "stage_key": "MEM9",
-                        "predecessor_operation_key": "9" * 64,
-                        "predecessor_source_status": "done",
-                        "predecessor_source_version": 6,
-                        "predecessor_review_status": "done",
-                        "predecessor_review_version": 6,
-                        "predecessor_source_issue_id": "source-3",
-                        "predecessor_review_issue_id": "review-3",
-                        "predecessor_dependency_ready": True,
-                    },
+        stage_three_lookup = dispatch(
+            config,
+            {
+                "action": "lookup_source_stage_binding",
+                "payload": {
+                    "company_id": config.company_id,
+                    "project_id": config.project_id,
+                    "lead_agent_id": "lead-1",
+                    "lead_issue_id": "lead-issue",
+                    "stage_key": "MEM9",
+                    "attempt": 3,
                 },
-            )
-        with self.assertRaisesRegex(BridgeError, "source_stage_attempt_limit_exceeded"):
-            dispatch(
-                config,
-                {
-                    "action": "lookup_source_stage_binding",
-                    "payload": {
-                        "company_id": config.company_id,
-                        "project_id": config.project_id,
-                        "lead_agent_id": "lead-1",
-                        "lead_issue_id": "lead-issue",
-                        "stage_key": "MEM9",
-                        "attempt": 3,
-                    },
-                },
-            )
+            },
+        )
+        self.assertEqual(stage_three_lookup, {"found": False, "attempt": 3})
         third_record["state"] = "active"
         third_record["operation_key"] = "9" * 64
         third_record["candidate_sha"] = "e" * 40
@@ -1682,6 +1663,26 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         next_record = _load_journal(config, _stage_journal_key("MEM9"))
         self.assertEqual(next_record["predecessor_operation_key"], "9" * 64)
         self.assertNotIn("retry_of_operation_key", next_record)
+        with self.assertRaisesRegex(BridgeError, "source_stage_retry_not_admitted"):
+            dispatch(
+                config,
+                {
+                    "action": "bind_source_stage",
+                    "payload": {
+                        **second_stage_payload,
+                        "lead_run_id": "lead-run-5",
+                        "source_issue_id": "source-5",
+                        "review_issue_id": "review-5",
+                        "attempt": 3,
+                        "retry_of_operation_key": "7" * 64,
+                        "retry_of_source_status": "done",
+                        "retry_of_source_version": 5,
+                        "retry_of_review_status": "done",
+                        "retry_of_review_version": 5,
+                        "retry_of_dependency_ready": True,
+                    },
+                },
+            )
         with self.assertRaisesRegex(BridgeError, "source_stage_retry_not_admitted"):
             dispatch(
                 config,
@@ -2310,6 +2311,164 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(final_operation["state"], "review_custodied")
         self.assertEqual(final_operation["canonical"]["status"], "prepared")
         self.assertEqual(final_operation["candidate"]["candidate_sha"], prepared["candidate_sha"])
+
+    def test_rejected_working_seed_restores_only_the_exact_admitted_file_snapshot(self):
+        from engineering.paperclip_source_delivery import (
+            SOURCE_PATHS,
+            SourceDeliveryError,
+            restore_owner_workspace_snapshot,
+            snapshot_records,
+        )
+
+        workspace = Path(self.tmp.name) / "rejected-seed-workspace"
+        workspace.mkdir()
+        rejected = [
+            {
+                "path_id": path,
+                "content": f"rejected candidate {index}\n",
+                "size": len(f"rejected candidate {index}\n".encode()),
+                "sha256": hashlib.sha256(f"rejected candidate {index}\n".encode()).hexdigest(),
+            }
+            for index, path in enumerate(SOURCE_PATHS)
+        ]
+        for record in rejected:
+            target = workspace / record["path_id"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("accepted Git parent\n")
+        unrelated = workspace / "notes.txt"
+        unrelated.write_text("outside the admitted file set\n")
+        seed_digest = snapshot_records(rejected).digest
+        restored_digest = restore_owner_workspace_snapshot(workspace, rejected, seed_digest)
+        self.assertEqual(restored_digest, seed_digest)
+        for record in rejected:
+            self.assertEqual((workspace / record["path_id"]).read_text(), record["content"])
+        self.assertEqual(unrelated.read_text(), "outside the admitted file set\n")
+        with self.assertRaisesRegex(SourceDeliveryError, "source_workspace_snapshot_mismatch"):
+            restore_owner_workspace_snapshot(workspace, rejected, "0" * 64)
+        for record in rejected:
+            self.assertEqual((workspace / record["path_id"]).read_text(), record["content"])
+
+    def test_controller_archived_rejected_seed_restores_only_after_accepted_base_readback(self):
+        from engineering.paperclip_autonomous_bridge import (
+            _canonical,
+            _persist_preflight_json,
+            _restore_rejected_workspace_seed,
+        )
+        from engineering.paperclip_source_delivery import SOURCE_PATHS, snapshot_records
+
+        root = Path(self.tmp.name) / "controller-rejected-seed"
+        workspace = root / "workspace"
+        workspace.mkdir(parents=True)
+        config = replace(
+            self.config,
+            bridge_journal_dir=root / "journal",
+            source_workspace_root=workspace,
+        )
+        baseline = [
+            {
+                "path_id": path,
+                "content": f"accepted base {index}\n",
+                "size": len(f"accepted base {index}\n".encode()),
+                "sha256": hashlib.sha256(f"accepted base {index}\n".encode()).hexdigest(),
+            }
+            for index, path in enumerate(SOURCE_PATHS)
+        ]
+        rejected = [
+            {
+                "path_id": path,
+                "content": f"controller rejected seed {index}\n",
+                "size": len(f"controller rejected seed {index}\n".encode()),
+                "sha256": hashlib.sha256(
+                    f"controller rejected seed {index}\n".encode()
+                ).hexdigest(),
+            }
+            for index, path in enumerate(SOURCE_PATHS)
+        ]
+
+        def write_records(records):
+            for record in records:
+                target = workspace / record["path_id"]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(record["content"])
+
+        def read_records():
+            records = []
+            for path in SOURCE_PATHS:
+                content = (workspace / path).read_text()
+                encoded = content.encode()
+                records.append(
+                    {
+                        "path_id": path,
+                        "content": content,
+                        "size": len(encoded),
+                        "sha256": hashlib.sha256(encoded).hexdigest(),
+                    }
+                )
+            return records
+
+        write_records(baseline)
+        accepted_base_digest = snapshot_records(baseline).digest
+        rejected_snapshot = snapshot_records(rejected)
+        binding = {
+            "stage_binding_key": "a" * 64,
+            "operation_key": "f" * 64,
+            "candidate_sha": "b" * 40,
+        }
+        operation = {
+            "schema": "paperclip-autonomous-operation-v1",
+            "operation_key": binding["operation_key"],
+            "state": "review_rejected",
+            "source_stage_binding": binding["stage_binding_key"],
+            "source_snapshot_sha256": rejected_snapshot.digest,
+            "source_files": [
+                {"path_id": item.path_id, "size": item.size, "sha256": item.sha256}
+                for item in rejected_snapshot.files
+            ],
+            "candidate": {
+                "operation_key": binding["operation_key"],
+                "candidate_sha": binding["candidate_sha"],
+            },
+        }
+        archive_key = hashlib.sha256(
+            _canonical(
+                [
+                    "source-stage-retry-workspace-v1",
+                    binding["stage_binding_key"],
+                    binding["operation_key"],
+                    rejected_snapshot.digest,
+                ]
+            )
+        ).hexdigest()
+        archive = {
+            "schema": "paperclip-source-stage-retry-workspace-v1",
+            "snapshot_sha256": rejected_snapshot.digest,
+            "files": rejected,
+        }
+        artifact_digest = _persist_preflight_json(config, "retry-snapshot", archive_key, archive)
+        _restore_rejected_workspace_seed(
+            config,
+            binding,
+            operation,
+            accepted_base_digest,
+            rejected_snapshot.digest,
+            artifact_digest,
+        )
+        self.assertEqual(snapshot_records(read_records()).digest, rejected_snapshot.digest)
+
+        write_records(baseline)
+        target = workspace / SOURCE_PATHS[0]
+        target.write_text("unrecognized workspace edit\n")
+        before = target.read_bytes()
+        with self.assertRaisesRegex(BridgeError, "source_stage_retry_seed_identity_mismatch"):
+            _restore_rejected_workspace_seed(
+                config,
+                binding,
+                operation,
+                accepted_base_digest,
+                rejected_snapshot.digest,
+                artifact_digest,
+            )
+        self.assertEqual(target.read_bytes(), before)
 
     def test_stage_bind_refreshes_owner_root_and_replay_does_not_overwrite_source_edits(self):
         from engineering.paperclip_source_delivery import SOURCE_PATHS

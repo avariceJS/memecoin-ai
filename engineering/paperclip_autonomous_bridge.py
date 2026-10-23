@@ -49,6 +49,7 @@ from engineering.paperclip_source_delivery import (  # noqa: E402
     discard_projection,
     materialize_owner_projection,
     refresh_owner_workspace,
+    restore_owner_workspace_snapshot,
     snapshot_records,
 )
 
@@ -240,7 +241,7 @@ def _record_attempt(record: dict[str, Any]) -> int:
 
 
 def _stage_attempt_limit(stage: SourceStageSpec) -> int:
-    return 3 if stage.predecessor_stage_key is None else 2
+    return 3
 
 
 def _stage_record_key(record: dict[str, Any]) -> str:
@@ -384,6 +385,83 @@ def _snapshot_rejected_workspace(
     archive["schema"] = "paperclip-source-stage-retry-workspace-v1"
     artifact_digest = _persist_preflight_json(config, "retry-snapshot", archive_key, archive)
     return actual_snapshot.digest, artifact_digest
+
+
+def _restore_rejected_workspace_seed(
+    config: BridgeConfig,
+    retry_binding: dict[str, Any],
+    retry_operation: dict[str, Any],
+    accepted_base_workspace_digest: str,
+    seed_snapshot_digest: str,
+    seed_artifact_digest: str,
+) -> None:
+    """Restore only the exact archived rejected bytes after the accepted base refresh."""
+    if config.source_workspace_root is None:
+        raise BridgeError("source_stage_retry_workspace_unavailable")
+    candidate = retry_operation.get("candidate")
+    if (
+        retry_operation.get("state") != "review_rejected"
+        or retry_operation.get("source_stage_binding") != retry_binding.get("stage_binding_key")
+        or retry_operation.get("operation_key") != retry_binding.get("operation_key")
+        or type(candidate) is not dict
+        or candidate.get("operation_key") != retry_operation.get("operation_key")
+        or candidate.get("candidate_sha") != retry_binding.get("candidate_sha")
+        or retry_operation.get("source_snapshot_sha256") != seed_snapshot_digest
+        or type(seed_snapshot_digest) is not str
+        or not HASH_RE.fullmatch(seed_snapshot_digest)
+        or type(seed_artifact_digest) is not str
+        or not HASH_RE.fullmatch(seed_artifact_digest)
+    ):
+        raise BridgeError("source_stage_retry_seed_binding_mismatch")
+    archive_key = hashlib.sha256(
+        _canonical(
+            [
+                "source-stage-retry-workspace-v1",
+                retry_binding.get("stage_binding_key"),
+                retry_operation.get("operation_key"),
+                seed_snapshot_digest,
+            ]
+        )
+    ).hexdigest()
+    try:
+        archive = _load_preflight_json(config, "retry-snapshot", archive_key)
+    except BridgeError as exc:
+        raise BridgeError("source_stage_retry_seed_unavailable") from exc
+    if (
+        hashlib.sha256(_canonical(archive)).hexdigest() != seed_artifact_digest
+        or set(archive) != {"schema", "snapshot_sha256", "files"}
+        or archive.get("schema") != "paperclip-source-stage-retry-workspace-v1"
+        or type(archive.get("files")) is not list
+    ):
+        raise BridgeError("source_stage_retry_seed_artifact_mismatch")
+    try:
+        seed = snapshot_records(archive["files"])
+        accepted_base = snapshot_records(_snapshot_owner_workspace(config.source_workspace_root))
+    except SourceDeliveryError as exc:
+        raise BridgeError("source_stage_retry_workspace_changed") from exc
+    source_files = retry_operation.get("source_files")
+    expected_manifest = [
+        {"path_id": item.path_id, "size": item.size, "sha256": item.sha256} for item in seed.files
+    ]
+    if (
+        archive.get("snapshot_sha256") != seed_snapshot_digest
+        or seed.digest != seed_snapshot_digest
+        or type(source_files) is not list
+        or source_files != expected_manifest
+        or accepted_base.digest != accepted_base_workspace_digest
+    ):
+        raise BridgeError("source_stage_retry_seed_identity_mismatch")
+    try:
+        restored_digest = restore_owner_workspace_snapshot(
+            config.source_workspace_root,
+            archive["files"],
+            seed_snapshot_digest,
+        )
+        restored = snapshot_records(_snapshot_owner_workspace(config.source_workspace_root))
+    except SourceDeliveryError as exc:
+        raise BridgeError("source_stage_retry_seed_restore_failed") from exc
+    if restored_digest != seed_snapshot_digest or restored.digest != seed_snapshot_digest:
+        raise BridgeError("source_stage_retry_seed_restore_failed")
 
 
 def _snapshot_owner_workspace(workspace_root: Path) -> list[dict[str, Any]]:
@@ -819,6 +897,10 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         retry_binding = (
             _stage_binding(config, retry_binding_key) if type(retry_binding_key) is str else None
         )
+        retry_candidate = retry_operation.get("candidate")
+        retry_candidate_sha = (
+            retry_candidate.get("candidate_sha") if type(retry_candidate) is dict else None
+        )
         retry_review = retry_operation.get("review")
         retry_canonical = retry_operation.get("canonical")
         canonical_retry_invalid = (
@@ -852,6 +934,10 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             or retry_binding.get("operation_key") != retry_operation_key
             or retry_binding.get("review_issue_id") == payload["review_issue_id"]
             or retry_binding.get("source_issue_id") == payload["source_issue_id"]
+            or retry_binding.get("candidate_sha") != retry_candidate_sha
+            or type(retry_candidate_sha) is not str
+            or not SHA_RE.fullmatch(retry_candidate_sha)
+            or retry_candidate.get("operation_key") != retry_operation_key
             or _record_attempt(retry_binding) != retry_attempt
             or retry_binding.get("base_sha") != binding_value.get("base_sha")
             or retry_binding.get("canonical_base_sha") != binding_value.get("canonical_base_sha")
@@ -864,6 +950,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         ):
             raise BridgeError("source_stage_retry_not_admitted")
         binding_value["retry_of_stage_binding_key"] = retry_binding["stage_binding_key"]
+        binding_value["retry_of_candidate_sha"] = retry_candidate_sha
         if retry_attempt != 1:
             binding_value["retry_of_attempt"] = retry_attempt
         retry_stage_path = _journal_path(config, _stage_journal_key(stage.stage_key, attempt))
@@ -928,6 +1015,10 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                 "base_sha": existing["base_sha"],
                 "canonical_base_sha": existing.get("canonical_base_sha"),
                 "workspace_baseline_sha256": existing.get("workspace_baseline_sha256"),
+                "retry_of_operation_key": existing.get("retry_of_operation_key"),
+                "retry_of_candidate_sha": existing.get("retry_of_candidate_sha"),
+                "retry_workspace_snapshot_sha256": existing.get("retry_workspace_snapshot_sha256"),
+                "retry_workspace_artifact_sha256": existing.get("retry_workspace_artifact_sha256"),
                 "state": existing["state"],
             }
     if stage.workspace_id == "published":
@@ -951,6 +1042,15 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             )
         except SourceDeliveryError as exc:
             raise BridgeError(str(exc)) from exc
+        if attempt >= 2:
+            _restore_rejected_workspace_seed(
+                config,
+                retry_binding,
+                retry_operation,
+                binding_value["workspace_baseline_sha256"],
+                binding_value["retry_workspace_snapshot_sha256"],
+                binding_value["retry_workspace_artifact_sha256"],
+            )
     else:
         binding_value["workspace_baseline_sha256"] = None
     binding_key = hashlib.sha256(_canonical(binding_value)).hexdigest()
@@ -980,6 +1080,10 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                 "base_sha": existing["base_sha"],
                 "canonical_base_sha": existing.get("canonical_base_sha"),
                 "workspace_baseline_sha256": existing.get("workspace_baseline_sha256"),
+                "retry_of_operation_key": existing.get("retry_of_operation_key"),
+                "retry_of_candidate_sha": existing.get("retry_of_candidate_sha"),
+                "retry_workspace_snapshot_sha256": existing.get("retry_workspace_snapshot_sha256"),
+                "retry_workspace_artifact_sha256": existing.get("retry_workspace_artifact_sha256"),
                 "state": existing["state"],
             }
         _write_journal(config, stage_key, binding_value, create=True)
@@ -989,6 +1093,10 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         "base_sha": binding_value["base_sha"],
         "canonical_base_sha": binding_value.get("canonical_base_sha"),
         "workspace_baseline_sha256": binding_value.get("workspace_baseline_sha256"),
+        "retry_of_operation_key": binding_value.get("retry_of_operation_key"),
+        "retry_of_candidate_sha": binding_value.get("retry_of_candidate_sha"),
+        "retry_workspace_snapshot_sha256": binding_value.get("retry_workspace_snapshot_sha256"),
+        "retry_workspace_artifact_sha256": binding_value.get("retry_workspace_artifact_sha256"),
         "state": "bound",
     }
 
@@ -1077,6 +1185,9 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         "candidate_sha": record.get("candidate_sha"),
         "retry_of_operation_key": record.get("retry_of_operation_key"),
         "retry_of_attempt": record.get("retry_of_attempt", attempt - 1 if attempt > 1 else None),
+        "retry_of_candidate_sha": record.get("retry_of_candidate_sha"),
+        "retry_workspace_snapshot_sha256": record.get("retry_workspace_snapshot_sha256"),
+        "retry_workspace_artifact_sha256": record.get("retry_workspace_artifact_sha256"),
         "operation_state": None,
         "operation_review_approved": None,
         "canonical_status": None,

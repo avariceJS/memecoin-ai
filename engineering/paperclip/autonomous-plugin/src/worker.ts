@@ -284,6 +284,12 @@ function sourceStageBoundNote(
   reviewInstructionSha256: string,
   attempt = 1,
   retryOfOperationKey: string | null = null,
+  canonicalBaseSha: string | null = null,
+  rejectedSeed: {
+    candidateSha: string;
+    snapshotSha256: string;
+    artifactSha256: string;
+  } | null = null,
 ): { idempotencyKey: string; body: string } {
   const idempotencyKey = `${stageBindingKey}:bound`;
   return {
@@ -296,6 +302,14 @@ function sourceStageBoundNote(
       ...(retryOfOperationKey === null ? [] : [`retry_of_operation_key:${retryOfOperationKey}`]),
       `stage_binding_key:${stageBindingKey}`,
       `base_sha:${baseSha}`,
+      ...(rejectedSeed === null ? [] : [
+        "working_seed_kind:controller_archived_rejected_candidate_snapshot",
+        `accepted_parent_projected_base_sha256:${baseSha}`,
+        ...(canonicalBaseSha === null ? [] : [`accepted_parent_canonical_base_sha256:${canonicalBaseSha}`]),
+        `rejected_working_seed_candidate_sha:${rejectedSeed.candidateSha}`,
+        `rejected_working_seed_snapshot_sha256:${rejectedSeed.snapshotSha256}`,
+        `rejected_working_seed_artifact_sha256:${rejectedSeed.artifactSha256}`,
+      ]),
       `source_issue_id:${sourceIssueId}`,
       `review_issue_id:${reviewIssueId}`,
       `source_instruction_sha256:${sourceInstructionSha256}`,
@@ -641,8 +655,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     }
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
     const stage = requireSourceStage(owner, params.stage_key);
-    const stageAttemptLimit = stage.predecessor_stage_key === null ? 3 : 2;
-    if (attempt > stageAttemptLimit) fail("source_stage_attempt_limit_exceeded");
+    if (attempt > 3) fail("source_stage_attempt_limit_exceeded");
     const predecessorRequest = readStagePredecessor(stage, params.predecessor);
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
         || runCtx.agentId !== owner.finite_lead_agent_id || !owner.finite_lead_issue_id) fail("source_stage_lead_binding_mismatch");
@@ -653,11 +666,22 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       stage_key: stage.stage_key, source_issue_id: params.source_issue_id,
       review_issue_id: params.review_issue_id, attempt,
     }, owner.configPath, owner.python_executable);
+    const legacyRetryReplay = existing.found === true && attempt === 2
+      && typeof existing.retry_of_candidate_sha !== "string";
     if (existing.found === true) {
       if (typeof existing.stage_binding_key !== "string" || !KEY_RE.test(existing.stage_binding_key)
           || typeof existing.base_sha !== "string" || !SHA_RE.test(existing.base_sha)
           || existing.attempt !== attempt
           || (attempt >= 2 && existing.retry_of_operation_key !== params.retry_of_operation_key)) fail("bridge_result_invalid");
+      if (attempt >= 2 && !legacyRetryReplay && (typeof existing.retry_of_candidate_sha !== "string" || !SHA_RE.test(existing.retry_of_candidate_sha)
+          || typeof existing.retry_workspace_snapshot_sha256 !== "string" || !KEY_RE.test(existing.retry_workspace_snapshot_sha256)
+          || typeof existing.retry_workspace_artifact_sha256 !== "string" || !KEY_RE.test(existing.retry_workspace_artifact_sha256))) {
+        fail("source_stage_retry_seed_unavailable");
+      }
+      if (legacyRetryReplay && (typeof existing.retry_workspace_snapshot_sha256 !== "string" || !KEY_RE.test(existing.retry_workspace_snapshot_sha256)
+          || typeof existing.retry_workspace_artifact_sha256 !== "string" || !KEY_RE.test(existing.retry_workspace_artifact_sha256))) {
+        fail("source_stage_retry_seed_unavailable");
+      }
       if (existing.predecessor_operation_key !== (predecessorRequest?.operation_key ?? null)
           || existing.predecessor_source_issue_id !== (predecessorRequest?.source_issue_id ?? null)
           || existing.predecessor_review_issue_id !== (predecessorRequest?.review_issue_id ?? null)) {
@@ -673,12 +697,27 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
           stage.stage_key, existing.stage_binding_key, existing.base_sha, params.source_issue_id, params.review_issue_id,
           existing.source_instruction_sha256, existing.review_instruction_sha256,
           attempt, attempt >= 2 ? String(existing.retry_of_operation_key) : null,
+          typeof existing.canonical_base_sha === "string" ? existing.canonical_base_sha : null,
+          attempt >= 2 && !legacyRetryReplay ? {
+            candidateSha: existing.retry_of_candidate_sha as string,
+            snapshotSha256: existing.retry_workspace_snapshot_sha256 as string,
+            artifactSha256: existing.retry_workspace_artifact_sha256 as string,
+          } : null,
         );
         await persistSourceStageBoundNotes(
           ctx, owner, note, params.source_issue_id, params.review_issue_id,
           existing.source_instruction_sha256, existing.review_instruction_sha256, true,
         );
-        return { content: `stage_key:${stage.stage_key}\nstage_binding_key:${existing.stage_binding_key}\nbase_sha:${existing.base_sha}\nstate:active` };
+        return { content: [
+          `stage_key:${stage.stage_key}`, `stage_binding_key:${existing.stage_binding_key}`,
+          `base_sha:${existing.base_sha}`, `state:active`,
+          ...(attempt >= 2 ? [`retry_of_operation_key:${existing.retry_of_operation_key}`] : []),
+          ...(attempt >= 2 && !legacyRetryReplay ? [
+            `retry_of_candidate_sha:${existing.retry_of_candidate_sha}`,
+            `retry_workspace_snapshot_sha256:${existing.retry_workspace_snapshot_sha256}`,
+            `retry_workspace_artifact_sha256:${existing.retry_workspace_artifact_sha256}`,
+          ] : []),
+        ].join("\n") };
       }
       if (existing.state !== "bound") fail("source_stage_activation_reconciliation_required");
     } else if (existing.found !== false) fail("bridge_result_invalid");
@@ -788,11 +827,26 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     }, owner.configPath, owner.python_executable);
     if (typeof result.stage_binding_key !== "string" || !KEY_RE.test(result.stage_binding_key)
         || typeof result.base_sha !== "string" || !SHA_RE.test(result.base_sha)) fail("bridge_result_invalid");
+    if (attempt >= 2 && !legacyRetryReplay && (result.retry_of_operation_key !== params.retry_of_operation_key
+        || typeof result.retry_of_candidate_sha !== "string" || !SHA_RE.test(result.retry_of_candidate_sha)
+        || typeof result.retry_workspace_snapshot_sha256 !== "string" || !KEY_RE.test(result.retry_workspace_snapshot_sha256)
+        || typeof result.retry_workspace_artifact_sha256 !== "string" || !KEY_RE.test(result.retry_workspace_artifact_sha256))) {
+      fail("source_stage_retry_seed_unavailable");
+    }
+    if (legacyRetryReplay && result.stage_binding_key !== existing.stage_binding_key) {
+      fail("source_stage_bind_replay_mismatch");
+    }
     if (result.state !== "bound" && result.state !== "active") fail("source_stage_activation_reconciliation_required");
     const note = sourceStageBoundNote(
       stage.stage_key, result.stage_binding_key, result.base_sha, source.id, review.id,
       sourceInstructionSha256, reviewInstructionSha256,
       attempt, attempt >= 2 ? params.retry_of_operation_key as string : null,
+      typeof result.canonical_base_sha === "string" ? result.canonical_base_sha : null,
+      attempt >= 2 && !legacyRetryReplay ? {
+        candidateSha: result.retry_of_candidate_sha as string,
+        snapshotSha256: result.retry_workspace_snapshot_sha256 as string,
+        artifactSha256: result.retry_workspace_artifact_sha256 as string,
+      } : null,
     );
     await persistSourceStageBoundNotes(
       ctx, owner, note, source.id, review.id, sourceInstructionSha256, reviewInstructionSha256, true,
@@ -800,7 +854,16 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     if (result.state === "bound") await activateSourceStage(ctx, invoke, owner, owner.configPath, result.stage_binding_key, {
       id: source.id, status: source.status, statusVersion: source.statusVersion as number,
     });
-    return { content: `stage_key:${stage.stage_key}\nattempt:${attempt}\nstage_binding_key:${result.stage_binding_key}\nbase_sha:${result.base_sha}\nstate:active` };
+    return { content: [
+      `stage_key:${stage.stage_key}`, `attempt:${attempt}`,
+      `stage_binding_key:${result.stage_binding_key}`, `base_sha:${result.base_sha}`, `state:active`,
+      ...(attempt >= 2 ? [`retry_of_operation_key:${params.retry_of_operation_key}`] : []),
+      ...(attempt >= 2 && !legacyRetryReplay ? [
+        `retry_of_candidate_sha:${result.retry_of_candidate_sha}`,
+        `retry_workspace_snapshot_sha256:${result.retry_workspace_snapshot_sha256}`,
+        `retry_workspace_artifact_sha256:${result.retry_workspace_artifact_sha256}`,
+      ] : []),
+    ].join("\n") };
   });
 
   ctx.tools.register("deliver_source_stage_content", {
