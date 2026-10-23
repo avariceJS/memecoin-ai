@@ -10,9 +10,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from engineering.paperclip_lab_server import (
-    PAPERCLIP_ANCESTOR_PIN,
     PAPERCLIP_PARENT_PIN,
     PAPERCLIP_PIN,
+    PAPERCLIP_SOURCE_CHAIN,
     PAPERCLIP_STOP_CUSTODY_PINS,
     PAPERCLIP_UPSTREAM_PIN,
     LabPaths,
@@ -27,22 +27,25 @@ from engineering.paperclip_lab_server import (
 
 class PaperclipLabServerTests(unittest.TestCase):
     def test_source_pin_is_exact_commit_with_exact_predecessor_chain(self):
-        self.assertEqual(PAPERCLIP_PIN, "fecf7b18def542fb6b58e7e665011e66599ffffb")
-        self.assertEqual(PAPERCLIP_PARENT_PIN, "519c892646ec7b06996e990e9e728f794e1a689e")
-        self.assertEqual(PAPERCLIP_ANCESTOR_PIN, "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595")
+        self.assertEqual(
+            PAPERCLIP_SOURCE_CHAIN,
+            (
+                "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
+                "fecf7b18def542fb6b58e7e665011e66599ffffb",
+                "519c892646ec7b06996e990e9e728f794e1a689e",
+                "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
+                "043f2514e67c50320433a0013fb228a75a51325c",
+            ),
+        )
+        self.assertEqual(PAPERCLIP_PIN, "b853ab3fa7addbbdba51087bb8e46dc89ca29fda")
+        self.assertEqual(PAPERCLIP_PARENT_PIN, "fecf7b18def542fb6b58e7e665011e66599ffffb")
         self.assertEqual(PAPERCLIP_UPSTREAM_PIN, "043f2514e67c50320433a0013fb228a75a51325c")
         with tempfile.TemporaryDirectory() as directory:
             paths = LabPaths.resolve(Path(directory))
             paths.source.mkdir()
             with patch(
                 "engineering.paperclip_lab_server._run",
-                side_effect=(
-                    PAPERCLIP_PIN,
-                    PAPERCLIP_PARENT_PIN,
-                    PAPERCLIP_ANCESTOR_PIN,
-                    PAPERCLIP_UPSTREAM_PIN,
-                    "",
-                ),
+                side_effect=(*PAPERCLIP_SOURCE_CHAIN, ""),
             ):
                 self.assertEqual(_validate_source(paths), PAPERCLIP_PIN)
 
@@ -63,7 +66,7 @@ class PaperclipLabServerTests(unittest.TestCase):
             paths.source.mkdir()
             with patch(
                 "engineering.paperclip_lab_server._run",
-                side_effect=(PAPERCLIP_PIN, PAPERCLIP_PARENT_PIN, "unexpected-ancestor"),
+                side_effect=(*PAPERCLIP_SOURCE_CHAIN[:2], "unexpected-ancestor"),
             ):
                 with self.assertRaisesRegex(LabServerError, "ancestor_pin_mismatch"):
                     _validate_source(paths)
@@ -75,9 +78,7 @@ class PaperclipLabServerTests(unittest.TestCase):
             with patch(
                 "engineering.paperclip_lab_server._run",
                 side_effect=(
-                    PAPERCLIP_PIN,
-                    PAPERCLIP_PARENT_PIN,
-                    PAPERCLIP_ANCESTOR_PIN,
+                    *PAPERCLIP_SOURCE_CHAIN[:-1],
                     "unexpected-upstream",
                 ),
             ):
@@ -89,23 +90,25 @@ class PaperclipLabServerTests(unittest.TestCase):
         pin_path = engineering / "paperclip" / "source-pin.json"
         pin = json.loads(pin_path.read_text(encoding="utf-8"))
         patch_path = pin_path.parent / pin["patch"]
-        self.assertEqual(pin["schema"], "brain-paperclip-source-v3")
+        self.assertEqual(pin["schema"], "brain-paperclip-source-v4")
         self.assertEqual(pin["upstream_commit"], PAPERCLIP_UPSTREAM_PIN)
         self.assertEqual(pin["predecessor_commit"], PAPERCLIP_PARENT_PIN)
         self.assertEqual(
             pin["predecessor_chain"],
-            [PAPERCLIP_PARENT_PIN, PAPERCLIP_ANCESTOR_PIN, PAPERCLIP_UPSTREAM_PIN],
+            list(PAPERCLIP_SOURCE_CHAIN[1:]),
         )
         self.assertEqual(pin["derivative_commit"], PAPERCLIP_PIN)
         self.assertEqual(pin["patch_sha256"], hashlib.sha256(patch_path.read_bytes()).hexdigest())
         self.assertEqual(pin["source_review"]["status"], "accepted_source_only")
         self.assertEqual(pin["source_review"]["commit"], PAPERCLIP_PIN)
         self.assertEqual(pin["source_review"]["parent"], PAPERCLIP_PARENT_PIN)
-        self.assertEqual(pin["source_review_chain"][0]["commit"], PAPERCLIP_PARENT_PIN)
+        self.assertEqual(
+            pin["source_review_chain"][-2]["commit"], "fecf7b18def542fb6b58e7e665011e66599ffffb"
+        )
         self.assertEqual(pin["source_review_chain"][-1]["commit"], PAPERCLIP_PIN)
         self.assertEqual(
             pin["source_review"]["receipt_sha256"],
-            "01bfa783e7cce23c8e126809f34e9c8118dd9e947857bd4911ef3b1322be3361",
+            "e33ddb7ecac91fe5d305cbef0c0e36afee91b48d440633b06e2ef4810e004917",
         )
         self.assertEqual(set(pin["stop_custody_source_pins"]), PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertEqual(pin["runtime_acceptance"], "pending")

@@ -1,32 +1,39 @@
 {
-  "schema": "brain-paperclip-source-v3",
+  "schema": "brain-paperclip-source-v4",
   "upstream_repository": "https://github.com/paperclipai/paperclip",
   "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
-  "predecessor_commit": "519c892646ec7b06996e990e9e728f794e1a689e",
+  "predecessor_commit": "fecf7b18def542fb6b58e7e665011e66599ffffb",
   "predecessor_chain": [
+    "fecf7b18def542fb6b58e7e665011e66599ffffb",
     "519c892646ec7b06996e990e9e728f794e1a689e",
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
     "043f2514e67c50320433a0013fb228a75a51325c"
   ],
-  "derivative_commit": "fecf7b18def542fb6b58e7e665011e66599ffffb",
+  "derivative_commit": "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
   "patch": "managed-codex-isolation.patch",
-  "patch_sha256": "dd87f4af335f7fcb66bfdd3b5ccd1fb791c12ddd2ec57e54f24c698675f53e6f",
+  "patch_sha256": "3c68347dc1fe3166488cb2dbd92fab42c20be1290eed2d0b491ede14e9d78257",
   "source_review": {
     "status": "accepted_source_only",
     "reviewer": "Sol-6.1 High",
-    "receipt": "state/sol-review/native-plugin-relay-source-review-20261023.json",
-    "receipt_sha256": "01bfa783e7cce23c8e126809f34e9c8118dd9e947857bd4911ef3b1322be3361",
-    "commit": "fecf7b18def542fb6b58e7e665011e66599ffffb",
-    "parent": "519c892646ec7b06996e990e9e728f794e1a689e",
+    "receipt": "state/sol-review/private-plugin-sdk-source-review-20261023.json",
+    "receipt_sha256": "e33ddb7ecac91fe5d305cbef0c0e36afee91b48d440633b06e2ef4810e004917",
+    "commit": "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
+    "parent": "fecf7b18def542fb6b58e7e665011e66599ffffb",
+    "diff_sha256": "48176e323787f175dd6c69c6859a46e75e37eb1eed7d4c68868a8164ce65dde2",
     "scope": [
-      "exact agent-visible plugin tools in native MCP snapshot and immutable gateway profile",
-      "explicit owner nativeToolAllowlist routes local managed Codex assigned tools through authenticated controller PRP"
+      "five explicit forCurrentToolRun issue methods; ordinary SDK APIs and jobs unchanged",
+      "existing host-minted opaque invocation and AsyncLocalStorage reused; no caller-selected actor",
+      "scoped calls check persisted running issue run, exact snapshot issue/project, current executionRunId/assignee, direct parent-child and same-company/project",
+      "canonical actual-agent privacy and issue read/comment/mutate decisions; actor rewrites rejected; status-only update",
+      "scoped summary returns actual current-run and validated blocker IDs only",
+      "bridge checks fixed owner-pinned pair and exact native blocker before submission effects",
+      "plugin only activates preassigned reviewer todo and records evidence; no explicit wake or self/source-completion writes"
     ],
     "limits": [
-      "source-only review; no deployment or restart",
-      "native adapter and REST negative probes and lifecycle vertical remain required",
-      "provider built-in shell tools remain under existing adapter OS sandbox policy",
-      "absent optional fields retain legacy access; each qualified agent needs explicit policy"
+      "source-only review; no deployment or runtime acceptance",
+      "live SDK and plugin rebuild plus emitted hash comparison remain required",
+      "actual private tool calls and native dependency release remain unproved",
+      "fixed task pair is pipeline qualification only, not autonomous backlog or Brain branch admission"
     ]
   },
   "source_review_chain": [
@@ -56,9 +63,34 @@
       "receipt_sha256": "01bfa783e7cce23c8e126809f34e9c8118dd9e947857bd4911ef3b1322be3361",
       "commit": "fecf7b18def542fb6b58e7e665011e66599ffffb",
       "parent": "519c892646ec7b06996e990e9e728f794e1a689e"
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/sol-review/private-plugin-sdk-source-review-20261023.json",
+      "receipt_sha256": "e33ddb7ecac91fe5d305cbef0c0e36afee91b48d440633b06e2ef4810e004917",
+      "commit": "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
+      "parent": "fecf7b18def542fb6b58e7e665011e66599ffffb",
+      "diff_sha256": "48176e323787f175dd6c69c6859a46e75e37eb1eed7d4c68868a8164ce65dde2",
+      "scope": [
+        "five explicit forCurrentToolRun issue methods; ordinary SDK APIs and jobs unchanged",
+        "existing host-minted opaque invocation and AsyncLocalStorage reused; no caller-selected actor",
+        "scoped calls check persisted running issue run, exact snapshot issue/project, current executionRunId/assignee, direct parent-child and same-company/project",
+        "canonical actual-agent privacy and issue read/comment/mutate decisions; actor rewrites rejected; status-only update",
+        "scoped summary returns actual current-run and validated blocker IDs only",
+        "bridge checks fixed owner-pinned pair and exact native blocker before submission effects",
+        "plugin only activates preassigned reviewer todo and records evidence; no explicit wake or self/source-completion writes"
+      ],
+      "limits": [
+        "source-only review; no deployment or runtime acceptance",
+        "live SDK and plugin rebuild plus emitted hash comparison remain required",
+        "actual private tool calls and native dependency release remain unproved",
+        "fixed task pair is pipeline qualification only, not autonomous backlog or Brain branch admission"
+      ]
     }
   ],
   "stop_custody_source_pins": [
+    "fecf7b18def542fb6b58e7e665011e66599ffffb",
     "519c892646ec7b06996e990e9e728f794e1a689e",
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595"
   ],
