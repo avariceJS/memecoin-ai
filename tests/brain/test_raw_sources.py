@@ -3,11 +3,18 @@ import time
 
 import pytest
 
-from memecoin_ai.sources import ReadOnlyRPC, TransportSourceError
-from memecoin_brain_sources.events import capacity, health_action, ingest, view
+from memecoin_ai.sources import Capture, ReadOnlyRPC, TransportSourceError
+from memecoin_brain_sources.events import (
+    capacity,
+    health_action,
+    ingest,
+    transaction_evidence,
+    view,
+)
 from memecoin_brain_sources.probe import run
 from memecoin_brain_sources.replay import reproduce
 from memecoin_ml.data import read, sha, write
+from memecoin_registry.contracts import seal
 from memecoin_runner.ledger import Ledger
 
 
@@ -167,3 +174,87 @@ def test_nonprogressing_pagination_stops_without_hydration(tmp_path):
     assert len(calls) == 3 and "getTransaction" not in calls
     assert read(tmp_path / "STOP")["no_retry"]
     assert all((p / "manifest.json").exists() for p in (tmp_path / "attempts").iterdir())
+
+
+def _transaction_fixture(path, *, version, slot, err=None):
+    path.mkdir()
+    value = (
+        None
+        if version is None and slot is None
+        else dict(
+            version=version,
+            slot=slot,
+            blockTime=10,
+            meta=dict(err=err),
+            transaction=dict(signatures=["sig"], message=dict(accountKeys=[])),
+        )
+    )
+    request = json.dumps(
+        dict(
+            jsonrpc="2.0",
+            id=1,
+            method="getTransaction",
+            params=["sig", dict(commitment="finalized")],
+        )
+    )
+    capture = Capture(
+        "fixture",
+        "getTransaction",
+        request,
+        1,
+        2,
+        json.dumps(dict(jsonrpc="2.0", id=1, result=value)).encode(),
+    )
+    capture.save(path / "capture")
+    write(path / "availability.json", dict(available_ns=3))
+    seal(path)
+    return path
+
+
+@pytest.mark.parametrize(
+    ("version", "slot"),
+    [(False, 10), (0.0, 10), (0, True), (0, -1)],
+)
+def test_transaction_evidence_rejects_non_exact_version_and_slot_types(tmp_path, version, slot):
+    evidence = transaction_evidence(
+        _transaction_fixture(tmp_path / "capture", version=version, slot=slot)
+    )
+    assert evidence["status"] == "unsupported"
+    assert evidence["available_ns"] == 3
+    assert evidence["semantic_kind"] == "account_reference"
+    assert evidence["decoded_trade"] is False
+    assert evidence["execution_supported"] is False
+    assert evidence["historical_online_available"] is False
+
+
+@pytest.mark.parametrize(
+    ("version", "slot", "err", "status"),
+    [
+        ("legacy", 0, None, "raw_reference"),
+        (0, 0, None, "raw_reference"),
+        (0, 1, {"InstructionError": [0, "Custom"]}, "failed_transaction"),
+    ],
+)
+def test_transaction_evidence_accepts_exact_valid_boundaries(
+    tmp_path, version, slot, err, status
+):
+    evidence = transaction_evidence(
+        _transaction_fixture(tmp_path / "capture", version=version, slot=slot, err=err)
+    )
+    assert evidence["status"] == status
+    assert evidence["slot"] == slot
+    assert evidence["available_ns"] == 3
+    assert evidence["semantic_kind"] == "account_reference"
+    assert evidence["decoded_trade"] is False
+    assert evidence["execution_supported"] is False
+    assert evidence["historical_online_available"] is False
+
+
+def test_transaction_evidence_preserves_unavailable_behavior(tmp_path):
+    evidence = transaction_evidence(
+        _transaction_fixture(tmp_path / "capture", version=None, slot=None)
+    )
+    assert evidence["status"] == "unavailable"
+    assert evidence["event_time_s"] is None
+    assert evidence["slot"] is None
+    assert evidence["available_ns"] == 3

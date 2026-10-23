@@ -24,9 +24,13 @@ def transaction_evidence(path: Path) -> dict:
     if value is None:
         status = "unavailable"
     elif (
-        value.get("version") not in ("legacy", 0)
+        not (
+            type(value.get("version")) is str and value.get("version") == "legacy"
+            or (type(value.get("version")) is int and value.get("version") == 0)
+        )
         or not isinstance(value.get("meta"), dict)
-        or not isinstance(value.get("slot"), int)
+        or type(value.get("slot")) is not int
+        or value["slot"] < 0
     ):
         status = "unsupported"
     else:
