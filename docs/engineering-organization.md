@@ -5,16 +5,25 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
-## Current founder shutdown and minimum company target — 2026-10-23
+## Current authorized resumption and minimum company target — 2026-10-23
 
-**The founder has stopped this program.** Historical resumption/authorization below does not allow
-new development, models, reviewers or services. Resume only on «Продолжить работу компании»;
-quota reset/reboot/reconnection cannot resume work. Preserve all native Goals and prior history.
-The canonical private operational handoff is
-`/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md`, with shutdown receipts in the adjacent
-`shutdown-20261023/`. This distinct instance-custody handoff is indexed in `docs/INDEX.md`; it does
-not duplicate architecture ownership or create another queue. Current founder report remains the
-Russian Founder Desk, and volatile entry state remains `memory/now.md`.
+The founder resumed MVP development/testing through `prompt/prompt.md`. The earlier manual
+shutdown below is historical; all independent restrictions remain. The pinned local Paperclip
+server is running for reconciliation and organizational preparation. All six existing companies
+and 13 agents remain paused with zero live runs at fresh API readback. No unknown operation was
+replayed and no new native Goal was created.
+
+The previous automatic safety-filter rejection of Git-import review remains an external tool
+blocker. Do not retry the rejected work through a different agent/context. The import candidate
+is preserved and unaccepted; dependent engineering admission/publication remains closed.
+Six department projects, six planned team goals and twelve backlog issues are registered in
+the existing MEM company. One existing Sol lead is interim accountable owner, with shared Luna
+and a separate reviewer. Senses history/workspaces and the achieved first-source goal are retained.
+No new agent profiles/workspaces are qualified by this administrative setup. All execution stays
+paused; this configuration does not establish six operational departments.
+Current private evidence is in lab `state/resumption-20261023/`; canonical operational handoff:
+`/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md`. Russian founder reporting remains
+`engineering/OWNER-DESK.md`; volatile state remains `memory/now.md`.
 
 The first real subscribed source cycle and separately reviewed owner-operated canonical Senses
 publication are accepted within their stated scopes. Six operational departments, repeatable
@@ -32,7 +41,7 @@ Reuse native issues/dependencies/recovery holds and broker receipts; retain ordi
 QA/publication tasks instead of extending restricted native review. Do not require monthly
 endurance, exhaustive crash coverage, broad scaling or exact quota accounting before this MVP.
 Those improvements and gradual evidence-based removal of duplicate old organization code belong
-to Platform after the minimum safe lane works. No deletion or department creation occurs at STOP.
+to Platform after the minimum safe lane works. Historical STOP receipts remain immutable; resumed department preparation is not operational acceptance.
 
 ## Paperclip-first experimental integration — founder authorization 2026-10-22
 
