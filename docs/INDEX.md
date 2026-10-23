@@ -34,6 +34,7 @@ The exact consolidation result is `evidence/git-consolidation-2026-10-20.json`.
 | Mac1 reset/restore from Kingston + GitHub, inventory and erase readiness | [`portability-disaster-recovery.md`](portability-disaster-recovery.md) |
 | Deferred hardened portability / DR v2 handoff | [`portability-disaster-recovery-v2-roadmap.md`](portability-disaster-recovery-v2-roadmap.md) |
 | Engineering organization, executive authority, confinement and integration | [`engineering-organization.md`](engineering-organization.md), [Sol mandate](../engineering/SOL-MANDATE.md), [Russian Founder Desk](../engineering/OWNER-DESK.md) |
+| Private Paperclip instance shutdown / resume custody | `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md` — current English operational handoff; private instance IDs, WIP and backup custody cannot live in public architecture documentation |
 | Cross-cutting engineering and research invariants | [`contracts.md`](contracts.md) |
 | Concise experiment timeline and key failures | [`research-history.md`](research-history.md) |
 | Evidence filenames, scope, and reproduction pointers | [`evidence/README.md`](evidence/README.md) |
