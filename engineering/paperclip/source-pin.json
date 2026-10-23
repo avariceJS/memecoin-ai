@@ -2,8 +2,10 @@
   "schema": "brain-paperclip-source-v5",
   "upstream_repository": "https://github.com/paperclipai/paperclip",
   "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
-  "predecessor_commit": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+  "predecessor_commit": "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
   "predecessor_chain": [
+    "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+    "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
     "d142b1dee5c25980169109f0d6161a8c4c7380a2",
     "01302914b5501fbb274b39477e087ac1692d9b6a",
     "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
@@ -12,25 +14,26 @@
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
     "043f2514e67c50320433a0013fb228a75a51325c"
   ],
-  "derivative_commit": "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
+  "derivative_commit": "407762fa09288fad6a9e39771efc5d738b57be7b",
   "patch": "managed-codex-isolation.patch",
-  "patch_sha256": "46a110da2c5dfa3f7a00b8fe08a7459c2351391dc407a889893031041fa95efd",
+  "patch_sha256": "c7ed1fbbc396a96c1de88abd11529360989f1fb34ac35e7a61ba86b25654efb1",
   "source_review": {
     "status": "accepted_source_only",
     "reviewer": "Sol-6.1 High",
-    "receipt": "state/resumption-20261023/native-stage-sdk-final-independent-review.json",
-    "receipt_sha256": "fa9d9c89e76546c07a56749189fa5dbcc84b72942d60405b29d6bf37238edbfa",
-    "commit": "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
-    "parent": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
-    "diff_sha256": "e602f522e5255495de85bfce4468fba6633902ee46554e3f716c46e296aa5bfa",
+    "receipt": "state/resumption-20261023/plugin-capability-disabled-upgrade-independent-review.json",
+    "receipt_sha256": "de38ad34bffb7731a1544aae266b2bcc51a7fddc2bcbd156eb6e87749e1aa160",
+    "commit": "407762fa09288fad6a9e39771efc5d738b57be7b",
+    "parent": "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+    "diff_sha256": "25ede6858e7287b673e11146c166d30e95d0a0da967e10a603d06b2246e17868",
+    "combined_diff_sha256": "7fa2c9b815984fa9279ff086129521b71b9179041a74f68abef4ba73cc17422f",
     "scope": [
-      "run-scoped updateStatusCompareAndSet backlog-to-todo performs current run, issue, direct relationship, privacy, and actor revalidation under the native CAS transaction",
-      "dependency readiness remains bounded to current tool run and existing native readiness semantics"
+      "default capability-escalation refusal preserved; internal lifecycle stages the new manifest and upgrade_pending in one registry update",
+      "disabled plugins can upgrade without activation; new capabilities stage pending and no-capability upgrades preserve disabled state",
+      "pending remains sticky across restart and repeated upgrades; existing admin enable remains the approval boundary"
     ],
     "limits": [
-      "source-only acceptance; no deployment or runtime acceptance",
-      "full declaration-mode server typecheck/build remains unqualified",
-      "unknown acknowledgements remain held; no blind replay"
+      "source-only acceptance; no live deployment or restart qualification",
+      "worker manager was mocked in composed fixtures; immutable package bytes and serialized admin actions remain required at rollout"
     ]
   },
   "source_review_chain": [
@@ -120,9 +123,47 @@
       "limits": [
         "bounded source/SDK boundary only; no deployment, runtime or finite-stage continuation acceptance"
       ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261023/plugin-capability-approval-core-independent-review.json",
+      "receipt_sha256": "3cd914f4bff9b72bd44776cb6ca662e92ad1625d47b62241d6fb016ad255e3b2",
+      "commit": "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+      "parent": "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
+      "diff_sha256": "2258ab55070ceb61c6f8ae34b4fb0e55b33d037a28fc7a4082417b902c77e1c5",
+      "scope": [
+        "internal lifecycle stages added capability manifests as upgrade_pending atomically while default loader upgrades continue to refuse escalation",
+        "pending approval remains sticky across restart and repeated upgrade until explicit admin enable activates the staged manifest"
+      ],
+      "limits": [
+        "source-only review; disabled-plugin rollout still required a separate narrow follow-up",
+        "no deployment, service restart, or runtime acceptance"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261023/plugin-capability-disabled-upgrade-independent-review.json",
+      "receipt_sha256": "de38ad34bffb7731a1544aae266b2bcc51a7fddc2bcbd156eb6e87749e1aa160",
+      "commit": "407762fa09288fad6a9e39771efc5d738b57be7b",
+      "parent": "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+      "diff_sha256": "25ede6858e7287b673e11146c166d30e95d0a0da967e10a603d06b2246e17868",
+      "combined_diff_sha256": "7fa2c9b815984fa9279ff086129521b71b9179041a74f68abef4ba73cc17422f",
+      "scope": [
+        "default capability-escalation refusal preserved; internal lifecycle stages the new manifest and upgrade_pending in one registry update",
+        "disabled plugins can upgrade without activation; new capabilities stage pending and no-capability upgrades preserve disabled state",
+        "pending remains sticky across restart and repeated upgrades; existing admin enable remains the approval boundary"
+      ],
+      "limits": [
+        "source-only acceptance; no live deployment or restart qualification",
+        "worker manager was mocked in composed fixtures; immutable package bytes and serialized admin actions remain required at rollout"
+      ]
     }
   ],
   "stop_custody_source_pins": [
+    "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+    "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
     "d142b1dee5c25980169109f0d6161a8c4c7380a2",
     "01302914b5501fbb274b39477e087ac1692d9b6a",
     "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
@@ -141,5 +182,11 @@
       "commit": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
       "reason": "SDK-SCOPE-001 CAS authorization race; superseded by accepted child 67ae034 without rewriting history"
     }
-  ]
+  ],
+  "patch_tree_equivalence": {
+    "status": "verified",
+    "method": "git apply cumulative patch at upstream commit and compare Git tree IDs",
+    "upstream_tree": "547374c4e8abe51ff22b8cecc51644800f794dd6",
+    "derivative_tree": "bd6a37dd99b559094ae1b214db422c6d58f70c05"
+  }
 }
