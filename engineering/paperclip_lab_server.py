@@ -25,6 +25,8 @@ from typing import Any
 from engineering.processes import process_identity, terminate_owned
 
 PAPERCLIP_SOURCE_CHAIN = (
+    "407762fa09288fad6a9e39771efc5d738b57be7b",
+    "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
     "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
     "d142b1dee5c25980169109f0d6161a8c4c7380a2",
     "01302914b5501fbb274b39477e087ac1692d9b6a",

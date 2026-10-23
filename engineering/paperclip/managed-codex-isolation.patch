@@ -1,5 +1,5 @@
 diff --git a/maps/agent-access-map/agents.md b/maps/agent-access-map/agents.md
-index fbbdd91..99977fc 100644
+index fbbdd91a2fcde5519ebbdb7b060308b17221d747..99977fcc22ac6442524856a282aad05dfc797a9a 100644
 --- a/maps/agent-access-map/agents.md
 +++ b/maps/agent-access-map/agents.md
 @@ -130,6 +130,11 @@ remaining operations before qualifying the whole capability.
@@ -15,7 +15,7 @@ index fbbdd91..99977fc 100644
  
  Capability ID: `agents/organization`.
 diff --git a/maps/agent-access-map/plugins.md b/maps/agent-access-map/plugins.md
-index 6ce5bea..3f62d14 100644
+index 6ce5beaa9bf95aa73ed0a4be9ddee8673b3af562..3f62d14984f78a711c64d1db6fe089507a511ca0 100644
 --- a/maps/agent-access-map/plugins.md
 +++ b/maps/agent-access-map/plugins.md
 @@ -87,6 +87,17 @@ scoped plugin APIs.
@@ -37,7 +37,7 @@ index 6ce5bea..3f62d14 100644
  the reviewed commit above.
  
 diff --git a/maps/agent-access-map/runs-adapters.md b/maps/agent-access-map/runs-adapters.md
-index 23d4523..e28196e 100644
+index 23d452382f48c6589e166e57cb8c2fc2c1dcb722..e28196eb25a6a8144884ad4443e1476e43f7e403 100644
 --- a/maps/agent-access-map/runs-adapters.md
 +++ b/maps/agent-access-map/runs-adapters.md
 @@ -255,6 +255,24 @@ Gaps: Task-session listing and execution-context reset require board agent
@@ -66,7 +66,7 @@ index 23d4523..e28196e 100644
  and [native execution/recovery](../../server/src/services/native-runtime/native-session-executor.ts)
  retain existing execution on unrelated edits and use recorded run configuration
 diff --git a/packages/paperclip-runner/runner/crates/runner-core/src/codex_provider.rs b/packages/paperclip-runner/runner/crates/runner-core/src/codex_provider.rs
-index b6f7675..fc13fff 100644
+index b6f7675c5e050b21f5850b1084df132fb2eaaa13..fc13fff9ff320e283f3934397d91f04eb14e7676 100644
 --- a/packages/paperclip-runner/runner/crates/runner-core/src/codex_provider.rs
 +++ b/packages/paperclip-runner/runner/crates/runner-core/src/codex_provider.rs
 @@ -912,7 +912,7 @@ impl CodexProvider {
@@ -79,7 +79,7 @@ index b6f7675..fc13fff 100644
                      Path::new(&config.cwd),
                  )?;
 diff --git a/packages/paperclip-runner/runner/crates/runner-core/src/codex_startup_trust.rs b/packages/paperclip-runner/runner/crates/runner-core/src/codex_startup_trust.rs
-index 1d04b6d..2ac1791 100644
+index 1d04b6d4bf04ce6fb6cf2d3f31a04bd75e923e06..2ac17911bef2c1794a625057dc83c5c3495454b6 100644
 --- a/packages/paperclip-runner/runner/crates/runner-core/src/codex_startup_trust.rs
 +++ b/packages/paperclip-runner/runner/crates/runner-core/src/codex_startup_trust.rs
 @@ -42,7 +42,7 @@ fn execution_root(cwd: &Path) -> Result<PathBuf, LocalRunnerError> {
@@ -150,7 +150,7 @@ index 1d04b6d..2ac1791 100644
      }
  }
 diff --git a/packages/paperclip-runner/src/drivers/codex/codex-app-server-driver-impl.ts b/packages/paperclip-runner/src/drivers/codex/codex-app-server-driver-impl.ts
-index cf32d89..e51aada 100644
+index cf32d89361189a637063a2688a0491120b7573fd..e51aadac713827139c83e17652d2e698d95d6789 100644
 --- a/packages/paperclip-runner/src/drivers/codex/codex-app-server-driver-impl.ts
 +++ b/packages/paperclip-runner/src/drivers/codex/codex-app-server-driver-impl.ts
 @@ -1,6 +1,6 @@
@@ -185,7 +185,7 @@ index cf32d89..e51aada 100644
          onDiagnostic: message => this.#options.onDiagnostic?.(redactObservabilityDiagnostic(message, this.#options.environment, this.#options.observability?.otelConfig)),
          processGroup: true,
 diff --git a/packages/paperclip-runner/src/drivers/codex/codex-security-config.test.ts b/packages/paperclip-runner/src/drivers/codex/codex-security-config.test.ts
-index 2d66ad8..633f66e 100644
+index 2d66ad81c6e6e54da564004373b405f3a99c4c43..633f66e94db90d59bfcb96e96958aaf406fab654 100644
 --- a/packages/paperclip-runner/src/drivers/codex/codex-security-config.test.ts
 +++ b/packages/paperclip-runner/src/drivers/codex/codex-security-config.test.ts
 @@ -254,6 +254,36 @@ describe("Codex security configuration", () => {
@@ -226,7 +226,7 @@ index 2d66ad8..633f66e 100644
  
    it("allows only the registered private instruction directory while keeping shared context read-only", () => {
 diff --git a/packages/paperclip-runner/src/drivers/codex/codex-security-config.ts b/packages/paperclip-runner/src/drivers/codex/codex-security-config.ts
-index c5f15d2..f8e7ce1 100644
+index c5f15d2c5dfdb7804a27438ee5be057227762b77..f8e7ce16ebe8989c2451c79fa4cd453e415ee31c 100644
 --- a/packages/paperclip-runner/src/drivers/codex/codex-security-config.ts
 +++ b/packages/paperclip-runner/src/drivers/codex/codex-security-config.ts
 @@ -320,6 +320,16 @@ export function createIsolatedCodexAppServerArgs(
@@ -255,7 +255,7 @@ index c5f15d2..f8e7ce1 100644
      "image_generation",
      ...(externalRunnerSandbox
 diff --git a/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.test.ts b/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.test.ts
-index 1544e1a..63b789f 100644
+index 1544e1a269d8fb19a085c0e9c5f9928223563fcb..63b789fcc5b14e521b4ccd0e728bdc8fb18ed981 100644
 --- a/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.test.ts
 +++ b/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.test.ts
 @@ -14,7 +14,7 @@ import { join } from "node:path";
@@ -377,7 +377,7 @@ index 1544e1a..63b789f 100644
          "invalid = [",
        );
 diff --git a/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.ts b/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.ts
-index fb748ae..98d6c30 100644
+index fb748ae1697ff10e16e6c3640fc12ad749d10199..98d6c301341e2e3500d48ec429cfce973a1c4676 100644
 --- a/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.ts
 +++ b/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.ts
 @@ -16,30 +16,39 @@ import { isDeepStrictEqual } from "node:util";
@@ -452,7 +452,7 @@ index fb748ae..98d6c30 100644
    const temporary = resolve(codexHome, `config.toml.${randomUUID()}.tmp`);
    try {
 diff --git a/packages/paperclip-runner/src/live/runner-provider-launch.ts b/packages/paperclip-runner/src/live/runner-provider-launch.ts
-index 8a177c0..a03370b 100644
+index 8a177c0ae45e0e4b48d885ac4801857d7bc68928..a03370bf987292596c82ebf5842a4c73ad170c24 100644
 --- a/packages/paperclip-runner/src/live/runner-provider-launch.ts
 +++ b/packages/paperclip-runner/src/live/runner-provider-launch.ts
 @@ -289,6 +289,7 @@ export function createRunnerProviderLaunch(
@@ -508,7 +508,7 @@ index 8a177c0..a03370b 100644
    }
    return args;
 diff --git a/packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts b/packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts
-index 47ac7a9..d6e4f37 100644
+index 47ac7a9209185700b058bab3c10ef66605a945f5..d6e4f376cff949a9d84f88eaa98c2167627aad68 100644
 --- a/packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts
 +++ b/packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts
 @@ -2401,12 +2401,43 @@ it("allows trusted package-manager runtime roots without exposing HOME paths", (
@@ -557,7 +557,7 @@ index 47ac7a9..d6e4f37 100644
  
  it("denies the isolated Codex home without denying a remote execution workspace", () => {
 diff --git a/packages/paperclip-runner/src/live/runnerd-codex-transport.ts b/packages/paperclip-runner/src/live/runnerd-codex-transport.ts
-index 45ef831..8fefeb9 100644
+index 45ef83170804d6143cdbba7dc3826ddf99edc702..8fefeb996763bc7372e8ee89091b100a7b6ced34 100644
 --- a/packages/paperclip-runner/src/live/runnerd-codex-transport.ts
 +++ b/packages/paperclip-runner/src/live/runnerd-codex-transport.ts
 @@ -5486,6 +5486,7 @@ class DurablePrpCodexTransport implements CodexAppServerTransport {
@@ -569,7 +569,7 @@ index 45ef831..8fefeb9 100644
              workingDirectory: this.options.resumeWorkingDirectory,
              runtimeStateRoot: this.options.runnerFilesystemRoot ?? this.#root,
 diff --git a/packages/plugins/sdk/README.md b/packages/plugins/sdk/README.md
-index 03907ed..ae9e8ed 100644
+index 03907ed52f57eba0fc7c8b14da3997b0e835f424..ae9e8ed4316fe5fd06f25d3d4f686780e5f3aa98 100644
 --- a/packages/plugins/sdk/README.md
 +++ b/packages/plugins/sdk/README.md
 @@ -108,6 +108,17 @@ runWorker(plugin, import.meta.url);
@@ -591,7 +591,7 @@ index 03907ed..ae9e8ed 100644
  
  Subscribe in `setup` with `ctx.events.on(name, handler)` or `ctx.events.on(name, filter, handler)`. Emit plugin-scoped events with `ctx.events.emit(name, companyId, payload)` (requires `events.emit`).
 diff --git a/packages/plugins/sdk/src/host-client-factory.ts b/packages/plugins/sdk/src/host-client-factory.ts
-index 35ed9bd..64b79f6 100644
+index 35ed9bd49981421b9ddd1a2a3d0452da4767b20a..64b79f6ccf77dd84c8e07f5e67f4b5780aa48bd5 100644
 --- a/packages/plugins/sdk/src/host-client-factory.ts
 +++ b/packages/plugins/sdk/src/host-client-factory.ts
 @@ -235,9 +235,11 @@ export interface HostServices {
@@ -697,7 +697,7 @@ index 35ed9bd..64b79f6 100644
      "issues.createInteraction": gated("issues.createInteraction", async (params) => {
        return services.issues.createInteraction(params);
 diff --git a/packages/plugins/sdk/src/index.ts b/packages/plugins/sdk/src/index.ts
-index 9eecc93..b471e51 100644
+index 9eecc930a35814b8cdcbc8a66733ea4f2eca3d1c..b471e5143a32fbbd56e3475435c0c7b49b55d927 100644
 --- a/packages/plugins/sdk/src/index.ts
 +++ b/packages/plugins/sdk/src/index.ts
 @@ -267,6 +267,8 @@ export type {
@@ -710,7 +710,7 @@ index 9eecc93..b471e51 100644
    PluginIssueAssigneeSummary,
    PluginIssueSubtree,
 diff --git a/packages/plugins/sdk/src/protocol.ts b/packages/plugins/sdk/src/protocol.ts
-index a6d8d0b..aa7a55e 100644
+index a6d8d0b526eb7999728259a6e0b98d37f59be5c7..aa7a55ecb9c1f4c0dbdbdf421f54393c8417b7df 100644
 --- a/packages/plugins/sdk/src/protocol.ts
 +++ b/packages/plugins/sdk/src/protocol.ts
 @@ -62,6 +62,8 @@ import type {
@@ -789,7 +789,7 @@ index a6d8d0b..aa7a55e 100644
      result: IssueComment,
    ];
 diff --git a/packages/plugins/sdk/src/testing.ts b/packages/plugins/sdk/src/testing.ts
-index 1f26852..46183a6 100644
+index 1f268522cff17c969d6b6d4a1bd6fa263512fa34..46183a6fd8b3bf44a0b569bf2c96adda0628910a 100644
 --- a/packages/plugins/sdk/src/testing.ts
 +++ b/packages/plugins/sdk/src/testing.ts
 @@ -1,4 +1,5 @@
@@ -888,7 +888,7 @@ index 1f26852..46183a6 100644
      getState(input) {
        return state.get(stateMapKey(input));
 diff --git a/packages/plugins/sdk/src/types.ts b/packages/plugins/sdk/src/types.ts
-index 7fd9ce0..593bc3d 100644
+index 7fd9ce0cbbcbdd555edebf5097b26eb501bd346e..593bc3dd0a4fd3727ff4898b6fee31ac1609ad37 100644
 --- a/packages/plugins/sdk/src/types.ts
 +++ b/packages/plugins/sdk/src/types.ts
 @@ -1380,6 +1380,25 @@ export interface PluginIssueOrchestrationSummary {
@@ -950,7 +950,7 @@ index 7fd9ce0..593bc3d 100644
      companyId: string;
      projectId?: string;
 diff --git a/packages/plugins/sdk/src/worker-rpc-host.ts b/packages/plugins/sdk/src/worker-rpc-host.ts
-index 8a96d57..d92efe0 100644
+index 8a96d57db909e9da850e9de857eb9718d3563771..d92efe0b4baa727e5d3fc2cd76c1ca98f0e35f79 100644
 --- a/packages/plugins/sdk/src/worker-rpc-host.ts
 +++ b/packages/plugins/sdk/src/worker-rpc-host.ts
 @@ -66,6 +66,8 @@ import type {
@@ -1028,7 +1028,7 @@ index 8a96d57..d92efe0 100644
          },
        },
 diff --git a/packages/plugins/sdk/tests/host-client-factory.test.ts b/packages/plugins/sdk/tests/host-client-factory.test.ts
-index cb42df7..00b0420 100644
+index cb42df7327e5beba339cf7a428850351ac2d6ac8..00b0420f8b65fd1c1534ad9a6300921e74e4055a 100644
 --- a/packages/plugins/sdk/tests/host-client-factory.test.ts
 +++ b/packages/plugins/sdk/tests/host-client-factory.test.ts
 @@ -9,6 +9,70 @@ import {
@@ -1112,7 +1112,7 @@ index cb42df7..00b0420 100644
  
    it("still allows a plain agent-attributed createComment call without the human-attribution capability", async () => {
 diff --git a/packages/plugins/sdk/tests/worker-rpc-host.test.ts b/packages/plugins/sdk/tests/worker-rpc-host.test.ts
-index 61f523d..449a338 100644
+index 61f523d84ad7344f95fb5d400359a9cdf5df0a4b..449a338af2f919435d917aaff7338e1891a6dc0f 100644
 --- a/packages/plugins/sdk/tests/worker-rpc-host.test.ts
 +++ b/packages/plugins/sdk/tests/worker-rpc-host.test.ts
 @@ -1229,3 +1229,199 @@ describe("Durable lifecycle inbox RPC", () => {
@@ -1316,7 +1316,7 @@ index 61f523d..449a338 100644
 +  });
 +});
 diff --git a/packages/shared/src/types/agent.ts b/packages/shared/src/types/agent.ts
-index 4cac11e..26ce6c7 100644
+index 4cac11e5a023872d4265145713b5e0f7be0a2f50..26ce6c70ae55ee2247b2d12efe1883d605f4e274 100644
 --- a/packages/shared/src/types/agent.ts
 +++ b/packages/shared/src/types/agent.ts
 @@ -21,6 +21,8 @@ import type { AgentApiKeyScope } from "../validators/agent.js";
@@ -1329,7 +1329,7 @@ index 4cac11e..26ce6c7 100644
    authorizationPolicy?: TrustAuthorizationPolicy;
  }
 diff --git a/packages/shared/src/validators/agent.ts b/packages/shared/src/validators/agent.ts
-index edbcf18..1a88817 100644
+index edbcf18c7f44e3107c773fc5881abad66bf2f9a8..1a88817f7b835d43ecb935f4d27b7974278236fa 100644
 --- a/packages/shared/src/validators/agent.ts
 +++ b/packages/shared/src/validators/agent.ts
 @@ -17,6 +17,8 @@ export const agentPermissionsSchema = z.object({
@@ -1351,7 +1351,7 @@ index edbcf18..1a88817 100644
    trustPreset: trustPresetSchema.optional(),
    authorizationPolicy: trustAuthorizationPolicySchema.optional(),
 diff --git a/server/src/__tests__/agent-permissions-service.test.ts b/server/src/__tests__/agent-permissions-service.test.ts
-index e45ecb9..8b4fa81 100644
+index e45ecb944a3b39fe7a1abc4e848fdffa91fc24f1..8b4fa818efc010b0fe791a61a66d6f3f69a6ce1a 100644
 --- a/server/src/__tests__/agent-permissions-service.test.ts
 +++ b/server/src/__tests__/agent-permissions-service.test.ts
 @@ -113,4 +113,19 @@ describe("agent permissions service", () => {
@@ -1375,7 +1375,7 @@ index e45ecb9..8b4fa81 100644
 +  });
  });
 diff --git a/server/src/__tests__/authorization-service.test.ts b/server/src/__tests__/authorization-service.test.ts
-index a2b2892..55995cc 100644
+index a2b28921c5ecd869e1e07325a417e7e641bfa029..55995cc6b93ce842093ad92376f1c1b70655c0f5 100644
 --- a/server/src/__tests__/authorization-service.test.ts
 +++ b/server/src/__tests__/authorization-service.test.ts
 @@ -374,6 +374,41 @@ describeEmbeddedPostgres("authorization service", () => {
@@ -1421,7 +1421,7 @@ index a2b2892..55995cc 100644
      const company = await createCompany(db, "SkillChangeGrant");
      const directAgent = await createAgent(db, company.id);
 diff --git a/server/src/__tests__/fixtures/plugin-worker-invocation-scope.cjs b/server/src/__tests__/fixtures/plugin-worker-invocation-scope.cjs
-index 8300a60..d6e7f7e 100644
+index 8300a60689f9732748ee6a4b904fbc320748fb9f..d6e7f7e9c722b67f07395802cd03aed9abd667ff 100644
 --- a/server/src/__tests__/fixtures/plugin-worker-invocation-scope.cjs
 +++ b/server/src/__tests__/fixtures/plugin-worker-invocation-scope.cjs
 @@ -9,7 +9,7 @@ function send(message) {
@@ -1443,7 +1443,7 @@ index 8300a60..d6e7f7e 100644
      return;
    }
 diff --git a/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts b/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts
-index 930c361..f8fe6ba 100644
+index 930c361da494095eea17bd965ade075a1e1e9160..f8fe6ba142f10d130d6fd3137e2110e49804914d 100644
 --- a/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts
 +++ b/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts
 @@ -1,9 +1,9 @@
@@ -1533,8 +1533,300 @@ index 930c361..f8fe6ba 100644
    async function seedAssignedAgents(count: number) {
      process.env.PAPERCLIP_API_URL = "https://paperclip.example.test";
      const [company] = await db.insert(companies).values({
+diff --git a/server/src/__tests__/plugin-capability-approval-lifecycle.test.ts b/server/src/__tests__/plugin-capability-approval-lifecycle.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e942905e5fad4a979e1ff5ea255a62f87cdaecd8
+--- /dev/null
++++ b/server/src/__tests__/plugin-capability-approval-lifecycle.test.ts
+@@ -0,0 +1,286 @@
++import { mkdtemp, mkdir, rm, utimes, writeFile } from "node:fs/promises";
++import os from "node:os";
++import path from "node:path";
++import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
++import { createDb, plugins } from "@paperclipai/db";
++import type {
++  PaperclipPluginManifestV1,
++  PluginRecord,
++} from "@paperclipai/shared";
++import {
++  getEmbeddedPostgresTestSupport,
++  startEmbeddedPostgresTestDatabase,
++} from "./helpers/embedded-postgres.js";
++import { pluginLifecycleManager } from "../services/plugin-lifecycle.js";
++import type { PluginLifecycleManager } from "../services/plugin-lifecycle.js";
++import {
++  pluginLoader,
++  type PluginRuntimeServices,
++} from "../services/plugin-loader.js";
++import type { PluginWorkerManager, WorkerStartOptions } from "../services/plugin-worker-manager.js";
++import { pluginRegistryService } from "../services/plugin-registry.js";
++
++const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
++const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
++
++const PLUGIN_ID = "test.capability-approval";
++const PACKAGE_NAME = "paperclip-plugin-capability-approval-test";
++const newCapability = "agent.tools.register" as const;
++
++describeEmbeddedPostgres("plugin capability approval lifecycle", () => {
++  let db!: ReturnType<typeof createDb>;
++  let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
++  const packageRoots: string[] = [];
++
++  beforeAll(async () => {
++    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-plugin-capability-approval-");
++    db = createDb(tempDb.connectionString);
++  }, 20_000);
++
++  afterEach(async () => {
++    await db.delete(plugins);
++    await Promise.all(packageRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
++  });
++
++  afterAll(async () => {
++    await tempDb?.cleanup();
++  });
++
++  function baseManifest(version: string, capabilities: PaperclipPluginManifestV1["capabilities"]): PaperclipPluginManifestV1 {
++    return {
++      id: PLUGIN_ID,
++      apiVersion: 1,
++      version,
++      displayName: "Capability Approval Fixture",
++      description: "Composed loader and lifecycle fixture",
++      author: "Paperclip test",
++      categories: ["automation"],
++      capabilities,
++      entrypoints: { worker: "worker.js" },
++    };
++  }
++
++  function manifestWithTool(version: string): PaperclipPluginManifestV1 {
++    return {
++      ...baseManifest(version, ["issues.read", newCapability]),
++      tools: [{
++        name: "approved_tool",
++        displayName: "Approved tool",
++        description: "Tool added by the upgraded manifest",
++        parametersSchema: { type: "object" },
++      }],
++    };
++  }
++
++  async function makePackage(manifest: PaperclipPluginManifestV1): Promise<string> {
++    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-plugin-capability-approval-"));
++    packageRoots.push(root);
++    await writeFile(path.join(root, "package.json"), JSON.stringify({
++      name: PACKAGE_NAME,
++      version: manifest.version,
++      type: "module",
++      paperclipPlugin: { manifest: "manifest.js" },
++    }));
++    await writeFile(path.join(root, "worker.js"), "export {};\n");
++    await writeManifest(root, manifest);
++    return root;
++  }
++
++  async function writeManifest(root: string, manifest: PaperclipPluginManifestV1): Promise<void> {
++    const manifestPath = path.join(root, "manifest.js");
++    await writeFile(manifestPath, `export default ${JSON.stringify(manifest)};\n`);
++    const stamp = new Date(Date.now() + 2_000);
++    await utimes(manifestPath, stamp, stamp);
++  }
++
++  function makeRuntime() {
++    const running = new Set<string>();
++    const starts: Array<{ pluginId: string; options: WorkerStartOptions }> = [];
++    const workerManager = {
++      onConfigApplied: vi.fn(() => () => undefined),
++      startWorker: vi.fn(async (pluginId: string, options: WorkerStartOptions) => {
++        starts.push({ pluginId, options });
++        running.add(pluginId);
++        return {};
++      }),
++      stopWorker: vi.fn(async (pluginId: string) => { running.delete(pluginId); }),
++      getWorker: vi.fn(() => undefined),
++      isRunning: vi.fn((pluginId: string) => running.has(pluginId)),
++      setProactiveCompanyScopes: vi.fn(),
++      stopAll: vi.fn(async () => { running.clear(); }),
++      diagnostics: vi.fn(() => []),
++      call: vi.fn(async () => undefined),
++    } as unknown as PluginWorkerManager;
++    const eventBus = {
++      forPlugin: vi.fn(() => ({})),
++      subscriptionCount: vi.fn(() => 0),
++      clearPlugin: vi.fn(),
++    };
++    const jobScheduler = {
++      unregisterPlugin: vi.fn(async () => undefined),
++      registerPlugin: vi.fn(async () => undefined),
++      stop: vi.fn(),
++    };
++    const jobStore = { syncJobDeclarations: vi.fn(async () => undefined) };
++    const toolDispatcher = {
++      registerPluginTools: vi.fn(),
++      unregisterPluginTools: vi.fn(),
++    };
++    const lifecycleStub = {
++      markError: vi.fn(async () => ({})),
++      load: vi.fn(async () => ({})),
++    };
++    const services: PluginRuntimeServices = {
++      workerManager,
++      eventBus: eventBus as unknown as PluginRuntimeServices["eventBus"],
++      jobScheduler: jobScheduler as unknown as PluginRuntimeServices["jobScheduler"],
++      jobStore: jobStore as unknown as PluginRuntimeServices["jobStore"],
++      toolDispatcher: toolDispatcher as unknown as PluginRuntimeServices["toolDispatcher"],
++      lifecycleManager: lifecycleStub as unknown as PluginLifecycleManager,
++      buildHostHandlers: vi.fn(() => ({})),
++      instanceInfo: { instanceId: "capability-approval-test", hostVersion: "1.0.0" },
++    };
++    return { workerManager, starts, toolDispatcher, lifecycleStub, services };
++  }
++
++  async function installReadyPlugin(manifest: PaperclipPluginManifestV1) {
++    const packageRoot = await makePackage(manifest);
++    const runtime = makeRuntime();
++    const loader = pluginLoader(db, {
++      localPluginDir: path.join(packageRoot, "managed"),
++      enableLocalFilesystem: false,
++      enableNpmDiscovery: false,
++    }, runtime.services);
++    await loader.installPlugin({ localPath: packageRoot });
++    const registry = pluginRegistryService(db);
++    const installed = await registry.getByKey(PLUGIN_ID) as PluginRecord;
++    const ready = await registry.updateStatus(installed.id, { status: "ready" }) as PluginRecord;
++    const lifecycle = pluginLifecycleManager(db, { loader, workerManager: runtime.workerManager });
++    return { packageRoot, runtime, loader, lifecycle, registry, plugin: ready };
++  }
++
++  it("keeps the direct loader capability escalation refusal and existing record unchanged by default", async () => {
++    const fixture = await installReadyPlugin(baseManifest("1.0.0", ["issues.read"]));
++    await writeManifest(fixture.packageRoot, manifestWithTool("2.0.0"));
++
++    await expect(fixture.loader.upgradePlugin(fixture.plugin.id, {})).rejects.toThrow(
++      /introduces new capabilities that require approval/,
++    );
++
++    const after = await fixture.registry.getById(fixture.plugin.id);
++    expect(after).toMatchObject({
++      id: fixture.plugin.id,
++      status: "ready",
++      version: "1.0.0",
++      manifestJson: fixture.plugin.manifestJson,
++    });
++  });
++
++  it("stages new capabilities, keeps pending through reload and repeated upgrade, and enables the exact manifest only explicitly", async () => {
++    const fixture = await installReadyPlugin(baseManifest("1.0.0", ["issues.read"]));
++    const firstLoad = await fixture.loader.loadSingle(fixture.plugin.id);
++    expect(firstLoad.success).toBe(true);
++    expect(fixture.runtime.starts).toHaveLength(1);
++
++    const upgradedManifest = manifestWithTool("2.0.0");
++    await writeManifest(fixture.packageRoot, upgradedManifest);
++    const upgradePending = await fixture.lifecycle.upgrade(fixture.plugin.id);
++    expect(upgradePending).toMatchObject({ status: "upgrade_pending", version: "2.0.0", manifestJson: upgradedManifest });
++    expect(fixture.runtime.workerManager.stopWorker).toHaveBeenCalledWith(fixture.plugin.id);
++    expect(fixture.runtime.starts).toHaveLength(1);
++    expect(fixture.runtime.toolDispatcher.registerPluginTools).not.toHaveBeenCalled();
++
++    const restartedRuntime = makeRuntime();
++    const restartedLoader = pluginLoader(db, {
++      localPluginDir: path.join(fixture.packageRoot, "managed"),
++      enableLocalFilesystem: false,
++      enableNpmDiscovery: false,
++    }, restartedRuntime.services);
++    await expect(restartedLoader.loadAll()).resolves.toMatchObject({ total: 0, succeeded: 0 });
++    expect(restartedRuntime.starts).toHaveLength(0);
++
++    const restartedLifecycle = pluginLifecycleManager(db, {
++      loader: restartedLoader,
++      workerManager: restartedRuntime.workerManager,
++    });
++    const repeated = await restartedLifecycle.upgrade(fixture.plugin.id);
++    expect(repeated).toMatchObject({ status: "upgrade_pending", version: "2.0.0", manifestJson: upgradedManifest });
++    expect(restartedRuntime.starts).toHaveLength(0);
++    expect(restartedRuntime.toolDispatcher.registerPluginTools).not.toHaveBeenCalled();
++
++    const enabled = await restartedLifecycle.enable(fixture.plugin.id);
++    expect(enabled).toMatchObject({ status: "ready", version: "2.0.0", manifestJson: upgradedManifest });
++    expect(restartedRuntime.starts).toHaveLength(1);
++    expect(restartedRuntime.starts[0]?.options.manifest).toEqual(upgradedManifest);
++    expect(restartedRuntime.toolDispatcher.registerPluginTools).toHaveBeenCalledExactlyOnceWith(
++      PLUGIN_ID,
++      upgradedManifest,
++      fixture.plugin.id,
++    );
++  });
++
++  it("upgrades without new capabilities directly back to ready", async () => {
++    const fixture = await installReadyPlugin(baseManifest("1.0.0", ["issues.read"]));
++    await fixture.loader.loadSingle(fixture.plugin.id);
++    const upgradedManifest = baseManifest("1.1.0", ["issues.read"]);
++    await writeManifest(fixture.packageRoot, upgradedManifest);
++
++    const result = await fixture.lifecycle.upgrade(fixture.plugin.id);
++
++    expect(result).toMatchObject({ status: "ready", version: "1.1.0", manifestJson: upgradedManifest });
++    expect(fixture.runtime.starts).toHaveLength(2);
++    expect(fixture.runtime.starts[1]?.options.manifest).toEqual(upgradedManifest);
++  });
++
++  it("stages added capabilities from a disabled plugin without activating it", async () => {
++    const fixture = await installReadyPlugin(baseManifest("1.0.0", ["issues.read"]));
++    await fixture.registry.updateStatus(fixture.plugin.id, { status: "disabled" });
++    const upgradedManifest = manifestWithTool("2.0.0");
++    await writeManifest(fixture.packageRoot, upgradedManifest);
++
++    const result = await fixture.lifecycle.upgrade(fixture.plugin.id);
++
++    expect(result).toMatchObject({
++      status: "upgrade_pending",
++      version: "2.0.0",
++      manifestJson: upgradedManifest,
++    });
++    expect(fixture.runtime.starts).toHaveLength(0);
++    expect(fixture.runtime.toolDispatcher.registerPluginTools).not.toHaveBeenCalled();
++  });
++
++  it("keeps a disabled plugin disabled when its upgrade adds no capabilities", async () => {
++    const fixture = await installReadyPlugin(baseManifest("1.0.0", ["issues.read"]));
++    await fixture.registry.updateStatus(fixture.plugin.id, { status: "disabled" });
++    const upgradedManifest = baseManifest("1.1.0", ["issues.read"]);
++    await writeManifest(fixture.packageRoot, upgradedManifest);
++
++    const result = await fixture.lifecycle.upgrade(fixture.plugin.id);
++
++    expect(result).toMatchObject({
++      status: "disabled",
++      version: "1.1.0",
++      manifestJson: upgradedManifest,
++    });
++    expect(fixture.runtime.starts).toHaveLength(0);
++    expect(fixture.runtime.toolDispatcher.registerPluginTools).not.toHaveBeenCalled();
++  });
++
++  it("rejects an upgrade that changes plugin identity without replacing the existing record", async () => {
++    const fixture = await installReadyPlugin(baseManifest("1.0.0", ["issues.read"]));
++    const wrongId = { ...baseManifest("2.0.0", ["issues.read"]), id: "test.different-plugin" };
++    await writeManifest(fixture.packageRoot, wrongId);
++
++    await expect(fixture.loader.upgradePlugin(fixture.plugin.id, {})).rejects.toThrow(
++      /manifest ID .* does not match existing plugin ID/,
++    );
++
++    const after = await fixture.registry.getById(fixture.plugin.id);
++    expect(after).toMatchObject({
++      id: fixture.plugin.id,
++      status: "ready",
++      version: "1.0.0",
++      manifestJson: fixture.plugin.manifestJson,
++    });
++  });
++});
 diff --git a/server/src/__tests__/plugin-orchestration-apis.test.ts b/server/src/__tests__/plugin-orchestration-apis.test.ts
-index 2554586..f5d46cb 100644
+index 2554586da91ce587491a4cefd10d6a08cad4d90f..f5d46cb6a4d7befc9bc39ccabd966c4588200b92 100644
 --- a/server/src/__tests__/plugin-orchestration-apis.test.ts
 +++ b/server/src/__tests__/plugin-orchestration-apis.test.ts
 @@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
@@ -1753,7 +2045,7 @@ index 2554586..f5d46cb 100644
        const { companyId, privateIssueId } = await seedOpenAndPrivate();
        await db.insert(issueComments).values({
 diff --git a/server/src/__tests__/plugin-worker-manager.test.ts b/server/src/__tests__/plugin-worker-manager.test.ts
-index c97c14a..32acbe1 100644
+index c97c14a83558376c2491e391d56276f0af552278..32acbe1b52e6a5084d91647bfaf18dd8be594ebf 100644
 --- a/server/src/__tests__/plugin-worker-manager.test.ts
 +++ b/server/src/__tests__/plugin-worker-manager.test.ts
 @@ -332,6 +332,58 @@ describe("plugin-worker-manager stderr failure context", () => {
@@ -1816,7 +2108,7 @@ index c97c14a..32acbe1 100644
      const companiesGet = vi.fn(async () => ({ id: "company-1" }));
      const handle = createPluginWorkerHandle("test.plugin", {
 diff --git a/server/src/services/authorization.ts b/server/src/services/authorization.ts
-index 71d4aff..b42e248 100644
+index 71d4affa17475640ca8ed44a7a238965b1d681f7..b42e248b154fe3a9f32f6ad5ccca9cc7ca1fdd49 100644
 --- a/server/src/services/authorization.ts
 +++ b/server/src/services/authorization.ts
 @@ -158,6 +158,7 @@ export type AuthorizationDecision = {
@@ -1849,7 +2141,7 @@ index 71d4aff..b42e248 100644
          action: input.action,
 diff --git a/server/src/services/chat-github-tools.test.ts b/server/src/services/chat-github-tools.test.ts
 new file mode 100644
-index 0000000..e13927e
+index 0000000000000000000000000000000000000000..e13927ee1087add1729194ace2b562269a316cb0
 --- /dev/null
 +++ b/server/src/services/chat-github-tools.test.ts
 @@ -0,0 +1,96 @@
@@ -1950,7 +2242,7 @@ index 0000000..e13927e
 +  });
 +});
 diff --git a/server/src/services/chat-github-tools.ts b/server/src/services/chat-github-tools.ts
-index f87a9f1..6915670 100644
+index f87a9f1c663866ae5e518b2f18c081d59e8da40b..69156705b01abf5d75253afcd65321112a3af05c 100644
 --- a/server/src/services/chat-github-tools.ts
 +++ b/server/src/services/chat-github-tools.ts
 @@ -1,6 +1,6 @@
@@ -2032,7 +2324,7 @@ index f87a9f1..6915670 100644
        ),
      );
 diff --git a/server/src/services/heartbeat/run-preparation.ts b/server/src/services/heartbeat/run-preparation.ts
-index 7c635e5..df0bff3 100644
+index 7c635e5cbaeeec03a5df05f5fe9dff390160f34e..df0bff36c900166ea3b2e50b6f4e750f54efd6c9 100644
 --- a/server/src/services/heartbeat/run-preparation.ts
 +++ b/server/src/services/heartbeat/run-preparation.ts
 @@ -87,6 +87,8 @@ import {
@@ -2091,7 +2383,7 @@ index 7c635e5..df0bff3 100644
      // The 250-entry limit bounds a public profile-edit request, not the
      // effective assignment assembled from existing profiles. Keep every exact
 diff --git a/server/src/services/issues.ts b/server/src/services/issues.ts
-index 9acfdf8..f4c5107 100644
+index 9acfdf860743046e6ca4e8ccc17ce7b7eb65ca76..f4c5107be90d30c5a5ee0d6f972a5737ad57b346 100644
 --- a/server/src/services/issues.ts
 +++ b/server/src/services/issues.ts
 @@ -6,7 +6,14 @@ import { assertNoCaseHandoffMutation, cancelCaseHandoffsForIssue, completeTermin
@@ -2222,7 +2514,7 @@ index 9acfdf8..f4c5107 100644
            receiptExisting.statusVersion !== expectedStatusVersion || receiptExisting.status !== "backlog"
          )) {
 diff --git a/server/src/services/native-runtime/assigned-mcp-tools.ts b/server/src/services/native-runtime/assigned-mcp-tools.ts
-index 535b265..efd9b4e 100644
+index 535b265d4ad3f8aec8346065f32da08ecf69cd1e..efd9b4e55cd36893b279f99602c5e9bdd8874f75 100644
 --- a/server/src/services/native-runtime/assigned-mcp-tools.ts
 +++ b/server/src/services/native-runtime/assigned-mcp-tools.ts
 @@ -64,6 +64,10 @@ export function getAssignedMcpGateway(db: Db): ToolGatewayService {
@@ -2312,7 +2604,7 @@ index 535b265..efd9b4e 100644
        // not a grant: revocation, policy, approval, and audit remain server-owned.
 diff --git a/server/src/services/native-runtime/native-mcp-assignment.test.ts b/server/src/services/native-runtime/native-mcp-assignment.test.ts
 new file mode 100644
-index 0000000..56f8361
+index 0000000000000000000000000000000000000000..56f83612316cd1f7f0714bc92db1d24991a4437c
 --- /dev/null
 +++ b/server/src/services/native-runtime/native-mcp-assignment.test.ts
 @@ -0,0 +1,30 @@
@@ -2348,7 +2640,7 @@ index 0000000..56f8361
 +});
 diff --git a/server/src/services/native-runtime/native-mcp-assignment.ts b/server/src/services/native-runtime/native-mcp-assignment.ts
 new file mode 100644
-index 0000000..10d1a2e
+index 0000000000000000000000000000000000000000..10d1a2ea1f267e218b29655eb8e43f70232d2e66
 --- /dev/null
 +++ b/server/src/services/native-runtime/native-mcp-assignment.ts
 @@ -0,0 +1,25 @@
@@ -2378,7 +2670,7 @@ index 0000000..10d1a2e
 +  };
 +}
 diff --git a/server/src/services/native-runtime/native-session-executor.test.ts b/server/src/services/native-runtime/native-session-executor.test.ts
-index 98605fe..85ca35e 100644
+index 98605fe1e8909a94770254ffee92dfed3a1dfe9c..85ca35ea94be3ea91054f9e6403a68c8cc81d07c 100644
 --- a/server/src/services/native-runtime/native-session-executor.test.ts
 +++ b/server/src/services/native-runtime/native-session-executor.test.ts
 @@ -30,6 +30,7 @@ import { tmpdir } from "node:os";
@@ -2502,7 +2794,7 @@ index 98605fe..85ca35e 100644
      const remoteExecute = vi.fn();
      const remoteTarget = {
 diff --git a/server/src/services/native-runtime/native-session-executor.ts b/server/src/services/native-runtime/native-session-executor.ts
-index 7e18fd0..49f2ff1 100644
+index 7e18fd0f5f3c8a627b3bf41a4e11c6d91a57b9ee..49f2ff14266c078b6693b54340dd14c8980c7091 100644
 --- a/server/src/services/native-runtime/native-session-executor.ts
 +++ b/server/src/services/native-runtime/native-session-executor.ts
 @@ -157,7 +157,7 @@ import { PaperclipControlPlanePort } from "./paperclip-control-plane-port.js";
@@ -2560,7 +2852,7 @@ index 7e18fd0..49f2ff1 100644
      pinnedMcpDigest:
        "runtimeContext" in input.execution
 diff --git a/server/src/services/native-runtime/paperclip-runner-tool-authority.test.ts b/server/src/services/native-runtime/paperclip-runner-tool-authority.test.ts
-index 04a9b79..196354e 100644
+index 04a9b79a2cc915c4f970373ca92b681afc785585..196354e7d97980b43813d2238a75c54d71b42f50 100644
 --- a/server/src/services/native-runtime/paperclip-runner-tool-authority.test.ts
 +++ b/server/src/services/native-runtime/paperclip-runner-tool-authority.test.ts
 @@ -23,7 +23,11 @@ import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embed
@@ -2718,7 +3010,7 @@ index 04a9b79..196354e 100644
        await db.update(issues).set({ workMode: "standard" }).where(eq(issues.id, issueId));
      }
 diff --git a/server/src/services/native-runtime/paperclip-runner-tool-authority.ts b/server/src/services/native-runtime/paperclip-runner-tool-authority.ts
-index e4d7b4b..60eedb3 100644
+index e4d7b4bb9a822231840dbcf8a85f801b11439f0b..60eedb31d7f9ceaf31f0b226e6124ef70e67f6aa 100644
 --- a/server/src/services/native-runtime/paperclip-runner-tool-authority.ts
 +++ b/server/src/services/native-runtime/paperclip-runner-tool-authority.ts
 @@ -154,6 +154,8 @@ type Binding = {
@@ -2836,7 +3128,7 @@ index e4d7b4b..60eedb3 100644
      }
      if (isConnectorTool(call.tool)) {
 diff --git a/server/src/services/native-runtime/runtime-context.test.ts b/server/src/services/native-runtime/runtime-context.test.ts
-index 5af8520..5178cc4 100644
+index 5af85205e2128df1cdc8aa9131365d68819cffd2..5178cc4abc72d2a12a93259358dc01add4c5a8dc 100644
 --- a/server/src/services/native-runtime/runtime-context.test.ts
 +++ b/server/src/services/native-runtime/runtime-context.test.ts
 @@ -12,6 +12,7 @@ const serviceMocks = vi.hoisted(() => ({
@@ -2885,7 +3177,7 @@ index 5af8520..5178cc4 100644
    serviceMocks.getEffectiveToolAssignmentsForAgent.mockResolvedValue({
      entries: [{ effect: "include", connectionId: "bot-connection" }],
 diff --git a/server/src/services/native-runtime/runtime-context.ts b/server/src/services/native-runtime/runtime-context.ts
-index 174a6fd..0e9bdfc 100644
+index 174a6fd4ff8c549f798c503135e19c038284322f..0e9bdfc59d8a1297f8fd5e3c39c3c586e849a0db 100644
 --- a/server/src/services/native-runtime/runtime-context.ts
 +++ b/server/src/services/native-runtime/runtime-context.ts
 @@ -28,6 +28,8 @@ import { resolvePaperclipInstanceRoot } from "../../home-paths.js";
@@ -2926,7 +3218,7 @@ index 174a6fd..0e9bdfc 100644
  
  export async function buildNativeRuntimeContext(input: { db: Db; agent: RuntimeAgent; runId: string; runtimeConfig: Record<string, unknown>; runtimeSkillEntries: PaperclipSkillEntry[]; instructionWorkingCopy?: { rootPath: string; entryPath: string; kind?: "agent_files" } }): Promise<NativeRuntimeContextSnapshot> {
 diff --git a/server/src/services/plugin-host-services.ts b/server/src/services/plugin-host-services.ts
-index b3d7065..e8e53c1 100644
+index b3d7065ac5b43a2eb37ec77608ee59f8d265c3e9..e8e53c10d5cad3a5c5d7db4ff061538552b79e47 100644
 --- a/server/src/services/plugin-host-services.ts
 +++ b/server/src/services/plugin-host-services.ts
 @@ -28,6 +28,7 @@ import type {
@@ -3229,8 +3521,210 @@ index b3d7065..e8e53c1 100644
            details: {
              identifier: issue.identifier,
              commentId: comment.id,
+diff --git a/server/src/services/plugin-lifecycle.ts b/server/src/services/plugin-lifecycle.ts
+index 24fa13e772aa5777047154c556ca0a54921d633a..17d7c349664ca88186665bb3970a0944d697a146 100644
+--- a/server/src/services/plugin-lifecycle.ts
++++ b/server/src/services/plugin-lifecycle.ts
+@@ -65,6 +65,7 @@ import { logger } from "../middleware/logger.js";
+  *   ready → uninstalled     (uninstall)
+  *
+  *   disabled → ready        (operator re-enables plugin)
++ *   disabled → upgrade_pending (upgrade adds capabilities requiring approval)
+  *   disabled → uninstalled  (uninstall while disabled)
+  *
+  *   error → ready           (retry / recovery)
+@@ -79,7 +80,7 @@ import { logger } from "../middleware/logger.js";
+ const VALID_TRANSITIONS: Record<string, readonly PluginStatus[]> = {
+   installed: ["ready", "error", "uninstalled"],
+   ready: ["ready", "disabled", "error", "upgrade_pending", "uninstalled"],
+-  disabled: ["ready", "uninstalled"],
++  disabled: ["ready", "upgrade_pending", "uninstalled"],
+   error: ["ready", "uninstalled"],
+   upgrade_pending: ["ready", "error", "uninstalled"],
+   uninstalled: ["installed"], // reinstall
+@@ -183,7 +184,8 @@ export interface PluginLifecycleManager {
+    * The actual package installation is handled by plugin-loader.
+    *
+    * If the upgrade adds new capabilities, transitions to `upgrade_pending`.
+-   * Otherwise, transitions to `ready` directly.
++   * Otherwise, transitions ready plugins to `ready` and leaves disabled plugins
++   * disabled.
+    */
+   upgrade(pluginId: string, version?: string): Promise<PluginRecord>;
+ 
+@@ -628,22 +630,26 @@ export function pluginLifecycleManager(
+      * 3. Compares the capabilities declared in the new manifest against the old one.
+      * 4. If new capabilities are added, transitions the plugin to `upgrade_pending`
+      *    to await operator approval (worker stays stopped).
+-     * 5. If no new capabilities are added, transitions the plugin back to `ready`
+-     *    with the updated version and manifest metadata.
++     * 5. If no new capabilities are added, transitions ready plugins back to
++     *    `ready`; disabled plugins remain disabled with the updated manifest.
+      *
+      * @param pluginId - The UUID of the plugin to upgrade.
+      * @param version - Optional target version specifier.
+      * @returns The updated `PluginRecord`.
+-     * @throws {BadRequest} If the plugin is not in a ready or upgrade_pending state.
++     * @throws {BadRequest} If the plugin is not in a ready, disabled, or upgrade_pending state.
+      */
+     async upgrade(pluginId: string, version?: string): Promise<PluginRecord> {
+       const plugin = await requirePlugin(pluginId);
+ 
+-      // Can only upgrade plugins that are ready or already in upgrade_pending
+-      if (plugin.status !== "ready" && plugin.status !== "upgrade_pending") {
++      // Disabled plugins may receive an on-disk upgrade while remaining stopped.
++      if (
++        plugin.status !== "ready" &&
++        plugin.status !== "disabled" &&
++        plugin.status !== "upgrade_pending"
++      ) {
+         throw badRequest(
+           `Cannot upgrade plugin in status '${plugin.status}'. ` +
+-            `Plugin must be in 'ready' or 'upgrade_pending' status to be upgraded.`,
++            `Plugin must be in 'ready', 'disabled', or 'upgrade_pending' status to be upgraded.`,
+         );
+       }
+ 
+@@ -655,8 +661,13 @@ export function pluginLifecycleManager(
+       await deactivatePluginRuntime(pluginId, plugin.pluginKey);
+ 
+       // 1. Download and validate new package via loader
++      const wasUpgradePending = plugin.status === "upgrade_pending";
++      const wasDisabled = plugin.status === "disabled";
+       const { oldManifest, newManifest, discovered } =
+-        await pluginLoaderInstance.upgradePlugin(pluginId, { version });
++        await pluginLoaderInstance.upgradePlugin(pluginId, {
++          version,
++          capabilityChangeHandling: "stage_pending",
++        });
+ 
+       log.info(
+         {
+@@ -674,20 +685,40 @@ export function pluginLifecycleManager(
+       );
+ 
+       // 3. Transition state
+-      if (addedCaps.length > 0) {
++      const updatedPlugin = await requirePlugin(pluginId);
++      if (
++        wasUpgradePending ||
++        addedCaps.length > 0 ||
++        updatedPlugin.status === "upgrade_pending"
++      ) {
+         // New capabilities require operator approval — worker stays stopped
+         log.info(
+           { pluginId, pluginKey: plugin.pluginKey, addedCaps },
+           "plugin lifecycle: new capabilities detected, transitioning to upgrade_pending",
+         );
+-        // Skip the inner stopWorkerIfRunning since we already stopped above
+-        const result = await transition(pluginId, "upgrade_pending", null, plugin);
++        // A repeated upgrade must not turn a previously pending manifest into
++        // an implicit approval when the new package declares no further caps.
++        // The loader persisted newly added capabilities and this status atomically.
++        const result = wasUpgradePending && updatedPlugin.status === "upgrade_pending"
++          ? updatedPlugin
++          : await transition(
++              pluginId,
++              "upgrade_pending",
++              null,
++              wasUpgradePending ? updatedPlugin : plugin,
++            );
+         emitDomain("plugin.upgrade_pending", {
+           pluginId,
+           pluginKey: result.pluginKey,
+         });
+         return result;
+       } else {
++        if (wasDisabled) {
++          // Preserve a manual pause across an upgrade that adds no capabilities.
++          // The loader has already persisted the new version and manifest.
++          return updatedPlugin;
++        }
++
+         const result = await transition(pluginId, "ready", null, {
+           ...plugin,
+           version: discovered.version,
+diff --git a/server/src/services/plugin-loader.ts b/server/src/services/plugin-loader.ts
+index c07e48ac2e37a04d96d36faffbfb43faaf29d410..80c3f14c85b4326e9a22b1f82e0fa531e26b1ad3 100644
+--- a/server/src/services/plugin-loader.ts
++++ b/server/src/services/plugin-loader.ts
+@@ -343,6 +343,12 @@ export interface PluginInstallOptions {
+   installDir?: string;
+ }
+ 
++/** Internal lifecycle control; not accepted by any HTTP or plugin SDK surface. */
++export interface PluginUpgradeOptions extends Omit<PluginInstallOptions, "installDir"> {
++  /** Stage a manifest with added capabilities while keeping the plugin pending approval. */
++  capabilityChangeHandling?: "stage_pending";
++}
++
+ // ---------------------------------------------------------------------------
+ // Runtime options — services needed for initializing loaded plugins
+ // ---------------------------------------------------------------------------
+@@ -546,7 +552,7 @@ export interface PluginLoader {
+    *
+    * @see PLUGIN_SPEC.md §25.3 — Upgrade Lifecycle
+    */
+-  upgradePlugin(pluginId: string, options: Omit<PluginInstallOptions, "installDir">): Promise<{
++  upgradePlugin(pluginId: string, options: PluginUpgradeOptions): Promise<{
+     oldManifest: PaperclipPluginManifestV1;
+     newManifest: PaperclipPluginManifestV1;
+     discovered: DiscoveredPlugin;
+@@ -1795,18 +1801,13 @@ export function pluginLoader(
+      */
+     async upgradePlugin(
+       pluginId: string,
+-      upgradeOptions: Omit<PluginInstallOptions, "installDir">,
++      upgradeOptions: PluginUpgradeOptions,
+     ): Promise<{
+       oldManifest: PaperclipPluginManifestV1;
+       newManifest: PaperclipPluginManifestV1;
+       discovered: DiscoveredPlugin;
+     }> {
+-      const plugin = (await registry.getById(pluginId)) as {
+-        id: string;
+-        packageName: string;
+-        packagePath: string | null;
+-        manifestJson: PaperclipPluginManifestV1;
+-      } | null;
++      const plugin = (await registry.getById(pluginId)) as PluginRecord | null;
+       if (!plugin) throw new Error(`Plugin not found: ${pluginId}`);
+ 
+       const oldManifest = plugin.manifestJson;
+@@ -1851,18 +1852,25 @@ export function pluginLoader(
+           { pluginId, escalated, oldVersion: oldManifest.version, newVersion: newManifest.version },
+           "plugin-loader: upgrade introduces new capabilities — requires admin approval",
+         );
+-        throw new Error(
+-          `Upgrade for "${pluginId}" introduces new capabilities that require approval: ${escalated.join(", ")}. ` +
+-            `The previous version declared [${[...oldCaps].join(", ")}]. ` +
+-            `Please review and approve the capability escalation before upgrading.`,
+-        );
++        if (upgradeOptions.capabilityChangeHandling !== "stage_pending") {
++          throw new Error(
++            `Upgrade for "${pluginId}" introduces new capabilities that require approval: ${escalated.join(", ")}. ` +
++              `The previous version declared [${[...oldCaps].join(", ")}]. ` +
++              `Please review and approve the capability escalation before upgrading.`,
++          );
++        }
+       }
+ 
+-      // 4. Update the existing record
++      // 4. Update the existing record. Capability additions and the pending
++      // approval status share one write so the new manifest is never marked ready.
+       await registry.update(pluginId, {
+         packageName: discovered.packageName,
+         version: discovered.version,
+         manifest: newManifest,
++        ...(upgradeOptions.capabilityChangeHandling === "stage_pending" &&
++          (escalated.length > 0 || plugin.status === "upgrade_pending")
++          ? { status: "upgrade_pending" as const }
++          : {}),
+       });
+ 
+       return {
 diff --git a/server/src/services/plugin-worker-manager.ts b/server/src/services/plugin-worker-manager.ts
-index dd7173d..545a51a 100644
+index dd7173d9dd10cbecc91c6a19d698d28f14cfea0c..545a51a45fb43109c9dfa3d68a7fd414e67ea819 100644
 --- a/server/src/services/plugin-worker-manager.ts
 +++ b/server/src/services/plugin-worker-manager.ts
 @@ -1167,7 +1167,12 @@ export function createPluginWorkerHandle(
@@ -3248,7 +3742,7 @@ index dd7173d..545a51a 100644
  
      if (method === "onEvent" && isRecord(params.event)) {
 diff --git a/server/src/services/tool-gateway.ts b/server/src/services/tool-gateway.ts
-index 3e97a9f..f3c35a3 100644
+index 3e97a9fd7cc04015b2f7fd76589b5d07b2bbb2fd..f3c35a35d5072222d21cb07fea4e467df7e9e40e 100644
 --- a/server/src/services/tool-gateway.ts
 +++ b/server/src/services/tool-gateway.ts
 @@ -9070,6 +9070,10 @@ export function createToolGatewayService(
