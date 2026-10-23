@@ -11,75 +11,47 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
-## Current authorized resumption and minimum company target — 2026-10-23
+## Current authorized resumption and practical release increment — 2026-10-23
 
-The founder resumed development/testing and delegated practical architecture decisions to the CEO.
-Paperclip remains the sole lifecycle owner; no competing Goal or scheduler was created. MEM is
-active for admitted tasks, while historical experimental companies and unknown operations remain held.
-Six department projects/goals and permitted backlogs exist with an interim shared Sol lead, Luna
-engineer and separate Sol reviewer. This structure alone is not operational acceptance.
+Paperclip remains the sole lifecycle owner. MEM is the only resumed company; historical companies,
+unknown operations and the 12 retained holds remain held. Six department projects/goals exist, but
+four new department lanes are bounded source analyses, not independent implementation or publication
+teams. Their seven native analysis tasks received independent batch QA: Experience and Cortex
+accepted; Evaluation and Policy qualified. Original MEM-10..17 implementation issues remain open
+and held.
 
-The rejected worker Git-import path remains preserved and unused. The accepted replacement takes
-bounded full-text content for two owner-defined files, then constructs a controller-owned candidate;
-it does not import worker Git objects. Exact source776cfb1 is integrated as874f535. Owner policy
-must remain immutable per operation; policy-drift stale-prepare behavior is Platform backlog CD-02,
-with inspection/integration rejecting mismatches.
+The accepted source `4afa81b1` (based on `4500875`) adds fixed owner-verifier preflight feedback and
+at most two immutable attempts per stage. The associated managed v5 lead/source/reviewer role proposal
+was independently accepted, integrated/pushed and installed through supported Paperclip revisions.
+These are bounded controller and role qualifications; they do not establish successful current
+execution, autonomous Brain publication, or MVP. Preserve accepted projected base `4dcb736` and
+canonical base `ad02f26` unchanged.
 
-Real MEM26/27 completed source delivery, independent Sol review, fixed verification and projected
-publication: operation812fa3145c9503694fd3296faa4111df33022b26ea231956b0328f8bfa741aa5,
-candidate4dcb736a1d65cbd53df2b126c24f65c20146cd95. The capacity validation improvement rejects
-invalid/unrepresentable input with ValueError while preserving valid formulas. Previous failed
-relationship admission and the rejected TypeError candidate remain recorded, not replayed as success.
-Canonical catchupad02f26 was separately exact-reviewed and operator-assisted published/reconciled,
-then remote-confirmed. This establishes aligned selected-file bases, not autonomous publication.
+In the current MEM-42 attempt two, Sol created MEM-45/46. MEM-45 passed the fixed source preflight and
+delivered its candidate. MEM-46 independently rejected the attempt solely for a missing explicit
+populated zero-causal-time regression: an event with `receipt_ns=available_ns=0` must be visible at
+cutoff zero and retain `first_observed_ns=first_available_ns=0` at a later cutoff, with flags and
+deep nonmutation preserved. This regression was specified in both source and QA contracts; review
+found no behavior defect. The final fixed verifier did not run, and neither projected nor canonical
+publication occurred. MEM-42 is blocked at version 13; accepted stage count remains zero.
 
-The native SDK CAS/readiness extension67ae034 passed independent review, including concurrent
-reparenting. Finite controller0d40018 subsequently passed two-stage SDK/TS/Python/Sandbox and
-projected/canonical CAS review. Stage2 uses an owner-controlled pinned source cache, preserving the
-verifier's distinct protected source root. Source and QA finalization must precede the next stage;
-the lead retains its prior completed-QA dependency until the next binding succeeds. QA inspects
-immutable candidates rather than reading sibling private tasks.
+The founder authorized exactly one further initial-stage corrective attempt through the narrow
+reviewed `cap3delta` path, now under implementation. This authorizes implementation/review only; no
+policy deployment or native retry yet. Luna implements the isolated delta and v6 role proposal;
+separate Sol accepts exact source and role bytes; Sol practical owns release and runtime. Preserve
+MEM-42, its owner config, accepted bases and frozen attempts. No rejection override, unknown-outcome
+replay, manual source copy/pairs/publication, dependency edit, or attempt budget beyond attempt three.
+If that attempt fails, stop this increment and triage independent useful work. Exact receipts are
+under the private lab `state/resumption-20261023/finite-preflight-retry-release/` and
+`finite-preflight-retry-4afa81b-independent-review.json`.
 
-Paperclip407762f fixes capability upgrades through the existing approval lifecycle: new manifest
-and upgrade_pending are staged atomically, pending stays inactive, and explicit admin enable approves.
-The default loader refusal remains. Exact accepted packaging is integrated/pushed5f20acb. Native
-readback confirmed disabled→pending with no tools→explicit approval→ready. Quiescent MEM pause,
-owned-server restart and explicit resume preserved completed and pending tasks without new paused
-runs. This excludes mid-publication crash recovery and endurance.
-
-Native Sol created MEM39/40; local_fs mismatch and durable handoff were subsequently fixed and
-reviewed (22cccc7, then5a602b3; integration4500875). Child notes precede activation, exact marker
-replays are idempotent, and own-history delivery/review receipts are explicit completion criteria.
-The assisted candidate was rejected for invalid tests; no publication occurred. Fresh MEM42 created
-MEM43/44 itself after a deployment-only correction from0444 to owner-only0400 on unchanged config.
-Luna delivered; native independent QA again rejected wrong causal timestamp expectations. Both rejected
-candidates/receipts remain preserved, no fixed-verifier or publication claim, and stage2 was not started.
-
-Repeated real failures exposed two practical lifecycle gaps: workers cannot access pytest in the
-private verifier environment, and a frozen stage has no native correction after QA rejection. Platform
-is implementing bounded fixed-verifier feedback before final delivery plus at most two immutable
-attempts per stage. A retry requires a new Sol-created pair and the known rejected/finalized previous
-attempt, retaining original accepted bases. It must not reinterpret unknown outcomes or bypass stage2's
-successful projected+canonical predecessor. This is under development, not deployed acceptance.
-
-Experience and Cortex analyses were independently accepted; Evaluation and Policy were qualified
-with explicit source-evidence limits. MEM41 finalized successfully and all20 input files remained
-unchanged. Four projects are in_progress and existing team goals active, with ongoing shared Sol
-lead duties, Research Luna on-demand execution and independent Sol acceptance. These are analysis-only
-lanes; original implementation backlogs remain held. Platform MEM38 and Policy MEM37 overlapped,
-qualifying bounded independent useful concurrency. See department-analysis/batch-qa final receipt
-and cohort-timing-correction.json; departmental reconciliation is in department-analysis/.
-
-Remaining MVP evidence: two successive useful Sol-owned engineering cycles with refreshed bases
-and automatic exact-reviewed canonical publication, plus final combined acceptance. Use native
-task/dependency/workspace/recovery mechanisms. A serialized shared noGit workspace is acceptable
-for Senses, with only Luna writing and QA inspecting immutable controller snapshots. It is not
-separate per-role filesystem isolation. Monthly endurance and broad scaling belong to Platform.
-
-Current private evidence: lab `state/resumption-20261023/`; canonical operational handoff:
-`/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md`. Founder reporting remains
-`engineering/OWNER-DESK.md`; volatile state remains `memory/now.md`. All paid-API, protected-data,
-main/production, market/training/AUTO/trading restrictions and historical Pilot STOP remain.
+The current product count is one accepted Brain change: the capacity improvement, with separately
+reviewed and operator-assisted canonical catch-up at `ad02f26`. Analysis tasks and accepted Platform
+packages are not additional Brain changes. Do not claim an accepted change from MEM-42, an autonomous
+publisher, or a working MVP. Remaining evidence is two successive useful Sol-owned engineering
+cycles from refreshed bases, each with independent QA and automatic exact-reviewed canonical
+publication, followed by final combined qualification. Keep all paid-API, protected-data,
+main/production, market, training, AUTO, trading and historical Pilot STOP boundaries.
 
 ## Paperclip-first experimental integration — founder authorization 2026-10-22
 
