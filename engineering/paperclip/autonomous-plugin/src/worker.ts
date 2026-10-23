@@ -702,26 +702,39 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         readNativeIssue(ctx, prior.review_issue_id, owner.company_id),
       ]);
       const scoped = ctx.issues.forCurrentToolRun();
-      const [priorReviewReadiness, leadOrchestration, leadReadiness] = await Promise.all([
-        scoped.getDependencyReadiness(prior.review_issue_id, owner.company_id),
-        scoped.getOrchestration({ issueId: owner.finite_lead_issue_id, companyId: owner.company_id }),
-        scoped.getDependencyReadiness(owner.finite_lead_issue_id, owner.company_id),
-      ]);
-      const predecessorFinalized = leadOrchestration.blockedByIssueIds.length === 1
-        && leadOrchestration.blockedByIssueIds[0] === priorReview.id
-        && leadReadiness.isDependencyReady === true
-        && leadReadiness.unresolvedBlockerIssueIds.length === 0
-        && leadReadiness.pendingFinalizeBlockerIssueIds.length === 0;
+      const priorReviewReadiness = await scoped.getDependencyReadiness(
+        prior.review_issue_id, owner.company_id,
+      );
+      const predecessorBlockerFinalized = priorReviewReadiness.isDependencyReady === true
+        && priorReviewReadiness.unresolvedBlockerIssueIds.length === 0
+        && priorReviewReadiness.blockerIssueIds.length === 1
+        && priorReviewReadiness.blockerIssueIds[0] === priorSource.id
+        && priorReviewReadiness.pendingFinalizeBlockerIssueIds.length === 0;
+      let leadStillBlockedOnPredecessor = true;
+      if (attempt === 1) {
+        // The first successor bind must wait on the successful predecessor QA. On a retry,
+        // the lead intentionally still depends on the rejected successor QA; the immutable
+        // prior successor binding preserves predecessor admission, and validateStageRetry
+        // below proves that current retry barrier is finalized before replacement.
+        const [leadOrchestration, leadReadiness] = await Promise.all([
+          scoped.getOrchestration({ issueId: owner.finite_lead_issue_id, companyId: owner.company_id }),
+          scoped.getDependencyReadiness(owner.finite_lead_issue_id, owner.company_id),
+        ]);
+        leadStillBlockedOnPredecessor = leadOrchestration.blockedByIssueIds.length === 1
+          && leadOrchestration.blockedByIssueIds[0] === priorReview.id
+          && leadReadiness.isDependencyReady === true
+          && leadReadiness.unresolvedBlockerIssueIds.length === 0
+          && leadReadiness.pendingFinalizeBlockerIssueIds.length === 0;
+      }
       if (priorSource.projectId !== owner.project_id || priorSource.parentId !== owner.finite_lead_issue_id
           || priorSource.assigneeAgentId !== owner.worker_agent_id || priorSource.status !== "done"
           || !Number.isSafeInteger(priorSource.statusVersion) || !Number.isSafeInteger(priorReview.statusVersion)
           || priorSource.executionRunId !== null || priorReview.projectId !== owner.project_id
           || priorReview.parentId !== owner.finite_lead_issue_id || priorReview.assigneeAgentId !== owner.reviewer_agent_id
           || priorReview.status !== "done" || priorReview.executionRunId !== null
-          || priorReviewReadiness.isDependencyReady !== true || priorReviewReadiness.unresolvedBlockerIssueIds.length !== 0
-          || priorReviewReadiness.blockerIssueIds.length !== 1 || priorReviewReadiness.blockerIssueIds[0] !== priorSource.id
-          || priorReviewReadiness.pendingFinalizeBlockerIssueIds.length !== 0
-          || !predecessorFinalized) fail("source_stage_predecessor_not_finalized");
+          || !predecessorBlockerFinalized || !leadStillBlockedOnPredecessor) {
+        fail("source_stage_predecessor_not_finalized");
+      }
       predecessor = {
         operation_key: prior.operation_key,
         source_issue_id: prior.source_issue_id,
@@ -730,7 +743,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         source_version: priorSource.statusVersion as number,
         review_status: priorReview.status,
         review_version: priorReview.statusVersion as number,
-        dependency_ready: predecessorFinalized,
+        dependency_ready: true,
       };
     }
     const retryValidation = attempt >= 2

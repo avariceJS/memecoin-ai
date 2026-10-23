@@ -895,4 +895,134 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
     expect(updateStatusCompareAndSet).not.toHaveBeenCalled();
   });
+
+  it("binds a stage-two retry while retaining its current QA blocker and rechecks predecessor finality", async () => {
+    await installConfig();
+    const finiteConfig = {
+      schema: "paperclip-autonomous-bridge-config-v1", company_id: "company-1", project_id: "project-1",
+      worker_agent_id: "worker-1", reviewer_agent_id: "reviewer-1", finite_lead_agent_id: "lead-1",
+      finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project",
+      source_workspace_root: "/tmp/brain-source-workspace", python_executable: "/usr/bin/python3",
+      source_stage_catalog: [
+        { stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40), predecessor_stage_key: null,
+          path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
+        { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
+          path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem9" },
+      ],
+    };
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
+    const leadRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "lead-1", runId: "lead-run" };
+    const rows: Record<string, Record<string, unknown>> = {
+      "lead-issue": { id: "lead-issue", companyId: "company-1", projectId: "project-1", assigneeAgentId: "lead-1",
+        status: "in_progress", statusVersion: 20, executionRunId: "lead-run", projectWorkspaceId: "workspace-project",
+        executionWorkspaceId: "workspace-execution", description: "lead" },
+      "source-8": { id: "source-8", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "worker-1", status: "done", statusVersion: 5, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "stage one source" },
+      "review-8": { id: "review-8", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "reviewer-1", status: "done", statusVersion: 6, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "stage one QA" },
+      "source-9-old": { id: "source-9-old", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "worker-1", status: "done", statusVersion: 4, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "old stage two source" },
+      "review-9-old": { id: "review-9-old", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "reviewer-1", status: "done", statusVersion: 5, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "old stage two QA" },
+      "source-9": { id: "source-9", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "worker-1", status: "backlog", statusVersion: 1, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "new stage two source" },
+      "review-9": { id: "review-9", companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+        assigneeAgentId: "reviewer-1", status: "blocked", statusVersion: 2, executionRunId: null,
+        projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution", description: "new stage two QA" },
+    };
+    const oldOperationKey = "c".repeat(64);
+    const predecessorOperationKey = "d".repeat(64);
+    const oldStageBinding = {
+      found: true, attempt: 1, operation_key: oldOperationKey, operation_state: "review_rejected",
+      operation_review_approved: false, state: "active", activation_pending: false,
+      source_issue_id: "source-9-old", review_issue_id: "review-9-old", stage_binding_key: "a".repeat(64),
+      source_version: 1, review_version: 2, base_sha: "e".repeat(40),
+      predecessor_operation_key: predecessorOperationKey, predecessor_source_issue_id: "source-8",
+      predecessor_review_issue_id: "review-8",
+      source_instruction_sha256: digest("old stage two source"),
+      review_instruction_sha256: digest("old stage two QA"),
+    };
+    const commentNotes = new Map<string, string[]>();
+    const updateStatusCompareAndSet = vi.fn(async () => ({ status: "todo", statusVersion: 2 }));
+    let predecessorSourceFinalized = false;
+    let retryLeadReady = false;
+    const readiness = vi.fn(async (id: string) => {
+      if (id === "review-9") return { isDependencyReady: false, unresolvedBlockerIssueIds: ["source-9"],
+        pendingFinalizeBlockerIssueIds: [], blockerIssueIds: ["source-9"] };
+      if (id === "review-8") return { isDependencyReady: predecessorSourceFinalized,
+        unresolvedBlockerIssueIds: predecessorSourceFinalized ? [] : ["source-8"],
+        pendingFinalizeBlockerIssueIds: [], blockerIssueIds: ["source-8"] };
+      if (id === "review-9-old") return { isDependencyReady: true, unresolvedBlockerIssueIds: [],
+        pendingFinalizeBlockerIssueIds: [], blockerIssueIds: ["source-9-old"] };
+      return { isDependencyReady: retryLeadReady, unresolvedBlockerIssueIds: retryLeadReady ? [] : ["review-9-old"],
+        pendingFinalizeBlockerIssueIds: retryLeadReady ? [] : ["review-9-old"], blockerIssueIds: ["review-9-old"] };
+    });
+    const ctx = {
+      config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
+      executionWorkspaces: { get: vi.fn(async (id: string) => ({
+        id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
+        path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
+        repoUrl: null, baseRef: null, branchName: null, providerType: "local_fs", providerMetadata: null,
+      })) },
+      issues: { forCurrentToolRun: () => ({
+        get: vi.fn(async (id: string) => rows[id] as never),
+        getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({
+          issueId,
+          blockedByIssueIds: issueId === "lead-issue" ? ["review-9-old"]
+            : issueId === "review-9" ? ["source-9"]
+              : issueId === "review-9-old" ? ["source-9-old"] : ["source-8"],
+          runs: issueId === "lead-issue" ? [{ id: "lead-run", issueId, agentId: "lead-1", status: "running" }] : [],
+        })) as never,
+        getDependencyReadiness: readiness as never,
+        listComments: vi.fn(async (id: string) => (commentNotes.get(id) ?? []).map((body) => ({ body })) as never),
+        createComment: vi.fn(async (id: string, body: string) => {
+          commentNotes.set(id, [...(commentNotes.get(id) ?? []), body]);
+          return {} as never;
+        }),
+        updateStatusCompareAndSet,
+      }) },
+      tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
+    } as unknown as PluginContext;
+    const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
+    const invoke = vi.fn(async (action: string, payload: Record<string, unknown>) => {
+      if (action === "lookup_source_stage_binding") {
+        return payload.attempt === 2 ? { found: false, attempt: 2 } : oldStageBinding;
+      }
+      if (action === "bind_source_stage") return { stage_binding_key: "f".repeat(64), base_sha: "e".repeat(40), state: "bound" };
+      return payload.step === "intent" ? { intent: "created" } : { acknowledged: true };
+    });
+    registerAutonomousTools(ctx, invoke as never);
+    const params = {
+      stage_key: "MEM9", source_issue_id: "source-9", review_issue_id: "review-9",
+      attempt: 2, retry_of_operation_key: oldOperationKey,
+      predecessor: { operation_key: predecessorOperationKey, source_issue_id: "source-8", review_issue_id: "review-8" },
+    };
+    await expect(handlers.get("bind_source_stage")!(params, leadRun))
+      .rejects.toThrow("source_stage_predecessor_not_finalized");
+    expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
+    predecessorSourceFinalized = true;
+    await expect(handlers.get("bind_source_stage")!(params, leadRun))
+      .rejects.toThrow("source_stage_retry_not_finalized");
+    expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
+    retryLeadReady = true;
+    const result = await handlers.get("bind_source_stage")!(params, leadRun) as { content: string };
+    expect(result.content).toContain("state:active");
+    expect(invoke).toHaveBeenCalledWith("bind_source_stage", expect.objectContaining({
+      stage_key: "MEM9", attempt: 2, retry_of_operation_key: oldOperationKey,
+      predecessor_operation_key: predecessorOperationKey,
+      predecessor_source_issue_id: "source-8", predecessor_review_issue_id: "review-8",
+      predecessor_dependency_ready: true, retry_of_dependency_ready: true,
+    }), configPath, "/usr/bin/python3");
+    expect(readiness).toHaveBeenCalledWith("review-8", "company-1");
+    expect(readiness).toHaveBeenCalledWith("lead-issue", "company-1");
+    expect(readiness).toHaveBeenCalledWith("review-9-old", "company-1");
+    expect(updateStatusCompareAndSet).toHaveBeenCalledWith("source-9", "todo", 1, "company-1");
+    expect(commentNotes.get("source-9")?.[0]).toContain(`brain-autonomous-bridge:${"f".repeat(64)}:bound`);
+  });
 });
