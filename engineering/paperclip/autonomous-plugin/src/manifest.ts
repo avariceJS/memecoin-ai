@@ -8,7 +8,7 @@ const manifest: PaperclipPluginManifestV1 = {
   description: "Bounded candidate submission and independent-review handoff for one owner-pinned Brain task pair.",
   author: "Brain Engineering",
   categories: ["automation"],
-  capabilities: ["agent.tools.register", "issues.read", "issues.orchestration.read", "issues.update", "issue.comments.read", "issue.comments.create"],
+  capabilities: ["agent.tools.register", "issues.read", "issues.orchestration.read", "issues.update", "issue.comments.read", "issue.comments.create", "execution.workspaces.read"],
   instanceConfigSchema: {
     type: "object",
     properties: {
@@ -24,6 +24,48 @@ const manifest: PaperclipPluginManifestV1 = {
   },
   entrypoints: { worker: "./dist/worker.js" },
   tools: [
+    {
+      name: "bind_source_stage",
+      displayName: "Bind Finite Brain Source Stage",
+      description: "Bind the owner-admitted native source and review tasks to one finite content stage.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
+        predecessor: { type: "object", properties: {
+          operation_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
+        }, required: ["operation_key", "source_issue_id", "review_issue_id"], additionalProperties: false },
+      }, required: ["stage_key", "source_issue_id", "review_issue_id"], additionalProperties: false },
+    },
+    {
+      name: "deliver_source_stage_content",
+      displayName: "Deliver Finite Brain Source Content",
+      description: "Deliver complete bounded contents for the owner-configured paths of the immutable source stage binding.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string" }, source_issue_id: { type: "string" },
+        files: { type: "array", items: { type: "object", properties: {
+          path_id: { type: "string" }, content: { type: "string" }, size: { type: "integer" }, sha256: { type: "string" },
+        }, required: ["path_id", "content", "size", "sha256"], additionalProperties: false } },
+      }, required: ["stage_key", "stage_binding_key", "source_issue_id", "files"], additionalProperties: false },
+    },
+    {
+      name: "inspect_source_stage_candidate",
+      displayName: "Inspect Finite Brain Source Candidate",
+      description: "Inspect the projected and canonical candidates derived from this immutable source stage binding.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
+      }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
+    },
+    {
+      name: "approve_source_stage_candidate",
+      displayName: "Approve Finite Brain Source Candidate",
+      description: "Approve only the exact inspected projected and canonical candidate identities.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
+        approved: { type: "boolean" }, evidence: { type: "object", properties: {
+          inspection_digest: { type: "string" }, canonical_candidate_sha: { type: "string" },
+          canonical_receipt_digest: { type: "string" },
+        }, required: ["inspection_digest"], additionalProperties: true },
+      }, required: ["stage_key", "stage_binding_key", "review_issue_id", "approved", "evidence"], additionalProperties: false },
+    },
     {
       name: "inspect_candidate",
       displayName: "Inspect Brain Candidate",

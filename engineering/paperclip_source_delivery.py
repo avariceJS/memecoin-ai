@@ -8,6 +8,7 @@ controller-owned checkout of the admitted source base. It never opens a worker p
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import shutil
 import stat
@@ -185,3 +186,66 @@ def discard_projection(gate: GitGate, projection: MaterializedProjection) -> Non
         gate._run(gate.source_repo, ["worktree", "remove", "--force", str(projection.checkout)])
     except GitGateError:
         shutil.rmtree(projection.checkout, ignore_errors=True)
+
+
+def refresh_owner_workspace(
+    gate: GitGate, source_repo: Path, base_sha: str, workspace_root: Path
+) -> str:
+    """Refresh only the admitted source files from an owner-pinned commit into a noGit root."""
+    if (
+        type(base_sha) is not str
+        or not GIT_SHA_RE.fullmatch(base_sha)
+        or workspace_root.is_symlink()
+        or not workspace_root.is_absolute()
+        or not workspace_root.is_dir()
+    ):
+        raise SourceDeliveryError("source_workspace_binding_invalid")
+    try:
+        resolved_root = workspace_root.resolve(strict=True)
+    except OSError as exc:
+        raise SourceDeliveryError("source_workspace_binding_invalid") from exc
+    digests = []
+    for path in SOURCE_PATHS:
+        try:
+            data = gate._run(source_repo, ["show", f"{base_sha}:{path}"]).stdout
+        except (OSError, GitGateError) as exc:
+            raise SourceDeliveryError("source_workspace_base_unavailable") from exc
+        if len(data) > MAX_FILE_BYTES:
+            raise SourceDeliveryError("source_workspace_file_exceeds_limit")
+        try:
+            data.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as exc:
+            raise SourceDeliveryError("source_workspace_file_not_utf8") from exc
+        target = resolved_root / path
+        parent = resolved_root
+        for component in Path(path).parts[:-1]:
+            parent = parent / component
+            if parent.is_symlink():
+                raise SourceDeliveryError("source_workspace_path_parent_invalid")
+            parent.mkdir(mode=0o755, exist_ok=True)
+            if not parent.is_dir():
+                raise SourceDeliveryError("source_workspace_path_parent_invalid")
+        if target.is_symlink():
+            raise SourceDeliveryError("source_workspace_target_invalid")
+        try:
+            info = target.lstat()
+        except FileNotFoundError:
+            info = None
+        if info is not None and not stat.S_ISREG(info.st_mode):
+            raise SourceDeliveryError("source_workspace_target_invalid")
+        fd, temp_name = tempfile.mkstemp(prefix=".paperclip-source-", dir=target.parent)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chmod(temp_name, 0o644)
+            os.replace(temp_name, target)
+        finally:
+            Path(temp_name).unlink(missing_ok=True)
+        digests.append((path, len(data), hashlib.sha256(data).hexdigest()))
+    body = b"\n".join(
+        path.encode() + b"\0" + str(size).encode() + b"\0" + digest.encode()
+        for path, size, digest in digests
+    )
+    return hashlib.sha256(body).hexdigest()
