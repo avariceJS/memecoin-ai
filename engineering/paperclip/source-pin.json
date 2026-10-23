@@ -1,0 +1,30 @@
+{
+  "schema": "brain-paperclip-source-v2",
+  "upstream_repository": "https://github.com/paperclipai/paperclip",
+  "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
+  "predecessor_commit": "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
+  "derivative_commit": "519c892646ec7b06996e990e9e728f794e1a689e",
+  "patch": "managed-codex-isolation.patch",
+  "patch_sha256": "e597a65ba364211c275fa73939b8f22d2aa3598dc16afdb282430fb15222e7cb",
+  "source_review": {
+    "status": "accepted_source_only",
+    "reviewer": "Sol-6.1 High",
+    "receipt": "state/sol-review/native-owner-policy-source-review-20261023.json",
+    "commit": "519c892646ec7b06996e990e9e728f794e1a689e",
+    "parent": "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
+    "diff_sha256": "c2451cbd3ff5dffcbd8681a86052b5eab5d4a28301fbe811b3fc4e975b8f9ecb",
+    "scope": [
+      "optional permissions.nativeToolAllowlist with advertised and hidden-call enforcement",
+      "canConfigureSelf false denies self configuration and persistent instruction mutation before allowances",
+      "exact assigned plugin aliases and wrapper targets restricted by underlying owner tool names"
+    ],
+    "limits": [
+      "source-only review; no deployment or restart",
+      "native adapter and REST negative probes and lifecycle vertical remain required",
+      "provider built-in shell tools remain under existing adapter OS sandbox policy",
+      "absent optional fields retain legacy access; each qualified agent needs explicit policy"
+    ]
+  },
+  "runtime_acceptance": "pending",
+  "launcher_scope": "managed Codex startup; preconfigured home excluded from lab qualification"
+}

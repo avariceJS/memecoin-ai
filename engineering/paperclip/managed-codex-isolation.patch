@@ -1,0 +1,1085 @@
+diff --git a/maps/agent-access-map/agents.md b/maps/agent-access-map/agents.md
+index fbbdd91..99977fc 100644
+--- a/maps/agent-access-map/agents.md
++++ b/maps/agent-access-map/agents.md
+@@ -130,6 +130,11 @@ remaining operations before qualifying the whole capability.
+ Gaps: Canonical entry file, revision guard, company boundary, and protected-change
+ policy apply.
+ 
++Scoped source policy: `permissions.canConfigureSelf: false` denies an agent's own
++configuration and persistent-instruction changes before self allowances or agent
++grants. When omitted, existing self-configuration behavior remains unchanged.
++Enforcement: [authorization](../../server/src/services/authorization.ts).
++
+ ## `organization`
+ 
+ Capability ID: `agents/organization`.
+diff --git a/maps/agent-access-map/runs-adapters.md b/maps/agent-access-map/runs-adapters.md
+index 23d4523..cd09713 100644
+--- a/maps/agent-access-map/runs-adapters.md
++++ b/maps/agent-access-map/runs-adapters.md
+@@ -255,6 +255,17 @@ Gaps: Task-session listing and execution-context reset require board agent
+ management at their HTTP routes. Native `call_api` preserves these denials; native
+ continuation remains server-owned.
+ 
++Scoped native-tool policy: owner-set `permissions.nativeToolAllowlist` contains exact
++Paperclip operation or assigned plugin tool names. The pinned list filters final
++definitions and gates every Paperclip native-authority call, including hidden calls.
++Provider built-ins remain governed by adapter/environment policy. A changed live list
++can narrow the pinned set; malformed explicit state denies all, and an absent live
++field retains the pinned policy. When omitted at session start, legacy native tool
++access is unchanged. The assigned MCP wrapper resolves exact provider names before
++discovery and execution. Enforcement: [session binding](../../server/src/services/native-runtime/native-session-executor.ts),
++[native authority](../../server/src/services/native-runtime/paperclip-runner-tool-authority.ts),
++and [assigned tools](../../server/src/services/native-runtime/assigned-mcp-tools.ts).
++
+ Scoped source-only evidence: [configuration changes](../../server/src/services/agent-configuration.ts)
+ and [native execution/recovery](../../server/src/services/native-runtime/native-session-executor.ts)
+ retain existing execution on unrelated edits and use recorded run configuration
+diff --git a/packages/paperclip-runner/runner/crates/runner-core/src/codex_provider.rs b/packages/paperclip-runner/runner/crates/runner-core/src/codex_provider.rs
+index b6f7675..fc13fff 100644
+--- a/packages/paperclip-runner/runner/crates/runner-core/src/codex_provider.rs
++++ b/packages/paperclip-runner/runner/crates/runner-core/src/codex_provider.rs
+@@ -912,7 +912,7 @@ impl CodexProvider {
+             && std::env::var("PAPERCLIP_RUNNER_HOME_MODE").as_deref() != Ok("preconfigured")
+         {
+             if let Some(home) = std::env::var_os("CODEX_HOME") {
+-                crate::codex_startup_trust::trust_startup_root(
++                crate::codex_startup_trust::mark_startup_root_untrusted(
+                     Path::new(&home),
+                     Path::new(&config.cwd),
+                 )?;
+diff --git a/packages/paperclip-runner/runner/crates/runner-core/src/codex_startup_trust.rs b/packages/paperclip-runner/runner/crates/runner-core/src/codex_startup_trust.rs
+index 1d04b6d..2ac1791 100644
+--- a/packages/paperclip-runner/runner/crates/runner-core/src/codex_startup_trust.rs
++++ b/packages/paperclip-runner/runner/crates/runner-core/src/codex_startup_trust.rs
+@@ -42,7 +42,7 @@ fn execution_root(cwd: &Path) -> Result<PathBuf, LocalRunnerError> {
+     Ok(root)
+ }
+ 
+-pub(crate) fn trust_startup_root(home: &Path, cwd: &Path) -> Result<(), LocalRunnerError> {
++pub(crate) fn mark_startup_root_untrusted(home: &Path, cwd: &Path) -> Result<(), LocalRunnerError> {
+     if !home.is_absolute() || !cwd.is_absolute() {
+         return Err(LocalRunnerError::invalid(
+             "codex_startup_trust_requires_absolute_paths",
+@@ -80,7 +80,7 @@ pub(crate) fn trust_startup_root(home: &Path, cwd: &Path) -> Result<(), LocalRun
+             ));
+         }
+     }
+-    document["projects"][root_key]["trust_level"] = value("trusted");
++    document["projects"][root_key]["trust_level"] = value("untrusted");
+     let temporary = home.join(format!("config.toml.{}.tmp", uuid::Uuid::new_v4()));
+     let mut options = fs::OpenOptions::new();
+     options.write(true).create_new(true);
+@@ -112,7 +112,7 @@ mod tests {
+         fs::create_dir_all(&temp).unwrap();
+         let original = "projects = false\n";
+         fs::write(temp.join("config.toml"), original).unwrap();
+-        assert!(trust_startup_root(&temp, &temp).is_err());
++        assert!(mark_startup_root_untrusted(&temp, &temp).is_err());
+         assert_eq!(
+             fs::read_to_string(temp.join("config.toml")).unwrap(),
+             original
+@@ -121,15 +121,15 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn trusts_non_git_and_worktree_roots_without_replacing_configuration() {
++    fn marks_non_git_and_worktree_roots_untrusted_without_replacing_configuration() {
+         let temp = std::env::temp_dir().join(format!("codex-trust-{}", uuid::Uuid::new_v4()));
+         let root = temp.join("project");
+         let home = temp.join("home");
+         fs::create_dir_all(&root).unwrap();
+         fs::create_dir_all(&home).unwrap();
+-        fs::write(home.join("config.toml"), "model = 'test'\n# retain this comment\n[mcp_servers.test]\nurl = 'http://localhost/example'\n").unwrap();
+-        trust_startup_root(&home, &root).unwrap();
+-        trust_startup_root(&home, &root).unwrap();
++        fs::write(home.join("config.toml"), "model = 'test'\n# retain this comment\n[mcp_servers.test]\nurl = 'http://localhost/example'\n[projects.\"/unrelated\"]\ntrust_level = 'trusted'\n").unwrap();
++        mark_startup_root_untrusted(&home, &root).unwrap();
++        mark_startup_root_untrusted(&home, &root).unwrap();
+         let config = fs::read_to_string(home.join("config.toml")).unwrap();
+         assert!(config.contains("# retain this comment"));
+         let parsed = config.parse::<DocumentMut>().unwrap();
+@@ -137,6 +137,10 @@ mod tests {
+         assert_eq!(
+             parsed["projects"][fs::canonicalize(&root).unwrap().to_str().unwrap()]["trust_level"]
+                 .as_str(),
++            Some("untrusted")
++        );
++        assert_eq!(
++            parsed["projects"]["/unrelated"]["trust_level"].as_str(),
+             Some("trusted")
+         );
+         let git = root.join(".git");
+@@ -154,7 +158,7 @@ mod tests {
+             execution_root(&branch).unwrap(),
+             fs::canonicalize(&root).unwrap()
+         );
+-        trust_startup_root(&home, &branch).unwrap();
++        mark_startup_root_untrusted(&home, &branch).unwrap();
+         fs::remove_dir_all(temp).unwrap();
+     }
+ }
+diff --git a/packages/paperclip-runner/src/drivers/codex/codex-app-server-driver-impl.ts b/packages/paperclip-runner/src/drivers/codex/codex-app-server-driver-impl.ts
+index cf32d89..e51aada 100644
+--- a/packages/paperclip-runner/src/drivers/codex/codex-app-server-driver-impl.ts
++++ b/packages/paperclip-runner/src/drivers/codex/codex-app-server-driver-impl.ts
+@@ -1,6 +1,6 @@
+ import { usesPreconfiguredHome } from "../preconfigured-home.js";
+ import { writeManagedCodexObservability, redactObservabilityDiagnostic } from "../agent-observability.js";
+-import { trustCodexStartupRoot } from "./codex-startup-trust.js";
++import { setCodexStartupRootTrustLevel } from "./codex-startup-trust.js";
+ import { readCodexThreadState, readCodexTurnMetadata } from "./codex-history.js";
+ import { codexExecutableReadOnlyRoots } from "./codex-security-config.js";
+ import { resolve } from "node:path";
+@@ -678,13 +678,20 @@ export class CodexAppServerDriver implements HarnessDriver {
+       else this.#options.onDiagnostic?.("Company observability requires a managed Codex home");
+     }
+     if (!usesPreconfiguredHome(this.#options.environment) && !this.#options.transportFactory && this.#options.environment?.CODEX_HOME && workingDirectory) {
+-      trustCodexStartupRoot(this.#options.environment.CODEX_HOME, workingDirectory);
++      setCodexStartupRootTrustLevel(this.#options.environment.CODEX_HOME, workingDirectory, "untrusted");
+     }
+     return (
+       this.#options.transportFactory?.(context) ??
+       new ProcessCodexAppServerTransport({
+         workingDirectory,
+-        args: createIsolatedCodexAppServerArgs(this.#options.environment, codexExecutableReadOnlyRoots(this.#options.environment ?? process.env), this.#options.instructionWorkingCopyRoot),
++        args: createIsolatedCodexAppServerArgs(
++          this.#options.environment,
++          codexExecutableReadOnlyRoots(this.#options.environment ?? process.env),
++          this.#options.instructionWorkingCopyRoot,
++          !usesPreconfiguredHome(this.#options.environment) && workingDirectory
++            ? [resolve(workingDirectory, ".codex")]
++            : [],
++        ),
+         environment: createSanitizedCodexEnvironment(this.#options.environment),
+         onDiagnostic: message => this.#options.onDiagnostic?.(redactObservabilityDiagnostic(message, this.#options.environment, this.#options.observability?.otelConfig)),
+         processGroup: true,
+diff --git a/packages/paperclip-runner/src/drivers/codex/codex-security-config.test.ts b/packages/paperclip-runner/src/drivers/codex/codex-security-config.test.ts
+index 2d66ad8..633f66e 100644
+--- a/packages/paperclip-runner/src/drivers/codex/codex-security-config.test.ts
++++ b/packages/paperclip-runner/src/drivers/codex/codex-security-config.test.ts
+@@ -254,6 +254,36 @@ describe("Codex security configuration", () => {
+     expect(createSecuredCodexThreadParams("/workspace", "default", true, true, source).config).toEqual({
+       "skills.include_instructions": true, include_collaboration_mode_instructions: true,
+     });
++    expect(args).not.toContain('web_search="disabled"');
++    expect(args).not.toContain("notify=[]");
++    expect(args).not.toContain("multi_agent");
++    expect(args).not.toContain("features.goals");
++    expect(args).not.toContain("--disable\nhooks");
++  });
++
++  it("pins managed startup features and protects the workspace Codex config directory", () => {
++    const args = createIsolatedCodexAppServerArgs(
++      { HOME: "/isolated/provider", CODEX_HOME: "/isolated/provider/.codex" },
++      [],
++      undefined,
++      ["/workspace/.codex"],
++    );
++    expect(args).toEqual(expect.arrayContaining([
++      'web_search="disabled"',
++      "notify=[]",
++      "--disable", "multi_agent",
++      "--disable", "goals",
++      "--disable", "hooks",
++      "--disable", "plugins",
++      "--disable", "apps",
++      "--disable", "memories",
++    ]));
++    expect(args.filter((arg) => arg === "--disable")).toHaveLength(7);
++    expect(args.filter((arg) => arg.startsWith("permissions."))).toEqual(
++      expect.arrayContaining([
++        expect.stringContaining('"/workspace/.codex"="none"'),
++      ]),
++    );
+   });
+ 
+   it("allows only the registered private instruction directory while keeping shared context read-only", () => {
+diff --git a/packages/paperclip-runner/src/drivers/codex/codex-security-config.ts b/packages/paperclip-runner/src/drivers/codex/codex-security-config.ts
+index c5f15d2..f8e7ce1 100644
+--- a/packages/paperclip-runner/src/drivers/codex/codex-security-config.ts
++++ b/packages/paperclip-runner/src/drivers/codex/codex-security-config.ts
+@@ -320,6 +320,16 @@ export function createIsolatedCodexAppServerArgs(
+   const defaultPermissionProfile = externalRunnerSandbox
+     ? CODEX_EXTERNAL_SANDBOX_PERMISSION_PROFILE
+     : CODEX_SKILLLESS_PERMISSION_PROFILE;
++  const managedStartupIsolation = usesPreconfiguredHome(source)
++    ? []
++    : [
++        "-c",
++        'web_search="disabled"',
++        "-c",
++        "notify=[]",
++        ...["multi_agent", "goals", "hooks", "plugins", "apps", "memories"]
++          .flatMap((feature) => ["--disable", feature]),
++      ];
+   return [
+     "-c",
+     `default_permissions=${tomlString(defaultPermissionProfile)}`,
+@@ -351,6 +361,7 @@ export function createIsolatedCodexAppServerArgs(
+     ...(commandEnv.length > 0
+       ? ["-c", `shell_environment_policy.set={${commandEnv}}`]
+       : []),
++    ...managedStartupIsolation,
+     "--disable",
+     "image_generation",
+     ...(externalRunnerSandbox
+diff --git a/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.test.ts b/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.test.ts
+index 1544e1a..63b789f 100644
+--- a/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.test.ts
++++ b/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.test.ts
+@@ -14,7 +14,7 @@ import { join } from "node:path";
+ import { execFileSync } from "node:child_process";
+ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
+ import { parse } from "smol-toml";
+-import { trustCodexStartupRoot } from "./codex-startup-trust.js";
++import { setCodexStartupRootTrustLevel } from "./codex-startup-trust.js";
+ 
+ const parserStyle = vi.hoisted(() => ({ nullPrototypeTables: false }));
+ vi.mock("smol-toml", async (importOriginal) => {
+@@ -55,12 +55,12 @@ describe.each([
+         mkdirSync(home);
+         writeFileSync(join(home, "config.toml"), "");
+       }
+-      trustCodexStartupRoot(home, cwd);
++      setCodexStartupRootTrustLevel(home, cwd);
+       const path = join(home, "config.toml");
+       const updated = readFileSync(path, "utf8");
+       expect(parse(updated)).toEqual({ projects: { [cwd]: { trust_level: "trusted" } } });
+       expect(statSync(path).mode & 0o777).toBe(0o600);
+-      trustCodexStartupRoot(home, cwd);
++      setCodexStartupRootTrustLevel(home, cwd);
+       expect(readFileSync(path, "utf8")).toBe(updated);
+     } finally { rmSync(temp, { recursive: true, force: true }); }
+   });
+@@ -87,12 +87,12 @@ describe.each([
+         expected.projects ??= {};
+         const projects = expected.projects as Record<string, Record<string, unknown>>;
+         projects[cwd] = { ...projects[cwd], trust_level: "trusted" };
+-        trustCodexStartupRoot(home, cwd);
++        setCodexStartupRootTrustLevel(home, cwd);
+         const updated = readFileSync(join(home, "config.toml"), "utf8");
+         expect(parse(updated)).toEqual(expected);
+         expect(updated).toContain(managed);
+         expect(updated).toContain(misleading);
+-        trustCodexStartupRoot(home, cwd);
++        setCodexStartupRootTrustLevel(home, cwd);
+         expect(readFileSync(join(home, "config.toml"), "utf8")).toBe(updated);
+         const refreshed = updated.replace(managed, managed.replace('/old', '/new'));
+         expect((parse(refreshed).mcp_servers as Record<string, {url: string}>).fixture.url).toBe('https://example.invalid/new');
+@@ -131,7 +131,7 @@ describe.each([
+         const original = unrelated + target;
+         writeFileSync(join(home, "config.toml"), original);
+ 
+-        trustCodexStartupRoot(home, cwd);
++        setCodexStartupRootTrustLevel(home, cwd);
+ 
+         const updated = readFileSync(join(home, "config.toml"), "utf8");
+         expect(updated.startsWith(unrelated)).toBe(true);
+@@ -147,7 +147,7 @@ describe.each([
+         if (trust === "missing") delete projects[cwd];
+         else projects[cwd].trust_level = trust;
+         deepStrictEqual(actual, expected);
+-        trustCodexStartupRoot(home, cwd);
++        setCodexStartupRootTrustLevel(home, cwd);
+         expect(readFileSync(join(home, "config.toml"), "utf8")).toBe(updated);
+       } finally {
+         rmSync(temp, { recursive: true, force: true });
+@@ -168,8 +168,8 @@ describe.each([
+       );
+       const original = readFileSync(join(home, "config.toml"), "utf8");
+       const unrelated = parse(original);
+-      trustCodexStartupRoot(home, cwd);
+-      trustCodexStartupRoot(home, cwd);
++      setCodexStartupRootTrustLevel(home, cwd);
++      setCodexStartupRootTrustLevel(home, cwd);
+       expect(parse(readFileSync(join(home, "config.toml"), "utf8"))).toEqual({
+         ...unrelated,
+         projects: { [cwd]: { trust_level: "trusted" } },
+@@ -182,6 +182,31 @@ describe.each([
+       rmSync(temp, { recursive: true, force: true });
+     }
+   });
++
++  it("marks a managed startup root untrusted without changing sibling project trust", () => {
++    const temp = realpathSync(mkdtempSync(join(tmpdir(), "codex-untrusted-startup-")));
++    try {
++      const cwd = join(temp, "project");
++      const home = join(temp, "home");
++      mkdirSync(cwd);
++      mkdirSync(home);
++      writeFileSync(
++        join(home, "config.toml"),
++        `[projects.${JSON.stringify(cwd)}]\ntrust_level = "trusted"\n` +
++          '[projects."/other"]\ntrust_level = "trusted"\n',
++      );
++
++      setCodexStartupRootTrustLevel(home, cwd, "untrusted");
++
++      expect(parse(readFileSync(join(home, "config.toml"), "utf8")).projects).toEqual({
++        [cwd]: { trust_level: "untrusted" },
++        "/other": { trust_level: "trusted" },
++      });
++    } finally {
++      rmSync(temp, { recursive: true, force: true });
++    }
++  });
++
+   it("uses the canonical main repository key for worktrees and symlinks", () => {
+     const temp = realpathSync(mkdtempSync(join(tmpdir(), "codex-trust-")));
+     try {
+@@ -212,7 +237,7 @@ describe.each([
+         { stdio: "ignore" },
+       );
+       symlinkSync(worktree, join(temp, "alias"));
+-      trustCodexStartupRoot(home, join(temp, "alias"));
++      setCodexStartupRootTrustLevel(home, join(temp, "alias"));
+       expect(
+         parse(readFileSync(join(home, "config.toml"), "utf8")).projects,
+       ).toEqual({ [main]: { trust_level: "trusted" } });
+@@ -224,7 +249,7 @@ describe.each([
+     const temp = realpathSync(mkdtempSync(join(tmpdir(), "codex-trust-")));
+     try {
+       writeFileSync(join(temp, "config.toml"), "invalid = [");
+-      expect(() => trustCodexStartupRoot(temp, temp)).toThrow();
++      expect(() => setCodexStartupRootTrustLevel(temp, temp)).toThrow();
+       expect(readFileSync(join(temp, "config.toml"), "utf8")).toBe(
+         "invalid = [",
+       );
+diff --git a/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.ts b/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.ts
+index fb748ae..98d6c30 100644
+--- a/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.ts
++++ b/packages/paperclip-runner/src/drivers/codex/codex-startup-trust.ts
+@@ -16,30 +16,39 @@ import { isDeepStrictEqual } from "node:util";
+ /** Keep managed-region comments and all unrelated bytes. The parser validates
+  * every candidate against the exact intended semantic change; text inside a
+  * comment or multiline string can never qualify as the target assignment. */
+-function editTrust(source: string, root: string, expected: TomlTable): string {
++function editTrust(
++  source: string,
++  root: string,
++  expected: TomlTable,
++  trustLevel: "trusted" | "untrusted",
++): string {
+   const matches = (candidate: string) => {
+     try { return isDeepStrictEqual(parse(candidate), expected); }
+     catch { return false; }
+   };
+   if (matches(source)) return source;
+-  const appended = `${source}\n[projects.${JSON.stringify(root)}]\ntrust_level = "trusted"\n`;
++  const serializedTrustLevel = JSON.stringify(trustLevel);
++  const appended = `${source}\n[projects.${JSON.stringify(root)}]\ntrust_level = ${serializedTrustLevel}\n`;
+   if (matches(appended)) return appended;
+   const values = /(?:"trust_level"|'trust_level'|\btrust_level)\s*=\s*("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'[^']*')/g;
+   for (const match of source.matchAll(values)) {
+     const end = match.index! + match[0].length;
+     const start = end - match[1]!.length;
+-    const candidate = source.slice(0, start) + '"trusted"' + source.slice(end);
++    const candidate = source.slice(0, start) + serializedTrustLevel + source.slice(end);
+     if (matches(candidate)) return candidate;
+   }
+   // An existing project table may not yet have a trust field.
+   for (const match of source.matchAll(/^[ \t]*\[(?!\[)[^\r\n]*\][^\r\n]*(?:\r?\n|$)/gm)) {
+     const end = match.index! + match[0].length;
+-    const candidate = source.slice(0, end) + '\ntrust_level = "trusted"\n' + source.slice(end);
++    const candidate = source.slice(0, end) + `\ntrust_level = ${serializedTrustLevel}\n` + source.slice(end);
+     if (matches(candidate)) return candidate;
+   }
+   // Inline project tables are closed to appended table headers. Insert only
+   // when reparsing proves this is the intended object, not a brace in text.
+-  const fields = ['trust_level = "trusted"', `${JSON.stringify(root)} = { trust_level = "trusted" }`];
++  const fields = [
++    `trust_level = ${serializedTrustLevel}`,
++    `${JSON.stringify(root)} = { trust_level = ${serializedTrustLevel} }`,
++  ];
+   for (const match of source.matchAll(/\{/g)) {
+     const end = match.index! + 1;
+     for (const field of fields) {
+@@ -53,7 +62,11 @@ function editTrust(source: string, root: string, expected: TomlTable): string {
+ }
+ 
+ /** Run on the execution host, before the provider process loads project config. */
+-export function trustCodexStartupRoot(codexHome: string, cwd: string): void {
++export function setCodexStartupRootTrustLevel(
++  codexHome: string,
++  cwd: string,
++  trustLevel: "trusted" | "untrusted" = "trusted",
++): void {
+   if (!isAbsolute(codexHome) || !isAbsolute(cwd))
+     throw new Error("codex_startup_trust_requires_absolute_paths");
+   const startup = realpathSync(cwd);
+@@ -106,10 +119,10 @@ export function trustCodexStartupRoot(codexHome: string, cwd: string): void {
+     project instanceof Date
+   )
+     throw new Error("codex_startup_trust_invalid_project");
+-  project.trust_level = "trusted";
++  project.trust_level = trustLevel;
+   projects[root] = project;
+   config.projects = projects;
+-  const updated = editTrust(source, root, config);
++  const updated = editTrust(source, root, config, trustLevel);
+   if (updated === source) return;
+   const temporary = resolve(codexHome, `config.toml.${randomUUID()}.tmp`);
+   try {
+diff --git a/packages/paperclip-runner/src/live/runner-provider-launch.ts b/packages/paperclip-runner/src/live/runner-provider-launch.ts
+index 8a177c0..a03370b 100644
+--- a/packages/paperclip-runner/src/live/runner-provider-launch.ts
++++ b/packages/paperclip-runner/src/live/runner-provider-launch.ts
+@@ -289,6 +289,7 @@ export function createRunnerProviderLaunch(
+                       : (input.options.codexArgs ??
+                         createRunnerdCodexAppServerArgs({
+                           environment: input.options.environment,
++                          homeMode: input.options.homeMode,
+                           codexHome,
+                           workingDirectory: input.cwd,
+                           runtimeStateRoot: input.options.runnerFilesystemRoot ?? input.root,
+@@ -384,6 +385,7 @@ export function trustedRuntimeReadOnlyRoots(
+ 
+ export function createRunnerdCodexAppServerArgs(input: {
+   environment: NodeJS.ProcessEnv | undefined;
++  homeMode?: "isolated" | "preconfigured";
+   codexHome: string;
+   codexCommand?: string;
+   workingDirectory?: string;
+@@ -392,6 +394,12 @@ export function createRunnerdCodexAppServerArgs(input: {
+   instructionWorkingCopyRoot?: string;
+   disableProjectInstructions?: boolean;
+ }): string[] {
++  // Use the launch descriptor's selected mode when present. Environment
++  // projection is a compatibility fallback for direct helper callers.
++  const environment = input.homeMode === undefined
++    ? input.environment
++    : { ...input.environment, PAPERCLIP_RUNNER_HOME_MODE: input.homeMode };
++  const preconfiguredHome = usesPreconfiguredHome(environment);
+   // The filesystem policy denies HOME and CODEX_HOME to keep credentials and
+   // runner state outside provider reach. Always bind those names to the actual
+   // isolated runner home; a stale controller environment must never cause the
+@@ -400,16 +408,18 @@ export function createRunnerdCodexAppServerArgs(input: {
+     ...(input.disableProjectInstructions ? ["-c", "project_doc_max_bytes=0"] : []),
+     ...createIsolatedCodexAppServerArgs(
+       {
+-        ...input.environment,
+-        HOME: usesPreconfiguredHome(input.environment) ? input.environment?.HOME : input.codexHome,
++        ...environment,
++        HOME: preconfiguredHome ? environment?.HOME : input.codexHome,
+         CODEX_HOME: input.codexHome,
+       },
+       [...(input.readOnlyRoots ?? []), ...codexExecutableReadOnlyRoots(input.environment ?? {}, input.codexCommand)],
+       input.instructionWorkingCopyRoot,
+-      usesPreconfiguredHome(input.environment) && input.runtimeStateRoot ? [input.runtimeStateRoot] : [],
++      preconfiguredHome
++        ? input.runtimeStateRoot ? [input.runtimeStateRoot] : []
++        : input.workingDirectory ? [resolve(input.workingDirectory, ".codex")] : [],
+     ),
+   ];
+-  if (usesPreconfiguredHome(input.environment) && input.workingDirectory) {
++  if (preconfiguredHome && input.workingDirectory) {
+     args.unshift("-c", `projects={${JSON.stringify(input.workingDirectory)}={trust_level="trusted"}}`);
+   }
+   return args;
+diff --git a/packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts b/packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts
+index 47ac7a9..d6e4f37 100644
+--- a/packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts
++++ b/packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts
+@@ -2401,12 +2401,43 @@ it("allows trusted package-manager runtime roots without exposing HOME paths", (
+ 
+ it("trusts a preconfigured workspace through launch flags without editing the user config", () => {
+   const args = createRunnerdCodexAppServerArgs({
+-    environment: { HOME: "/home/executor", PAPERCLIP_RUNNER_HOME_MODE: "preconfigured" },
++    environment: { HOME: "/home/executor" },
++    homeMode: "preconfigured",
+     codexHome: "/home/executor/.codex", workingDirectory: "/work/task",
+   });
+   expect(args.join("\n")).toContain('projects={"/work/task"={trust_level="trusted"}}');
+   expect(args.join("\n")).toContain('HOME="/home/executor"');
+   expect(args.join("\n")).not.toContain('"/home/executor"="none"');
++  expect(args).not.toContain('web_search="disabled"');
++  expect(args).not.toContain("notify=[]");
++  expect(args).not.toContain("multi_agent");
++  expect(args).not.toContain("--disable\nhooks");
++});
++
++it("pins managed Codex startup features and protects workspace project config", () => {
++  const args = createRunnerdCodexAppServerArgs({
++    environment: {
++      HOME: "/provider",
++      CODEX_HOME: "/provider/.codex",
++      PAPERCLIP_RUNNER_HOME_MODE: "preconfigured",
++    },
++    homeMode: "isolated",
++    codexHome: "/runner/codex-home",
++    workingDirectory: "/work/task",
++  });
++  const serialized = args.join("\n");
++  expect(args).toEqual(expect.arrayContaining([
++    'web_search="disabled"',
++    "notify=[]",
++    "--disable", "multi_agent",
++    "--disable", "goals",
++    "--disable", "hooks",
++    "--disable", "plugins",
++    "--disable", "apps",
++    "--disable", "memories",
++  ]));
++  expect(serialized).toContain('"/work/task/.codex"="none"');
++  expect(serialized).not.toContain('projects={"/work/task"={trust_level="trusted"}}');
+ });
+ 
+ it("denies the isolated Codex home without denying a remote execution workspace", () => {
+diff --git a/packages/paperclip-runner/src/live/runnerd-codex-transport.ts b/packages/paperclip-runner/src/live/runnerd-codex-transport.ts
+index 45ef831..8fefeb9 100644
+--- a/packages/paperclip-runner/src/live/runnerd-codex-transport.ts
++++ b/packages/paperclip-runner/src/live/runnerd-codex-transport.ts
+@@ -5486,6 +5486,7 @@ class DurablePrpCodexTransport implements CodexAppServerTransport {
+           this.options.codexArgs ??
+           createRunnerdCodexAppServerArgs({
+             environment: this.options.environment,
++            homeMode: this.options.homeMode,
+             codexHome,
+             workingDirectory: this.options.resumeWorkingDirectory,
+             runtimeStateRoot: this.options.runnerFilesystemRoot ?? this.#root,
+diff --git a/packages/shared/src/types/agent.ts b/packages/shared/src/types/agent.ts
+index 4cac11e..26ce6c7 100644
+--- a/packages/shared/src/types/agent.ts
++++ b/packages/shared/src/types/agent.ts
+@@ -21,6 +21,8 @@ import type { AgentApiKeyScope } from "../validators/agent.js";
+ export interface AgentPermissions extends Record<string, unknown> {
+   canCreateAgents: boolean;
+   canCreateSkills?: boolean;
++  canConfigureSelf?: boolean;
++  nativeToolAllowlist?: string[];
+   trustPreset?: TrustPreset;
+   authorizationPolicy?: TrustAuthorizationPolicy;
+ }
+diff --git a/packages/shared/src/validators/agent.ts b/packages/shared/src/validators/agent.ts
+index edbcf18..1a88817 100644
+--- a/packages/shared/src/validators/agent.ts
++++ b/packages/shared/src/validators/agent.ts
+@@ -17,6 +17,8 @@ export const agentPermissionsSchema = z.object({
+   // permissions record marks the agent low-trust) when the field is omitted.
+   canCreateAgents: z.boolean().optional(),
+   canCreateSkills: z.boolean().optional().default(true),
++  canConfigureSelf: z.boolean().optional(),
++  nativeToolAllowlist: z.array(z.string().min(1).max(256)).max(512).optional(),
+   trustPreset: trustPresetSchema.optional(),
+   authorizationPolicy: trustAuthorizationPolicySchema.optional(),
+ }).catchall(z.unknown());
+@@ -295,6 +297,8 @@ export type TestAdapterEnvironment = z.infer<typeof testAdapterEnvironmentSchema
+ export const updateAgentPermissionsSchema = z.object({
+   canCreateAgents: z.boolean(),
+   canCreateSkills: z.boolean().optional(),
++  canConfigureSelf: z.boolean().optional(),
++  nativeToolAllowlist: z.array(z.string().min(1).max(256)).max(512).optional(),
+   canAssignTasks: z.boolean(),
+   trustPreset: trustPresetSchema.optional(),
+   authorizationPolicy: trustAuthorizationPolicySchema.optional(),
+diff --git a/server/src/__tests__/agent-permissions-service.test.ts b/server/src/__tests__/agent-permissions-service.test.ts
+index e45ecb9..8b4fa81 100644
+--- a/server/src/__tests__/agent-permissions-service.test.ts
++++ b/server/src/__tests__/agent-permissions-service.test.ts
+@@ -113,4 +113,19 @@ describe("agent permissions service", () => {
+       canAssignTasks: false,
+     }).canCreateSkills).toBe(false);
+   });
++
++  it("validates optional self-configuration and exact native tool grants", () => {
++    expect(agentPermissionsSchema.parse({}).canConfigureSelf).toBeUndefined();
++    expect(agentPermissionsSchema.parse({ canConfigureSelf: false }).canConfigureSelf).toBe(false);
++    expect(agentPermissionsSchema.parse({ nativeToolAllowlist: [] }).nativeToolAllowlist).toEqual([]);
++    expect(agentPermissionsSchema.parse({ nativeToolAllowlist: ["get_task_context", "brain.autonomous-bridge:submit_candidate"] }).nativeToolAllowlist)
++      .toEqual(["get_task_context", "brain.autonomous-bridge:submit_candidate"]);
++    expect(() => agentPermissionsSchema.parse({ nativeToolAllowlist: "get_task_context" })).toThrow();
++    expect(() => agentPermissionsSchema.parse({ nativeToolAllowlist: [""] })).toThrow();
++    expect(updateAgentPermissionsSchema.parse({ canCreateAgents: false, canAssignTasks: false, canConfigureSelf: false,
++      nativeToolAllowlist: ["brain.autonomous-bridge:submit_candidate"] })).toMatchObject({
++      canConfigureSelf: false,
++      nativeToolAllowlist: ["brain.autonomous-bridge:submit_candidate"],
++    });
++  });
+ });
+diff --git a/server/src/__tests__/authorization-service.test.ts b/server/src/__tests__/authorization-service.test.ts
+index a2b2892..55995cc 100644
+--- a/server/src/__tests__/authorization-service.test.ts
++++ b/server/src/__tests__/authorization-service.test.ts
+@@ -374,6 +374,41 @@ describeEmbeddedPostgres("authorization service", () => {
+     });
+   });
+ 
++  it("keeps legacy self-configuration behavior unless the owner disables it", async () => {
++    const company = await createCompany(db, "SelfConfigurationPolicy");
++    const legacyAgent = await createAgent(db, company.id);
++    const restrictedAgent = await createAgent(db, company.id, { permissions: { canConfigureSelf: false } });
++    await db.update(agents).set({ status: "active" }).where(eq(agents.id, legacyAgent.id));
++    await db.update(agents).set({ status: "active" }).where(eq(agents.id, restrictedAgent.id));
++    await db.insert(companyMemberships).values({
++      companyId: company.id,
++      principalType: "agent",
++      principalId: legacyAgent.id,
++      status: "active",
++      membershipRole: "member",
++    });
++    await grantAgentPermission(db, company.id, restrictedAgent.id, "agents:configure");
++    const authz = authorizationService(db);
++    const legacyActor = { type: "agent" as const, agentId: legacyAgent.id, companyId: company.id, source: "agent_key" as const };
++    const restrictedActor = { type: "agent" as const, agentId: restrictedAgent.id, companyId: company.id, source: "agent_key" as const };
++
++    await expect(authz.decide({
++      actor: legacyActor,
++      action: "agent_config:update",
++      resource: { type: "agent", companyId: company.id, agentId: legacyAgent.id },
++    })).resolves.toMatchObject({ allowed: true, reason: "allow_self" });
++    await expect(authz.decide({
++      actor: restrictedActor,
++      action: "agent_config:update",
++      resource: { type: "agent", companyId: company.id, agentId: restrictedAgent.id },
++    })).resolves.toMatchObject({ allowed: false, reason: "deny_self_configuration_disabled" });
++    await expect(authz.decide({
++      actor: restrictedActor,
++      action: "agent_instructions:update",
++      resource: { type: "agent", companyId: company.id, agentId: restrictedAgent.id },
++    })).resolves.toMatchObject({ allowed: false, reason: "deny_self_configuration_disabled" });
++  });
++
+   it("enforces direct or consented suggest grants for skill configuration changes", async () => {
+     const company = await createCompany(db, "SkillChangeGrant");
+     const directAgent = await createAgent(db, company.id);
+diff --git a/server/src/services/authorization.ts b/server/src/services/authorization.ts
+index 71d4aff..b42e248 100644
+--- a/server/src/services/authorization.ts
++++ b/server/src/services/authorization.ts
+@@ -158,6 +158,7 @@ export type AuthorizationDecision = {
+     | "deny_missing_consent"
+     | "deny_no_grant"
+     | "deny_policy_restricted"
++    | "deny_self_configuration_disabled"
+     | "deny_low_trust_boundary"
+     | "deny_issue_private"
+     | "deny_project_private"
+@@ -2216,6 +2217,19 @@ function createAuthorizationService(db: Db | DbTransaction, readSnapshot?: ReadA
+       });
+     }
+ 
++    if (
++      actorAgent.permissions?.canConfigureSelf === false &&
++      input.resource.type === "agent" &&
++      input.resource.agentId === actorAgentId &&
++      (input.action === "agent_config:update" || input.action === "agent_instructions:update")
++    ) {
++      return deny({
++        action: input.action,
++        reason: "deny_self_configuration_disabled",
++        explanation: "This agent is not allowed to change its own configuration or persistent instructions.",
++      });
++    }
++
+     if (input.actor.keyScope?.kind === "skill_test") {
+       const skillTestDecision = decideSkillTestAccess({
+         action: input.action,
+diff --git a/server/src/services/native-runtime/assigned-mcp-tools.ts b/server/src/services/native-runtime/assigned-mcp-tools.ts
+index 535b265..9bd25de 100644
+--- a/server/src/services/native-runtime/assigned-mcp-tools.ts
++++ b/server/src/services/native-runtime/assigned-mcp-tools.ts
+@@ -86,6 +86,7 @@ export async function createAssignedMcpTools(input: {
+   gatewayPublicId: string;
+   bearerToken: string;
+   workMode?: WorkMode;
++  nativeToolAllowlist?: readonly string[] | null;
+ }) {
+   const listed = await input.gateway.listToolsForNamedGateway({
+     gatewayPublicId: input.gatewayPublicId,
+@@ -103,8 +104,11 @@ export async function createAssignedMcpTools(input: {
+     tools.set(name, descriptor);
+   }
+   const permits = (tool: ToolGatewayDescriptor, mode: WorkMode = input.workMode ?? "standard") => mode === "standard" || tool.risk === "read";
++  const admitted = (allowlist: readonly string[] | null | undefined) => allowlist === null
++    ? []
++    : [...tools].filter(([, tool]) => allowlist === undefined || allowlist.includes(tool.name));
+ 
+-  async function search(argumentsValue: unknown, currentWorkMode?: WorkMode) {
++  async function search(argumentsValue: unknown, currentWorkMode?: WorkMode, allowlist: readonly string[] | null | undefined = input.nativeToolAllowlist) {
+     const args = object(argumentsValue);
+     const offset = args.offset ?? 0;
+     const limit = args.limit ?? 5;
+@@ -123,7 +127,7 @@ export async function createAssignedMcpTools(input: {
+       gatewayPublicId: input.gatewayPublicId, bearerToken: input.bearerToken,
+     })).map(tool => [tool.name, tool]));
+     const terms = args.query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+-    const authorized = [...tools].filter(([, tool]) => {
++    const authorized = admitted(allowlist).filter(([, tool]) => {
+       const fresh = current.get(tool.name);
+       return fresh && permits(tool) && permits(tool, currentWorkMode) &&
+         permits(fresh) && permits(fresh, currentWorkMode);
+@@ -159,9 +163,10 @@ export async function createAssignedMcpTools(input: {
+   }
+ 
+   return {
+-    definitions(fits?: (definitions: ToolDefinition[]) => boolean): ToolDefinition[] {
+-      const direct = [...tools].filter(([, tool]) => permits(tool)).map(([name, tool]) => definition(name, tool));
++    definitions(fits?: (definitions: ToolDefinition[]) => boolean, allowlist: readonly string[] | null | undefined = input.nativeToolAllowlist): ToolDefinition[] {
++      const direct = admitted(allowlist).filter(([, tool]) => permits(tool)).map(([name, tool]) => definition(name, tool));
+       if (!fits || fits(direct)) return direct;
++      if (direct.length === 0) return [];
+       const compact = structuredClone(ON_DEMAND_TOOLS);
+       if (!fits(compact)) throw new Error("assigned_mcp_tool_catalog_capacity_exceeded");
+       return compact;
+@@ -169,8 +174,18 @@ export async function createAssignedMcpTools(input: {
+     has(name: string): boolean {
+       return tools.has(name) || name === SEARCH_TOOL || name === CALL_TOOL;
+     },
+-    async execute(call: { tool: string; arguments: unknown }, currentWorkMode?: WorkMode): Promise<unknown> {
+-      if (call.tool === SEARCH_TOOL) return search(call.arguments, currentWorkMode);
++    isAllowedByNativeToolAllowlist(name: string, allowlist: readonly string[] | null | undefined): boolean {
++      if (allowlist === undefined) return true;
++      if (allowlist === null) return false;
++      if (name === SEARCH_TOOL || name === CALL_TOOL) return admitted(allowlist).length > 0;
++      const descriptor = tools.get(name);
++      return Boolean(descriptor && allowlist.includes(descriptor.name));
++    },
++    async execute(call: { tool: string; arguments: unknown }, currentWorkMode?: WorkMode, allowlist: readonly string[] | null | undefined = input.nativeToolAllowlist): Promise<unknown> {
++      if (call.tool === SEARCH_TOOL) {
++        if (admitted(allowlist).length === 0) throw new Error("assigned_mcp_tool_unknown");
++        return search(call.arguments, currentWorkMode, allowlist);
++      }
+       let name = call.tool;
+       let parameters = call.arguments;
+       if (name === CALL_TOOL) {
+@@ -181,6 +196,9 @@ export async function createAssignedMcpTools(input: {
+       }
+       const descriptor = tools.get(name);
+       if (!descriptor) throw new Error("assigned_mcp_tool_unknown");
++      if (allowlist !== undefined && (allowlist === null || !allowlist.includes(descriptor.name))) {
++        throw new Error("assigned_mcp_tool_unknown");
++      }
+       if (!permits(descriptor) || !permits(descriptor, currentWorkMode)) throw new Error("paperclip_runner_tool_mode_denied");
+       // Reauthorize through the existing gateway on every call. Discovery is
+       // not a grant: revocation, policy, approval, and audit remain server-owned.
+diff --git a/server/src/services/native-runtime/native-session-executor.ts b/server/src/services/native-runtime/native-session-executor.ts
+index 7e18fd0..687bd66 100644
+--- a/server/src/services/native-runtime/native-session-executor.ts
++++ b/server/src/services/native-runtime/native-session-executor.ts
+@@ -157,7 +157,7 @@ import { PaperclipControlPlanePort } from "./paperclip-control-plane-port.js";
+ import { appendHeartbeatRunEvent } from "../heartbeat-run-events.js";
+ import { appendNativeCredentialUpdate } from "./native-credential-updates.js";
+ import { nativeSha256 } from "./canonical.js";
+-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
++import { PaperclipRunnerToolAuthority, nativeToolAllowlistFromPermissions } from "./paperclip-runner-tool-authority.js";
+ import { createAssignedMcpTools, getAssignedMcpGateway } from "./assigned-mcp-tools.js";
+ import { getNativeReviewAssignment, readNativeReviewAssignmentContext } from "./native-review-participant.js";
+ import { NativeChatAttachmentReadScope } from "./chat-attachment-read.js";
+@@ -11692,6 +11692,11 @@ async function createRunnerdBackendWithinSessionClaim(
+   if (relayAssignedMcp && hasAssignedMcp && !assignedGatewayPublicId) {
+     throw new Error("assigned native MCP gateway path is invalid");
+   }
++  const [nativeToolOwner] = await input.db.select({ config: agents.adapterConfig, permissions: agents.permissions }).from(agents).where(and(
++    eq(agents.id, input.execution.binding.agentId), eq(agents.companyId, input.execution.binding.companyId),
++  )).limit(1);
++  if (!nativeToolOwner) throw new Error("native tool policy owner is unavailable");
++  const nativeToolAllowlist = nativeToolAllowlistFromPermissions(nativeToolOwner.permissions);
+   const [preparedEnvironment, preparedAssignedMcp] = await Promise.allSettled([
+     Promise.resolve().then(() => input.prepareRunnerEnvironment?.() ?? input.runnerEnvironment),
+     Promise.resolve().then(() => relayAssignedMcp && !nativeReview && assignedMcpUrl && assignedMcpToken
+@@ -11700,6 +11705,7 @@ async function createRunnerdBackendWithinSessionClaim(
+         gatewayPublicId: assignedGatewayPublicId!,
+         bearerToken: assignedMcpToken,
+         workMode: input.execution.task.workMode,
++        nativeToolAllowlist,
+       }))
+       : undefined),
+   ]);
+@@ -11707,10 +11713,7 @@ async function createRunnerdBackendWithinSessionClaim(
+   if (preparedAssignedMcp.status === "rejected") throw preparedAssignedMcp.reason;
+   const runnerEnvironment = preparedEnvironment.value;
+   const assignedMcpTools = preparedAssignedMcp.value;
+-  const dotAttachmentActor = input.execution.schema === "paperclip.native-execution-input.v6"
+-    ? await input.db.select({ config: agents.adapterConfig }).from(agents).where(and(
+-        eq(agents.id, input.execution.binding.agentId), eq(agents.companyId, input.execution.binding.companyId),
+-      )).limit(1).then(rows => rows[0]) : undefined;
++  const dotAttachmentActor = input.execution.schema === "paperclip.native-execution-input.v6" ? nativeToolOwner : undefined;
+   const authority = new PaperclipRunnerToolAuthority(input.db, {
+     casesEnabled: input.casesEnabled === true,
+     ...(nativeReview ? { nativeReview } : {}),
+@@ -11720,6 +11723,7 @@ async function createRunnerdBackendWithinSessionClaim(
+     issueId: input.execution.binding.issueId,
+     runId: input.execution.binding.runId,
+     agentId: input.execution.binding.agentId,
++    nativeToolAllowlist,
+     normalizedSessionId: nativeSessionKey(input.execution),
+     pinnedMcpDigest:
+       "runtimeContext" in input.execution
+diff --git a/server/src/services/native-runtime/paperclip-runner-tool-authority.test.ts b/server/src/services/native-runtime/paperclip-runner-tool-authority.test.ts
+index 04a9b79..196354e 100644
+--- a/server/src/services/native-runtime/paperclip-runner-tool-authority.test.ts
++++ b/server/src/services/native-runtime/paperclip-runner-tool-authority.test.ts
+@@ -23,7 +23,11 @@ import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embed
+ import { initializeRunIdentity, reserveSteeredIdentity, reconcileSteeredIdentity } from "../run-identity.js";
+ import { documentService } from "../documents.js";
+ import { issueService } from "../issues.js";
+-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
++import {
++  effectiveNativeToolAllowlist,
++  nativeToolAllowlistFromPermissions,
++  PaperclipRunnerToolAuthority,
++} from "./paperclip-runner-tool-authority.js";
+ import { PaperclipRunnerSemanticAuthority } from "./runner-semantic-authority.js";
+ import { createAssignedMcpTools } from "./assigned-mcp-tools.js";
+ import type { ToolGatewayService } from "../tool-gateway.js";
+@@ -99,6 +103,20 @@ describe("PaperclipRunnerToolAuthority", () => {
+     await temporary?.cleanup();
+   });
+ 
++  it("preserves absent native policy and intersects explicit live policy without widening", () => {
++    expect(nativeToolAllowlistFromPermissions({})).toBeUndefined();
++    expect(nativeToolAllowlistFromPermissions({ nativeToolAllowlist: [] })).toEqual([]);
++    expect(nativeToolAllowlistFromPermissions({ nativeToolAllowlist: ["read_document"] })).toEqual(["read_document"]);
++    expect(nativeToolAllowlistFromPermissions({ nativeToolAllowlist: "read_document" })).toBeNull();
++    expect(effectiveNativeToolAllowlist(undefined, undefined)).toBeUndefined();
++    expect(effectiveNativeToolAllowlist(["read_document", "write_document"], undefined))
++      .toEqual(["read_document", "write_document"]);
++    expect(effectiveNativeToolAllowlist(["read_document"], ["read_document", "write_document"]))
++      .toEqual(["read_document"]);
++    expect(effectiveNativeToolAllowlist(undefined, ["read_document"])).toEqual(["read_document"]);
++    expect(effectiveNativeToolAllowlist(["read_document"], null)).toBeNull();
++  });
++
+   it("registers pinned connector definitions without discovery and rejects revoked assignments at use", async () => {
+     const connectorAssignments = connectorToolDefinitionsForSkills(new Set([
+       "paperclipai/paperclip/slack", "paperclipai/paperclip/browser-use-cloud", "custom/agentmail",
+@@ -111,6 +129,94 @@ describe("PaperclipRunnerToolAuthority", () => {
+       .rejects.toThrow("This connector is no longer assigned or authorized");
+   });
+ 
++  it("filters native definitions and assigned plugin calls by exact owner names", async () => {
++    const pluginNames = [
++      "brain.autonomous-bridge:submit_candidate",
++      "brain.autonomous-bridge:inspect_candidate",
++      "brain.autonomous-bridge:approve_candidate",
++    ];
++    const gateway = {
++      listToolsForNamedGateway: vi.fn().mockResolvedValue(pluginNames.map((name) => ({
++        name, displayName: name.split(":")[1]!, description: "Issue-bound tool",
++        parametersSchema: { type: "object", properties: {} }, risk: "write",
++      }))),
++      executeTool: vi.fn().mockResolvedValue({ status: "completed", result: { accepted: true } }),
++    } as unknown as ToolGatewayService;
++    const allAssignedTools = await createAssignedMcpTools({ gateway, gatewayPublicId: "fixture", bearerToken: "fixture-token" });
++    const allowedToolNames = [pluginNames[0]!];
++    const assignedMcpTools = await createAssignedMcpTools({
++      gateway, gatewayPublicId: "fixture", bearerToken: "fixture-token", nativeToolAllowlist: allowedToolNames,
++    });
++    const authority = new PaperclipRunnerToolAuthority(db, {
++      companyId, agentId, issueId, runId, nativeToolAllowlist: allowedToolNames, assignedMcpTools,
++    });
++    const definitions = authority.definitions();
++    const allDefinitions = allAssignedTools.definitions();
++    const allowedTool = definitions.find((tool) => String(tool.description).startsWith("submit_candidate:"))!;
++    const deniedTool = allDefinitions.find((tool) => String(tool.description).startsWith("approve_candidate:"))!;
++
++    expect(allDefinitions.map((tool) => tool.name)).toEqual([
++      "app_brain_autonomous_bri_submit_candidate_2362480aea40",
++      "app_brain_autonomous_bri_inspect_candidate_1b8157ecda7e",
++      "app_brain_autonomous_bri_approve_candidate_35fdd3d22fbd",
++    ]);
++    expect(definitions).toContain(allowedTool);
++    expect(definitions).not.toContainEqual(expect.objectContaining({ name: deniedTool.name }));
++    expect(definitions.map((tool) => tool.name)).not.toEqual(expect.arrayContaining(["create_project", "call_api", "hire_agent"]));
++    await expect(authority.execute({ tool: String(allowedTool.name), callId: "allowed-plugin", arguments: {} }))
++      .resolves.toEqual({ accepted: true });
++    await expect(authority.execute({ tool: String(deniedTool.name), callId: "denied-plugin", arguments: {} }))
++      .rejects.toThrow("Native tool is not allowed for this agent");
++    await expect(authority.execute({ tool: "paperclip_call_assigned_tool", callId: "hidden-plugin", arguments: {
++      name: deniedTool.name, arguments: {},
++    } })).rejects.toThrow("assigned_mcp_tool_unknown");
++    await expect(authority.execute({ tool: "paperclip_search_assigned_tools", callId: "filtered-plugin-search", arguments: { query: "" } }))
++      .resolves.toMatchObject({ tools: [expect.objectContaining({ name: allowedTool.name })], nextOffset: null });
++    for (const tool of ["create_project", "call_api", "hire_agent"]) {
++      await expect(authority.execute({ tool, callId: `hidden-${tool}`, arguments: {} }))
++        .rejects.toThrow("Native tool is not allowed for this agent");
++    }
++    expect(gateway.executeTool).toHaveBeenCalledTimes(1);
++    authority.close();
++  });
++
++  it("denies all calls for empty or malformed native tool lists and only narrows pinned policy", async () => {
++    const empty = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId, nativeToolAllowlist: [] });
++    expect(empty.definitions()).toEqual([]);
++    for (const tool of ["get_task_context", "create_project", "call_api", "hire_agent", "create_case"]) {
++      await expect(empty.execute({ tool, callId: `empty-${tool}`, arguments: {} }))
++        .rejects.toThrow("Native tool is not allowed for this agent");
++    }
++    empty.close();
++
++    const malformed = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId, nativeToolAllowlist: null });
++    expect(malformed.definitions()).toEqual([]);
++    await expect(malformed.execute({ tool: "get_task_context", callId: "malformed-pinned", arguments: {} }))
++      .rejects.toThrow("Native tool is not allowed for this agent");
++    malformed.close();
++
++    try {
++      const pinned = ["get_task_context", "get_task_history"];
++      const authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId, nativeToolAllowlist: pinned });
++      await db.update(agents).set({ permissions: { nativeToolAllowlist: ["get_task_context"] } }).where(eq(agents.id, agentId));
++      await expect(authority.execute({ tool: "get_task_history", callId: "narrowed", arguments: {} }))
++        .rejects.toThrow("Native tool is not allowed for this agent");
++      await expect(authority.execute({ tool: "get_task_context", callId: "narrowed-allowed", arguments: {} }))
++        .resolves.toMatchObject({ activeTask: { id: issueId } });
++
++      await db.update(agents).set({ permissions: { nativeToolAllowlist: "get_task_context" } }).where(eq(agents.id, agentId));
++      await expect(authority.execute({ tool: "get_task_context", callId: "malformed-current", arguments: {} }))
++        .rejects.toThrow("Native tool is not allowed for this agent");
++
++      await db.update(agents).set({ permissions: {} }).where(eq(agents.id, agentId));
++      await expect(authority.execute({ tool: "get_task_history", callId: "current-absent", arguments: {} }))
++        .resolves.toMatchObject({ comments: [] });
++      authority.close();
++    } finally {
++      await db.update(agents).set({ permissions: {} }).where(eq(agents.id, agentId));
++    }
++  });
++
+   it("advertises only real bindings and reads the bound task", async () => {
+     const authority = new PaperclipRunnerToolAuthority(db, {
+       companyId,
+@@ -832,16 +938,21 @@ describe("PaperclipRunnerToolAuthority", () => {
+     const execute = vi.fn().mockResolvedValue({ content: "synthetic memory" });
+     const authority = new PaperclipRunnerToolAuthority(db, {
+       companyId, agentId, issueId, runId,
+-      assignedMcpTools: { definitions: () => [tool], has: (name) => name === tool.name, execute },
++      assignedMcpTools: {
++        definitions: () => [tool],
++        has: (name) => name === tool.name,
++        isAllowedByNativeToolAllowlist: () => true,
++        execute,
++      },
+     });
+     expect(authority.definitions()).toContainEqual(tool);
+     const call = { tool: tool.name, callId: "assigned-mcp", arguments: { query: "compass" } };
+     await expect(authority.execute(call)).resolves.toEqual({ content: "synthetic memory" });
+-    expect(execute).toHaveBeenCalledWith(call, "standard");
++    expect(execute).toHaveBeenCalledWith(call, "standard", undefined);
+     await db.update(issues).set({ workMode: "ask" }).where(eq(issues.id, issueId));
+     try {
+       await authority.execute(call);
+-      expect(execute).toHaveBeenLastCalledWith(call, "ask");
++      expect(execute).toHaveBeenLastCalledWith(call, "ask", undefined);
+     } finally {
+       await db.update(issues).set({ workMode: "standard" }).where(eq(issues.id, issueId));
+     }
+diff --git a/server/src/services/native-runtime/paperclip-runner-tool-authority.ts b/server/src/services/native-runtime/paperclip-runner-tool-authority.ts
+index e4d7b4b..60eedb3 100644
+--- a/server/src/services/native-runtime/paperclip-runner-tool-authority.ts
++++ b/server/src/services/native-runtime/paperclip-runner-tool-authority.ts
+@@ -154,6 +154,8 @@ type Binding = {
+   issueId: string;
+   runId: string;
+   agentId: string;
++  /** Exact Paperclip native names pinned when this session opens; null is malformed and denies all. Provider built-ins use adapter/environment policy. */
++  nativeToolAllowlist?: string[] | null;
+   normalizedSessionId?: string;
+   pinnedMcpDigest?: string;
+   /** Server-owned API origin and storage; never obtained from tool input. */
+@@ -227,6 +229,27 @@ function record(value: unknown): Record<string, unknown> {
+     : {};
+ }
+ 
++export function nativeToolAllowlistFromPermissions(permissions: unknown): string[] | null | undefined {
++  if (typeof permissions !== "object" || permissions === null || Array.isArray(permissions)) return undefined;
++  if (!Object.hasOwn(permissions, "nativeToolAllowlist")) return undefined;
++  const value = (permissions as Record<string, unknown>).nativeToolAllowlist;
++  if (!Array.isArray(value) || value.length > 512 || value.some((name) =>
++    typeof name !== "string" || name.length < 1 || name.length > 256
++  )) return null;
++  return [...value] as string[];
++}
++
++export function effectiveNativeToolAllowlist(
++  pinned: string[] | null | undefined,
++  current: string[] | null | undefined,
++): string[] | null | undefined {
++  if (pinned === null || current === null) return null;
++  if (pinned === undefined) return current;
++  if (current === undefined) return pinned;
++  const currentNames = new Set(current);
++  return pinned.filter((name) => currentNames.has(name));
++}
++
+ function canonicalJson(value: unknown): string {
+   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+   if (typeof value === "object" && value !== null) {
+@@ -245,7 +268,7 @@ export class PaperclipRunnerToolAuthority {
+     if (this.binding.nativeReview) {
+       // Scope Paperclip control-plane actions. Provider file and shell access
+       // still follow the configured agent/environment policy, including tests.
+-      return [
++      return this.#filterNativeToolDefinitions([
+         ...CAPABILITY_SEMANTIC_TOOL_CATALOG
+           .filter((tool) => NATIVE_REVIEW_READ_TOOLS.has(tool.operationId))
+           .map((tool) => ({ name: tool.operationId, description: tool.description, inputSchema: tool.inputSchema })),
+@@ -261,7 +284,7 @@ export class PaperclipRunnerToolAuthority {
+             required: ["decision"],
+           },
+         },
+-      ];
++      ]);
+     }
+     const workMode = this.binding.workMode ?? "standard";
+     const definitions: Array<Record<string, unknown>> =
+@@ -323,9 +346,24 @@ export class PaperclipRunnerToolAuthority {
+       ...(this.binding.connectorAssignments ?? []).flatMap((assignment) => assignment.tools)];
+     if (!this.binding.firstPartyOnly && this.binding.assignedMcpTools) definitions.push(READ_TOOL_RESULT_DEFINITION);
+     const assignedTools = this.binding.firstPartyOnly ? [] : this.binding.assignedMcpTools?.definitions((tools) =>
+-      runnerCodexDynamicToolsFit([...connectionTools, ...tools, ...definitions])) ?? [];
++      runnerCodexDynamicToolsFit([...connectionTools, ...tools, ...definitions]), this.binding.nativeToolAllowlist) ?? [];
+     const all = [...connectionTools, ...assignedTools, ...definitions];
+-    return this.binding.museRuntime ? all.filter(definition => MUSE_NATIVE_OPERATIONS.has(String(definition.name))) : all;
++    const eligible = this.binding.museRuntime ? all.filter(definition => MUSE_NATIVE_OPERATIONS.has(String(definition.name))) : all;
++    return this.#filterNativeToolDefinitions(eligible);
++  }
++
++  #filterNativeToolDefinitions(definitions: Array<Record<string, unknown>>) {
++    const allowlist = this.binding.nativeToolAllowlist;
++    if (allowlist === undefined) return definitions;
++    if (allowlist === null) return [];
++    const allowed = new Set(allowlist);
++    return definitions.filter((definition) => {
++      if (typeof definition.name !== "string") return false;
++      if (this.binding.assignedMcpTools?.has(definition.name)) {
++        return this.binding.assignedMcpTools.isAllowedByNativeToolAllowlist(definition.name, allowlist);
++      }
++      return allowed.has(definition.name);
++    });
+   }
+ 
+   async execute(call: {
+@@ -333,6 +371,22 @@ export class PaperclipRunnerToolAuthority {
+     callId: string;
+     arguments: unknown;
+   }): Promise<unknown> {
++    const [currentOwner] = await this.db.select({ permissions: agents.permissions }).from(agents).where(and(
++      eq(agents.id, this.binding.agentId),
++      eq(agents.companyId, this.binding.companyId),
++    )).limit(1);
++    if (!currentOwner) throw forbidden("Native tool policy owner is unavailable");
++    const allowlist = effectiveNativeToolAllowlist(
++      this.binding.nativeToolAllowlist,
++      nativeToolAllowlistFromPermissions(currentOwner.permissions),
++    );
++    const toolAllowed = allowlist === undefined
++      ? true
++      : allowlist !== null && (this.binding.assignedMcpTools?.has(call.tool)
++        ? this.binding.assignedMcpTools.isAllowedByNativeToolAllowlist(call.tool, allowlist)
++        : allowlist.includes(call.tool));
++    if (!toolAllowed) throw forbidden("Native tool is not allowed for this agent");
++
+     if ((call.tool === "handoff_case" || call.tool === "create_case") && !this.binding.nativeReview) {
+       if (this.binding.workMode && this.binding.workMode !== "standard") throw forbidden("Case tools require standard work mode");
+       const create = call.tool === "create_case" ? createNativeCaseSchema.parse(call.arguments) : null;
+@@ -441,7 +495,7 @@ export class PaperclipRunnerToolAuthority {
+     if (call.tool === READ_TOOL_RESULT) return this.#readToolResult(call.arguments);
+     if (this.binding.assignedMcpTools?.has(call.tool)) {
+       const current = await this.#boundContext();
+-      const result = await this.binding.assignedMcpTools.execute(call, current.issue.workMode as "standard" | "planning" | "ask");
++      const result = await this.binding.assignedMcpTools.execute(call, current.issue.workMode as "standard" | "planning" | "ask", allowlist);
+       return captureRunnerToolResult(result, this.#responseCaptureIo("runner.assigned_tool"));
+     }
+     if (isConnectorTool(call.tool)) {
