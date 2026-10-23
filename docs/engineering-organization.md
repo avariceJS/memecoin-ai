@@ -10,16 +10,16 @@ Russian. Brain architecture and scientific validity remain owned by `brain-devel
 The founder renewed this authority on 2026-10-23 after the quota pause, explicitly targeting an
 operational company and one useful accepted Brain development task after worker-path qualification.
 The preserved quota-stop handoff lives in the lab state directory. Reviewed Paperclip derivative
-`fecf7b1` includes native isolation, owner tool/self-configuration policy and local plugin relay;
-Brain candidate `b1e9e00` retains independently reviewed broker, fixture and handoff source.
-Native synthetic delegation succeeded. The worker created clean disposable candidate `b77c08e`
-(only `label.py`), but submission failed because plugin SDK calls use a non-member privacy principal.
-The candidate and all failed run histories remain preserved; continuation must submit the existing
-candidate without editing or committing again. A bounded host-validated run-scoped SDK contract is
-being implemented with current-issue/direct-parent-child scope, canonical agent authorization and
-no board impersonation or broad plugin grant. Review is a native blocked dependency of production;
-Paperclip completion/finalization owns its wake. Plugin code must not clear an active task binding
-by assigning its terminal status. The accepted `b1e9e00` source checkpoint is published on
+`b853ab3` includes native isolation, owner tool/self-configuration policy, local plugin relay and
+host-validated run-scoped SDK access for private current/direct-parent-child tasks. Canonical agent
+authorization is retained without board impersonation or broad plugin grants. Brain candidate
+`4f048d9` and emitted plugin/SDK artifacts were independently checked and deployed.
+The bounded synthetic chain passed delegation, worker commit `b77c08e`, private submission,
+native dependency wake, independent review and local GitGate publication of generated merge `39abfd1`.
+A fixture parsing failure after successful submission required completion-only native recovery;
+the prepared operation was not resubmitted. Failed histories remain preserved. Paperclip owns
+completion/finalization and dependency wake; plugins must not clear active task bindings by assigning
+terminal status. The accepted `4f048d9` source checkpoint is published on
 `org/paperclip-integration`; publication is custody, not operational acceptance.
 One real read-only Sol task succeeded through native Codex `gpt-6.1-sol` at configured high effort,
 with `subscription_included` attribution and unchanged empty workspace. Independent review accepted
@@ -27,6 +27,11 @@ that narrow evidence. This does not qualify the real engineering/reviewer/GitGat
 Company hibernation should consume Paperclip's native per-issue recovery holds and process state,
 plus the broker publication fence. Historical failed rows alone are not active writers; unresolved
 provider-stop or publication outcomes remain holds. Do not build a second recovery ledger.
+One synthetic checkpoint cohort independently passed native company pause, known-writer termination
+before server shutdown, restart while paused without automatic wake, and explicit recovery of the
+same blocked action in a new session. The initial stage was not replayed. This does not qualify all
+descendant processes, endurance or interruption during publication. Its company is paused and
+fixtures are stopped; private immutable lifecycle receipts retain the exact evidence.
 The founder-company Astra remains paused after pre-inference onboarding failures; its subscription
 connection is intact. Detailed volatile progress belongs to `memory/now.md` and private
 `state/readiness-20261023/progress.json`, not another organizational queue.

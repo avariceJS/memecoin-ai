@@ -7,22 +7,34 @@ program and authorized progression toward operational acceptance, including boun
 trials and development-branch Brain work after independent qualification. Pilot STOP and protected
 data/runtime restrictions remain. The quota-stop handoff is preserved at
 `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF-20261022-QUOTA-STOP.md`.
-Live readback: reviewed Paperclip `fecf7b1` is healthy on loopback 3310 after the owned restart at
-2026-10-23T10:15:41Z; PostgreSQL state and backup are preserved. Candidate source is `b1e9e00`.
-Acceptance remains bounded source/synthetic, not operational readiness. Native lead delegated BRAA-2;
-worker run `fb434c7a-9edc-4e93-9719-cf5d076565fc` produced clean disposable candidate
-`b77c08e8e595b14a95e06fb7929d1b39e72a87eb` (only `label.py`) but plugin submission failed:
-Paperclip SDK treats plugins as non-member principals, blocking private issue reads. Preserve the
-candidate and all four failed runs. Continue submission-only after independent review of a minimal
-run-scoped privacy fix; do not re-edit/recommit or replay failed work. Native plugin advertisement
-and asynchronous shell continuation are repaired. Exact Xcode Python/Git paths work in the worker;
-Cellar Python framework does not. Reviewer/GitGate publication has not run. Company BRAA is paused
-with BRAA-2 blocked and no execution run; BRAA-1 is its review child for native relation-scoped access. Historical companies and founder Astra remain paused.
-Separate native hidden-call probes rejected `create_project` and `call_api` with no observed effects;
-Sol accepted that narrow dispatch evidence, not general native policy/OS confinement equivalence.
+Live readback: reviewed Paperclip `b853ab3` is healthy on loopback 3310; SDK/plugin emitted bytes
+match independent hashes. Brain integration candidate is `4f048d9`; root docs checkpoint `850adb2`.
+The bounded synthetic native pipeline passed: lead delegated, worker committed `b77c08e`, private
+plugin prepared GitGate merge `39abfd1`, native producer completion released reviewer via dependency,
+and reviewer accepted/published the exact merge with passing receipt `4f611b4`. Producer completion
+run `d5c476be-82b2-409d-986e-adf8578b2972`; reviewer `4224d0f9-6214-491a-81de-174c6cd00015`.
+Original successful submit run `a8fb11ca-f5d7-4641-948b-755b28b2e668` failed only afterward in fixture
+marker parsing; completion-only recovery preserved its prepared operation without resubmission.
+All five clones are clean. Publisher HEAD remains detached at `3024d98`, while its development ref
+is `39abfd1`; these are deliberately distinct. All failed histories remain retained. Sol accepted
+submission through publication independently; fresh lead raw evidence is also saved for review.
+BRAA is paused with all four tasks done and no live runs; all cohort fixtures are stopped.
+BRAA-4 independently passed bounded native pause, owned-server restart while paused, and explicit
+same-action recovery into a new model session. The known writer stopped before server shutdown;
+the original checkpoint remained unchanged, no delayed write or automatic replay occurred, and
+one new writer created the resume marker. This proves one synthetic cohort, not arbitrary-process
+endurance or interruption during GitGate publication. MEM staffing is paused during provisioning:
+Astra is CEO, Sol Engineering Lead reports to Astra, Luna Senses Engineer reports to that Sol,
+and Sol Independent Reviewer reports separately to Astra. No real autonomous
+engineering, general lifecycle endurance, Brain branch admission or legacy-controller removal yet.
 One bounded read-only subscription Sol task MEM-2 succeeded (run `5223e7f2-d2d0-43e4-9e10-22b924772e3b`):
 native Codex `gpt-6.1-sol`, effort `high`, explicit subscription attribution, unchanged empty workspace.
 This is not engineering/GitGate/lifecycle or real-repository acceptance. No replacement Goal or old supervisor.
+The same bounded subscription check also succeeded for Luna MEM-3, run
+`05874b30-208b-4d20-8bd7-d6cbfe37e5ab`: native `gpt-6-luna`, host effort `high`,
+`subscription_included`, empty workspace unchanged. Luna and MEM are paused again for source-lane
+qualification; Sol independently accepted this narrow receipt. Paused CEO configuration now names
+`gpt-6-astra`/high, with automatic heartbeat and wake disabled; no Astra model invocation was made.
 Astra owns CEO decisions; Sol supplies technical advice/independent acceptance and leads Luna, not permission for Astra.
 Current machine-readable progress/custody: `/Users/root1/Developer/brain-paperclip-lab/state/readiness-20261023/progress.json`.
 
