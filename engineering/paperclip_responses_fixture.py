@@ -47,9 +47,11 @@ SCRIPTABLE_TOOLS = frozenset(
         "search_api",
         "search_tasks",
         "set_dependencies",
+        "write_stdin",
         *BRIDGE_TOOL_ALIASES,
     }
 )
+_MAX_EXEC_SESSION_WAIT_MS = 30_000
 
 
 class FixtureError(ValueError):
@@ -66,6 +68,17 @@ class ScriptedToolCall:
             raise FixtureError("fixture_tool_arguments_invalid")
         self.name = name
         self.arguments = dict(arguments)
+        if name == "write_stdin":
+            if (
+                set(arguments) != {"session_id", "yield_time_ms"}
+                or not (
+                    arguments.get("session_id") == "${session_id}"
+                    or (type(arguments.get("session_id")) is int and arguments["session_id"] > 0)
+                )
+                or type(arguments.get("yield_time_ms")) is not int
+                or not 250 <= arguments["yield_time_ms"] <= 10_000
+            ):
+                raise FixtureError("fixture_write_stdin_must_be_bounded_session_poll")
 
 
 def _fixture_tool_outputs(value: Any) -> dict[int, tuple[str, str]]:
@@ -127,10 +140,12 @@ _TEMPLATE_FIELDS = frozenset(
         "inspection_digest",
         "operation_key",
         "status_version",
+        "session_id",
     }
 )
 _OUTPUT_FIELDS_BY_TOOL = {
     "exec_command": frozenset({"base_sha", "candidate_sha", "operation_key"}),
+    "write_stdin": frozenset({"base_sha", "candidate_sha"}),
     "get_task_context": frozenset({"candidate_sha", "operation_key"}),
     "get_task_history": frozenset({"candidate_sha", "operation_key"}),
     "reassign_task": frozenset({"handoff_state_revision"}),
@@ -186,6 +201,8 @@ def _tool_output_texts(name: str, output: str) -> list[str]:
     if name in (
         "get_task_context",
         "get_task_history",
+        "exec_command",
+        "write_stdin",
         _INSPECT_TOOL,
         BRIDGE_SUBMIT_TOOL,
         BRIDGE_APPROVE_TOOL,
@@ -195,6 +212,137 @@ def _tool_output_texts(name: str, output: str) -> list[str]:
         except json.JSONDecodeError:
             pass
     return texts
+
+
+def _exec_result_metadata(output: str) -> tuple[set[str], set[int | None]]:
+    """Read session/exit metadata, never infer success from text or missing fields."""
+    try:
+        parsed = json.loads(output)
+    except json.JSONDecodeError:
+        parsed = None
+    session_ids: set[str] = set()
+    exit_codes: set[int | None] = set()
+
+    def visit(node: Any) -> None:
+        if type(node) is dict:
+            session_id = node.get("session_id", node.get("sessionId"))
+            if type(session_id) is int and not isinstance(session_id, bool) and session_id > 0:
+                session_ids.add(str(session_id))
+            elif type(session_id) is str and re.fullmatch(r"[1-9][0-9]{0,19}", session_id):
+                session_ids.add(session_id)
+            exit_key = (
+                "exit_code" if "exit_code" in node else "exitCode" if "exitCode" in node else None
+            )
+            if exit_key is not None:
+                exit_code = node[exit_key]
+                if exit_code is None or (
+                    type(exit_code) is int and not isinstance(exit_code, bool)
+                ):
+                    exit_codes.add(exit_code)
+            for key in ("result", "data", "structuredContent", "content", "output", "text"):
+                if key in node:
+                    visit(node[key])
+        elif type(node) is list:
+            for nested in node:
+                visit(nested)
+        elif type(node) is str:
+            for value in re.findall(
+                r"(?im)^(?:session_id:\s*|Process running with session ID:?\s*)([1-9][0-9]{0,19})$",
+                node,
+            ):
+                session_ids.add(value)
+            for value in re.findall(
+                r"(?im)^(?:exit_code:\s*|Process exited with code:?\s*)(-?[0-9]+)$",
+                node,
+            ):
+                exit_codes.add(int(value))
+
+    visit(parsed)
+    visit(output)
+    return session_ids, exit_codes
+
+
+def _exec_result_status(
+    output: str, expected_session_id: str | None = None
+) -> tuple[str, str | None]:
+    session_ids, exit_codes = _exec_result_metadata(output)
+    if len(session_ids) > 1:
+        raise FixtureError("fixture_exec_session_id_ambiguous")
+    if len(exit_codes) > 1:
+        raise FixtureError("fixture_exec_session_exit_code_ambiguous")
+    session_id = next(iter(session_ids), None)
+    if expected_session_id is not None and session_id not in (None, expected_session_id):
+        raise FixtureError("fixture_exec_session_id_mismatch")
+    exit_code = next(iter(exit_codes), "missing")
+    if exit_code != "missing" and exit_code is not None:
+        return ("succeeded" if exit_code == 0 else "failed"), session_id
+    if session_id is not None:
+        return "running", session_id
+    return "unknown", None
+
+
+def _script_execution_progress(
+    value: Any, tool_script: tuple[ScriptedToolCall, ...]
+) -> tuple[int, int, dict[int, frozenset[str]]]:
+    """Count paired tool outputs and advance over a bounded optional poll group."""
+    outputs = _fixture_tool_outputs(value)
+    call_count = 0
+    script_index = 0
+    permitted_fields: dict[int, frozenset[str]] = {}
+    current_session_id: str | None = None
+
+    while call_count + 1 in outputs and script_index < len(tool_script):
+        name, output = outputs[call_count + 1]
+        step = tool_script[script_index]
+        if name != step.name:
+            break
+
+        next_index = script_index + 1
+        if (
+            name == "exec_command"
+            and next_index < len(tool_script)
+            and tool_script[next_index].name == "write_stdin"
+        ):
+            status, current_session_id = _exec_result_status(output)
+            if status == "failed":
+                raise FixtureError("fixture_exec_command_exit_nonzero")
+            if status == "unknown":
+                raise FixtureError("fixture_exec_session_result_unknown")
+            if status == "succeeded":
+                permitted_fields[call_count + 1] = frozenset({"base_sha", "candidate_sha"})
+                while (
+                    next_index < len(tool_script) and tool_script[next_index].name == "write_stdin"
+                ):
+                    next_index += 1
+            else:
+                permitted_fields[call_count + 1] = frozenset({"session_id"})
+        elif name == "write_stdin":
+            if current_session_id is None:
+                raise FixtureError("fixture_exec_session_id_template_missing")
+            status, returned_session_id = _exec_result_status(output, current_session_id)
+            if status == "unknown":
+                raise FixtureError("fixture_exec_session_result_unknown")
+            if status == "failed":
+                raise FixtureError("fixture_exec_session_exit_nonzero")
+            if status == "succeeded":
+                permitted_fields[call_count + 1] = _OUTPUT_FIELDS_BY_TOOL[name]
+                while (
+                    next_index < len(tool_script) and tool_script[next_index].name == "write_stdin"
+                ):
+                    next_index += 1
+                current_session_id = None
+            else:
+                if returned_session_id != current_session_id:
+                    raise FixtureError("fixture_exec_session_id_missing")
+                permitted_fields[call_count + 1] = frozenset()
+                if next_index >= len(tool_script) or tool_script[next_index].name != "write_stdin":
+                    raise FixtureError("fixture_exec_session_poll_limit_reached")
+        else:
+            permitted_fields[call_count + 1] = _OUTPUT_FIELDS_BY_TOOL.get(name, frozenset())
+
+        call_count += 1
+        script_index = next_index
+    return call_count, script_index, permitted_fields
 
 
 def _handoff_state_revisions(value: Any) -> set[str]:
@@ -279,7 +427,9 @@ def _script_bindings_from_input(
     value: Any, tool_script: tuple[ScriptedToolCall, ...]
 ) -> dict[str, str]:
     outputs = _fixture_tool_outputs(value)
-    contiguous_count = _function_call_output_count(value, tool_script)
+    contiguous_count, _script_index, permitted_fields = _script_execution_progress(
+        value, tool_script
+    )
     matches: dict[str, set[str]] = {}
     reassign_target = next(
         (
@@ -292,7 +442,7 @@ def _script_bindings_from_input(
     for number, (name, output) in outputs.items():
         if number > contiguous_count:
             continue
-        allowed_fields = _OUTPUT_FIELDS_BY_TOOL.get(name, frozenset())
+        allowed_fields = permitted_fields.get(number, frozenset())
         for text in _tool_output_texts(name, output):
             for field, field_value in re.findall(r"(?m)^([a-z_]+):([0-9a-f]{40,64})$", text):
                 if field in allowed_fields and not (
@@ -308,6 +458,10 @@ def _script_bindings_from_input(
             elif name == _INSPECT_TOOL:
                 for field, field_value in _inspect_metadata(text).items():
                     matches.setdefault(field, set()).add(field_value)
+        if name == "exec_command" and "session_id" in allowed_fields:
+            session_ids, _ = _exec_result_metadata(output)
+            if session_ids:
+                matches.setdefault("session_id", set()).update(session_ids)
         if name == "search_tasks" and reassign_target is not None:
             try:
                 versions = _issue_status_version(json.loads(output), reassign_target)
@@ -361,6 +515,8 @@ def _resolve_script_arguments(
                     raise FixtureError("fixture_template_field_not_allowed")
                 if field not in bindings:
                     raise FixtureError(f"fixture_{field}_template_missing")
+                if field == "session_id":
+                    raise FixtureError("fixture_session_id_template_only_for_poll")
                 return bindings[field]
 
             return re.sub(r"\$\{([a-z_]+)\}", replace, value)
@@ -369,6 +525,12 @@ def _resolve_script_arguments(
         if type(value) is dict:
             resolved: dict[str, Any] = {}
             for key, item in value.items():
+                if key == "session_id" and item == "${session_id}":
+                    session_id = bindings.get("session_id")
+                    if session_id is None or not re.fullmatch(r"[1-9][0-9]{0,19}", session_id):
+                        raise FixtureError("fixture_session_id_template_missing")
+                    resolved[key] = int(session_id)
+                    continue
                 if key == "expectedStatusVersion" and item == "${status_version}":
                     version = bindings.get("status_version")
                     if version is None or not version.isdecimal():
@@ -390,7 +552,7 @@ class _State:
         self.requests: list[dict[str, Any]] = []
         self.rejected_auth_count = 0
 
-    def observe(self, body: bytes, payload: dict[str, Any]) -> int:
+    def observe(self, body: bytes, payload: dict[str, Any], fixture_output_count: int) -> int:
         tool_names = []
         for tool in payload.get("tools", []):
             if type(tool) is dict and type(tool.get("name")) is str:
@@ -400,9 +562,7 @@ class _State:
             "model": payload.get("model"),
             "stream": payload.get("stream") is True,
             "tool_names": sorted(set(tool_names)),
-            "fixture_output_count": _function_call_output_count(
-                payload.get("input"), self.tool_script
-            ),
+            "fixture_output_count": fixture_output_count,
             "all_tool_output_count": _function_call_output_occurrence_count(payload.get("input")),
         }
         with self.lock:
@@ -435,21 +595,21 @@ class _State:
 
 def _function_call_output_count(value: Any, tool_script: tuple[ScriptedToolCall, ...] = ()) -> int:
     """Count contiguous, paired fixture outputs, ignoring duplicates/native data."""
-    outputs = _fixture_tool_outputs(value)
-    count = 0
-    while (
-        count + 1 in outputs
-        and count < len(tool_script)
-        and outputs[count + 1][0] == tool_script[count].name
-    ):
-        count += 1
-    return count
+    return _script_execution_progress(value, tool_script)[0]
 
 
 def _function_call_output_occurrence_count(value: Any) -> int:
     """Count output items without retaining their contents for fixture diagnostics."""
     items = value if type(value) is list else [value]
     return sum(type(item) is dict and item.get("type") == "function_call_output" for item in items)
+
+
+def _paired_fixture_output_count(value: Any) -> int:
+    outputs = _fixture_tool_outputs(value)
+    count = 0
+    while count + 1 in outputs:
+        count += 1
+    return count
 
 
 def _response(
@@ -532,6 +692,31 @@ class PaperclipResponsesFixture:
             raise FixtureError("fixture_tool_script_invalid")
         if any(not isinstance(step, ScriptedToolCall) for step in tool_script):
             raise FixtureError("fixture_tool_script_invalid")
+        if any(
+            step.name == "write_stdin" and step.arguments.get("session_id") != "${session_id}"
+            for step in tool_script
+        ):
+            raise FixtureError("fixture_write_stdin_must_use_exec_session_template")
+        poll_groups = 0
+        index = 0
+        while index < len(tool_script):
+            if tool_script[index].name != "write_stdin":
+                index += 1
+                continue
+            poll_groups += 1
+            if index == 0 or tool_script[index - 1].name != "exec_command":
+                if index == 0 or tool_script[index - 1].name != "write_stdin":
+                    raise FixtureError("fixture_write_stdin_must_poll_prior_exec")
+            group_end = index
+            total_wait_ms = 0
+            while group_end < len(tool_script) and tool_script[group_end].name == "write_stdin":
+                total_wait_ms += tool_script[group_end].arguments["yield_time_ms"]
+                group_end += 1
+            if group_end - index > 3 or total_wait_ms > _MAX_EXEC_SESSION_WAIT_MS:
+                raise FixtureError("fixture_exec_session_poll_budget_exceeded")
+            index = group_end
+        if poll_groups > 1:
+            raise FixtureError("fixture_exec_session_poll_group_ambiguous")
         self._state = _State(reply, tuple(tool_script))
         state = self._state
 
@@ -623,9 +808,16 @@ class PaperclipResponsesFixture:
                     self._json(400, {"error": {"message": str(exc)}})
                     return
 
-                request_number = state.observe(raw, payload)
+                try:
+                    completed_tool_calls, script_index, _ = _script_execution_progress(
+                        payload["input"], state.tool_script
+                    )
+                except FixtureError as exc:
+                    state.observe(raw, payload, _paired_fixture_output_count(payload["input"]))
+                    self._json(422, {"error": {"message": str(exc)}})
+                    return
+                request_number = state.observe(raw, payload, completed_tool_calls)
                 response_id = f"resp_fixture_{request_number:06d}"
-                script_index = _function_call_output_count(payload["input"], state.tool_script)
                 tool_call = (
                     state.tool_script[script_index]
                     if script_index < len(state.tool_script)
@@ -656,7 +848,7 @@ class PaperclipResponsesFixture:
                     state.reply,
                     tool_call=tool_call,
                     tool_call_id=(
-                        f"{FIXTURE_CALL_PREFIX}{script_index + 1:06d}"
+                        f"{FIXTURE_CALL_PREFIX}{completed_tool_calls + 1:06d}"
                         if tool_call is not None
                         else None
                     ),

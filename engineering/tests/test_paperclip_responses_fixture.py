@@ -9,6 +9,7 @@ import urllib.error
 import urllib.request
 
 from engineering.paperclip_responses_fixture import (
+    BRIDGE_SUBMIT_TOOL,
     BRIDGE_TOOL_ALIASES,
     DEFAULT_REPLY,
     FIXTURE_MODEL,
@@ -456,6 +457,395 @@ class PaperclipResponsesFixtureTests(unittest.TestCase):
                 json.loads(finish["output"][0]["arguments"]),
                 {"summary": f"Candidate {candidate_sha}"},
             )
+
+    def test_exec_session_is_polled_by_exact_id_until_terminal_before_candidate_binding(self):
+        session_id = 4815162342
+        base_sha = "b" * 40
+        candidate_sha = "c" * 40
+        script = (
+            ScriptedToolCall(
+                "exec_command", {"cmd": "recover exact existing candidate", "yield_time_ms": 250}
+            ),
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 10_000}
+            ),
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 10_000}
+            ),
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 10_000}
+            ),
+            ScriptedToolCall(
+                BRIDGE_SUBMIT_TOOL, {"base_sha": "${base_sha}", "submitted_sha": "${candidate_sha}"}
+            ),
+        )
+        names = ["exec_command", "write_stdin", BRIDGE_SUBMIT_TOOL]
+        tools = [
+            {"type": "function", "name": name, "parameters": {"type": "object"}} for name in names
+        ]
+        input_items = [{"role": "user", "content": "recover the existing candidate"}]
+        with PaperclipResponsesFixture(port=0, tool_script=script) as fixture:
+            with _request(
+                fixture.base_url + "/responses",
+                {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+            ) as response:
+                first = json.load(response)
+            self.assertEqual(first["output"][0]["call_id"], "call_resp_fixture_000001")
+            self.assertEqual(first["output"][0]["name"], "exec_command")
+
+            input_items.extend(
+                [
+                    {
+                        "type": "function_call",
+                        "call_id": "call_resp_fixture_000001",
+                        "name": "exec_command",
+                    },
+                    {
+                        "type": "function_call_output",
+                        "call_id": "call_resp_fixture_000001",
+                        "output": f"Process running with session ID: {session_id}\n",
+                    },
+                ]
+            )
+            with _request(
+                fixture.base_url + "/responses",
+                {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+            ) as response:
+                poll = json.load(response)
+            self.assertEqual(poll["output"][0]["call_id"], "call_resp_fixture_000002")
+            self.assertEqual(poll["output"][0]["name"], "write_stdin")
+            self.assertEqual(
+                json.loads(poll["output"][0]["arguments"]),
+                {"session_id": session_id, "yield_time_ms": 10_000},
+            )
+
+            input_items.extend(
+                [
+                    {
+                        "type": "function_call",
+                        "call_id": "call_resp_fixture_000002",
+                        "name": "write_stdin",
+                    },
+                    {
+                        "type": "function_call_output",
+                        "call_id": "call_resp_fixture_000002",
+                        "output": json.dumps(
+                            {"output": "still running", "session_id": session_id, "exit_code": None}
+                        ),
+                    },
+                ]
+            )
+            with _request(
+                fixture.base_url + "/responses",
+                {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+            ) as response:
+                poll_again = json.load(response)
+            self.assertEqual(poll_again["output"][0]["call_id"], "call_resp_fixture_000003")
+            self.assertEqual(poll_again["output"][0]["name"], "write_stdin")
+
+            input_items.extend(
+                [
+                    {
+                        "type": "function_call",
+                        "call_id": "call_resp_fixture_000003",
+                        "name": "write_stdin",
+                    },
+                    {
+                        "type": "function_call_output",
+                        "call_id": "call_resp_fixture_000003",
+                        "output": json.dumps(
+                            {
+                                "output": "still running",
+                                "session_id": session_id,
+                                "exit_code": None,
+                            }
+                        ),
+                    },
+                ]
+            )
+            with _request(
+                fixture.base_url + "/responses",
+                {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+            ) as response:
+                poll_last = json.load(response)
+            self.assertEqual(poll_last["output"][0]["call_id"], "call_resp_fixture_000004")
+            self.assertEqual(poll_last["output"][0]["name"], "write_stdin")
+
+            input_items.extend(
+                [
+                    {
+                        "type": "function_call",
+                        "call_id": "call_resp_fixture_000004",
+                        "name": "write_stdin",
+                    },
+                    {
+                        "type": "function_call_output",
+                        "call_id": "call_resp_fixture_000004",
+                        "output": json.dumps(
+                            {
+                                "output": (
+                                    f"Process exited with code 0\nbase_sha:{base_sha}"
+                                    f"\ncandidate_sha:{candidate_sha}\n"
+                                ),
+                            }
+                        ),
+                    },
+                ]
+            )
+            with _request(
+                fixture.base_url + "/responses",
+                {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+            ) as response:
+                submit = json.load(response)
+            self.assertEqual(submit["output"][0]["call_id"], "call_resp_fixture_000005")
+            self.assertEqual(submit["output"][0]["name"], names[2])
+            self.assertEqual(
+                json.loads(submit["output"][0]["arguments"]),
+                {"base_sha": base_sha, "submitted_sha": candidate_sha},
+            )
+            self.assertEqual(fixture.script_progress(), ((0, 0), (1, 1), (2, 2), (3, 3), (4, 4)))
+
+    def test_completed_exec_skips_optional_session_poll_group(self):
+        base_sha = "b" * 40
+        candidate_sha = "c" * 40
+        script = (
+            ScriptedToolCall("exec_command", {"cmd": "fast verified commit"}),
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 10_000}
+            ),
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 10_000}
+            ),
+            ScriptedToolCall(
+                BRIDGE_SUBMIT_TOOL, {"base_sha": "${base_sha}", "submitted_sha": "${candidate_sha}"}
+            ),
+        )
+        tools = [
+            {"type": "function", "name": name, "parameters": {"type": "object"}}
+            for name in ("exec_command", "write_stdin", BRIDGE_SUBMIT_TOOL)
+        ]
+        input_items = [
+            {"role": "user", "content": "fast run"},
+            {
+                "type": "function_call",
+                "call_id": "call_resp_fixture_000001",
+                "name": "exec_command",
+            },
+            {
+                "type": "function_call_output",
+                "call_id": "call_resp_fixture_000001",
+                "output": json.dumps(
+                    {
+                        "output": f"base_sha:{base_sha}\ncandidate_sha:{candidate_sha}\n",
+                        "exit_code": 0,
+                    }
+                ),
+            },
+        ]
+        with PaperclipResponsesFixture(port=0, tool_script=script) as fixture:
+            with _request(
+                fixture.base_url + "/responses",
+                {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+            ) as response:
+                submit = json.load(response)
+            self.assertEqual(submit["output"][0]["call_id"], "call_resp_fixture_000002")
+            self.assertEqual(submit["output"][0]["name"], BRIDGE_SUBMIT_TOOL)
+            self.assertEqual(
+                json.loads(submit["output"][0]["arguments"]),
+                {"base_sha": base_sha, "submitted_sha": candidate_sha},
+            )
+
+    def test_exec_session_poll_fails_closed_without_exact_session_or_terminal_status(self):
+        session_id = 7
+        base_sha = "b" * 40
+        candidate_sha = "c" * 40
+        script = (
+            ScriptedToolCall("exec_command", {"cmd": "recover"}),
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 10_000}
+            ),
+            ScriptedToolCall("paperclip_finish", {"summary": "${candidate_sha}"}),
+        )
+        tools = [
+            {"type": "function", "name": name, "parameters": {"type": "object"}}
+            for name in ("exec_command", "write_stdin", "paperclip_finish")
+        ]
+        exec_result = json.dumps({"output": "", "session_id": session_id, "exit_code": None})
+        for poll_result, expected_error in (
+            (
+                json.dumps({"output": f"base_sha:{base_sha}\ncandidate_sha:{candidate_sha}\n"}),
+                "fixture_exec_session_result_unknown",
+            ),
+            (
+                json.dumps({"output": "failed", "session_id": session_id, "exit_code": 1}),
+                "fixture_exec_session_exit_nonzero",
+            ),
+        ):
+            input_items = [{"role": "user", "content": "recover safely"}]
+            with PaperclipResponsesFixture(port=0, tool_script=script) as fixture:
+                with _request(
+                    fixture.base_url + "/responses",
+                    {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+                ) as response:
+                    first = json.load(response)
+                self.assertEqual(first["output"][0]["name"], "exec_command")
+                input_items.extend(
+                    [
+                        {
+                            "type": "function_call",
+                            "call_id": "call_resp_fixture_000001",
+                            "name": "exec_command",
+                        },
+                        {
+                            "type": "function_call_output",
+                            "call_id": "call_resp_fixture_000001",
+                            "output": exec_result,
+                        },
+                    ]
+                )
+                with _request(
+                    fixture.base_url + "/responses",
+                    {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+                ) as response:
+                    poll = json.load(response)
+                self.assertEqual(poll["output"][0]["name"], "write_stdin")
+                input_items.extend(
+                    [
+                        {
+                            "type": "function_call",
+                            "call_id": "call_resp_fixture_000002",
+                            "name": "write_stdin",
+                        },
+                        {
+                            "type": "function_call_output",
+                            "call_id": "call_resp_fixture_000002",
+                            "output": poll_result,
+                        },
+                    ]
+                )
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    _request(
+                        fixture.base_url + "/responses",
+                        {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+                    )
+                self.assertEqual(error.exception.code, 422)
+                self.assertEqual(
+                    json.loads(error.exception.read())["error"]["message"], expected_error
+                )
+
+    def test_write_stdin_script_uses_only_empty_input_and_bounded_polls(self):
+        with self.assertRaisesRegex(FixtureError, "bounded_session_poll"):
+            ScriptedToolCall(
+                "write_stdin",
+                {"session_id": "${session_id}", "chars": "x", "yield_time_ms": 10_000},
+            )
+        with self.assertRaisesRegex(FixtureError, "bounded_session_poll"):
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 30_001}
+            )
+        with self.assertRaisesRegex(FixtureError, "exec_session_template"):
+            PaperclipResponsesFixture(
+                port=0,
+                tool_script=(
+                    ScriptedToolCall("exec_command", {"cmd": "start"}),
+                    ScriptedToolCall("write_stdin", {"session_id": 14, "yield_time_ms": 1000}),
+                ),
+            )
+        with self.assertRaisesRegex(FixtureError, "must_poll_prior_exec"):
+            PaperclipResponsesFixture(
+                port=0,
+                tool_script=(
+                    ScriptedToolCall("list_agents", {}),
+                    ScriptedToolCall(
+                        "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 1000}
+                    ),
+                ),
+            )
+
+    def test_exec_session_poll_limit_fails_closed_without_submitting_candidate(self):
+        session_id = 27
+        script = (
+            ScriptedToolCall("exec_command", {"cmd": "bounded recover"}),
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 10_000}
+            ),
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 10_000}
+            ),
+            ScriptedToolCall(
+                "write_stdin", {"session_id": "${session_id}", "yield_time_ms": 10_000}
+            ),
+            ScriptedToolCall(
+                BRIDGE_SUBMIT_TOOL, {"base_sha": "${base_sha}", "submitted_sha": "${candidate_sha}"}
+            ),
+        )
+        tools = [
+            {"type": "function", "name": name, "parameters": {"type": "object"}}
+            for name in ("exec_command", "write_stdin", BRIDGE_SUBMIT_TOOL)
+        ]
+        input_items = [{"role": "user", "content": "bounded recover"}]
+        with PaperclipResponsesFixture(port=0, tool_script=script) as fixture:
+            with _request(
+                fixture.base_url + "/responses",
+                {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+            ) as response:
+                first = json.load(response)
+            self.assertEqual(first["output"][0]["call_id"], "call_resp_fixture_000001")
+            input_items.extend(
+                [
+                    {
+                        "type": "function_call",
+                        "call_id": "call_resp_fixture_000001",
+                        "name": "exec_command",
+                    },
+                    {
+                        "type": "function_call_output",
+                        "call_id": "call_resp_fixture_000001",
+                        "output": json.dumps(
+                            {"output": "", "session_id": session_id, "exit_code": None}
+                        ),
+                    },
+                ]
+            )
+            for call_number in (2, 3, 4):
+                with _request(
+                    fixture.base_url + "/responses",
+                    {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+                ) as response:
+                    poll = json.load(response)
+                expected_call = f"call_resp_fixture_{call_number:06d}"
+                self.assertEqual(poll["output"][0]["call_id"], expected_call)
+                input_items.extend(
+                    [
+                        {"type": "function_call", "call_id": expected_call, "name": "write_stdin"},
+                        {
+                            "type": "function_call_output",
+                            "call_id": expected_call,
+                            "output": json.dumps(
+                                {
+                                    "output": "still running",
+                                    "session_id": session_id,
+                                    "exit_code": None,
+                                }
+                            ),
+                        },
+                    ]
+                )
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                _request(
+                    fixture.base_url + "/responses",
+                    {"model": FIXTURE_MODEL, "input": input_items, "tools": tools},
+                )
+            self.assertEqual(error.exception.code, 422)
+            self.assertEqual(
+                json.loads(error.exception.read())["error"]["message"],
+                "fixture_exec_session_poll_limit_reached",
+            )
+            health = json.load(
+                urllib.request.urlopen(fixture.base_url.removesuffix("/v1") + "/healthz")
+            )
+            self.assertEqual(health["request_count"], 5)
+            self.assertEqual(health["script_progress"][-1], [4, 4])
 
     def test_candidate_binding_rejects_ambiguous_or_unpaired_outputs(self):
         call = {
