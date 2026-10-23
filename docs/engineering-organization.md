@@ -33,19 +33,35 @@ relationship admission and the rejected TypeError candidate remain recorded, not
 Canonical catchupad02f26 was separately exact-reviewed and operator-assisted published/reconciled,
 then remote-confirmed. This establishes aligned selected-file bases, not autonomous publication.
 
-The narrow native SDK CAS/readiness extension67ae034 passed independent source review, including
-the corrected concurrent-reparent race; reviewed packagingbdf380c is deployed throughd5f4db9.
-Quiescent MEM pause, owned-server restart and explicit resume preserved done tasks and produced no
-new run during the paused interval. This excludes mid-publication crash recovery and endurance. The bounded canonical publisher3fe7f77
-also passed independent module review. Combined finite queue/publication code remains under development
-following independent findings; component tests do not establish the combined runtime path.
+The native SDK CAS/readiness extension67ae034 passed independent review, including concurrent
+reparenting. Finite controller0d40018 subsequently passed two-stage SDK/TS/Python/Sandbox and
+projected/canonical CAS review. Stage2 uses an owner-controlled pinned source cache, preserving the
+verifier's distinct protected source root. Source and QA finalization must precede the next stage;
+the lead retains its prior completed-QA dependency until the next binding succeeds. QA inspects
+immutable candidates rather than reading sibling private tasks.
 
-Remaining MVP evidence: Sol creates successive useful source/review tasks without CEO pairing;
-refreshed source bases and automatic exact-reviewed canonical publication; useful native Platform
-and Brain work in parallel; bounded stop/restart/resume with unknown outcomes preserved. Use existing
-native task/dependency/workspace/recovery mechanisms. A serialized shared noGit workspace is acceptable
-for the finite Senses lane, with only Luna writing and QA inspecting immutable controller snapshots.
-It is not separate per-role filesystem isolation. Monthly endurance and broad scaling belong to Platform.
+Paperclip407762f fixes capability upgrades through the existing approval lifecycle: new manifest
+and upgrade_pending are staged atomically, pending stays inactive, and explicit admin enable approves.
+The default loader refusal remains. Exact accepted packaging is integrated/pushed5f20acb. Native
+readback confirmed disabled→pending with no tools→explicit approval→ready. Quiescent MEM pause,
+owned-server restart and explicit resume preserved completed and pending tasks without new paused
+runs. This excludes mid-publication crash recovery and endurance.
+
+Native Sol created the first finite source/QA pair MEM39/40. Actual binding failed because the
+controller expected providerType=local while the native SDK supplies local_fs. Correcting this exact
+schema assumption is Platform work; source execution remains held until reviewed correction.
+Synthetic fixtures must represent native metadata, not merely agree with the implementation.
+
+Experience, Cortex, Evaluation and Policy completed native source analyses; independent batch QA
+MEM41 is running. These are analysis-only lanes, not arbitrary source-publication qualification.
+Original implementation backlogs remain open. Platform MEM38 and Policy MEM37 ran concurrently;
+timing correction is recorded in department-analysis/batch-qa/cohort-timing-correction.json.
+
+Remaining MVP evidence: two successive useful Sol-owned engineering cycles with refreshed bases
+and automatic exact-reviewed canonical publication, plus final combined acceptance. Use native
+task/dependency/workspace/recovery mechanisms. A serialized shared noGit workspace is acceptable
+for Senses, with only Luna writing and QA inspecting immutable controller snapshots. It is not
+separate per-role filesystem isolation. Monthly endurance and broad scaling belong to Platform.
 
 Current private evidence: lab `state/resumption-20261023/`; canonical operational handoff:
 `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md`. Founder reporting remains
