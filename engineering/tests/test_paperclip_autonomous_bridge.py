@@ -13,9 +13,13 @@ from engineering.git_gate import Candidate
 from engineering.paperclip_autonomous_bridge import (
     BridgeConfig,
     BridgeError,
+    SourceStageSpec,
     _binding,
     _bounded_candidate_diff,
+    _load_journal,
+    _stage_journal_key,
     _verifier,
+    _write_journal,
     dispatch,
 )
 
@@ -783,6 +787,46 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         content_only = BridgeConfig.load(path)
         self.assertIsNone(content_only.worker_checkout)
         self.assertNotIn("/tmp/worker", content_only.owner_roots)
+        raw.pop("source_issue_id")
+        raw.pop("reviewer_issue_id")
+        raw.update(
+            {
+                "expected_base_sha": "a" * 40,
+                "finite_lead_agent_id": "lead-agent",
+                "finite_lead_issue_id": "lead-issue",
+                "source_stage_catalog": [
+                    {
+                        "stage_key": "MEM8",
+                        "workspace_id": "source",
+                        "initial_base_sha": "a" * 40,
+                        "predecessor_stage_key": None,
+                        "path_ids": [
+                            "src/memecoin_brain_sources/events.py",
+                            "tests/brain/test_raw_sources.py",
+                        ],
+                        "verifier_policy_id": "policy-mem8",
+                    },
+                    {
+                        "stage_key": "MEM9",
+                        "workspace_id": "published",
+                        "initial_base_sha": None,
+                        "predecessor_stage_key": "MEM8",
+                        "path_ids": [
+                            "src/memecoin_brain_sources/events.py",
+                            "tests/brain/test_raw_sources.py",
+                        ],
+                        "verifier_policy_id": "policy-mem9",
+                    },
+                ],
+            }
+        )
+        path.write_text(json.dumps(raw))
+        path.chmod(0o600)
+        finite = BridgeConfig.load(path)
+        self.assertEqual(
+            [stage.stage_key for stage in finite.source_stage_catalog], ["MEM8", "MEM9"]
+        )
+        self.assertIsNone(finite.worker_checkout)
         raw["fixed_dev_ref"] = "refs/heads/main"
         raw["expected_dev_ref"] = "refs/heads/main"
         path.write_text(json.dumps(raw))
@@ -801,6 +845,238 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                     self.config, {"action": "submit_candidate", "payload": self.worker_payload()}
                 )
         self.assertFalse(list(self.config.bridge_journal_dir.glob("operation-*.json")))
+
+    def test_finite_stage_binding_cas_activation_and_publication_advance_base(self):
+        from engineering.paperclip_source_delivery import SOURCE_PATHS
+
+        stages = (
+            SourceStageSpec("MEM8", "source", "a" * 40, None, SOURCE_PATHS, "policy-mem8"),
+            SourceStageSpec("MEM9", "published", None, "MEM8", SOURCE_PATHS, "policy-mem9"),
+        )
+        config = replace(
+            self.config,
+            source_issue_id=None,
+            reviewer_issue_id=None,
+            worker_checkout=None,
+            expected_base_sha="a" * 40,
+            finite_lead_agent_id="lead-1",
+            finite_lead_issue_id="lead-issue",
+            source_stage_catalog=stages,
+        )
+
+        def stage_payload(stage_key, source_id, review_id, **prior):
+            return {
+                "company_id": config.company_id,
+                "project_id": config.project_id,
+                "lead_agent_id": "lead-1",
+                "lead_issue_id": "lead-issue",
+                "lead_run_id": "lead-run",
+                "stage_key": stage_key,
+                "source_issue_id": source_id,
+                "source_version": 1,
+                "review_issue_id": review_id,
+                "review_version": 1,
+                "predecessor_operation_key": None,
+                "predecessor_source_status": None,
+                "predecessor_source_version": None,
+                "predecessor_review_status": None,
+                "predecessor_review_version": None,
+                "predecessor_source_issue_id": None,
+                "predecessor_review_issue_id": None,
+                "predecessor_dependency_ready": None,
+                **prior,
+            }
+
+        first_payload = stage_payload("MEM8", "source-8", "review-8")
+        first = dispatch(config, {"action": "bind_source_stage", "payload": first_payload})
+        self.assertEqual(first["base_sha"], "a" * 40)
+        self.assertEqual(first["state"], "bound")
+        lookup = dispatch(
+            config,
+            {
+                "action": "lookup_source_stage_binding",
+                "payload": {
+                    "company_id": config.company_id,
+                    "project_id": config.project_id,
+                    "lead_agent_id": "lead-1",
+                    "lead_issue_id": "lead-issue",
+                    "stage_key": "MEM8",
+                    "source_issue_id": "source-8",
+                    "review_issue_id": "review-8",
+                },
+            },
+        )
+        self.assertEqual(lookup["stage_binding_key"], first["stage_binding_key"])
+        self.assertEqual(
+            dispatch(config, {"action": "bind_source_stage", "payload": first_payload}), first
+        )
+        self.assertIsNone(config.worker_checkout)
+        self.assertNotIn(str(Path(self.tmp.name) / "worker"), config.owner_roots)
+        with self.assertRaisesRegex(BridgeError, "source_stage_not_active"):
+            dispatch(
+                config,
+                {
+                    "action": "deliver_source_stage_content",
+                    "payload": {
+                        "company_id": config.company_id,
+                        "project_id": config.project_id,
+                        "source_issue_id": "source-8",
+                        "review_issue_id": "review-8",
+                        "worker_agent_id": config.worker_agent_id,
+                        "run_id": "worker-run",
+                        "stage_key": "MEM8",
+                        "stage_binding_key": first["stage_binding_key"],
+                        "files": [],
+                    },
+                },
+            )
+        changed = {**first_payload, "source_issue_id": "other-source"}
+        with self.assertRaisesRegex(BridgeError, "source_stage_bind_replay_mismatch"):
+            dispatch(config, {"action": "bind_source_stage", "payload": changed})
+
+        intent = {
+            "step": "intent",
+            "stage_binding_key": first["stage_binding_key"],
+            "issue_id": "source-8",
+            "observed_status": "backlog",
+            "observed_version": 1,
+        }
+        self.assertEqual(
+            dispatch(config, {"action": "source_stage_activation", "payload": intent})["intent"],
+            "created",
+        )
+        self.assertEqual(
+            dispatch(config, {"action": "source_stage_activation", "payload": intent})["intent"],
+            "reconcile_required",
+        )
+        ack = {
+            "step": "ack",
+            "stage_binding_key": first["stage_binding_key"],
+            "issue_id": "source-8",
+            "mutation_status": "todo",
+            "mutation_status_version": 2,
+        }
+        self.assertEqual(
+            dispatch(config, {"action": "source_stage_activation", "payload": ack})["state"],
+            "active",
+        )
+
+        operation_key = "f" * 64
+        _write_journal(
+            config,
+            operation_key,
+            {
+                "schema": "paperclip-autonomous-operation-v1",
+                "operation_key": operation_key,
+                "state": "published",
+                "source_stage_binding": first["stage_binding_key"],
+                "candidate": {"operation_key": operation_key, "candidate_sha": "d" * 40},
+            },
+            create=True,
+        )
+        first_stage_record = _load_journal(config, _stage_journal_key("MEM8"))
+        first_stage_record["operation_key"] = operation_key
+        first_stage_record["candidate_sha"] = "d" * 40
+        _write_journal(config, _stage_journal_key("MEM8"), first_stage_record, create=False)
+        second_payload = stage_payload(
+            "MEM9",
+            "source-9",
+            "review-9",
+            predecessor_operation_key=operation_key,
+            predecessor_source_status="done",
+            predecessor_source_version=3,
+            predecessor_review_status="done",
+            predecessor_review_version=3,
+            predecessor_source_issue_id="source-8",
+            predecessor_review_issue_id="review-8",
+            predecessor_dependency_ready=True,
+        )
+        second = dispatch(config, {"action": "bind_source_stage", "payload": second_payload})
+        self.assertEqual(second["base_sha"], "d" * 40)
+        self.assertEqual(second["state"], "bound")
+
+    def test_finite_stage_holds_when_predecessor_publication_or_finalization_is_unknown(self):
+        from engineering.paperclip_source_delivery import SOURCE_PATHS
+
+        stages = (
+            SourceStageSpec("MEM8", "source", "a" * 40, None, SOURCE_PATHS, "policy-mem8"),
+            SourceStageSpec("MEM9", "published", None, "MEM8", SOURCE_PATHS, "policy-mem9"),
+        )
+        config = replace(
+            self.config,
+            source_issue_id=None,
+            reviewer_issue_id=None,
+            worker_checkout=None,
+            expected_base_sha="a" * 40,
+            finite_lead_agent_id="lead-1",
+            finite_lead_issue_id="lead-issue",
+            source_stage_catalog=stages,
+        )
+        first_payload = {
+            "company_id": config.company_id,
+            "project_id": config.project_id,
+            "lead_agent_id": "lead-1",
+            "lead_issue_id": "lead-issue",
+            "lead_run_id": "lead-run",
+            "stage_key": "MEM8",
+            "source_issue_id": "source-8",
+            "source_version": 1,
+            "review_issue_id": "review-8",
+            "review_version": 1,
+            "predecessor_operation_key": None,
+            "predecessor_source_status": None,
+            "predecessor_source_version": None,
+            "predecessor_review_status": None,
+            "predecessor_review_version": None,
+            "predecessor_source_issue_id": None,
+            "predecessor_review_issue_id": None,
+            "predecessor_dependency_ready": None,
+        }
+        first = dispatch(config, {"action": "bind_source_stage", "payload": first_payload})
+        operation_key = "e" * 64
+        _write_journal(
+            config,
+            operation_key,
+            {
+                "schema": "paperclip-autonomous-operation-v1",
+                "operation_key": operation_key,
+                "state": "prepared",
+                "source_stage_binding": first["stage_binding_key"],
+                "candidate": {"operation_key": operation_key, "candidate_sha": "d" * 40},
+            },
+            create=True,
+        )
+        second = {
+            **first_payload,
+            "stage_key": "MEM9",
+            "source_issue_id": "source-9",
+            "review_issue_id": "review-9",
+            "predecessor_operation_key": operation_key,
+            "predecessor_source_status": "done",
+            "predecessor_source_version": 2,
+            "predecessor_review_status": "done",
+            "predecessor_review_version": 2,
+            "predecessor_source_issue_id": "source-8",
+            "predecessor_review_issue_id": "review-8",
+            "predecessor_dependency_ready": True,
+        }
+        with self.assertRaisesRegex(BridgeError, "source_stage_predecessor_not_finalized"):
+            dispatch(config, {"action": "bind_source_stage", "payload": second})
+        _write_journal(
+            config,
+            operation_key,
+            {
+                "schema": "paperclip-autonomous-operation-v1",
+                "operation_key": operation_key,
+                "state": "published",
+                "source_stage_binding": first["stage_binding_key"],
+                "candidate": {"operation_key": operation_key, "candidate_sha": "d" * 40},
+            },
+            create=False,
+        )
+        second["predecessor_dependency_ready"] = False
+        with self.assertRaisesRegex(BridgeError, "source_stage_predecessor_not_finalized"):
+            dispatch(config, {"action": "bind_source_stage", "payload": second})
 
 
 if __name__ == "__main__":

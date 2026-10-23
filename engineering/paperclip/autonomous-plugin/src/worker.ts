@@ -13,7 +13,7 @@ const SHA_RE = /^[0-9a-f]{40,64}$/;
 const KEY_RE = /^[0-9a-f]{64}$/;
 const CONFIG_SCHEMA = "paperclip-autonomous-bridge-config-v1";
 
-type ToolAction = "deliver_source_content" | "inspect_candidate" | "approve_candidate";
+type ToolAction = "deliver_source_content" | "deliver_source_stage_content" | "bind_source_stage" | "lookup_source_stage_binding" | "source_stage_activation" | "inspect_bound_source_stage" | "approve_bound_source_stage" | "inspect_candidate" | "approve_candidate";
 type BridgeResult = Record<string, unknown>;
 type BridgeInvoker = (
   action: ToolAction,
@@ -26,9 +26,12 @@ type OwnerConfig = {
   project_id: string;
   worker_agent_id: string;
   reviewer_agent_id: string;
-  source_issue_id: string;
-  reviewer_issue_id: string;
+  source_issue_id?: string;
+  reviewer_issue_id?: string;
   reviewer_parent_issue_id?: string;
+  finite_lead_agent_id?: string;
+  finite_lead_issue_id?: string;
+  source_stage_catalog?: Array<{ stage_key: string; workspace_id: string; initial_base_sha: string | null; predecessor_stage_key: string | null; path_ids: string[]; verifier_policy_id: string }>;
   python_executable: string;
   configPath: string;
 };
@@ -51,7 +54,7 @@ export async function assertRunBoundIssue(
     scopedIssues.get(issueId, runCtx.companyId),
     scopedIssues.getOrchestration({ issueId, companyId: runCtx.companyId }),
   ]);
-  const boundRun = orchestration.runs.find((run) => run.id === runCtx.runId);
+  const boundRun = orchestration.runs.find((run: { id: string; issueId: string; agentId: string; status: string }) => run.id === runCtx.runId);
   if (!issue || issue.id !== issueId || issue.companyId !== runCtx.companyId || issue.projectId !== runCtx.projectId
       || issue.assigneeAgentId !== runCtx.agentId || issue.executionRunId !== runCtx.runId || !allowedStatuses.includes(issue.status)
       || !boundRun || boundRun.issueId !== issueId || boundRun.agentId !== runCtx.agentId || boundRun.status !== "running") {
@@ -80,8 +83,16 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
       fail("owner_bridge_config_changed");
     }
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const keys = ["company_id", "project_id", "worker_agent_id", "reviewer_agent_id", "source_issue_id", "reviewer_issue_id"] as const;
+    const keys = ["company_id", "project_id", "worker_agent_id", "reviewer_agent_id"] as const;
+    const hasAnyLegacyPair = parsed.source_issue_id !== undefined || parsed.reviewer_issue_id !== undefined;
+    const hasLegacyPair = typeof parsed.source_issue_id === "string" && typeof parsed.reviewer_issue_id === "string";
+    const finite = typeof parsed.finite_lead_agent_id === "string" && typeof parsed.finite_lead_issue_id === "string"
+      && Array.isArray(parsed.source_stage_catalog) && parsed.source_stage_catalog.length === 2;
     if (parsed.schema !== CONFIG_SCHEMA || keys.some((key) => typeof parsed[key] !== "string" || !ID_RE.test(parsed[key] as string))
+        || (hasAnyLegacyPair && !hasLegacyPair)
+        || (!hasLegacyPair && !finite)
+        || (hasLegacyPair && (!ID_RE.test(parsed.source_issue_id as string) || !ID_RE.test(parsed.reviewer_issue_id as string)))
+        || (finite && (!ID_RE.test(parsed.finite_lead_agent_id as string) || !ID_RE.test(parsed.finite_lead_issue_id as string)))
         || typeof parsed.python_executable !== "string" || !isAbsolute(parsed.python_executable)) {
       fail("owner_bridge_config_invalid");
     }
@@ -91,6 +102,12 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
     }
     return {
       ...Object.fromEntries(keys.map((key) => [key, parsed[key]])),
+      ...(hasLegacyPair ? { source_issue_id: parsed.source_issue_id as string, reviewer_issue_id: parsed.reviewer_issue_id as string } : {}),
+      ...(finite ? {
+        finite_lead_agent_id: parsed.finite_lead_agent_id as string,
+        finite_lead_issue_id: parsed.finite_lead_issue_id as string,
+        source_stage_catalog: parsed.source_stage_catalog as OwnerConfig["source_stage_catalog"],
+      } : {}),
       ...(typeof parsed.reviewer_parent_issue_id === "string"
         ? { reviewer_parent_issue_id: parsed.reviewer_parent_issue_id }
         : {}),
@@ -206,6 +223,7 @@ async function validateReviewerWakeTarget(
   ctx: Pick<PluginContext, "issues">,
   owner: OwnerConfig,
 ): Promise<void> {
+  if (!owner.source_issue_id || !owner.reviewer_issue_id) fail("legacy_reviewer_route_not_owner_configured");
   const scopedIssues = ctx.issues.forCurrentToolRun();
   const explicitParent = owner.reviewer_parent_issue_id;
   const [issue, orchestration, sourceIssue] = await Promise.all([
@@ -226,7 +244,288 @@ async function validateReviewerWakeTarget(
   }
 }
 
+function requireSourceStage(owner: OwnerConfig, stageKey: string) {
+  const stage = owner.source_stage_catalog?.find((item) => item.stage_key === stageKey);
+  if (!stage || !owner.finite_lead_issue_id || !owner.finite_lead_agent_id) fail("source_stage_not_owner_admitted");
+  return stage;
+}
+
+async function readNativeIssue(ctx: Pick<PluginContext, "issues">, issueId: string, companyId: string) {
+  const issue = await ctx.issues.forCurrentToolRun().get(issueId, companyId);
+  if (!issue || issue.id !== issueId || issue.companyId !== companyId) fail("source_stage_issue_unavailable");
+  return issue;
+}
+
+async function assertStageCurrentRun(
+  ctx: Pick<PluginContext, "issues">,
+  runCtx: ToolRunContext,
+  issueId: string,
+  allowedStatuses: string[] = ["in_progress"],
+): Promise<void> {
+  if (![runCtx.companyId, runCtx.projectId, runCtx.agentId, runCtx.runId].every(
+    (value) => typeof value === "string" && ID_RE.test(value),
+  )) fail("host_run_context_invalid");
+  const issue = await readNativeIssue(ctx, issueId, runCtx.companyId);
+  if (
+    issue.projectId !== runCtx.projectId
+    || issue.assigneeAgentId !== runCtx.agentId
+    || issue.executionRunId !== runCtx.runId
+    || !allowedStatuses.includes(issue.status)
+  ) fail("host_issue_run_binding_mismatch");
+}
+
+async function validateStagePair(
+  ctx: Pick<PluginContext, "issues">,
+  owner: OwnerConfig,
+  stage: NonNullable<OwnerConfig["source_stage_catalog"]>[number],
+  sourceIssueId: string,
+  reviewIssueId: string,
+) {
+  const scoped = ctx.issues.forCurrentToolRun();
+  const [source, review, orchestration] = await Promise.all([
+    readNativeIssue(ctx, sourceIssueId, owner.company_id),
+    readNativeIssue(ctx, reviewIssueId, owner.company_id),
+    scoped.getOrchestration({ issueId: reviewIssueId, companyId: owner.company_id }),
+  ]);
+  if (source.projectId !== owner.project_id || source.parentId !== owner.finite_lead_issue_id
+      || source.assigneeAgentId !== owner.worker_agent_id || source.status !== "backlog"
+      || source.executionRunId !== null || !Number.isSafeInteger(source.statusVersion)) fail("source_stage_source_admission_mismatch");
+  if (review.projectId !== owner.project_id || review.parentId !== owner.finite_lead_issue_id
+      || review.assigneeAgentId !== owner.reviewer_agent_id || review.status !== "blocked"
+      || review.executionRunId !== null || !Number.isSafeInteger(review.statusVersion)
+      || orchestration.blockedByIssueIds.length !== 1 || orchestration.blockedByIssueIds[0] !== sourceIssueId) {
+    fail("source_stage_review_admission_mismatch");
+  }
+  const readiness = await scoped.getDependencyReadiness(reviewIssueId, owner.company_id);
+  if (readiness.isDependencyReady !== false || !readiness.unresolvedBlockerIssueIds.includes(sourceIssueId)) {
+    fail("source_stage_review_dependency_not_blocked");
+  }
+  return { source, review };
+}
+
+async function activateSourceStage(
+  ctx: Pick<PluginContext, "issues">,
+  invoke: BridgeInvoker,
+  owner: OwnerConfig,
+  configPath: string,
+  stageBindingKey: string,
+  source: { id: string; status: string; statusVersion: number },
+) {
+  const intent = await invoke("source_stage_activation", {
+    step: "intent", stage_binding_key: stageBindingKey, issue_id: source.id,
+    observed_status: source.status, observed_version: source.statusVersion,
+  }, configPath, owner.python_executable);
+  if (intent.intent !== "created") fail("source_stage_activation_reconciliation_required");
+  const updated = await ctx.issues.forCurrentToolRun().updateStatusCompareAndSet(
+    source.id, "todo", source.statusVersion, owner.company_id,
+  );
+  if (updated.status !== "todo" || updated.statusVersion !== source.statusVersion + 1) {
+    fail("source_stage_activation_ack_unconfirmed");
+  }
+  await invoke("source_stage_activation", {
+    step: "ack", stage_binding_key: stageBindingKey, issue_id: source.id,
+    mutation_status: updated.status, mutation_status_version: updated.statusVersion,
+  }, configPath, owner.python_executable);
+}
+
+async function validateStageReviewRun(
+  ctx: Pick<PluginContext, "issues">,
+  runCtx: ToolRunContext,
+  owner: OwnerConfig,
+  stageKey: string,
+  reviewIssueId: string,
+) {
+  const stage = requireSourceStage(owner, stageKey);
+  if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
+      || runCtx.agentId !== owner.reviewer_agent_id) fail("reviewer_actor_binding_mismatch");
+  await assertStageCurrentRun(ctx, runCtx, reviewIssueId);
+  const scoped = ctx.issues.forCurrentToolRun();
+  const [review, readiness] = await Promise.all([
+    readNativeIssue(ctx, reviewIssueId, owner.company_id),
+    scoped.getDependencyReadiness(reviewIssueId, owner.company_id),
+  ]);
+  if (review.projectId !== owner.project_id || review.parentId !== owner.finite_lead_issue_id
+      || review.assigneeAgentId !== owner.reviewer_agent_id
+      || readiness.isDependencyReady !== true || readiness.unresolvedBlockerIssueIds.length !== 0
+      || readiness.pendingFinalizeBlockerIssueIds.length !== 0) {
+    fail("source_stage_review_binding_mismatch");
+  }
+  return stage;
+}
+
 export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoker): void {
+  ctx.tools.register("bind_source_stage", {
+    displayName: "Bind Finite Brain Source Stage",
+    description: "Bind the owner-admitted native source and review tasks to one finite content stage, then CAS-activate the source task last.",
+    parametersSchema: {
+      type: "object",
+      properties: {
+        stage_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
+        predecessor: { type: "object", properties: {
+          operation_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
+        }, required: ["operation_key", "source_issue_id", "review_issue_id"], additionalProperties: false },
+      },
+      required: ["stage_key", "source_issue_id", "review_issue_id"], additionalProperties: false,
+    },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (Object.keys(params).some((key) => !["stage_key", "source_issue_id", "review_issue_id", "predecessor"].includes(key))
+        || typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.source_issue_id !== "string" || !ID_RE.test(params.source_issue_id)
+        || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)) fail("source_stage_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId);
+    const stage = requireSourceStage(owner, params.stage_key);
+    if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
+        || runCtx.agentId !== owner.finite_lead_agent_id || !owner.finite_lead_issue_id) fail("source_stage_lead_binding_mismatch");
+    await assertRunBoundIssue(ctx, runCtx, owner.finite_lead_issue_id);
+    const existing = await invoke("lookup_source_stage_binding", {
+      company_id: owner.company_id, project_id: owner.project_id,
+      lead_agent_id: owner.finite_lead_agent_id, lead_issue_id: owner.finite_lead_issue_id,
+      stage_key: stage.stage_key, source_issue_id: params.source_issue_id,
+      review_issue_id: params.review_issue_id,
+    }, owner.configPath, owner.python_executable);
+    if (existing.found === true) {
+      if (typeof existing.stage_binding_key !== "string" || !KEY_RE.test(existing.stage_binding_key)
+          || typeof existing.base_sha !== "string" || !SHA_RE.test(existing.base_sha)) fail("bridge_result_invalid");
+      if (existing.activation_pending === true) fail("source_stage_activation_reconciliation_required");
+      if (existing.state === "active") {
+        await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, `${existing.stage_binding_key}:bound`, [
+          `brain-source-stage:${existing.stage_binding_key}:bound`, `stage_key:${stage.stage_key}`,
+          `stage_binding_key:${existing.stage_binding_key}`, `base_sha:${existing.base_sha}`,
+          `source_issue_id:${params.source_issue_id}`, `review_issue_id:${params.review_issue_id}`,
+        ].join("\n"));
+        return { content: `stage_key:${stage.stage_key}\nstage_binding_key:${existing.stage_binding_key}\nbase_sha:${existing.base_sha}\nstate:active` };
+      }
+      if (existing.state !== "bound") fail("source_stage_activation_reconciliation_required");
+    } else if (existing.found !== false) fail("bridge_result_invalid");
+    const { source, review } = await validateStagePair(
+      ctx, owner, stage, params.source_issue_id, params.review_issue_id,
+    );
+    let predecessor = {
+      operation_key: null as string | null, source_issue_id: null as string | null,
+      review_issue_id: null as string | null, source_status: null as string | null,
+      source_version: null as number | null, review_status: null as string | null,
+      review_version: null as number | null, dependency_ready: null as boolean | null,
+    };
+    if (stage.predecessor_stage_key !== null) {
+      const rawPrior = params.predecessor;
+      if (!rawPrior || typeof rawPrior !== "object" || Array.isArray(rawPrior)) fail("source_stage_predecessor_required");
+      const prior = rawPrior as Record<string, unknown>;
+      if (Object.keys(prior).length !== 3 || typeof prior.operation_key !== "string" || !KEY_RE.test(prior.operation_key)
+          || typeof prior.source_issue_id !== "string" || !ID_RE.test(prior.source_issue_id)
+          || typeof prior.review_issue_id !== "string" || !ID_RE.test(prior.review_issue_id)) fail("source_stage_predecessor_invalid");
+      const [priorSource, priorReview] = await Promise.all([
+        readNativeIssue(ctx, prior.source_issue_id, owner.company_id),
+        readNativeIssue(ctx, prior.review_issue_id, owner.company_id),
+      ]);
+      const scoped = ctx.issues.forCurrentToolRun();
+      const [priorReviewReadiness, leadOrchestration, leadReadiness] = await Promise.all([
+        scoped.getDependencyReadiness(prior.review_issue_id, owner.company_id),
+        scoped.getOrchestration({ issueId: owner.finite_lead_issue_id, companyId: owner.company_id }),
+        scoped.getDependencyReadiness(owner.finite_lead_issue_id, owner.company_id),
+      ]);
+      const predecessorFinalized = leadOrchestration.blockedByIssueIds.length === 1
+        && leadOrchestration.blockedByIssueIds[0] === priorReview.id
+        && leadReadiness.isDependencyReady === true
+        && leadReadiness.unresolvedBlockerIssueIds.length === 0
+        && leadReadiness.pendingFinalizeBlockerIssueIds.length === 0;
+      if (priorSource.projectId !== owner.project_id || priorSource.parentId !== owner.finite_lead_issue_id
+          || priorSource.assigneeAgentId !== owner.worker_agent_id || priorSource.status !== "done"
+          || !Number.isSafeInteger(priorSource.statusVersion) || !Number.isSafeInteger(priorReview.statusVersion)
+          || priorSource.executionRunId !== null || priorReview.projectId !== owner.project_id
+          || priorReview.parentId !== owner.finite_lead_issue_id || priorReview.assigneeAgentId !== owner.reviewer_agent_id
+          || priorReview.status !== "done" || priorReview.executionRunId !== null
+          || priorReviewReadiness.isDependencyReady !== true || priorReviewReadiness.unresolvedBlockerIssueIds.length !== 0
+          || priorReviewReadiness.blockerIssueIds.length !== 1 || priorReviewReadiness.blockerIssueIds[0] !== priorSource.id
+          || priorReviewReadiness.pendingFinalizeBlockerIssueIds.length !== 0
+          || !predecessorFinalized) fail("source_stage_predecessor_not_finalized");
+      predecessor = {
+        operation_key: prior.operation_key,
+        source_issue_id: prior.source_issue_id,
+        review_issue_id: prior.review_issue_id,
+        source_status: priorSource.status,
+        source_version: priorSource.statusVersion as number,
+        review_status: priorReview.status,
+        review_version: priorReview.statusVersion as number,
+        dependency_ready: predecessorFinalized,
+      };
+    } else if (params.predecessor !== undefined) fail("source_stage_unexpected_predecessor");
+    const result = await invoke("bind_source_stage", {
+      company_id: owner.company_id, project_id: owner.project_id,
+      lead_agent_id: owner.finite_lead_agent_id, lead_issue_id: owner.finite_lead_issue_id,
+      lead_run_id: runCtx.runId, stage_key: stage.stage_key,
+      source_issue_id: source.id, source_version: source.statusVersion,
+      review_issue_id: review.id, review_version: review.statusVersion,
+      predecessor_operation_key: predecessor.operation_key,
+      predecessor_source_status: predecessor.source_status,
+      predecessor_source_version: predecessor.source_version,
+      predecessor_review_status: predecessor.review_status,
+      predecessor_review_version: predecessor.review_version,
+      predecessor_source_issue_id: predecessor.source_issue_id,
+      predecessor_review_issue_id: predecessor.review_issue_id,
+      predecessor_dependency_ready: predecessor.dependency_ready,
+    }, owner.configPath, owner.python_executable);
+    if (typeof result.stage_binding_key !== "string" || !KEY_RE.test(result.stage_binding_key)
+        || typeof result.base_sha !== "string" || !SHA_RE.test(result.base_sha)) fail("bridge_result_invalid");
+    if (result.state === "bound") await activateSourceStage(ctx, invoke, owner, owner.configPath, result.stage_binding_key, {
+      id: source.id, status: source.status, statusVersion: source.statusVersion as number,
+    });
+    else if (result.state !== "active") fail("source_stage_activation_reconciliation_required");
+    await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, `${result.stage_binding_key}:bound`, [
+      `brain-source-stage:${result.stage_binding_key}:bound`, `stage_key:${stage.stage_key}`,
+      `stage_binding_key:${result.stage_binding_key}`, `base_sha:${result.base_sha}`,
+      `source_issue_id:${source.id}`, `review_issue_id:${review.id}`,
+    ].join("\n"));
+    return { content: `stage_key:${stage.stage_key}\nstage_binding_key:${result.stage_binding_key}\nbase_sha:${result.base_sha}\nstate:active` };
+  });
+
+  ctx.tools.register("deliver_source_stage_content", {
+    displayName: "Deliver Finite Brain Source Content",
+    description: "Deliver complete bounded contents for the owner-configured paths of the immutable source stage binding.",
+    parametersSchema: { type: "object", properties: {
+      stage_key: { type: "string" }, stage_binding_key: { type: "string" }, source_issue_id: { type: "string" },
+      files: { type: "array", items: { type: "object", properties: {
+        path_id: { type: "string" }, content: { type: "string" }, size: { type: "integer" }, sha256: { type: "string" },
+      }, required: ["path_id", "content", "size", "sha256"], additionalProperties: false } },
+    }, required: ["stage_key", "stage_binding_key", "source_issue_id", "files"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (typeof params.stage_key !== "string" || typeof params.stage_binding_key !== "string"
+        || typeof params.source_issue_id !== "string" || !ID_RE.test(params.source_issue_id)
+        || !KEY_RE.test(params.stage_binding_key) || !Array.isArray(params.files)
+        || Buffer.byteLength(JSON.stringify(params.files), "utf8") > 1_600_000) fail("source_stage_delivery_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId);
+    const stage = requireSourceStage(owner, params.stage_key);
+    if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
+        || runCtx.agentId !== owner.worker_agent_id) fail("worker_actor_binding_mismatch");
+    await assertStageCurrentRun(ctx, runCtx, params.source_issue_id);
+    const sourceIssue = await readNativeIssue(ctx, params.source_issue_id, owner.company_id);
+    if (sourceIssue.parentId !== owner.finite_lead_issue_id) fail("source_stage_source_parent_mismatch");
+    const result = await invoke("deliver_source_stage_content", {
+      company_id: owner.company_id, project_id: owner.project_id, worker_agent_id: owner.worker_agent_id,
+      run_id: runCtx.runId, source_issue_id: params.source_issue_id, stage_key: stage.stage_key,
+      stage_binding_key: params.stage_binding_key, files: params.files,
+    }, owner.configPath, owner.python_executable);
+    if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
+        || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)) fail("bridge_result_invalid");
+    const note = [
+      `operation_key:${result.operation_key}`,
+      `brain-autonomous-bridge:${result.operation_key}:submitted`,
+      `stage_key:${stage.stage_key}`,
+      `stage_binding_key:${params.stage_binding_key}`,
+      `candidate_sha:${result.candidate_sha}`,
+      `base_sha:${String(result.base_sha ?? "")}`,
+      `submitted_sha:${String(result.submitted_sha ?? "controller-generated")}`,
+      `policy_digest:${String(result.policy_digest ?? "")}`,
+    ].join("\n");
+    await persistIssueNote(
+      ctx, owner.finite_lead_issue_id!, owner.company_id, `${result.operation_key}:submitted`, note,
+    );
+    return { content: `operation_key:${result.operation_key}\ncandidate_sha:${result.candidate_sha}` };
+  });
+
   ctx.tools.register("deliver_source_content", {
     displayName: "Deliver Brain Source Content",
     description: "Deliver complete bounded contents for the owner-defined source paths for controller-side candidate preparation and independent review.",
@@ -234,6 +533,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
   }, async (raw, runCtx): Promise<ToolResult> => {
     const params = validateParams("deliver_source_content", raw);
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
+    if (!owner.source_issue_id || !owner.reviewer_issue_id) fail("legacy_source_route_not_owner_configured");
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id || runCtx.agentId !== owner.worker_agent_id) fail("worker_actor_binding_mismatch");
     await assertRunBoundIssue(ctx, runCtx, owner.source_issue_id);
     await validateReviewerWakeTarget(ctx, owner);
@@ -262,6 +562,66 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     return { content: `operation_key:${result.operation_key}\ncandidate_sha:${result.candidate_sha}` };
   });
 
+  ctx.tools.register("inspect_source_stage_candidate", {
+    displayName: "Inspect Finite Brain Source Candidate",
+    description: "Inspect the candidate derived from this immutable source stage binding.",
+    parametersSchema: { type: "object", properties: {
+      stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
+    }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)) fail("source_stage_review_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId);
+    const stage = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    const result = await invoke("inspect_bound_source_stage", {
+      company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
+      reviewer_run_id: runCtx.runId, reviewer_issue_id: params.review_issue_id,
+      stage_key: stage.stage_key, stage_binding_key: params.stage_binding_key,
+    }, owner.configPath, owner.python_executable);
+    if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
+        || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)
+        || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 60_000
+        || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)) fail("bridge_result_invalid");
+    const metadata = { ...result }; delete metadata.diff;
+    return { content: `${JSON.stringify(metadata, null, 2)}\n\n--- Exact candidate diff ---\n${result.diff}` };
+  });
+
+  ctx.tools.register("approve_source_stage_candidate", {
+    displayName: "Approve Finite Brain Source Candidate",
+    description: "Record independent evidence for the candidate bound to this finite source stage.",
+    parametersSchema: { type: "object", properties: {
+      stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
+      approved: { type: "boolean" }, evidence: { type: "object", properties: { inspection_digest: { type: "string" } }, required: ["inspection_digest"], additionalProperties: true },
+    }, required: ["stage_key", "stage_binding_key", "review_issue_id", "approved", "evidence"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
+        || typeof params.approved !== "boolean" || !params.evidence || typeof params.evidence !== "object" || Array.isArray(params.evidence)
+        || typeof (params.evidence as Record<string, unknown>).inspection_digest !== "string"
+        || !KEY_RE.test((params.evidence as Record<string, string>).inspection_digest)
+        || Buffer.byteLength(JSON.stringify(params.evidence), "utf8") > 16_000) fail("source_stage_review_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId);
+    await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    const result = await invoke("approve_bound_source_stage", {
+      company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
+      reviewer_run_id: runCtx.runId, reviewer_issue_id: params.review_issue_id,
+      stage_key: params.stage_key, stage_binding_key: params.stage_binding_key,
+      approved: params.approved, evidence: params.evidence,
+    }, owner.configPath, owner.python_executable);
+    if (typeof result.status !== "string" || typeof result.evidence_digest !== "string" || !KEY_RE.test(result.evidence_digest)) fail("bridge_result_invalid");
+    await persistIssueNote(ctx, owner.finite_lead_issue_id!, owner.company_id, `${String(result.operation_key)}:stage-reviewed`, [
+      `brain-source-stage:${params.stage_binding_key}:reviewed`, `status:${result.status}`,
+      `candidate_sha:${String(result.candidate_sha ?? "")}`, `evidence_digest:${result.evidence_digest}`,
+    ].join("\n"));
+    return { content: `status:${result.status}\ncandidate_sha:${String(result.candidate_sha ?? params.candidate_sha)}` };
+  });
+
   ctx.tools.register("inspect_candidate", {
     displayName: "Inspect Brain Candidate",
     description: "Read the complete bounded diff for the exact prepared candidate in this reviewer run before deciding.",
@@ -269,6 +629,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
   }, async (raw, runCtx): Promise<ToolResult> => {
     const params = validateParams("inspect_candidate", raw);
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
+    if (!owner.reviewer_issue_id) fail("legacy_reviewer_route_not_owner_configured");
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id || runCtx.agentId !== owner.reviewer_agent_id) fail("reviewer_actor_binding_mismatch");
     await assertRunBoundIssue(ctx, runCtx, owner.reviewer_issue_id);
     const result = await invoke("inspect_candidate", {
@@ -295,6 +656,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
   }, async (raw, runCtx): Promise<ToolResult> => {
     const params = validateParams("approve_candidate", raw);
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
+    if (!owner.reviewer_issue_id || !owner.source_issue_id) fail("legacy_reviewer_route_not_owner_configured");
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id || runCtx.agentId !== owner.reviewer_agent_id) fail("reviewer_actor_binding_mismatch");
     await assertRunBoundIssue(ctx, runCtx, owner.reviewer_issue_id);
     const result = await invoke("approve_candidate", {

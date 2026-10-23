@@ -18,7 +18,7 @@ import subprocess
 import sys
 import tempfile
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +62,16 @@ OPERATION_RE = re.compile(r"^[0-9a-f]{64}$")
 
 class BridgeError(RuntimeError):
     """Invalid owner configuration, request binding, or held side effect."""
+
+
+@dataclass(frozen=True)
+class SourceStageSpec:
+    stage_key: str
+    workspace_id: str
+    initial_base_sha: str | None
+    predecessor_stage_key: str | None
+    path_ids: tuple[str, ...]
+    verifier_policy_id: str
 
 
 def _canonical(value: Any) -> bytes:
@@ -206,6 +216,290 @@ def _load_journal(config: BridgeConfig, operation_key: str) -> dict[str, Any]:
         return _read_json(_journal_path(config, operation_key), MAX_CONFIG_BYTES)
 
 
+def _stage_journal_key(stage_key: str) -> str:
+    return hashlib.sha256(_canonical(["paperclip-source-stage-v1", stage_key])).hexdigest()
+
+
+def _stage_binding(config: BridgeConfig, stage_binding_key: str) -> dict[str, Any]:
+    if type(stage_binding_key) is not str or not HASH_RE.fullmatch(stage_binding_key):
+        raise BridgeError("source_stage_binding_key_invalid")
+    for stage in config.source_stage_catalog:
+        try:
+            record = _load_journal(config, _stage_journal_key(stage.stage_key))
+        except BridgeError:
+            continue
+        if record.get("stage_binding_key") == stage_binding_key:
+            if record.get("schema") != "paperclip-source-stage-binding-v1":
+                break
+            if record.get("owner_config_digest") != config.owner_config_digest:
+                raise BridgeError("source_stage_owner_config_changed")
+            return record
+    raise BridgeError("source_stage_binding_invalid")
+
+
+def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+    if not config.source_stage_catalog:
+        raise BridgeError("source_stage_lane_not_configured")
+    required = {
+        "company_id",
+        "project_id",
+        "lead_agent_id",
+        "lead_issue_id",
+        "lead_run_id",
+        "stage_key",
+        "source_issue_id",
+        "source_version",
+        "review_issue_id",
+        "review_version",
+        "predecessor_operation_key",
+        "predecessor_source_status",
+        "predecessor_source_version",
+        "predecessor_review_status",
+        "predecessor_review_version",
+        "predecessor_source_issue_id",
+        "predecessor_review_issue_id",
+        "predecessor_dependency_ready",
+    }
+    if type(payload) is not dict or set(payload) != required:
+        raise BridgeError("source_stage_bind_payload_shape_invalid")
+    if any(
+        payload[name] != expected
+        for name, expected in {
+            "company_id": config.company_id,
+            "project_id": config.project_id,
+            "lead_agent_id": config.finite_lead_agent_id,
+            "lead_issue_id": config.finite_lead_issue_id,
+        }.items()
+    ):
+        raise BridgeError("source_stage_lead_binding_mismatch")
+    for name in ("lead_run_id", "stage_key", "source_issue_id", "review_issue_id"):
+        if type(payload[name]) is not str or not ID_RE.fullmatch(payload[name]):
+            raise BridgeError("source_stage_identity_invalid")
+    for name in ("source_version", "review_version"):
+        if type(payload[name]) is not int or payload[name] < 0:
+            raise BridgeError("source_stage_issue_version_invalid")
+    stage = config.source_stage(payload["stage_key"])
+    if payload["source_issue_id"] == payload["review_issue_id"]:
+        raise BridgeError("source_stage_issue_pair_invalid")
+    binding_value: dict[str, Any] = {
+        "schema": "paperclip-source-stage-binding-v1",
+        "stage_key": stage.stage_key,
+        "source_issue_id": payload["source_issue_id"],
+        "review_issue_id": payload["review_issue_id"],
+        "lead_issue_id": config.finite_lead_issue_id,
+        "lead_agent_id": config.finite_lead_agent_id,
+        "lead_run_id": payload["lead_run_id"],
+        "source_version": payload["source_version"],
+        "review_version": payload["review_version"],
+        "workspace_id": stage.workspace_id,
+        "path_ids": list(stage.path_ids),
+        "verifier_policy_id": stage.verifier_policy_id,
+        "owner_config_digest": config.owner_config_digest,
+        "predecessor_operation_key": payload["predecessor_operation_key"],
+        "base_sha": stage.initial_base_sha,
+        "state": "bound",
+        "qa_intent": None,
+        "source_intent": None,
+        "operation_key": None,
+        "candidate_sha": None,
+    }
+    if stage.predecessor_stage_key is not None:
+        operation_key = payload["predecessor_operation_key"]
+        if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
+            raise BridgeError("source_stage_predecessor_required")
+        previous = _load_journal(config, operation_key)
+        previous_binding = previous.get("source_stage_binding")
+        prior_stage = (
+            _stage_binding(config, previous_binding) if type(previous_binding) is str else None
+        )
+        if (
+            previous.get("state") != "published"
+            or prior_stage is None
+            or prior_stage.get("stage_key") != stage.predecessor_stage_key
+            or prior_stage.get("operation_key") != operation_key
+            or previous.get("candidate", {}).get("operation_key") != operation_key
+            or payload["predecessor_source_status"] != "done"
+            or payload["predecessor_review_status"] != "done"
+            or type(payload["predecessor_source_version"]) is not int
+            or payload["predecessor_source_version"] < 0
+            or type(payload["predecessor_review_version"]) is not int
+            or payload["predecessor_review_version"] < 0
+            or payload["predecessor_dependency_ready"] is not True
+            or payload["predecessor_source_version"] == prior_stage.get("source_version")
+            or payload["predecessor_review_version"] == prior_stage.get("review_version")
+        ):
+            raise BridgeError("source_stage_predecessor_not_finalized")
+        if payload.get("predecessor_source_issue_id") != prior_stage.get(
+            "source_issue_id"
+        ) or payload.get("predecessor_review_issue_id") != prior_stage.get("review_issue_id"):
+            raise BridgeError("source_stage_predecessor_identity_mismatch")
+        try:
+            binding_value["base_sha"] = previous["candidate"]["candidate_sha"]
+        except (KeyError, TypeError):
+            raise BridgeError("source_stage_predecessor_candidate_invalid") from None
+        if not SHA_RE.fullmatch(binding_value["base_sha"]):
+            raise BridgeError("source_stage_predecessor_candidate_invalid")
+        if prior_stage.get("candidate_sha") != binding_value["base_sha"]:
+            raise BridgeError("source_stage_predecessor_candidate_invalid")
+    else:
+        if any(
+            payload[name] is not None
+            for name in (
+                "predecessor_operation_key",
+                "predecessor_source_status",
+                "predecessor_source_version",
+                "predecessor_review_status",
+                "predecessor_review_version",
+                "predecessor_source_issue_id",
+                "predecessor_review_issue_id",
+                "predecessor_dependency_ready",
+            )
+        ):
+            raise BridgeError("source_stage_unexpected_predecessor")
+    binding_key = hashlib.sha256(_canonical(binding_value)).hexdigest()
+    binding_value["stage_binding_key"] = binding_key
+    stage_key = _stage_journal_key(stage.stage_key)
+    with _operation_lock(config, stage_key):
+        path = _journal_path(config, stage_key)
+        if path.exists():
+            existing = _load_journal(config, stage_key)
+            if any(
+                existing.get(key) != value
+                for key, value in binding_value.items()
+                if key
+                not in {"state", "qa_intent", "source_intent", "operation_key", "candidate_sha"}
+            ):
+                raise BridgeError("source_stage_bind_replay_mismatch")
+            return {
+                "stage_binding_key": existing["stage_binding_key"],
+                "base_sha": existing["base_sha"],
+                "state": existing["state"],
+            }
+        _write_journal(config, stage_key, binding_value, create=True)
+    return {
+        "stage_binding_key": binding_key,
+        "base_sha": binding_value["base_sha"],
+        "state": "bound",
+    }
+
+
+def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+    required = {
+        "company_id",
+        "project_id",
+        "lead_agent_id",
+        "lead_issue_id",
+        "stage_key",
+        "source_issue_id",
+        "review_issue_id",
+    }
+    if type(payload) is not dict or set(payload) != required:
+        raise BridgeError("source_stage_lookup_payload_shape_invalid")
+    if any(
+        payload.get(key) != expected
+        for key, expected in {
+            "company_id": config.company_id,
+            "project_id": config.project_id,
+            "lead_agent_id": config.finite_lead_agent_id,
+            "lead_issue_id": config.finite_lead_issue_id,
+        }.items()
+    ):
+        raise BridgeError("source_stage_lead_binding_mismatch")
+    stage = config.source_stage(payload["stage_key"])
+    try:
+        _journal_path(config, _stage_journal_key(stage.stage_key)).lstat()
+    except FileNotFoundError:
+        return {"found": False}
+    record = _load_journal(config, _stage_journal_key(stage.stage_key))
+    if (
+        record.get("schema") != "paperclip-source-stage-binding-v1"
+        or record.get("owner_config_digest") != config.owner_config_digest
+        or record.get("source_issue_id") != payload["source_issue_id"]
+        or record.get("review_issue_id") != payload["review_issue_id"]
+    ):
+        raise BridgeError("source_stage_bind_replay_mismatch")
+    return {
+        "found": True,
+        "stage_binding_key": record["stage_binding_key"],
+        "base_sha": record["base_sha"],
+        "state": record["state"],
+        "activation_pending": record.get("source_intent") is not None
+        and record.get("source_intent", {}).get("acknowledged") is not True,
+    }
+
+
+def source_stage_activation(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+    action = payload.get("step") if type(payload) is dict else None
+    if action not in {"intent", "ack"}:
+        raise BridgeError("source_stage_activation_step_invalid")
+    expected_fields = (
+        {"step", "stage_binding_key", "issue_id", "observed_status", "observed_version"}
+        if action == "intent"
+        else {"step", "stage_binding_key", "issue_id", "mutation_status", "mutation_status_version"}
+    )
+    if set(payload) != expected_fields:
+        raise BridgeError("source_stage_activation_payload_shape_invalid")
+    record = _stage_binding(config, payload.get("stage_binding_key"))
+    if payload.get("issue_id") != record["source_issue_id"]:
+        raise BridgeError("source_stage_activation_issue_mismatch")
+    expected_prior = record["source_version"]
+    target_status = "todo"
+    field = "source_intent"
+    stage_key = _stage_journal_key(record["stage_key"])
+    with _operation_lock(config, stage_key):
+        record = _stage_binding(config, payload["stage_binding_key"])
+        if action == "intent":
+            if (
+                payload.get("observed_status") != "backlog"
+                or type(payload.get("observed_version")) is not int
+                or payload.get("observed_version") != expected_prior
+            ):
+                raise BridgeError("source_stage_activation_observation_mismatch")
+            desired = {
+                "issue_id": payload["issue_id"],
+                "status": target_status,
+                "prior_version": expected_prior,
+                "acknowledged": False,
+            }
+            current = record.get(field)
+            if current is not None and current != desired:
+                raise BridgeError("source_stage_activation_intent_mismatch")
+            if current is None:
+                record[field] = desired
+                _write_journal(config, stage_key, record, create=False)
+                return {
+                    "intent": "created",
+                    "issue_id": payload["issue_id"],
+                    "status": target_status,
+                }
+            return {
+                "intent": "reconcile_required",
+                "issue_id": payload["issue_id"],
+                "status": target_status,
+            }
+        intent = record.get(field)
+        if type(intent) is not dict or intent.get("issue_id") != payload.get("issue_id"):
+            raise BridgeError("source_stage_activation_intent_missing")
+        version = payload.get("mutation_status_version")
+        if (
+            payload.get("mutation_status") != target_status
+            or type(version) is not int
+            or version != intent["prior_version"] + 1
+        ):
+            raise BridgeError("source_stage_activation_ack_mismatch")
+        intent["acknowledged"] = True
+        intent["ack_version"] = version
+        record[field] = intent
+        record["state"] = "active"
+        _write_journal(config, stage_key, record, create=False)
+        return {
+            "intent": "acknowledged",
+            "issue_id": payload["issue_id"],
+            "status": target_status,
+            "state": record["state"],
+        }
+
+
 def _bounded_candidate_diff(candidate: Candidate) -> str:
     """Return a complete text-only diff under a hard child file-size limit."""
     command = [
@@ -279,6 +573,7 @@ def inspect_candidate(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
     operation_key = payload.get("operation_key")
     if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
         raise BridgeError("operation_key_invalid")
+    config = _operation_config(config, operation_key)
     with _operation_lock(config, operation_key):
         return _inspect_candidate_locked(config, payload)
 
@@ -402,8 +697,8 @@ class BridgeConfig:
     project_id: str
     worker_agent_id: str
     reviewer_agent_id: str
-    source_issue_id: str
-    reviewer_issue_id: str
+    source_issue_id: str | None
+    reviewer_issue_id: str | None
     source_repo: Path
     worker_checkout: Path | None
     publisher_repo: Path
@@ -421,6 +716,9 @@ class BridgeConfig:
     expected_base_sha: str | None = None
     verifier_runtime_read_roots: tuple[Path, ...] = ()
     reviewer_parent_issue_id: str | None = None
+    finite_lead_agent_id: str | None = None
+    finite_lead_issue_id: str | None = None
+    source_stage_catalog: tuple[SourceStageSpec, ...] = ()
 
     @classmethod
     def load(cls, path: Path) -> BridgeConfig:
@@ -436,6 +734,9 @@ class BridgeConfig:
             "source_issue_id",
             "reviewer_issue_id",
             "reviewer_parent_issue_id",
+            "finite_lead_agent_id",
+            "finite_lead_issue_id",
+            "source_stage_catalog",
             "source_repo",
             "worker_checkout",
             "publisher_repo",
@@ -478,15 +779,98 @@ class BridgeConfig:
             "project_id",
             "worker_agent_id",
             "reviewer_agent_id",
-            "source_issue_id",
-            "reviewer_issue_id",
         )
         if any(type(raw.get(key)) is not str or not ID_RE.fullmatch(raw[key]) for key in ids):
             raise BridgeError("owner_config_identity_invalid")
         if raw["worker_agent_id"] == raw["reviewer_agent_id"]:
             raise BridgeError("owner_config_agents_must_be_distinct")
-        reviewer_parent = raw.get("reviewer_parent_issue_id", raw["source_issue_id"])
-        if type(reviewer_parent) is not str or not ID_RE.fullmatch(reviewer_parent):
+        source_issue = raw.get("source_issue_id")
+        reviewer_issue = raw.get("reviewer_issue_id")
+        if (source_issue is None) != (reviewer_issue is None) or any(
+            type(value) is not str or not ID_RE.fullmatch(value)
+            for value in (source_issue, reviewer_issue)
+            if value is not None
+        ):
+            raise BridgeError("owner_config_source_pair_invalid")
+        finite_lead_agent_id = raw.get("finite_lead_agent_id")
+        finite_lead_issue_id = raw.get("finite_lead_issue_id")
+        stage_rows = raw.get("source_stage_catalog", [])
+        if finite_lead_agent_id is None and finite_lead_issue_id is None and not stage_rows:
+            stage_catalog: tuple[SourceStageSpec, ...] = ()
+        else:
+            if (
+                type(finite_lead_agent_id) is not str
+                or not ID_RE.fullmatch(finite_lead_agent_id)
+                or type(finite_lead_issue_id) is not str
+                or not ID_RE.fullmatch(finite_lead_issue_id)
+                or type(stage_rows) is not list
+                or len(stage_rows) != 2
+            ):
+                raise BridgeError("owner_config_source_stage_catalog_invalid")
+            stage_specs: list[SourceStageSpec] = []
+            for index, row in enumerate(stage_rows):
+                if type(row) is not dict or set(row) != {
+                    "stage_key",
+                    "workspace_id",
+                    "initial_base_sha",
+                    "predecessor_stage_key",
+                    "path_ids",
+                    "verifier_policy_id",
+                }:
+                    raise BridgeError("owner_config_source_stage_catalog_invalid")
+                stage_key = row["stage_key"]
+                workspace_id = row["workspace_id"]
+                initial_base = row["initial_base_sha"]
+                predecessor = row["predecessor_stage_key"]
+                path_ids_raw = row["path_ids"]
+                verifier_policy_id = row["verifier_policy_id"]
+                if (
+                    type(stage_key) is not str
+                    or not ID_RE.fullmatch(stage_key)
+                    or workspace_id not in {"source", "published"}
+                    or type(path_ids_raw) is not list
+                    or tuple(path_ids_raw) != SOURCE_PATHS
+                    or type(verifier_policy_id) is not str
+                    or not ID_RE.fullmatch(verifier_policy_id)
+                ):
+                    raise BridgeError("owner_config_source_stage_catalog_invalid")
+                if index == 0:
+                    if (
+                        workspace_id != "source"
+                        or type(initial_base) is not str
+                        or not SHA_RE.fullmatch(initial_base)
+                        or predecessor is not None
+                    ):
+                        raise BridgeError("owner_config_source_stage_catalog_invalid")
+                else:
+                    if (
+                        workspace_id != "published"
+                        or initial_base is not None
+                        or predecessor != stage_specs[0].stage_key
+                    ):
+                        raise BridgeError("owner_config_source_stage_catalog_invalid")
+                stage_specs.append(
+                    SourceStageSpec(
+                        stage_key,
+                        workspace_id,
+                        initial_base,
+                        predecessor,
+                        tuple(path_ids_raw),
+                        verifier_policy_id,
+                    )
+                )
+            if len({stage.stage_key for stage in stage_specs}) != 2:
+                raise BridgeError("owner_config_source_stage_catalog_invalid")
+            if stage_specs[0].initial_base_sha != raw.get("expected_base_sha"):
+                raise BridgeError("owner_config_source_stage_base_mismatch")
+            stage_catalog = tuple(stage_specs)
+        reviewer_parent = raw.get(
+            "reviewer_parent_issue_id",
+            raw.get("source_issue_id", finite_lead_issue_id),
+        )
+        if reviewer_parent is not None and (
+            type(reviewer_parent) is not str or not ID_RE.fullmatch(reviewer_parent)
+        ):
             raise BridgeError("owner_config_reviewer_parent_invalid")
         scope = raw.get("allowed_scope")
         if type(scope) is not list or not scope or any(type(item) is not str for item in scope):
@@ -544,6 +928,8 @@ class BridgeConfig:
             raise BridgeError("owner_config_policy_id_invalid")
         return cls(
             **{key: raw[key] for key in ids},
+            source_issue_id=source_issue,
+            reviewer_issue_id=reviewer_issue,
             **paths,
             worker_checkout=worker_checkout,
             allowed_scope=tuple(scope),
@@ -555,6 +941,9 @@ class BridgeConfig:
             expected_base_sha=expected_base,
             verifier_runtime_read_roots=runtime_roots,
             reviewer_parent_issue_id=reviewer_parent,
+            finite_lead_agent_id=finite_lead_agent_id,
+            finite_lead_issue_id=finite_lead_issue_id,
+            source_stage_catalog=stage_catalog,
         )
 
     def policy(self) -> VerificationPolicy:
@@ -607,6 +996,19 @@ class BridgeConfig:
             "source_issue_id": self.source_issue_id,
             "reviewer_issue_id": self.reviewer_issue_id,
             "reviewer_parent_issue_id": self.reviewer_parent_issue_id or self.source_issue_id,
+            "finite_lead_agent_id": self.finite_lead_agent_id,
+            "finite_lead_issue_id": self.finite_lead_issue_id,
+            "source_stage_catalog": [
+                {
+                    "stage_key": stage.stage_key,
+                    "workspace_id": stage.workspace_id,
+                    "initial_base_sha": stage.initial_base_sha,
+                    "predecessor_stage_key": stage.predecessor_stage_key,
+                    "path_ids": stage.path_ids,
+                    "verifier_policy_id": stage.verifier_policy_id,
+                }
+                for stage in self.source_stage_catalog
+            ],
             "python_executable": str(self.python_executable),
             "owner_roots": self.owner_roots,
             "allowed_scope": self.allowed_scope,
@@ -622,6 +1024,33 @@ class BridgeConfig:
             ),
         }
         return hashlib.sha256(_canonical(value)).hexdigest()
+
+    def source_stage(self, stage_key: str) -> SourceStageSpec:
+        matches = [stage for stage in self.source_stage_catalog if stage.stage_key == stage_key]
+        if len(matches) != 1:
+            raise BridgeError("source_stage_not_owner_admitted")
+        return matches[0]
+
+    def for_source_stage(
+        self,
+        stage: SourceStageSpec,
+        *,
+        source_issue_id: str,
+        reviewer_issue_id: str,
+        base_sha: str,
+    ) -> BridgeConfig:
+        return replace(
+            self,
+            source_issue_id=source_issue_id,
+            reviewer_issue_id=reviewer_issue_id,
+            reviewer_parent_issue_id=self.finite_lead_issue_id,
+            source_repo=(
+                self.publisher_repo if stage.workspace_id == "published" else self.source_repo
+            ),
+            allowed_scope=stage.path_ids,
+            verifier_policy_id=stage.verifier_policy_id,
+            expected_base_sha=base_sha,
+        )
 
 
 def _verifier(config: BridgeConfig, candidate_checkout: Path, *, content_only: bool = False):
@@ -799,7 +1228,9 @@ def _prepare_candidate_locked(config: BridgeConfig, binding: OperationBinding) -
     return result
 
 
-def prepare_source_content(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+def prepare_source_content(
+    config: BridgeConfig, payload: dict[str, Any], *, stage_binding_key: str | None = None
+) -> dict[str, Any]:
     """Prepare one candidate from bounded complete file contents, never worker Git."""
     if type(payload) is not dict or set(payload) != {
         "company_id",
@@ -844,11 +1275,17 @@ def prepare_source_content(config: BridgeConfig, payload: dict[str, Any]) -> dic
                 raise BridgeError("source_delivery_replay_content_mismatch")
             if journal.get("binding", {}).get("base_sha") != base_sha:
                 raise BridgeError("source_delivery_replay_binding_mismatch")
+            if journal.get("source_stage_binding") != stage_binding_key:
+                raise BridgeError("source_delivery_replay_stage_mismatch")
             return journal["candidate"]
-        return _prepare_source_content_locked(config, payload, snapshot, operation_key)
+        return _prepare_source_content_locked(
+            config, payload, snapshot, operation_key, stage_binding_key=stage_binding_key
+        )
 
 
-def _prepare_source_content_locked(config, payload, snapshot, operation_key):
+def _prepare_source_content_locked(
+    config, payload, snapshot, operation_key, *, stage_binding_key=None
+):
     gate = config.gate()
     try:
         projection = materialize_owner_projection(gate, payload["base_sha"], snapshot)
@@ -882,6 +1319,7 @@ def _prepare_source_content_locked(config, payload, snapshot, operation_key):
         "policy_digest": binding.policy_digest,
         "reviewer_issue_id": config.reviewer_issue_id,
         "source_snapshot_sha256": snapshot.digest,
+        **({"stage_binding_key": stage_binding_key} if stage_binding_key is not None else {}),
     }
     journal = {
         "schema": "paperclip-autonomous-operation-v1",
@@ -890,6 +1328,12 @@ def _prepare_source_content_locked(config, payload, snapshot, operation_key):
         "binding": binding.as_dict(),
         "candidate": result,
         "source_snapshot_sha256": snapshot.digest,
+        "source_stage_binding": stage_binding_key,
+        "source_stage_key": (
+            _stage_binding(config, stage_binding_key)["stage_key"]
+            if stage_binding_key is not None
+            else None
+        ),
         "source_files": [
             {"path_id": item.path_id, "size": item.size, "sha256": item.sha256}
             for item in snapshot.files
@@ -900,10 +1344,183 @@ def _prepare_source_content_locked(config, payload, snapshot, operation_key):
     return result
 
 
+def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+    required = {
+        "company_id",
+        "project_id",
+        "source_issue_id",
+        "worker_agent_id",
+        "run_id",
+        "review_issue_id",
+        "stage_key",
+        "stage_binding_key",
+        "files",
+    }
+    if type(payload) is not dict or set(payload) != required:
+        raise BridgeError("source_stage_delivery_payload_shape_invalid")
+    record = _stage_binding(config, payload["stage_binding_key"])
+    if (
+        record["stage_key"] != payload["stage_key"]
+        or record["source_issue_id"] != payload["source_issue_id"]
+        or record["review_issue_id"] != payload["review_issue_id"]
+        or record["state"] != "active"
+    ):
+        raise BridgeError("source_stage_not_active")
+    stage = config.source_stage(record["stage_key"])
+    stage_config = config.for_source_stage(
+        stage,
+        source_issue_id=record["source_issue_id"],
+        reviewer_issue_id=record["review_issue_id"],
+        base_sha=record["base_sha"],
+    )
+    content_payload = {
+        key: payload[key]
+        for key in (
+            "company_id",
+            "project_id",
+            "source_issue_id",
+            "worker_agent_id",
+            "run_id",
+            "files",
+        )
+    }
+    content_payload["base_sha"] = record["base_sha"]
+    result = prepare_source_content(
+        stage_config, content_payload, stage_binding_key=payload["stage_binding_key"]
+    )
+    stage_journal_key = _stage_journal_key(record["stage_key"])
+    with _operation_lock(config, stage_journal_key):
+        current = _stage_binding(config, payload["stage_binding_key"])
+        if current.get("operation_key") not in (None, result["operation_key"]):
+            raise BridgeError("source_stage_operation_replay_mismatch")
+        if current.get("candidate_sha") not in (None, result["candidate_sha"]):
+            raise BridgeError("source_stage_candidate_replay_mismatch")
+        current["operation_key"] = result["operation_key"]
+        current["candidate_sha"] = result["candidate_sha"]
+        _write_journal(config, stage_journal_key, current, create=False)
+    return result
+
+
+def inspect_bound_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+    required = {
+        "company_id",
+        "project_id",
+        "reviewer_agent_id",
+        "reviewer_run_id",
+        "reviewer_issue_id",
+        "stage_key",
+        "stage_binding_key",
+    }
+    if type(payload) is not dict or set(payload) != required:
+        raise BridgeError("source_stage_review_payload_shape_invalid")
+    record = _stage_binding(config, payload["stage_binding_key"])
+    if (
+        record.get("stage_key") != payload["stage_key"]
+        or record.get("review_issue_id") != payload["reviewer_issue_id"]
+        or payload.get("company_id") != config.company_id
+        or payload.get("project_id") != config.project_id
+        or payload.get("reviewer_agent_id") != config.reviewer_agent_id
+        or type(payload.get("reviewer_run_id")) is not str
+        or not ID_RE.fullmatch(payload["reviewer_run_id"])
+    ):
+        raise BridgeError("source_stage_reviewer_binding_mismatch")
+    operation_key = record.get("operation_key")
+    candidate_sha = record.get("candidate_sha")
+    if (
+        type(operation_key) is not str
+        or not OPERATION_RE.fullmatch(operation_key)
+        or type(candidate_sha) is not str
+        or not SHA_RE.fullmatch(candidate_sha)
+    ):
+        raise BridgeError("source_stage_candidate_not_prepared")
+    return inspect_candidate(
+        config,
+        {
+            "company_id": config.company_id,
+            "project_id": config.project_id,
+            "reviewer_agent_id": config.reviewer_agent_id,
+            "reviewer_run_id": payload["reviewer_run_id"],
+            "reviewer_issue_id": record["review_issue_id"],
+            "operation_key": operation_key,
+            "candidate_sha": candidate_sha,
+        },
+    )
+
+
+def approve_bound_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+    required = {
+        "company_id",
+        "project_id",
+        "reviewer_agent_id",
+        "reviewer_run_id",
+        "reviewer_issue_id",
+        "stage_key",
+        "stage_binding_key",
+        "approved",
+        "evidence",
+    }
+    if type(payload) is not dict or set(payload) != required:
+        raise BridgeError("source_stage_review_payload_shape_invalid")
+    record = _stage_binding(config, payload["stage_binding_key"])
+    if (
+        record.get("stage_key") != payload["stage_key"]
+        or record.get("review_issue_id") != payload["reviewer_issue_id"]
+        or payload.get("company_id") != config.company_id
+        or payload.get("project_id") != config.project_id
+        or payload.get("reviewer_agent_id") != config.reviewer_agent_id
+    ):
+        raise BridgeError("source_stage_reviewer_binding_mismatch")
+    operation_key = record.get("operation_key")
+    candidate_sha = record.get("candidate_sha")
+    if (
+        type(operation_key) is not str
+        or not OPERATION_RE.fullmatch(operation_key)
+        or type(candidate_sha) is not str
+        or not SHA_RE.fullmatch(candidate_sha)
+    ):
+        raise BridgeError("source_stage_candidate_not_prepared")
+    return integrate_candidate(
+        config,
+        {
+            "company_id": config.company_id,
+            "project_id": config.project_id,
+            "reviewer_agent_id": config.reviewer_agent_id,
+            "reviewer_run_id": payload["reviewer_run_id"],
+            "reviewer_issue_id": record["review_issue_id"],
+            "operation_key": operation_key,
+            "candidate_sha": candidate_sha,
+            "approved": payload["approved"],
+            "evidence": payload["evidence"],
+        },
+    )
+
+
+def _operation_config(config: BridgeConfig, operation_key: str) -> BridgeConfig:
+    journal = _load_journal(config, operation_key)
+    stage_binding_key = journal.get("source_stage_binding")
+    if stage_binding_key is None:
+        return config
+    record = _stage_binding(config, stage_binding_key)
+    stage = config.source_stage(record["stage_key"])
+    base_sha = journal.get("binding", {}).get("base_sha")
+    if type(base_sha) is not str or not SHA_RE.fullmatch(base_sha):
+        raise BridgeError("source_stage_operation_base_invalid")
+    stage_config = config.for_source_stage(
+        stage,
+        source_issue_id=record["source_issue_id"],
+        reviewer_issue_id=record["review_issue_id"],
+        base_sha=base_sha,
+    )
+    if journal.get("source_stage_key") != stage.stage_key:
+        raise BridgeError("source_stage_operation_binding_mismatch")
+    return stage_config
+
+
 def integrate_candidate(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
     operation_key = payload.get("operation_key")
     if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
         raise BridgeError("operation_key_invalid")
+    config = _operation_config(config, operation_key)
     with _operation_lock(config, operation_key):
         return _integrate_candidate_locked(config, payload)
 
@@ -1101,6 +1718,39 @@ def dispatch(config: BridgeConfig, request: dict[str, Any]) -> dict[str, Any]:
         return prepare_candidate(config, payload)
     if action == "deliver_source_content":
         return prepare_source_content(config, payload)
+    if action == "bind_source_stage":
+        return bind_source_stage(config, payload)
+    if action == "lookup_source_stage_binding":
+        return lookup_source_stage_binding(config, payload)
+    if action == "source_stage_activation":
+        return source_stage_activation(config, payload)
+    if action == "deliver_source_stage_content":
+        return prepare_source_stage_content(config, payload)
+    if action == "inspect_bound_source_stage":
+        return inspect_bound_source_stage(config, payload)
+    if action == "approve_bound_source_stage":
+        return approve_bound_source_stage(config, payload)
+    if action in {"approve_candidate", "inspect_candidate"} and "stage_binding_key" in payload:
+        operation_key = payload.get("operation_key")
+        if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):
+            raise BridgeError("operation_key_invalid")
+        journal = _load_journal(config, operation_key)
+        stage_binding_key = payload.get("stage_binding_key")
+        if journal.get("source_stage_binding") != stage_binding_key:
+            raise BridgeError("source_stage_operation_binding_mismatch")
+        stage_record = _stage_binding(config, stage_binding_key)
+        stage = config.source_stage(stage_record["stage_key"])
+        if (
+            payload.get("stage_key") != stage.stage_key
+            or payload.get("source_issue_id") != stage_record["source_issue_id"]
+            or payload.get("reviewer_issue_id") != stage_record["review_issue_id"]
+        ):
+            raise BridgeError("source_stage_reviewer_binding_mismatch")
+        payload = {
+            key: value
+            for key, value in payload.items()
+            if key not in {"stage_binding_key", "stage_key", "source_issue_id"}
+        }
     if action == "approve_candidate":
         return integrate_candidate(config, payload)
     if action == "inspect_candidate":
