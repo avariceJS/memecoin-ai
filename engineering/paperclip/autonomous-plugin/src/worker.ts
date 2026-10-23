@@ -840,8 +840,10 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       review_instruction_sha256: reviewInstructionSha256,
     }, owner.configPath, owner.python_executable);
     if (typeof result.status !== "string" || typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
+        || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)
         || typeof result.evidence_digest !== "string" || !KEY_RE.test(result.evidence_digest)) fail("bridge_result_invalid");
-    if (owner.canonical_repo && (typeof result.projection_status !== "string"
+    const evidence = params.evidence as Record<string, unknown>;
+    if (owner.canonical_repo && result.status !== "review_rejected" && (typeof result.projection_status !== "string"
         || typeof result.canonical_status !== "string"
         || typeof result.canonical_candidate_sha !== "string" || !SHA_RE.test(result.canonical_candidate_sha)
         || typeof result.canonical_receipt_digest !== "string" || !KEY_RE.test(result.canonical_receipt_digest))) {
@@ -851,16 +853,21 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const noteFields = [
       `brain-autonomous-bridge:${idempotencyKey}`,
       `brain-source-stage:${params.stage_binding_key}:reviewed`, `status:${result.status}`,
-      `candidate_sha:${String(result.candidate_sha ?? "")}`, `evidence_digest:${result.evidence_digest}`,
+      `candidate_sha:${result.candidate_sha}`, `evidence_digest:${result.evidence_digest}`,
     ];
     if (typeof result.projection_status === "string") noteFields.push(`projection_status:${result.projection_status}`);
     if (typeof result.canonical_status === "string") noteFields.push(`canonical_status:${result.canonical_status}`);
-    if (typeof result.canonical_candidate_sha === "string") noteFields.push(`canonical_candidate_sha:${result.canonical_candidate_sha}`);
-    if (typeof result.canonical_receipt_digest === "string") noteFields.push(`canonical_receipt_digest:${result.canonical_receipt_digest}`);
+    const canonicalCandidateSha = typeof result.canonical_candidate_sha === "string"
+      ? result.canonical_candidate_sha : evidence.canonical_candidate_sha;
+    const canonicalReceiptDigest = typeof result.canonical_receipt_digest === "string"
+      ? result.canonical_receipt_digest : evidence.canonical_receipt_digest;
+    if (typeof canonicalCandidateSha === "string") noteFields.push(`canonical_candidate_sha:${canonicalCandidateSha}`);
+    if (typeof canonicalReceiptDigest === "string") noteFields.push(`canonical_receipt_digest:${canonicalReceiptDigest}`);
+    if (owner.canonical_repo && result.status === "review_rejected") noteFields.push("canonical_publication:not_attempted_review_rejected");
     const note = noteFields.join("\n");
     await persistIssueNote(ctx, review.id, owner.company_id, idempotencyKey, note);
     await persistIssueNote(ctx, owner.finite_lead_issue_id!, owner.company_id, idempotencyKey, note);
-    return { content: `status:${result.status}\ncandidate_sha:${String(result.candidate_sha ?? params.candidate_sha)}` };
+    return { content: note };
   });
 
   ctx.tools.register("inspect_candidate", {
