@@ -794,6 +794,38 @@ class PaperclipResponsesFixtureTests(unittest.TestCase):
                 {"base_sha": base_sha, "submitted_sha": candidate_sha},
             )
 
+    def test_worker_finish_binds_submit_result_from_native_json_content_wrapper(self):
+        operation_key = "a" * 64
+        candidate_sha = "b" * 40
+        submit_name = "app_brain_autonomous_bri_submit_candidate_2362480aea40"
+        script = (
+            ScriptedToolCall(submit_name, {"base_sha": "c" * 40, "submitted_sha": candidate_sha}),
+            ScriptedToolCall(
+                "paperclip_finish",
+                {
+                    "summary": "Submitted ${candidate_sha} with operation ${operation_key}",
+                    "completionClaim": {"criterionId": "${operation_key}"},
+                },
+            ),
+        )
+        input_items = [
+            {"type": "function_call", "call_id": "call_resp_fixture_000001", "name": submit_name},
+            {
+                "type": "function_call_output",
+                "call_id": "call_resp_fixture_000001",
+                "output": json.dumps(
+                    {"content": f"operation_key:{operation_key}\ncandidate_sha:{candidate_sha}"}
+                ),
+            },
+        ]
+        self.assertEqual(
+            _resolve_script_arguments(script[1].arguments, input_items, script),
+            {
+                "summary": f"Submitted {candidate_sha} with operation {operation_key}",
+                "completionClaim": {"criterionId": operation_key},
+            },
+        )
+
     def test_reviewer_inspects_exact_candidate_before_approval(self):
         candidate_sha = "f" * 40
         operation_key = "1" * 64

@@ -183,7 +183,13 @@ def _nested_output_text(value: Any) -> list[str]:
 
 def _tool_output_texts(name: str, output: str) -> list[str]:
     texts = [output]
-    if name in ("get_task_context", "get_task_history", _INSPECT_TOOL, BRIDGE_APPROVE_TOOL):
+    if name in (
+        "get_task_context",
+        "get_task_history",
+        _INSPECT_TOOL,
+        BRIDGE_SUBMIT_TOOL,
+        BRIDGE_APPROVE_TOOL,
+    ):
         try:
             texts.extend(_nested_output_text(json.loads(output)))
         except json.JSONDecodeError:
