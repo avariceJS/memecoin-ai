@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { constants, openSync, closeSync, fstatSync, readFileSync, lstatSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isAbsolute } from "node:path";
@@ -32,12 +33,22 @@ type OwnerConfig = {
   finite_lead_agent_id?: string;
   finite_lead_issue_id?: string;
   source_stage_catalog?: Array<{ stage_key: string; workspace_id: string; initial_base_sha: string | null; predecessor_stage_key: string | null; path_ids: string[]; verifier_policy_id: string }>;
+  canonical_repo?: string;
+  canonical_ref?: string;
+  canonical_expected_tip?: string;
+  source_workspace_id?: string;
+  source_workspace_root?: string;
   python_executable: string;
   configPath: string;
 };
 
 function fail(code: string): never {
   throw new Error(code);
+}
+
+function instructionDigest(description: unknown): string {
+  if (typeof description !== "string" || !description.trim()) fail("source_stage_instruction_missing");
+  return createHash("sha256").update(description, "utf8").digest("hex");
 }
 
 export async function assertRunBoundIssue(
@@ -54,7 +65,7 @@ export async function assertRunBoundIssue(
     scopedIssues.get(issueId, runCtx.companyId),
     scopedIssues.getOrchestration({ issueId, companyId: runCtx.companyId }),
   ]);
-  const boundRun = orchestration.runs.find((run: { id: string; issueId: string; agentId: string; status: string }) => run.id === runCtx.runId);
+  const boundRun = orchestration.runs.find((run: { id: string; issueId: string | null; agentId: string; status: string }) => run.id === runCtx.runId);
   if (!issue || issue.id !== issueId || issue.companyId !== runCtx.companyId || issue.projectId !== runCtx.projectId
       || issue.assigneeAgentId !== runCtx.agentId || issue.executionRunId !== runCtx.runId || !allowedStatuses.includes(issue.status)
       || !boundRun || boundRun.issueId !== issueId || boundRun.agentId !== runCtx.agentId || boundRun.status !== "running") {
@@ -88,11 +99,20 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
     const hasLegacyPair = typeof parsed.source_issue_id === "string" && typeof parsed.reviewer_issue_id === "string";
     const finite = typeof parsed.finite_lead_agent_id === "string" && typeof parsed.finite_lead_issue_id === "string"
       && Array.isArray(parsed.source_stage_catalog) && parsed.source_stage_catalog.length === 2;
+    const canonicalFields = ["canonical_repo", "canonical_ref", "canonical_expected_tip"];
+    const hasCanonical = canonicalFields.some((key) => parsed[key] !== undefined);
+    const canonicalValid = !hasCanonical || (typeof parsed.canonical_repo === "string" && isAbsolute(parsed.canonical_repo)
+      && parsed.canonical_ref === "refs/heads/brain/development" && typeof parsed.canonical_expected_tip === "string"
+      && SHA_RE.test(parsed.canonical_expected_tip));
+    const workspaceValid = !finite || (typeof parsed.source_workspace_id === "string" && ID_RE.test(parsed.source_workspace_id)
+      && typeof parsed.source_workspace_root === "string" && isAbsolute(parsed.source_workspace_root)
+      && !parsed.source_workspace_root.split("/").includes("..") && parsed.source_workspace_root !== "/");
     if (parsed.schema !== CONFIG_SCHEMA || keys.some((key) => typeof parsed[key] !== "string" || !ID_RE.test(parsed[key] as string))
         || (hasAnyLegacyPair && !hasLegacyPair)
         || (!hasLegacyPair && !finite)
         || (hasLegacyPair && (!ID_RE.test(parsed.source_issue_id as string) || !ID_RE.test(parsed.reviewer_issue_id as string)))
         || (finite && (!ID_RE.test(parsed.finite_lead_agent_id as string) || !ID_RE.test(parsed.finite_lead_issue_id as string)))
+        || !canonicalValid || (hasCanonical && !finite) || !workspaceValid
         || typeof parsed.python_executable !== "string" || !isAbsolute(parsed.python_executable)) {
       fail("owner_bridge_config_invalid");
     }
@@ -108,6 +128,15 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
         finite_lead_issue_id: parsed.finite_lead_issue_id as string,
         source_stage_catalog: parsed.source_stage_catalog as OwnerConfig["source_stage_catalog"],
       } : {}),
+      ...(hasCanonical ? {
+        canonical_repo: parsed.canonical_repo as string,
+        canonical_ref: parsed.canonical_ref as string,
+        canonical_expected_tip: parsed.canonical_expected_tip as string,
+      } : {}),
+      ...(finite ? {
+        source_workspace_id: parsed.source_workspace_id as string,
+        source_workspace_root: parsed.source_workspace_root as string,
+      } : {}),
       ...(typeof parsed.reviewer_parent_issue_id === "string"
         ? { reviewer_parent_issue_id: parsed.reviewer_parent_issue_id }
         : {}),
@@ -119,6 +148,30 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
     return fail("owner_bridge_config_unreadable");
   } finally {
     if (fd !== undefined) closeSync(fd);
+  }
+}
+
+async function assertPinnedSourceWorkspace(
+  ctx: Pick<PluginContext, "issues" | "executionWorkspaces">,
+  owner: OwnerConfig,
+  issueIds: string[],
+): Promise<void> {
+  if (!owner.source_workspace_id || !owner.source_workspace_root) fail("source_workspace_not_owner_configured");
+  const issues = await Promise.all(issueIds.map((id) => readNativeIssue(ctx, id, owner.company_id)));
+  const executionIds = new Set<string>();
+  for (const issue of issues) {
+    const workspaceIssue = issue as typeof issue & { projectWorkspaceId?: string | null; executionWorkspaceId?: string | null };
+    if (workspaceIssue.projectWorkspaceId !== owner.source_workspace_id
+        || typeof workspaceIssue.executionWorkspaceId !== "string") fail("source_workspace_issue_binding_mismatch");
+    executionIds.add(workspaceIssue.executionWorkspaceId);
+  }
+  if (executionIds.size !== 1) fail("source_workspace_execution_binding_mismatch");
+  const workspace = await ctx.executionWorkspaces.get([...executionIds][0], owner.company_id);
+  if (!workspace || workspace.projectWorkspaceId !== owner.source_workspace_id
+      || workspace.path !== owner.source_workspace_root || workspace.cwd !== owner.source_workspace_root
+      || workspace.repoUrl !== null || workspace.baseRef !== null || workspace.branchName !== null
+      || workspace.providerType !== "local") {
+    fail("source_workspace_metadata_mismatch");
   }
 }
 
@@ -289,10 +342,12 @@ async function validateStagePair(
   ]);
   if (source.projectId !== owner.project_id || source.parentId !== owner.finite_lead_issue_id
       || source.assigneeAgentId !== owner.worker_agent_id || source.status !== "backlog"
-      || source.executionRunId !== null || !Number.isSafeInteger(source.statusVersion)) fail("source_stage_source_admission_mismatch");
+      || source.executionRunId !== null || !Number.isSafeInteger(source.statusVersion)
+      || typeof source.description !== "string" || !source.description.trim()) fail("source_stage_source_admission_mismatch");
   if (review.projectId !== owner.project_id || review.parentId !== owner.finite_lead_issue_id
       || review.assigneeAgentId !== owner.reviewer_agent_id || review.status !== "blocked"
       || review.executionRunId !== null || !Number.isSafeInteger(review.statusVersion)
+      || typeof review.description !== "string" || !review.description.trim()
       || orchestration.blockedByIssueIds.length !== 1 || orchestration.blockedByIssueIds[0] !== sourceIssueId) {
     fail("source_stage_review_admission_mismatch");
   }
@@ -402,6 +457,9 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const { source, review } = await validateStagePair(
       ctx, owner, stage, params.source_issue_id, params.review_issue_id,
     );
+    await assertPinnedSourceWorkspace(
+      ctx, owner, [owner.finite_lead_issue_id, source.id, review.id],
+    );
     let predecessor = {
       operation_key: null as string | null, source_issue_id: null as string | null,
       review_issue_id: null as string | null, source_status: null as string | null,
@@ -457,6 +515,8 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       lead_run_id: runCtx.runId, stage_key: stage.stage_key,
       source_issue_id: source.id, source_version: source.statusVersion,
       review_issue_id: review.id, review_version: review.statusVersion,
+      source_instruction_sha256: instructionDigest(source.description),
+      review_instruction_sha256: instructionDigest(review.description),
       predecessor_operation_key: predecessor.operation_key,
       predecessor_source_status: predecessor.source_status,
       predecessor_source_version: predecessor.source_version,
@@ -503,6 +563,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     await assertStageCurrentRun(ctx, runCtx, params.source_issue_id);
     const sourceIssue = await readNativeIssue(ctx, params.source_issue_id, owner.company_id);
     if (sourceIssue.parentId !== owner.finite_lead_issue_id) fail("source_stage_source_parent_mismatch");
+    await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, sourceIssue.id]);
     const result = await invoke("deliver_source_stage_content", {
       company_id: owner.company_id, project_id: owner.project_id, worker_agent_id: owner.worker_agent_id,
       run_id: runCtx.runId, source_issue_id: params.source_issue_id, stage_key: stage.stage_key,
@@ -576,6 +637,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)) fail("source_stage_review_parameters_invalid");
     const owner = await readOwnerConfig(ctx, runCtx.companyId);
     const stage = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, params.review_issue_id]);
     const result = await invoke("inspect_bound_source_stage", {
       company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
       reviewer_run_id: runCtx.runId, reviewer_issue_id: params.review_issue_id,
@@ -586,7 +648,13 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 60_000
         || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)) fail("bridge_result_invalid");
     const metadata = { ...result }; delete metadata.diff;
-    return { content: `${JSON.stringify(metadata, null, 2)}\n\n--- Exact candidate diff ---\n${result.diff}` };
+    const canonicalDiff = result.canonical_diff;
+    if (owner.canonical_repo && (typeof result.canonical_candidate_sha !== "string"
+        || typeof result.canonical_receipt_digest !== "string" || typeof canonicalDiff !== "string"
+        || Buffer.byteLength(canonicalDiff, "utf8") > 60_000)) fail("bridge_result_invalid");
+    delete metadata.canonical_diff;
+    return { content: `${JSON.stringify(metadata, null, 2)}\n\n--- Projected candidate diff ---\n${result.diff}`
+      + (typeof canonicalDiff === "string" ? `\n\n--- Canonical candidate diff ---\n${canonicalDiff}` : "") };
   });
 
   ctx.tools.register("approve_source_stage_candidate", {
@@ -594,20 +662,29 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     description: "Record independent evidence for the candidate bound to this finite source stage.",
     parametersSchema: { type: "object", properties: {
       stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" },
-      approved: { type: "boolean" }, evidence: { type: "object", properties: { inspection_digest: { type: "string" } }, required: ["inspection_digest"], additionalProperties: true },
+      approved: { type: "boolean" }, evidence: { type: "object", properties: {
+        inspection_digest: { type: "string" }, canonical_candidate_sha: { type: "string" }, canonical_receipt_digest: { type: "string" },
+      }, required: ["inspection_digest"], additionalProperties: true },
     }, required: ["stage_key", "stage_binding_key", "review_issue_id", "approved", "evidence"], additionalProperties: false },
   }, async (raw, runCtx): Promise<ToolResult> => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
     const params = raw as Record<string, unknown>;
+    const owner = await readOwnerConfig(ctx, runCtx.companyId);
     if (typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
         || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
         || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
         || typeof params.approved !== "boolean" || !params.evidence || typeof params.evidence !== "object" || Array.isArray(params.evidence)
         || typeof (params.evidence as Record<string, unknown>).inspection_digest !== "string"
         || !KEY_RE.test((params.evidence as Record<string, string>).inspection_digest)
+        || (owner.canonical_repo !== undefined && (
+          typeof (params.evidence as Record<string, unknown>).canonical_candidate_sha !== "string"
+          || !SHA_RE.test((params.evidence as Record<string, string>).canonical_candidate_sha)
+          || typeof (params.evidence as Record<string, unknown>).canonical_receipt_digest !== "string"
+          || !KEY_RE.test((params.evidence as Record<string, string>).canonical_receipt_digest)
+        ))
         || Buffer.byteLength(JSON.stringify(params.evidence), "utf8") > 16_000) fail("source_stage_review_parameters_invalid");
-    const owner = await readOwnerConfig(ctx, runCtx.companyId);
     await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, params.review_issue_id]);
     const result = await invoke("approve_bound_source_stage", {
       company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
       reviewer_run_id: runCtx.runId, reviewer_issue_id: params.review_issue_id,

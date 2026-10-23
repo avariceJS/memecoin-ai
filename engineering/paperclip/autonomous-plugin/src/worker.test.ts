@@ -7,6 +7,7 @@ vi.mock("@paperclipai/plugin-sdk", () => ({
 }));
 
 import { registerAutonomousTools } from "./worker.js";
+import manifest from "./manifest.js";
 import type { PluginContext, ToolRunContext } from "@paperclipai/plugin-sdk";
 
 const config = {
@@ -44,6 +45,9 @@ function fixture(
     id,
     companyId: runCtx.companyId,
     projectId: runCtx.projectId,
+    description: id === "issue-worker" ? "source instructions" : "review instructions",
+    projectWorkspaceId: "workspace-project",
+    executionWorkspaceId: "workspace-execution",
     ...(id === "issue-reviewer" ? { parentId: reviewerParentId } : id === "issue-worker" && sourceParentId ? { parentId: sourceParentId } : {}),
     assigneeAgentId: runCtx.agentId,
     status: id === "issue-reviewer" ? reviewerStatus : "in_progress",
@@ -52,6 +56,11 @@ function fixture(
   });
   const ctx = {
     config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
+    executionWorkspaces: { get: vi.fn(async (id: string) => ({
+      id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
+      path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
+      repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+    })) },
     issues: {
       forCurrentToolRun: () => ({
       get: vi.fn(async (id: string, _companyId: string) => {
@@ -108,6 +117,15 @@ describe("Paperclip autonomous bridge tools", () => {
     configPath = join(dir, "owner.json");
     await writeFile(configPath, JSON.stringify(config), { mode: 0o600 });
   }
+
+  it("declares the finite stage tools in the native plugin manifest", () => {
+    expect(manifest.tools.map((tool) => tool.name)).toEqual(expect.arrayContaining([
+      "bind_source_stage",
+      "deliver_source_stage_content",
+      "inspect_source_stage_candidate",
+      "approve_source_stage_candidate",
+    ]));
+  });
 
   it("uses only host context and delivers bounded source contents", async () => {
     await installConfig();
@@ -247,7 +265,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const finiteConfig = {
       schema: "paperclip-autonomous-bridge-config-v1", company_id: "company-1", project_id: "project-1",
       worker_agent_id: "worker-1", reviewer_agent_id: "reviewer-1", finite_lead_agent_id: "lead-1",
-      finite_lead_issue_id: "lead-issue", source_stage_catalog: [{
+      finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project", source_workspace_root: "/tmp/brain-source-workspace", source_stage_catalog: [{
         stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40),
         predecessor_stage_key: null,
         path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
@@ -264,6 +282,8 @@ describe("Paperclip autonomous bridge tools", () => {
     const leadRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "lead-1", runId: "lead-run" };
     const issue = (id: string) => ({
       id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+      description: id === "source-8" ? "source instructions" : "review instructions",
+      projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
       assigneeAgentId: id === "source-8" ? "worker-1" : id === "review-8" ? "reviewer-1" : "lead-1",
       status: id === "lead-issue" ? "in_progress" : id === "source-8" ? "backlog" : "blocked",
       statusVersion: id === "source-8" ? 4 : 7,
@@ -272,6 +292,11 @@ describe("Paperclip autonomous bridge tools", () => {
     const updateStatusCompareAndSet = vi.fn(async () => { throw new Error("native_ack_unknown"); });
     const ctx = {
       config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
+      executionWorkspaces: { get: vi.fn(async (id: string) => ({
+        id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
+        path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
+        repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+      })) },
       issues: { forCurrentToolRun: () => ({
         get: vi.fn(async (id: string) => issue(id) as never),
         getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({
@@ -307,7 +332,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const finiteConfig = {
       schema: "paperclip-autonomous-bridge-config-v1", company_id: "company-1", project_id: "project-1",
       worker_agent_id: "worker-1", reviewer_agent_id: "reviewer-1", finite_lead_agent_id: "lead-1",
-      finite_lead_issue_id: "lead-issue", source_stage_catalog: [
+      finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project", source_workspace_root: "/tmp/brain-source-workspace", source_stage_catalog: [
         { stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40), predecessor_stage_key: null,
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
         { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
@@ -322,11 +347,20 @@ describe("Paperclip autonomous bridge tools", () => {
     const scopedOrchestration = vi.fn();
     const ctx = {
       config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
+      executionWorkspaces: { get: vi.fn(async (id: string) => ({
+        id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
+        path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
+        repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+      })) },
       issues: { forCurrentToolRun: () => ({
         get: vi.fn(async (id: string) => {
           issueReads.push(id);
-          if (id !== "source-8") throw new Error("sibling_issue_access_denied");
+          if (id !== "source-8" && id !== "lead-issue") throw new Error("sibling_issue_access_denied");
+          if (id === "lead-issue") return { id, companyId: "company-1", projectId: "project-1",
+            projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
+            assigneeAgentId: "lead-1", status: "in_progress", executionRunId: null } as never;
           return { id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+            projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
             assigneeAgentId: "worker-1", status: "in_progress", executionRunId: "source-run" } as never;
         }),
         getOrchestration: scopedOrchestration.mockImplementation(async ({ issueId }: { issueId: string }) => ({
@@ -351,10 +385,14 @@ describe("Paperclip autonomous bridge tools", () => {
     await handlers.get("deliver_source_stage_content")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), source_issue_id: "source-8", files: contentFiles,
     }, sourceRun);
-    expect(issueReads).toEqual(["source-8", "source-8"]);
+    expect(issueReads).toEqual(["source-8", "source-8", "lead-issue", "source-8"]);
     expect(commentTargets).toEqual(["list:lead-issue", "create:lead-issue"]);
     expect(scopedOrchestration).not.toHaveBeenCalled();
-    expect(invoke).toHaveBeenCalledWith("deliver_source_stage_content", expect.not.objectContaining({ review_issue_id: expect.anything() }), configPath, "/usr/bin/python3");
+    expect(invoke).toHaveBeenCalledWith("deliver_source_stage_content", {
+      company_id: "company-1", project_id: "project-1", worker_agent_id: "worker-1",
+      run_id: "source-run", source_issue_id: "source-8", stage_key: "MEM8",
+      stage_binding_key: "a".repeat(64), files: contentFiles,
+    }, configPath, "/usr/bin/python3");
   });
 
   it("stage review derives its candidate from the binding without reading the producer sibling", async () => {
@@ -362,7 +400,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const finiteConfig = {
       schema: "paperclip-autonomous-bridge-config-v1", company_id: "company-1", project_id: "project-1",
       worker_agent_id: "worker-1", reviewer_agent_id: "reviewer-1", finite_lead_agent_id: "lead-1",
-      finite_lead_issue_id: "lead-issue", source_stage_catalog: [
+      finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project", source_workspace_root: "/tmp/brain-source-workspace", source_stage_catalog: [
         { stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40), predecessor_stage_key: null,
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
         { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
@@ -376,11 +414,20 @@ describe("Paperclip autonomous bridge tools", () => {
     const reviewerTaskRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "reviewer-1", runId: "reviewer-run" };
     const ctx = {
       config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
+      executionWorkspaces: { get: vi.fn(async (id: string) => ({
+        id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
+        path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
+        repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+      })) },
       issues: { forCurrentToolRun: () => ({
         get: vi.fn(async (id: string) => {
           issueReads.push(id);
-          if (id !== "review-8") throw new Error("sibling_issue_access_denied");
+          if (id !== "review-8" && id !== "lead-issue") throw new Error("sibling_issue_access_denied");
+          if (id === "lead-issue") return { id, companyId: "company-1", projectId: "project-1",
+            projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
+            assigneeAgentId: "lead-1", status: "in_progress", executionRunId: null } as never;
           return { id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+            projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
             assigneeAgentId: "reviewer-1", status: "in_progress", executionRunId: "reviewer-run" } as never;
         }),
         getOrchestration: scopedOrchestration.mockImplementation(async ({ issueId }: { issueId: string }) => ({
@@ -398,7 +445,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const result = await handlers.get("inspect_source_stage_candidate")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), review_issue_id: "review-8",
     }, reviewerTaskRun) as { content: string };
-    expect(issueReads).toEqual(["review-8", "review-8"]);
+    expect(issueReads).toEqual(["review-8", "review-8", "lead-issue", "review-8"]);
     expect(scopedOrchestration).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith("inspect_bound_source_stage", expect.objectContaining({
       reviewer_issue_id: "review-8", stage_binding_key: "a".repeat(64), stage_key: "MEM8",

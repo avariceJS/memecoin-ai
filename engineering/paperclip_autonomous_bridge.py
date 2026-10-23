@@ -28,6 +28,7 @@ TRUSTED_SOURCE_ROOT = Path(__file__).resolve().parents[1]
 if str(TRUSTED_SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(TRUSTED_SOURCE_ROOT))
 
+from engineering import paperclip_canonical_publish as canonical_publisher  # noqa: E402
 from engineering.confinement import (  # noqa: E402
     VERIFIER_ENV_KEYS,
     SandboxRunner,
@@ -46,6 +47,7 @@ from engineering.paperclip_source_delivery import (  # noqa: E402
     SourceDeliveryError,
     discard_projection,
     materialize_owner_projection,
+    refresh_owner_workspace,
     snapshot_records,
 )
 
@@ -259,6 +261,8 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         "predecessor_source_issue_id",
         "predecessor_review_issue_id",
         "predecessor_dependency_ready",
+        "source_instruction_sha256",
+        "review_instruction_sha256",
     }
     if type(payload) is not dict or set(payload) != required:
         raise BridgeError("source_stage_bind_payload_shape_invalid")
@@ -278,6 +282,9 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
     for name in ("source_version", "review_version"):
         if type(payload[name]) is not int or payload[name] < 0:
             raise BridgeError("source_stage_issue_version_invalid")
+    for name in ("source_instruction_sha256", "review_instruction_sha256"):
+        if type(payload[name]) is not str or not HASH_RE.fullmatch(payload[name]):
+            raise BridgeError("source_stage_instruction_binding_invalid")
     stage = config.source_stage(payload["stage_key"])
     if payload["source_issue_id"] == payload["review_issue_id"]:
         raise BridgeError("source_stage_issue_pair_invalid")
@@ -291,12 +298,15 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         "lead_run_id": payload["lead_run_id"],
         "source_version": payload["source_version"],
         "review_version": payload["review_version"],
+        "source_instruction_sha256": payload["source_instruction_sha256"],
+        "review_instruction_sha256": payload["review_instruction_sha256"],
         "workspace_id": stage.workspace_id,
         "path_ids": list(stage.path_ids),
         "verifier_policy_id": stage.verifier_policy_id,
         "owner_config_digest": config.owner_config_digest,
         "predecessor_operation_key": payload["predecessor_operation_key"],
         "base_sha": stage.initial_base_sha,
+        "canonical_base_sha": config.canonical_expected_tip,
         "state": "bound",
         "qa_intent": None,
         "source_intent": None,
@@ -314,6 +324,10 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         )
         if (
             previous.get("state") != "published"
+            or (
+                config.canonical_repo is not None
+                and previous.get("canonical", {}).get("status") != "published"
+            )
             or prior_stage is None
             or prior_stage.get("stage_key") != stage.predecessor_stage_key
             or prior_stage.get("operation_key") != operation_key
@@ -341,6 +355,11 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             raise BridgeError("source_stage_predecessor_candidate_invalid")
         if prior_stage.get("candidate_sha") != binding_value["base_sha"]:
             raise BridgeError("source_stage_predecessor_candidate_invalid")
+        if config.canonical_repo is not None:
+            canonical_sha = previous.get("canonical", {}).get("candidate")
+            if type(canonical_sha) is not str or not SHA_RE.fullmatch(canonical_sha):
+                raise BridgeError("source_stage_predecessor_candidate_invalid")
+            binding_value["canonical_base_sha"] = canonical_sha
     else:
         if any(
             payload[name] is not None
@@ -356,6 +375,39 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             )
         ):
             raise BridgeError("source_stage_unexpected_predecessor")
+    stage_journal_key = _stage_journal_key(stage.stage_key)
+    if _journal_path(config, stage_journal_key).exists():
+        with _operation_lock(config, stage_journal_key):
+            existing = _load_journal(config, stage_journal_key)
+            if any(
+                existing.get(key) != value
+                for key, value in binding_value.items()
+                if key
+                not in {"state", "qa_intent", "source_intent", "operation_key", "candidate_sha"}
+            ):
+                raise BridgeError("source_stage_bind_replay_mismatch")
+            return {
+                "stage_binding_key": existing["stage_binding_key"],
+                "base_sha": existing["base_sha"],
+                "canonical_base_sha": existing.get("canonical_base_sha"),
+                "workspace_baseline_sha256": existing.get("workspace_baseline_sha256"),
+                "state": existing["state"],
+            }
+    if config.source_workspace_root is not None:
+        workspace_repo = (
+            config.publisher_repo if stage.workspace_id == "published" else config.source_repo
+        )
+        try:
+            binding_value["workspace_baseline_sha256"] = refresh_owner_workspace(
+                config.gate(),
+                workspace_repo,
+                binding_value["base_sha"],
+                config.source_workspace_root,
+            )
+        except SourceDeliveryError as exc:
+            raise BridgeError(str(exc)) from exc
+    else:
+        binding_value["workspace_baseline_sha256"] = None
     binding_key = hashlib.sha256(_canonical(binding_value)).hexdigest()
     binding_value["stage_binding_key"] = binding_key
     stage_key = _stage_journal_key(stage.stage_key)
@@ -367,18 +419,29 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                 existing.get(key) != value
                 for key, value in binding_value.items()
                 if key
-                not in {"state", "qa_intent", "source_intent", "operation_key", "candidate_sha"}
+                not in {
+                    "state",
+                    "qa_intent",
+                    "source_intent",
+                    "operation_key",
+                    "candidate_sha",
+                    "workspace_baseline_sha256",
+                }
             ):
                 raise BridgeError("source_stage_bind_replay_mismatch")
             return {
                 "stage_binding_key": existing["stage_binding_key"],
                 "base_sha": existing["base_sha"],
+                "canonical_base_sha": existing.get("canonical_base_sha"),
+                "workspace_baseline_sha256": existing.get("workspace_baseline_sha256"),
                 "state": existing["state"],
             }
         _write_journal(config, stage_key, binding_value, create=True)
     return {
         "stage_binding_key": binding_key,
         "base_sha": binding_value["base_sha"],
+        "canonical_base_sha": binding_value.get("canonical_base_sha"),
+        "workspace_baseline_sha256": binding_value.get("workspace_baseline_sha256"),
         "state": "bound",
     }
 
@@ -422,6 +485,7 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         "found": True,
         "stage_binding_key": record["stage_binding_key"],
         "base_sha": record["base_sha"],
+        "canonical_base_sha": record.get("canonical_base_sha"),
         "state": record["state"],
         "activation_pending": record.get("source_intent") is not None
         and record.get("source_intent", {}).get("acknowledged") is not True,
@@ -649,13 +713,72 @@ def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> 
         }
     )
     diff = _bounded_candidate_diff(candidate)
+    canonical_details = None
+    canonical_record = journal.get("canonical")
+    if canonical_record is not None:
+        if (
+            config.canonical_repo is None
+            or type(canonical_record) is not dict
+            or type(canonical_record.get("receipt")) is not dict
+            or canonical_record.get("candidate") != canonical_record["receipt"].get("candidate")
+        ):
+            raise BridgeError("canonical_receipt_custody_invalid")
+        try:
+            canonical_state = canonical_publisher.inspect(
+                config.canonical_repo, config.canonical_ref, canonical_record["receipt"]
+            )
+            if canonical_record.get("status") == "prepared" and (
+                canonical_state.get("ref_state") != "prepared"
+                or canonical_state.get("files_state") != "old"
+            ):
+                raise BridgeError("canonical_inspection_state_invalid")
+            canonical_diff_raw = gate._run(
+                config.canonical_repo,
+                [
+                    "diff",
+                    "--no-ext-diff",
+                    "--no-textconv",
+                    "--no-renames",
+                    canonical_record["expected_tip"],
+                    canonical_record["candidate"],
+                    "--",
+                    *SOURCE_PATHS,
+                ],
+            ).stdout
+            if len(canonical_diff_raw) > MAX_REVIEW_DIFF_BYTES:
+                raise BridgeError("canonical_review_diff_too_large")
+            canonical_diff = canonical_diff_raw.decode("utf-8", errors="strict")
+        except (Exception, UnicodeDecodeError) as exc:
+            raise BridgeError(f"canonical_inspection_failed:{type(exc).__name__}") from exc
+        canonical_details = {
+            "canonical_candidate_sha": canonical_record["candidate"],
+            "canonical_receipt_digest": canonical_record["receipt_digest"],
+            "canonical_base_sha": canonical_record["expected_tip"],
+            "canonical_tree": canonical_record["receipt"].get("tree"),
+            "canonical_files": canonical_record["receipt"].get("files"),
+            "canonical_projected_mapping": {
+                "projected_base": canonical_record.get("projected_base"),
+                "projected_candidate": canonical_record.get("projected_candidate"),
+                "files": canonical_record.get("projected_files"),
+            },
+            "canonical_diff_sha256": hashlib.sha256(canonical_diff_raw).hexdigest(),
+        }
     inspection = {
         "reviewer_agent_id": config.reviewer_agent_id,
         "reviewer_issue_id": config.reviewer_issue_id,
         "reviewer_run_id": reviewer_run_id,
         "candidate_sha": candidate.sha,
+        "projected_base_sha": candidate.base_sha,
+        "projected_integration_tip": candidate.integration_tip,
+        "projected_tree": gate._run(candidate.checkout, ["rev-parse", f"{candidate.sha}^{{tree}}"])
+        .stdout.decode("ascii")
+        .strip(),
+        "projected_changed_paths": list(candidate.changed_paths),
+        "source_snapshot_sha256": journal.get("source_snapshot_sha256"),
+        "source_workspace_baseline_sha256": journal.get("source_workspace_baseline_sha256"),
         "policy_digest": binding.policy_digest,
         "diff_sha256": hashlib.sha256(diff.encode("utf-8")).hexdigest(),
+        **(canonical_details or {}),
     }
     inspections = journal.get("inspections", [])
     if type(inspections) is not list:
@@ -687,6 +810,7 @@ def _inspect_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -> 
             "receipt": receipt_summary,
         },
         "diff": diff,
+        **({"canonical_diff": canonical_diff, **canonical_details} if canonical_details else {}),
         "inspection_digest": hashlib.sha256(_canonical(inspection)).hexdigest(),
     }
 
@@ -719,6 +843,12 @@ class BridgeConfig:
     finite_lead_agent_id: str | None = None
     finite_lead_issue_id: str | None = None
     source_stage_catalog: tuple[SourceStageSpec, ...] = ()
+    canonical_repo: Path | None = None
+    canonical_ref: str | None = None
+    canonical_expected_tip: str | None = None
+    canonical_base_sha: str | None = None
+    source_workspace_id: str | None = None
+    source_workspace_root: Path | None = None
 
     @classmethod
     def load(cls, path: Path) -> BridgeConfig:
@@ -753,6 +883,11 @@ class BridgeConfig:
             "expected_dev_ref",
             "expected_base_sha",
             "verifier_runtime_read_roots",
+            "canonical_repo",
+            "canonical_ref",
+            "canonical_expected_tip",
+            "source_workspace_id",
+            "source_workspace_root",
         }
         if set(raw) - allowed_keys:
             raise BridgeError("owner_config_unknown_fields")
@@ -767,13 +902,43 @@ class BridgeConfig:
         )
         try:
             paths = {key: Path(raw[key]) for key in path_values if key in raw}
+            canonical_repo = Path(raw["canonical_repo"]) if "canonical_repo" in raw else None
+            source_workspace_root = (
+                Path(raw["source_workspace_root"]) if "source_workspace_root" in raw else None
+            )
             worker_checkout = Path(raw["worker_checkout"]) if "worker_checkout" in raw else None
         except (KeyError, TypeError):
             raise BridgeError("owner_config_paths_invalid") from None
-        if any(not value.is_absolute() for value in paths.values()) or (
-            worker_checkout is not None and not worker_checkout.is_absolute()
+        if (
+            any(not value.is_absolute() for value in paths.values())
+            or (worker_checkout is not None and not worker_checkout.is_absolute())
+            or (canonical_repo is not None and not canonical_repo.is_absolute())
+            or (source_workspace_root is not None and not source_workspace_root.is_absolute())
         ):
             raise BridgeError("owner_config_paths_must_be_absolute")
+        source_workspace_id = raw.get("source_workspace_id")
+        if (source_workspace_id is None) != (source_workspace_root is None) or (
+            source_workspace_id is not None
+            and (
+                type(source_workspace_id) is not str
+                or not ID_RE.fullmatch(source_workspace_id)
+                or ".." in source_workspace_root.parts
+                or source_workspace_root == Path("/")
+            )
+        ):
+            raise BridgeError("owner_config_source_workspace_invalid")
+        canonical_values = (
+            canonical_repo,
+            raw.get("canonical_ref"),
+            raw.get("canonical_expected_tip"),
+        )
+        if any(value is not None for value in canonical_values) and (
+            canonical_repo is None
+            or raw.get("canonical_ref") != "refs/heads/brain/development"
+            or type(raw.get("canonical_expected_tip")) is not str
+            or not SHA_RE.fullmatch(raw["canonical_expected_tip"])
+        ):
+            raise BridgeError("owner_config_canonical_binding_invalid")
         ids = (
             "company_id",
             "project_id",
@@ -864,6 +1029,8 @@ class BridgeConfig:
             if stage_specs[0].initial_base_sha != raw.get("expected_base_sha"):
                 raise BridgeError("owner_config_source_stage_base_mismatch")
             stage_catalog = tuple(stage_specs)
+            if source_workspace_id is None:
+                raise BridgeError("owner_config_source_workspace_required")
         reviewer_parent = raw.get(
             "reviewer_parent_issue_id",
             raw.get("source_issue_id", finite_lead_issue_id),
@@ -944,6 +1111,11 @@ class BridgeConfig:
             finite_lead_agent_id=finite_lead_agent_id,
             finite_lead_issue_id=finite_lead_issue_id,
             source_stage_catalog=stage_catalog,
+            canonical_repo=canonical_repo,
+            canonical_ref=raw.get("canonical_ref"),
+            canonical_expected_tip=raw.get("canonical_expected_tip"),
+            source_workspace_id=source_workspace_id,
+            source_workspace_root=source_workspace_root,
         )
 
     def policy(self) -> VerificationPolicy:
@@ -982,6 +1154,8 @@ class BridgeConfig:
                 self.receipt_store,
                 self.verifier_scratch_root,
                 self.python_executable,
+                *((self.canonical_repo,) if self.canonical_repo is not None else ()),
+                *((self.source_workspace_root,) if self.source_workspace_root is not None else ()),
                 *self.verifier_runtime_read_roots,
             )
         )
@@ -1019,6 +1193,15 @@ class BridgeConfig:
             "fixed_dev_ref": self.fixed_dev_ref,
             "expected_dev_ref": self.expected_dev_ref,
             "expected_base_sha": self.expected_base_sha,
+            "canonical_repo": (
+                str(self.canonical_repo.resolve(strict=False)) if self.canonical_repo else None
+            ),
+            "canonical_ref": self.canonical_ref,
+            "canonical_expected_tip": self.canonical_expected_tip,
+            "source_workspace_id": self.source_workspace_id,
+            "source_workspace_root": (
+                str(self.source_workspace_root) if self.source_workspace_root else None
+            ),
             "verifier_runtime_read_roots": tuple(
                 str(path) for path in self.verifier_runtime_read_roots
             ),
@@ -1038,6 +1221,7 @@ class BridgeConfig:
         source_issue_id: str,
         reviewer_issue_id: str,
         base_sha: str,
+        canonical_base_sha: str | None = None,
     ) -> BridgeConfig:
         return replace(
             self,
@@ -1050,6 +1234,11 @@ class BridgeConfig:
             allowed_scope=stage.path_ids,
             verifier_policy_id=stage.verifier_policy_id,
             expected_base_sha=base_sha,
+            canonical_base_sha=(
+                canonical_base_sha
+                if canonical_base_sha is not None
+                else self.canonical_expected_tip
+            ),
         )
 
 
@@ -1229,7 +1418,12 @@ def _prepare_candidate_locked(config: BridgeConfig, binding: OperationBinding) -
 
 
 def prepare_source_content(
-    config: BridgeConfig, payload: dict[str, Any], *, stage_binding_key: str | None = None
+    config: BridgeConfig,
+    payload: dict[str, Any],
+    *,
+    stage_binding_key: str | None = None,
+    source_stage_key: str | None = None,
+    source_workspace_baseline_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Prepare one candidate from bounded complete file contents, never worker Git."""
     if type(payload) is not dict or set(payload) != {
@@ -1279,18 +1473,102 @@ def prepare_source_content(
                 raise BridgeError("source_delivery_replay_stage_mismatch")
             return journal["candidate"]
         return _prepare_source_content_locked(
-            config, payload, snapshot, operation_key, stage_binding_key=stage_binding_key
+            config,
+            payload,
+            snapshot,
+            operation_key,
+            stage_binding_key=stage_binding_key,
+            source_stage_key=source_stage_key,
+            source_workspace_baseline_sha256=source_workspace_baseline_sha256,
         )
 
 
 def _prepare_source_content_locked(
-    config, payload, snapshot, operation_key, *, stage_binding_key=None
+    config,
+    payload,
+    snapshot,
+    operation_key,
+    *,
+    stage_binding_key=None,
+    source_stage_key=None,
+    source_workspace_baseline_sha256=None,
 ):
     gate = config.gate()
     try:
         projection = materialize_owner_projection(gate, payload["base_sha"], snapshot)
     except SourceDeliveryError as exc:
         raise BridgeError(str(exc)) from exc
+    canonical_record = None
+    if config.canonical_repo is not None:
+        canonical_base_sha = config.canonical_base_sha or config.canonical_expected_tip
+        if config.canonical_ref != "refs/heads/brain/development" or not canonical_base_sha:
+            discard_projection(gate, projection)
+            raise BridgeError("canonical_owner_binding_invalid")
+        try:
+            old_blobs = {
+                item.path_id: gate._run(
+                    config.canonical_repo,
+                    ["rev-parse", f"{canonical_base_sha}:{item.path_id}"],
+                )
+                .stdout.decode("ascii")
+                .strip()
+                for item in snapshot.files
+            }
+            new_blobs = {
+                item.path_id: gate._run(
+                    config.canonical_repo, ["hash-object", "--stdin"], input=item.data
+                )
+                .stdout.decode("ascii")
+                .strip()
+                for item in snapshot.files
+            }
+            projected_files = []
+            for item in snapshot.files:
+                projected_old = (
+                    gate._run(
+                        config.source_repo,
+                        ["rev-parse", f"{projection.base_sha}:{item.path_id}"],
+                    )
+                    .stdout.decode("ascii")
+                    .strip()
+                )
+                projected_new = (
+                    gate._run(
+                        config.source_repo,
+                        ["rev-parse", f"{projection.submitted_sha}:{item.path_id}"],
+                    )
+                    .stdout.decode("ascii")
+                    .strip()
+                )
+                projected_files.append(
+                    {
+                        "path": item.path_id,
+                        "projected_old_blob": projected_old,
+                        "projected_new_blob": projected_new,
+                        "sha256": item.sha256,
+                    }
+                )
+            receipt = canonical_publisher.prepare(
+                config.canonical_repo,
+                config.canonical_ref,
+                canonical_base_sha,
+                old_blobs,
+                new_blobs,
+                {item.path_id: item.data for item in snapshot.files},
+            )
+        except Exception as exc:
+            discard_projection(gate, projection)
+            raise BridgeError(f"canonical_prepare_failed:{type(exc).__name__}") from exc
+        canonical_record = {
+            "status": "prepared",
+            "expected_tip": canonical_base_sha,
+            "candidate": receipt["candidate"],
+            "receipt_digest": receipt["receipt_digest"],
+            "receipt": receipt,
+            "projected_base": projection.base_sha,
+            "projected_candidate": projection.submitted_sha,
+            "projected_files": projected_files,
+        }
     policy = config.policy()
     binding = OperationBinding(
         company_id=config.company_id,
@@ -1319,6 +1597,14 @@ def _prepare_source_content_locked(
         "policy_digest": binding.policy_digest,
         "reviewer_issue_id": config.reviewer_issue_id,
         "source_snapshot_sha256": snapshot.digest,
+        **(
+            {
+                "canonical_candidate_sha": canonical_record["candidate"],
+                "canonical_receipt_digest": canonical_record["receipt_digest"],
+            }
+            if canonical_record is not None
+            else {}
+        ),
         **({"stage_binding_key": stage_binding_key} if stage_binding_key is not None else {}),
     }
     journal = {
@@ -1329,16 +1615,14 @@ def _prepare_source_content_locked(
         "candidate": result,
         "source_snapshot_sha256": snapshot.digest,
         "source_stage_binding": stage_binding_key,
-        "source_stage_key": (
-            _stage_binding(config, stage_binding_key)["stage_key"]
-            if stage_binding_key is not None
-            else None
-        ),
+        "source_stage_key": (source_stage_key if source_stage_key is not None else None),
+        "source_workspace_baseline_sha256": source_workspace_baseline_sha256,
         "source_files": [
             {"path_id": item.path_id, "size": item.size, "sha256": item.sha256}
             for item in snapshot.files
         ],
         "review": None,
+        "canonical": canonical_record,
     }
     _write_journal(config, operation_key, journal, create=True)
     return result
@@ -1351,7 +1635,6 @@ def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) 
         "source_issue_id",
         "worker_agent_id",
         "run_id",
-        "review_issue_id",
         "stage_key",
         "stage_binding_key",
         "files",
@@ -1362,7 +1645,6 @@ def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) 
     if (
         record["stage_key"] != payload["stage_key"]
         or record["source_issue_id"] != payload["source_issue_id"]
-        or record["review_issue_id"] != payload["review_issue_id"]
         or record["state"] != "active"
     ):
         raise BridgeError("source_stage_not_active")
@@ -1372,6 +1654,7 @@ def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) 
         source_issue_id=record["source_issue_id"],
         reviewer_issue_id=record["review_issue_id"],
         base_sha=record["base_sha"],
+        canonical_base_sha=record.get("canonical_base_sha"),
     )
     content_payload = {
         key: payload[key]
@@ -1386,7 +1669,11 @@ def prepare_source_stage_content(config: BridgeConfig, payload: dict[str, Any]) 
     }
     content_payload["base_sha"] = record["base_sha"]
     result = prepare_source_content(
-        stage_config, content_payload, stage_binding_key=payload["stage_binding_key"]
+        stage_config,
+        content_payload,
+        stage_binding_key=payload["stage_binding_key"],
+        source_stage_key=record["stage_key"],
+        source_workspace_baseline_sha256=record.get("workspace_baseline_sha256"),
     )
     stage_journal_key = _stage_journal_key(record["stage_key"])
     with _operation_lock(config, stage_journal_key):
@@ -1510,6 +1797,7 @@ def _operation_config(config: BridgeConfig, operation_key: str) -> BridgeConfig:
         source_issue_id=record["source_issue_id"],
         reviewer_issue_id=record["review_issue_id"],
         base_sha=base_sha,
+        canonical_base_sha=record.get("canonical_base_sha"),
     )
     if journal.get("source_stage_key") != stage.stage_key:
         raise BridgeError("source_stage_operation_binding_mismatch")
@@ -1623,6 +1911,14 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
             else "review_evidence_inspection_mismatch"
         )
         raise BridgeError(error)
+    canonical_record = journal.get("canonical")
+    if canonical_record is not None and (
+        evidence.get("canonical_candidate_sha") != canonical_record.get("candidate")
+        or evidence.get("canonical_receipt_digest") != canonical_record.get("receipt_digest")
+        or inspection.get("canonical_candidate_sha") != canonical_record.get("candidate")
+        or inspection.get("canonical_receipt_digest") != canonical_record.get("receipt_digest")
+    ):
+        raise BridgeError("canonical_review_binding_mismatch")
     evidence_record = {
         "company_id": config.company_id,
         "project_id": config.project_id,
@@ -1665,7 +1961,14 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
         approved=approved,
     )
     broker = config.broker()
-    if journal.get("state") not in {"prepared", "review_custodied", "published"}:
+    if journal.get("state") not in {
+        "prepared",
+        "review_custodied",
+        "published",
+        "projection_published",
+        "canonical_publish_intent",
+        "canonical_publish_held",
+    }:
         raise BridgeError("operation_not_reviewable")
     broker_record, candidate = broker.recover_candidate(binding)
     if candidate.sha != payload["candidate_sha"]:
@@ -1700,12 +2003,61 @@ def _integrate_candidate_locked(config: BridgeConfig, payload: dict[str, Any]) -
     journal["state"] = result.status
     journal["receipt_digest"] = result.receipt_digest
     _write_journal(config, operation_key, journal, create=False)
+    if canonical_record is not None:
+        if not approved:
+            raise BridgeError("canonical_review_rejected")
+        canonical_record["status"] = "publish_intent"
+        canonical_record["approved_candidate"] = canonical_record["candidate"]
+        canonical_record["approved_receipt_digest"] = canonical_record["receipt_digest"]
+        journal["state"] = "canonical_publish_intent"
+        _write_journal(config, operation_key, journal, create=False)
+        try:
+            with company_operation(config.broker_journal_dir, config.company_id):
+                require_company_open(config.broker_journal_dir, config.company_id)
+                if canonical_record.get("status") == "publish_intent":
+                    published = canonical_publisher.reconcile(
+                        config.canonical_repo,
+                        config.canonical_ref,
+                        canonical_record["receipt"],
+                        canonical_record["approved_candidate"],
+                        canonical_record["approved_receipt_digest"],
+                    )
+                else:
+                    published = {"status": canonical_record.get("status")}
+        except Exception as exc:
+            canonical_record["last_error"] = type(exc).__name__
+            journal["state"] = "canonical_publish_held"
+            _write_journal(config, operation_key, journal, create=False)
+            raise BridgeError(f"canonical_publish_held:{type(exc).__name__}") from exc
+        if (
+            published.get("status") != "reconciled"
+            or published.get("candidate") != canonical_record["candidate"]
+            or published.get("receipt_digest") != canonical_record["receipt_digest"]
+        ):
+            canonical_record["status"] = "held"
+            journal["state"] = "canonical_publish_held"
+            _write_journal(config, operation_key, journal, create=False)
+            raise BridgeError("canonical_publish_readback_mismatch")
+        canonical_record["status"] = "published"
+        canonical_record["ack"] = published
+        journal["state"] = "published"
+        _write_journal(config, operation_key, journal, create=False)
     return {
         "status": result.status,
         "candidate_sha": result.candidate_sha,
         "receipt_digest": result.receipt_digest,
         "operation_key": result.operation_key,
         "evidence_digest": evidence_digest,
+        **(
+            {
+                "projection_status": result.status,
+                "canonical_status": canonical_record["status"],
+                "canonical_candidate_sha": canonical_record["candidate"],
+                "canonical_receipt_digest": canonical_record["receipt_digest"],
+            }
+            if canonical_record is not None
+            else {}
+        ),
     }
 
 

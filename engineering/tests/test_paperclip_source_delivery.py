@@ -14,6 +14,7 @@ from engineering.paperclip_source_delivery import (
     SourceDeliveryError,
     discard_projection,
     materialize_owner_projection,
+    refresh_owner_workspace,
     snapshot_records,
 )
 
@@ -141,6 +142,40 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
                 discard_projection(gate, replay)
             with self.assertRaisesRegex(SourceDeliveryError, "base_sha_invalid"):
                 materialize_owner_projection(gate, "not-a-sha", snapshot)
+
+    def test_workspace_refresh_changes_only_fixed_source_files_and_binds_content_hashes(self):
+        with tempfile.TemporaryDirectory(prefix="source-workspace-refresh-") as temp:
+            root = Path(temp)
+            source = root / "source"
+            source.mkdir()
+            git(source, "init", "-b", "main")
+            for path, content in zip(
+                SOURCE_PATHS, ("owner events\n", "owner tests\n"), strict=True
+            ):
+                target = source / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(content)
+            base = commit(source, "trusted base")
+            publisher = root / "publisher"
+            subprocess.run(
+                ["git", "clone", str(source), str(publisher)],
+                check=True,
+                capture_output=True,
+            )
+            gate = GitGate(
+                source,
+                publisher,
+                VerificationPolicy((("/usr/bin/true",),)),
+                root / "receipts",
+            )
+            workspace = root / "no-git-workspace"
+            workspace.mkdir()
+            (workspace / "keep.txt").write_text("untouched\n")
+            digest = refresh_owner_workspace(gate, source, base, workspace)
+            self.assertEqual(digest, refresh_owner_workspace(gate, source, base, workspace))
+            self.assertEqual((workspace / SOURCE_PATHS[0]).read_text(), "owner events\n")
+            self.assertEqual((workspace / SOURCE_PATHS[1]).read_text(), "owner tests\n")
+            self.assertEqual((workspace / "keep.txt").read_text(), "untouched\n")
 
 
 if __name__ == "__main__":
