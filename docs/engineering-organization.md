@@ -5,6 +5,75 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
+## Paperclip-first experimental integration — founder authorization 2026-10-22
+
+The founder renewed this authority on 2026-10-23 after the quota pause, explicitly targeting an
+operational company and one useful accepted Brain development task after worker-path qualification.
+The preserved quota-stop handoff lives in the lab state directory. Reviewed Paperclip derivative
+`fecf7b1` includes native isolation, owner tool/self-configuration policy and local plugin relay;
+Brain candidate `b1e9e00` retains independently reviewed broker, fixture and handoff source.
+Native synthetic delegation succeeded. The worker created clean disposable candidate `b77c08e`
+(only `label.py`), but submission failed because plugin SDK calls use a non-member privacy principal.
+The candidate and all failed run histories remain preserved; continuation must submit the existing
+candidate without editing or committing again. A bounded host-validated run-scoped SDK contract is
+being implemented with current-issue/direct-parent-child scope, canonical agent authorization and
+no board impersonation or broad plugin grant. Review is a native blocked dependency of production;
+Paperclip completion/finalization owns its wake. Plugin code must not clear an active task binding
+by assigning its terminal status. The accepted `b1e9e00` source checkpoint is published on
+`org/paperclip-integration`; publication is custody, not operational acceptance.
+One real read-only Sol task succeeded through native Codex `gpt-6.1-sol` at configured high effort,
+with `subscription_included` attribution and unchanged empty workspace. Independent review accepted
+that narrow evidence. This does not qualify the real engineering/reviewer/GitGate path.
+Company hibernation should consume Paperclip's native per-issue recovery holds and process state,
+plus the broker publication fence. Historical failed rows alone are not active writers; unresolved
+provider-stop or publication outcomes remain holds. Do not build a second recovery ledger.
+The founder-company Astra remains paused after pre-inference onboarding failures; its subscription
+connection is intact. Detailed volatile progress belongs to `memory/now.md` and private
+`state/readiness-20261023/progress.json`, not another organizational queue.
+
+The founder authorizes a separate local Paperclip installation and implementation of a minimal
+Brain integration. This supersedes the earlier read-only platform study and experimental-runtime
+prohibition only within this isolated program. Astra owns CEO and architecture decisions and
+observes the product; Sol-6.1 High
+advises on substantial technical decisions, leads Luna and independently reviews exact candidates;
+Luna High implements. Sol does not grant permission to Astra. Preserve the existing
+Luna native thread/Goal and all predecessor history; do not create a replacement Goal. Paperclip
+must become the single organizational scheduler, task/goal owner and lifecycle manager. Retain
+Brain domain admission, protected-data boundaries, independent exact-candidate acceptance and
+GitGate publication; do not run the old company supervisor beside Paperclip.
+
+Initial source pin: Paperclip `043f2514e67c50320433a0013fb228a75a51325c` (reviewed master;
+not the October 12 release). Experiment root: `/Users/root1/Developer/brain-paperclip-lab`.
+Use a private instance home, loopback listeners, disposable Git repositories and synthetic model
+responses first. No global services or changes to the existing Codex configuration or pilot DB.
+After empirical isolation qualification, a bounded real Sol/Luna trial using the existing Codex
+subscription is authorized. Verify subscription authentication without logging credentials; reject
+paid API/fallback and model substitution. Real Brain source work requires qualification of the
+specific worker/reviewer/publisher path first, using the authorized development branch.
+
+Required vertical: Sol delegates a goal, Luna produces a candidate, a separate reviewer accepts or
+rejects its exact identity, and the trusted GitGate integrates it. Paperclip must display the real
+task tree and results. Exercise persistence, stop/restart, held unknown outcomes and explicit wake.
+Only an explicit founder command resumes a manually stopped company; quota reset cannot wake it.
+Synthetic lifecycle scenarios may simulate these commands without changing the real founder intent.
+Keep Pilot STOP, production, main, protected data, market collection, training, AUTO and trading
+untouched. Preserve archives/receipts/checkpoints and the old controller until migration is proven.
+
+Initial isolation findings (historical; subsequently repaired and retested): the pinned server,
+embedded PostgreSQL, native Rust runner and local synthetic
+Responses endpoint are installed. The server binds only loopback, uses private state and explicitly
+sets `PAPERCLIP_RUNNER_NETWORK_ACCESS=disabled`. Full engineering vertical acceptance remains open.
+Sol's actual native synthetic run `2b14f3d5-10f1-4df2-a6a9-8bb9799b8124` passed a positive workspace
+write and denied stand-in owner/control-state/sibling/publisher reads and writes, symlink escape and
+loopback HTTP. However, further negative probes successfully spawned a native child agent, created
+a native Goal, and ran a repository-configured MCP command outside the workspace. Thread-level
+feature overrides and the shell sandbox alone were insufficient. This originally held live
+admission. The reviewed `bd1a12f` correction and subsequent probes qualified the bounded
+subscription smoke above; they do not establish general production readiness. Cancellation of
+the synthetic Goal also required explicit process-custody cleanup; it is not a hibernation pass.
+Evidence lives under the private lab `state/sol-isolation/`. Existing hibernation WIP `a3abfe2`
+remains unreviewed; no old controller component is approved for deletion.
+
 ## Herdr and native Codex architecture review — 2026-10-22
 
 **Recommendation: do not replace the autonomous control plane with Herdr. Evaluate native Codex

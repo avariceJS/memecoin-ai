@@ -1,4 +1,54 @@
-# Current state — 2026-10-22
+# Current state — 2026-10-23
+
+## Founder resumption — 2026-10-23
+
+The founder explicitly lifted the October 22 weekly-quota pause for the isolated Paperclip
+program and authorized progression toward operational acceptance, including bounded subscription
+trials and development-branch Brain work after independent qualification. Pilot STOP and protected
+data/runtime restrictions remain. The quota-stop handoff is preserved at
+`/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF-20261022-QUOTA-STOP.md`.
+Live readback: reviewed Paperclip `fecf7b1` is healthy on loopback 3310 after the owned restart at
+2026-10-23T10:15:41Z; PostgreSQL state and backup are preserved. Candidate source is `b1e9e00`.
+Acceptance remains bounded source/synthetic, not operational readiness. Native lead delegated BRAA-2;
+worker run `fb434c7a-9edc-4e93-9719-cf5d076565fc` produced clean disposable candidate
+`b77c08e8e595b14a95e06fb7929d1b39e72a87eb` (only `label.py`) but plugin submission failed:
+Paperclip SDK treats plugins as non-member principals, blocking private issue reads. Preserve the
+candidate and all four failed runs. Continue submission-only after independent review of a minimal
+run-scoped privacy fix; do not re-edit/recommit or replay failed work. Native plugin advertisement
+and asynchronous shell continuation are repaired. Exact Xcode Python/Git paths work in the worker;
+Cellar Python framework does not. Reviewer/GitGate publication has not run. Company BRAA is paused
+with BRAA-2 blocked and no execution run; BRAA-1 is its review child for native relation-scoped access. Historical companies and founder Astra remain paused.
+Separate native hidden-call probes rejected `create_project` and `call_api` with no observed effects;
+Sol accepted that narrow dispatch evidence, not general native policy/OS confinement equivalence.
+One bounded read-only subscription Sol task MEM-2 succeeded (run `5223e7f2-d2d0-43e4-9e10-22b924772e3b`):
+native Codex `gpt-6.1-sol`, effort `high`, explicit subscription attribution, unchanged empty workspace.
+This is not engineering/GitGate/lifecycle or real-repository acceptance. No replacement Goal or old supervisor.
+Astra owns CEO decisions; Sol supplies technical advice/independent acceptance and leads Luna, not permission for Astra.
+Current machine-readable progress/custody: `/Users/root1/Developer/brain-paperclip-lab/state/readiness-20261023/progress.json`.
+
+## Active founder directive: Paperclip-first experiment
+
+The founder explicitly resumed engineering after the research pause and authorized an isolated
+Paperclip installation, synthetic integration, and a bounded subscription-only Sol/Luna trial
+after empirical isolation qualification. The current authority is the Paperclip-first section in
+`docs/engineering-organization.md`; the research STOP described below is historical. Astra directs
+this program, Sol independently reviews, and Luna implements in
+`/Users/root1/Developer/brain-paperclip-lab/brain-candidate` (`org/paperclip-integration`).
+The old native Goal remains preserved in its observed `paused` state; the available agent API
+cannot resume it. This does not revoke the founder's new delegated experimental-work authority;
+do not create a replacement Goal or run the old supervisor. Pilot STOP remains independent.
+The old thread's `handoff-paused-20261022-01.md` and `-02.md` remain preserved as evidence;
+their repeated claim of a new founder pause is stale and does not supersede this directive.
+Bounded Luna subcontractors implement under Astra's current program; no replacement Goal exists.
+
+Paperclip pin `043f2514e67c50320433a0013fb228a75a51325c` is installed in the separate lab with
+private state and loopback API `127.0.0.1:3310`. Synthetic native filesystem/network canaries passed
+their first bounded cohort. Separate native child-agent and Goal creation bypassed Paperclip's
+organization ownership despite thread-level configuration. Sol source-reviewed the narrow derivative
+`bd1a12fbf94068884cb2d65db3d2fdab5f0a9595`; Rust and TypeScript were rebuilt and the server restarted
+at 11:28:14 UTC. Postpatch shell/MCP/hidden-tool probes pass; full pause/recovery and vertical
+acceptance remain pending. Live-model admission is still held. Preserve the
+old controller, all receipts/checkpoints and the unreviewed `a3abfe2` WIP.
 
 ## Native ownership
 
