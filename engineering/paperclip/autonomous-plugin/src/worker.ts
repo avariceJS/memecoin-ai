@@ -170,7 +170,7 @@ async function assertPinnedSourceWorkspace(
   if (!workspace || workspace.projectWorkspaceId !== owner.source_workspace_id
       || workspace.path !== owner.source_workspace_root || workspace.cwd !== owner.source_workspace_root
       || workspace.repoUrl !== null || workspace.baseRef !== null || workspace.branchName !== null
-      || workspace.providerType !== "local") {
+      || workspace.providerType !== "local_fs") {
     fail("source_workspace_metadata_mismatch");
   }
 }

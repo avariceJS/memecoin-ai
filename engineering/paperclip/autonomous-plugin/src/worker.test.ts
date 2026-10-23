@@ -60,7 +60,7 @@ function fixture(
     executionWorkspaces: { get: vi.fn(async (id: string) => ({
       id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
       path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
-      repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+      repoUrl: null, baseRef: null, branchName: null, providerType: "local_fs", providerMetadata: null,
     })) },
     issues: {
       forCurrentToolRun: () => ({
@@ -291,12 +291,13 @@ describe("Paperclip autonomous bridge tools", () => {
       executionRunId: id === "lead-issue" ? "lead-run" : null,
     });
     const updateStatusCompareAndSet = vi.fn(async () => { throw new Error("native_ack_unknown"); });
+    let workspaceProviderType = "local_fs";
     const ctx = {
       config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
       executionWorkspaces: { get: vi.fn(async (id: string) => ({
         id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
         path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
-        repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+        repoUrl: null, baseRef: null, branchName: null, providerType: workspaceProviderType, providerMetadata: null,
       })) },
       issues: { forCurrentToolRun: () => ({
         get: vi.fn(async (id: string) => issue(id) as never),
@@ -321,6 +322,13 @@ describe("Paperclip autonomous bridge tools", () => {
     });
     registerAutonomousTools(ctx, invoke as never);
     const params = { stage_key: "MEM8", source_issue_id: "source-8", review_issue_id: "review-8" };
+    for (const providerType of ["local", "git_worktree", "remote_managed"]) {
+      workspaceProviderType = providerType;
+      await expect(handlers.get("bind_source_stage")!(params, leadRun)).rejects.toThrow("source_workspace_metadata_mismatch");
+      expect(updateStatusCompareAndSet).not.toHaveBeenCalled();
+      expect(invoke.mock.calls.filter(([action]) => action !== "lookup_source_stage_binding")).toHaveLength(0);
+    }
+    workspaceProviderType = "local_fs";
     await expect(handlers.get("bind_source_stage")!(params, leadRun)).rejects.toThrow("native_ack_unknown");
     await expect(handlers.get("bind_source_stage")!(params, leadRun)).rejects.toThrow("source_stage_activation_reconciliation_required");
     expect(updateStatusCompareAndSet).toHaveBeenCalledTimes(1);
@@ -352,7 +360,7 @@ describe("Paperclip autonomous bridge tools", () => {
       executionWorkspaces: { get: vi.fn(async (id: string) => ({
         id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
         path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
-        repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+        repoUrl: null, baseRef: null, branchName: null, providerType: "local_fs", providerMetadata: null,
       })) },
       issues: { forCurrentToolRun: () => ({
         get: vi.fn(async (id: string) => {
@@ -432,7 +440,7 @@ describe("Paperclip autonomous bridge tools", () => {
       executionWorkspaces: { get: vi.fn(async (id: string) => ({
         id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
         path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
-        repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+        repoUrl: null, baseRef: null, branchName: null, providerType: "local_fs", providerMetadata: null,
       })) },
       issues: { forCurrentToolRun: () => ({
         get: vi.fn(async (id: string) => {
@@ -597,7 +605,7 @@ describe("Paperclip autonomous bridge tools", () => {
       executionWorkspaces: { get: vi.fn(async (id: string) => ({
         id, companyId: "company-1", projectId: "project-1", projectWorkspaceId: "workspace-project",
         path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
-        repoUrl: null, baseRef: null, branchName: null, providerType: "local", providerMetadata: null,
+        repoUrl: null, baseRef: null, branchName: null, providerType: "local_fs", providerMetadata: null,
       })) },
       issues: { forCurrentToolRun: () => ({
         get: vi.fn(async (id: string) => rows[id] as never),
