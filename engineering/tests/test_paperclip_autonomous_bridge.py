@@ -1487,6 +1487,21 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "retry_of_review_version": 5,
             "retry_of_dependency_ready": True,
         }
+        for invalid_retry_field in (
+            {"retry_of_dependency_ready": False},
+            {"retry_of_dependency_ready": None},
+            {"retry_of_source_version": True},
+            {"retry_of_review_version": -1},
+        ):
+            with self.subTest(invalid_retry_field=invalid_retry_field):
+                with self.assertRaisesRegex(BridgeError, "source_stage_retry_validation_invalid"):
+                    dispatch(
+                        config,
+                        {
+                            "action": "bind_source_stage",
+                            "payload": {**attempt_three_payload, **invalid_retry_field},
+                        },
+                    )
         with self.assertRaisesRegex(BridgeError, "source_stage_retry_not_admitted"):
             dispatch(
                 config,

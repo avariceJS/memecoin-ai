@@ -681,7 +681,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
     for name in ("source_instruction_sha256", "review_instruction_sha256"):
         if type(payload[name]) is not str or not HASH_RE.fullmatch(payload[name]):
             raise BridgeError("source_stage_instruction_binding_invalid")
-    if attempt == 2:
+    if attempt >= 2:
         if (
             type(payload["retry_of_operation_key"]) is not str
             or not OPERATION_RE.fullmatch(payload["retry_of_operation_key"])
