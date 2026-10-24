@@ -2610,7 +2610,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         def unknown_lookup(_config, payload):
             calls.append(payload["attempt"])
             if payload["attempt"] == 1:
-                return {**accepted, "operation_state": "prepared"}
+                return {**accepted, "attempt": 1, "operation_state": "prepared"}
             return accepted if payload["attempt"] == 3 else {"found": False}
 
         with patch(
@@ -2632,9 +2632,11 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             if payload["attempt"] == 1:
                 return {
                     **accepted,
+                    "attempt": 1,
                     "operation_state": "review_rejected",
                     "operation_review_approved": False,
-                    "canonical_status": None,
+                    "canonical_status": "prepared",
+                    "canonical_approved_receipt_digest": None,
                 }
             return accepted if payload["attempt"] == 3 else {"found": False}
 
@@ -2649,13 +2651,16 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             )
         self.assertEqual(calls, [1, 2, 3])
         self.assertEqual(result["attempt"], 3)
-        self.assertEqual(result, accepted)
 
         calls.clear()
 
         def ambiguous_lookup(_config, payload):
             calls.append(payload["attempt"])
-            return accepted if payload["attempt"] in {1, 3} else {"found": False}
+            return (
+                {**accepted, "attempt": payload["attempt"]}
+                if payload["attempt"] in {1, 3}
+                else {"found": False}
+            )
 
         with patch(
             "engineering.paperclip_autonomous_bridge.lookup_source_stage_binding",
@@ -2668,6 +2673,77 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                     {"company_id", "project_id", "lead_agent_id", "lead_issue_id", "stage_key"},
                 )
         self.assertEqual(calls, [1, 2, 3])
+
+    def test_real_rejected_canonical_operation_is_skipped_before_attempt_three_acceptance(self):
+        from engineering import paperclip_autonomous_bridge as bridge
+
+        fixtures = sys.modules[__name__]
+        original_dispatch = dispatch
+        captured = {}
+
+        def reject_qa_approval(config, request):
+            if request["action"] == "approve_bound_source_stage":
+                request = {
+                    **request,
+                    "payload": {**request["payload"], "approved": False},
+                }
+                captured["config"] = config
+            result = original_dispatch(config, request)
+            if request["action"] == "approve_bound_source_stage":
+                captured["result"] = result
+            return result
+
+        with patch.object(fixtures, "dispatch", side_effect=reject_qa_approval):
+            with self.assertRaises(AssertionError):
+                self.test_org_development_stage_prepares_qa_and_publishes_both_refs()
+        self.assertEqual(captured["result"]["status"], "review_rejected")
+        config = captured["config"]
+        request = {
+            "company_id": config.company_id,
+            "project_id": "experience-project",
+            "lead_agent_id": "experience-sol",
+            "lead_issue_id": "experience-lead",
+            "stage_key": "MEM10",
+        }
+        rejected = original_dispatch(
+            config,
+            {
+                "action": "lookup_source_stage_binding",
+                "payload": {**request, "attempt": 1},
+            },
+        )
+        self.assertEqual(rejected["operation_state"], "review_rejected")
+        self.assertIs(rejected["operation_review_approved"], False)
+        self.assertEqual(rejected["canonical_status"], "prepared")
+        accepted = {
+            **rejected,
+            "attempt": 3,
+            "stage_binding_key": "f" * 64,
+            "operation_key": "e" * 64,
+            "operation_state": "published",
+            "operation_review_approved": True,
+            "canonical_status": "published",
+            "canonical_approved_receipt_digest": rejected["canonical_receipt_digest"],
+            "operation_source_stage_binding": "f" * 64,
+            "candidate_stage_binding_key": "f" * 64,
+            "source_receipt_digest": "a" * 64,
+        }
+
+        def lookup(_config, payload):
+            if payload["attempt"] == 1:
+                return rejected
+            if payload["attempt"] == 3:
+                return accepted
+            return {"found": False, "attempt": payload["attempt"]}
+
+        with patch.object(bridge, "lookup_source_stage_binding", side_effect=lookup):
+            found = bridge._lookup_published_stage_predecessor(
+                config,
+                {**request, "published_predecessor_lookup": True, "successor_stage_key": "MEM11"},
+                set(request),
+            )
+        self.assertEqual(found["attempt"], 3)
+        self.assertEqual(found["canonical_status"], "published")
 
     def test_org_development_stage_prepares_qa_and_publishes_both_refs(self):
         from engineering.paperclip_autonomous_bridge import _load_journal

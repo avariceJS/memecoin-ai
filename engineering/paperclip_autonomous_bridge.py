@@ -1246,7 +1246,10 @@ def _lookup_published_stage_predecessor(
         if candidate.get("found") is False:
             continue
         binding_is_exact = (
-            type(candidate.get("operation_key")) is str
+            type(candidate.get("attempt")) is int
+            and candidate.get("attempt") == candidate_attempt
+            and candidate.get("found") is True
+            and type(candidate.get("operation_key")) is str
             and OPERATION_RE.fullmatch(candidate["operation_key"])
             and type(candidate.get("stage_binding_key")) is str
             and HASH_RE.fullmatch(candidate["stage_binding_key"])
@@ -1263,7 +1266,15 @@ def _lookup_published_stage_predecessor(
             candidate.get("state") == "active"
             and candidate.get("operation_state") == "review_rejected"
             and candidate.get("operation_review_approved") is False
-            and candidate.get("canonical_status") is None
+            and candidate.get("canonical_status") == "prepared"
+            and candidate.get("canonical_receipt_ref") == predecessor_stage.canonical_ref
+            and type(candidate.get("candidate_sha")) is str
+            and SHA_RE.fullmatch(candidate["candidate_sha"])
+            and type(candidate.get("canonical_candidate_sha")) is str
+            and SHA_RE.fullmatch(candidate["canonical_candidate_sha"])
+            and type(candidate.get("canonical_receipt_digest")) is str
+            and HASH_RE.fullmatch(candidate["canonical_receipt_digest"])
+            and candidate.get("canonical_approved_receipt_digest") is None
         ):
             continue
         if (
