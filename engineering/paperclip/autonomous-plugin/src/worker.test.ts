@@ -286,9 +286,10 @@ describe("Paperclip autonomous bridge tools", () => {
     await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
     const leadRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "lead-1", runId: "lead-run" };
     let sourceGoalId = "foreign-goal";
+    let leadGoalId = "foreign-goal";
     const issue = (id: string) => ({
       id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
-      goalId: id === "source-8" ? sourceGoalId : "goal-1",
+      goalId: id === "lead-issue" ? leadGoalId : id === "source-8" ? sourceGoalId : "goal-1",
       description: id === "source-8" ? "source instructions" : "review instructions",
       projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
       assigneeAgentId: id === "source-8" ? "worker-1" : id === "review-8" ? "reviewer-1" : "lead-1",
@@ -344,6 +345,10 @@ describe("Paperclip autonomous bridge tools", () => {
     });
     registerAutonomousTools(ctx, invoke as never);
     const params = { stage_key: "MEM8", source_issue_id: "source-8", review_issue_id: "review-8" };
+    await expect(handlers.get("bind_source_stage")!(params, leadRun))
+      .rejects.toThrow("host_issue_run_binding_mismatch");
+    expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
+    leadGoalId = "goal-1";
     await expect(handlers.get("bind_source_stage")!(params, leadRun))
       .rejects.toThrow("source_stage_source_admission_mismatch");
     expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
@@ -670,7 +675,7 @@ describe("Paperclip autonomous bridge tools", () => {
         get: vi.fn(async (id: string) => {
           issueReads.push(id);
           if (id === "lead-issue-2") return { id, companyId: "company-1", projectId: "project-1", assigneeAgentId: "lead-2",
-            status: "in_progress", executionRunId: "lead-run", projectWorkspaceId: "workspace-project",
+            goalId: null, status: "in_progress", executionRunId: "lead-run", projectWorkspaceId: "workspace-project",
             executionWorkspaceId: "exec-workspace" } as never;
           if (id === "source-9") return { id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue-2",
             goalId: null,

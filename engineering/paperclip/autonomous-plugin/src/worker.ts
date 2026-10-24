@@ -240,11 +240,13 @@ async function assertPinnedSourceWorkspace(
   ctx: Pick<PluginContext, "issues" | "executionWorkspaces">,
   owner: OwnerConfig,
   issueIds: string[],
+  stage?: NonNullable<OwnerConfig["source_stage_catalog"]>[number],
 ): Promise<void> {
   if (!owner.source_workspace_id || !owner.source_workspace_root) fail("source_workspace_not_owner_configured");
   const issues = await Promise.all(issueIds.map((id) => readNativeIssue(ctx, id, owner.company_id)));
   const executionIds = new Set<string>();
   for (const issue of issues) {
+    if (stage && !stageGoalMatches(issue, owner, stage)) fail("source_stage_goal_binding_mismatch");
     const workspaceIssue = issue as typeof issue & { projectWorkspaceId?: string | null; executionWorkspaceId?: string | null };
     if (workspaceIssue.projectWorkspaceId !== owner.source_workspace_id
         || typeof workspaceIssue.executionWorkspaceId !== "string") fail("source_workspace_issue_binding_mismatch");
@@ -670,6 +672,7 @@ async function assertStageCurrentRun(
   runCtx: ToolRunContext,
   issueId: string,
   allowedStatuses: string[] = ["in_progress"],
+  expectedGoalId?: string | null,
 ): Promise<void> {
   if (![runCtx.companyId, runCtx.projectId, runCtx.agentId, runCtx.runId].every(
     (value) => typeof value === "string" && ID_RE.test(value),
@@ -679,6 +682,7 @@ async function assertStageCurrentRun(
     issue.projectId !== runCtx.projectId
     || issue.assigneeAgentId !== runCtx.agentId
     || issue.executionRunId !== runCtx.runId
+    || (expectedGoalId !== undefined && issue.goalId !== expectedGoalId)
     || !allowedStatuses.includes(issue.status)
   ) fail("host_issue_run_binding_mismatch");
 }
@@ -858,7 +862,7 @@ async function validateStageReviewRun(
   const stage = requireSourceStage(owner, stageKey);
   if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
       || runCtx.agentId !== owner.reviewer_agent_id) fail("reviewer_actor_binding_mismatch");
-  await assertStageCurrentRun(ctx, runCtx, reviewIssueId);
+  await assertStageCurrentRun(ctx, runCtx, reviewIssueId, ["in_progress"], stageGoalId(owner, stage));
   const review = await readNativeIssue(ctx, reviewIssueId, owner.company_id);
   if (review.projectId !== owner.project_id || review.parentId !== owner.finite_lead_issue_id
       || !stageGoalMatches(review, owner, stage)
@@ -917,7 +921,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         fail("source_stage_lead_run_unfinalized");
       }
     } else {
-      await assertRunBoundIssue(ctx, runCtx, owner.finite_lead_issue_id);
+      await assertStageCurrentRun(ctx, runCtx, owner.finite_lead_issue_id, ["in_progress"], stageGoalId(owner, stage));
     }
     const existing = await invoke("lookup_source_stage_binding", {
       company_id: owner.company_id, project_id: owner.project_id,
@@ -1020,7 +1024,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       ctx, owner, stage, params.source_issue_id, params.review_issue_id,
     );
     await assertPinnedSourceWorkspace(
-      ctx, owner, [owner.finite_lead_issue_id, source.id, review.id],
+      ctx, owner, [owner.finite_lead_issue_id, source.id, review.id], stage,
     );
     let predecessor = {
       operation_key: null as string | null, source_issue_id: null as string | null,
@@ -1291,7 +1295,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const stage = requireSourceStage(owner, params.stage_key);
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
         || runCtx.agentId !== owner.worker_agent_id) fail("worker_actor_binding_mismatch");
-    await assertStageCurrentRun(ctx, runCtx, params.source_issue_id);
+    await assertStageCurrentRun(ctx, runCtx, params.source_issue_id, ["in_progress"], stageGoalId(owner, stage));
     const sourceIssue = await readNativeIssue(ctx, params.source_issue_id, owner.company_id);
     if (sourceIssue.projectId !== owner.project_id || sourceIssue.parentId !== owner.finite_lead_issue_id
         || !stageGoalMatches(sourceIssue, owner, stage)
@@ -1299,7 +1303,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const sourceInstructionSha256 = await assertBoundInstruction(
       invoke, owner, stage.stage_key, "source_issue_id", sourceIssue, params.stage_binding_key,
     );
-    await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, sourceIssue.id]);
+    await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, sourceIssue.id], stage);
     const result = await invoke("deliver_source_stage_content", {
       company_id: owner.company_id, project_id: owner.project_id, worker_agent_id: owner.worker_agent_id,
       run_id: runCtx.runId, source_issue_id: params.source_issue_id, stage_key: stage.stage_key,
@@ -1402,7 +1406,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const reviewInstructionSha256 = await assertBoundInstruction(
       invoke, owner, stage.stage_key, "review_issue_id", review, params.stage_binding_key,
     );
-    await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, params.review_issue_id]);
+    await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, params.review_issue_id], stage);
     const result = await invoke("inspect_bound_source_stage", {
       company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
       reviewer_run_id: runCtx.runId, reviewer_issue_id: params.review_issue_id,
@@ -1463,11 +1467,11 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
           || !KEY_RE.test((params.evidence as Record<string, string>).canonical_receipt_digest)
         ))
         || Buffer.byteLength(JSON.stringify(params.evidence), "utf8") > 16_000) fail("source_stage_review_parameters_invalid");
-    const { review } = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    const { stage, review } = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
     const reviewInstructionSha256 = await assertBoundInstruction(
       invoke, owner, params.stage_key, "review_issue_id", review, params.stage_binding_key,
     );
-    await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, params.review_issue_id]);
+    await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, params.review_issue_id], stage);
     const result = await invoke("approve_bound_source_stage", {
       company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
       reviewer_run_id: runCtx.runId, reviewer_issue_id: params.review_issue_id,

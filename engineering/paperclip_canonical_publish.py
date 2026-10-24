@@ -18,8 +18,7 @@ import tempfile
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 SCHEMA = "paperclip-canonical-content-v1"
 ALLOWED_PATHS = (
@@ -127,7 +126,10 @@ def _paths(allowed_paths: tuple[str, ...] | list[str]) -> tuple[str, ...]:
             or not path.startswith(("src/", "tests/", "engineering/"))
             for path in paths
         )
-        or not any(path.startswith("src/") or (path.startswith("engineering/") and "/tests/" not in path) for path in paths)
+        or not any(
+            path.startswith("src/") or (path.startswith("engineering/") and "/tests/" not in path)
+            for path in paths
+        )
         or not any(path.startswith("tests/") or "/tests/" in path for path in paths)
     ):
         raise CanonicalPublishError("owner-pinned canonical path set is invalid")
@@ -333,9 +335,7 @@ def _serialized(repo: Path, ref: str) -> Iterator[None]:
             os.close(fd)
 
 
-def _check_candidate(
-    repo: Path, ref: str, receipt: dict, allowed_paths: tuple[str, ...]
-) -> None:
+def _check_candidate(repo: Path, ref: str, receipt: dict, allowed_paths: tuple[str, ...]) -> None:
     _validate_receipt(receipt, allowed_paths)
     if receipt["repo"] != str(repo) or receipt["ref"] != ref:
         raise CanonicalPublishError("receipt canonical target differs from caller-pinned target")

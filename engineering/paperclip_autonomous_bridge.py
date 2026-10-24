@@ -35,7 +35,12 @@ from engineering.confinement import (  # noqa: E402
     SandboxRunner,
     python_runtime_roots,
 )
-from engineering.git_gate import OWNER_CAS_REFS, Candidate, GitGate, VerificationPolicy  # noqa: E402
+from engineering.git_gate import (  # noqa: E402
+    OWNER_CAS_REFS,
+    Candidate,
+    GitGate,
+    VerificationPolicy,
+)
 from engineering.paperclip_git_broker import (  # noqa: E402
     OperationBinding,
     PaperclipGitBroker,
@@ -466,7 +471,9 @@ def _restore_rejected_workspace_seed(
         raise BridgeError("source_stage_retry_seed_artifact_mismatch")
     try:
         stage_key = retry_binding.get("stage_key")
-        path_ids = config.source_stage(stage_key).path_ids if type(stage_key) is str else SOURCE_PATHS
+        path_ids = (
+            config.source_stage(stage_key).path_ids if type(stage_key) is str else SOURCE_PATHS
+        )
         seed = snapshot_records(archive["files"], path_ids)
         accepted_base = snapshot_records(
             _snapshot_owner_workspace(config.source_workspace_root, path_ids), path_ids
@@ -876,30 +883,36 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             _stage_binding(config, previous_binding) if type(previous_binding) is str else None
         )
         prior_spec = config.source_stage(stage.predecessor_stage_key)
-        cross_project_predecessor = (
-            (prior_spec.project_id or config.project_id) != (stage.project_id or config.project_id)
-            or (prior_spec.lead_issue_id or config.finite_lead_issue_id)
-            != (stage.lead_issue_id or config.finite_lead_issue_id)
+        cross_project_predecessor = (prior_spec.project_id or config.project_id) != (
+            stage.project_id or config.project_id
+        ) or (prior_spec.lead_issue_id or config.finite_lead_issue_id) != (
+            stage.lead_issue_id or config.finite_lead_issue_id
         )
         predecessor_native_valid = (
-            payload.get("predecessor_lead_issue_id")
-            == (prior_spec.lead_issue_id or config.finite_lead_issue_id)
-            and payload["predecessor_source_status"] is None
-            and payload["predecessor_source_version"] is None
-            and payload["predecessor_review_status"] is None
-            and payload["predecessor_review_version"] is None
-            and payload["predecessor_dependency_ready"] is True
-        ) if cross_project_predecessor else (
-            payload.get("predecessor_lead_issue_id") is None
-            and payload["predecessor_source_status"] == "done"
-            and payload["predecessor_review_status"] == "done"
-            and type(payload["predecessor_source_version"]) is int
-            and payload["predecessor_source_version"] >= 0
-            and type(payload["predecessor_review_version"]) is int
-            and payload["predecessor_review_version"] >= 0
-            and payload["predecessor_dependency_ready"] is True
-            and payload["predecessor_source_version"] != (prior_stage or {}).get("source_version")
-            and payload["predecessor_review_version"] != (prior_stage or {}).get("review_version")
+            (
+                payload.get("predecessor_lead_issue_id")
+                == (prior_spec.lead_issue_id or config.finite_lead_issue_id)
+                and payload["predecessor_source_status"] is None
+                and payload["predecessor_source_version"] is None
+                and payload["predecessor_review_status"] is None
+                and payload["predecessor_review_version"] is None
+                and payload["predecessor_dependency_ready"] is True
+            )
+            if cross_project_predecessor
+            else (
+                payload.get("predecessor_lead_issue_id") is None
+                and payload["predecessor_source_status"] == "done"
+                and payload["predecessor_review_status"] == "done"
+                and type(payload["predecessor_source_version"]) is int
+                and payload["predecessor_source_version"] >= 0
+                and type(payload["predecessor_review_version"]) is int
+                and payload["predecessor_review_version"] >= 0
+                and payload["predecessor_dependency_ready"] is True
+                and payload["predecessor_source_version"]
+                != (prior_stage or {}).get("source_version")
+                and payload["predecessor_review_version"]
+                != (prior_stage or {}).get("review_version")
+            )
         )
         if (
             previous.get("state") != "published"
@@ -918,7 +931,9 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
             "source_issue_id"
         ) or payload.get("predecessor_review_issue_id") != prior_stage.get("review_issue_id"):
             raise BridgeError("source_stage_predecessor_identity_mismatch")
-        binding_value["predecessor_lead_issue_id"] = prior_spec.lead_issue_id or config.finite_lead_issue_id
+        binding_value["predecessor_lead_issue_id"] = (
+            prior_spec.lead_issue_id or config.finite_lead_issue_id
+        )
         try:
             binding_value["base_sha"] = previous["candidate"]["candidate_sha"]
         except (KeyError, TypeError):
@@ -1039,13 +1054,19 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                 target_config = _stage_target_config(config, stage, binding_value["base_sha"])
                 gate = target_config.gate()
                 if (
-                    gate._ref_sha(target_config.publisher_repo, target_config.expected_dev_ref, missing_ok=True)
+                    gate._ref_sha(
+                        target_config.publisher_repo,
+                        target_config.expected_dev_ref,
+                        missing_ok=True,
+                    )
                     != binding_value["base_sha"]
                 ):
                     raise BridgeError("source_stage_retry_projected_base_changed")
                 if (
                     target_config.canonical_repo is not None
-                    and gate._ref_sha(target_config.canonical_repo, target_config.canonical_ref, missing_ok=True)
+                    and gate._ref_sha(
+                        target_config.canonical_repo, target_config.canonical_ref, missing_ok=True
+                    )
                     != binding_value["canonical_base_sha"]
                 ):
                     raise BridgeError("source_stage_retry_canonical_base_changed")
@@ -1198,7 +1219,8 @@ def _lookup_published_stage_predecessor(
     if (
         payload.get("company_id") != config.company_id
         or payload.get("project_id") != predecessor_project
-        or payload.get("lead_agent_id") != (predecessor_stage.lead_agent_id or config.finite_lead_agent_id)
+        or payload.get("lead_agent_id")
+        != (predecessor_stage.lead_agent_id or config.finite_lead_agent_id)
         or payload.get("lead_issue_id") != predecessor_lead
         or successor_stage.predecessor_stage_key != predecessor_stage.stage_key
         or (predecessor_project == successor_project and predecessor_lead == successor_lead)
@@ -1219,10 +1241,33 @@ def _lookup_published_stage_predecessor(
                 "attempt": candidate_attempt,
             },
         )
+        if type(candidate) is not dict:
+            raise BridgeError("source_stage_predecessor_state_unknown")
+        if candidate.get("found") is False:
+            continue
+        binding_is_exact = (
+            type(candidate.get("operation_key")) is str
+            and OPERATION_RE.fullmatch(candidate["operation_key"])
+            and type(candidate.get("stage_binding_key")) is str
+            and HASH_RE.fullmatch(candidate["stage_binding_key"])
+            and candidate.get("operation_source_stage_key") == predecessor_stage.stage_key
+            and candidate.get("operation_source_stage_binding")
+            == candidate.get("stage_binding_key")
+            and candidate.get("candidate_stage_binding_key") == candidate.get("stage_binding_key")
+            and type(candidate.get("source_issue_id")) is str
+            and type(candidate.get("review_issue_id")) is str
+        )
+        if not binding_is_exact or candidate.get("activation_pending") is not False:
+            raise BridgeError("source_stage_predecessor_state_unknown")
         if (
-            candidate.get("found") is True
-            and candidate.get("state") == "active"
-            and candidate.get("activation_pending") is False
+            candidate.get("state") == "active"
+            and candidate.get("operation_state") == "review_rejected"
+            and candidate.get("operation_review_approved") is False
+            and candidate.get("canonical_status") is None
+        ):
+            continue
+        if (
+            candidate.get("state") == "active"
             and candidate.get("operation_state") == "published"
             and candidate.get("operation_review_approved") is True
             and candidate.get("canonical_status") == "published"
@@ -1235,15 +1280,12 @@ def _lookup_published_stage_predecessor(
             and SHA_RE.fullmatch(candidate["canonical_candidate_sha"])
             and type(candidate.get("canonical_receipt_digest")) is str
             and HASH_RE.fullmatch(candidate["canonical_receipt_digest"])
-            and candidate.get("canonical_approved_receipt_digest") == candidate.get("canonical_receipt_digest")
-            and candidate.get("operation_source_stage_key") == predecessor_stage.stage_key
-            and candidate.get("operation_source_stage_binding") == candidate.get("stage_binding_key")
-            and candidate.get("candidate_stage_binding_key") == candidate.get("stage_binding_key")
-            and type(candidate.get("operation_key")) is str
-            and type(candidate.get("source_issue_id")) is str
-            and type(candidate.get("review_issue_id")) is str
+            and candidate.get("canonical_approved_receipt_digest")
+            == candidate.get("canonical_receipt_digest")
         ):
             candidates.append(candidate)
+            continue
+        raise BridgeError("source_stage_predecessor_state_unknown")
     if len(candidates) > 1:
         raise BridgeError("source_stage_predecessor_ambiguous")
     if not candidates:
@@ -1277,8 +1319,11 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         raise BridgeError("source_stage_lookup_payload_shape_invalid")
     requested_operation = payload.get("operation_key")
     if requested_operation is not None and (
-        type(requested_operation) is not str or not OPERATION_RE.fullmatch(requested_operation)
-        or "attempt" in payload or "stage_binding_key" in payload or identity_fields & set(payload)
+        type(requested_operation) is not str
+        or not OPERATION_RE.fullmatch(requested_operation)
+        or "attempt" in payload
+        or "stage_binding_key" in payload
+        or identity_fields & set(payload)
     ):
         raise BridgeError("source_stage_lookup_payload_shape_invalid")
     requested_attempt = payload["attempt"] if "attempt" in payload else None
@@ -1397,8 +1442,12 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         )
         result["canonical_status"] = canonical.get("status") if type(canonical) is dict else None
         result["source_receipt_digest"] = operation.get("receipt_digest")
-        result["canonical_candidate_sha"] = canonical.get("candidate") if type(canonical) is dict else None
-        result["canonical_receipt_digest"] = canonical.get("receipt_digest") if type(canonical) is dict else None
+        result["canonical_candidate_sha"] = (
+            canonical.get("candidate") if type(canonical) is dict else None
+        )
+        result["canonical_receipt_digest"] = (
+            canonical.get("receipt_digest") if type(canonical) is dict else None
+        )
         result["canonical_approved_receipt_digest"] = (
             canonical.get("approved_receipt_digest") if type(canonical) is dict else None
         )
@@ -2038,7 +2087,8 @@ class BridgeConfig:
         )
         if any(value is not None for value in canonical_values) and (
             canonical_repo is None
-            or raw.get("canonical_ref") not in {"refs/heads/brain/development", "refs/heads/org/development"}
+            or raw.get("canonical_ref")
+            not in {"refs/heads/brain/development", "refs/heads/org/development"}
             or type(raw.get("canonical_expected_tip")) is not str
             or not SHA_RE.fullmatch(raw["canonical_expected_tip"])
         ):
@@ -2070,27 +2120,44 @@ class BridgeConfig:
         verifier_specs: list[VerifierProfile] = []
         for row in verifier_rows:
             if type(row) is not dict or set(row) != {
-                "policy_id", "commands", "env", "runtime_read_roots"
+                "policy_id",
+                "commands",
+                "env",
+                "runtime_read_roots",
             }:
                 raise BridgeError("owner_config_verifier_catalog_invalid")
             policy_id, commands, env, roots = (
-                row["policy_id"], row["commands"], row["env"], row["runtime_read_roots"]
+                row["policy_id"],
+                row["commands"],
+                row["env"],
+                row["runtime_read_roots"],
             )
             if (
-                type(policy_id) is not str or not ID_RE.fullmatch(policy_id)
-                or type(commands) is not list or not commands
-                or type(env) is not dict or type(roots) is not list
+                type(policy_id) is not str
+                or not ID_RE.fullmatch(policy_id)
+                or type(commands) is not list
+                or not commands
+                or type(env) is not dict
+                or type(roots) is not list
                 or any(
-                    type(command) is not list or not command
+                    type(command) is not list
+                    or not command
                     or any(type(arg) is not str or not arg or "\x00" in arg for arg in command)
                     or not Path(command[0]).is_absolute()
-                    or any(arg not in {"{checkout}", "{candidate_sha}"} and "{" in arg for arg in command)
+                    or any(
+                        arg not in {"{checkout}", "{candidate_sha}"} and "{" in arg
+                        for arg in command
+                    )
                     for command in commands
                 )
-                or any(type(k) is not str or type(v) is not str or "\x00" in k + v for k, v in env.items())
+                or any(
+                    type(k) is not str or type(v) is not str or "\x00" in k + v
+                    for k, v in env.items()
+                )
                 or set(env) - VERIFIER_ENV_KEYS
                 or any(
-                    type(root) is not str or not Path(root).is_absolute()
+                    type(root) is not str
+                    or not Path(root).is_absolute()
                     or ".." in Path(root).parts
                     or Path(root) in {Path("/"), Path("/Users"), Path("/opt"), Path("/tmp")}
                     for root in roots
@@ -2122,7 +2189,7 @@ class BridgeConfig:
             stage_specs: list[SourceStageSpec] = []
             workspace_by_lane: dict[tuple[str, str, str], tuple[Any, Any]] = {}
             target_by_stage: dict[str, tuple[Any, ...]] = {}
-            for index, row in enumerate(stage_rows):
+            for row in stage_rows:
                 stage_keys = {
                     "stage_key",
                     "workspace_id",
@@ -2132,10 +2199,18 @@ class BridgeConfig:
                     "verifier_policy_id",
                 }
                 stage_optional_keys = {
-                    "project_id", "goal_id", "lead_agent_id", "lead_issue_id",
-                    "source_workspace_id", "source_workspace_root",
-                    "source_repo", "publisher_repo", "canonical_repo",
-                    "canonical_ref", "canonical_expected_tip", "expected_dev_ref",
+                    "project_id",
+                    "goal_id",
+                    "lead_agent_id",
+                    "lead_issue_id",
+                    "source_workspace_id",
+                    "source_workspace_root",
+                    "source_repo",
+                    "publisher_repo",
+                    "canonical_repo",
+                    "canonical_ref",
+                    "canonical_expected_tip",
+                    "expected_dev_ref",
                 }
                 if (
                     type(row) is not dict
@@ -2162,10 +2237,19 @@ class BridgeConfig:
                     path_ids = validate_path_ids(path_ids_raw)
                 except SourceDeliveryError as exc:
                     raise BridgeError("owner_config_source_stage_catalog_invalid") from exc
-                lane_ids = (row.get("project_id"), row.get("lead_agent_id"), row.get("lead_issue_id"))
-                if any(value is not None and (type(value) is not str or not ID_RE.fullmatch(value)) for value in lane_ids):
+                lane_ids = (
+                    row.get("project_id"),
+                    row.get("lead_agent_id"),
+                    row.get("lead_issue_id"),
+                )
+                if any(
+                    value is not None and (type(value) is not str or not ID_RE.fullmatch(value))
+                    for value in lane_ids
+                ):
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
-                if any(value is not None for value in lane_ids) and not all(value is not None for value in lane_ids):
+                if any(value is not None for value in lane_ids) and not all(
+                    value is not None for value in lane_ids
+                ):
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
                 if row.get("goal_id") is not None and (
                     type(row["goal_id"]) is not str or not ID_RE.fullmatch(row["goal_id"])
@@ -2175,19 +2259,28 @@ class BridgeConfig:
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
                 stage_workspace = workspace_id
                 task_workspace_id, workspace_root = (
-                    row.get("source_workspace_id"), row.get("source_workspace_root")
+                    row.get("source_workspace_id"),
+                    row.get("source_workspace_root"),
                 )
                 if (task_workspace_id is None) != (workspace_root is None) or (
                     task_workspace_id is not None
                     and (
-                        type(task_workspace_id) is not str or not ID_RE.fullmatch(task_workspace_id)
-                        or type(workspace_root) is not str or not Path(workspace_root).is_absolute()
-                        or ".." in Path(workspace_root).parts or Path(workspace_root) == Path("/")
+                        type(task_workspace_id) is not str
+                        or not ID_RE.fullmatch(task_workspace_id)
+                        or type(workspace_root) is not str
+                        or not Path(workspace_root).is_absolute()
+                        or ".." in Path(workspace_root).parts
+                        or Path(workspace_root) == Path("/")
                     )
                 ):
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
-                repo_values = tuple(row.get(key) for key in ("source_repo", "publisher_repo", "canonical_repo"))
-                if any(value is not None and (type(value) is not str or not Path(value).is_absolute()) for value in repo_values):
+                repo_values = tuple(
+                    row.get(key) for key in ("source_repo", "publisher_repo", "canonical_repo")
+                )
+                if any(
+                    value is not None and (type(value) is not str or not Path(value).is_absolute())
+                    for value in repo_values
+                ):
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
                 if (row.get("source_repo") is None) != (row.get("publisher_repo") is None):
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
@@ -2203,8 +2296,10 @@ class BridgeConfig:
                 if (canonical_ref is None) != (canonical_tip is None) or (
                     canonical_ref is not None
                     and (
-                        canonical_ref not in {"refs/heads/brain/development", "refs/heads/org/development"}
-                        or type(canonical_tip) is not str or not SHA_RE.fullmatch(canonical_tip)
+                        canonical_ref
+                        not in {"refs/heads/brain/development", "refs/heads/org/development"}
+                        or type(canonical_tip) is not str
+                        or not SHA_RE.fullmatch(canonical_tip)
                         or row.get("canonical_repo") is None
                     )
                 ):
@@ -2219,10 +2314,11 @@ class BridgeConfig:
                 if row.get("project_id") not in (None, raw["project_id"]):
                     if task_workspace_id is None:
                         raise BridgeError("owner_config_source_stage_catalog_invalid")
-                    if (
-                        verifier_policy_id != raw.get("verifier_policy_id")
-                        and verifier_policy_id not in {profile.policy_id for profile in verifier_specs}
-                    ):
+                    if verifier_policy_id != raw.get(
+                        "verifier_policy_id"
+                    ) and verifier_policy_id not in {
+                        profile.policy_id for profile in verifier_specs
+                    }:
                         raise BridgeError("owner_config_source_stage_catalog_invalid")
                 lane = tuple(
                     row.get(field, raw.get(default))
@@ -2238,8 +2334,12 @@ class BridgeConfig:
                 target_identity = tuple(
                     row.get(key, raw.get(key))
                     for key in (
-                        "source_repo", "publisher_repo", "canonical_repo", "canonical_ref",
-                        "canonical_expected_tip", "expected_dev_ref",
+                        "source_repo",
+                        "publisher_repo",
+                        "canonical_repo",
+                        "canonical_ref",
+                        "canonical_expected_tip",
+                        "expected_dev_ref",
                     )
                 )
                 if prior_workspace != workspace_identity:
@@ -2285,8 +2385,12 @@ class BridgeConfig:
                         task_workspace_id,
                         Path(workspace_root) if workspace_root is not None else None,
                         Path(row["source_repo"]) if row.get("source_repo") is not None else None,
-                        Path(row["publisher_repo"]) if row.get("publisher_repo") is not None else None,
-                        Path(row["canonical_repo"]) if row.get("canonical_repo") is not None else None,
+                        Path(row["publisher_repo"])
+                        if row.get("publisher_repo") is not None
+                        else None,
+                        Path(row["canonical_repo"])
+                        if row.get("canonical_repo") is not None
+                        else None,
                         canonical_ref,
                         canonical_tip,
                         lane_ref,
@@ -2523,7 +2627,11 @@ class BridgeConfig:
         source_repo: Path | None = None,
     ) -> BridgeConfig:
         profile = next(
-            (item for item in self.verifier_policy_catalog if item.policy_id == stage.verifier_policy_id),
+            (
+                item
+                for item in self.verifier_policy_catalog
+                if item.policy_id == stage.verifier_policy_id
+            ),
             None,
         )
         return replace(
@@ -2549,7 +2657,9 @@ class BridgeConfig:
             verifier_commands=profile.commands if profile is not None else self.verifier_commands,
             verifier_env=profile.env if profile is not None else self.verifier_env,
             verifier_runtime_read_roots=(
-                profile.runtime_read_roots if profile is not None else self.verifier_runtime_read_roots
+                profile.runtime_read_roots
+                if profile is not None
+                else self.verifier_runtime_read_roots
             ),
             expected_base_sha=base_sha,
             canonical_base_sha=(
@@ -2564,7 +2674,11 @@ def _stage_target_config(
     config: BridgeConfig, stage: SourceStageSpec, base_sha: str
 ) -> BridgeConfig:
     profile = next(
-        (item for item in config.verifier_policy_catalog if item.policy_id == stage.verifier_policy_id),
+        (
+            item
+            for item in config.verifier_policy_catalog
+            if item.policy_id == stage.verifier_policy_id
+        ),
         None,
     )
     target_ref = stage.expected_dev_ref or config.expected_dev_ref
@@ -2583,7 +2697,9 @@ def _stage_target_config(
         verifier_commands=profile.commands if profile is not None else config.verifier_commands,
         verifier_env=profile.env if profile is not None else config.verifier_env,
         verifier_runtime_read_roots=(
-            profile.runtime_read_roots if profile is not None else config.verifier_runtime_read_roots
+            profile.runtime_read_roots
+            if profile is not None
+            else config.verifier_runtime_read_roots
         ),
     )
 
@@ -2824,10 +2940,7 @@ def prepare_source_content(
     base_sha = payload.get("base_sha")
     if type(base_sha) is not str or not SHA_RE.fullmatch(base_sha):
         raise BridgeError("source_base_sha_invalid")
-    if (
-        config.expected_dev_ref in OWNER_CAS_REFS
-        and base_sha != config.expected_base_sha
-    ):
+    if config.expected_dev_ref in OWNER_CAS_REFS and base_sha != config.expected_base_sha:
         raise BridgeError("development_base_not_owner_admitted")
     content_paths = config.allowed_scope if stage_binding_key is not None else SOURCE_PATHS
     try:
@@ -2884,7 +2997,11 @@ def _prepare_source_content_locked(
     canonical_record = None
     if config.canonical_repo is not None:
         canonical_base_sha = config.canonical_base_sha or config.canonical_expected_tip
-        if config.canonical_ref not in {"refs/heads/brain/development", "refs/heads/org/development"} or not canonical_base_sha:
+        if (
+            config.canonical_ref
+            not in {"refs/heads/brain/development", "refs/heads/org/development"}
+            or not canonical_base_sha
+        ):
             discard_projection(gate, projection)
             raise BridgeError("canonical_owner_binding_invalid")
         try:
@@ -3271,7 +3388,8 @@ def inspect_bound_source_stage(config: BridgeConfig, payload: dict[str, Any]) ->
         record.get("stage_key") != payload["stage_key"]
         or record.get("review_issue_id") != payload["reviewer_issue_id"]
         or payload.get("company_id") != config.company_id
-        or payload.get("project_id") != (config.source_stage(record["stage_key"]).project_id or config.project_id)
+        or payload.get("project_id")
+        != (config.source_stage(record["stage_key"]).project_id or config.project_id)
         or payload.get("reviewer_agent_id") != config.reviewer_agent_id
         or payload.get("review_instruction_sha256") != record.get("review_instruction_sha256")
         or type(payload.get("reviewer_run_id")) is not str
@@ -3319,7 +3437,8 @@ def approve_bound_source_stage(config: BridgeConfig, payload: dict[str, Any]) ->
         record.get("stage_key") != payload["stage_key"]
         or record.get("review_issue_id") != payload["reviewer_issue_id"]
         or payload.get("company_id") != config.company_id
-        or payload.get("project_id") != (config.source_stage(record["stage_key"]).project_id or config.project_id)
+        or payload.get("project_id")
+        != (config.source_stage(record["stage_key"]).project_id or config.project_id)
         or payload.get("reviewer_agent_id") != config.reviewer_agent_id
         or payload.get("review_instruction_sha256") != record.get("review_instruction_sha256")
     ):

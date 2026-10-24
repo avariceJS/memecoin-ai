@@ -14,8 +14,7 @@ import shutil
 import stat
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from engineering.git_gate import GitGate, GitGateError
@@ -47,7 +46,10 @@ def validate_path_ids(path_ids: Any) -> tuple[str, ...]:
             for path in paths
         )
         or len(set(paths)) != len(paths)
-        or not any(path.startswith("src/") or (path.startswith("engineering/") and "/tests/" not in path) for path in paths)
+        or not any(
+            path.startswith("src/") or (path.startswith("engineering/") and "/tests/" not in path)
+            for path in paths
+        )
         or not any(path.startswith("tests/") or "/tests/" in path for path in paths)
     ):
         raise SourceDeliveryError("source_path_manifest_invalid")
@@ -146,7 +148,9 @@ def materialize_owner_projection(
     if not isinstance(snapshot, SourceSnapshot):
         raise SourceDeliveryError("source_snapshot_invalid")
     allowed = validate_path_ids(
-        allowed_paths if allowed_paths is not None else tuple(item.path_id for item in snapshot.files)
+        allowed_paths
+        if allowed_paths is not None
+        else tuple(item.path_id for item in snapshot.files)
     )
     if tuple(item.path_id for item in snapshot.files) != allowed:
         raise SourceDeliveryError("source_file_set_incomplete")

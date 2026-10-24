@@ -110,7 +110,9 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
             "tests/test_experience.py",
             "tests/test_experience_schema.py",
         )
-        snapshot = snapshot_records(manifest_records(paths, ("source\n", "test-a\n", "test-b\n")), paths)
+        snapshot = snapshot_records(
+            manifest_records(paths, ("source\n", "test-a\n", "test-b\n")), paths
+        )
         self.assertEqual(tuple(item.path_id for item in snapshot.files), paths)
         for invalid in (
             ("src/module.py", "tests/test.py", "tests/../escape.py"),
@@ -118,7 +120,10 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
             ("src/module.py", "tests/test.py", "/tmp/outside.py"),
             ("src/module.py", "docs/readme.md"),
         ):
-            with self.subTest(invalid=invalid), self.assertRaisesRegex(SourceDeliveryError, "manifest_invalid"):
+            with (
+                self.subTest(invalid=invalid),
+                self.assertRaisesRegex(SourceDeliveryError, "manifest_invalid"),
+            ):
                 snapshot_records(manifest_records(invalid, tuple("x" for _ in invalid)), invalid)
 
     def test_non_senses_manifest_publishes_only_changed_subset(self):
@@ -139,10 +144,15 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
                 target.write_text(content)
             base = commit(source, "base")
             publisher = root / "publisher"
-            subprocess.run(["git", "clone", str(source), str(publisher)], check=True, capture_output=True)
-            gate = GitGate(source, publisher, VerificationPolicy((("/usr/bin/true",),)), root / "receipts")
+            subprocess.run(
+                ["git", "clone", str(source), str(publisher)], check=True, capture_output=True
+            )
+            gate = GitGate(
+                source, publisher, VerificationPolicy((("/usr/bin/true",),)), root / "receipts"
+            )
             snapshot = snapshot_records(
-                manifest_records(paths, (old_contents[0], "first test changed\n", old_contents[2])), paths
+                manifest_records(paths, (old_contents[0], "first test changed\n", old_contents[2])),
+                paths,
             )
             projection = materialize_owner_projection(gate, base, snapshot, allowed_paths=paths)
             try:
@@ -150,7 +160,9 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
                     projection.checkout, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"
                 ).splitlines()
                 self.assertEqual(changed, [paths[1]])
-                self.assertEqual((projection.checkout / paths[1]).read_text(), "first test changed\n")
+                self.assertEqual(
+                    (projection.checkout / paths[1]).read_text(), "first test changed\n"
+                )
             finally:
                 discard_projection(gate, projection)
 
