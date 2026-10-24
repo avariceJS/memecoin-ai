@@ -11,42 +11,56 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
-## Current verified capability and final autonomy gate — 2026-10-24
+## Bounded founder MVP verified — 2026-10-24
 
-The founder explicitly resumed the MVP program; ordinary technical failures do not terminate it. Sol
-owns execution and technical decisions, Luna implementation, separate Sol review. No paid fallback,
-replacement Goal/scheduler or protected/runtime/trading authority was added. Paperclip still owns
-native tasks, dependencies, corrections and lifecycle; the bridge handles artifacts, review and Git.
+Independent Sol audit confirms all six founder criteria within the admitted scope: six real engineering
+lanes, useful source/test/independent-QA/correction/publication cycles, native successor continuation,
+parallel Platform capability, useful work after the actual outer CEO turn, and preserved bounded STOP
+controls. Paperclip owns native lifecycle; the bridge owns artifacts, fixed verification and safe Git
+publication. No replacement Goal/scheduler or broader source/runtime authority was introduced.
 
-All six departments have accepted engineering evidence: preserved Senses, Experience MEM-10, Platform
-MEM-58, Cortex MEM-13, Evaluation MEM-15 and Policy MEM-16. New canonical Brain results are0241414,
-c6529c5,fd7bd86,384b25d; Platform result61e8b3c is integrated in org. These are source capabilities, not
-scientific/execution-quality or production-readiness claims. Cortex evidence is bounded to its admitted
-paths and asserted input identities. Independent QA rejected two Cortex attempts and one Evaluation
-attempt before accepting corrections. Mandatory final verifiers and LOCAL dual publication remained
-enforced. Separate GitHub checkpoints must not be described as automatic remote publication.
+Preserved Senses and accepted Experience MEM-10, Platform MEM-58, Cortex MEM-13, Evaluation MEM-15 and
+Policy MEM-16 establish the six capabilities. Brain canonical results0241414,c6529c5,fd7bd86,384b25d and
+Platform61e8b3c are retained. Native13→15→16→11 successors followed terminal leads without owner dispatch;
+Cortex had two independent QA corrections and Evaluation one. Platform lead overlapped Brain source;
+shared Luna source capacity remains serial. Source capability is not scientific/trading/production proof.
 
-Native status/dependency events produced MEM-13→15 and15→16 after predecessor leader termination,
-with no owner API after the16:15 factual-ACK reconciliation anchor. Policy completed and native MEM-11
-started without manual dispatch. This establishes bounded autonomous successor/correction behavior.
-Actual useful work after the outer CEO turn completes remains the final MVP evidence gate. Compare the
-exact root session final_answer/task_complete timestamp with strictly later native useful events;
-pre-final markers and server liveness are insufficient. Sol owns the finite remaining11/12/14/17 tasks
-and evidence audit. Do not replay already-running11; reconcile only exact remaining historical holds.
+Actual outer CEO final_answer17:19:45.989 UTC was followed by task_complete17:19:46.244. The first later QA
+run only held, and its erroneous derived useful-result label is explicitly rejected. Sol then performed
+independently reviewed exact managed-role maintenance for MEM-11/QA76. The second observation window
+produced substantive independent QA76, native MEM-11 completion, and the complete normal MEM-12 engineering
+cycle: source77, independent QA78, passing registered preflight and mandatory final verifier, LOCAL dual
+publication of projectedc411d1df/canonicalf86c94ae. Native MEM-12 terminal17:43:27.050→MEM-14 start17:43:27.175
+(+125ms) used native_status_decision/issue_blockers_resolved. Full recorded user-action audit after the
+17:37:34.017539 anchor through17:45:49.240134 returned zero/no cursor. Root remained ended throughout.
+This is bounded practical continuation after disclosed repair, not uninterrupted or endurance autonomy.
 
-Current accepted source: controllerc974d92, nativeaa0cdc, loaded server86350/plugin3751. Independent
-reviews cover native queue promotion, truthful local workspace settlement and deterministic accepted-base
-context through existing tools. Context transport was validated through actual native execution at70,751
-bytes without truncation. Original failed operations, rejected candidates, dirty bytes and unknown
-accounting remain preserved. Assisted recovery/backfill is distinct from later autonomous intervals.
-Historical routing recovered on unchanged Codex0.160.0; exact outage cause remains unknown. Existing
-bounded STOP evidence is retained. The old broad806-test result is historical; six unchanged lint failures
-still prevent a blanket full-release-check green claim. Backup integrity is not restore qualification.
+MEM-11 was accepted as an unchanged objective after exact two-path accepted-base comparison, distinct
+registered fixed verification and independent native merits. No fake diff, empty commit, new candidate,
+bridge approval or publication was created. Original d2fd unknown remains. The future-only catalog begins MEM-12 at
+the actual published MEM-16 checkpoint, preserving native12→11 and the later14→12/17→14 lineage. The initial-stage branch relies on
+native readiness/current admitted run rather than independently rechecking the entire dependency set per
+bind; that existing bounded limit is explicit. Strict changed-source gates remain for subsequent tasks.
 
-Current machine-readable evidence lives in private `state/resumption-20261024-routing-recovery/`:
-five first-useful-publication receipts, native transition receipts, context/local recovery reviews and
-loaded custody packets. Consult the current private HANDOFF before operational actions. Historical
-sections below preserve prior outcomes and do not override the founder's resumed authority.
+Controllerc974d92/nativeaa0cdc remain loaded as server86350/plugin3751 with seven schemas. The separate
+fd resolve_review tool capability restoration was independently accepted; exact QA/lead no-change role
+exceptions are limited to76/11. Subscription/high identities and protected roots remain. Accepted context
+transport carried70,751 bytes intact. Failed operations, rejected artifacts, dirty bytes, historical
+holds and accounting unknowns remain preserved. Historical806-test acceptance does not erase six known
+baseline lint findings; backup integrity does not establish restore qualification. Existing bounded STOP
+evidence is retained without replay. No market collection, training, AUTO/trading, main/production,
+protected-data access, paid fallback or unknown-operation replay is authorized by the MVP verdict.
+
+Automatic dual publication is LOCAL. Separate ordinary GitHub custody confirms Brainf86c94ae and org
+ancestry containing Platform61e/controllerc974; subsequent documentation commits do not change loaded
+source. MEM-14/17 continue as finite authorized native work, not extra MVP prerequisites. Consult private
+`state/HANDOFF.md` for fresh live state before action.
+
+Final independent delta: private `state/resumption-20261024-routing-recovery/post-root-final-audit/`
+`independent-bounded-founder-mvp-final-audit-20261024T174549Z.json`, SHA-256
+`e5ff9881c0442a8c9dd27b35c7ee190f0b571086dd9ae2d99b02d6dfecbe3c11`.
+It reuses accepted core/Platform/STOP evidence and records the failed first window and post-root assistance;
+it does not repeat source/admission/STOP tests. Historical sections below preserve prior outcomes only.
 
 ## MVP resumption outcome — 2026-10-24: native routing hold
 
