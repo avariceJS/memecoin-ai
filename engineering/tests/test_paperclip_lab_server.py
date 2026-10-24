@@ -132,7 +132,10 @@ class PaperclipLabServerTests(unittest.TestCase):
         )
         self.assertEqual(pin["source_review_chain"][-1]["commit"], PAPERCLIP_PIN)
         self.assertEqual(pin["source_review_chain"][-1]["status"], "accepted_source_only")
-        self.assertEqual(pin["source_review_chain"][-2]["commit"], "16ae5c543a18db635a03c14f81e4ab7921d9c9a6")
+        self.assertEqual(
+            pin["source_review_chain"][-2]["commit"],
+            "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
+        )
         reviewed_commits = {record["commit"] for record in pin["source_review_chain"]}
         self.assertNotIn("a0cdea58195eed97c6f1ba4518c88826c778bb02", reviewed_commits)
         self.assertNotIn("35fbfa29a1b2ebaf81019d8022fdf60d70628ead", reviewed_commits)
@@ -155,7 +158,10 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(
             pin["source_history"][0]["commit"], "d142b1dee5c25980169109f0d6161a8c4c7380a2"
         )
-        self.assertEqual(pin["prior_accepted_source_review"]["commit"], "16ae5c543a18db635a03c14f81e4ab7921d9c9a6")
+        self.assertEqual(
+            pin["prior_accepted_source_review"]["commit"],
+            "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
+        )
         self.assertEqual(
             pin["prior_accepted_source_review"]["receipt_sha256"],
             "8151ea3ff6ab3198c75e4c335885a46752c17ef9e5f2a8de3bc71070f2411bf6",
@@ -172,7 +178,8 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertIn("16ae5c543a18db635a03c14f81e4ab7921d9c9a6", PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn("d2f6dedfe456473e7cf74799a1ac687ea90a1484", PAPERCLIP_STOP_CUSTODY_PINS)
         rejected_intermediate = next(
-            record for record in pin["source_history"]
+            record
+            for record in pin["source_history"]
             if record["commit"] == "d2f6dedfe456473e7cf74799a1ac687ea90a1484"
         )
         self.assertEqual(rejected_intermediate["status"], "rejected")
