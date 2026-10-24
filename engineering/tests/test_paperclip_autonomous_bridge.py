@@ -1294,8 +1294,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 "schema": "paperclip-autonomous-operation-v1",
                 "operation_key": operation_key,
                 "state": "published",
+                "source_stage_key": "MEM8",
                 "source_stage_binding": first["stage_binding_key"],
-                "candidate": {"operation_key": operation_key, "candidate_sha": "d" * 40},
+                "candidate": {"operation_key": operation_key, "stage_binding_key": first["stage_binding_key"],
+                              "candidate_sha": "d" * 40},
             },
             create=True,
         )
@@ -2494,6 +2496,76 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(final_operation["canonical"]["status"], "prepared")
         self.assertEqual(final_operation["candidate"]["candidate_sha"], prepared["candidate_sha"])
 
+    def test_published_predecessor_discovery_scans_all_bounded_attempts(self):
+        from engineering.paperclip_autonomous_bridge import _lookup_published_stage_predecessor
+        from engineering.paperclip_source_delivery import SOURCE_PATHS
+
+        prior_stage = SourceStageSpec(
+            "MEM10", "source", "a" * 40, None, SOURCE_PATHS, "policy-mem10",
+            "experience-project", "experience-goal", "experience-sol", "experience-lead",
+            canonical_repo=Path(self.tmp.name) / "canonical",
+            canonical_ref="refs/heads/org/development",
+        )
+        successor_stage = SourceStageSpec(
+            "MEM11", "source", None, "MEM10", SOURCE_PATHS, "policy-mem11",
+            "cortex-project", "cortex-goal", "cortex-sol", "cortex-lead",
+            canonical_repo=Path(self.tmp.name) / "canonical",
+            canonical_ref="refs/heads/org/development",
+        )
+        config = replace(self.config, source_stage_catalog=(prior_stage, successor_stage))
+        request = {
+            "company_id": config.company_id,
+            "project_id": "experience-project",
+            "lead_agent_id": "experience-sol",
+            "lead_issue_id": "experience-lead",
+            "stage_key": "MEM10",
+            "published_predecessor_lookup": True,
+            "successor_stage_key": "MEM11",
+        }
+        accepted = {
+            "found": True, "attempt": 3, "state": "active", "activation_pending": False,
+            "operation_state": "published", "operation_review_approved": True,
+            "canonical_status": "published", "operation_key": "f" * 64,
+            "source_issue_id": "mem10-source", "review_issue_id": "mem10-review",
+            "candidate_sha": "a" * 40, "source_receipt_digest": "b" * 64,
+            "canonical_candidate_sha": "c" * 40, "canonical_receipt_digest": "d" * 64,
+            "canonical_approved_receipt_digest": "d" * 64,
+            "canonical_receipt_ref": "refs/heads/org/development",
+            "stage_binding_key": "e" * 64,
+            "operation_source_stage_key": "MEM10",
+            "operation_source_stage_binding": "e" * 64,
+            "candidate_stage_binding_key": "e" * 64,
+        }
+        calls = []
+
+        def stage_lookup(_config, payload):
+            calls.append(payload["attempt"])
+            return accepted if payload["attempt"] == 3 else {"found": False}
+
+        with patch("engineering.paperclip_autonomous_bridge.lookup_source_stage_binding", side_effect=stage_lookup):
+            result = _lookup_published_stage_predecessor(
+                config,
+                request,
+                {"company_id", "project_id", "lead_agent_id", "lead_issue_id", "stage_key"},
+            )
+        self.assertEqual(calls, [1, 2, 3])
+        self.assertEqual(result, accepted)
+
+        calls.clear()
+
+        def ambiguous_lookup(_config, payload):
+            calls.append(payload["attempt"])
+            return accepted if payload["attempt"] in {1, 3} else {"found": False}
+
+        with patch("engineering.paperclip_autonomous_bridge.lookup_source_stage_binding", side_effect=ambiguous_lookup):
+            with self.assertRaisesRegex(BridgeError, "source_stage_predecessor_ambiguous"):
+                _lookup_published_stage_predecessor(
+                    config,
+                    request,
+                    {"company_id", "project_id", "lead_agent_id", "lead_issue_id", "stage_key"},
+                )
+        self.assertEqual(calls, [1, 2, 3])
+
     def test_org_development_stage_prepares_qa_and_publishes_both_refs(self):
         from engineering.paperclip_autonomous_bridge import _load_journal
         from engineering.paperclip_source_delivery import SOURCE_PATHS
@@ -2541,6 +2613,13 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             canonical_repo=canonical, canonical_ref="refs/heads/org/development",
             canonical_expected_tip=base, expected_dev_ref="refs/heads/org/development",
         )
+        successor_stage = SourceStageSpec(
+            "MEM11", "source", None, "MEM10", SOURCE_PATHS, policy_id,
+            "cortex-project", "cortex-goal", "cortex-sol", "cortex-lead",
+            source_repo=source, publisher_repo=publisher,
+            canonical_repo=canonical, canonical_ref="refs/heads/org/development",
+            canonical_expected_tip=base, expected_dev_ref="refs/heads/org/development",
+        )
         config = replace(
             self.config,
             source_issue_id=None,
@@ -2561,7 +2640,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             expected_base_sha=base,
             finite_lead_agent_id="experience-sol",
             finite_lead_issue_id="experience-lead",
-            source_stage_catalog=(stage,),
+            source_stage_catalog=(stage, successor_stage),
             canonical_repo=canonical,
             canonical_ref="refs/heads/brain/development",
             canonical_expected_tip=base,
@@ -2624,6 +2703,26 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(operation["state"], "published")
         self.assertEqual(operation["binding"]["active_ref"], "refs/heads/org/development")
         self.assertEqual(operation["canonical"]["receipt"]["ref"], "refs/heads/org/development")
+        predecessor = dispatch(config, {"action": "lookup_source_stage_binding", "payload": {
+            "company_id": config.company_id, "project_id": "experience-project",
+            "lead_agent_id": "experience-sol", "lead_issue_id": "experience-lead",
+            "stage_key": "MEM10", "published_predecessor_lookup": True,
+            "successor_stage_key": "MEM11",
+        }})
+        self.assertEqual(predecessor["attempt"], 1)
+        self.assertEqual(predecessor["operation_key"], prepared["operation_key"])
+        self.assertEqual(predecessor["source_issue_id"], "mem10-source")
+        self.assertEqual(predecessor["review_issue_id"], "mem10-review")
+        self.assertEqual(predecessor["operation_review_approved"], True)
+        self.assertEqual(predecessor["operation_state"], "published")
+        self.assertEqual(predecessor["canonical_status"], "published")
+        with self.assertRaisesRegex(BridgeError, "source_stage_predecessor_not_owner_admitted"):
+            dispatch(config, {"action": "lookup_source_stage_binding", "payload": {
+                "company_id": config.company_id, "project_id": "experience-project",
+                "lead_agent_id": "experience-sol", "lead_issue_id": "experience-lead",
+                "stage_key": "MEM10", "published_predecessor_lookup": True,
+                "successor_stage_key": "MEM10",
+            }})
 
     def test_rejected_working_seed_restores_only_the_exact_admitted_file_snapshot(self):
         from engineering.paperclip_source_delivery import (

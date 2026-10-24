@@ -272,6 +272,7 @@ describe("Paperclip autonomous bridge tools", () => {
       finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project", source_workspace_root: "/tmp/brain-source-workspace", source_stage_catalog: [{
         stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40),
         predecessor_stage_key: null,
+        goal_id: "goal-1",
         path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
         verifier_policy_id: "policy-mem8",
       }, {
@@ -284,8 +285,10 @@ describe("Paperclip autonomous bridge tools", () => {
     const { writeFile } = await import("node:fs/promises");
     await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
     const leadRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "lead-1", runId: "lead-run" };
+    let sourceGoalId = "foreign-goal";
     const issue = (id: string) => ({
       id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+      goalId: id === "source-8" ? sourceGoalId : "goal-1",
       description: id === "source-8" ? "source instructions" : "review instructions",
       projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
       assigneeAgentId: id === "source-8" ? "worker-1" : id === "review-8" ? "reviewer-1" : "lead-1",
@@ -341,6 +344,10 @@ describe("Paperclip autonomous bridge tools", () => {
     });
     registerAutonomousTools(ctx, invoke as never);
     const params = { stage_key: "MEM8", source_issue_id: "source-8", review_issue_id: "review-8" };
+    await expect(handlers.get("bind_source_stage")!(params, leadRun))
+      .rejects.toThrow("source_stage_source_admission_mismatch");
+    expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
+    sourceGoalId = "goal-1";
     for (const providerType of ["local", "git_worktree", "remote_managed"]) {
       workspaceProviderType = providerType;
       await expect(handlers.get("bind_source_stage")!(params, leadRun)).rejects.toThrow("source_workspace_metadata_mismatch");
@@ -666,9 +673,11 @@ describe("Paperclip autonomous bridge tools", () => {
             status: "in_progress", executionRunId: "lead-run", projectWorkspaceId: "workspace-project",
             executionWorkspaceId: "exec-workspace" } as never;
           if (id === "source-9") return { id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue-2",
+            goalId: null,
             assigneeAgentId: "worker-1", status: "backlog", statusVersion: 1, executionRunId: null,
             description: "source", projectWorkspaceId: "workspace-project", executionWorkspaceId: "exec-workspace" } as never;
           if (id === "review-9") return { id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue-2",
+            goalId: null,
             assigneeAgentId: "reviewer-1", status: "blocked", statusVersion: 1, executionRunId: null,
             description: "review", projectWorkspaceId: "workspace-project", executionWorkspaceId: "exec-workspace" } as never;
           throw new Error("unexpected_child_read");
@@ -694,7 +703,12 @@ describe("Paperclip autonomous bridge tools", () => {
     const invoke = vi.fn(async (_action: string, payload: Record<string, unknown>) => payload.stage_key === "MEM8" ? ({
       found: true, attempt: 2, stage_binding_key: "a".repeat(64), base_sha: "c".repeat(40), state: "active",
       operation_key: "d".repeat(64), source_issue_id: "changed-source", review_issue_id: "review-8",
-      operation_state: "published", operation_review_approved: true, source_instruction_sha256: "e".repeat(64),
+      candidate_sha: "b".repeat(40), source_receipt_digest: "c".repeat(64),
+      canonical_candidate_sha: "d".repeat(40), canonical_receipt_digest: "e".repeat(64),
+      canonical_approved_receipt_digest: "e".repeat(64),
+      canonical_receipt_ref: "refs/heads/org/development",
+      operation_state: "published", operation_review_approved: true, canonical_status: "published",
+      source_instruction_sha256: "e".repeat(64),
       review_instruction_sha256: "f".repeat(64), activation_pending: false,
     }) : ({ found: false, attempt: 1 }));
     registerAutonomousTools(ctx, invoke as never);

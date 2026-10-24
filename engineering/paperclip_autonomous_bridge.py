@@ -1184,6 +1184,73 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
     }
 
 
+def _lookup_published_stage_predecessor(
+    config: BridgeConfig, payload: dict[str, Any], required: set[str]
+) -> dict[str, Any]:
+    if set(payload) != required | {"published_predecessor_lookup", "successor_stage_key"}:
+        raise BridgeError("source_stage_lookup_payload_shape_invalid")
+    predecessor_stage = config.source_stage(payload["stage_key"])
+    successor_stage = config.source_stage(payload["successor_stage_key"])
+    predecessor_project = predecessor_stage.project_id or config.project_id
+    predecessor_lead = predecessor_stage.lead_issue_id or config.finite_lead_issue_id
+    successor_project = successor_stage.project_id or config.project_id
+    successor_lead = successor_stage.lead_issue_id or config.finite_lead_issue_id
+    if (
+        payload.get("company_id") != config.company_id
+        or payload.get("project_id") != predecessor_project
+        or payload.get("lead_agent_id") != (predecessor_stage.lead_agent_id or config.finite_lead_agent_id)
+        or payload.get("lead_issue_id") != predecessor_lead
+        or successor_stage.predecessor_stage_key != predecessor_stage.stage_key
+        or (predecessor_project == successor_project and predecessor_lead == successor_lead)
+        or predecessor_stage.canonical_repo is None
+        or predecessor_stage.canonical_ref is None
+    ):
+        raise BridgeError("source_stage_predecessor_not_owner_admitted")
+    candidates = []
+    for candidate_attempt in range(1, _stage_attempt_limit(predecessor_stage) + 1):
+        candidate = lookup_source_stage_binding(
+            config,
+            {
+                "company_id": payload["company_id"],
+                "project_id": predecessor_project,
+                "lead_agent_id": predecessor_stage.lead_agent_id or config.finite_lead_agent_id,
+                "lead_issue_id": predecessor_lead,
+                "stage_key": predecessor_stage.stage_key,
+                "attempt": candidate_attempt,
+            },
+        )
+        if (
+            candidate.get("found") is True
+            and candidate.get("state") == "active"
+            and candidate.get("activation_pending") is False
+            and candidate.get("operation_state") == "published"
+            and candidate.get("operation_review_approved") is True
+            and candidate.get("canonical_status") == "published"
+            and candidate.get("canonical_receipt_ref") == predecessor_stage.canonical_ref
+            and type(candidate.get("candidate_sha")) is str
+            and SHA_RE.fullmatch(candidate["candidate_sha"])
+            and type(candidate.get("source_receipt_digest")) is str
+            and HASH_RE.fullmatch(candidate["source_receipt_digest"])
+            and type(candidate.get("canonical_candidate_sha")) is str
+            and SHA_RE.fullmatch(candidate["canonical_candidate_sha"])
+            and type(candidate.get("canonical_receipt_digest")) is str
+            and HASH_RE.fullmatch(candidate["canonical_receipt_digest"])
+            and candidate.get("canonical_approved_receipt_digest") == candidate.get("canonical_receipt_digest")
+            and candidate.get("operation_source_stage_key") == predecessor_stage.stage_key
+            and candidate.get("operation_source_stage_binding") == candidate.get("stage_binding_key")
+            and candidate.get("candidate_stage_binding_key") == candidate.get("stage_binding_key")
+            and type(candidate.get("operation_key")) is str
+            and type(candidate.get("source_issue_id")) is str
+            and type(candidate.get("review_issue_id")) is str
+        ):
+            candidates.append(candidate)
+    if len(candidates) > 1:
+        raise BridgeError("source_stage_predecessor_ambiguous")
+    if not candidates:
+        return {"found": False, "stage_key": predecessor_stage.stage_key}
+    return candidates[0]
+
+
 def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
     required = {
         "company_id",
@@ -1192,6 +1259,8 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         "lead_issue_id",
         "stage_key",
     }
+    if type(payload) is dict and payload.get("published_predecessor_lookup") is True:
+        return _lookup_published_stage_predecessor(config, payload, required)
     identity_fields = {"source_issue_id", "review_issue_id"}
     optional_fields = identity_fields | {"attempt", "stage_binding_key", "operation_key"}
     if (
@@ -1310,11 +1379,37 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         operation = _load_journal(config, record["operation_key"])
         review = operation.get("review")
         canonical = operation.get("canonical")
+        candidate = operation.get("candidate")
+        if (
+            operation.get("source_stage_binding") != record.get("stage_binding_key")
+            or operation.get("source_stage_key") != stage.stage_key
+            or type(candidate) is not dict
+            or candidate.get("operation_key") != record.get("operation_key")
+            or candidate.get("stage_binding_key") != record.get("stage_binding_key")
+            or candidate.get("candidate_sha") != record.get("candidate_sha")
+        ):
+            raise BridgeError("source_stage_bind_replay_mismatch")
         result["operation_state"] = operation.get("state")
+        result["operation_source_stage_binding"] = operation.get("source_stage_binding")
+        result["operation_source_stage_key"] = operation.get("source_stage_key")
         result["operation_review_approved"] = (
             review.get("approved") if type(review) is dict else None
         )
         result["canonical_status"] = canonical.get("status") if type(canonical) is dict else None
+        result["source_receipt_digest"] = operation.get("receipt_digest")
+        result["canonical_candidate_sha"] = canonical.get("candidate") if type(canonical) is dict else None
+        result["canonical_receipt_digest"] = canonical.get("receipt_digest") if type(canonical) is dict else None
+        result["canonical_approved_receipt_digest"] = (
+            canonical.get("approved_receipt_digest") if type(canonical) is dict else None
+        )
+        result["canonical_receipt_ref"] = (
+            canonical.get("receipt", {}).get("ref")
+            if type(canonical) is dict and type(canonical.get("receipt")) is dict
+            else None
+        )
+        result["candidate_stage_binding_key"] = (
+            candidate.get("stage_binding_key") if type(candidate) is dict else None
+        )
     return result
 
 
