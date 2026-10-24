@@ -18,8 +18,9 @@ and historical-availability flag (stage 1 canonical `ac8c0014`); and malformed t
 handling with regression tests (stage 2 canonical `06efd663`). Stage 1 and 2 were accepted and published
 under the finite two-stage cycle; stage 2 used the last allowed attempt after a rejected attempt-2 seed.
 No fourth attempt was made. Accepted projected/canonical refs and QA receipts remain as recorded in the
-immutable release packet. MEM-53 analysis is done (v4), and MEM-56's narrow controller wake fix is done (v1); both are
-organization maintenance, not additional Brain source changes. MEM-57 is the remaining consolidation backlog.
+immutable release packet. MEM-53 native analysis is done (v4), and MEM-56's narrow controller wake fix
+is done (v1); both are organization maintenance, not additional Brain source changes. MEM-57 is the
+remaining native cycle-consolidation backlog.
 
 ## Stopped state and remaining queues
 
@@ -35,19 +36,24 @@ admission. The eight department source holds remain board-owned; historical MEM-
 unchanged. The six projects and long-term goals remain preserved, but active goals do not grant execution
 permission. Do not bulk-resume companies, agents, held issues or MEM-57.
 
-Historical recovery holds, old MEM-7C continuation/accounting uncertainty, recovery MEM-5F, cancellation
-and usage records, journals and unfinished intents remain unknown or unresolved, never zero. Empty live-run
+Historical recovery holds, historical old7c749376 continuation/accounting uncertainty and
+recovery5f270934, cancellation and usage records, journals and unfinished intents remain unknown or
+unresolved, never zero. Empty live-run
 and comment queues are not proof of a global generic-wake inventory. Do not repeat acknowledged operations,
-retry old7c, or inspect/retry the refused worker-Git-import path.
+retry historical `old7c749376` or `recovery5f270934`, or reopen the refused Git-import WIP. That WIP
+remains held as historical work and is not the current admission blocker.
 
 ## Next session — only after explicit founder resumption
 
-Read the STOP handoff, final receipt, pins, backups and pending intents first. Verify custody and reconcile
-paused state, roles, queues, holds, MEM-57 scope and accepted refs before any action. The first priority for
-future engineering admission is the confined Git-import boundary; then qualify a refreshed repeatable
-source/review/publication pair, canonical publisher and founder-commanded stop/resume. Establish six useful
-department lanes and two-department continuation only through separately qualified scopes. Preserve
-protected data, paid API, `main`/production, market, training, AUTO, trading and historical Pilot STOP limits.
+Read the STOP handoff, final receipt, pins, backups and pending intents first. After explicit founder
+resumption, reconcile paused state, roles, queues, holds and accepted refs. Reuse the accepted content-only
+DTO lane, controller-owned Git and automatic publisher. Existing two accepted engineering cycles,
+Platform-parallel/concurrency evidence and bounded stop/resume receipts satisfy their scoped evidence; do
+not repeat them for requalification. Next, scope and admit useful MEM-10..17 engineering through existing
+Paperclip mechanisms, demonstrate autonomous continuation to the next useful tasks, and run Platform work
+in parallel without CEO dispatch. Keep MEM-57 as separate native cycle-consolidation backlog with its own
+reviewed scope/admission. Preserve protected data, paid API, `main`/production, market, training, AUTO,
+trading and historical Pilot STOP limits.
 
 STOP receipt: `state/shutdown-20261024/final-stop-receipt.json` (SHA-256
 `86b82a4897edd9125de41563af159f90d1aeeb308f50df44765a48ed5414077b`). Process/port proof:

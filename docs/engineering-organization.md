@@ -24,13 +24,13 @@ The eight-candidate native source cohort contained three accepted (MEM-26/47/54)
 (MEM-39/43/45/49/51); this is not a count of all attempts, which also include MEM-23/24 and earlier bootstrap
 work.
 
-The three accepted Brain commits are capacity numeric/finite validation (`ad02f26bc1453d8eaccba7ee1c6936de5b99a148`),
-strict `view` cutoff plus a historical-availability flag (stage-1 canonical
-`ac8c00143ad303cb24c87d02dbc35fc85f08f668`), and malformed transaction-result shape handling with
-regression tests (stage-2 canonical `06efd663fb6b11ea88f3114049d0e76aef10f636`). The two-stage Senses cycle used the last
-allowed attempt for stage 2 after attempt 2 was rejected; no attempt 4 occurred. MEM-53 analysis is done (v4), and MEM-56's narrow controller wake correction is done (v1); both are
-organization maintenance, not Brain source stages. Larger lifecycle
-consolidation remains MEM-57 backlog.
+The three accepted Brain commits are capacity numeric/finite validation
+(`ad02f26bc1453d8eaccba7ee1c6936de5b99a148`), strict `view` cutoff plus a historical-availability flag
+(stage-1 canonical `ac8c00143ad303cb24c87d02dbc35fc85f08f668`), and malformed transaction-result shape
+handling with regression tests (stage-2 canonical `06efd663fb6b11ea88f3114049d0e76aef10f636`). The two-stage
+Senses cycle used the last allowed attempt for stage 2 after attempt 2 was rejected; no attempt 4 occurred.
+MEM-53 native analysis is done (v4), and MEM-56's narrow controller wake correction is done (v1); both
+are organization maintenance, not Brain source stages. Remaining native cycle consolidation is MEM-57 backlog.
 
 Final STOP was acknowledged at 2026-10-24 07:48:58 UTC; the final receipt is timestamped 07:59:25 UTC.
 All six companies and all six MEM agents are paused; all-company active and queued run inventories were
@@ -45,17 +45,21 @@ admission. The eight department source holds remain board-owned; historical MEM-
 Six projects and long-term goals remain intact, but active goals do not authorize execution. Do not bulk
 resume companies, agents, held issues, or MEM-57.
 
-Historical recovery holds, old MEM-7C continuation/accounting uncertainty, recovery MEM-5F, cancellation and
-usage records, journals, and unfinished intents remain unknown or unresolved, never zero. Empty live-run and
-comment queues do not prove a global generic-wake inventory. Do not repeat acknowledged operations, retry
-old7c, or inspect/retry the refused worker-Git-import path.
+Historical recovery holds, old7c749376 continuation/accounting uncertainty, recovery5f270934, cancellation
+and usage records, journals, and unfinished intents remain unknown or unresolved, never zero. Empty live-run and
+comment queues do not prove a global generic-wake inventory. Do not repeat acknowledged operations or
+retry historical `old7c749376` or `recovery5f270934`. The refused Git-import WIP remains held as historical
+work; it is not the current admission blocker.
 
 After explicit founder resumption only: read the STOP handoff, receipt, pins, backups, and pending intents;
-verify custody and reconcile paused state, roles, queues, holds, MEM-57 scope, and accepted refs. Qualify the
-confined Git-import boundary before new engineering admission. Then qualify a refreshed source/review/
-publication pair, canonical publisher, and founder-commanded stop/resume. Establish six useful departmental
-lanes and two-department continuation only within separately qualified scopes. Preserve protected data,
-paid API, `main`/production, market, training, AUTO, trading, and historical Pilot STOP boundaries.
+reconcile custody, paused state, roles, queues, holds, and accepted refs. Reuse the accepted content-only DTO
+lane, controller-owned Git, and automatic publisher. The two accepted engineering cycles, Platform-parallel/
+concurrency evidence, and bounded stop/resume receipts satisfy their scoped criteria; do not repeat them for
+requalification. Next, scope and admit useful MEM-10..17 engineering through existing Paperclip mechanisms,
+demonstrate autonomous continuation to next useful tasks, and run Platform work in parallel without CEO
+dispatch. Keep MEM-57 as separate native cycle-consolidation backlog with its own reviewed scope/admission.
+Preserve protected data, paid API, `main`/production, market, training, AUTO, trading, and historical Pilot STOP
+boundaries.
 
 Final stop receipt: `state/shutdown-20261024/final-stop-receipt.json` (SHA-256
 `86b82a4897edd9125de41563af159f90d1aeeb308f50df44765a48ed5414077b`). Process/port proof:

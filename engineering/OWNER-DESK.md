@@ -19,8 +19,9 @@ Founder остановил работу и запросил только shutdow
 Три принятых Brain-изменения: проверка числовых/конечных аргументов capacity (`ad02f26`); строгий cutoff
 `view` и флаг исторической доступности (stage 1 canonical `ac8c0014`); обработка malformed transaction
 result и regression tests (stage 2 canonical `06efd663`). Два этапа завершили конечный Senses цикл;
-stage 2 прошёл на последней разрешённой попытке после отклонения attempt 2. Attempt 4 не было. MEM-53 analysis завершён (v4), узкое исправление пробуждения контроллера MEM-56 завершено (v1); оба —
-организационное обслуживание, не новые Brain-изменения. Остаток consolidation — MEM-57 backlog.
+stage 2 прошёл на последней разрешённой попытке после отклонения attempt 2. Attempt 4 не было. Native
+analysis MEM-53 завершён (v4), узкое исправление пробуждения контроллера MEM-56 завершено (v1); оба —
+организационное обслуживание, не новые Brain-изменения. Остаток native cycle consolidation — MEM-57 backlog.
 
 STOP подтверждён в 07:59:25 UTC. Все шесть компаний и все шесть MEM-агентов приостановлены; перед
 остановкой сервиса списки active/queued runs у всех компаний были пусты. Paperclip PID 23720 и embedded
@@ -34,17 +35,20 @@ PostgreSQL PID 23729 остановлены; принадлежащих дере
 проектов и долгосрочных Goals сохранены; active Goal не является разрешением на выполнение. Не
 возобновлять массово компании, агентов, удержанные задачи или MEM-57.
 
-Неизвестными остаются исторические recovery holds, сбой/учёт MEM-7C, recovery MEM-5F, отмены и usage,
-journals и незавершённые intents. Их нельзя считать нулевыми. Пустые live-run и comment queues не
+Неизвестными остаются исторические recovery holds, historical old7c749376 continuation/accounting
+uncertainty и recovery5f270934, отмены и usage, journals и незавершённые intents. Их нельзя считать нулевыми. Пустые live-run и comment queues не
 доказывают отсутствие всех generic wake. Не повторять подтверждённые операции, не retry old7c и не
 возобновлять отклонённую проверку worker Git-import.
 
-В следующей сессии, только после явного разрешения основателя: сначала прочитать STOP, receipt, pins,
-backup и pending intents; проверить custody и сверить паузы, очереди, роли, удержания, MEM-57 scope и refs.
-Приоритет будущего engineering admission — квалифицировать confined Git import, затем свежую повторяемую
-source/review/publication пару, canonical publisher и остановку/продолжение только по команде основателя.
-Шесть рабочих department lanes и concurrency двух отделов требуют отдельных квалификаций. Сохранить
-защиту данных, платные API, `main`/production, market, training, AUTO, trading и исторический Pilot STOP.
+В следующей сессии, только после явного разрешения основателя: прочитать STOP, receipt, pins, backup и
+pending intents; сверить custody, паузы, очереди, роли, удержания и принятые refs. Повторно использовать
+принятый content-only DTO lane, controller-owned Git и automatic publisher. Два принятых инженерных цикла,
+параллельность Platform и ограниченные stop/resume receipts уже подтверждают свою область; не повторять
+их для пере-квалификации. Далее — определить полезные MEM-10..17 и допустить их через существующие
+механизмы Paperclip, показать автономное продолжение на следующих полезных задачах и параллельную работу
+Platform без CEO dispatch. MEM-57 остаётся отдельным native cycle-consolidation backlog с собственным
+проверенным scope/admission. Сохранить защиту данных, платные API, `main`/production, market, training,
+AUTO, trading и исторический Pilot STOP.
 
 Финальный STOP receipt: `state/shutdown-20261024/final-stop-receipt.json`, SHA-256
 `86b82a4897edd9125de41563af159f90d1aeeb308f50df44765a48ed5414077b`. Подтверждение процессов/портов:
