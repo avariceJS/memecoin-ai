@@ -42,7 +42,7 @@ the actual published MEM-16 checkpoint, preserving native12→11 and the later14
 native readiness/current admitted run rather than independently rechecking the entire dependency set per
 bind; that existing bounded limit is explicit. Strict changed-source gates remain for subsequent tasks.
 
-Controllerc974d92/nativeaa0cdc remain loaded as server86350/plugin3751 with seven schemas. The separate
+Controllerc974d92/nativeaa0cdc remain loaded as server86350/plugin3753 with seven schemas. The separate
 fd resolve_review tool capability restoration was independently accepted; exact QA/lead no-change role
 exceptions are limited to76/11. Subscription/high identities and protected roots remain. Accepted context
 transport carried70,751 bytes intact. Failed operations, rejected artifacts, dirty bytes, historical
