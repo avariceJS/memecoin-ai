@@ -39,6 +39,7 @@ from engineering.git_gate import (  # noqa: E402
     OWNER_CAS_REFS,
     Candidate,
     GitGate,
+    GitGateError,
     VerificationPolicy,
 )
 from engineering.paperclip_git_broker import (  # noqa: E402
@@ -741,6 +742,183 @@ def _stage_source_repo(
     return Path(cache)
 
 
+_ACCEPTED_BASE_FILE_MAX_BYTES = 65_536
+_ACCEPTED_BASE_TOTAL_MAX_BYTES = 131_072
+_ACCEPTED_BASE_DELIVERY_MAX_BYTES = 170_000
+_ACCEPTED_BASE_NOTE_MAX_BYTES = 150_000
+
+
+def _accepted_base_context(
+    config: BridgeConfig, stage: SourceStageSpec, record: dict[str, Any]
+) -> dict[str, Any]:
+    """Return bounded bytes from the exact owner-pinned accepted base tree."""
+    if config.source_stage(stage.stage_key) != stage:
+        raise BridgeError("source_stage_accepted_base_binding_invalid")
+    base_sha = record.get("base_sha")
+    binding_key = record.get("stage_binding_key")
+    if (
+        record.get("owner_config_digest") != config.owner_config_digest
+        or record.get("stage_key") != stage.stage_key
+        or record.get("path_ids") != list(stage.path_ids)
+        or type(base_sha) is not str
+        or not SHA_RE.fullmatch(base_sha)
+        or type(binding_key) is not str
+        or not HASH_RE.fullmatch(binding_key)
+        or record.get("state") not in {"bound", "active"}
+    ):
+        raise BridgeError("source_stage_accepted_base_binding_invalid")
+
+    repo = _stage_source_repo(config, stage, record)
+    if stage.workspace_id == "published":
+        cache_tree = record.get("trusted_source_cache_tree")
+        if (
+            type(cache_tree) is not str
+            or not SHA_RE.fullmatch(cache_tree)
+            or _trusted_stage_source_cache_identity(config, stage, base_sha, repo) != cache_tree
+        ):
+            raise BridgeError("source_stage_cache_changed")
+    stage_config = config.for_source_stage(
+        stage,
+        source_issue_id=record["source_issue_id"],
+        reviewer_issue_id=record["review_issue_id"],
+        base_sha=base_sha,
+        canonical_base_sha=record.get("canonical_base_sha"),
+        source_repo=repo,
+    )
+    gate = stage_config.gate()
+    try:
+        resolved_base = gate._resolve_sha(repo, base_sha)
+    except GitGateError as exc:
+        raise BridgeError("source_stage_accepted_base_unavailable") from exc
+    if resolved_base != base_sha:
+        raise BridgeError("source_stage_accepted_base_binding_invalid")
+
+    files: list[dict[str, Any]] = []
+    total_bytes = 0
+    for path_id in stage.path_ids:
+        try:
+            listing = gate._run(
+                repo,
+                ["--literal-pathspecs", "ls-tree", "-z", "--full-tree", base_sha, "--", path_id],
+            )
+        except GitGateError as exc:
+            raise BridgeError("source_stage_accepted_base_unavailable") from exc
+        entries = [entry for entry in listing.stdout.split(b"\0") if entry]
+        if not entries:
+            files.append(
+                {
+                    "path_id": path_id,
+                    "present": False,
+                    "mode": None,
+                    "blob_sha": None,
+                    "size_bytes": 0,
+                    "content_sha256": None,
+                    "content": None,
+                }
+            )
+            continue
+        if len(entries) != 1:
+            raise BridgeError("source_stage_accepted_base_path_ambiguous")
+        metadata, separator, listed_path = entries[0].partition(b"\t")
+        if not separator or listed_path.decode("utf-8", errors="strict") != path_id:
+            raise BridgeError("source_stage_accepted_base_path_mismatch")
+        parts = metadata.decode("ascii", errors="strict").split()
+        if len(parts) != 3 or parts[1] != "blob" or parts[0] not in {"100644", "100755"}:
+            raise BridgeError("source_stage_accepted_base_file_type_invalid")
+        blob_sha = parts[2]
+        if not SHA_RE.fullmatch(blob_sha):
+            raise BridgeError("source_stage_accepted_base_blob_invalid")
+        size_result = gate._run(repo, ["cat-file", "-s", blob_sha])
+        try:
+            size_bytes = int(size_result.stdout.strip())
+        except ValueError:
+            raise BridgeError("source_stage_accepted_base_blob_invalid") from None
+        if size_bytes < 0 or size_bytes > _ACCEPTED_BASE_FILE_MAX_BYTES:
+            raise BridgeError("source_stage_accepted_base_context_too_large")
+        total_bytes += size_bytes
+        if total_bytes > _ACCEPTED_BASE_TOTAL_MAX_BYTES:
+            raise BridgeError("source_stage_accepted_base_context_too_large")
+        content_bytes = gate._run(repo, ["cat-file", "blob", blob_sha]).stdout
+        if len(content_bytes) != size_bytes:
+            raise BridgeError("source_stage_accepted_base_blob_invalid")
+        try:
+            content = content_bytes.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            raise BridgeError("source_stage_accepted_base_not_utf8") from None
+        files.append(
+            {
+                "path_id": path_id,
+                "present": True,
+                "mode": parts[0],
+                "blob_sha": blob_sha,
+                "size_bytes": size_bytes,
+                "content_sha256": hashlib.sha256(content_bytes).hexdigest(),
+                "content": content,
+            }
+        )
+
+    context: dict[str, Any] = {
+        "schema": "paperclip-source-stage-accepted-base-context-v1",
+        "stage_key": stage.stage_key,
+        "stage_binding_key": binding_key,
+        "owner_config_digest": config.owner_config_digest,
+        "project_id": stage.project_id or config.project_id,
+        "lead_issue_id": stage.lead_issue_id or config.finite_lead_issue_id,
+        "accepted_base_sha": base_sha,
+        "accepted_canonical_base_sha": record.get("canonical_base_sha"),
+        "accepted_base_ref": stage.expected_dev_ref or config.expected_dev_ref,
+        "repository_role": (
+            "owner_pinned_published_base"
+            if stage.workspace_id == "published"
+            else "owner_pinned_stage_source_base"
+        ),
+        "path_ids": list(stage.path_ids),
+        "files": files,
+        "total_size_bytes": total_bytes,
+    }
+    context["context_sha256"] = hashlib.sha256(_canonical(context)).hexdigest()
+    return context
+
+
+def _accepted_base_context_note(stage: SourceStageSpec, context: dict[str, Any]) -> dict[str, str]:
+    binding_key = context["stage_binding_key"]
+    fields = [
+        f"stage_key:{stage.stage_key}",
+        f"stage_binding_key:{binding_key}",
+        f"accepted_base_sha:{context['accepted_base_sha']}",
+        f"accepted_base_ref:{context['accepted_base_ref']}",
+        f"repository_role:{context['repository_role']}",
+        "context_scope:exact_owner_admitted_paths_only",
+        "comparison_scope:bounded_base_content_not_full_repository_equivalence",
+        "rejected_retry_seed:excluded",
+        f"accepted_base_context_sha256:{context['context_sha256']}",
+        f"accepted_base_context_json:{_canonical(context).decode('utf-8', errors='strict')}",
+    ]
+    idempotency_key = f"{binding_key}:accepted-base-context"
+    body = "\n".join(
+        [
+            f"brain-autonomous-bridge:{idempotency_key}",
+            f"brain-source-stage:{binding_key}:accepted-base-context",
+            *fields,
+            f"accepted_base_context_note_sha256:{hashlib.sha256(chr(10).join(fields).encode('utf-8')).hexdigest()}",
+        ]
+    )
+    if len(body.encode("utf-8")) > _ACCEPTED_BASE_NOTE_MAX_BYTES:
+        raise BridgeError("source_stage_accepted_base_context_note_too_large")
+    return {"idempotency_key": idempotency_key, "body": body}
+
+
+def _accepted_base_delivery(
+    config: BridgeConfig, stage: SourceStageSpec, record: dict[str, Any]
+) -> dict[str, Any]:
+    context = _accepted_base_context(config, stage, record)
+    note = _accepted_base_context_note(stage, context)
+    delivery = {"accepted_base_context_note": note}
+    if len(_canonical(delivery)) > _ACCEPTED_BASE_DELIVERY_MAX_BYTES:
+        raise BridgeError("source_stage_accepted_base_context_serialized_too_large")
+    return delivery
+
+
 def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
     if not config.source_stage_catalog:
         raise BridgeError("source_stage_lane_not_configured")
@@ -1116,6 +1294,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                 "retry_workspace_snapshot_sha256": existing.get("retry_workspace_snapshot_sha256"),
                 "retry_workspace_artifact_sha256": existing.get("retry_workspace_artifact_sha256"),
                 "state": existing["state"],
+                **_accepted_base_delivery(config, stage, existing),
             }
     if stage.workspace_id == "published":
         cache_path, cache_tree = _create_trusted_stage_source_cache(
@@ -1189,6 +1368,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
                 "retry_workspace_snapshot_sha256": existing.get("retry_workspace_snapshot_sha256"),
                 "retry_workspace_artifact_sha256": existing.get("retry_workspace_artifact_sha256"),
                 "state": existing["state"],
+                **_accepted_base_delivery(config, stage, existing),
             }
         _write_journal(config, stage_key, binding_value, create=True)
     return {
@@ -1202,6 +1382,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         "retry_workspace_snapshot_sha256": binding_value.get("retry_workspace_snapshot_sha256"),
         "retry_workspace_artifact_sha256": binding_value.get("retry_workspace_artifact_sha256"),
         "state": "bound",
+        **_accepted_base_delivery(config, stage, binding_value),
     }
 
 
@@ -1240,6 +1421,7 @@ def _lookup_published_stage_predecessor(
                 "stage_key": predecessor_stage.stage_key,
                 "attempt": candidate_attempt,
             },
+            include_accepted_base_context=False,
         )
         if type(candidate) is not dict:
             raise BridgeError("source_stage_predecessor_state_unknown")
@@ -1304,7 +1486,12 @@ def _lookup_published_stage_predecessor(
     return candidates[0]
 
 
-def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+def lookup_source_stage_binding(
+    config: BridgeConfig,
+    payload: dict[str, Any],
+    *,
+    include_accepted_base_context: bool = True,
+) -> dict[str, Any]:
     required = {
         "company_id",
         "project_id",
@@ -1470,6 +1657,8 @@ def lookup_source_stage_binding(config: BridgeConfig, payload: dict[str, Any]) -
         result["candidate_stage_binding_key"] = (
             candidate.get("stage_binding_key") if type(candidate) is dict else None
         )
+    if include_accepted_base_context and record.get("state") in {"bound", "active"}:
+        result.update(_accepted_base_delivery(config, stage, record))
     return result
 
 

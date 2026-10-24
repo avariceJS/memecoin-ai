@@ -14,10 +14,15 @@ from engineering.paperclip_autonomous_bridge import (
     BridgeConfig,
     BridgeError,
     SourceStageSpec,
+    _accepted_base_context,
+    _accepted_base_context_note,
+    _accepted_base_delivery,
     _binding,
     _bounded_candidate_diff,
     _load_journal,
     _stage_journal_key,
+    _trusted_stage_source_cache_identity,
+    _trusted_stage_source_cache_path,
     _verifier,
     _write_journal,
     dispatch,
@@ -102,6 +107,17 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             expected_dev_ref="refs/heads/brain/paperclip-integration",
         )
         self.config.broker_journal_dir.mkdir(mode=0o700)
+        self.accepted_base_delivery_patch = patch(
+            "engineering.paperclip_autonomous_bridge._accepted_base_delivery",
+            return_value={
+                "accepted_base_context_note": {
+                    "idempotency_key": "a" * 64 + ":accepted-base-context",
+                    "body": "synthetic accepted base context note",
+                }
+            },
+        )
+        self.accepted_base_delivery_patch.start()
+        self.addCleanup(self.accepted_base_delivery_patch.stop)
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -2593,7 +2609,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         }
         calls = []
 
-        def stage_lookup(_config, payload):
+        def stage_lookup(_config, payload, **_kwargs):
             calls.append(payload["attempt"])
             return accepted if payload["attempt"] == 3 else {"found": False}
 
@@ -2610,7 +2626,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
 
         calls.clear()
 
-        def unknown_lookup(_config, payload):
+        def unknown_lookup(_config, payload, **_kwargs):
             calls.append(payload["attempt"])
             if payload["attempt"] == 1:
                 return {**accepted, "attempt": 1, "operation_state": "prepared"}
@@ -2630,7 +2646,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
 
         calls.clear()
 
-        def rejected_then_accepted(_config, payload):
+        def rejected_then_accepted(_config, payload, **_kwargs):
             calls.append(payload["attempt"])
             if payload["attempt"] == 1:
                 return {
@@ -2657,7 +2673,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
 
         calls.clear()
 
-        def ambiguous_lookup(_config, payload):
+        def ambiguous_lookup(_config, payload, **_kwargs):
             calls.append(payload["attempt"])
             return (
                 {**accepted, "attempt": payload["attempt"]}
@@ -2732,7 +2748,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "source_receipt_digest": "a" * 64,
         }
 
-        def lookup(_config, payload):
+        def lookup(_config, payload, **_kwargs):
             if payload["attempt"] == 1:
                 return rejected
             if payload["attempt"] == 3:
@@ -3494,6 +3510,335 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                     active_ref=org_ref,
                     _owner_engineering_paths=(reserved,),
                 )
+
+
+class AcceptedBaseContextTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.publisher = self.root / "publisher"
+        self.source = self.root / "global-source"
+        self.cache = self.root / "published-cache"
+        self.paths = (
+            "src/memecoin_experience/pipeline.py",
+            "tests/test_experience_pipeline.py",
+        )
+        self.accepted_content = {
+            self.paths[0]: "accepted-base pipeline — café\n",
+            self.paths[1]: "accepted-base tests — café\n",
+        }
+        self.rejected_content = {
+            self.paths[0]: "rejected-seed pipeline\n",
+            self.paths[1]: "rejected-seed tests\n",
+        }
+        subprocess.run(
+            ["/usr/bin/git", "init", "-q", "-b", "brain/development", str(self.publisher)],
+            check=True,
+        )
+        self._git(self.publisher, "config", "user.name", "owner")
+        self._git(self.publisher, "config", "user.email", "owner@example.invalid")
+        for path, content in self.accepted_content.items():
+            target = self.publisher / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+        self._git(self.publisher, "add", *self.paths)
+        self._git(self.publisher, "commit", "-qm", "accepted base")
+        self.accepted_sha = self._git(self.publisher, "rev-parse", "HEAD")
+        self._git(self.publisher, "switch", "-qc", "rejected-seed")
+        for path, content in self.rejected_content.items():
+            (self.publisher / path).write_text(content)
+        self._git(self.publisher, "add", *self.paths)
+        self._git(self.publisher, "commit", "-qm", "rejected seed")
+        self.rejected_sha = self._git(self.publisher, "rev-parse", "HEAD")
+        self._git(self.publisher, "switch", "-q", "brain/development")
+        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "main", str(self.source)], check=True)
+        self._git(self.source, "config", "user.name", "owner")
+        self._git(self.source, "config", "user.email", "owner@example.invalid")
+        (self.source / "baseline.txt").write_text("global domain repo")
+        self._git(self.source, "add", "baseline.txt")
+        self._git(self.source, "commit", "-qm", "global baseline")
+        self.stage = SourceStageSpec(
+            "MEM13",
+            "published",
+            None,
+            "MEM10",
+            self.paths,
+            "mem13-synthetic-v1",
+            "cortex-project",
+            "cortex-goal",
+            "sol-agent",
+            "mem13-lead",
+            source_repo=self.source,
+            publisher_repo=self.publisher,
+            expected_dev_ref="refs/heads/brain/development",
+        )
+        self.config = BridgeConfig(
+            company_id="company-1",
+            project_id="fallback-project",
+            worker_agent_id="luna-agent",
+            reviewer_agent_id="sol-reviewer",
+            source_issue_id=None,
+            reviewer_issue_id=None,
+            source_repo=self.source,
+            worker_checkout=None,
+            publisher_repo=self.publisher,
+            broker_journal_dir=self.root / "broker-journal",
+            bridge_journal_dir=self.root / "bridge-journal",
+            receipt_store=self.root / "receipts",
+            verifier_scratch_root=self.root / "scratch",
+            python_executable=Path("/usr/bin/python3"),
+            allowed_scope=self.paths,
+            verifier_commands=(("/usr/bin/python3", "-c", "pass"),),
+            verifier_env=(),
+            verifier_policy_id="mem13-synthetic-v1",
+            fixed_dev_ref="refs/heads/brain/development",
+            expected_dev_ref="refs/heads/brain/development",
+            finite_lead_agent_id="sol-agent",
+            finite_lead_issue_id="mem13-lead",
+            source_stage_catalog=(self.stage,),
+        )
+        self.config.broker_journal_dir.mkdir(mode=0o700)
+        self.config.bridge_journal_dir.mkdir(mode=0o700)
+        self.cache = _trusted_stage_source_cache_path(self.config, self.stage, self.accepted_sha)
+        self.cache.parent.mkdir(mode=0o700)
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "clone",
+                "-q",
+                "--no-local",
+                "--branch",
+                "brain/development",
+                str(self.publisher),
+                str(self.cache),
+            ],
+            check=True,
+        )
+        self._git(self.cache, "checkout", "-q", "--detach", self.accepted_sha)
+        self.tree_sha = _trusted_stage_source_cache_identity(
+            self.config, self.stage, self.accepted_sha, self.cache
+        )
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    @staticmethod
+    def _git(repo: Path, *args: str) -> str:
+        result = subprocess.run(
+            ["/usr/bin/git", "-C", str(repo), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip()
+
+    def _active_record(self, *, path_ids=None, base_sha=None, cache=None):
+        return {
+            "schema": "paperclip-source-stage-binding-attempt-v3",
+            "stage_key": "MEM13",
+            "attempt": 3,
+            "stage_binding_key": "a" * 64,
+            "owner_config_digest": self.config.owner_config_digest,
+            "source_issue_id": "source-67",
+            "review_issue_id": "review-68",
+            "source_version": 1,
+            "review_version": 1,
+            "source_instruction_sha256": "1" * 64,
+            "review_instruction_sha256": "2" * 64,
+            "path_ids": list(self.paths if path_ids is None else path_ids),
+            "base_sha": self.accepted_sha if base_sha is None else base_sha,
+            "canonical_base_sha": None,
+            "state": "active",
+            "source_intent": {"acknowledged": True},
+            "trusted_source_cache": str(self.cache if cache is None else cache),
+            "trusted_source_cache_tree": self.tree_sha,
+        }
+
+    def test_active_lookup_delivers_owner_published_accepted_base_not_rejected_seed(self):
+        record = self._active_record()
+        _write_journal(self.config, _stage_journal_key("MEM13", 3), record, create=True)
+        lookup_payload = {
+            "company_id": "company-1",
+            "project_id": "cortex-project",
+            "lead_agent_id": "sol-agent",
+            "lead_issue_id": "mem13-lead",
+            "stage_key": "MEM13",
+            "attempt": 3,
+            "source_issue_id": "source-67",
+            "review_issue_id": "review-68",
+        }
+        first = dispatch(
+            self.config,
+            {"action": "lookup_source_stage_binding", "payload": lookup_payload},
+        )
+        second = dispatch(
+            self.config,
+            {"action": "lookup_source_stage_binding", "payload": lookup_payload},
+        )
+        note = first["accepted_base_context_note"]
+        manifest_line = next(
+            line
+            for line in note["body"].splitlines()
+            if line.startswith("accepted_base_context_json:")
+        )
+        context = json.loads(manifest_line.split(":", 1)[1])
+        self.assertEqual(first, second)
+        self.assertEqual(note["idempotency_key"], "a" * 64 + ":accepted-base-context")
+        self.assertEqual(context["accepted_base_sha"], self.accepted_sha)
+        self.assertEqual(context["repository_role"], "owner_pinned_published_base")
+        self.assertEqual(context["path_ids"], list(self.paths))
+        self.assertEqual(
+            [item["content"] for item in context["files"]], list(self.accepted_content.values())
+        )
+        self.assertIn("rejected_retry_seed:excluded", note["body"])
+        self.assertIn(
+            "comparison_scope:bounded_base_content_not_full_repository_equivalence",
+            note["body"],
+        )
+        self.assertEqual(
+            [item["content_sha256"] for item in context["files"]],
+            [
+                hashlib.sha256(value.encode()).hexdigest()
+                for value in self.accepted_content.values()
+            ],
+        )
+        self.assertNotEqual(self.accepted_sha, self.rejected_sha)
+        for path, rejected in self.rejected_content.items():
+            self.assertEqual(
+                self._git(self.publisher, "show", f"{self.rejected_sha}:{path}"),
+                rejected.rstrip("\n"),
+            )
+            self.assertNotIn(rejected, "".join(item["content"] or "" for item in context["files"]))
+        for forged in (
+            {"repo": str(self.publisher)},
+            {"ref": "refs/heads/rejected-seed"},
+            {"path_ids": ["../../outside"]},
+        ):
+            with (
+                self.subTest(forged=forged),
+                self.assertRaisesRegex(BridgeError, "source_stage_lookup_payload_shape_invalid"),
+            ):
+                dispatch(
+                    self.config,
+                    {
+                        "action": "lookup_source_stage_binding",
+                        "payload": {**lookup_payload, **forged},
+                    },
+                )
+        with self.assertRaisesRegex(BridgeError, "source_stage_binding_invalid"):
+            dispatch(
+                self.config,
+                {
+                    "action": "lookup_source_stage_binding",
+                    "payload": {**lookup_payload, "stage_binding_key": "f" * 64},
+                },
+            )
+
+    def test_accepted_base_context_rejects_mismatched_path_manifest_and_oversize_blob(self):
+        record = self._active_record(path_ids=[*self.paths, "extra.py"])
+        with self.assertRaisesRegex(BridgeError, "source_stage_accepted_base_binding_invalid"):
+            _accepted_base_context(self.config, self.stage, record)
+
+        large_path = "src/memecoin_experience/large.py"
+        large_stage = replace(self.stage, path_ids=(*self.paths, large_path))
+        large_config = replace(self.config, source_stage_catalog=(large_stage,))
+        target = self.publisher / large_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("x" * 65_537)
+        self._git(self.publisher, "add", large_path)
+        self._git(self.publisher, "commit", "-qm", "oversize accepted file")
+        large_base = self._git(self.publisher, "rev-parse", "HEAD")
+        # Build a detached no-alternates snapshot from the exact current owner ref.
+        large_cache = _trusted_stage_source_cache_path(large_config, large_stage, large_base)
+        large_cache.parent.mkdir(mode=0o700, exist_ok=True)
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "clone",
+                "-q",
+                "--no-local",
+                "--branch",
+                "brain/development",
+                str(self.publisher),
+                str(large_cache),
+            ],
+            check=True,
+        )
+        _record = self._active_record(
+            path_ids=[*self.paths, large_path], base_sha=large_base, cache=large_cache
+        )
+        _record["owner_config_digest"] = large_config.owner_config_digest
+        _record["trusted_source_cache_tree"] = _trusted_stage_source_cache_identity(
+            large_config, large_stage, large_base, large_cache
+        )
+        with self.assertRaisesRegex(BridgeError, "source_stage_accepted_base_context_too_large"):
+            _accepted_base_context(large_config, large_stage, _record)
+
+    def test_finite_evaluation_pair_fits_bounded_utf8_note_and_response(self):
+        (self.publisher / self.paths[0]).write_bytes(b"p" * 54_056)
+        (self.publisher / self.paths[1]).write_bytes(b"t" * 11_642)
+        self._git(self.publisher, "add", *self.paths)
+        self._git(self.publisher, "commit", "-qm", "finite evaluation accepted base")
+        base_sha = self._git(self.publisher, "rev-parse", "HEAD")
+        evaluation_stage = replace(self.stage, stage_key="MEM14")
+        evaluation_config = replace(self.config, source_stage_catalog=(evaluation_stage,))
+        evaluation_cache = _trusted_stage_source_cache_path(
+            evaluation_config, evaluation_stage, base_sha
+        )
+        evaluation_cache.parent.mkdir(mode=0o700, exist_ok=True)
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "clone",
+                "-q",
+                "--no-local",
+                "--branch",
+                "brain/development",
+                str(self.publisher),
+                str(evaluation_cache),
+            ],
+            check=True,
+        )
+        record = self._active_record(base_sha=base_sha, cache=evaluation_cache)
+        record["stage_key"] = "MEM14"
+        record["stage_binding_key"] = "d" * 64
+        record["owner_config_digest"] = evaluation_config.owner_config_digest
+        record["trusted_source_cache_tree"] = _trusted_stage_source_cache_identity(
+            evaluation_config, evaluation_stage, base_sha, evaluation_cache
+        )
+        context = _accepted_base_context(evaluation_config, evaluation_stage, record)
+        note = _accepted_base_context_note(evaluation_stage, context)
+        delivery = _accepted_base_delivery(evaluation_config, evaluation_stage, record)
+        self.assertEqual(context["total_size_bytes"], 65_698)
+        self.assertLessEqual(len(note["body"].encode("utf-8")), 150_000)
+        self.assertLessEqual(len(json.dumps(delivery, ensure_ascii=False).encode("utf-8")), 170_000)
+
+    def test_non_utf8_admitted_base_blob_fails_closed(self):
+        (self.publisher / self.paths[0]).write_bytes(b"\xff\xfe")
+        self._git(self.publisher, "add", self.paths[0])
+        self._git(self.publisher, "commit", "-qm", "non UTF-8 owner base")
+        base_sha = self._git(self.publisher, "rev-parse", "HEAD")
+        non_utf8_cache = _trusted_stage_source_cache_path(self.config, self.stage, base_sha)
+        non_utf8_cache.parent.mkdir(mode=0o700, exist_ok=True)
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "clone",
+                "-q",
+                "--no-local",
+                "--branch",
+                "brain/development",
+                str(self.publisher),
+                str(non_utf8_cache),
+            ],
+            check=True,
+        )
+        record = self._active_record(base_sha=base_sha, cache=non_utf8_cache)
+        record["trusted_source_cache_tree"] = _trusted_stage_source_cache_identity(
+            self.config, self.stage, base_sha, non_utf8_cache
+        )
+        with self.assertRaisesRegex(BridgeError, "source_stage_accepted_base_not_utf8"):
+            _accepted_base_context(self.config, self.stage, record)
 
 
 if __name__ == "__main__":

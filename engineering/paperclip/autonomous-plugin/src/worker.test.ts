@@ -29,6 +29,69 @@ const contentFiles = [
   ["tests/brain/test_raw_sources.py", "def test_raw_sources():\n    assert True\n"],
 ].map(([path_id, content]) => ({ path_id, content, size: Buffer.byteLength(content), sha256: createHash("sha256").update(content).digest("hex") }));
 
+function acceptedBaseContextNote(
+  stageKey: string,
+  pathIds: string[],
+  stageBindingKey = "a".repeat(64),
+  baseSha = "b".repeat(40),
+  options: { projectId?: string; leadIssueId?: string; baseRef?: string | null; published?: boolean } = {},
+) {
+  const files = pathIds.map((path_id, index) => {
+    const content = `accepted ${stageKey} base ${index} — café\n`;
+    const size_bytes = Buffer.byteLength(content, "utf8");
+    return {
+      path_id, present: true, mode: "100644",
+      blob_sha: createHash("sha1").update(`blob ${size_bytes}\0`).update(content, "utf8").digest("hex"),
+      size_bytes, content_sha256: digest(content), content,
+    };
+  });
+  const context: Record<string, unknown> = {
+    schema: "paperclip-source-stage-accepted-base-context-v1",
+    stage_key: stageKey,
+    stage_binding_key: stageBindingKey,
+    owner_config_digest: "c".repeat(64),
+    project_id: options.projectId ?? "project-1",
+    lead_issue_id: options.leadIssueId ?? "lead-issue",
+    accepted_base_sha: baseSha,
+    accepted_canonical_base_sha: null,
+    accepted_base_ref: options.baseRef ?? null,
+    repository_role: options.published ? "owner_pinned_published_base" : "owner_pinned_stage_source_base",
+    path_ids: pathIds,
+    files,
+    total_size_bytes: files.reduce((total, file) => total + file.size_bytes, 0),
+  };
+  const canonical = (value: unknown): string => {
+    if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+    if (value && typeof value === "object") {
+      const object = value as Record<string, unknown>;
+      return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonical(object[key])}`).join(",")}}`;
+    }
+    return JSON.stringify(value);
+  };
+  context.context_sha256 = digest(canonical(context));
+  const serialized = canonical(context);
+  const fields = [
+    `stage_key:${stageKey}`,
+    `stage_binding_key:${stageBindingKey}`,
+    `accepted_base_sha:${baseSha}`,
+    `accepted_base_ref:${context.accepted_base_ref}`,
+    `repository_role:${context.repository_role}`,
+    "context_scope:exact_owner_admitted_paths_only",
+    "comparison_scope:bounded_base_content_not_full_repository_equivalence",
+    "rejected_retry_seed:excluded",
+    `accepted_base_context_sha256:${context.context_sha256}`,
+    `accepted_base_context_json:${serialized}`,
+  ];
+  const idempotency_key = `${stageBindingKey}:accepted-base-context`;
+  const body = [
+    `brain-autonomous-bridge:${idempotency_key}`,
+    `brain-source-stage:${stageBindingKey}:accepted-base-context`,
+    ...fields,
+    `accepted_base_context_note_sha256:${digest(fields.join("\n"))}`,
+  ].join("\n");
+  return { idempotency_key, body };
+}
+
 function fixture(
   configPath: string,
   reviewerStatus: string = "backlog",
@@ -339,7 +402,12 @@ describe("Paperclip autonomous bridge tools", () => {
     let intentCalls = 0;
     const invoke = vi.fn(async (action: string) => {
       if (action === "lookup_source_stage_binding") return { found: false };
-      if (action === "bind_source_stage") return { stage_binding_key: "a".repeat(64), base_sha: "b".repeat(40), state: "bound" };
+      if (action === "bind_source_stage") return {
+        stage_binding_key: "a".repeat(64), base_sha: "b".repeat(40), state: "bound",
+        accepted_base_context_note: acceptedBaseContextNote("MEM8", [
+          "src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py",
+        ]),
+      };
       intentCalls += 1;
       return { intent: intentCalls === 1 ? "created" : "reconcile_required" };
     });
@@ -390,7 +458,7 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(updateStatusCompareAndSet).toHaveBeenCalledWith("source-8", "todo", 4, "company-1");
     expect(invoke.mock.calls.filter(([action]) => action === "source_stage_activation")).toHaveLength(2);
     for (const id of ["source-8", "review-8", "lead-issue"]) {
-      expect(issueNotes.get(id)).toHaveLength(2);
+      expect(issueNotes.get(id)).toHaveLength(3);
       expect(issueNotes.get(id)?.[0]).toContain(`brain-autonomous-bridge:${"a".repeat(64)}:bound`);
       expect(commentCalls.indexOf(`create:${id}`)).toBeLessThan(commentCalls.indexOf("cas:source-8"));
     }
@@ -926,13 +994,16 @@ describe("Paperclip autonomous bridge tools", () => {
       found: true, attempt: 1, stage_binding_key: "a".repeat(64), base_sha: "b".repeat(40), state: "active",
       predecessor_operation_key: null, predecessor_source_issue_id: null, predecessor_review_issue_id: null,
       source_instruction_sha256: sourceHash, review_instruction_sha256: reviewHash, activation_pending: false,
+      accepted_base_context_note: acceptedBaseContextNote("MEM8", [
+        "src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py",
+      ]),
     }));
     registerAutonomousTools(ctx, invoke as never);
     const params = { stage_key: "MEM8", source_issue_id: "source-8", review_issue_id: "review-8" };
     await handlers.get("bind_source_stage")!(params, leadRun);
     expect(invoke).toHaveBeenCalledTimes(1);
-    expect(issueNotes.get("source-8")).toHaveLength(2);
-    expect(issueNotes.get("review-8")).toHaveLength(2);
+    expect(issueNotes.get("source-8")).toHaveLength(3);
+    expect(issueNotes.get("review-8")).toHaveLength(3);
     const note = issueNotes.get("source-8")?.[0] ?? "";
     const scopeNote = issueNotes.get("source-8")?.[1] ?? "";
     expect(note).toBe([
@@ -946,28 +1017,40 @@ describe("Paperclip autonomous bridge tools", () => {
       `source_instruction_sha256:${sourceHash}`,
       `review_instruction_sha256:${reviewHash}`,
     ].join("\n"));
+    const acceptedBaseNote = issueNotes.get("source-8")?.[2] ?? "";
+    expect(acceptedBaseNote).toContain(`brain-autonomous-bridge:${"a".repeat(64)}:accepted-base-context`);
+    expect(acceptedBaseNote).toContain("comparison_scope:bounded_base_content_not_full_repository_equivalence");
+    expect(acceptedBaseNote).toContain("rejected_retry_seed:excluded");
+    expect(acceptedBaseNote).toContain("accepted MEM8 base 0 — café");
+    expect(acceptedBaseNote).not.toContain("activation_ack");
 
     currentHistoryIssue = "source-8";
     const sourceHistory = await currentIssues().listComments("source-8", "company-1");
-    expect(sourceHistory.map((entry) => entry.body)).toEqual([note, scopeNote]);
+    expect(sourceHistory.map((entry) => entry.body)).toEqual([note, scopeNote, acceptedBaseNote]);
     await expect(currentIssues().listComments("review-8", "company-1")).rejects.toThrow("sibling_comment_access_denied");
     currentHistoryIssue = "review-8";
     const reviewHistory = await currentIssues().listComments("review-8", "company-1");
-    expect(reviewHistory.map((entry) => entry.body)).toEqual([note, scopeNote]);
+    expect(reviewHistory.map((entry) => entry.body)).toEqual([note, scopeNote, acceptedBaseNote]);
     await expect(currentIssues().listComments("source-8", "company-1")).rejects.toThrow("sibling_comment_access_denied");
 
     currentHistoryIssue = "lead-issue";
     await handlers.get("bind_source_stage")!(params, leadRun);
-    expect(issueNotes.get("source-8")).toHaveLength(2);
-    expect(issueNotes.get("review-8")).toHaveLength(2);
-    expect(issueNotes.get("lead-issue")).toHaveLength(2);
+    expect(issueNotes.get("source-8")).toHaveLength(3);
+    expect(issueNotes.get("review-8")).toHaveLength(3);
+    expect(issueNotes.get("lead-issue")).toHaveLength(3);
     expect(invoke).toHaveBeenCalledTimes(2);
     expect(invoke.mock.calls.every(([action]) => action === "lookup_source_stage_binding")).toBe(true);
+    expect(invoke.mock.calls.some(([action]) => action === "source_stage_activation")).toBe(false);
     issueNotes.set("review-8", [`${note}\nconflicting replay content`]);
     await expect(handlers.get("bind_source_stage")!(params, leadRun)).rejects.toThrow("paperclip_evidence_replay_mismatch");
-    expect(issueNotes.get("source-8")).toHaveLength(2);
+    expect(issueNotes.get("source-8")).toHaveLength(3);
     expect(issueNotes.get("review-8")).toHaveLength(1);
     expect(invoke).toHaveBeenCalledTimes(3);
+    issueNotes.set("review-8", [note, scopeNote, `${acceptedBaseNote}\nconflicting accepted base`]);
+    await expect(handlers.get("bind_source_stage")!(params, leadRun)).rejects.toThrow("paperclip_evidence_replay_mismatch");
+    expect(issueNotes.get("source-8")).toHaveLength(3);
+    expect(issueNotes.get("review-8")).toHaveLength(3);
+    expect(invoke).toHaveBeenCalledTimes(4);
   });
 
   it("holds stage two when the native lead still has a pending QA finalization blocker", async () => {
@@ -1152,6 +1235,9 @@ describe("Paperclip autonomous bridge tools", () => {
       }
       if (action === "bind_source_stage") return {
         stage_binding_key: "f".repeat(64), base_sha: "e".repeat(40), state: "bound",
+        accepted_base_context_note: acceptedBaseContextNote("MEM9", [
+          "src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py",
+        ], "f".repeat(64), "e".repeat(40), { published: true }),
         ...(payload.attempt === 2 ? {
           retry_of_operation_key: oldOperationKey,
           retry_of_candidate_sha: "c".repeat(40),

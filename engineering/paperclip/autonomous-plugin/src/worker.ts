@@ -494,6 +494,146 @@ function sourceStageScopeContextNote(
   };
 }
 
+type AcceptedBaseFileContext = {
+  path_id: string;
+  present: boolean;
+  mode: string | null;
+  blob_sha: string | null;
+  size_bytes: number;
+  content_sha256: string | null;
+  content: string | null;
+};
+
+type AcceptedBaseContext = {
+  schema: "paperclip-source-stage-accepted-base-context-v1";
+  stage_key: string;
+  stage_binding_key: string;
+  owner_config_digest: string;
+  project_id: string;
+  lead_issue_id: string;
+  accepted_base_sha: string;
+  accepted_canonical_base_sha: string | null;
+  accepted_base_ref: string | null;
+  repository_role: "owner_pinned_published_base" | "owner_pinned_stage_source_base";
+  path_ids: string[];
+  files: AcceptedBaseFileContext[];
+  total_size_bytes: number;
+  context_sha256: string;
+};
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${stableJson(object[key])}`).join(",")}}`;
+  }
+  const encoded = JSON.stringify(value);
+  if (encoded === undefined) fail("source_stage_accepted_base_context_invalid");
+  return encoded;
+}
+
+function sourceStageAcceptedBaseContextNote(
+  noteValue: unknown,
+  stage: NonNullable<OwnerConfig["source_stage_catalog"]>[number],
+  stageBindingKey: string,
+  baseSha: string,
+  owner: OwnerConfig,
+): { idempotencyKey: string; body: string } {
+  if (!noteValue || typeof noteValue !== "object" || Array.isArray(noteValue)) fail("source_stage_accepted_base_context_invalid");
+  const noteRecord = noteValue as { idempotency_key?: unknown; body?: unknown };
+  if (typeof noteRecord.body !== "string" || Buffer.byteLength(noteRecord.body, "utf8") > 150_000) {
+    fail("source_stage_accepted_base_context_note_invalid");
+  }
+  const encodedManifest = noteRecord.body.split("\n")
+    .filter((line) => line.startsWith("accepted_base_context_json:"));
+  if (encodedManifest.length !== 1) fail("source_stage_accepted_base_context_note_invalid");
+  let parsedContext: unknown;
+  try {
+    parsedContext = JSON.parse(encodedManifest[0].slice("accepted_base_context_json:".length));
+  } catch {
+    fail("source_stage_accepted_base_context_note_invalid");
+  }
+  if (!parsedContext || typeof parsedContext !== "object" || Array.isArray(parsedContext)) {
+    fail("source_stage_accepted_base_context_invalid");
+  }
+  const context = parsedContext as AcceptedBaseContext;
+  const expectedRole = stage.workspace_id === "published"
+    ? "owner_pinned_published_base"
+    : "owner_pinned_stage_source_base";
+  const files = context.files;
+  if (context.schema !== "paperclip-source-stage-accepted-base-context-v1"
+      || context.stage_key !== stage.stage_key || context.stage_binding_key !== stageBindingKey
+      || !KEY_RE.test(context.owner_config_digest) || context.project_id !== (stage.project_id ?? owner.project_id)
+      || context.lead_issue_id !== (stage.lead_issue_id ?? owner.finite_lead_issue_id)
+      || context.accepted_base_sha !== baseSha || !SHA_RE.test(context.accepted_base_sha)
+      || (context.accepted_canonical_base_sha !== null && !SHA_RE.test(context.accepted_canonical_base_sha))
+      || context.accepted_base_ref !== (stage.expected_dev_ref ?? owner.expected_dev_ref ?? null)
+      || context.repository_role !== expectedRole
+      || !Array.isArray(context.path_ids) || context.path_ids.length !== stage.path_ids.length
+      || context.path_ids.some((path, index) => path !== stage.path_ids[index])
+      || !Array.isArray(files) || files.length !== stage.path_ids.length
+      || !Number.isSafeInteger(context.total_size_bytes) || context.total_size_bytes < 0
+      || context.total_size_bytes > 131_072 || !KEY_RE.test(context.context_sha256)) {
+    fail("source_stage_accepted_base_context_binding_mismatch");
+  }
+  let totalSize = 0;
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    if (!file || file.path_id !== stage.path_ids[index] || typeof file.present !== "boolean") {
+      fail("source_stage_accepted_base_context_binding_mismatch");
+    }
+    if (!file.present) {
+      if (file.mode !== null || file.blob_sha !== null || file.size_bytes !== 0
+          || file.content_sha256 !== null || file.content !== null) {
+        fail("source_stage_accepted_base_context_binding_mismatch");
+      }
+      continue;
+    }
+    if ((file.mode !== "100644" && file.mode !== "100755")
+        || typeof file.blob_sha !== "string" || !SHA_RE.test(file.blob_sha)
+        || typeof file.content !== "string" || typeof file.content_sha256 !== "string"
+        || !KEY_RE.test(file.content_sha256) || !Number.isSafeInteger(file.size_bytes)
+        || file.size_bytes < 0 || file.size_bytes > 65_536
+        || Buffer.byteLength(file.content, "utf8") !== file.size_bytes
+        || createHash("sha256").update(file.content, "utf8").digest("hex") !== file.content_sha256) {
+      fail("source_stage_accepted_base_context_binding_mismatch");
+    }
+    totalSize += file.size_bytes;
+  }
+  const { context_sha256: _digest, ...manifest } = context;
+  if (totalSize !== context.total_size_bytes || totalSize > 131_072
+      || createHash("sha256").update(stableJson(manifest), "utf8").digest("hex") !== context.context_sha256) {
+    fail("source_stage_accepted_base_context_digest_mismatch");
+  }
+  const idempotencyKey = `${stageBindingKey}:accepted-base-context`;
+  const fields = [
+    `stage_key:${stage.stage_key}`,
+    `stage_binding_key:${stageBindingKey}`,
+    `accepted_base_sha:${baseSha}`,
+    `accepted_base_ref:${context.accepted_base_ref}`,
+    `repository_role:${context.repository_role}`,
+    "context_scope:exact_owner_admitted_paths_only",
+    "comparison_scope:bounded_base_content_not_full_repository_equivalence",
+    "rejected_retry_seed:excluded",
+    `accepted_base_context_sha256:${context.context_sha256}`,
+    `accepted_base_context_json:${stableJson(context)}`,
+  ];
+  const body = [
+    `brain-autonomous-bridge:${idempotencyKey}`,
+    `brain-source-stage:${stageBindingKey}:accepted-base-context`,
+    ...fields,
+    `accepted_base_context_note_sha256:${createHash("sha256").update(fields.join("\n"), "utf8").digest("hex")}`,
+  ].join("\n");
+  if (noteRecord.idempotency_key !== idempotencyKey || noteRecord.body !== body
+      || Buffer.byteLength(body, "utf8") > 150_000) {
+    fail("source_stage_accepted_base_context_note_invalid");
+  }
+  return {
+    idempotencyKey,
+    body,
+  };
+}
+
 async function persistSourceStageBoundNotes(
   ctx: Pick<PluginContext, "issues">,
   owner: OwnerConfig,
@@ -504,6 +644,7 @@ async function persistSourceStageBoundNotes(
   reviewInstructionSha256: string,
   includeLead: boolean,
   scopeContextNote: { idempotencyKey: string; body: string },
+  acceptedBaseContextNote: { idempotencyKey: string; body: string },
 ): Promise<void> {
   const [source, review] = await Promise.all([
     readNativeIssue(ctx, sourceIssueId, owner.company_id),
@@ -521,9 +662,12 @@ async function persistSourceStageBoundNotes(
   await persistIssueNote(ctx, reviewIssueId, owner.company_id, note.idempotencyKey, note.body);
   await persistIssueNote(ctx, sourceIssueId, owner.company_id, scopeContextNote.idempotencyKey, scopeContextNote.body);
   await persistIssueNote(ctx, reviewIssueId, owner.company_id, scopeContextNote.idempotencyKey, scopeContextNote.body);
+  await persistIssueNote(ctx, sourceIssueId, owner.company_id, acceptedBaseContextNote.idempotencyKey, acceptedBaseContextNote.body);
+  await persistIssueNote(ctx, reviewIssueId, owner.company_id, acceptedBaseContextNote.idempotencyKey, acceptedBaseContextNote.body);
   if (includeLead && owner.finite_lead_issue_id) {
     await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, note.idempotencyKey, note.body);
     await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, scopeContextNote.idempotencyKey, scopeContextNote.body);
+    await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, acceptedBaseContextNote.idempotencyKey, acceptedBaseContextNote.body);
   }
 }
 
@@ -1100,9 +1244,14 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
           stage, existing.stage_binding_key, existing.base_sha, params.source_issue_id, params.review_issue_id,
           existing.source_instruction_sha256, existing.review_instruction_sha256, owner,
         );
+        const acceptedBaseContextNote = sourceStageAcceptedBaseContextNote(
+          existing.accepted_base_context_note,
+          stage, existing.stage_binding_key, existing.base_sha, owner,
+        );
         await persistSourceStageBoundNotes(
           ctx, owner, note, params.source_issue_id, params.review_issue_id,
           existing.source_instruction_sha256, existing.review_instruction_sha256, true, scopeContextNote,
+          acceptedBaseContextNote,
         );
         return { content: [
           `stage_key:${stage.stage_key}`, `stage_binding_key:${existing.stage_binding_key}`,
@@ -1358,9 +1507,13 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       stage, result.stage_binding_key, result.base_sha, source.id, review.id,
       sourceInstructionSha256, reviewInstructionSha256, owner,
     );
+    const acceptedBaseContextNote = sourceStageAcceptedBaseContextNote(
+      result.accepted_base_context_note,
+      stage, result.stage_binding_key, result.base_sha, owner,
+    );
     await persistSourceStageBoundNotes(
       ctx, owner, note, source.id, review.id, sourceInstructionSha256, reviewInstructionSha256, true,
-      scopeContextNote,
+      scopeContextNote, acceptedBaseContextNote,
     );
     if (result.state === "bound") await activateSourceStage(ctx, invoke, owner, owner.configPath, result.stage_binding_key, {
       id: source.id, status: source.status, statusVersion: source.statusVersion as number,
