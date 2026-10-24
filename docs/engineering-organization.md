@@ -23,6 +23,19 @@ boundaries. Existing Paperclip lifecycle remains authoritative; no replacement f
 Private authority: `state/resumption-20261024-routing-recovery/founder-authority.json`. The following
 section preserves the prior outcome; its blanket execution pause is superseded by this directive.
 
+Runtime release update, 14:31 UTC: accepted native `0e0c1eb` under package `3818f827` loaded as
+server74409/plugin74463 with seven tools and exact artifact checks. The paused release receipt is
+`native-release/accepted-native-loaded-paused.json`. Current MEM-13's original wake was previously
+cancelled and is preserved; a separate historical read-only cancellation hold requires supported
+reconciliation. MEM-15/16 historical runs never started. This assisted recovery is distinct from the
+subsequent unassisted successor proof. Prior rejected candidates below are historical, not deployed.
+
+After three supported recovery ACKs, native delivery created MEM-13 run5f7ef93b at 14:44:18 UTC
+without manual wake. It failed before provider invocation on an independent historical local workspace
+finalization hold35b4acb0. Execution reconciliation does not clear workspace custody. Sol is verifying
+the supported finalization route; failed records and dirty data must remain preserved. This establishes
+event delivery, not a completed Cortex cycle or unassisted successor acceptance.
+
 ## Verified recovery and remaining MVP proof — 2026-10-24
 
 Routing recovered on unchanged npm Codex 0.160.0; the historical timeout cause remains unknown and

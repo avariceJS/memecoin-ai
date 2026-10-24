@@ -20,27 +20,39 @@ is `0241414170438c445f86f22040cee2b5a877e54a` (strict finite numeric OHLCV); Pla
 Separate normal GitHub pushes/readback confirmed both; automatic local publication is not remote push.
 Prior Senses acceptance and bounded stop/resume evidence remain valid and were not repeated.
 
-Canonical `org/development` is now `85c8a1ffb0de7a86cb1c2a09b044ca2175b30ba7`, normal-pushed and
-remote-confirmed. Independent mechanical integration preserved the published Platform result and
-accepted controller `261682bb` (scope context, QA submission evidence, narrowly pinned Platform paths).
-Combined focused checks passed 62 tests and 26 subtests. The prior broad 806-test result is historical;
-full release-check still has six previously identified unchanged lint failures, not a new green claim.
+Canonical `org/development` is `3818f827f2d907999a13eb657165e0d924cf3bff`, normal-pushed and
+remote-confirmed. It includes independently reviewed integration `85c8a1f`, documentation checkpoint
+`6ae00cb`, and the accepted native queue package. Combined integration checks passed 62 tests and
+26 subtests; native correction passed 17 focused cases, six independent probes and server typecheck;
+packaging passed nine launcher tests and Ruff. Prior rejected candidates remain preserved. The prior
+broad 806-test result is historical; full release-check still has six unchanged lint failures.
 
-Last verified runtime: native `09ec93b`, server PID 25737; isolated controller `261682bb`, plugin PID
-60910. MEM and selected lead/Luna/QA/Platform agents resumed; other companies and analyst/Astra remain
-paused. Recheck custody before action; source integration alone does not establish loaded runtime.
+## Runtime and active work
 
-## Active work and limits
+Accepted native `0e0c1eb22c879203337cee9710471c6fd30b00b1` was loaded under package `3818f827`:
+server PID 74409 started 14:31:56.323 UTC, plugin PID 74463, seven tools ready, source/build hashes
+matched. Receipt `native-release/accepted-native-loaded-paused.json` captures all six companies paused
+and no live runs before selective resumption. Recheck current private HANDOFF before action.
 
-MEM-13 is ready but its native blocker-resolved wake was deferred while the same lead was busy, then
-stranded by the completion backstop. Luna is fixing this existing queue path; independent review found
-a board-owned hold race in the first candidate `f24926c8`, which was NOT deployed. The rejected receipt
-and original deferred wake are preserved. No manual MEM-13 wake or replacement scheduler.
+MEM-13's old deferred wake was cancelled by an earlier company pause; it must not be resurrected.
+The exact current packet also exposed a historical no-replay hold. Its run16511 was acknowledged
+cancelled after read-only context/instruction tools, without source changes or child creation; its
+usage is settled (17108 input/133 output), distinct from the two routing failures still pending.
+Historical MEM-15/16 runs never started. Supported recovery ACKs completed for all three;
+company resumed. From observer anchor 14:44:03 UTC, native delivery created MEM-13 run5f7ef93b at
+14:44:18 without manual wake. Setup then failed BEFORE provider invocation: the old workspace has
+failed local finalization35b4acb0 (`native_session_lease_lost`), separately from the reconciled execution
+hold. The public workspace recovery route's required marker/token is absent. Sol is checking the exact
+supported finalization path; any necessary source correction remains Luna-owned and independently
+reviewed. Preserve old operations/dirty data; no deletion of a failed row or bypass of the workspace guard.
+MEM-15/16 have no corresponding workspace operations. This is still assisted startup recovery, not
+completed autonomous successor proof. Accepted native queue code remains deployed; no manual successor
+wake or replacement scheduler.
 
 MVP is not yet achieved. Remaining finite proof: automatic MEM-13 → MEM-15 → MEM-16 engineering cycles
 for Cortex/Evaluation/Policy, then actual useful continuation after an outer CEO turn ends. Server
-liveness alone is not that proof. MEM-11/12/14/17 remain admitted follow-on work. Startup/context/publisher
-repairs were assisted; only later observed autonomous intervals may be claimed as such.
+liveness alone is not that proof. MEM-11/12/14/17 remain admitted follow-on work, with historical holds
+preserved pending their own reconciliation. Only observed autonomous intervals may be claimed as such.
 
 ## Next entry
 
