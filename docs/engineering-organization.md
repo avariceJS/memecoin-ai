@@ -11,52 +11,42 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
-## Founder clarification and renewed execution — 2026-10-24
+## Current verified capability and final autonomy gate — 2026-10-24
 
-The founder explicitly resumed the program after the routing pause and states weekly quota is not
-exhausted. Two identical timeouts do not establish an insurmountable blocker. Diagnose the network,
-native Codex, Paperclip and integration boundary; repair only demonstrated local defects, then continue
-to the verified six-department MVP. Temporary dependent-worker pauses do not halt available diagnostics
-or independent useful work. Sol owns execution/recovery, Luna source changes, independent Sol acceptance.
-Preserve unknown operations/accounting, avoid blind retries and paid fallback, and retain all protected
-boundaries. Existing Paperclip lifecycle remains authoritative; no replacement framework or native Goal.
-Private authority: `state/resumption-20261024-routing-recovery/founder-authority.json`. The following
-section preserves the prior outcome; its blanket execution pause is superseded by this directive.
+The founder explicitly resumed the MVP program; ordinary technical failures do not terminate it. Sol
+owns execution and technical decisions, Luna implementation, separate Sol review. No paid fallback,
+replacement Goal/scheduler or protected/runtime/trading authority was added. Paperclip still owns
+native tasks, dependencies, corrections and lifecycle; the bridge handles artifacts, review and Git.
 
-Runtime release update, 14:31 UTC: accepted native `0e0c1eb` under package `3818f827` loaded as
-server74409/plugin74463 with seven tools and exact artifact checks. The paused release receipt is
-`native-release/accepted-native-loaded-paused.json`. Current MEM-13's original wake was previously
-cancelled and is preserved; a separate historical read-only cancellation hold requires supported
-reconciliation. MEM-15/16 historical runs never started. This assisted recovery is distinct from the
-subsequent unassisted successor proof. Prior rejected candidates below are historical, not deployed.
+All six departments have accepted engineering evidence: preserved Senses, Experience MEM-10, Platform
+MEM-58, Cortex MEM-13, Evaluation MEM-15 and Policy MEM-16. New canonical Brain results are0241414,
+c6529c5,fd7bd86,384b25d; Platform result61e8b3c is integrated in org. These are source capabilities, not
+scientific/execution-quality or production-readiness claims. Cortex evidence is bounded to its admitted
+paths and asserted input identities. Independent QA rejected two Cortex attempts and one Evaluation
+attempt before accepting corrections. Mandatory final verifiers and LOCAL dual publication remained
+enforced. Separate GitHub checkpoints must not be described as automatic remote publication.
 
-After three supported recovery ACKs, native delivery created MEM-13 run5f7ef93b at 14:44:18 UTC
-without manual wake. It failed before provider invocation on an independent historical local workspace
-finalization hold35b4acb0. Execution reconciliation does not clear workspace custody. Sol is verifying
-the supported finalization route; failed records and dirty data must remain preserved. This establishes
-event delivery, not a completed Cortex cycle or unassisted successor acceptance.
+Native status/dependency events produced MEM-13→15 and15→16 after predecessor leader termination,
+with no owner API after the16:15 factual-ACK reconciliation anchor. Policy completed and native MEM-11
+started without manual dispatch. This establishes bounded autonomous successor/correction behavior.
+Actual useful work after the outer CEO turn completes remains the final MVP evidence gate. Compare the
+exact root session final_answer/task_complete timestamp with strictly later native useful events;
+pre-final markers and server liveness are insufficient. Sol owns the finite remaining11/12/14/17 tasks
+and evidence audit. Do not replay already-running11; reconcile only exact remaining historical holds.
 
-## Verified recovery and remaining MVP proof — 2026-10-24
+Current accepted source: controllerc974d92, nativeaa0cdc, loaded server86350/plugin3751. Independent
+reviews cover native queue promotion, truthful local workspace settlement and deterministic accepted-base
+context through existing tools. Context transport was validated through actual native execution at70,751
+bytes without truncation. Original failed operations, rejected candidates, dirty bytes and unknown
+accounting remain preserved. Assisted recovery/backfill is distinct from later autonomous intervals.
+Historical routing recovered on unchanged Codex0.160.0; exact outage cause remains unknown. Existing
+bounded STOP evidence is retained. The old broad806-test result is historical; six unchanged lint failures
+still prevent a blanket full-release-check green claim. Backup integrity is not restore qualification.
 
-Routing recovered on unchanged npm Codex 0.160.0; the historical timeout cause remains unknown and
-both old accounting results remain pending. Experience MEM-10 and Platform MEM-58 completed real
-native source/independent-QA/final-verifier cycles with automatic LOCAL dual publication. Canonical
-Brain `0241414` and Platform `61e8b3c` were separately pushed/read back on GitHub. Local publication
-must not be described as an automatic remote push. Assisted startup/release repairs remain explicit.
-
-Independent mechanical integration `85c8a1f` combines canonical Platform with accepted controller
-`261682bb`; all tree entries were checked against their accepted parents and 62 tests/26 subtests
-passed. Normal org push/readback completed. This source checkpoint is separate from loaded custody
-(last verified native09/server25737, isolated controller261/plugin60910).
-
-Native MEM-13 readiness is established, but its deferred blocker-resolved wake is orphaned after the
-predecessor lead terminates. A bounded native queue repair is in independent review; first candidate
-`f24926c8` was rejected for a board-owned hold race and not deployed. Preserve that wake and require
-normal native promotion after correction, without manual dispatch or another scheduler. MVP remains
-unaccepted until Cortex/Evaluation/Policy complete useful cycles and actual post-CEO-turn useful work
-is observed. Existing Senses and bounded STOP evidence need no repeat. Exact current evidence is in
-private `state/resumption-20261024-routing-recovery/`, especially the independent MVP audit and two
-first-useful-publication receipts. Historical sections below retain earlier outcomes, not current holds.
+Current machine-readable evidence lives in private `state/resumption-20261024-routing-recovery/`:
+five first-useful-publication receipts, native transition receipts, context/local recovery reviews and
+loaded custody packets. Consult the current private HANDOFF before operational actions. Historical
+sections below preserve prior outcomes and do not override the founder's resumed authority.
 
 ## MVP resumption outcome — 2026-10-24: native routing hold
 

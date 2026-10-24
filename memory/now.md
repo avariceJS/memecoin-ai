@@ -1,63 +1,55 @@
-# Current state — 2026-10-24, MVP execution restored
+# Current state — 2026-10-24, six departments verified; CEO-exit proof pending
 
-Founder explicitly resumed the program after the routing pause. Sol owns native execution/recovery,
-Luna source changes, independent Sol acceptance; root owns CEO decisions and canonical docs.
-Authority: private lab `state/resumption-20261024-routing-recovery/founder-authority.json`.
-No new Goal, paid fallback, main/production/protected data/market/training/AUTO/trading authority.
-Historical Pilot STOP and unknown operations remain preserved.
+Founder-authorized MVP program continues. Sol owns native execution/recovery, Luna implementation,
+independent Sol acceptance; root owns coordination/docs. No new Goal, paid fallback, main/production,
+protected data, market collection, training, AUTO or trading authority. Historical Pilot STOP remains.
+Private authority: `state/resumption-20261024-routing-recovery/founder-authority.json`.
 
-## Verified progress
+## Verified work
 
-Native Codex routing recovered on the same npm Codex 0.160.0 without an upgrade. Both old failed runs
-remain accounting-pending; zero counters do not establish zero usage. The precise historical network
-cause is unknown. Supported native recovery produced distinct useful continuations after reconciliation.
-The optional metadata PATCH outcome remains unknown and was not blindly resent.
+All six departments have useful accepted engineering evidence: preserved prior Senses cycles;
+Experience MEM-10 (`0241414`); Platform MEM-58 (`61e8b3c`); Cortex MEM-13 (`c6529c5`);
+Evaluation MEM-15 (`fd7bd86`); Policy MEM-16 (`384b25d`). New cycles used native Sol/Luna,
+fixed preflight, independent substantive QA, mandatory final verifier and automatic LOCAL dual Git
+publication. GitHub checkpoints are separate custody actions, not automatic publication claims.
+Cortex required two QA corrections; Evaluation required one. Rejected artifacts/history are preserved.
+Cortex equivalence evidence is limited to two admitted paths, and asserted input pins do not prove
+external payload identity. These source results establish engineering capability, not trading quality.
 
-Experience MEM-10 and Platform MEM-58 are done, each with native Luna source, independent Sol QA,
-fixed final verification and automatic LOCAL projected/canonical publication. Brain canonical result
-is `0241414170438c445f86f22040cee2b5a877e54a` (strict finite numeric OHLCV); Platform result is
-`61e8b3c7591e5bff0388432296d02b9e4a192279` (NUL-before-I/O guard and Unicode regression tests).
-Separate normal GitHub pushes/readback confirmed both; automatic local publication is not remote push.
-Prior Senses acceptance and bounded stop/resume evidence remain valid and were not repeated.
+Native unassisted transitions are observed: MEM-13 lead terminal16:18:28.059 UTC → MEM-15 run
+16:18:28.177; MEM-15 lead terminal16:27:21.775 → MEM-16 run16:27:21.940, both from native dependency
+readiness. Policy lead completed16:31:49.395 and MEM-11 subsequently started without owner dispatch.
+No owner API intervention in this core interval after the16:15 known-ACK reconciliation anchor.
 
-Canonical `org/development` is `3818f827f2d907999a13eb657165e0d924cf3bff`, normal-pushed and
-remote-confirmed. It includes independently reviewed integration `85c8a1f`, documentation checkpoint
-`6ae00cb`, and the accepted native queue package. Combined integration checks passed 62 tests and
-26 subtests; native correction passed 17 focused cases, six independent probes and server typecheck;
-packaging passed nine launcher tests and Ruff. Prior rejected candidates remain preserved. The prior
-broad 806-test result is historical; full release-check still has six unchanged lint failures.
+## Source and runtime
 
-## Runtime and active work
+Canonical org source is `c974d92d4ee02eec9efcc8fc916af10e8e003033`, normal-pushed/read back; subsequent
+canonical documentation commits do not change runtime source. Native `aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24`
+is loaded as server PID86350 (start15:27:49.875 UTC), controllerc974/pluginPID3751 with seven tools.
+Recheck fresh custody before action. Native queue/local workspace recovery and accepted-base context
+repairs were independently accepted; prior rejected candidates were not deployed. Last context checks:
+36 Python tests/20 subtests,28 TS tests, typecheck/Ruff; actual native delivery carried70,751 bytes
+without truncation. Earlier broad806-test acceptance remains historical; full release-check has six
+known unchanged lint failures. Backup gzip integrity passed; this release did not test restore.
 
-Accepted native `0e0c1eb22c879203337cee9710471c6fd30b00b1` was loaded under package `3818f827`:
-server PID 74409 started 14:31:56.323 UTC, plugin PID 74463, seven tools ready, source/build hashes
-matched. Receipt `native-release/accepted-native-loaded-paused.json` captures all six companies paused
-and no live runs before selective resumption. Recheck current private HANDOFF before action.
+Routing recovered on unchanged npm Codex0.160.0 without upgrade. Exact historical timeout cause remains
+unknown; the two old routing calls retain pending accounting, not settled zero. A separate historical
+MEM-13 read-only cancelled run had settled usage17108/133; do not conflate them. Supported workspace
+recovery produced NEW successfulfe9bf8e3, preserving failed35b4 and all files. A missing exact predecessor
+edge was restored through native API; cause of historical removal remains unknown. Startup repairs,
+context backfill and factual reconciliation of an existing ACK were assisted, not autonomous proof.
 
-MEM-13's old deferred wake was cancelled by an earlier company pause; it must not be resurrected.
-The exact current packet also exposed a historical no-replay hold. Its run16511 was acknowledged
-cancelled after read-only context/instruction tools, without source changes or child creation; its
-usage is settled (17108 input/133 output), distinct from the two routing failures still pending.
-Historical MEM-15/16 runs never started. Supported recovery ACKs completed for all three;
-company resumed. From observer anchor 14:44:03 UTC, native delivery created MEM-13 run5f7ef93b at
-14:44:18 without manual wake. Setup then failed BEFORE provider invocation: the old workspace has
-failed local finalization35b4acb0 (`native_session_lease_lost`), separately from the reconciled execution
-hold. The public workspace recovery route's required marker/token is absent. Sol is checking the exact
-supported finalization path; any necessary source correction remains Luna-owned and independently
-reviewed. Preserve old operations/dirty data; no deletion of a failed row or bypass of the workspace guard.
-MEM-15/16 have no corresponding workspace operations. This is still assisted startup recovery, not
-completed autonomous successor proof. Accepted native queue code remains deployed; no manual successor
-wake or replacement scheduler.
+## Remaining finite proof and next entry
 
-MVP is not yet achieved. Remaining finite proof: automatic MEM-13 → MEM-15 → MEM-16 engineering cycles
-for Cortex/Evaluation/Policy, then actual useful continuation after an outer CEO turn ends. Server
-liveness alone is not that proof. MEM-11/12/14/17 remain admitted follow-on work, with historical holds
-preserved pending their own reconciliation. Only observed autonomous intervals may be claimed as such.
+Full MVP is not yet claimed: actual useful work after the outer CEO turn ends must still be observed.
+Use the exact current root session final_answer/task_complete timestamps, then strictly later native
+execution/review/publication events; a pre-final marker or live server is insufficient. Sol owns this
+bounded read-only audit and the remaining admitted MEM-11/12/14/17 work. MEM-11 already started natively;
+do not restore/retry it blindly. Reconcile only remaining exact historical tail holds, preserving unknown
+usage and all original operations. Existing bounded STOP evidence need not be repeated.
 
-## Next entry
-
-Read `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md` and the current private packet
-`state/resumption-20261024-routing-recovery/`. Unique receipts: `MEM10-first-useful-publication-native-QA.json`,
-`MEM58-first-useful-publication-native-QA.json`, `post-Platform-mechanical-integration-independent-review.json`,
-and `independent-mvp-evidence-audit-20261024T135336Z.json`. Historical routing/pause evidence remains in
-`state/resumption-20261024-mvp/provider-routing-blocker/`. Raw receipts and the owner prompt stay outside Git.
+Read `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md` for fresh task/process state. Current
+private evidence: `state/resumption-20261024-routing-recovery/`, including MEM10/MEM13/MEM15/MEM16/MEM58
+first-useful-publication receipts, two native successor receipts, local recovery and controller context
+review/release packets. Raw receipts/session logs and owner `prompt/` remain outside Git. Main remains
+`2f8da5f92da521b511e0d4fb20205981a000cab5`.
