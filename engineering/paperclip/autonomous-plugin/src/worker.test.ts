@@ -345,6 +345,13 @@ describe("Paperclip autonomous bridge tools", () => {
     });
     registerAutonomousTools(ctx, invoke as never);
     const params = { stage_key: "MEM8", source_issue_id: "source-8", review_issue_id: "review-8" };
+    await expect(handlers.get("bind_source_stage")!({
+      ...params,
+      path_ids: ["src/forged.py"],
+      verifier_policy_id: "worker-selected-policy",
+      source_workspace_root: "/tmp/worker-selected-root",
+    }, leadRun)).rejects.toThrow("source_stage_parameters_invalid");
+    expect(invoke).not.toHaveBeenCalled();
     await expect(handlers.get("bind_source_stage")!(params, leadRun))
       .rejects.toThrow("host_issue_run_binding_mismatch");
     expect(invoke.mock.calls.filter(([action]) => action === "bind_source_stage")).toHaveLength(0);
@@ -383,10 +390,30 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(updateStatusCompareAndSet).toHaveBeenCalledWith("source-8", "todo", 4, "company-1");
     expect(invoke.mock.calls.filter(([action]) => action === "source_stage_activation")).toHaveLength(2);
     for (const id of ["source-8", "review-8", "lead-issue"]) {
-      expect(issueNotes.get(id)).toHaveLength(1);
+      expect(issueNotes.get(id)).toHaveLength(2);
       expect(issueNotes.get(id)?.[0]).toContain(`brain-autonomous-bridge:${"a".repeat(64)}:bound`);
       expect(commentCalls.indexOf(`create:${id}`)).toBeLessThan(commentCalls.indexOf("cas:source-8"));
     }
+    const contextNote = issueNotes.get("source-8")?.[1] ?? "";
+    expect(contextNote).toContain(`brain-autonomous-bridge:${"a".repeat(64)}:scope-context`);
+    expect(contextNote).toContain("stage_key:MEM8");
+    expect(contextNote).toContain(`stage_binding_key:${"a".repeat(64)}`);
+    expect(contextNote).toContain(`base_sha:${"b".repeat(40)}`);
+    expect(contextNote).toContain("stage_workspace_id:source");
+    expect(contextNote).toContain("source_workspace_id:workspace-project");
+    expect(contextNote).toContain("source_workspace_root:/tmp/brain-source-workspace");
+    expect(contextNote).toContain("selected_cwd:/tmp/brain-source-workspace");
+    expect(contextNote).toContain("verifier_policy_id:policy-mem8");
+    expect(contextNote).toContain("path_id:src/memecoin_brain_sources/events.py");
+    expect(contextNote).toContain("path_id:tests/brain/test_raw_sources.py");
+    expect(contextNote).toContain("source_issue_id:source-8");
+    expect(contextNote).toContain("review_issue_id:review-8");
+    expect(contextNote).toContain(`source_instruction_sha256:${digest("source instructions")}`);
+    expect(contextNote).toContain(`review_instruction_sha256:${digest("review instructions")}`);
+    expect(contextNote).toMatch(/scope_context_sha256:[0-9a-f]{64}/);
+    expect(contextNote).not.toContain("activation_ack");
+    expect(contextNote).not.toContain("activation_status:active");
+    expect(invoke.mock.calls.filter(([action]) => action === "source_stage_activation")).toHaveLength(2);
   });
 
   it("source content delivery touches its own task and direct lead only", async () => {
@@ -857,31 +884,41 @@ describe("Paperclip autonomous bridge tools", () => {
     const params = { stage_key: "MEM8", source_issue_id: "source-8", review_issue_id: "review-8" };
     await handlers.get("bind_source_stage")!(params, leadRun);
     expect(invoke).toHaveBeenCalledTimes(1);
-    expect(issueNotes.get("source-8")).toHaveLength(1);
-    expect(issueNotes.get("review-8")).toHaveLength(1);
+    expect(issueNotes.get("source-8")).toHaveLength(2);
+    expect(issueNotes.get("review-8")).toHaveLength(2);
     const note = issueNotes.get("source-8")?.[0] ?? "";
-    expect(note).toContain(`brain-autonomous-bridge:${"a".repeat(64)}:bound`);
-    expect(note).toContain(`source_instruction_sha256:${sourceHash}`);
-    expect(note).toContain(`review_instruction_sha256:${reviewHash}`);
+    const scopeNote = issueNotes.get("source-8")?.[1] ?? "";
+    expect(note).toBe([
+      `brain-autonomous-bridge:${"a".repeat(64)}:bound`,
+      `brain-source-stage:${"a".repeat(64)}:bound`,
+      "stage_key:MEM8",
+      `stage_binding_key:${"a".repeat(64)}`,
+      `base_sha:${"b".repeat(40)}`,
+      "source_issue_id:source-8",
+      "review_issue_id:review-8",
+      `source_instruction_sha256:${sourceHash}`,
+      `review_instruction_sha256:${reviewHash}`,
+    ].join("\n"));
 
     currentHistoryIssue = "source-8";
     const sourceHistory = await currentIssues().listComments("source-8", "company-1");
-    expect(sourceHistory.map((entry) => entry.body)).toEqual([note]);
+    expect(sourceHistory.map((entry) => entry.body)).toEqual([note, scopeNote]);
     await expect(currentIssues().listComments("review-8", "company-1")).rejects.toThrow("sibling_comment_access_denied");
     currentHistoryIssue = "review-8";
     const reviewHistory = await currentIssues().listComments("review-8", "company-1");
-    expect(reviewHistory.map((entry) => entry.body)).toEqual([note]);
+    expect(reviewHistory.map((entry) => entry.body)).toEqual([note, scopeNote]);
     await expect(currentIssues().listComments("source-8", "company-1")).rejects.toThrow("sibling_comment_access_denied");
 
     currentHistoryIssue = "lead-issue";
     await handlers.get("bind_source_stage")!(params, leadRun);
-    expect(issueNotes.get("source-8")).toHaveLength(1);
-    expect(issueNotes.get("review-8")).toHaveLength(1);
-    expect(issueNotes.get("lead-issue")).toHaveLength(1);
+    expect(issueNotes.get("source-8")).toHaveLength(2);
+    expect(issueNotes.get("review-8")).toHaveLength(2);
+    expect(issueNotes.get("lead-issue")).toHaveLength(2);
     expect(invoke).toHaveBeenCalledTimes(2);
+    expect(invoke.mock.calls.every(([action]) => action === "lookup_source_stage_binding")).toBe(true);
     issueNotes.set("review-8", [`${note}\nconflicting replay content`]);
     await expect(handlers.get("bind_source_stage")!(params, leadRun)).rejects.toThrow("paperclip_evidence_replay_mismatch");
-    expect(issueNotes.get("source-8")).toHaveLength(1);
+    expect(issueNotes.get("source-8")).toHaveLength(2);
     expect(issueNotes.get("review-8")).toHaveLength(1);
     expect(invoke).toHaveBeenCalledTimes(3);
   });

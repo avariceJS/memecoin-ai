@@ -405,6 +405,46 @@ function sourceStageBoundNote(
   };
 }
 
+function sourceStageScopeContextNote(
+  stage: NonNullable<OwnerConfig["source_stage_catalog"]>[number],
+  stageBindingKey: string,
+  baseSha: string,
+  sourceIssueId: string,
+  reviewIssueId: string,
+  sourceInstructionSha256: string,
+  reviewInstructionSha256: string,
+  owner: OwnerConfig,
+): { idempotencyKey: string; body: string } {
+  const workspaceId = stage.source_workspace_id ?? owner.source_workspace_id;
+  const workspaceRoot = stage.source_workspace_root ?? owner.source_workspace_root;
+  if (!workspaceId || !workspaceRoot) fail("source_workspace_not_owner_configured");
+  const idempotencyKey = `${stageBindingKey}:scope-context`;
+  const fields = [
+    `stage_key:${stage.stage_key}`,
+    `stage_binding_key:${stageBindingKey}`,
+    `base_sha:${baseSha}`,
+    `stage_workspace_id:${stage.workspace_id}`,
+    `source_workspace_id:${workspaceId}`,
+    `source_workspace_root:${workspaceRoot}`,
+    `selected_cwd:${workspaceRoot}`,
+    `verifier_policy_id:${stage.verifier_policy_id}`,
+    ...stage.path_ids.map((path) => `path_id:${path}`),
+    `source_issue_id:${sourceIssueId}`,
+    `review_issue_id:${reviewIssueId}`,
+    `source_instruction_sha256:${sourceInstructionSha256}`,
+    `review_instruction_sha256:${reviewInstructionSha256}`,
+  ];
+  return {
+    idempotencyKey,
+    body: [
+      `brain-autonomous-bridge:${idempotencyKey}`,
+      `brain-source-stage:${stageBindingKey}:scope-context`,
+      ...fields,
+      `scope_context_sha256:${createHash("sha256").update(fields.join("\n"), "utf8").digest("hex")}`,
+    ].join("\n"),
+  };
+}
+
 async function persistSourceStageBoundNotes(
   ctx: Pick<PluginContext, "issues">,
   owner: OwnerConfig,
@@ -414,6 +454,7 @@ async function persistSourceStageBoundNotes(
   sourceInstructionSha256: string,
   reviewInstructionSha256: string,
   includeLead: boolean,
+  scopeContextNote: { idempotencyKey: string; body: string },
 ): Promise<void> {
   const [source, review] = await Promise.all([
     readNativeIssue(ctx, sourceIssueId, owner.company_id),
@@ -429,8 +470,11 @@ async function persistSourceStageBoundNotes(
   }
   await persistIssueNote(ctx, sourceIssueId, owner.company_id, note.idempotencyKey, note.body);
   await persistIssueNote(ctx, reviewIssueId, owner.company_id, note.idempotencyKey, note.body);
+  await persistIssueNote(ctx, sourceIssueId, owner.company_id, scopeContextNote.idempotencyKey, scopeContextNote.body);
+  await persistIssueNote(ctx, reviewIssueId, owner.company_id, scopeContextNote.idempotencyKey, scopeContextNote.body);
   if (includeLead && owner.finite_lead_issue_id) {
     await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, note.idempotencyKey, note.body);
+    await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, scopeContextNote.idempotencyKey, scopeContextNote.body);
   }
 }
 
@@ -876,7 +920,7 @@ async function validateStageReviewRun(
 export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoker): void {
   ctx.tools.register("bind_source_stage", {
     displayName: "Bind Finite Brain Source Stage",
-    description: "Bind the owner-admitted native source and review tasks to one finite content stage, then CAS-activate the source task last.",
+    description: "Bind the owner-admitted native source and review tasks to one finite content stage and persist its exact owner-pinned scope context. Activation is evidenced by the durable binding ACK and the source task's current native run; no separate activation note is required.",
     parametersSchema: {
       type: "object",
       properties: {
@@ -1003,9 +1047,13 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
             artifactSha256: existing.retry_workspace_artifact_sha256 as string,
           } : null,
         );
+        const scopeContextNote = sourceStageScopeContextNote(
+          stage, existing.stage_binding_key, existing.base_sha, params.source_issue_id, params.review_issue_id,
+          existing.source_instruction_sha256, existing.review_instruction_sha256, owner,
+        );
         await persistSourceStageBoundNotes(
           ctx, owner, note, params.source_issue_id, params.review_issue_id,
-          existing.source_instruction_sha256, existing.review_instruction_sha256, true,
+          existing.source_instruction_sha256, existing.review_instruction_sha256, true, scopeContextNote,
         );
         return { content: [
           `stage_key:${stage.stage_key}`, `stage_binding_key:${existing.stage_binding_key}`,
@@ -1257,8 +1305,13 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         artifactSha256: result.retry_workspace_artifact_sha256 as string,
       } : null,
     );
+    const scopeContextNote = sourceStageScopeContextNote(
+      stage, result.stage_binding_key, result.base_sha, source.id, review.id,
+      sourceInstructionSha256, reviewInstructionSha256, owner,
+    );
     await persistSourceStageBoundNotes(
       ctx, owner, note, source.id, review.id, sourceInstructionSha256, reviewInstructionSha256, true,
+      scopeContextNote,
     );
     if (result.state === "bound") await activateSourceStage(ctx, invoke, owner, owner.configPath, result.stage_binding_key, {
       id: source.id, status: source.status, statusVersion: source.statusVersion as number,

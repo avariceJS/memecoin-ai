@@ -3205,17 +3205,27 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         base = git("rev-parse", "HEAD")
         publisher = root / "publisher"
         subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(publisher)], check=True)
+        global_domain_source = root / "global-domain-source-unavailable"
         workspace = root / "no-git-workspace"
         workspace.mkdir()
         stages = (
-            SourceStageSpec("MEM8", "source", base, None, SOURCE_PATHS, "policy-mem8"),
+            SourceStageSpec(
+                "MEM8",
+                "source",
+                base,
+                None,
+                SOURCE_PATHS,
+                "policy-mem8",
+                source_repo=source,
+                publisher_repo=publisher,
+            ),
             SourceStageSpec("MEM9", "published", None, "MEM8", SOURCE_PATHS, "policy-mem9"),
         )
         config = replace(
             self.config,
             source_issue_id=None,
             reviewer_issue_id=None,
-            source_repo=source,
+            source_repo=global_domain_source,
             publisher_repo=publisher,
             worker_checkout=None,
             expected_base_sha=base,
@@ -3248,6 +3258,8 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "predecessor_dependency_ready": None,
         }
         first = dispatch(config, {"action": "bind_source_stage", "payload": payload})
+        self.assertEqual(config.source_repo, global_domain_source)
+        self.assertEqual((source / SOURCE_PATHS[0]).read_text(), "trusted events\n")
         self.assertEqual((workspace / SOURCE_PATHS[0]).read_text(), "trusted events\n")
         self.assertEqual((workspace / SOURCE_PATHS[1]).read_text(), "trusted tests\n")
         self.assertEqual(len(first["workspace_baseline_sha256"]), 64)

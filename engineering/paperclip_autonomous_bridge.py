@@ -1134,7 +1134,7 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
         workspace_repo = (
             Path(binding_value["trusted_source_cache"])
             if stage.workspace_id == "published"
-            else config.source_repo
+            else stage_config.source_repo
         )
         try:
             binding_value["workspace_baseline_sha256"] = refresh_owner_workspace(
