@@ -2,8 +2,10 @@
   "schema": "brain-paperclip-source-v5",
   "upstream_repository": "https://github.com/paperclipai/paperclip",
   "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
-  "predecessor_commit": "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
+  "predecessor_commit": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
   "predecessor_chain": [
+    "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
+    "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
     "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
     "a0cdea58195eed97c6f1ba4518c88826c778bb02",
     "407762fa09288fad6a9e39771efc5d738b57be7b",
@@ -17,26 +19,25 @@
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
     "043f2514e67c50320433a0013fb228a75a51325c"
   ],
-  "derivative_commit": "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
+  "derivative_commit": "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
   "patch": "managed-codex-isolation.patch",
-  "patch_sha256": "ec23d41047c7ae3a54699e597c9e02d5c39b49e1ac5bae5457f1f97ffaf069cd",
+  "patch_sha256": "48f118dc012b58ffcbd6932b951137b70104d27209cd4ae00621aa6208ec9503",
   "source_review": {
     "status": "accepted_source_only",
     "reviewer": "Sol-6.1 High",
-    "receipt": "state/resumption-20261024/native-board-hold-wake-16ae5c5-independent-review.json",
-    "receipt_sha256": "8151ea3ff6ab3198c75e4c335885a46752c17ef9e5f2a8de3bc71070f2411bf6",
-    "commit": "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
-    "parent": "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
-    "diff_sha256": "d4a43a36820d9b48e9011afff930b32b6178676cd1d97f7be2c6310daa462afd",
-    "combined_diff_sha256": "75efc9cb241ee95026f3c80d2971f0377112e69fdd176e0801151a416ca0b4ae",
+    "receipt": "state/resumption-20261024-mvp/native-summary-source-independent-review-09ec93b.json",
+    "receipt_sha256": "3088f2afe6c408242bb7276c29aa8c02137b8c77ba14356359e4de58faf2f606",
+    "commit": "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
+    "parent": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
     "scope": [
-      "direct-target issue update wakes are suppressed when the effective issue is closed or remains blocked under a typed board-owned unblock descriptor",
-      "dependent release wakes, explicit runnable transitions, and agent-owned blocked routing remain unchanged",
-      "POST comment eligibility uses its fresh issue snapshot; a fresh board hold or closed state wins after earlier reopen intent"
+      "unscoped summaries report native readiness only when raw direct blocker IDs exactly match native readiness blockers",
+      "raw and native blocker reads share one read-only repeatable-read snapshot; a current edge reread fails closed on drift",
+      "all raw/native blocker IDs pass existing company and privacy guards; pending workspace finalization remains authoritative",
+      "executeTool-scoped summaries remain unchanged"
     ],
     "limits": [
-      "source-only acceptance; no Paperclip runtime deployment or restart qualification",
-      "launcher packaging binds the accepted source tree but does not establish operational readiness"
+      "source-only acceptance; no native deployment, restart or runtime qualification",
+      "packaging closure and controlled release require separate review"
     ]
   },
   "source_review_chain": [
@@ -181,9 +182,28 @@
         "source-only acceptance; no Paperclip runtime deployment or restart qualification",
         "launcher packaging binds the accepted source tree but does not establish operational readiness"
       ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-mvp/native-summary-source-independent-review-09ec93b.json",
+      "receipt_sha256": "3088f2afe6c408242bb7276c29aa8c02137b8c77ba14356359e4de58faf2f606",
+      "commit": "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
+      "parent": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
+      "scope": [
+        "unscoped summaries report native readiness only when raw direct blocker IDs exactly match native readiness blockers",
+        "raw and native blocker reads share one read-only repeatable-read snapshot; a current edge reread fails closed on drift",
+        "all raw/native blocker IDs pass existing company and privacy guards; pending workspace finalization remains authoritative",
+        "executeTool-scoped summaries remain unchanged"
+      ],
+      "limits": [
+        "source-only acceptance; no native deployment, restart or runtime qualification",
+        "packaging closure and controlled release require separate review"
+      ]
     }
   ],
   "stop_custody_source_pins": [
+    "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
     "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
     "a0cdea58195eed97c6f1ba4518c88826c778bb02",
     "407762fa09288fad6a9e39771efc5d738b57be7b",
@@ -206,12 +226,39 @@
       "receipt_sha256": "8703852143126e783ad5a91870175cb17d3ed74471934a21bd121828787db140",
       "commit": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
       "reason": "SDK-SCOPE-001 CAS authorization race; superseded by accepted child 67ae034 without rewriting history"
+    },
+    {
+      "status": "rejected",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-mvp/native-summary-source-independent-review-d2f6ded.json",
+      "receipt_sha256": "14573f064ae39e4d0fbba628d89e3b07a49b6df67b4234f9396886c71fd26ebd",
+      "commit": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
+      "reason": "NATIVE-SUMMARY-COMPLETENESS-01: raw blocker edges were not reconciled with native readiness; corrected by accepted child 09ec93b without rewriting history"
     }
   ],
   "patch_tree_equivalence": {
     "status": "verified",
     "method": "git apply cumulative patch at upstream commit and compare Git tree IDs",
     "upstream_tree": "547374c4e8abe51ff22b8cecc51644800f794dd6",
-    "derivative_tree": "2937a7d01323a6dd99a403f98b6217ff538c295b"
+    "derivative_tree": "3a48da0f2a0b3542c822121814556f6a0dbc87b4"
+  },
+  "prior_accepted_source_review": {
+    "status": "accepted_source_only",
+    "reviewer": "Sol-6.1 High",
+    "receipt": "state/resumption-20261024/native-board-hold-wake-16ae5c5-independent-review.json",
+    "receipt_sha256": "8151ea3ff6ab3198c75e4c335885a46752c17ef9e5f2a8de3bc71070f2411bf6",
+    "commit": "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
+    "parent": "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
+    "diff_sha256": "d4a43a36820d9b48e9011afff930b32b6178676cd1d97f7be2c6310daa462afd",
+    "combined_diff_sha256": "75efc9cb241ee95026f3c80d2971f0377112e69fdd176e0801151a416ca0b4ae",
+    "scope": [
+      "direct-target issue update wakes are suppressed when the effective issue is closed or remains blocked under a typed board-owned unblock descriptor",
+      "dependent release wakes, explicit runnable transitions, and agent-owned blocked routing remain unchanged",
+      "POST comment eligibility uses its fresh issue snapshot; a fresh board hold or closed state wins after earlier reopen intent"
+    ],
+    "limits": [
+      "source-only acceptance; no Paperclip runtime deployment or restart qualification",
+      "launcher packaging binds the accepted source tree but does not establish operational readiness"
+    ]
   }
 }

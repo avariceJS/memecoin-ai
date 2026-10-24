@@ -25,6 +25,8 @@ from typing import Any
 from engineering.processes import process_identity, terminate_owned
 
 PAPERCLIP_SOURCE_CHAIN = (
+    "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
+    "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
     "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
     "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
     "a0cdea58195eed97c6f1ba4518c88826c778bb02",
@@ -41,7 +43,22 @@ PAPERCLIP_SOURCE_CHAIN = (
 )
 PAPERCLIP_PIN, PAPERCLIP_PARENT_PIN = PAPERCLIP_SOURCE_CHAIN[:2]
 PAPERCLIP_UPSTREAM_PIN = PAPERCLIP_SOURCE_CHAIN[-1]
-PAPERCLIP_STOP_CUSTODY_PINS = frozenset(PAPERCLIP_SOURCE_CHAIN[1:-1])
+PAPERCLIP_STOP_CUSTODY_PINS = frozenset(
+    {
+        "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
+        "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
+        "a0cdea58195eed97c6f1ba4518c88826c778bb02",
+        "407762fa09288fad6a9e39771efc5d738b57be7b",
+        "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+        "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
+        "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+        "01302914b5501fbb274b39477e087ac1692d9b6a",
+        "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
+        "fecf7b18def542fb6b58e7e665011e66599ffffb",
+        "519c892646ec7b06996e990e9e728f794e1a689e",
+        "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
+    }
+)
 DEFAULT_LAB_ROOT = Path("/Users/root1/Developer/brain-paperclip-lab")
 PORT = 3310
 HEALTH_URL = f"http://127.0.0.1:{PORT}/api/health"
