@@ -2,8 +2,14 @@
 
 The founder explicitly resumed work through `prompt/prompt.md`: deliver the six-department engineering
 MVP using existing Paperclip lifecycle, Sol leadership, Luna implementation and independent Sol acceptance.
-Private authority receipt: `state/resumption-20261024-mvp/founder-authority.json`. Live reconciliation
-and exact department admissions are pending; service start alone grants no task admission. Prior STOP
+Private authority receipt: `state/resumption-20261024-mvp/founder-authority.json`. Accepted Paperclip
+was restarted under owned launcher custody (PID 59507, start 08:22:30 UTC); startup recovery is ready.
+Initial fresh readback retained all six companies and six MEM agents paused, empty live-run inventories,
+unchanged roles and twelve unfinished MEM issues (`state/resumption-20261024-mvp/fresh-health.json` and
+adjacent snapshots). Subsequently only MEM and the independently scoped Platform Sol were resumed for
+MEM-57 source-only analysis; run `35be8a76-d3cd-4a41-a9a1-3bda9012582e` started. Its reviewed packet is
+`state/resumption-20261024-mvp/mem57-admission`; this grants no source implementation. Other five MEM
+agents remain held. Department source admissions await the isolated Luna candidate and independent review. Prior STOP
 evidence below is preserved as the shutdown baseline. Historical Pilot STOP and unknown operations remain
 held. No new native Goal, paid API, protected-data, main/production, market, training, AUTO or trading authority.
 
