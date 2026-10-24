@@ -37,6 +37,7 @@ type OwnerConfig = {
   canonical_repo?: string;
   canonical_ref?: string;
   canonical_expected_tip?: string;
+  expected_dev_ref?: string;
   source_workspace_id?: string;
   source_workspace_root?: string;
   python_executable: string;
@@ -128,6 +129,7 @@ async function readOwnerConfig(
     const laneCanonicalRef = selectedStages[0]?.canonical_ref ?? parsed.canonical_ref;
     const laneCanonicalTip = selectedStages[0]?.canonical_expected_tip ?? parsed.canonical_expected_tip;
     const laneTarget = selectedStages[0];
+    const laneExpectedDevRef = laneTarget?.expected_dev_ref ?? parsed.expected_dev_ref;
     const stageCatalogValid = rawStages.every((stage) => {
       const laneKeys = ["project_id", "lead_agent_id", "lead_issue_id"];
       const identities = laneKeys.map((key) => stage[key]);
@@ -218,6 +220,7 @@ async function readOwnerConfig(
         canonical_ref: laneCanonicalRef as string,
         canonical_expected_tip: laneCanonicalTip as string,
       } : {}),
+      ...(typeof laneExpectedDevRef === "string" ? { expected_dev_ref: laneExpectedDevRef } : {}),
       ...(finite ? {
         source_workspace_id: laneWorkspaceId as string,
         source_workspace_root: laneWorkspaceRoot as string,
@@ -361,6 +364,52 @@ async function persistIssueNote(
   }
 }
 
+async function persistTrustedBoundIssueNote(
+  ctx: Pick<PluginContext, "issues">,
+  issueId: string,
+  companyId: string,
+  idempotencyKey: string,
+  body: string,
+): Promise<void> {
+  const comments = await ctx.issues.listComments(issueId, companyId);
+  const marker = `brain-autonomous-bridge:${idempotencyKey}`;
+  if (!body.split("\n").includes(marker)) fail("paperclip_evidence_marker_missing");
+  const existing = comments.filter((comment) => comment.body.split("\n").includes(marker));
+  if (existing.length > 1) fail("paperclip_evidence_replay_duplicate");
+  if (existing.some((comment) => comment.body !== body)) fail("paperclip_evidence_replay_mismatch");
+  if (existing.length === 0) {
+    await ctx.issues.createComment(issueId, body, companyId);
+  }
+}
+
+async function readTrustedOwnerBoundIssue(
+  ctx: Pick<PluginContext, "issues">,
+  issueId: string,
+  companyId: string,
+) {
+  const issue = await ctx.issues.get(issueId, companyId);
+  if (!issue || issue.id !== issueId || issue.companyId !== companyId) {
+    fail("source_stage_issue_unavailable");
+  }
+  return issue;
+}
+
+async function validateTrustedBoundReviewIssue(
+  ctx: Pick<PluginContext, "issues">,
+  owner: OwnerConfig,
+  stage: NonNullable<OwnerConfig["source_stage_catalog"]>[number],
+  issueId: string,
+) {
+  const issue = await readTrustedOwnerBoundIssue(ctx, issueId, owner.company_id);
+  if (issue.projectId !== owner.project_id
+      || issue.parentId !== owner.finite_lead_issue_id
+      || !stageGoalMatches(issue, owner, stage)
+      || issue.assigneeAgentId !== owner.reviewer_agent_id) {
+    fail("source_stage_review_binding_mismatch");
+  }
+  return issue;
+}
+
 function sourceStageBoundNote(
   stageKey: string,
   stageBindingKey: string,
@@ -405,6 +454,46 @@ function sourceStageBoundNote(
   };
 }
 
+function sourceStageScopeContextNote(
+  stage: NonNullable<OwnerConfig["source_stage_catalog"]>[number],
+  stageBindingKey: string,
+  baseSha: string,
+  sourceIssueId: string,
+  reviewIssueId: string,
+  sourceInstructionSha256: string,
+  reviewInstructionSha256: string,
+  owner: OwnerConfig,
+): { idempotencyKey: string; body: string } {
+  const workspaceId = stage.source_workspace_id ?? owner.source_workspace_id;
+  const workspaceRoot = stage.source_workspace_root ?? owner.source_workspace_root;
+  if (!workspaceId || !workspaceRoot) fail("source_workspace_not_owner_configured");
+  const idempotencyKey = `${stageBindingKey}:scope-context`;
+  const fields = [
+    `stage_key:${stage.stage_key}`,
+    `stage_binding_key:${stageBindingKey}`,
+    `base_sha:${baseSha}`,
+    `stage_workspace_id:${stage.workspace_id}`,
+    `source_workspace_id:${workspaceId}`,
+    `source_workspace_root:${workspaceRoot}`,
+    `selected_cwd:${workspaceRoot}`,
+    `verifier_policy_id:${stage.verifier_policy_id}`,
+    ...stage.path_ids.map((path) => `path_id:${path}`),
+    `source_issue_id:${sourceIssueId}`,
+    `review_issue_id:${reviewIssueId}`,
+    `source_instruction_sha256:${sourceInstructionSha256}`,
+    `review_instruction_sha256:${reviewInstructionSha256}`,
+  ];
+  return {
+    idempotencyKey,
+    body: [
+      `brain-autonomous-bridge:${idempotencyKey}`,
+      `brain-source-stage:${stageBindingKey}:scope-context`,
+      ...fields,
+      `scope_context_sha256:${createHash("sha256").update(fields.join("\n"), "utf8").digest("hex")}`,
+    ].join("\n"),
+  };
+}
+
 async function persistSourceStageBoundNotes(
   ctx: Pick<PluginContext, "issues">,
   owner: OwnerConfig,
@@ -414,6 +503,7 @@ async function persistSourceStageBoundNotes(
   sourceInstructionSha256: string,
   reviewInstructionSha256: string,
   includeLead: boolean,
+  scopeContextNote: { idempotencyKey: string; body: string },
 ): Promise<void> {
   const [source, review] = await Promise.all([
     readNativeIssue(ctx, sourceIssueId, owner.company_id),
@@ -429,8 +519,11 @@ async function persistSourceStageBoundNotes(
   }
   await persistIssueNote(ctx, sourceIssueId, owner.company_id, note.idempotencyKey, note.body);
   await persistIssueNote(ctx, reviewIssueId, owner.company_id, note.idempotencyKey, note.body);
+  await persistIssueNote(ctx, sourceIssueId, owner.company_id, scopeContextNote.idempotencyKey, scopeContextNote.body);
+  await persistIssueNote(ctx, reviewIssueId, owner.company_id, scopeContextNote.idempotencyKey, scopeContextNote.body);
   if (includeLead && owner.finite_lead_issue_id) {
     await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, note.idempotencyKey, note.body);
+    await persistIssueNote(ctx, owner.finite_lead_issue_id, owner.company_id, scopeContextNote.idempotencyKey, scopeContextNote.body);
   }
 }
 
@@ -876,7 +969,7 @@ async function validateStageReviewRun(
 export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoker): void {
   ctx.tools.register("bind_source_stage", {
     displayName: "Bind Finite Brain Source Stage",
-    description: "Bind the owner-admitted native source and review tasks to one finite content stage, then CAS-activate the source task last.",
+    description: "Bind the owner-admitted native source and review tasks to one finite content stage and persist its exact owner-pinned scope context. Activation is evidenced by the durable binding ACK and the source task's current native run; no separate activation note is required.",
     parametersSchema: {
       type: "object",
       properties: {
@@ -1003,9 +1096,13 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
             artifactSha256: existing.retry_workspace_artifact_sha256 as string,
           } : null,
         );
+        const scopeContextNote = sourceStageScopeContextNote(
+          stage, existing.stage_binding_key, existing.base_sha, params.source_issue_id, params.review_issue_id,
+          existing.source_instruction_sha256, existing.review_instruction_sha256, owner,
+        );
         await persistSourceStageBoundNotes(
           ctx, owner, note, params.source_issue_id, params.review_issue_id,
-          existing.source_instruction_sha256, existing.review_instruction_sha256, true,
+          existing.source_instruction_sha256, existing.review_instruction_sha256, true, scopeContextNote,
         );
         return { content: [
           `stage_key:${stage.stage_key}`, `stage_binding_key:${existing.stage_binding_key}`,
@@ -1257,8 +1354,13 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         artifactSha256: result.retry_workspace_artifact_sha256 as string,
       } : null,
     );
+    const scopeContextNote = sourceStageScopeContextNote(
+      stage, result.stage_binding_key, result.base_sha, source.id, review.id,
+      sourceInstructionSha256, reviewInstructionSha256, owner,
+    );
     await persistSourceStageBoundNotes(
       ctx, owner, note, source.id, review.id, sourceInstructionSha256, reviewInstructionSha256, true,
+      scopeContextNote,
     );
     if (result.state === "bound") await activateSourceStage(ctx, invoke, owner, owner.configPath, result.stage_binding_key, {
       id: source.id, status: source.status, statusVersion: source.statusVersion as number,
@@ -1300,8 +1402,16 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     if (sourceIssue.projectId !== owner.project_id || sourceIssue.parentId !== owner.finite_lead_issue_id
         || !stageGoalMatches(sourceIssue, owner, stage)
         || sourceIssue.assigneeAgentId !== owner.worker_agent_id) fail("source_stage_source_parent_mismatch");
-    const sourceInstructionSha256 = await assertBoundInstruction(
-      invoke, owner, stage.stage_key, "source_issue_id", sourceIssue, params.stage_binding_key,
+    const sourceBinding = await readBoundStage(
+      invoke, owner, owner.configPath, stage.stage_key, "source_issue_id", sourceIssue.id, params.stage_binding_key,
+    );
+    const sourceInstructionSha256 = instructionDigest(sourceIssue.description);
+    if (sourceBinding.source_issue_id !== sourceIssue.id
+        || sourceBinding.source_instruction_sha256 !== sourceInstructionSha256
+        || typeof sourceBinding.review_issue_id !== "string" || !ID_RE.test(sourceBinding.review_issue_id)
+        || sourceBinding.review_issue_id === sourceIssue.id) fail("source_stage_instruction_binding_mismatch");
+    const boundReviewIssue = await validateTrustedBoundReviewIssue(
+      ctx, owner, stage, sourceBinding.review_issue_id,
     );
     await assertPinnedSourceWorkspace(ctx, owner, [owner.finite_lead_issue_id!, sourceIssue.id], stage);
     const result = await invoke("deliver_source_stage_content", {
@@ -1344,6 +1454,12 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       `submitted_sha:${String(result.submitted_sha ?? "controller-generated")}`,
       `policy_digest:${String(result.policy_digest ?? "")}`,
     ].join("\n");
+    const currentBoundReviewIssue = await validateTrustedBoundReviewIssue(
+      ctx, owner, stage, boundReviewIssue.id,
+    );
+    await persistTrustedBoundIssueNote(
+      ctx, currentBoundReviewIssue.id, owner.company_id, `${result.operation_key}:submitted`, note,
+    );
     await persistIssueNote(
       ctx, sourceIssue.id, owner.company_id, `${result.operation_key}:submitted`, note,
     );
@@ -1417,6 +1533,11 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)
         || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 60_000
         || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)) fail("bridge_result_invalid");
+    const targetRef = stage.expected_dev_ref ?? owner.expected_dev_ref;
+    const canonicalRef = stage.canonical_ref ?? owner.canonical_ref ?? null;
+    if (typeof targetRef !== "string" || result.target_ref !== targetRef || result.canonical_ref !== canonicalRef) {
+      fail("bridge_result_invalid");
+    }
     const preflight = result.source_preflight as Record<string, unknown> | undefined;
     if (!preflight || typeof preflight !== "object" || Array.isArray(preflight)
         || preflight.status !== "passed"

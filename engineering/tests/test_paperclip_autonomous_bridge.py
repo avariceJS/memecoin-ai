@@ -9,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from engineering.git_gate import Candidate
+from engineering.git_gate import Candidate, GitGate, GitGateError
 from engineering.paperclip_autonomous_bridge import (
     BridgeConfig,
     BridgeError,
@@ -22,6 +22,7 @@ from engineering.paperclip_autonomous_bridge import (
     _write_journal,
     dispatch,
 )
+from engineering.paperclip_git_broker import OperationBinding
 
 
 class FakeBroker:
@@ -355,6 +356,8 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 {"action": "inspect_candidate", "payload": {**reviewer, "candidate_sha": "0" * 40}},
             )
         inspected = dispatch(config, {"action": "inspect_candidate", "payload": reviewer})
+        self.assertEqual(inspected["target_ref"], config.expected_dev_ref)
+        self.assertEqual(inspected["canonical_ref"], config.canonical_ref)
         self.assertEqual(inspected["canonical_candidate_sha"], prepared["canonical_candidate_sha"])
         self.assertEqual(
             inspected["canonical_receipt_digest"], prepared["canonical_receipt_digest"]
@@ -3205,17 +3208,27 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         base = git("rev-parse", "HEAD")
         publisher = root / "publisher"
         subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(publisher)], check=True)
+        global_domain_source = root / "global-domain-source-unavailable"
         workspace = root / "no-git-workspace"
         workspace.mkdir()
         stages = (
-            SourceStageSpec("MEM8", "source", base, None, SOURCE_PATHS, "policy-mem8"),
+            SourceStageSpec(
+                "MEM8",
+                "source",
+                base,
+                None,
+                SOURCE_PATHS,
+                "policy-mem8",
+                source_repo=source,
+                publisher_repo=publisher,
+            ),
             SourceStageSpec("MEM9", "published", None, "MEM8", SOURCE_PATHS, "policy-mem9"),
         )
         config = replace(
             self.config,
             source_issue_id=None,
             reviewer_issue_id=None,
-            source_repo=source,
+            source_repo=global_domain_source,
             publisher_repo=publisher,
             worker_checkout=None,
             expected_base_sha=base,
@@ -3248,6 +3261,8 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "predecessor_dependency_ready": None,
         }
         first = dispatch(config, {"action": "bind_source_stage", "payload": payload})
+        self.assertEqual(config.source_repo, global_domain_source)
+        self.assertEqual((source / SOURCE_PATHS[0]).read_text(), "trusted events\n")
         self.assertEqual((workspace / SOURCE_PATHS[0]).read_text(), "trusted events\n")
         self.assertEqual((workspace / SOURCE_PATHS[1]).read_text(), "trusted tests\n")
         self.assertEqual(len(first["workspace_baseline_sha256"]), 64)
@@ -3255,6 +3270,230 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         replay = dispatch(config, {"action": "bind_source_stage", "payload": payload})
         self.assertEqual(replay["stage_binding_key"], first["stage_binding_key"])
         self.assertEqual((workspace / SOURCE_PATHS[0]).read_text(), "worker source edit\n")
+
+    def test_owner_platform_stage_prepares_exact_engineering_pair_from_its_distinct_repositories(
+        self,
+    ):
+        root = Path(self.tmp.name) / "platform-engineering-stage"
+        source = root / "platform-source"
+        publisher = root / "platform-publisher"
+        canonical = root / "platform-canonical"
+        worker = root / "worker"
+        root.mkdir()
+
+        def git(repo, *args):
+            result = subprocess.run(
+                ["/usr/bin/git", "-C", str(repo), *args],
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+            if result.returncode:
+                raise AssertionError(result.stderr)
+            return result.stdout.strip()
+
+        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "main", str(source)], check=True)
+        git(source, "config", "user.name", "owner")
+        git(source, "config", "user.email", "owner@example.invalid")
+        owner_paths = (
+            "engineering/paperclip_source_delivery.py",
+            "engineering/tests/test_paperclip_source_delivery.py",
+        )
+        for path, contents in zip(
+            owner_paths, ("# accepted source base\n", "# accepted test base\n"), strict=True
+        ):
+            target = source / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(contents)
+        git(source, "add", "-A")
+        git(source, "commit", "-m", "Platform accepted base")
+        base = git(source, "rev-parse", "HEAD")
+        for target in (publisher, canonical):
+            subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(target)], check=True)
+        for target in (source, publisher, canonical):
+            git(target, "update-ref", "refs/heads/org/development", base)
+            git(target, "update-ref", "refs/heads/brain/development", base)
+        git(publisher, "checkout", "--detach", base)
+        subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(worker)], check=True)
+        git(worker, "config", "user.name", "Platform worker")
+        git(worker, "config", "user.email", "platform-worker@example.invalid")
+        (worker / owner_paths[0]).write_text("# exact Platform source update\n")
+        (worker / owner_paths[1]).write_text("# exact Platform test update\n")
+        git(worker, "add", "-A")
+        git(worker, "commit", "-m", "Platform source pair")
+        submitted = git(worker, "rev-parse", "HEAD")
+
+        org_ref = "refs/heads/org/development"
+        stage = SourceStageSpec(
+            "MEM58",
+            "source",
+            base,
+            None,
+            owner_paths,
+            "policy-platform58",
+            "platform-project",
+            "platform-goal",
+            "platform-sol",
+            "platform-lead",
+            source_repo=source,
+            publisher_repo=publisher,
+            canonical_repo=canonical,
+            canonical_ref=org_ref,
+            canonical_expected_tip=base,
+            expected_dev_ref=org_ref,
+        )
+        config = replace(
+            self.config,
+            project_id="legacy-domain-project",
+            source_repo=root / "global-domain-source-unavailable",
+            publisher_repo=root / "global-domain-publisher-unavailable",
+            expected_dev_ref=org_ref,
+            fixed_dev_ref=org_ref,
+            expected_base_sha=base,
+            finite_lead_agent_id="platform-sol",
+            finite_lead_issue_id="platform-lead",
+            source_stage_catalog=(stage,),
+            canonical_repo=canonical,
+            canonical_ref=org_ref,
+            canonical_expected_tip=base,
+        )
+        stage_config = config.for_source_stage(
+            stage,
+            source_issue_id="platform-source-issue",
+            reviewer_issue_id="platform-review-issue",
+            base_sha=base,
+        )
+        broker = stage_config.broker()
+        binding = OperationBinding(
+            company_id=stage_config.company_id,
+            issue_id="platform-source-issue",
+            run_id="platform-source-run",
+            worker_agent_id=stage_config.worker_agent_id,
+            reviewer_agent_id=stage_config.reviewer_agent_id,
+            base_sha=base,
+            submitted_sha=submitted,
+            scope=owner_paths,
+            policy_digest=stage_config.policy().digest,
+            active_ref=org_ref,
+            owner_config_digest=stage_config.owner_config_digest,
+            owner_roots=stage_config.owner_roots,
+        )
+        candidate = broker.prepare(binding, worker)
+        self.assertEqual(candidate.changed_paths, owner_paths)
+        self.assertEqual(candidate.base_sha, base)
+        self.assertEqual(broker.gate.active_ref, org_ref)
+        self.assertNotEqual(broker.gate.source_repo, broker.gate.repo)
+
+        default_gate = replace(stage_config, source_stage_key=None).gate()
+        with self.assertRaisesRegex(GitGateError, "protected path changed"):
+            default_gate.submit(
+                worker,
+                submitted,
+                base,
+                owner_paths,
+                expected_source_tip=base,
+                expected_integration_tip=base,
+            )
+        brain_gate = replace(
+            stage_config,
+            expected_dev_ref="refs/heads/brain/development",
+            fixed_dev_ref="refs/heads/brain/development",
+            canonical_ref="refs/heads/brain/development",
+        ).gate()
+        with self.assertRaisesRegex(GitGateError, "protected path changed"):
+            brain_gate.submit(
+                worker,
+                submitted,
+                base,
+                owner_paths,
+                expected_source_tip=base,
+                expected_integration_tip=base,
+            )
+
+        (worker / "engineering" / "unlisted.py").write_text("unlisted\n")
+        git(worker, "add", "-A")
+        git(worker, "commit", "-m", "unlisted engineering path")
+        unlisted = git(worker, "rev-parse", "HEAD")
+        with self.assertRaisesRegex(
+            GitGateError, "protected path changed: engineering/unlisted.py"
+        ):
+            broker.gate.submit(
+                worker,
+                unlisted,
+                base,
+                (*owner_paths, "engineering/unlisted.py"),
+                expected_source_tip=base,
+                expected_integration_tip=base,
+            )
+
+        symlink_worker = root / "symlink-worker"
+        subprocess.run(
+            ["/usr/bin/git", "clone", "-q", str(source), str(symlink_worker)], check=True
+        )
+        git(symlink_worker, "config", "user.name", "Platform worker")
+        git(symlink_worker, "config", "user.email", "platform-worker@example.invalid")
+        (symlink_worker / owner_paths[0]).unlink()
+        (symlink_worker / owner_paths[0]).symlink_to("/tmp/untrusted-platform-source.py")
+        git(symlink_worker, "add", "-A")
+        git(symlink_worker, "commit", "-m", "symlink in owner path")
+        symlink_sha = git(symlink_worker, "rev-parse", "HEAD")
+        with self.assertRaisesRegex(GitGateError, "symlink or submodule"):
+            broker.gate.submit(
+                symlink_worker,
+                symlink_sha,
+                base,
+                owner_paths,
+                expected_source_tip=base,
+                expected_integration_tip=base,
+            )
+
+        submodule_worker = root / "submodule-worker"
+        subprocess.run(
+            ["/usr/bin/git", "clone", "-q", str(source), str(submodule_worker)], check=True
+        )
+        git(submodule_worker, "config", "user.name", "Platform worker")
+        git(submodule_worker, "config", "user.email", "platform-worker@example.invalid")
+        (submodule_worker / owner_paths[0]).unlink()
+        git(
+            submodule_worker,
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            f"160000,{base},{owner_paths[0]}",
+        )
+        git(submodule_worker, "commit", "-m", "submodule in owner path")
+        submodule_sha = git(submodule_worker, "rev-parse", "HEAD")
+        with self.assertRaisesRegex(GitGateError, "symlink or submodule"):
+            broker.gate.submit(
+                submodule_worker,
+                submodule_sha,
+                base,
+                owner_paths,
+                expected_source_tip=base,
+                expected_integration_tip=base,
+            )
+
+        reserved_paths = (
+            "engineering/AGENTS.md",
+            "engineering/.gitattributes",
+            "engineering/.gitmodules",
+            "engineering/.github/workflow.yml",
+            "engineering/policy/worker.json",
+            "engineering/policies/worker.json",
+        )
+        for index, reserved in enumerate(reserved_paths):
+            with (
+                self.subTest(reserved_path=reserved),
+                self.assertRaisesRegex(GitGateError, "safe exact files"),
+            ):
+                GitGate(
+                    source,
+                    publisher,
+                    stage_config.policy(),
+                    root / f"reserved-receipts-{index}",
+                    active_ref=org_ref,
+                    _owner_engineering_paths=(reserved,),
+                )
 
 
 if __name__ == "__main__":
