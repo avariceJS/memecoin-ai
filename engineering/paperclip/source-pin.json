@@ -2,8 +2,10 @@
   "schema": "brain-paperclip-source-v5",
   "upstream_repository": "https://github.com/paperclipai/paperclip",
   "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
-  "predecessor_commit": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
+  "predecessor_commit": "f24926c8e7fd231e4cac127532ed642247b222c2",
   "predecessor_chain": [
+    "f24926c8e7fd231e4cac127532ed642247b222c2",
+    "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
     "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
     "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
     "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
@@ -19,25 +21,25 @@
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
     "043f2514e67c50320433a0013fb228a75a51325c"
   ],
-  "derivative_commit": "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
+  "derivative_commit": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
   "patch": "managed-codex-isolation.patch",
-  "patch_sha256": "48f118dc012b58ffcbd6932b951137b70104d27209cd4ae00621aa6208ec9503",
+  "patch_sha256": "aab0248c3c4eb2e8dc3bf6dcbc07c11a5d9f4de665e313d63f500eda1d0fba42",
   "source_review": {
     "status": "accepted_source_only",
     "reviewer": "Sol-6.1 High",
-    "receipt": "state/resumption-20261024-mvp/native-summary-source-independent-review-09ec93b.json",
-    "receipt_sha256": "3088f2afe6c408242bb7276c29aa8c02137b8c77ba14356359e4de58faf2f606",
-    "commit": "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
-    "parent": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
+    "receipt": "state/resumption-20261024-mvp/native-dependency-wake-source-independent-review-0e0c1eb.json",
+    "receipt_sha256": "02432d4fa62695822c1cf1334425cdf91797d047cba8372c9db707f49785c813",
+    "commit": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+    "parent": "f24926c8e7fd231e4cac127532ed642247b222c2",
     "scope": [
-      "unscoped summaries report native readiness only when raw direct blocker IDs exactly match native readiness blockers",
-      "raw and native blocker reads share one read-only repeatable-read snapshot; a current edge reread fails closed on drift",
-      "all raw/native blocker IDs pass existing company and privacy guards; pending workspace finalization remains authoritative",
-      "executeTool-scoped summaries remain unchanged"
+      "resume the exact deferred issue_blockers_resolved wake after predecessor terminal through existing bounded native queue recovery and admission",
+      "revalidate locked current issue state, assignee, board-owned unblockDescriptor, native dependencies and workspace finalization before dispatch",
+      "preserve company and agent pause, execution uncertainty, same-receipt idempotency and normal maxConcurrentRuns controls"
     ],
     "limits": [
-      "source-only acceptance; no native deployment, restart or runtime qualification",
-      "packaging closure and controlled release require separate review"
+      "exact native source acceptance only; packaging and controlled release require separate review",
+      "synthetic embedded PostgreSQL and mocked adapter only; no live provider, native queue mutation or deployment",
+      "actual paused startup then company resume of the pending MEM13 wake remains an operational acceptance step"
     ]
   },
   "source_review_chain": [
@@ -200,6 +202,25 @@
         "source-only acceptance; no native deployment, restart or runtime qualification",
         "packaging closure and controlled release require separate review"
       ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-mvp/native-dependency-wake-source-independent-review-0e0c1eb.json",
+      "receipt_sha256": "02432d4fa62695822c1cf1334425cdf91797d047cba8372c9db707f49785c813",
+      "commit": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+      "parent": "f24926c8e7fd231e4cac127532ed642247b222c2",
+      "scope": [
+        "resume the exact deferred issue_blockers_resolved wake after predecessor terminal through existing bounded native queue recovery and admission",
+        "revalidate locked current issue state, assignee, board-owned unblockDescriptor, native dependencies and workspace finalization before dispatch",
+        "preserve company and agent pause, execution uncertainty, same-receipt idempotency and normal maxConcurrentRuns controls"
+      ],
+      "limits": [
+        "exact native source acceptance only; packaging and controlled release require separate review",
+        "synthetic embedded PostgreSQL and mocked adapter only; no live provider, native queue mutation or deployment",
+        "actual paused startup then company resume of the pending MEM13 wake remains an operational acceptance step"
+      ],
+      "diff_sha256": "3d2d0497b89908aee3f811aa6306a874ce03da16d55837a8c944b735c848a235"
     }
   ],
   "stop_custody_source_pins": [
@@ -234,13 +255,21 @@
       "receipt_sha256": "14573f064ae39e4d0fbba628d89e3b07a49b6df67b4234f9396886c71fd26ebd",
       "commit": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
       "reason": "NATIVE-SUMMARY-COMPLETENESS-01: raw blocker edges were not reconciled with native readiness; corrected by accepted child 09ec93b without rewriting history"
+    },
+    {
+      "status": "rejected",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-mvp/native-dependency-wake-source-independent-review-f24926c.json",
+      "receipt_sha256": "ab2581f95a6b4c106abfcbc1c3808507fac00ada1e31abea1678bf1608358ce6",
+      "commit": "f24926c8e7fd231e4cac127532ed642247b222c2",
+      "reason": "DEFERRED-DEPENDENCY-BOARD-HOLD-01: re-admission bypassed a board-owned unblockDescriptor installed after deferral; corrected by accepted child 0e0c1eb without rewriting history"
     }
   ],
   "patch_tree_equivalence": {
     "status": "verified",
     "method": "git apply cumulative patch at upstream commit and compare Git tree IDs",
     "upstream_tree": "547374c4e8abe51ff22b8cecc51644800f794dd6",
-    "derivative_tree": "3a48da0f2a0b3542c822121814556f6a0dbc87b4"
+    "derivative_tree": "8a23b5f7890218053645ad5a5e04e90903fee41d"
   },
   "prior_accepted_source_review": {
     "status": "accepted_source_only",

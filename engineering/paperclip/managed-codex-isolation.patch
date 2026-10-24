@@ -1515,6 +1515,407 @@ index 8300a60..d6e7f7e 100644
      sendNestedHostRequest(message, message.paperclipInvocation?.id);
      return;
    }
+diff --git a/server/src/__tests__/heartbeat-dependency-scheduling.test.ts b/server/src/__tests__/heartbeat-dependency-scheduling.test.ts
+index 5e420f5..6e503a2 100644
+--- a/server/src/__tests__/heartbeat-dependency-scheduling.test.ts
++++ b/server/src/__tests__/heartbeat-dependency-scheduling.test.ts
+@@ -39,6 +39,7 @@ import {
+ } from "./helpers/embedded-postgres.js";
+ import { heartbeatService } from "../services/heartbeat.ts";
+ import { runningProcesses } from "../adapters/index.ts";
++import { buildIssueBlockersResolvedWakeStateKey } from "../services/issue-dependency-wakeups.ts";
+ 
+ const mockAdapterExecute = vi.hoisted(() =>
+   vi.fn(async () => ({
+@@ -891,7 +892,12 @@ describeEmbeddedPostgres("heartbeat dependency-aware queued run selection", () =
+       processGroupId: null,
+     });
+ 
+-    const idempotencyKey = `issue_blockers_resolved:${blockedIssueId}:${blockerId}`;
++    const [blockedIssue] = await db.select({ blockedTransitionAt: issues.blockedTransitionAt }).from(issues).where(eq(issues.id, blockedIssueId));
++    const idempotencyKey = buildIssueBlockersResolvedWakeStateKey({
++      dependentIssueId: blockedIssueId,
++      blockerIssueIds: [blockerId],
++      blockedTransitionAt: blockedIssue!.blockedTransitionAt,
++    });
+     const wake = await heartbeat.wakeup(agentId, {
+       source: "automation",
+       triggerDetail: "system",
+@@ -901,6 +907,8 @@ describeEmbeddedPostgres("heartbeat dependency-aware queued run selection", () =
+         resolvedBlockerIssueId: blockerId,
+       },
+       idempotencyKey,
++      requestedByActorType: "system",
++      requestedByActorId: "heartbeat_finalize",
+       contextSnapshot: {
+         issueId: blockedIssueId,
+         wakeReason: "issue_blockers_resolved",
+@@ -912,6 +920,7 @@ describeEmbeddedPostgres("heartbeat dependency-aware queued run selection", () =
+ 
+     const wakeRequests = await db
+       .select({
++        id: agentWakeupRequests.id,
+         status: agentWakeupRequests.status,
+         reason: agentWakeupRequests.reason,
+         idempotencyKey: agentWakeupRequests.idempotencyKey,
+@@ -934,6 +943,357 @@ describeEmbeddedPostgres("heartbeat dependency-aware queued run selection", () =
+       .update(heartbeatRuns)
+       .set({ status: "succeeded", finishedAt: new Date(), updatedAt: new Date() })
+       .where(eq(heartbeatRuns.id, activeRunId));
++    await db.update(issues).set({ executionRunId: null, executionAgentNameKey: null, executionLockedAt: null }).where(eq(issues.id, blockedIssueId));
++    await heartbeat.resumeQueuedRuns();
++    await heartbeat.resumeQueuedRuns();
++    expect(await waitForCondition(async () => {
++      const rows = await db.select({ status: heartbeatRuns.status }).from(heartbeatRuns).where(and(
++        eq(heartbeatRuns.companyId, companyId), sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${blockedIssueId}`,
++        sql`${heartbeatRuns.id} <> ${activeRunId}`,
++        eq(heartbeatRuns.status, "succeeded"),
++      ));
++      return rows.length === 1;
++    }, 10_000)).toBe(true);
++    const [resumedWake] = await db.select({ id: agentWakeupRequests.id, status: agentWakeupRequests.status, runId: agentWakeupRequests.runId })
++      .from(agentWakeupRequests).where(eq(agentWakeupRequests.idempotencyKey, idempotencyKey));
++    const [resumedRun] = await db.select({ id: heartbeatRuns.id }).from(heartbeatRuns).where(and(
++      eq(heartbeatRuns.companyId, companyId), sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${blockedIssueId}`,
++      sql`${heartbeatRuns.id} <> ${activeRunId}`,
++      eq(heartbeatRuns.status, "succeeded"),
++    ));
++    expect(resumedWake).toMatchObject({ id: wakeRequests[0]!.id, runId: resumedRun!.id });
++    expect(resumedWake?.status).not.toBe("deferred_issue_execution");
++  });
++
++  it("runs the dependency successor once after its busy assignee run terminates", async () => {
++    const companyId = randomUUID();
++    const agentId = randomUUID();
++    const blockerId = randomUUID();
++    const dependentId = randomUUID();
++    let finishBlockerRun!: () => void;
++    const blockerFinished = new Promise<void>((resolve) => { finishBlockerRun = resolve; });
++    mockAdapterExecute.mockImplementationOnce(async () => {
++      await blockerFinished;
++      return {
++        exitCode: 0,
++        signal: null,
++        timedOut: false,
++        errorMessage: null,
++        summary: "Completed prerequisite run.",
++        provider: "test",
++        model: "test-model",
++      };
++    });
++
++    await db.insert(companies).values({
++      id: companyId,
++      name: "Paperclip",
++      issuePrefix: `R${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
++      requireBoardApprovalForNewAgents: false,
++    });
++    await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: "responsible-user", status: "active", membershipRole: "member" });
++    await db.insert(agents).values({
++      id: agentId,
++      companyId,
++      name: "DependencyWakeRunner",
++      role: "engineer",
++      status: "active",
++      adapterType: "codex_local",
++      adapterConfig: {},
++      runtimeConfig: { heartbeat: { wakeOnDemand: true, maxConcurrentRuns: 1 } },
++      permissions: {},
++    });
++    await db.insert(issues).values([
++      { id: blockerId, companyId, title: "Prerequisite", status: "in_progress", priority: "medium", assigneeAgentId: agentId, responsibleUserId: "responsible-user" },
++      { id: dependentId, companyId, title: "Dependent task", status: "blocked", priority: "medium", assigneeAgentId: agentId, responsibleUserId: "responsible-user" },
++    ]);
++    await db.insert(issueRelations).values({ companyId, issueId: blockerId, relatedIssueId: dependentId, type: "blocks" });
++
++    const blockerRun = await heartbeat.wakeup(agentId, {
++      source: "assignment",
++      triggerDetail: "system",
++      reason: "issue_assigned",
++      payload: { issueId: blockerId },
++      contextSnapshot: { issueId: blockerId, wakeReason: "issue_assigned" },
++    });
++    expect(blockerRun).not.toBeNull();
++    expect(await waitForCondition(async () => (await db.select({ status: heartbeatRuns.status })
++      .from(heartbeatRuns).where(eq(heartbeatRuns.id, blockerRun!.id)).then(rows => rows[0]?.status)) === "running")).toBe(true);
++
++    await db.update(issues).set({ status: "done", updatedAt: new Date() }).where(eq(issues.id, blockerId));
++    await heartbeat.reconcileResolvedDependencyWakes({ companyId });
++    const [deferred] = await db.select().from(agentWakeupRequests).where(and(
++      eq(agentWakeupRequests.companyId, companyId),
++      sql`${agentWakeupRequests.payload}->>'issueId' = ${dependentId}`,
++    )).orderBy(agentWakeupRequests.requestedAt);
++    expect(deferred).toMatchObject({ source: "automation", idempotencyKey: expect.stringContaining("issue_blockers_resolved"), payload: { issueId: dependentId } });
++
++    finishBlockerRun();
++    expect(await waitForCondition(async () => {
++      const runs = await db.select({ status: heartbeatRuns.status }).from(heartbeatRuns)
++        .where(and(eq(heartbeatRuns.companyId, companyId), sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${dependentId}`));
++      return runs.some(run => run.status === "succeeded");
++    }, 10_000)).toBe(true);
++
++    const successorRuns = await db.select({ id: heartbeatRuns.id, status: heartbeatRuns.status })
++      .from(heartbeatRuns).where(and(eq(heartbeatRuns.companyId, companyId), sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${dependentId}`));
++    const [promotedWake] = await db.select({ id: agentWakeupRequests.id, status: agentWakeupRequests.status, runId: agentWakeupRequests.runId })
++      .from(agentWakeupRequests).where(eq(agentWakeupRequests.id, deferred!.id));
++    await heartbeat.resumeQueuedRuns();
++    await heartbeat.resumeQueuedRuns();
++    const runsAfterRepeatedResume = await db.select({ id: heartbeatRuns.id }).from(heartbeatRuns).where(and(
++      eq(heartbeatRuns.companyId, companyId), sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${dependentId}`,
++    ));
++    expect(successorRuns).toHaveLength(1);
++    expect(successorRuns[0]?.status).toBe("succeeded");
++    expect(promotedWake).toMatchObject({ id: deferred!.id, runId: successorRuns[0]!.id });
++    expect(promotedWake?.status).not.toBe("deferred_issue_execution");
++    expect(runsAfterRepeatedResume).toHaveLength(1);
++  });
++
++  it("keeps a deferred dependency wake held during paused startup and promotes it after company resume", async () => {
++    const companyId = randomUUID();
++    const agentId = randomUUID();
++    const blockerId = randomUUID();
++    const dependentId = randomUUID();
++    const wakeId = randomUUID();
++    await db.insert(companies).values({
++      id: companyId,
++      name: "Paperclip",
++      issuePrefix: `P${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
++      status: "paused",
++      requireBoardApprovalForNewAgents: false,
++    });
++    await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: "responsible-user", status: "active", membershipRole: "member" });
++    await db.insert(agents).values({
++      id: agentId,
++      companyId,
++      name: "PausedDependencyWakeRunner",
++      role: "engineer",
++      status: "active",
++      adapterType: "codex_local",
++      adapterConfig: {},
++      runtimeConfig: { heartbeat: { wakeOnDemand: true, maxConcurrentRuns: 1 } },
++      permissions: {},
++    });
++    await db.insert(issues).values([
++      { id: blockerId, companyId, title: "Completed prerequisite", status: "done", priority: "medium" },
++      { id: dependentId, companyId, title: "Deferred dependent task", status: "blocked", priority: "medium", assigneeAgentId: agentId, responsibleUserId: "responsible-user" },
++    ]);
++    await db.insert(issueRelations).values({ companyId, issueId: blockerId, relatedIssueId: dependentId, type: "blocks" });
++    const [dependent] = await db.select({ blockedTransitionAt: issues.blockedTransitionAt }).from(issues).where(eq(issues.id, dependentId));
++    const idempotencyKey = buildIssueBlockersResolvedWakeStateKey({
++      dependentIssueId: dependentId,
++      blockerIssueIds: [blockerId],
++      blockedTransitionAt: dependent!.blockedTransitionAt,
++    });
++    await db.insert(agentWakeupRequests).values({
++      id: wakeId,
++      companyId,
++      agentId,
++      source: "automation",
++      triggerDetail: "system",
++      reason: "issue_execution_deferred",
++      payload: { issueId: dependentId, _paperclipWakeContext: { issueId: dependentId, taskId: dependentId, wakeReason: "issue_blockers_resolved" } },
++      status: "deferred_issue_execution",
++      requestedByActorType: "system",
++      requestedByActorId: "heartbeat_finalize",
++      idempotencyKey,
++    });
++
++    await heartbeat.resumeQueuedRuns();
++    let runs = await db.select({ id: heartbeatRuns.id }).from(heartbeatRuns).where(and(
++      eq(heartbeatRuns.companyId, companyId), sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${dependentId}`,
++    ));
++    let [heldWake] = await db.select({ status: agentWakeupRequests.status, runId: agentWakeupRequests.runId })
++      .from(agentWakeupRequests).where(eq(agentWakeupRequests.id, wakeId));
++    expect(runs).toHaveLength(0);
++    expect(heldWake).toEqual({ status: "deferred_issue_execution", runId: null });
++
++    await db.update(companies).set({ status: "active" }).where(eq(companies.id, companyId));
++    await heartbeat.resumeQueuedRuns();
++    await heartbeat.resumeQueuedRuns();
++    expect(await waitForCondition(async () => {
++      const currentRuns = await db.select({ status: heartbeatRuns.status }).from(heartbeatRuns)
++        .where(and(eq(heartbeatRuns.companyId, companyId), sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${dependentId}`));
++      return currentRuns.some(run => run.status === "succeeded");
++    }, 10_000)).toBe(true);
++    runs = await db.select({ id: heartbeatRuns.id }).from(heartbeatRuns).where(and(
++      eq(heartbeatRuns.companyId, companyId), sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${dependentId}`,
++    ));
++    [heldWake] = await db.select({ status: agentWakeupRequests.status, runId: agentWakeupRequests.runId })
++      .from(agentWakeupRequests).where(eq(agentWakeupRequests.id, wakeId));
++    expect(runs).toHaveLength(1);
++    expect(heldWake?.runId).toBe(runs[0]!.id);
++    expect(heldWake?.status).not.toBe("deferred_issue_execution");
++  });
++
++  it("holds deferred dependency wakes when new blockers appear or the task owner changes", async () => {
++    const companyId = randomUUID();
++    const originalAgentId = randomUUID();
++    const currentAgentId = randomUUID();
++    const resolvedBlockerId = randomUUID();
++    const newBlockerId = randomUUID();
++    const reassignedBlockerId = randomUUID();
++    const changedReadinessIssueId = randomUUID();
++    const changedOwnerIssueId = randomUUID();
++    const changedReadinessWakeId = randomUUID();
++    const changedOwnerWakeId = randomUUID();
++    await db.insert(companies).values({
++      id: companyId,
++      name: "Paperclip",
++      issuePrefix: `H${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
++      requireBoardApprovalForNewAgents: false,
++    });
++    await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: "responsible-user", status: "active", membershipRole: "member" });
++    await db.insert(agents).values([
++      { id: originalAgentId, companyId, name: "OriginalDependencyOwner", role: "engineer", status: "active", adapterType: "codex_local", adapterConfig: {}, runtimeConfig: { heartbeat: { wakeOnDemand: true } }, permissions: {} },
++      { id: currentAgentId, companyId, name: "CurrentDependencyOwner", role: "engineer", status: "active", adapterType: "codex_local", adapterConfig: {}, runtimeConfig: { heartbeat: { wakeOnDemand: true } }, permissions: {} },
++    ]);
++    await db.insert(issues).values([
++      { id: resolvedBlockerId, companyId, title: "Resolved prerequisite", status: "done", priority: "medium" },
++      { id: newBlockerId, companyId, title: "New prerequisite", status: "todo", priority: "medium" },
++      { id: reassignedBlockerId, companyId, title: "Reassignment prerequisite", status: "done", priority: "medium" },
++      { id: changedReadinessIssueId, companyId, title: "Changed blocker set", status: "blocked", priority: "medium", assigneeAgentId: originalAgentId, responsibleUserId: "responsible-user" },
++      { id: changedOwnerIssueId, companyId, title: "Changed owner", status: "blocked", priority: "medium", assigneeAgentId: originalAgentId, responsibleUserId: "responsible-user" },
++    ]);
++    await db.insert(issueRelations).values([
++      { companyId, issueId: resolvedBlockerId, relatedIssueId: changedReadinessIssueId, type: "blocks" },
++      { companyId, issueId: newBlockerId, relatedIssueId: changedReadinessIssueId, type: "blocks" },
++      { companyId, issueId: reassignedBlockerId, relatedIssueId: changedOwnerIssueId, type: "blocks" },
++    ]);
++    const [readinessIssue, ownerIssue] = await Promise.all([
++      db.select({ blockedTransitionAt: issues.blockedTransitionAt }).from(issues).where(eq(issues.id, changedReadinessIssueId)).then(rows => rows[0]!),
++      db.select({ blockedTransitionAt: issues.blockedTransitionAt }).from(issues).where(eq(issues.id, changedOwnerIssueId)).then(rows => rows[0]!),
++    ]);
++    const wakeRows = [
++      { id: changedReadinessWakeId, agentId: originalAgentId, issueId: changedReadinessIssueId,
++        idempotencyKey: buildIssueBlockersResolvedWakeStateKey({ dependentIssueId: changedReadinessIssueId, blockerIssueIds: [resolvedBlockerId], blockedTransitionAt: readinessIssue.blockedTransitionAt }) },
++      { id: changedOwnerWakeId, agentId: originalAgentId, issueId: changedOwnerIssueId,
++        idempotencyKey: buildIssueBlockersResolvedWakeStateKey({ dependentIssueId: changedOwnerIssueId, blockerIssueIds: [reassignedBlockerId], blockedTransitionAt: ownerIssue.blockedTransitionAt }) },
++    ];
++    await db.insert(agentWakeupRequests).values(wakeRows.map(wake => ({
++      id: wake.id,
++      companyId,
++      agentId: wake.agentId,
++      source: "automation" as const,
++      triggerDetail: "system" as const,
++      reason: "issue_execution_deferred",
++      payload: { issueId: wake.issueId, _paperclipWakeContext: { issueId: wake.issueId, taskId: wake.issueId, wakeReason: "issue_blockers_resolved" } },
++      status: "deferred_issue_execution" as const,
++      requestedByActorType: "system" as const,
++      requestedByActorId: "heartbeat_finalize",
++      idempotencyKey: wake.idempotencyKey,
++    })));
++    await db.update(issues).set({ assigneeAgentId: currentAgentId }).where(eq(issues.id, changedOwnerIssueId));
++
++    await heartbeat.resumeQueuedRuns();
++    const runs = await db.select({ id: heartbeatRuns.id }).from(heartbeatRuns).where(and(
++      eq(heartbeatRuns.companyId, companyId),
++      sql`${heartbeatRuns.contextSnapshot}->>'issueId' in (${changedReadinessIssueId}, ${changedOwnerIssueId})`,
++    ));
++    const remainingWakes = await db.select({ id: agentWakeupRequests.id, status: agentWakeupRequests.status, runId: agentWakeupRequests.runId })
++      .from(agentWakeupRequests).where(inArray(agentWakeupRequests.id, [changedReadinessWakeId, changedOwnerWakeId]));
++    expect(runs).toHaveLength(0);
++    expect(remainingWakes).toHaveLength(2);
++    expect(remainingWakes).toEqual(expect.arrayContaining([
++      expect.objectContaining({ id: changedReadinessWakeId, status: "deferred_issue_execution", runId: null }),
++      expect.objectContaining({ id: changedOwnerWakeId, status: "deferred_issue_execution", runId: null }),
++    ]));
++  });
++
++  it("keeps the exact deferred dependency wake held when a board owner is assigned later", async () => {
++    const companyId = randomUUID();
++    const agentId = randomUUID();
++    const blockerId = randomUUID();
++    const issueId = randomUUID();
++    const wakeId = randomUUID();
++    await db.insert(companies).values({
++      id: companyId,
++      name: "Paperclip",
++      issuePrefix: `B${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
++      requireBoardApprovalForNewAgents: false,
++    });
++    await db.insert(companyMemberships).values({
++      companyId,
++      principalType: "user",
++      principalId: "responsible-user",
++      status: "active",
++      membershipRole: "member",
++    });
++    await db.insert(agents).values({
++      id: agentId,
++      companyId,
++      name: "BoardHeldDependencyOwner",
++      role: "engineer",
++      status: "active",
++      adapterType: "codex_local",
++      adapterConfig: {},
++      runtimeConfig: { heartbeat: { wakeOnDemand: true, maxConcurrentRuns: 1 } },
++      permissions: {},
++    });
++    await db.insert(issues).values([
++      { id: blockerId, companyId, title: "Resolved prerequisite", status: "done", priority: "medium" },
++      {
++        id: issueId,
++        companyId,
++        title: "Held dependent task",
++        status: "blocked",
++        priority: "medium",
++        assigneeAgentId: agentId,
++        responsibleUserId: "responsible-user",
++      },
++    ]);
++    await db.insert(issueRelations).values({
++      companyId,
++      issueId: blockerId,
++      relatedIssueId: issueId,
++      type: "blocks",
++    });
++    const [issue] = await db.select({ blockedTransitionAt: issues.blockedTransitionAt })
++      .from(issues).where(eq(issues.id, issueId));
++    const idempotencyKey = buildIssueBlockersResolvedWakeStateKey({
++      dependentIssueId: issueId,
++      blockerIssueIds: [blockerId],
++      blockedTransitionAt: issue!.blockedTransitionAt,
++    });
++    await db.insert(agentWakeupRequests).values({
++      id: wakeId,
++      companyId,
++      agentId,
++      source: "automation",
++      triggerDetail: "system",
++      reason: "issue_execution_deferred",
++      payload: {
++        issueId,
++        _paperclipWakeContext: {
++          issueId,
++          taskId: issueId,
++          wakeReason: "issue_blockers_resolved",
++        },
++      },
++      status: "deferred_issue_execution",
++      requestedByActorType: "system",
++      requestedByActorId: "heartbeat_finalize",
++      idempotencyKey,
++    });
++
++    await db.update(issues).set({
++      unblockDescriptor: {
++        owner: "board",
++        action: "Review this exact held dependency before continuation",
++      },
++    }).where(eq(issues.id, issueId));
++    await heartbeat.resumeQueuedRuns();
++
++    const [wake] = await db.select({ status: agentWakeupRequests.status, runId: agentWakeupRequests.runId })
++      .from(agentWakeupRequests).where(eq(agentWakeupRequests.id, wakeId));
++    const runs = await db.select({ id: heartbeatRuns.id }).from(heartbeatRuns).where(and(
++      eq(heartbeatRuns.companyId, companyId),
++      sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${issueId}`,
++    ));
++    expect(wake).toEqual({ status: "deferred_issue_execution", runId: null });
++    expect(runs).toHaveLength(0);
+   });
+ 
+   it("honors maxConcurrentRuns 1 by leaving a second assignment wake queued", async () => {
 diff --git a/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts b/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts
 index 930c361..f8fe6ba 100644
 --- a/server/src/__tests__/heartbeat-runtime-mcp-servers.test.ts
@@ -3041,8 +3442,377 @@ index f87a9f1..6915670 100644
          eq(chatEndpoints.provider, "github"),
        ),
      );
+diff --git a/server/src/services/heartbeat.ts b/server/src/services/heartbeat.ts
+index 0d2d33e..a445ca1 100644
+--- a/server/src/services/heartbeat.ts
++++ b/server/src/services/heartbeat.ts
+@@ -1282,7 +1282,7 @@ export function heartbeatService(
+     claimQueuedRun,
+     withChatControlRecoveryGate,
+     trackWakeup,
+-    resumeQueuedRuns,
++    resumeQueuedRuns: resumeQueuedRunsFromQueue,
+     parseHeartbeatPolicy,
+     claimDueTimerHeartbeat,
+   } = heartbeatQueue;
+@@ -1296,6 +1296,15 @@ export function heartbeatService(
+     return heartbeatQueue.startNextQueuedRunForAgent(...args);
+   }
+ 
++  async function resumeQueuedRuns() {
++    if (!(await getSchedulingSuppression()).suppressed) {
++      await recovery.reconcileResolvedDependencyWakeBackstop({ resumeDeferredOnly: true }).catch(err => {
++        logger.warn({ err }, "failed to reconcile deferred dependency wakes before queue resume");
++      });
++    }
++    await resumeQueuedRunsFromQueue();
++  }
++
+   function dispatchPendingNativeStatusWakeups(...args: Parameters<typeof heartbeatQueue.dispatchPendingNativeStatusWakeups>) {
+     return heartbeatQueue.dispatchPendingNativeStatusWakeups(...args);
+   }
+@@ -3919,6 +3928,14 @@ export function heartbeatService(
+               logger.warn({ err, runId: run.id }, "failed to deliver settled tool reviews after execution cleanup");
+             });
+         }
++        if (latestRun && isHeartbeatRunTerminalStatus(latestRun.status)) {
++          await recovery.reconcileResolvedDependencyWakeBackstop({
++            companyId: latestRun.companyId,
++            agentId: latestRun.agentId,
++            resumeDeferredOnly: true,
++          }).catch(err => logger.warn({ err, runId: latestRun!.id },
++            "failed to reconcile deferred dependency wakes after run cleanup"));
++        }
+         await startNextQueuedRunForAgent(run.agentId);
+       }
+     }
+@@ -4074,6 +4091,14 @@ export function heartbeatService(
+     resumeQueuedRunsForAgent: async (companyId: string, agentId: string) => {
+       const agent = await getAgent(agentId);
+       if (!agent || agent.companyId !== companyId) return [];
++      if (!(await getSchedulingSuppression()).suppressed) {
++        await recovery.reconcileResolvedDependencyWakeBackstop({
++          companyId,
++          agentId,
++          resumeDeferredOnly: true,
++        }).catch(err => logger.warn({ err, companyId, agentId },
++          "failed to reconcile deferred dependency wakes for resumed agent"));
++      }
+       return startNextQueuedRunForAgent(agentId);
+     },
+ 
+diff --git a/server/src/services/heartbeat/queue.ts b/server/src/services/heartbeat/queue.ts
+index a0ff4a0..7c2e11b 100644
+--- a/server/src/services/heartbeat/queue.ts
++++ b/server/src/services/heartbeat/queue.ts
+@@ -39,6 +39,7 @@ import { getExecutionBlocker, hasPendingRunCleanup } from "../execution-blocker.
+ import { validateNativeWorkspaceReconstruction } from "../native-runtime/native-workspace-reconstruction.js";
+ import { isConversationAdapter } from "../conversation-continuation.js";
+ import { recordExecutionWait } from "../execution-wait.js";
++import { buildIssueBlockersResolvedWakeStateKey } from "../issue-dependency-wakeups.js";
+ import {
+   getNativeReviewAssignment,
+   readNativeReviewAssignmentContext,
+@@ -2172,6 +2173,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+       readNonEmptyString(enrichedContextSnapshot.issueId) ?? issueIdFromPayload;
+     if (executionReconciliationWake && !issueId) return null;
+     const durableRequest = opts.durableChatRequest;
++    const resumeDependencyWakeRequestId = opts.resumeDependencyWakeRequestId;
+     let taskRetryActorId: string | null = null;
+     if (opts.taskRetryRequestId) {
+       const [receipt] = await db.select().from(agentWakeupRequests).where(and(
+@@ -2196,6 +2198,39 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+ 
+     let agent = await getAgent(agentId);
+     if (!agent) throw notFound("Agent not found");
++    let dependencyWakeReceipt: typeof agentWakeupRequests.$inferSelect | null = null;
++    if (resumeDependencyWakeRequestId) {
++      const [receipt] = await db.select().from(agentWakeupRequests).where(and(
++        eq(agentWakeupRequests.id, resumeDependencyWakeRequestId),
++        eq(agentWakeupRequests.companyId, agent.companyId),
++        eq(agentWakeupRequests.agentId, agentId),
++        eq(agentWakeupRequests.status, "deferred_issue_execution"),
++        eq(agentWakeupRequests.source, "automation"),
++        eq(agentWakeupRequests.reason, "issue_execution_deferred"),
++        eq(agentWakeupRequests.requestedByActorType, "system"),
++      ));
++      const savedContext = parseObject(parseObject(receipt?.payload)[DEFERRED_WAKE_CONTEXT_KEY]);
++      if (!receipt || !issueId || receipt.payload?.issueId !== issueId ||
++          savedContext.wakeReason !== ISSUE_BLOCKERS_RESOLVED_WAKE_REASON ||
++          opts.source !== "automation" || opts.triggerDetail !== "system" ||
++          opts.reason !== ISSUE_BLOCKERS_RESOLVED_WAKE_REASON ||
++          opts.requestedByActorType !== "system" || !receipt.idempotencyKey ||
++          opts.idempotencyKey !== receipt.idempotencyKey) {
++        return null;
++      }
++      dependencyWakeReceipt = receipt;
++      opts = {
++        ...opts,
++        allowRunCoalescing: false,
++        source: receipt.source as WakeupOptions["source"],
++        triggerDetail: (receipt.triggerDetail ?? "system") as WakeupOptions["triggerDetail"],
++        reason: ISSUE_BLOCKERS_RESOLVED_WAKE_REASON,
++        payload: parseObject(receipt.payload),
++        contextSnapshot: savedContext,
++        requestedByActorType: "system",
++        requestedByActorId: receipt.requestedByActorId,
++      };
++    }
+     if (issueId) {
+       const [pending] = await db.select().from(caseHandoffs).where(and(eq(caseHandoffs.companyId, agent.companyId), eq(caseHandoffs.issueId, issueId),
+         inArray(caseHandoffs.state, ["awaiting_release", "pending_dispatch"]))).limit(1);
+@@ -2328,7 +2363,10 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+         opts.idempotencyKey !== museRequest.idempotencyKey)) {
+       throw conflict("Muse work request does not match its admission authority.");
+     }
+-    const receiptRequest = durableRequest ?? dotRequest ?? museRequest ?? caseReceipt;
++    const dependencyWakeReceiptRequest = dependencyWakeReceipt
++      ? { id: dependencyWakeReceipt.id, requestedAt: dependencyWakeReceipt.requestedAt }
++      : undefined;
++    const receiptRequest = durableRequest ?? dotRequest ?? museRequest ?? caseReceipt ?? dependencyWakeReceiptRequest;
+     const durableReceiptFields = receiptRequest
+       ? { id: receiptRequest.id, requestedAt: receiptRequest.requestedAt }
+       : {};
+@@ -2359,10 +2397,18 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+           receipt.payload?.museBindingGeneration !== museRequest.bindingGeneration || receipt.payload?.museRequestDigest !== museRequest.requestDigest)) {
+         throw conflict("Request ID reused with changed input.");
+       }
++      if (receipt && dependencyWakeReceipt && (receipt.companyId !== agent.companyId ||
++          receipt.agentId !== agentId || receipt.status !== "deferred_issue_execution" ||
++          receipt.source !== "automation" || receipt.reason !== "issue_execution_deferred" ||
++          receipt.requestedByActorType !== "system" || receipt.idempotencyKey !== opts.idempotencyKey ||
++          receipt.payload?.issueId !== issueId ||
++          parseObject(parseObject(receipt.payload)[DEFERRED_WAKE_CONTEXT_KEY]).wakeReason !== ISSUE_BLOCKERS_RESOLVED_WAKE_REASON)) {
++        throw conflict("Deferred dependency wake receipt identity changed.");
++      }
+       return receipt;
+     };
+     const priorReceipt = await existingDurableReceipt(db);
+-    if (priorReceipt) {
++    if (priorReceipt && !dependencyWakeReceipt) {
+       // Replaying an admission receipt is not fresh authority to dispatch it.
+       // The normal queue owns dispatch and its current execution-policy checks.
+       return priorReceipt.runId ? getRun(priorReceipt.runId) : null;
+@@ -2400,7 +2446,8 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+       // A temporary refusal must leave the handoff retryable, without burning
+       // its one durable receipt ID on a skipped wake.
+       if (caseRequest) return { created: false };
+-      if (executionWaitRequestId) {
++      if (executionWaitRequestId || dependencyWakeReceipt) {
++        const receiptId = executionWaitRequestId ?? dependencyWakeReceipt!.id;
+         await db.update(agentWakeupRequests).set({
+           payload: sql`jsonb_set(coalesce(${agentWakeupRequests.payload}, '{}'::jsonb), '{executionWait}',
+             coalesce(${agentWakeupRequests.payload}->'executionWait', '{}'::jsonb) || ${JSON.stringify({
+@@ -2409,7 +2456,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+                 : "Waiting for task execution to be enabled. Your message is saved."),
+             })}::jsonb)`,
+           updatedAt: new Date(),
+-        }).where(and(eq(agentWakeupRequests.id, executionWaitRequestId),
++        }).where(and(eq(agentWakeupRequests.id, receiptId),
+           eq(agentWakeupRequests.companyId, agent.companyId), eq(agentWakeupRequests.agentId, agentId),
+           eq(agentWakeupRequests.status, "deferred_issue_execution")));
+         return { created: false };
+@@ -2906,6 +2953,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+                     )
+                   : { kind: "clear" as const };
+             if (proof.kind !== "clear") {
++              if (dependencyWakeReceipt) return { kind: "deferred" as const };
+               await tx
+                 .insert(agentWakeupRequests)
+                 .values({
+@@ -2931,7 +2979,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+           const durableReceipt = await existingDurableReceipt(
+             tx as unknown as Db,
+           );
+-          if (durableReceipt)
++          if (durableReceipt && !dependencyWakeReceipt)
+             return { kind: "durable" as const, receipt: durableReceipt };
+           if (caseRequest) {
+             const [handoff] = await tx.select().from(caseHandoffs).where(and(eq(caseHandoffs.id, caseRequest.handoffId),
+@@ -3037,6 +3085,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+               conversationState: issues.conversationState,
+               status: issues.status,
+               statusVersion: issues.statusVersion,
++              unblockDescriptor: issues.unblockDescriptor,
+               projectId: issues.projectId,
+               projectWorkspaceId: issues.projectWorkspaceId,
+               executionWorkspaceId: issues.executionWorkspaceId,
+@@ -3048,6 +3097,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+               monitorWakeRequestedAt: issues.monitorWakeRequestedAt,
+               executionRunId: issues.executionRunId,
+               executionAgentNameKey: issues.executionAgentNameKey,
++              blockedTransitionAt: issues.blockedTransitionAt,
+               createdAt: issues.createdAt,
+             })
+             .from(issues)
+@@ -3061,6 +3111,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+ 
+           if (!issue) {
+             if (caseRequest) throw conflict("Case handoff task no longer exists");
++            if (dependencyWakeReceipt) return { kind: "deferred" as const };
+             await tx.insert(agentWakeupRequests).values({
+               ...durableReceiptFields,
+               companyId: agent.companyId,
+@@ -3103,6 +3154,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+               )))
+           ) {
+             if (caseRequest) throw conflict("Case handoff task changed before admission");
++            if (dependencyWakeReceipt) return { kind: "deferred" as const };
+             // A deferred monitor retains its schedule; do not create a receipt
+             // that could suppress its next admission attempt.
+             if (issueStateGuard.monitorNextCheckAt !== undefined) return { kind: "skipped" as const };
+@@ -3134,6 +3186,36 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+             return { kind: "skipped" as const };
+           }
+ 
++          if (dependencyWakeReceipt) {
++            const [pendingDependencyWake] = await tx.select().from(agentWakeupRequests).where(and(
++              eq(agentWakeupRequests.id, dependencyWakeReceipt.id),
++              eq(agentWakeupRequests.companyId, issue.companyId),
++              eq(agentWakeupRequests.agentId, agentId),
++              eq(agentWakeupRequests.status, "deferred_issue_execution"),
++              eq(agentWakeupRequests.source, "automation"),
++              eq(agentWakeupRequests.reason, "issue_execution_deferred"),
++              eq(agentWakeupRequests.requestedByActorType, "system"),
++            )).for("update");
++            const savedContext = parseObject(parseObject(pendingDependencyWake?.payload)[DEFERRED_WAKE_CONTEXT_KEY]);
++            if (!pendingDependencyWake || issue.status !== "blocked" ||
++                issue.assigneeAgentId !== agentId || issue.conversationAgentId !== null ||
++                issue.unblockDescriptor?.owner === "board" ||
++                pendingDependencyWake.payload?.issueId !== issue.id ||
++                savedContext.wakeReason !== ISSUE_BLOCKERS_RESOLVED_WAKE_REASON ||
++                pendingDependencyWake.idempotencyKey !== opts.idempotencyKey) {
++              return { kind: "deferred" as const };
++            }
++            const readiness = await issuesSvc.getDependencyReadiness(issue.id, tx as unknown as Db);
++            if (!readiness.isDependencyReady || readiness.blockerIssueIds.length === 0 ||
++                buildIssueBlockersResolvedWakeStateKey({
++                  dependentIssueId: issue.id,
++                  blockerIssueIds: readiness.blockerIssueIds,
++                  blockedTransitionAt: issue.blockedTransitionAt,
++                }) !== pendingDependencyWake.idempotencyKey) {
++              return { kind: "deferred" as const };
++            }
++          }
++
+           if (opts.failedRunId) {
+             // The issue lock makes double-clicks and network retries adopt the
+             // same successor, including after it has already finished.
+@@ -3276,11 +3358,13 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+             if (caseRequest) waitForCaseAdmission("execution_reconciliation_required", executionBlocker.nextAction);
+             opts.issueStateGuard?.onExecutionDeferred?.(executionBlocker.cause);
+             const condition = { recoveryActionId: executionBlocker.recoveryActionId, ...continuationWait };
+-            if (executionWaitRequestId) {
++            if (executionWaitRequestId || dependencyWakeReceipt) {
++              const waitingRequestId = executionWaitRequestId ?? dependencyWakeReceipt!.id;
+               await tx.update(agentWakeupRequests).set({
+                 payload: sql`jsonb_set(coalesce(${agentWakeupRequests.payload}, '{}'::jsonb), '{executionWait}', ${JSON.stringify(condition)}::jsonb)`,
+                 updatedAt: new Date(),
+-              }).where(eq(agentWakeupRequests.id, executionWaitRequestId));
++              }).where(and(eq(agentWakeupRequests.id, waitingRequestId),
++                eq(agentWakeupRequests.status, "deferred_issue_execution")));
+               return { kind: "deferred" as const };
+             }
+             if (durableRequest || wakeCommentId ||
+@@ -3350,6 +3434,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+             issue.createdAt < worktreeExecutionCutoff
+           ) {
+             if (caseRequest) waitForCaseAdmission("heartbeat.worktree_execution_cutoff", "Case handoff is waiting for workspace execution to be enabled");
++            if (dependencyWakeReceipt) return { kind: "deferred" as const };
+             await tx.insert(agentWakeupRequests).values({
+               ...durableReceiptFields,
+               companyId: agent.companyId,
+@@ -3660,6 +3745,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+             !blockedInteractionWake
+           ) {
+             if (caseRequest) waitForCaseAdmission("issue_dependencies_blocked", "Case handoff is waiting for task dependencies to resolve");
++            if (dependencyWakeReceipt) return { kind: "deferred" as const };
+             await recordExecutionWait(tx as unknown as Db, {
+               issueId: issue.id,
+               coalesce: coalesceExecutionWait,
+@@ -3752,6 +3838,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+               })
+             ) {
+               if (caseRequest) waitForCaseAdmission(WORKSPACE_WORKTREE_REQUIRES_PROJECT_CODE, WORKSPACE_WORKTREE_REQUIRES_PROJECT_MESSAGE);
++              if (dependencyWakeReceipt) return { kind: "deferred" as const };
+               const now = new Date();
+               const issueLabel = formatIssueIdentifierLink(
+                 issue.identifier,
+@@ -4052,6 +4139,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+               });
+ 
+               if (throttleDecision.blocked) {
++                if (dependencyWakeReceipt) return { kind: "deferred" as const };
+                 await tx.insert(agentWakeupRequests).values({
+                   ...durableReceiptFields,
+                   companyId: agent.companyId,
+@@ -4092,6 +4180,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+           );
+           if (dailyCapBlock) {
+             if (caseRequest) waitForCaseAdmission(dailyCapBlock.reason, "Case handoff is waiting for the agent's daily limit to clear");
++            if (dependencyWakeReceipt) return { kind: "deferred" as const };
+             if (executionWaitRequestId && executionBlocker) {
+               continuationWait = { reason: dailyCapBlock.reason,
+                 message: "The agent has reached its daily limit. Your message is saved until work can resume." };
+@@ -4148,23 +4237,39 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
+             enrichedContextSnapshot.explicitUserContinuation = explicitContinuation;
+           }
+ 
+-          const wakeupRequest = await tx
+-            .insert(agentWakeupRequests)
+-            .values({
+-              ...durableReceiptFields,
+-              companyId: agent.companyId,
+-              agentId,
+-              source,
+-              triggerDetail,
+-              reason,
+-              payload,
+-              status: "queued",
+-              requestedByActorType: opts.requestedByActorType ?? null,
+-              requestedByActorId: opts.requestedByActorId ?? null,
+-              idempotencyKey: opts.idempotencyKey ?? null,
+-            })
+-            .returning()
+-            .then((rows) => rows[0]);
++          const wakeupRequest = dependencyWakeReceipt
++            ? await tx.update(agentWakeupRequests).set({
++                source,
++                triggerDetail,
++                reason,
++                payload,
++                status: "queued",
++                runId: null,
++                claimedAt: null,
++                finishedAt: null,
++                error: null,
++                updatedAt: new Date(),
++              }).where(and(
++                eq(agentWakeupRequests.id, dependencyWakeReceipt.id),
++                eq(agentWakeupRequests.companyId, agent.companyId),
++                eq(agentWakeupRequests.agentId, agentId),
++                eq(agentWakeupRequests.status, "deferred_issue_execution"),
++                eq(agentWakeupRequests.idempotencyKey, opts.idempotencyKey!),
++              )).returning().then(rows => rows[0] ?? null)
++            : await tx.insert(agentWakeupRequests).values({
++                ...durableReceiptFields,
++                companyId: agent.companyId,
++                agentId,
++                source,
++                triggerDetail,
++                reason,
++                payload,
++                status: "queued",
++                requestedByActorType: opts.requestedByActorType ?? null,
++                requestedByActorId: opts.requestedByActorId ?? null,
++                idempotencyKey: opts.idempotencyKey ?? null,
++              }).returning().then(rows => rows[0]);
++          if (!wakeupRequest) return { kind: "deferred" as const };
+ 
+           // A handoff changes the executor, not the owner of saved user input.
+           // Validate its exact stopped source while the issue row is locked;
 diff --git a/server/src/services/heartbeat/run-preparation.ts b/server/src/services/heartbeat/run-preparation.ts
-index 7c635e5..df0bff3 100644
+index 7c635e5..6f86cce 100644
 --- a/server/src/services/heartbeat/run-preparation.ts
 +++ b/server/src/services/heartbeat/run-preparation.ts
 @@ -87,6 +87,8 @@ import {
@@ -3054,7 +3824,16 @@ index 7c635e5..df0bff3 100644
  import { toolAccessService } from "../tool-access.js";
  import {
    buildDocumentReviewContext,
-@@ -1029,8 +1031,13 @@ export async function buildPaperclipRuntimeMcpServers(input: {
+@@ -832,6 +834,8 @@ export interface WakeupOptions {
+   queuedCommentRequestId?: string;
+   /** Internal delivery of the authenticated task-level Retry receipt. */
+   taskRetryRequestId?: string;
++  /** Internal resume of an exact native dependency wake receipt after its execution deferral clears. */
++  resumeDependencyWakeRequestId?: string;
+   /** Exact failed run selected by an authenticated board Retry request. */
+   failedRunId?: string | null;
+   durableChatRequest?: DurableChatWakeupRequest;
+@@ -1029,8 +1033,13 @@ export async function buildPaperclipRuntimeMcpServers(input: {
    const assignedTools = effective.allowedTools.filter((tool) =>
      assignedConnectionIds.has(tool.connectionId),
    );
@@ -3070,7 +3849,7 @@ index 7c635e5..df0bff3 100644
      await service.recordRuntimeMcpDeliveryDiagnostic({
        companyId: input.agent.companyId,
        agentId: input.agent.id,
-@@ -1039,12 +1046,12 @@ export async function buildPaperclipRuntimeMcpServers(input: {
+@@ -1039,12 +1048,12 @@ export async function buildPaperclipRuntimeMcpServers(input: {
      });
      return [];
    }
@@ -3088,7 +3867,7 @@ index 7c635e5..df0bff3 100644
    const assignmentDigest = createHash("sha256")
      .update(JSON.stringify(assignment))
      .digest("hex");
-@@ -1097,6 +1104,11 @@ export async function buildPaperclipRuntimeMcpServers(input: {
+@@ -1097,6 +1106,11 @@ export async function buildPaperclipRuntimeMcpServers(input: {
            connectionId: tool.connectionId,
            catalogEntryId: tool.id,
          })),
@@ -3100,6 +3879,21 @@ index 7c635e5..df0bff3 100644
      ];
      // The 250-entry limit bounds a public profile-edit request, not the
      // effective assignment assembled from existing profiles. Keep every exact
+diff --git a/server/src/services/issue-dependency-wakeups.ts b/server/src/services/issue-dependency-wakeups.ts
+index ee09f3e..6d20d44 100644
+--- a/server/src/services/issue-dependency-wakeups.ts
++++ b/server/src/services/issue-dependency-wakeups.ts
+@@ -250,6 +250,10 @@ export async function findExistingIssueBlockersResolvedWakeForReadyState(
+       status: agentWakeupRequests.status,
+       idempotencyKey: agentWakeupRequests.idempotencyKey,
+       requestedAt: agentWakeupRequests.requestedAt,
++      requestedByActorId: agentWakeupRequests.requestedByActorId,
++      source: agentWakeupRequests.source,
++      triggerDetail: agentWakeupRequests.triggerDetail,
++      payload: agentWakeupRequests.payload,
+     })
+     .from(agentWakeupRequests)
+     .where(
 diff --git a/server/src/services/issues.ts b/server/src/services/issues.ts
 index 9acfdf8..382190d 100644
 --- a/server/src/services/issues.ts
@@ -4565,6 +5359,164 @@ index dd7173d..545a51a 100644
      }
  
      if (method === "onEvent" && isRecord(params.event)) {
+diff --git a/server/src/services/recovery/service.ts b/server/src/services/recovery/service.ts
+index aa44265..25ec8f9 100644
+--- a/server/src/services/recovery/service.ts
++++ b/server/src/services/recovery/service.ts
+@@ -28,6 +28,7 @@ import {
+   inArray,
+   isNotNull,
+   isNull,
++  ne,
+   not,
+   notExists,
+   notInArray,
+@@ -214,7 +215,10 @@ type RecoveryWakeupOptions = {
+   issueStateGuard?: {
+     statuses: string[];
+     assigneeAgentId: string;
++    statusVersion?: number;
+   };
++  /** Existing native dependency receipt being resumed after issue-execution deferral. */
++  resumeDependencyWakeRequestId?: string;
+ };
+ 
+ type RecoveryWakeup = (
+@@ -230,6 +234,8 @@ type ResolvedDependencyWakeBackstopOptions = {
+   companyId?: string | null;
+   blockerIssueId?: string | null;
+   source?: ResolvedDependencyWakeBackstopSource;
++  agentId?: string | null;
++  resumeDeferredOnly?: boolean;
+ };
+ 
+ type LatestIssueRun =
+@@ -1088,6 +1094,7 @@ export function recoveryService(
+     companyId: string,
+     issueId: string,
+     agentId?: string | null,
++    excludeDeferredWakeId?: string | null,
+   ) {
+     const [run, deferredWake, nativeRecovery] = await Promise.all([
+       db
+@@ -1112,6 +1119,7 @@ export function recoveryService(
+           and(
+             eq(agentWakeupRequests.companyId, companyId),
+             eq(agentWakeupRequests.status, "deferred_issue_execution"),
++            excludeDeferredWakeId ? ne(agentWakeupRequests.id, excludeDeferredWakeId) : undefined,
+             sql`${agentWakeupRequests.payload} ->> 'issueId' = ${issueId}`,
+             agentId ? eq(agentWakeupRequests.agentId, agentId) : sql`true`,
+           ),
+@@ -5751,6 +5759,25 @@ export function recoveryService(
+         sql`${issues.assigneeAgentId} is not null`,
+       ];
+       if (opts?.companyId) filters.push(eq(issues.companyId, opts.companyId));
++      if (opts?.agentId) filters.push(eq(issues.assigneeAgentId, opts.agentId));
++      if (opts?.resumeDeferredOnly) {
++        filters.push(sql`exists (
++          select 1 from companies active_dependency_company
++          where active_dependency_company.id = ${issues.companyId}
++            and active_dependency_company.status = 'active'
++        )`);
++      }
++      if (opts?.resumeDeferredOnly) {
++        filters.push(sql`exists (
++          select 1 from agent_wakeup_requests deferred_dependency_wake
++          where deferred_dependency_wake.company_id = ${issues.companyId}
++            and deferred_dependency_wake.agent_id = ${issues.assigneeAgentId}
++            and deferred_dependency_wake.status = 'deferred_issue_execution'
++            and deferred_dependency_wake.reason = 'issue_execution_deferred'
++            and deferred_dependency_wake.payload ->> 'issueId' = ${issues.id}::text
++            and deferred_dependency_wake.payload #>> '{_paperclipWakeContext,wakeReason}' = ${ISSUE_BLOCKERS_RESOLVED_WAKE_REASON}
++        )`);
++      }
+       if (afterIssueId) filters.push(gt(issues.id, afterIssueId));
+ 
+       if (opts?.blockerIssueId) {
+@@ -5767,6 +5794,7 @@ export function recoveryService(
+             identifier: issues.identifier,
+             assigneeAgentId: issues.assigneeAgentId,
+             blockedTransitionAt: issues.blockedTransitionAt,
++            statusVersion: issues.statusVersion,
+             totalCount: sql<number>`count(*) over()::int`,
+           })
+           .from(issueRelations)
+@@ -5783,6 +5811,7 @@ export function recoveryService(
+           identifier: issues.identifier,
+           assigneeAgentId: issues.assigneeAgentId,
+           blockedTransitionAt: issues.blockedTransitionAt,
++          statusVersion: issues.statusVersion,
+           totalCount: sql<number>`count(*) over()::int`,
+         })
+         .from(issues)
+@@ -5884,10 +5913,7 @@ export function recoveryService(
+             blockerIssueIds: readiness.blockerIssueIds,
+             blockedTransitionAt: candidate.blockedTransitionAt,
+           });
+-        if (existingWake) {
+-          result.existingWakeSkipped += 1;
+-          continue;
+-        }
++        if (opts?.resumeDeferredOnly && !existingWake) continue;
+         // The assignee agent opened this blocked cycle itself, knowing its recorded
+         // blockers were resolved: it is waiting on something outside the blocker
+         // graph. Re-waking it here made it re-block on every sweep (each re-block
+@@ -5898,7 +5924,8 @@ export function recoveryService(
+         }
+ 
+         if (
+-          (await hasActiveExecutionPath(companyId, candidate.id, agentId)) ||
++          (await hasActiveExecutionPath(companyId, candidate.id, agentId,
++            existingWake?.status === "deferred_issue_execution" ? existingWake.id : null)) ||
+           (await hasQueuedIssueWake(companyId, candidate.id, agentId))
+         ) {
+           result.livePathSkipped += 1;
+@@ -5922,6 +5949,45 @@ export function recoveryService(
+           continue;
+         }
+ 
++        if (existingWake) {
++          if (existingWake.status !== "deferred_issue_execution") {
++            result.existingWakeSkipped += 1;
++            continue;
++          }
++          try {
++            const wake = await deps.enqueueWakeup(agentId, {
++              source: existingWake.source as RecoveryWakeupOptions["source"],
++              triggerDetail: (existingWake.triggerDetail ?? "system") as RecoveryWakeupOptions["triggerDetail"],
++              reason: ISSUE_BLOCKERS_RESOLVED_WAKE_REASON,
++              payload: parseObject(existingWake.payload),
++              idempotencyKey,
++              requestedByActorType: "system",
++              requestedByActorId: existingWake.requestedByActorId,
++              issueStateGuard: {
++                statuses: ["blocked"],
++                assigneeAgentId: agentId,
++                statusVersion: candidate.statusVersion,
++              },
++              resumeDependencyWakeRequestId: existingWake.id,
++              contextSnapshot: parseObject(parseObject(existingWake.payload)._paperclipWakeContext),
++            });
++            if (!wake) {
++              result.deferredOrFailed += 1;
++              continue;
++            }
++            result.healed += 1;
++            result.issueIds.push(candidate.id);
++          } catch (err) {
++            result.deferredOrFailed += 1;
++            result.enqueueFailed += 1;
++            logger.warn({ err, issueId: candidate.id, agentId, idempotencyKey },
++              "failed to resume deferred resolved-dependency wake");
++          }
++          continue;
++        }
++
++        if (opts?.resumeDeferredOnly) continue;
++
+         try {
+           const wake = await deps.enqueueWakeup(agentId, {
+             source: "automation",
 diff --git a/server/src/services/tool-gateway.ts b/server/src/services/tool-gateway.ts
 index 3e97a9f..f3c35a3 100644
 --- a/server/src/services/tool-gateway.ts
