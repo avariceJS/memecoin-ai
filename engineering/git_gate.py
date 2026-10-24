@@ -62,8 +62,13 @@ Verifier = Callable[[Path, str, VerificationPolicy], Mapping[str, str]]
 
 MAX_RECEIPT_BYTES = 256_000
 OWNER_ACTIVE_REFS = frozenset(
-    {"refs/heads/brain/paperclip-integration", "refs/heads/brain/development"}
+    {
+        "refs/heads/brain/paperclip-integration",
+        "refs/heads/brain/development",
+        "refs/heads/org/development",
+    }
 )
+OWNER_CAS_REFS = frozenset({"refs/heads/brain/development", "refs/heads/org/development"})
 
 
 class GitGate:

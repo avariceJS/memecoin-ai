@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from engineering.git_gate import OWNER_ACTIVE_REFS, Candidate, GitGate, GitGateError, Verifier
+from engineering.git_gate import OWNER_ACTIVE_REFS, OWNER_CAS_REFS, Candidate, GitGate, GitGateError, Verifier
 
 ACTIVE_REF = "refs/heads/brain/paperclip-integration"
 SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
@@ -84,7 +84,7 @@ class OperationBinding:
             type(root) is not str or not Path(root).is_absolute() for root in self.owner_roots
         ):
             raise BrokerError("binding owner roots are invalid")
-        if self.active_ref == "refs/heads/brain/development" and (
+        if self.active_ref in OWNER_CAS_REFS and (
             not self.owner_roots or self.owner_config_digest == "0" * 64
         ):
             raise BrokerError("development lane requires owner config and roots")
@@ -402,7 +402,7 @@ class PaperclipGitBroker:
         binding.validate(self.gate)
         if binding.owner_roots and str(self.journal_dir) not in binding.owner_roots:
             raise BrokerError("binding owner roots differ from configured journal root")
-        if self.active_ref == "refs/heads/brain/development" and (
+        if self.active_ref in OWNER_CAS_REFS and (
             not binding.owner_roots or binding.owner_config_digest == "0" * 64
         ):
             raise BrokerError("development lane requires owner config and roots")
@@ -498,7 +498,7 @@ class PaperclipGitBroker:
             }
             self._create(path, record)
             try:
-                if self.active_ref == "refs/heads/brain/development" and not (
+                if self.active_ref in OWNER_CAS_REFS and not (
                     self.gate.is_detached()
                 ):
                     raise GitGateError("development publisher HEAD must be detached")
@@ -509,12 +509,12 @@ class PaperclipGitBroker:
                     binding.scope,
                     expected_source_tip=(
                         binding.base_sha
-                        if self.active_ref == "refs/heads/brain/development"
+                        if self.active_ref in OWNER_CAS_REFS
                         else None
                     ),
                     expected_integration_tip=(
                         binding.base_sha
-                        if self.active_ref == "refs/heads/brain/development"
+                        if self.active_ref in OWNER_CAS_REFS
                         else None
                     ),
                 )

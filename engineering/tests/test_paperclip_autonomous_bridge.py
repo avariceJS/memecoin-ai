@@ -973,6 +973,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         first_stage = raw["source_stage_catalog"][0]
         first_stage.update(
             project_id="experience-project",
+            goal_id="engineering-goal",
             lead_agent_id="experience-sol",
             lead_issue_id="experience-lead",
             source_workspace_id="experience-workspace",
@@ -986,6 +987,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         )
         raw["source_stage_catalog"][1].update(
             project_id="experience-project",
+            goal_id="engineering-goal",
             lead_agent_id="experience-sol",
             lead_issue_id="experience-lead",
             source_workspace_id="experience-workspace",
@@ -1091,14 +1093,18 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 )
         self.assertFalse(list(self.config.bridge_journal_dir.glob("operation-*.json")))
 
-    def test_finite_stage_binding_cas_activation_and_publication_advance_base(self):
+    @patch(
+        "engineering.paperclip_autonomous_bridge._trusted_stage_source_cache_identity",
+        return_value="f" * 40,
+    )
+    def test_finite_stage_binding_cas_activation_and_publication_advance_base(self, _cache_identity):
         from engineering.paperclip_source_delivery import SOURCE_PATHS
 
         stages = (
             SourceStageSpec("MEM8", "source", "a" * 40, None, SOURCE_PATHS, "policy-mem8",
-                self.config.project_id, "lead-1", "lead-issue"),
+                self.config.project_id, None, "lead-1", "lead-issue"),
             SourceStageSpec("MEM9", "published", None, "MEM8", SOURCE_PATHS, "policy-mem9",
-                "experience-project", "experience-sol", "experience-lead"),
+                "experience-project", "engineering-goal", "experience-sol", "experience-lead"),
         )
         config = replace(
             self.config,
@@ -1297,6 +1303,24 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         first_stage_record["operation_key"] = operation_key
         first_stage_record["candidate_sha"] = "d" * 40
         _write_journal(config, _stage_journal_key("MEM8"), first_stage_record, create=False)
+        operation_lookup = dispatch(
+            config,
+            {
+                "action": "lookup_source_stage_binding",
+                "payload": {
+                    "company_id": config.company_id,
+                    "project_id": config.project_id,
+                    "lead_agent_id": "lead-1",
+                    "lead_issue_id": "lead-issue",
+                    "stage_key": "MEM8",
+                    "operation_key": operation_key,
+                },
+            },
+        )
+        self.assertEqual(operation_lookup["attempt"], 1)
+        self.assertEqual(operation_lookup["source_issue_id"], "source-8")
+        self.assertEqual(operation_lookup["review_issue_id"], "review-8")
+        self.assertEqual(operation_lookup["operation_key"], operation_key)
         second_payload = stage_payload(
             "MEM9",
             "source-9",
@@ -1355,6 +1379,52 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(second_lookup["predecessor_source_issue_id"], "source-8")
         self.assertEqual(second_lookup["predecessor_review_issue_id"], "review-8")
         self.assertEqual(second_lookup["predecessor_lead_issue_id"], "lead-issue")
+        second_record = _load_journal(config, _stage_journal_key("MEM9"))
+        second_record["operation_key"] = "9" * 64
+        second_record["candidate_sha"] = "8" * 40
+        _write_journal(config, _stage_journal_key("MEM9"), second_record, create=False)
+        second_operation = {
+            "schema": "paperclip-autonomous-operation-v1",
+            "operation_key": "9" * 64,
+            "state": "prepared",
+            "source_stage_binding": second["stage_binding_key"],
+            "source_stage_key": "MEM9",
+            "binding": {"base_sha": "d" * 40},
+            "candidate": {"candidate_sha": "8" * 40},
+        }
+        _write_journal(config, "9" * 64, second_operation, create=True)
+        review_payload = {
+            "company_id": config.company_id,
+            "project_id": "experience-project",
+            "reviewer_agent_id": config.reviewer_agent_id,
+            "reviewer_run_id": "experience-review-run",
+            "reviewer_issue_id": "review-9",
+            "stage_key": "MEM9",
+            "stage_binding_key": second["stage_binding_key"],
+            "review_instruction_sha256": "2" * 64,
+        }
+        with patch(
+            "engineering.paperclip_autonomous_bridge.inspect_candidate",
+            return_value={"operation_key": "9" * 64, "candidate_sha": "8" * 40},
+        ) as inspect:
+            dispatch(config, {"action": "inspect_bound_source_stage", "payload": review_payload})
+        self.assertEqual(inspect.call_args.args[1]["project_id"], "experience-project")
+        with patch(
+            "engineering.paperclip_autonomous_bridge.integrate_candidate",
+            return_value={"operation_key": "9" * 64, "status": "published"},
+        ) as approve:
+            dispatch(
+                config,
+                {
+                    "action": "approve_bound_source_stage",
+                    "payload": {
+                        **review_payload,
+                        "approved": True,
+                        "evidence": {"inspection_digest": "3" * 64, "rationale": "verified"},
+                    },
+                },
+            )
+        self.assertEqual(approve.call_args.args[1]["project_id"], "experience-project")
 
     def test_finite_stage_holds_when_predecessor_publication_or_finalization_is_unknown(self):
         from engineering.paperclip_source_delivery import SOURCE_PATHS
@@ -2423,6 +2493,137 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(final_operation["state"], "review_custodied")
         self.assertEqual(final_operation["canonical"]["status"], "prepared")
         self.assertEqual(final_operation["candidate"]["candidate_sha"], prepared["candidate_sha"])
+
+    def test_org_development_stage_prepares_qa_and_publishes_both_refs(self):
+        from engineering.paperclip_autonomous_bridge import _load_journal
+        from engineering.paperclip_source_delivery import SOURCE_PATHS
+
+        root = Path(self.tmp.name) / "org-stage-publication"
+        source, publisher, canonical = (root / name for name in ("source", "publisher", "canonical"))
+        root.mkdir()
+        for name in ("broker-journal", "bridge-journal", "receipts", "scratch"):
+            (root / name).mkdir(mode=0o700)
+        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "main", str(source)], check=True)
+
+        def git(repo, *args):
+            result = subprocess.run(
+                ["/usr/bin/git", "-C", str(repo), *args], text=True, capture_output=True,
+                check=False,
+            )
+            if result.returncode:
+                raise AssertionError(result.stderr)
+            return result.stdout.strip()
+
+        git(source, "config", "user.name", "Owner")
+        git(source, "config", "user.email", "owner@example.invalid")
+        for path in SOURCE_PATHS:
+            target = source / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("owner baseline\n")
+        git(source, "add", "-A")
+        git(source, "commit", "-qm", "trusted org base")
+        base = git(source, "rev-parse", "HEAD")
+        git(source, "branch", "org/development", base)
+        for repo in (publisher, canonical):
+            subprocess.run(["/usr/bin/git", "clone", "-q", str(source), str(repo)], check=True)
+            git(repo, "config", "user.name", "Publisher")
+            git(repo, "config", "user.email", "publisher@example.invalid")
+            git(repo, "branch", "org/development", base)
+        git(publisher, "checkout", "--detach", base)
+        git(canonical, "checkout", "org/development")
+
+        python = Path(sys.executable).resolve()
+        policy_id = "org-stage-policy"
+        stage = SourceStageSpec(
+            "MEM10", "source", base, None, SOURCE_PATHS, policy_id,
+            "experience-project", "engineering-goal", "experience-sol", "experience-lead",
+            source_repo=source, publisher_repo=publisher,
+            canonical_repo=canonical, canonical_ref="refs/heads/org/development",
+            canonical_expected_tip=base, expected_dev_ref="refs/heads/org/development",
+        )
+        config = replace(
+            self.config,
+            source_issue_id=None,
+            reviewer_issue_id=None,
+            worker_checkout=None,
+            source_repo=source,
+            publisher_repo=publisher,
+            broker_journal_dir=root / "broker-journal",
+            bridge_journal_dir=root / "bridge-journal",
+            receipt_store=root / "receipts",
+            verifier_scratch_root=root / "scratch",
+            python_executable=python,
+            verifier_commands=((str(python), "-c", "raise SystemExit(0)"),),
+            verifier_env=(),
+            verifier_policy_id=policy_id,
+            fixed_dev_ref="refs/heads/brain/development",
+            expected_dev_ref="refs/heads/brain/development",
+            expected_base_sha=base,
+            finite_lead_agent_id="experience-sol",
+            finite_lead_issue_id="experience-lead",
+            source_stage_catalog=(stage,),
+            canonical_repo=canonical,
+            canonical_ref="refs/heads/brain/development",
+            canonical_expected_tip=base,
+        )
+        bind_payload = {
+            "company_id": config.company_id, "project_id": "experience-project",
+            "lead_agent_id": "experience-sol", "lead_issue_id": "experience-lead",
+            "lead_run_id": "experience-run", "stage_key": "MEM10",
+            "source_issue_id": "mem10-source", "source_version": 1,
+            "review_issue_id": "mem10-review", "review_version": 1,
+            "predecessor_operation_key": None, "predecessor_source_status": None,
+            "predecessor_source_version": None, "predecessor_review_status": None,
+            "predecessor_review_version": None, "predecessor_source_issue_id": None,
+            "predecessor_review_issue_id": None, "predecessor_dependency_ready": None,
+            "source_instruction_sha256": "1" * 64, "review_instruction_sha256": "2" * 64,
+        }
+        bound = dispatch(config, {"action": "bind_source_stage", "payload": bind_payload})
+        dispatch(config, {"action": "source_stage_activation", "payload": {
+            "step": "intent", "stage_binding_key": bound["stage_binding_key"],
+            "issue_id": "mem10-source", "observed_status": "backlog", "observed_version": 1,
+        }})
+        dispatch(config, {"action": "source_stage_activation", "payload": {
+            "step": "ack", "stage_binding_key": bound["stage_binding_key"],
+            "issue_id": "mem10-source", "mutation_status": "todo", "mutation_status_version": 2,
+        }})
+        files = [
+            {"path_id": path, "content": f"department candidate {index}\n",
+             "size": len(f"department candidate {index}\n".encode()),
+             "sha256": hashlib.sha256(f"department candidate {index}\n".encode()).hexdigest()}
+            for index, path in enumerate(SOURCE_PATHS)
+        ]
+        prepared = dispatch(config, {"action": "deliver_source_stage_content", "payload": {
+            "company_id": config.company_id, "project_id": "experience-project",
+            "source_issue_id": "mem10-source", "worker_agent_id": config.worker_agent_id,
+            "run_id": "mem10-source-run", "stage_key": "MEM10",
+            "stage_binding_key": bound["stage_binding_key"],
+            "source_instruction_sha256": "1" * 64, "files": files,
+        }})
+        review = {
+            "company_id": config.company_id, "project_id": "experience-project",
+            "reviewer_agent_id": config.reviewer_agent_id,
+            "reviewer_run_id": "mem10-review-run", "reviewer_issue_id": "mem10-review",
+            "stage_key": "MEM10", "stage_binding_key": bound["stage_binding_key"],
+            "review_instruction_sha256": "2" * 64,
+        }
+        inspected = dispatch(config, {"action": "inspect_bound_source_stage", "payload": review})
+        self.assertEqual(inspected["source_preflight"]["status"], "passed")
+        approved = dispatch(config, {"action": "approve_bound_source_stage", "payload": {
+            **review, "approved": True,
+            "evidence": {"inspection_digest": inspected["inspection_digest"],
+                         "canonical_candidate_sha": inspected["canonical_candidate_sha"],
+                         "canonical_receipt_digest": inspected["canonical_receipt_digest"],
+                         "rationale": "verified exact department candidate"},
+        }})
+        self.assertEqual(approved["status"], "published")
+        self.assertEqual(git(publisher, "rev-parse", "refs/heads/org/development"), approved["candidate_sha"])
+        self.assertEqual(git(canonical, "rev-parse", "refs/heads/org/development"), approved["canonical_candidate_sha"])
+        self.assertEqual(git(publisher, "rev-parse", "refs/heads/main"), base)
+        operation = _load_journal(config, prepared["operation_key"])
+        self.assertEqual(operation["state"], "published")
+        self.assertEqual(operation["binding"]["active_ref"], "refs/heads/org/development")
+        self.assertEqual(operation["canonical"]["receipt"]["ref"], "refs/heads/org/development")
 
     def test_rejected_working_seed_restores_only_the_exact_admitted_file_snapshot(self):
         from engineering.paperclip_source_delivery import (

@@ -32,7 +32,8 @@ type OwnerConfig = {
   reviewer_parent_issue_id?: string;
   finite_lead_agent_id?: string;
   finite_lead_issue_id?: string;
-  source_stage_catalog?: Array<{ stage_key: string; workspace_id: string; initial_base_sha: string | null; predecessor_stage_key: string | null; path_ids: string[]; verifier_policy_id: string; project_id?: string; lead_agent_id?: string; lead_issue_id?: string; source_workspace_id?: string; source_workspace_root?: string; source_repo?: string; publisher_repo?: string; canonical_repo?: string; canonical_ref?: string; canonical_expected_tip?: string; expected_dev_ref?: string }>;
+  source_stage_catalog?: Array<{ stage_key: string; workspace_id: string; initial_base_sha: string | null; predecessor_stage_key: string | null; path_ids: string[]; verifier_policy_id: string; project_id?: string; goal_id?: string | null; lead_agent_id?: string; lead_issue_id?: string; source_workspace_id?: string; source_workspace_root?: string; source_repo?: string; publisher_repo?: string; canonical_repo?: string; canonical_ref?: string; canonical_expected_tip?: string; expected_dev_ref?: string }>;
+  goal_id?: string | null;
   canonical_repo?: string;
   canonical_ref?: string;
   canonical_expected_tip?: string;
@@ -73,7 +74,12 @@ export async function assertRunBoundIssue(
   }
 }
 
-async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: string, projectId?: string): Promise<OwnerConfig> {
+async function readOwnerConfig(
+  ctx: Pick<PluginContext, "config">,
+  companyId: string,
+  projectId?: string,
+  stageKey?: string,
+): Promise<OwnerConfig> {
   const pluginConfig = await ctx.config.get(companyId);
   const configPath = pluginConfig.ownerConfigPath;
   if (typeof configPath !== "string" || !isAbsolute(configPath)) fail("owner_bridge_config_path_unavailable");
@@ -106,9 +112,14 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
       && SHA_RE.test(parsed.canonical_expected_tip));
     const rawStages = finite ? parsed.source_stage_catalog as Array<Record<string, unknown>> : [];
     const hasLaneIdentities = rawStages.some((stage) => stage.project_id !== undefined);
-    const selectedStages = hasLaneIdentities && projectId
+    const projectStages = hasLaneIdentities && projectId
       ? rawStages.filter((stage) => stage.project_id === projectId)
       : rawStages;
+    const selectedStage = stageKey === undefined
+      ? undefined
+      : projectStages.find((stage) => stage.stage_key === stageKey);
+    if (stageKey !== undefined && !selectedStage) fail("source_stage_not_owner_admitted");
+    const selectedStages = selectedStage ? [selectedStage] : projectStages;
     const laneAgent = selectedStages[0]?.lead_agent_id ?? parsed.finite_lead_agent_id;
     const laneIssue = selectedStages[0]?.lead_issue_id ?? parsed.finite_lead_issue_id;
     const laneWorkspaceId = selectedStages[0]?.source_workspace_id ?? parsed.source_workspace_id;
@@ -136,6 +147,8 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
         && new Set(paths).size === paths.length && paths.some((path) => (path as string).startsWith("src/") || ((path as string).startsWith("engineering/") && !(path as string).includes("/tests/")))
         && paths.some((path) => (path as string).startsWith("tests/") || (path as string).includes("/tests/"))
         && typeof stage.verifier_policy_id === "string" && ID_RE.test(stage.verifier_policy_id)
+        && (stage.goal_id === undefined || stage.goal_id === null || (typeof stage.goal_id === "string" && ID_RE.test(stage.goal_id)))
+        && (!hasAny || Object.prototype.hasOwnProperty.call(stage, "goal_id"))
         && (!hasAny || hasAll) && (hasWorkspaceId === hasWorkspaceRoot)
         && (!hasWorkspaceId || (typeof stage.source_workspace_id === "string" && ID_RE.test(stage.source_workspace_id)
           && typeof stage.source_workspace_root === "string" && isAbsolute(stage.source_workspace_root)
@@ -149,17 +162,31 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
           && ["refs/heads/brain/development", "refs/heads/org/development"].includes(stage.canonical_ref as string)
           && typeof stage.canonical_expected_tip === "string" && SHA_RE.test(stage.canonical_expected_tip)));
     });
-    const laneIdentityValid = !hasLaneIdentities || (!!projectId && selectedStages.length > 0
-      && selectedStages.every((stage) => stage.project_id === projectId
-        && stage.lead_agent_id === laneAgent && stage.lead_issue_id === laneIssue
-        && (stage.source_workspace_id ?? parsed.source_workspace_id) === laneWorkspaceId
-        && (stage.source_workspace_root ?? parsed.source_workspace_root) === laneWorkspaceRoot
-        && stage.source_repo === laneTarget?.source_repo
-        && stage.publisher_repo === laneTarget?.publisher_repo
-        && stage.canonical_repo === laneTarget?.canonical_repo
-        && stage.canonical_ref === laneTarget?.canonical_ref
-        && stage.canonical_expected_tip === laneTarget?.canonical_expected_tip
-        && stage.expected_dev_ref === laneTarget?.expected_dev_ref));
+    const laneIdentityValid = !hasLaneIdentities || (!!projectId && projectStages.length > 0 && (() => {
+      const laneConfigs = new Map<string, string>();
+      for (const stage of rawStages) {
+        const lane = JSON.stringify([
+          stage.project_id ?? parsed.project_id,
+          stage.goal_id !== undefined ? stage.goal_id : parsed.goal_id,
+          stage.lead_agent_id ?? parsed.finite_lead_agent_id,
+          stage.lead_issue_id ?? parsed.finite_lead_issue_id,
+        ]);
+        const config = JSON.stringify([
+          stage.source_workspace_id ?? parsed.source_workspace_id,
+          stage.source_workspace_root ?? parsed.source_workspace_root,
+          stage.source_repo ?? parsed.source_repo,
+          stage.publisher_repo ?? parsed.publisher_repo,
+          stage.canonical_repo ?? parsed.canonical_repo,
+          stage.canonical_ref ?? parsed.canonical_ref,
+          stage.canonical_expected_tip ?? parsed.canonical_expected_tip,
+          stage.expected_dev_ref ?? parsed.expected_dev_ref,
+        ]);
+        const prior = laneConfigs.get(lane);
+        if (prior !== undefined && prior !== config) return false;
+        laneConfigs.set(lane, config);
+      }
+      return selectedStages.every((stage) => stage.project_id === projectId);
+    })());
     const workspaceValid = !finite || (typeof laneWorkspaceId === "string" && ID_RE.test(laneWorkspaceId)
       && typeof laneWorkspaceRoot === "string" && isAbsolute(laneWorkspaceRoot)
       && !laneWorkspaceRoot.split("/").includes("..") && laneWorkspaceRoot !== "/");
@@ -178,6 +205,8 @@ async function readOwnerConfig(ctx: Pick<PluginContext, "config">, companyId: st
     }
     return {
       ...Object.fromEntries(keys.map((key) => [key, parsed[key]])),
+      ...(projectId !== undefined ? { project_id: projectId } : {}),
+      ...(selectedStage ? { goal_id: selectedStage.goal_id as string | null } : {}),
       ...(hasLegacyPair ? { source_issue_id: parsed.source_issue_id as string, reviewer_issue_id: parsed.reviewer_issue_id as string } : {}),
       ...(finite ? {
         source_stage_catalog: rawStages as OwnerConfig["source_stage_catalog"],
@@ -432,6 +461,7 @@ function requireSourceStage(owner: OwnerConfig, stageKey: string) {
   const stage = owner.source_stage_catalog?.find((item) => item.stage_key === stageKey);
   if (!stage || !owner.finite_lead_issue_id || !owner.finite_lead_agent_id
       || (stage.project_id !== undefined && stage.project_id !== owner.project_id)
+      || (stage.goal_id !== undefined && stage.goal_id !== owner.goal_id)
       || (stage.lead_issue_id !== undefined && stage.lead_issue_id !== owner.finite_lead_issue_id)
       || (stage.lead_agent_id !== undefined && stage.lead_agent_id !== owner.finite_lead_agent_id)) fail("source_stage_not_owner_admitted");
   return stage;
@@ -441,6 +471,7 @@ function ownerForStage(owner: OwnerConfig, stage: NonNullable<OwnerConfig["sourc
   return {
     ...owner,
     project_id: stage.project_id ?? owner.project_id,
+    goal_id: stage.goal_id !== undefined ? stage.goal_id : owner.goal_id,
     finite_lead_agent_id: stage.lead_agent_id ?? owner.finite_lead_agent_id,
     finite_lead_issue_id: stage.lead_issue_id ?? owner.finite_lead_issue_id,
     source_workspace_id: stage.source_workspace_id ?? owner.source_workspace_id,
@@ -526,6 +557,86 @@ async function readNativeIssue(ctx: Pick<PluginContext, "issues">, issueId: stri
   const issue = await ctx.issues.forCurrentToolRun().get(issueId, companyId);
   if (!issue || issue.id !== issueId || issue.companyId !== companyId) fail("source_stage_issue_unavailable");
   return issue;
+}
+
+async function readOwnerLeadOrchestration(
+  ctx: Pick<PluginContext, "issues">,
+  owner: OwnerConfig,
+  leadIssueId: string,
+  projectId: string,
+  goalId: string | null | undefined,
+  leadAgentId: string,
+  activeRunId?: string,
+) {
+  const [issue, summary] = await Promise.all([
+    ctx.issues.get(leadIssueId, owner.company_id),
+    ctx.issues.summaries.getOrchestration({
+      issueId: leadIssueId,
+      companyId: owner.company_id,
+      includeSubtree: false,
+    }),
+  ]);
+  const readinessSummary = summary as typeof summary & {
+    dependencyReadinessComplete?: boolean;
+    dependencyReadiness?: {
+      issueId: string;
+      blockerIssueIds: string[];
+      unresolvedBlockerIssueIds: string[];
+      unresolvedBlockerCount: number;
+      pendingFinalizeBlockerIssueIds: string[];
+      allBlockersDone: boolean;
+      isDependencyReady: boolean;
+    } | null;
+  };
+  if (!issue || issue.id !== leadIssueId || issue.companyId !== owner.company_id
+      || issue.projectId !== projectId || issue.assigneeAgentId !== leadAgentId
+      || issue.goalId !== goalId
+      || summary.issueId !== leadIssueId || summary.companyId !== owner.company_id
+      || !Array.isArray(summary.runs) || !summary.relations || typeof summary.relations !== "object"
+      || readinessSummary.dependencyReadinessComplete !== true
+      || !readinessSummary.dependencyReadiness
+      || readinessSummary.dependencyReadiness.issueId !== leadIssueId
+      || !Array.isArray(readinessSummary.dependencyReadiness.blockerIssueIds)
+      || !Array.isArray(readinessSummary.dependencyReadiness.unresolvedBlockerIssueIds)
+      || !Number.isSafeInteger(readinessSummary.dependencyReadiness.unresolvedBlockerCount)
+      || readinessSummary.dependencyReadiness.unresolvedBlockerCount
+        !== readinessSummary.dependencyReadiness.unresolvedBlockerIssueIds.length
+      || !Array.isArray(readinessSummary.dependencyReadiness.pendingFinalizeBlockerIssueIds)
+      || typeof readinessSummary.dependencyReadiness.allBlockersDone !== "boolean"
+      || typeof readinessSummary.dependencyReadiness.isDependencyReady !== "boolean") {
+    fail("source_stage_lead_summary_identity_mismatch");
+  }
+  const relation = summary.relations[leadIssueId];
+  if (!relation || !Array.isArray(relation.blockedBy)) fail("source_stage_lead_summary_unavailable");
+  const activeRuns = summary.runs.filter((run) => run.issueId === leadIssueId && ["queued", "running"].includes(run.status));
+  if (activeRuns.some((run) => run.id !== activeRunId)
+      || (activeRunId !== undefined && !activeRuns.some((run) => run.id === activeRunId
+        && run.agentId === leadAgentId && run.status === "running"))) {
+    fail("source_stage_lead_run_unfinalized");
+  }
+  return { issue, blockedBy: relation.blockedBy, readiness: readinessSummary.dependencyReadiness };
+}
+
+function blockersAreFinalized(blockers: Array<{ id: string; status: string; assigneeAgentId: string | null; terminalBlockers?: unknown; activeRecoveryAction?: unknown; scheduledRetry?: unknown }>): boolean {
+  return blockers.every((blocker) => blocker.status === "done"
+    && blocker.activeRecoveryAction == null && blocker.scheduledRetry == null
+    && (blocker.terminalBlockers === undefined || (Array.isArray(blocker.terminalBlockers)
+      && blocker.terminalBlockers.length === 0)));
+}
+
+function expectedLeadBlockerIds(
+  owner: OwnerConfig,
+  stage: NonNullable<OwnerConfig["source_stage_catalog"]>[number],
+): string[] {
+  if (stage.predecessor_stage_key === null) return [];
+  const predecessor = owner.source_stage_catalog?.find((item) => item.stage_key === stage.predecessor_stage_key);
+  if (!predecessor?.lead_issue_id) fail("source_stage_predecessor_not_owner_admitted");
+  return [predecessor.lead_issue_id];
+}
+
+function blockerSetMatches(blockers: Array<{ id: string }>, expectedIds: string[]): boolean {
+  return blockers.length === expectedIds.length
+    && blockers.every((blocker, index) => blocker.id === expectedIds[index]);
 }
 
 async function assertStageCurrentRun(
@@ -728,7 +839,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || (attempt >= 2 && (typeof params.retry_of_operation_key !== "string" || !KEY_RE.test(params.retry_of_operation_key)))) {
       fail("source_stage_attempt_invalid");
     }
-    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId);
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, params.stage_key);
     const stage = requireSourceStage(owner, params.stage_key);
     if (attempt > 3) fail("source_stage_attempt_limit_exceeded");
     const predecessorRequest = readStagePredecessor(stage, params.predecessor);
@@ -740,7 +851,16 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || (predecessorStage.lead_issue_id ?? owner.finite_lead_issue_id) !== owner.finite_lead_issue_id);
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
         || runCtx.agentId !== owner.finite_lead_agent_id || !owner.finite_lead_issue_id) fail("source_stage_lead_binding_mismatch");
-    await assertRunBoundIssue(ctx, runCtx, owner.finite_lead_issue_id);
+    if (crossProjectPredecessor) {
+      const currentLead = await readOwnerLeadOrchestration(
+        ctx, owner, owner.finite_lead_issue_id, owner.project_id, stage.goal_id, owner.finite_lead_agent_id, runCtx.runId,
+      );
+      if (currentLead.issue.status !== "in_progress" || currentLead.issue.executionRunId !== runCtx.runId) {
+        fail("source_stage_lead_run_unfinalized");
+      }
+    } else {
+      await assertRunBoundIssue(ctx, runCtx, owner.finite_lead_issue_id);
+    }
     const existing = await invoke("lookup_source_stage_binding", {
       company_id: owner.company_id, project_id: owner.project_id,
       lead_agent_id: owner.finite_lead_agent_id, lead_issue_id: owner.finite_lead_issue_id,
@@ -755,9 +875,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         lead_agent_id: priorOwner.finite_lead_agent_id,
         lead_issue_id: priorOwner.finite_lead_issue_id,
         stage_key: predecessorStage.stage_key,
-        source_issue_id: predecessorRequest.source_issue_id,
-        review_issue_id: predecessorRequest.review_issue_id,
-        attempt: 1,
+        operation_key: predecessorRequest.operation_key,
       }, owner.configPath, owner.python_executable);
       if (prior.found !== true || prior.operation_key !== predecessorRequest.operation_key
           || prior.source_issue_id !== predecessorRequest.source_issue_id
@@ -844,7 +962,8 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       const priorReviewReadiness = crossProjectPredecessor ? null : await scoped.getDependencyReadiness(
         prior.review_issue_id, owner.company_id,
       );
-      let predecessorBlockerFinalized = crossProjectPredecessor;
+      let predecessorBlockerFinalized = false;
+      let crossPriorDependencyReady: boolean | null = null;
       if (!crossProjectPredecessor && priorSource && priorReview && priorReviewReadiness) {
         predecessorBlockerFinalized = priorReviewReadiness.isDependencyReady === true
           && priorReviewReadiness.unresolvedBlockerIssueIds.length === 0
@@ -852,26 +971,73 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
           && priorReviewReadiness.blockerIssueIds[0] === priorSource.id
           && priorReviewReadiness.pendingFinalizeBlockerIssueIds.length === 0;
       }
+      if (crossProjectPredecessor && predecessorStage) {
+        const priorLead = await readOwnerLeadOrchestration(
+          ctx, owner, predecessorStage.lead_issue_id!, predecessorStage.project_id ?? owner.project_id,
+          predecessorStage.goal_id, predecessorStage.lead_agent_id!,
+        );
+        const expectedPriorBlockers = expectedLeadBlockerIds(owner, predecessorStage);
+        predecessorBlockerFinalized = priorLead.issue.status === "done"
+          && priorLead.issue.executionRunId === null
+          && blockerSetMatches(priorLead.blockedBy, expectedPriorBlockers)
+          && blockerSetMatches(priorLead.readiness.blockerIssueIds.map((id) => ({ id })), expectedPriorBlockers)
+          && priorLead.readiness.isDependencyReady === true
+          && priorLead.readiness.allBlockersDone === true
+          && priorLead.readiness.unresolvedBlockerIssueIds.length === 0
+          && priorLead.readiness.pendingFinalizeBlockerIssueIds.length === 0
+          && blockersAreFinalized(priorLead.blockedBy);
+        crossPriorDependencyReady = priorLead.readiness.isDependencyReady;
+      }
       let leadStillBlockedOnPredecessor = true;
       if (attempt === 1) {
         // The first successor bind must wait on the successful predecessor QA. On a retry,
         // the lead intentionally still depends on the rejected successor QA; the immutable
         // prior successor binding preserves predecessor admission, and validateStageRetry
         // below proves that current retry barrier is finalized before replacement.
-        const [leadOrchestration, leadReadiness] = await Promise.all([
-          scoped.getOrchestration({ issueId: owner.finite_lead_issue_id, companyId: owner.company_id }),
-          scoped.getDependencyReadiness(owner.finite_lead_issue_id, owner.company_id),
-        ]);
         const blockerIssueId = crossProjectPredecessor
           ? predecessorStage.lead_issue_id ?? prior.review_issue_id
           : priorReview?.id;
-        leadStillBlockedOnPredecessor = leadOrchestration.blockedByIssueIds.length === 1
-          && leadOrchestration.blockedByIssueIds[0] === blockerIssueId
-          && leadReadiness.isDependencyReady === true
-          && leadReadiness.blockerIssueIds.length === 1
-          && leadReadiness.blockerIssueIds[0] === blockerIssueId
-          && leadReadiness.unresolvedBlockerIssueIds.length === 0
-          && leadReadiness.pendingFinalizeBlockerIssueIds.length === 0;
+        if (crossProjectPredecessor && predecessorStage.lead_issue_id && predecessorStage.lead_agent_id) {
+          const [currentLead, priorLead] = await Promise.all([
+            readOwnerLeadOrchestration(ctx, owner, owner.finite_lead_issue_id, owner.project_id, stage.goal_id, owner.finite_lead_agent_id, runCtx.runId),
+            readOwnerLeadOrchestration(ctx, owner, predecessorStage.lead_issue_id, predecessorStage.project_id ?? owner.project_id, predecessorStage.goal_id, predecessorStage.lead_agent_id),
+          ]);
+          const priorExpectedBlockers = expectedLeadBlockerIds(owner, predecessorStage);
+          predecessorBlockerFinalized = priorLead.issue.status === "done"
+            && priorLead.issue.executionRunId === null
+            && blockerSetMatches(priorLead.blockedBy, priorExpectedBlockers)
+            && blockerSetMatches(
+              priorLead.readiness.blockerIssueIds.map((id) => ({ id })), priorExpectedBlockers,
+            )
+            && priorLead.readiness.isDependencyReady === true
+            && priorLead.readiness.allBlockersDone === true
+            && priorLead.readiness.unresolvedBlockerIssueIds.length === 0
+            && priorLead.readiness.pendingFinalizeBlockerIssueIds.length === 0
+            && blockersAreFinalized(priorLead.blockedBy);
+          leadStillBlockedOnPredecessor = currentLead.issue.status === "in_progress"
+            && currentLead.issue.executionRunId === runCtx.runId
+            && blockerSetMatches(currentLead.blockedBy, expectedLeadBlockerIds(owner, stage))
+            && blockerSetMatches(currentLead.readiness.blockerIssueIds.map((id) => ({ id })), expectedLeadBlockerIds(owner, stage))
+            && currentLead.readiness.isDependencyReady === true
+            && currentLead.readiness.allBlockersDone === true
+            && currentLead.readiness.unresolvedBlockerIssueIds.length === 0
+            && currentLead.readiness.pendingFinalizeBlockerIssueIds.length === 0
+            && currentLead.blockedBy[0]?.status === "done"
+            && currentLead.blockedBy[0]?.assigneeAgentId === predecessorStage.lead_agent_id
+            && blockersAreFinalized(currentLead.blockedBy);
+        } else {
+          const [leadOrchestration, leadReadiness] = await Promise.all([
+            scoped.getOrchestration({ issueId: owner.finite_lead_issue_id, companyId: owner.company_id }),
+            scoped.getDependencyReadiness(owner.finite_lead_issue_id, owner.company_id),
+          ]);
+          leadStillBlockedOnPredecessor = leadOrchestration.blockedByIssueIds.length === 1
+            && leadOrchestration.blockedByIssueIds[0] === blockerIssueId
+            && leadReadiness.isDependencyReady === true
+            && leadReadiness.blockerIssueIds.length === 1
+            && leadReadiness.blockerIssueIds[0] === blockerIssueId
+            && leadReadiness.unresolvedBlockerIssueIds.length === 0
+            && leadReadiness.pendingFinalizeBlockerIssueIds.length === 0;
+        }
       }
       if ((!crossProjectPredecessor && (!priorSource || !priorReview
           || priorSource.projectId !== owner.project_id || priorSource.parentId !== owner.finite_lead_issue_id
@@ -890,7 +1056,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
           review_issue_id: prior.review_issue_id,
           lead_issue_id: predecessorStage.lead_issue_id ?? owner.finite_lead_issue_id ?? null,
           source_status: null, source_version: null, review_status: null, review_version: null,
-          dependency_ready: true,
+          dependency_ready: crossPriorDependencyReady,
         }
         : {
           operation_key: prior.operation_key,
@@ -916,6 +1082,44 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         invoke,
       )
       : null;
+    if (crossProjectPredecessor && predecessorStage) {
+      // Re-read the owner-pinned predecessor immediately before crossing into the
+      // bridge. The bridge receives only native dependency readiness observed here;
+      // it must never infer readiness from terminal issue status alone.
+      const priorLead = await readOwnerLeadOrchestration(
+        ctx, owner, predecessorStage.lead_issue_id!, predecessorStage.project_id ?? owner.project_id,
+        predecessorStage.goal_id, predecessorStage.lead_agent_id!,
+      );
+      const priorExpectedBlockers = expectedLeadBlockerIds(owner, predecessorStage);
+      if (priorLead.issue.status !== "done" || priorLead.issue.executionRunId !== null
+          || !blockerSetMatches(priorLead.blockedBy, priorExpectedBlockers)
+          || !blockerSetMatches(priorLead.readiness.blockerIssueIds.map((id) => ({ id })), priorExpectedBlockers)
+          || priorLead.readiness.isDependencyReady !== true || priorLead.readiness.allBlockersDone !== true
+          || priorLead.readiness.unresolvedBlockerIssueIds.length !== 0
+          || priorLead.readiness.pendingFinalizeBlockerIssueIds.length !== 0
+          || !blockersAreFinalized(priorLead.blockedBy)) {
+        fail("source_stage_predecessor_not_finalized");
+      }
+      predecessor.dependency_ready = priorLead.readiness.isDependencyReady;
+      if (attempt === 1) {
+        const currentLead = await readOwnerLeadOrchestration(
+          ctx, owner, owner.finite_lead_issue_id, owner.project_id, stage.goal_id,
+          owner.finite_lead_agent_id, runCtx.runId,
+        );
+        const expectedCurrentBlockers = expectedLeadBlockerIds(owner, stage);
+        if (currentLead.issue.status !== "in_progress"
+            || currentLead.issue.executionRunId !== runCtx.runId
+            || !blockerSetMatches(currentLead.blockedBy, expectedCurrentBlockers)
+            || !blockerSetMatches(currentLead.readiness.blockerIssueIds.map((id) => ({ id })), expectedCurrentBlockers)
+            || currentLead.readiness.isDependencyReady !== true
+            || currentLead.readiness.allBlockersDone !== true
+            || currentLead.readiness.unresolvedBlockerIssueIds.length !== 0
+            || currentLead.readiness.pendingFinalizeBlockerIssueIds.length !== 0
+            || !blockersAreFinalized(currentLead.blockedBy)) {
+          fail("source_stage_predecessor_not_finalized");
+        }
+      }
+    }
     const sourceInstructionSha256 = instructionDigest(source.description);
     const reviewInstructionSha256 = instructionDigest(review.description);
     const result = await invoke("bind_source_stage", {
@@ -1002,7 +1206,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || typeof params.source_issue_id !== "string" || !ID_RE.test(params.source_issue_id)
         || !KEY_RE.test(params.stage_binding_key) || !Array.isArray(params.files)
         || Buffer.byteLength(JSON.stringify(params.files), "utf8") > 1_600_000) fail("source_stage_delivery_invalid");
-    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId);
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, params.stage_key);
     const stage = requireSourceStage(owner, params.stage_key);
     if (runCtx.companyId !== owner.company_id || runCtx.projectId !== owner.project_id
         || runCtx.agentId !== owner.worker_agent_id) fail("worker_actor_binding_mismatch");
@@ -1110,7 +1314,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     if (typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
         || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
         || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)) fail("source_stage_review_parameters_invalid");
-    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId);
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, params.stage_key);
     const { stage, review } = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
     const reviewInstructionSha256 = await assertBoundInstruction(
       invoke, owner, stage.stage_key, "review_issue_id", review, params.stage_binding_key,
@@ -1159,7 +1363,8 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
   }, async (raw, runCtx): Promise<ToolResult> => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
     const params = raw as Record<string, unknown>;
-    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId);
+    if (typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)) fail("source_stage_review_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, params.stage_key);
     if (typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
         || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
         || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
