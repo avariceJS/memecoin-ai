@@ -53,6 +53,18 @@ def records(contents: tuple[str, str]) -> list[dict]:
     ]
 
 
+def manifest_records(paths: tuple[str, ...], contents: tuple[str, ...]) -> list[dict]:
+    return [
+        {
+            "path_id": path,
+            "content": content,
+            "size": len(content.encode()),
+            "sha256": hashlib.sha256(content.encode()).hexdigest(),
+        }
+        for path, content in zip(paths, contents, strict=True)
+    ]
+
+
 class PaperclipSourceDeliveryTests(unittest.TestCase):
     def test_valid_records_make_stable_immutable_snapshot(self):
         supplied = records(("events = []\n", "def test_raw_sources(): pass\n"))
@@ -91,6 +103,56 @@ class PaperclipSourceDeliveryTests(unittest.TestCase):
         supplied[0]["path_id"] = "src/attacker.py"
         with self.assertRaisesRegex(SourceDeliveryError, "not_allowed"):
             snapshot_records(supplied)
+
+    def test_owner_manifest_accepts_task_specific_exact_source_test_pair(self):
+        paths = (
+            "src/memecoin_experience/records.py",
+            "tests/test_experience.py",
+            "tests/test_experience_schema.py",
+        )
+        snapshot = snapshot_records(manifest_records(paths, ("source\n", "test-a\n", "test-b\n")), paths)
+        self.assertEqual(tuple(item.path_id for item in snapshot.files), paths)
+        for invalid in (
+            ("src/module.py", "tests/test.py", "tests/../escape.py"),
+            ("src/module.py", "tests/test.py", "tests/test.py"),
+            ("src/module.py", "tests/test.py", "/tmp/outside.py"),
+            ("src/module.py", "docs/readme.md"),
+        ):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(SourceDeliveryError, "manifest_invalid"):
+                snapshot_records(manifest_records(invalid, tuple("x" for _ in invalid)), invalid)
+
+    def test_non_senses_manifest_publishes_only_changed_subset(self):
+        paths = (
+            "src/memecoin_experience/records.py",
+            "tests/test_experience.py",
+            "tests/test_experience_schema.py",
+        )
+        with tempfile.TemporaryDirectory(prefix="department-source-delivery-") as temp:
+            root = Path(temp)
+            source = root / "source"
+            source.mkdir()
+            git(source, "init", "-b", "main")
+            old_contents = ("source base\n", "first test base\n", "second test base\n")
+            for path, content in zip(paths, old_contents, strict=True):
+                target = source / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(content)
+            base = commit(source, "base")
+            publisher = root / "publisher"
+            subprocess.run(["git", "clone", str(source), str(publisher)], check=True, capture_output=True)
+            gate = GitGate(source, publisher, VerificationPolicy((("/usr/bin/true",),)), root / "receipts")
+            snapshot = snapshot_records(
+                manifest_records(paths, (old_contents[0], "first test changed\n", old_contents[2])), paths
+            )
+            projection = materialize_owner_projection(gate, base, snapshot, allowed_paths=paths)
+            try:
+                changed = git(
+                    projection.checkout, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"
+                ).splitlines()
+                self.assertEqual(changed, [paths[1]])
+                self.assertEqual((projection.checkout / paths[1]).read_text(), "first test changed\n")
+            finally:
+                discard_projection(gate, projection)
 
     def test_owner_projection_checks_base_and_commits_only_owner_defined_paths(self):
         with tempfile.TemporaryDirectory(prefix="source-delivery-") as temp:

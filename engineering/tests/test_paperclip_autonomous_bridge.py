@@ -970,6 +970,108 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             [stage.stage_key for stage in finite.source_stage_catalog], ["MEM8", "MEM9"]
         )
         self.assertIsNone(finite.worker_checkout)
+        first_stage = raw["source_stage_catalog"][0]
+        first_stage.update(
+            project_id="experience-project",
+            lead_agent_id="experience-sol",
+            lead_issue_id="experience-lead",
+            source_workspace_id="experience-workspace",
+            source_workspace_root="/tmp/experience-workspace",
+            source_repo="/tmp/platform-source",
+            publisher_repo="/tmp/platform-publisher",
+            canonical_repo="/tmp/platform-canonical",
+            canonical_ref="refs/heads/org/development",
+            canonical_expected_tip="c" * 40,
+            expected_dev_ref="refs/heads/org/development",
+        )
+        raw["source_stage_catalog"][1].update(
+            project_id="experience-project",
+            lead_agent_id="experience-sol",
+            lead_issue_id="experience-lead",
+            source_workspace_id="experience-workspace",
+            source_workspace_root="/tmp/experience-workspace",
+            source_repo="/tmp/platform-source",
+            publisher_repo="/tmp/platform-publisher",
+            canonical_repo="/tmp/platform-canonical",
+            canonical_ref="refs/heads/org/development",
+            canonical_expected_tip="c" * 40,
+            expected_dev_ref="refs/heads/org/development",
+        )
+        raw["verifier_policy_catalog"] = [
+            {
+                "policy_id": "policy-mem8",
+                "commands": [["/usr/bin/true"]],
+                "env": {},
+                "runtime_read_roots": [],
+            },
+            {
+                "policy_id": "policy-mem9",
+                "commands": [["/usr/bin/true", "{checkout}"]],
+                "env": {},
+                "runtime_read_roots": [],
+            }
+        ]
+        path.write_text(json.dumps(raw))
+        path.chmod(0o600)
+        department = BridgeConfig.load(path)
+        stage_config = department.for_source_stage(
+            department.source_stage("MEM9"),
+            source_issue_id="source-1",
+            reviewer_issue_id="review-1",
+            base_sha="a" * 40,
+        )
+        self.assertEqual(stage_config.project_id, "experience-project")
+        self.assertEqual(stage_config.finite_lead_agent_id, "experience-sol")
+        self.assertEqual(stage_config.finite_lead_issue_id, "experience-lead")
+        self.assertEqual(stage_config.source_workspace_id, "experience-workspace")
+        self.assertEqual(stage_config.expected_dev_ref, "refs/heads/org/development")
+        self.assertEqual(stage_config.source_repo, Path("/tmp/platform-source"))
+        self.assertEqual(stage_config.canonical_ref, "refs/heads/org/development")
+        self.assertEqual(stage_config.verifier_commands, (("/usr/bin/true", "{checkout}"),))
+        original_digest = department.owner_config_digest
+        cross_lane = dict(raw["source_stage_catalog"][1])
+        cross_lane.update(
+            stage_key="CORTEX1",
+            project_id="cortex-project",
+            lead_agent_id="cortex-sol",
+            lead_issue_id="cortex-lead",
+            source_workspace_id="cortex-workspace",
+            source_workspace_root="/tmp/cortex-workspace",
+            predecessor_stage_key="MEM9",
+            initial_base_sha=None,
+        )
+        raw["source_stage_catalog"].append(cross_lane)
+        path.write_text(json.dumps(raw))
+        path.chmod(0o600)
+        chained = BridgeConfig.load(path)
+        self.assertEqual(chained.source_stage("CORTEX1").predecessor_stage_key, "MEM9")
+        raw["source_stage_catalog"][2]["expected_dev_ref"] = "refs/heads/brain/linux"
+        raw["source_stage_catalog"][2]["canonical_ref"] = "refs/heads/brain/linux"
+        path.write_text(json.dumps(raw))
+        path.chmod(0o600)
+        with self.assertRaisesRegex(BridgeError, "owner_config_source_stage_catalog_invalid"):
+            BridgeConfig.load(path)
+        raw["source_stage_catalog"].pop()
+        raw["source_stage_catalog"][0]["path_ids"] = [
+            "src/memecoin_experience/records.py",
+            "tests/test_experience.py",
+        ]
+        path.write_text(json.dumps(raw))
+        path.chmod(0o600)
+        drifted = BridgeConfig.load(path)
+        self.assertNotEqual(drifted.owner_config_digest, original_digest)
+        raw["source_stage_catalog"][0]["path_ids"] = [
+            "src/memecoin_brain_sources/events.py",
+            "tests/../outside.py",
+        ]
+        path.write_text(json.dumps(raw))
+        path.chmod(0o600)
+        with self.assertRaisesRegex(BridgeError, "owner_config_source_stage_catalog_invalid"):
+            BridgeConfig.load(path)
+        raw["source_stage_catalog"][0]["path_ids"] = [
+            "src/memecoin_brain_sources/events.py",
+            "tests/brain/test_raw_sources.py",
+        ]
         raw["fixed_dev_ref"] = "refs/heads/main"
         raw["expected_dev_ref"] = "refs/heads/main"
         path.write_text(json.dumps(raw))
@@ -993,8 +1095,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         from engineering.paperclip_source_delivery import SOURCE_PATHS
 
         stages = (
-            SourceStageSpec("MEM8", "source", "a" * 40, None, SOURCE_PATHS, "policy-mem8"),
-            SourceStageSpec("MEM9", "published", None, "MEM8", SOURCE_PATHS, "policy-mem9"),
+            SourceStageSpec("MEM8", "source", "a" * 40, None, SOURCE_PATHS, "policy-mem8",
+                self.config.project_id, "lead-1", "lead-issue"),
+            SourceStageSpec("MEM9", "published", None, "MEM8", SOURCE_PATHS, "policy-mem9",
+                "experience-project", "experience-sol", "experience-lead"),
         )
         config = replace(
             self.config,
@@ -1011,11 +1115,12 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         )
 
         def stage_payload(stage_key, source_id, review_id, **prior):
+            stage = config.source_stage(stage_key)
             return {
                 "company_id": config.company_id,
-                "project_id": config.project_id,
-                "lead_agent_id": "lead-1",
-                "lead_issue_id": "lead-issue",
+                "project_id": stage.project_id or config.project_id,
+                "lead_agent_id": stage.lead_agent_id or "lead-1",
+                "lead_issue_id": stage.lead_issue_id or "lead-issue",
                 "lead_run_id": "lead-run",
                 "stage_key": stage_key,
                 "source_issue_id": source_id,
@@ -1197,13 +1302,14 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "source-9",
             "review-9",
             predecessor_operation_key=operation_key,
-            predecessor_source_status="done",
-            predecessor_source_version=3,
-            predecessor_review_status="done",
-            predecessor_review_version=3,
+            predecessor_source_status=None,
+            predecessor_source_version=None,
+            predecessor_review_status=None,
+            predecessor_review_version=None,
             predecessor_source_issue_id="source-8",
             predecessor_review_issue_id="review-8",
             predecessor_dependency_ready=True,
+            predecessor_lead_issue_id="lead-issue",
         )
         with self.assertRaisesRegex(BridgeError, "source_stage_predecessor_not_finalized"):
             dispatch(config, {"action": "bind_source_stage", "payload": second_payload})
@@ -1236,9 +1342,9 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                     "action": "lookup_source_stage_binding",
                     "payload": {
                         "company_id": config.company_id,
-                        "project_id": config.project_id,
-                        "lead_agent_id": "lead-1",
-                        "lead_issue_id": "lead-issue",
+                        "project_id": "experience-project",
+                        "lead_agent_id": "experience-sol",
+                        "lead_issue_id": "experience-lead",
                         "stage_key": "MEM9",
                         "source_issue_id": "source-9",
                         "review_issue_id": "review-9",
@@ -1248,6 +1354,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(second_lookup["predecessor_operation_key"], operation_key)
         self.assertEqual(second_lookup["predecessor_source_issue_id"], "source-8")
         self.assertEqual(second_lookup["predecessor_review_issue_id"], "review-8")
+        self.assertEqual(second_lookup["predecessor_lead_issue_id"], "lead-issue")
 
     def test_finite_stage_holds_when_predecessor_publication_or_finalization_is_unknown(self):
         from engineering.paperclip_source_delivery import SOURCE_PATHS
@@ -1893,6 +2000,11 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "source_instruction_sha256": "1" * 64,
             "review_instruction_sha256": "2" * 64,
         }
+        with self.assertRaisesRegex(BridgeError, "source_stage_lead_binding_mismatch"):
+            dispatch(
+                config,
+                {"action": "bind_source_stage", "payload": {**stage_payload, "lead_issue_id": "other-lead"}},
+            )
         bound = dispatch(config, {"action": "bind_source_stage", "payload": stage_payload})
         for payload in (
             {

@@ -15,6 +15,7 @@ import stat
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Any
 
 from engineering.git_gate import GitGate, GitGateError
@@ -27,6 +28,30 @@ MAX_FILE_BYTES = 1_000_000
 MAX_TOTAL_BYTES = 1_500_000
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 GIT_SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
+
+
+def validate_path_ids(path_ids: Any) -> tuple[str, ...]:
+    """Validate an owner-pinned exact source/test path set."""
+    if type(path_ids) not in (tuple, list) or not path_ids or len(path_ids) > 32:
+        raise SourceDeliveryError("source_path_manifest_invalid")
+    paths = tuple(path_ids)
+    if (
+        any(
+            type(path) is not str
+            or not path
+            or "\\" in path
+            or path.startswith("/")
+            or str(PurePosixPath(path)) != path
+            or any(part in {"", ".", ".."} for part in path.split("/"))
+            or not (path.startswith(("src/", "tests/", "engineering/")))
+            for path in paths
+        )
+        or len(set(paths)) != len(paths)
+        or not any(path.startswith("src/") or (path.startswith("engineering/") and "/tests/" not in path) for path in paths)
+        or not any(path.startswith("tests/") or "/tests/" in path for path in paths)
+    ):
+        raise SourceDeliveryError("source_path_manifest_invalid")
+    return paths
 
 
 class SourceDeliveryError(ValueError):
@@ -57,11 +82,14 @@ class MaterializedProjection:
     snapshot_digest: str
 
 
-def snapshot_records(records: Any) -> SourceSnapshot:
+def snapshot_records(
+    records: Any, allowed_paths: tuple[str, ...] | list[str] = SOURCE_PATHS
+) -> SourceSnapshot:
     """Validate a complete exact file set and retain an immutable byte snapshot."""
+    allowed = validate_path_ids(allowed_paths)
     if type(records) is not list:
         raise SourceDeliveryError("source_records_invalid")
-    if len(records) != len(SOURCE_PATHS):
+    if len(records) != len(allowed):
         raise SourceDeliveryError("source_file_set_incomplete")
     by_id: dict[str, SourceFile] = {}
     total = 0
@@ -69,7 +97,7 @@ def snapshot_records(records: Any) -> SourceSnapshot:
         if type(row) is not dict or set(row) != {"path_id", "content", "size", "sha256"}:
             raise SourceDeliveryError("source_record_shape_invalid")
         path_id = row["path_id"]
-        if type(path_id) is not str or path_id not in SOURCE_PATHS:
+        if type(path_id) is not str or path_id not in allowed:
             raise SourceDeliveryError("source_path_id_not_allowed")
         if path_id in by_id:
             raise SourceDeliveryError("source_path_id_duplicate")
@@ -94,9 +122,9 @@ def snapshot_records(records: Any) -> SourceSnapshot:
         if total > MAX_TOTAL_BYTES:
             raise SourceDeliveryError("source_delivery_exceeds_limit")
         by_id[path_id] = SourceFile(path_id, path_id, data, len(data), digest)
-    if set(by_id) != set(SOURCE_PATHS):
+    if set(by_id) != set(allowed):
         raise SourceDeliveryError("source_file_set_incomplete")
-    files = tuple(by_id[path] for path in SOURCE_PATHS)
+    files = tuple(by_id[path] for path in allowed)
     body = b"\n".join(
         path.encode() + b"\0" + str(item.size).encode() + b"\0" + item.sha256.encode()
         for path, item in ((item.path_id, item) for item in files)
@@ -110,12 +138,18 @@ def materialize_owner_projection(
     snapshot: SourceSnapshot,
     *,
     checkout_parent: Path | None = None,
+    allowed_paths: tuple[str, ...] | list[str] | None = None,
 ) -> MaterializedProjection:
     """Create an owner-controlled source commit from the validated snapshot."""
     if type(base_sha) is not str or not GIT_SHA_RE.fullmatch(base_sha):
         raise SourceDeliveryError("source_base_sha_invalid")
     if not isinstance(snapshot, SourceSnapshot):
         raise SourceDeliveryError("source_snapshot_invalid")
+    allowed = validate_path_ids(
+        allowed_paths if allowed_paths is not None else tuple(item.path_id for item in snapshot.files)
+    )
+    if tuple(item.path_id for item in snapshot.files) != allowed:
+        raise SourceDeliveryError("source_file_set_incomplete")
     checkout: Path | None = None
     try:
         base = gate._resolve_sha(gate.source_repo, base_sha)
@@ -144,7 +178,7 @@ def materialize_owner_projection(
             if not stat.S_ISREG(target_info.st_mode):
                 raise SourceDeliveryError("owner_source_path_not_regular_file")
             target.write_bytes(item.data)
-        gate._run(checkout, ["add", "--", *SOURCE_PATHS])
+        gate._run(checkout, ["add", "--", *allowed])
         gate._run(
             checkout,
             [
@@ -163,7 +197,7 @@ def materialize_owner_projection(
         if not GIT_SHA_RE.fullmatch(submitted_sha):
             raise SourceDeliveryError("source_projection_commit_invalid")
         changed = gate._changed_paths(checkout, base, submitted_sha)
-        if any(path not in SOURCE_PATHS for path in changed):
+        if any(path not in allowed for path in changed):
             raise SourceDeliveryError("source_projection_changed_unapproved_path")
         for item in snapshot.files:
             projected = gate._run(checkout, ["show", f"{submitted_sha}:{item.path}"]).stdout
@@ -195,7 +229,12 @@ def discard_projection(gate: GitGate, projection: MaterializedProjection) -> Non
 
 
 def refresh_owner_workspace(
-    gate: GitGate, source_repo: Path, base_sha: str, workspace_root: Path
+    gate: GitGate,
+    source_repo: Path,
+    base_sha: str,
+    workspace_root: Path,
+    *,
+    allowed_paths: tuple[str, ...] | list[str] = SOURCE_PATHS,
 ) -> str:
     """Refresh only the admitted source files from an owner-pinned commit into a noGit root."""
     if (
@@ -210,8 +249,9 @@ def refresh_owner_workspace(
         resolved_root = workspace_root.resolve(strict=True)
     except OSError as exc:
         raise SourceDeliveryError("source_workspace_binding_invalid") from exc
+    allowed = validate_path_ids(allowed_paths)
     digests = []
-    for path in SOURCE_PATHS:
+    for path in allowed:
         try:
             data = gate._run(source_repo, ["show", f"{base_sha}:{path}"]).stdout
         except (OSError, GitGateError) as exc:
@@ -258,7 +298,11 @@ def refresh_owner_workspace(
 
 
 def restore_owner_workspace_snapshot(
-    workspace_root: Path, records: Any, expected_digest: str
+    workspace_root: Path,
+    records: Any,
+    expected_digest: str,
+    *,
+    allowed_paths: tuple[str, ...] | list[str] = SOURCE_PATHS,
 ) -> str:
     """Restore only an already-validated exact snapshot of the two admitted files."""
     if (
@@ -269,7 +313,7 @@ def restore_owner_workspace_snapshot(
         or not SHA256_RE.fullmatch(expected_digest)
     ):
         raise SourceDeliveryError("source_workspace_binding_invalid")
-    snapshot = snapshot_records(records)
+    snapshot = snapshot_records(records, allowed_paths)
     if snapshot.digest != expected_digest:
         raise SourceDeliveryError("source_workspace_snapshot_mismatch")
     try:
