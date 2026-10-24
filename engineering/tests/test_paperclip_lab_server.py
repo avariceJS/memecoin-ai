@@ -189,6 +189,7 @@ class PaperclipLabServerTests(unittest.TestCase):
         )
         self.assertEqual(set(pin["stop_custody_source_pins"]), PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertIn("16ae5c543a18db635a03c14f81e4ab7921d9c9a6", PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertIn("09ec93b95111d7d5e8b9c4a867f37e30d7462de1", PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn("d2f6dedfe456473e7cf74799a1ac687ea90a1484", PAPERCLIP_STOP_CUSTODY_PINS)
         rejected_intermediate = next(
             record
@@ -204,6 +205,7 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(rejected_wake_fix["status"], "rejected")
         self.assertNotIn(rejected_wake_fix["commit"], reviewed_commits)
         self.assertNotIn(rejected_wake_fix["commit"], PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertNotIn(PAPERCLIP_PIN, PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertEqual(
             pin["patch_tree_equivalence"]["upstream_tree"],
             "547374c4e8abe51ff22b8cecc51644800f794dd6",
@@ -336,6 +338,14 @@ class PaperclipLabServerTests(unittest.TestCase):
                 "source_pin": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
             }
             paths.pid_file.write_text(json.dumps(rejected_intermediate), encoding="utf-8")
+            paths.pid_file.chmod(0o600)
+            with self.assertRaisesRegex(LabServerError, "manifest_invalid"):
+                _read_manifest(paths.pid_file, allow_historical_source=True)
+            rejected_wake_fix = {
+                **manifest,
+                "source_pin": "f24926c8e7fd231e4cac127532ed642247b222c2",
+            }
+            paths.pid_file.write_text(json.dumps(rejected_wake_fix), encoding="utf-8")
             paths.pid_file.chmod(0o600)
             with self.assertRaisesRegex(LabServerError, "manifest_invalid"):
                 _read_manifest(paths.pid_file, allow_historical_source=True)
