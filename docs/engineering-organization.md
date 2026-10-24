@@ -11,6 +11,18 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
+## Founder clarification and renewed execution — 2026-10-24
+
+The founder explicitly resumed the program after the routing pause and states weekly quota is not
+exhausted. Two identical timeouts do not establish an insurmountable blocker. Diagnose the network,
+native Codex, Paperclip and integration boundary; repair only demonstrated local defects, then continue
+to the verified six-department MVP. Temporary dependent-worker pauses do not halt available diagnostics
+or independent useful work. Sol owns execution/recovery, Luna source changes, independent Sol acceptance.
+Preserve unknown operations/accounting, avoid blind retries and paid fallback, and retain all protected
+boundaries. Existing Paperclip lifecycle remains authoritative; no replacement framework or native Goal.
+Private authority: `state/resumption-20261024-routing-recovery/founder-authority.json`. The following
+section preserves the prior outcome; its blanket execution pause is superseded by this directive.
+
 ## MVP resumption outcome — 2026-10-24: native routing hold
 
 The founder explicitly resumed through `prompt/prompt.md`. Exact reviewed integration `cf9bd605` was

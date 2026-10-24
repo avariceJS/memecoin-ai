@@ -1,9 +1,16 @@
-# Current state — 2026-10-24, native routing blocker; company paused
+# Current state — 2026-10-24, routing diagnosis and MVP program resumed
 
-The founder resumed the six-department MVP through `prompt/prompt.md`. Source, integration and bounded
-admission work progressed, but the full MVP is NOT achieved. New native model launches are stopped after
-two independent Codex routing failures. No automatic retry or quota-reset resumption is authorized.
-Native Goal readback was null; no replacement Goal was created.
+The founder explicitly resumed after the routing pause and clarified that ordinary technical failures
+must not end the MVP program. Weekly Codex quota is not exhausted according to the founder. Diagnose
+network/native Codex/Paperclip/integration boundaries, restore employee execution and continue useful
+six-department work. Two equal errors do not establish an insurmountable external blocker. Use bounded,
+evidence-driven probes; preserve failed requests and unknown accounting without blind replay.
+Authority receipt: `state/resumption-20261024-routing-recovery/founder-authority.json`.
+
+Sol owns technical diagnosis/recovery and the ongoing native program, Luna implementation, independent
+Sol acceptance. Root owns CEO decisions and canonical docs. Current live reconciliation is in progress;
+the paused state below is the last verified baseline, not a new request to stop diagnostics. No new Goal,
+paid fallback or protected/main/production/market/training/AUTO/trading authority is granted.
 
 ## Accepted and preserved
 
@@ -30,7 +37,7 @@ availability `ac8c0014`, and malformed transaction results `06efd663`. The two S
 bounded stop/resume evidence were not rerun. `main`, protected data, market, training, AUTO, trading and
 historical Pilot STOP remain untouched.
 
-## Routing failure and pause
+## Preserved routing-failure and pause baseline
 
 The MEM-10 and independent Platform MEM-58 runs failed before tools with
 `workspace routing discovery timed out` and WebSockets-to-HTTPS fallback. Both accounting receipts are
@@ -40,7 +47,7 @@ Both leads now have board-owned native-continuation reconciliation holds, with n
 Exact run/hold IDs remain in the private receipt. MEM-13 is todo behind the blocked predecessor.
 A paid fallback is not authorized. Final readback confirms all six companies and all six MEM agents paused,
 empty live inventories and no queued/running/scheduled-retry entries in bounded inventories (not a global
-generic-wake completeness proof). No new native launches are authorized while this stop is in effect.
+generic-wake completeness proof). The new founder directive authorizes selective recovery after reconciliation; unknown operations remain held.
 
 Historical recovery holds, old7c/recovery5f270934, source rejections, journals and unknown accounting remain
 preserved. The optional Platform display-metadata PATCH has an unresolved outcome; reconcile its readback,
@@ -56,7 +63,7 @@ Final immutable receipt: `provider-routing-blocker/final-paused-provider-blocker
 `9e822e260614ca6e226dd8decdce059c5faed20d4c018267665820da3d29781b`.
 No raw receipts or private prompt were added to Git.
 
-After explicit resumption, reconcile routing availability, unsettled accounting, native queues/holds,
+During this authorized resumption, reconcile routing availability, unsettled accounting, native queues/holds,
 roles and loaded pins before admitting any work. Preserve the accepted cycles and unknown outcomes.
 The documentation checkpoint advances `org/development` beyond the Platform catalog's accepted `cf9bd605`
 base; reconcile and re-pin its expected canonical base before resuming MEM-58. Source bytes are unchanged,
