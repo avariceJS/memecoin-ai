@@ -23,6 +23,28 @@ boundaries. Existing Paperclip lifecycle remains authoritative; no replacement f
 Private authority: `state/resumption-20261024-routing-recovery/founder-authority.json`. The following
 section preserves the prior outcome; its blanket execution pause is superseded by this directive.
 
+## Verified recovery and remaining MVP proof — 2026-10-24
+
+Routing recovered on unchanged npm Codex 0.160.0; the historical timeout cause remains unknown and
+both old accounting results remain pending. Experience MEM-10 and Platform MEM-58 completed real
+native source/independent-QA/final-verifier cycles with automatic LOCAL dual publication. Canonical
+Brain `0241414` and Platform `61e8b3c` were separately pushed/read back on GitHub. Local publication
+must not be described as an automatic remote push. Assisted startup/release repairs remain explicit.
+
+Independent mechanical integration `85c8a1f` combines canonical Platform with accepted controller
+`261682bb`; all tree entries were checked against their accepted parents and 62 tests/26 subtests
+passed. Normal org push/readback completed. This source checkpoint is separate from loaded custody
+(last verified native09/server25737, isolated controller261/plugin60910).
+
+Native MEM-13 readiness is established, but its deferred blocker-resolved wake is orphaned after the
+predecessor lead terminates. A bounded native queue repair is in independent review; first candidate
+`f24926c8` was rejected for a board-owned hold race and not deployed. Preserve that wake and require
+normal native promotion after correction, without manual dispatch or another scheduler. MVP remains
+unaccepted until Cortex/Evaluation/Policy complete useful cycles and actual post-CEO-turn useful work
+is observed. Existing Senses and bounded STOP evidence need no repeat. Exact current evidence is in
+private `state/resumption-20261024-routing-recovery/`, especially the independent MVP audit and two
+first-useful-publication receipts. Historical sections below retain earlier outcomes, not current holds.
+
 ## MVP resumption outcome — 2026-10-24: native routing hold
 
 The founder explicitly resumed through `prompt/prompt.md`. Exact reviewed integration `cf9bd605` was
