@@ -11,20 +11,42 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
-## Founder-authorized MVP resumption — 2026-10-24
+## MVP resumption outcome — 2026-10-24: native routing hold
 
-The founder explicitly resumed through `prompt/prompt.md`, targeting engineering capability across all
-six departments and native Paperclip continuation independent of an interactive CEO turn. Use existing
-content-only DTO/controller Git/publication mechanisms; Paperclip owns tasks and lifecycle. Sol leads,
-Luna implements, and independent Sol accepts exact changes. No replacement Goal or scheduler is authorized.
-Private authority receipt: `state/resumption-20261024-mvp/founder-authority.json`.
+The founder explicitly resumed through `prompt/prompt.md`. Exact reviewed integration `cf9bd605` was
+published on `org/development` and deployed with native `09ec93b`. The existing content-only DTO,
+independent QA and GitGate publisher now support finite owner-pinned department paths, workspaces,
+verifiers and repository/ref targets. Native dependency-summary completeness/readiness comes from
+Paperclip services; tasks, queues, corrections and wakes remain Paperclip-owned. No replacement Goal,
+second scheduler, paid provider or arbitrary worker-selected publication target was introduced.
 
-Reconciliation and exact MEM-10..17 admission are pending. MEM-57 has separate scope and must not block
-independent admissible work. Accepted Senses cycles and bounded stop/resume evidence are retained without
-requalification. Six-department MVP and CEO-independent continuation remain unproved. Subscription-only,
-protected-data, main/production, market/training/AUTO/trading and historical Pilot STOP limits remain.
-The next section is the preserved shutdown baseline; its resumption prohibition is superseded by this
-explicit directive, while historical unknown operations remain held.
+Independent reviews accepted source, native/package, mechanical integration and the nine-entry admission
+packet for MEM-10..17 plus Platform MEM-58. Full engineering pytest passed 806 tests and 225 subtests;
+full release-check remains failed on six pre-existing lint findings with unchanged baseline blobs.
+Changed Python files and focused native/SDK/TypeScript checks passed. Review acceptance does not imply
+native product execution. Private packets live under `state/resumption-20261024-mvp/`.
+
+MEM-57 completed source-only analysis. Startup required narrow tool-profile and task-interface context
+corrections, so that interval is assisted, not autonomous. Subsequently independent MEM-10 and Platform
+lead runs failed before tools/children with `workspace routing discovery timed out` and a WebSockets to
+HTTPS fallback. Both accounting receipts are not ready/pending; zero counters are not settled zero usage.
+The observed blocker is shared native Codex routing, not established quota exhaustion or a diagnosed
+provider outage. No unknown model request was retried and no paid fallback was used.
+
+MEM was paused through the supported API; final readback confirms all six companies and all six MEM agents
+paused, empty live inventories and no queued/running/scheduled-retry entries in bounded inventories. This
+is not a global generic-wake completeness proof. The accepted service remains available separately from company execution. No new source child, candidate or
+publication was produced by the admitted department tasks. Six-department MVP and post-CEO-turn useful
+continuation remain unproved. An optional Platform display-metadata PATCH has an unresolved outcome;
+its intent is preserved without resend, separately from accepted managed-role/tool-profile authority.
+
+Existing Senses results, historical journals/holds and protected-data/main/production/market/training/
+AUTO/trading/Pilot STOP boundaries are retained. Resume only after explicit authority and reconciliation
+of routing, usage, queues, roles and loaded pins. The documentation checkpoint advances the Platform
+canonical ref beyond its admitted `cf9bd605` base; re-pin the expected base before resuming MEM-58 without
+bypassing CAS. Brain remains at accepted `06efd663`. Private `state/HANDOFF.md` and
+`state/resumption-20261024-mvp/provider-routing-blocker/` own exact process, run, pause and unknown custody.
+The next section is the historical shutdown baseline, not current service liveness.
 
 ## Founder stop and session handoff — 2026-10-24
 
