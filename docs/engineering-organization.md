@@ -11,48 +11,58 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
-## Current bounded MVP and operating state — 2026-10-24
+## Founder stop and session handoff — 2026-10-24
 
-Independent Sol assessment accepted a bounded first MVP: two sequential native source stages in the
-finite Senses cycle passed exact independent QA, the fixed final verifier, native finalization, and
-automatic projected/canonical publication. MEM-42, MEM-54 and MEM-55 are done. Stage 1 published
-projected `c30ca4068b824ba131d5a252e552abcb226690b7` and canonical
-`ac8c00143ad303cb24c87d02dbc35fc85f08f668`. Stage 2 published projected
-`8a48470caee6249667aa5eee626dbcaeb17647c4` and canonical
-`06efd663fb6b11ea88f3114049d0e76aef10f636`; GitHub canonical custody is confirmed and `main` is
-unchanged. The exact stage-2 packet is
-`stage2-accepted-published-and-lead-finalized.json` (SHA-256
-`ca273e4d81610664d79d5e68d971813c3c0289116379829b56312257507fc9d3`); independent assessment is
-`state/resumption-20261024/bounded-mvp-independent-assessment.json` (SHA-256
-`d96eede1d38d4ccabf991487c4503d01042bb6bd8709b5b2297c36868a43bc93`).
+The founder requested shutdown and handoff only. This supersedes earlier continuation authority: no new
+engineering, assignments, experiments, model calls, Goals, or retries. Explicit founder resumption is
+required next session; starting Paperclip alone does not grant task admission.
 
-Product outcome is three useful Brain changes total, including the prior capacity correction with
-operator-assisted canonical catch-up at `ad02f26`. Experience and Cortex remain accepted read-only
-analyses; Evaluation and Policy remain qualified analyses. Those four departments have no source-write
-or publication authority. The bounded result does not establish uninterrupted autonomy, arbitrary
-department writers, or endurance/crash qualification. Stop/resume evidence is limited to scoped
-known-writer/checkpoint cases.
+The bounded Senses demo is accepted: two successive engineering stages completed with operator-assisted
+controller/interface corrections. The founder-defined full MVP—useful autonomous engineering in all six
+departments—was not achieved. Four departments remain analysis-only and have no source-write authority.
+The eight-candidate native source cohort contained three accepted (MEM-26/47/54) and five rejected
+(MEM-39/43/45/49/51); this is not a count of all attempts, which also include MEM-23/24 and earlier bootstrap
+work.
 
-Administrative housekeeping exposed a live wake hazard: supported dependency-removal and closure
-comments woke the shared Sol lead despite blocked board descriptors. The 11 incidental runs are now
-terminal (3 advisory successes, 8 cancellations); missing usage/accounting remains unknown. MEM has
-zero live runs; the company is active and other agents are unchanged. Shared Sol is paused; do not
-resume it until the owner explicitly reviews wake requests and holds. This superseding incident caveat
-is `state/resumption-20261024/bounded-mvp-housekeeping-superseding-caveat.json` (SHA-256
-`b4c8f39105e1e07991fe5f95674ea6cb9c3291f896a9f7c832b2de015b7d8b0c`).
+The three accepted Brain commits are capacity numeric/finite validation (`ad02f26bc1453d8eaccba7ee1c6936de5b99a148`),
+strict `view` cutoff plus a historical-availability flag (stage-1 canonical
+`ac8c00143ad303cb24c87d02dbc35fc85f08f668`), and malformed transaction-result shape handling with
+regression tests (stage-2 canonical `06efd663fb6b11ea88f3114049d0e76aef10f636`). The two-stage Senses cycle used the last
+allowed attempt for stage 2 after attempt 2 was rejected; no attempt 4 occurred. MEM-53 analysis is done (v4), and MEM-56's narrow controller wake correction is done (v1); both are
+organization maintenance, not Brain source stages. Larger lifecycle
+consolidation remains MEM-57 backlog.
 
-Housekeeping restored eight board-owned scoped holds for MEM-10..17 with their original Sol ownership
-and objectives, removed aggregate MEM-7 edges, and preserved active goals. MEM-9/18/19/28/30 and
-MEM-20/29 remain done; MEM-7 was closed last after repeated dependent/child and live-run preflight.
-The final admin readback is `state/resumption-20261023/finite-preflight-retry-release/rejected-seed-correction-release/housekeeping/final-administrative-readback-v2.json`
-(SHA-256 `3aa22c9b55a6d4018f1a40f4cd7ff0f952382c72128397e141472883e07d73ee`).
+Final STOP was acknowledged at 2026-10-24 07:48:58 UTC; the final receipt is timestamped 07:59:25 UTC.
+All six companies and all six MEM agents are paused; all-company active and queued run inventories were
+empty before service stop. Owned Paperclip PID 23720 and embedded PostgreSQL PID 23729 are stopped, no
+owned-tree survivors remain, ports 3310/13310/54339 are closed, `postmaster.pid` is absent, and the DB data
+directory is preserved. A paused-state SQL backup was saved (8,944,110 bytes); no backup was pruned.
+Database control state was not independently read because `pg_controldata` was unavailable, and no restart
+was made to obtain that evidence.
 
-MEM-53 remains backlog for duplicated correction-lifecycle orchestration and wake governance. Paperclip
-owns correction lifecycle; do not add another scheduler or expand custom lifecycle logic. CEO authorized
-an analysis-only follow-up for existing MEM-53 by independent Platform Sol
-`593a415f-925e-4e92-a2d8-0c8b788f6ca6` after minimal role alignment/review through Sol practical. It is
-planned, not launched, and grants no implementation/source-write authority. No further infrastructure
-campaign is authorized. Preserve unknown usage, rejected history and all prior safety boundaries.
+Twelve MEM issues remain unfinished: MEM-1/24/32 and MEM-10..17 are blocked; MEM-57 is backlog without
+admission. The eight department source holds remain board-owned; historical MEM-1/24/32 holds are unchanged.
+Six projects and long-term goals remain intact, but active goals do not authorize execution. Do not bulk
+resume companies, agents, held issues, or MEM-57.
+
+Historical recovery holds, old MEM-7C continuation/accounting uncertainty, recovery MEM-5F, cancellation and
+usage records, journals, and unfinished intents remain unknown or unresolved, never zero. Empty live-run and
+comment queues do not prove a global generic-wake inventory. Do not repeat acknowledged operations, retry
+old7c, or inspect/retry the refused worker-Git-import path.
+
+After explicit founder resumption only: read the STOP handoff, receipt, pins, backups, and pending intents;
+verify custody and reconcile paused state, roles, queues, holds, MEM-57 scope, and accepted refs. Qualify the
+confined Git-import boundary before new engineering admission. Then qualify a refreshed source/review/
+publication pair, canonical publisher, and founder-commanded stop/resume. Establish six useful departmental
+lanes and two-department continuation only within separately qualified scopes. Preserve protected data,
+paid API, `main`/production, market, training, AUTO, trading, and historical Pilot STOP boundaries.
+
+Final stop receipt: `state/shutdown-20261024/final-stop-receipt.json` (SHA-256
+`86b82a4897edd9125de41563af159f90d1aeeb308f50df44765a48ed5414077b`). Process/port proof:
+`state/shutdown-20261024/process-port-db-readback.json` (SHA-256
+`c6d513dc3aafbbdba858c3a1821f2df77db2c4d7aed088915b16a3da3a68e5f9`). Paused-state backup SHA-256:
+`652e75a57e68c203c6b71efe1a7479a9cfb00862e47099b6de4325ac43017a61`. Full current operational
+handoff and issue inventory are held in the private lab state directory.
 
 ## Paperclip-first experimental integration — founder authorization 2026-10-22
 
