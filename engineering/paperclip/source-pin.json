@@ -2,8 +2,10 @@
   "schema": "brain-paperclip-source-v5",
   "upstream_repository": "https://github.com/paperclipai/paperclip",
   "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
-  "predecessor_commit": "f24926c8e7fd231e4cac127532ed642247b222c2",
+  "predecessor_commit": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
   "predecessor_chain": [
+    "89cd827fdb36ede8d12fce16302cf595c88d2ade",
+    "0e0c1eb22c879203337cee9710471c6fd30b00b1",
     "f24926c8e7fd231e4cac127532ed642247b222c2",
     "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
     "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
@@ -21,25 +23,22 @@
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
     "043f2514e67c50320433a0013fb228a75a51325c"
   ],
-  "derivative_commit": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+  "derivative_commit": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
   "patch": "managed-codex-isolation.patch",
-  "patch_sha256": "aab0248c3c4eb2e8dc3bf6dcbc07c11a5d9f4de665e313d63f500eda1d0fba42",
+  "patch_sha256": "cd7dad16f58b359ea41c3faf1da41c615cbc495cdb31755540cece1e440a1762",
   "source_review": {
-    "status": "accepted_source_only",
+    "status": "pending_source_only_review",
     "reviewer": "Sol-6.1 High",
-    "receipt": "state/resumption-20261024-mvp/native-dependency-wake-source-independent-review-0e0c1eb.json",
-    "receipt_sha256": "02432d4fa62695822c1cf1334425cdf91797d047cba8372c9db707f49785c813",
-    "commit": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
-    "parent": "f24926c8e7fd231e4cac127532ed642247b222c2",
+    "commit": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
+    "parent": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
     "scope": [
-      "resume the exact deferred issue_blockers_resolved wake after predecessor terminal through existing bounded native queue recovery and admission",
-      "revalidate locked current issue state, assignee, board-owned unblockDescriptor, native dependencies and workspace finalization before dispatch",
-      "preserve company and agent pause, execution uncertainty, same-receipt idempotency and normal maxConcurrentRuns controls"
+      "settle only the exact stopped local cancelled finalization described by the source candidate",
+      "preserve the old run result and failed operation while recording a new read-only workspace validation receipt",
+      "do not dispatch model work during this local settlement"
     ],
     "limits": [
-      "exact native source acceptance only; packaging and controlled release require separate review",
-      "synthetic embedded PostgreSQL and mocked adapter only; no live provider, native queue mutation or deployment",
-      "actual paused startup then company resume of the pending MEM13 wake remains an operational acceptance step"
+      "source acceptance pending; no packaging acceptance or runtime deployment",
+      "actual company resume and pending MEM13 wake remain separate operational proof"
     ]
   },
   "source_review_chain": [
@@ -224,6 +223,7 @@
     }
   ],
   "stop_custody_source_pins": [
+    "0e0c1eb22c879203337cee9710471c6fd30b00b1",
     "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
     "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
     "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
@@ -264,31 +264,36 @@
       "receipt_sha256": "ab2581f95a6b4c106abfcbc1c3808507fac00ada1e31abea1678bf1608358ce6",
       "commit": "f24926c8e7fd231e4cac127532ed642247b222c2",
       "reason": "DEFERRED-DEPENDENCY-BOARD-HOLD-01: re-admission bypassed a board-owned unblockDescriptor installed after deferral; corrected by accepted child 0e0c1eb without rewriting history"
+    },
+    {
+      "status": "unreviewed_intermediate",
+      "commit": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
+      "parent": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+      "reason": "native local workspace settlement candidate predecessor; not an accepted STOP custody pin"
     }
   ],
   "patch_tree_equivalence": {
     "status": "verified",
     "method": "git apply cumulative patch at upstream commit and compare Git tree IDs",
     "upstream_tree": "547374c4e8abe51ff22b8cecc51644800f794dd6",
-    "derivative_tree": "8a23b5f7890218053645ad5a5e04e90903fee41d"
+    "derivative_tree": "16610dcedfc35bc899d39a962a1e5f9a80bcd7aa"
   },
   "prior_accepted_source_review": {
     "status": "accepted_source_only",
     "reviewer": "Sol-6.1 High",
-    "receipt": "state/resumption-20261024/native-board-hold-wake-16ae5c5-independent-review.json",
-    "receipt_sha256": "8151ea3ff6ab3198c75e4c335885a46752c17ef9e5f2a8de3bc71070f2411bf6",
-    "commit": "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
-    "parent": "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
-    "diff_sha256": "d4a43a36820d9b48e9011afff930b32b6178676cd1d97f7be2c6310daa462afd",
-    "combined_diff_sha256": "75efc9cb241ee95026f3c80d2971f0377112e69fdd176e0801151a416ca0b4ae",
+    "receipt": "state/resumption-20261024-mvp/native-dependency-wake-source-independent-review-0e0c1eb.json",
+    "receipt_sha256": "02432d4fa62695822c1cf1334425cdf91797d047cba8372c9db707f49785c813",
+    "commit": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+    "parent": "f24926c8e7fd231e4cac127532ed642247b222c2",
     "scope": [
-      "direct-target issue update wakes are suppressed when the effective issue is closed or remains blocked under a typed board-owned unblock descriptor",
-      "dependent release wakes, explicit runnable transitions, and agent-owned blocked routing remain unchanged",
-      "POST comment eligibility uses its fresh issue snapshot; a fresh board hold or closed state wins after earlier reopen intent"
+      "resume the exact deferred issue_blockers_resolved wake after predecessor terminal through existing bounded native queue recovery and admission",
+      "revalidate locked current issue state, assignee, board-owned unblockDescriptor, native dependencies and workspace finalization before dispatch",
+      "preserve company and agent pause, execution uncertainty, same-receipt idempotency and normal maxConcurrentRuns controls"
     ],
     "limits": [
-      "source-only acceptance; no Paperclip runtime deployment or restart qualification",
-      "launcher packaging binds the accepted source tree but does not establish operational readiness"
+      "exact native source acceptance only; packaging and controlled release require separate review",
+      "synthetic embedded PostgreSQL and mocked adapter only; no live provider, native queue mutation or deployment",
+      "actual paused startup then company resume of the pending MEM13 wake remains an operational acceptance step"
     ]
   }
 }

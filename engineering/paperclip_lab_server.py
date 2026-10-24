@@ -25,6 +25,8 @@ from typing import Any
 from engineering.processes import process_identity, terminate_owned
 
 PAPERCLIP_SOURCE_CHAIN = (
+    "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
+    "89cd827fdb36ede8d12fce16302cf595c88d2ade",
     "0e0c1eb22c879203337cee9710471c6fd30b00b1",
     "f24926c8e7fd231e4cac127532ed642247b222c2",
     "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
@@ -49,6 +51,7 @@ PAPERCLIP_STOP_CUSTODY_PINS = frozenset(
     {
         "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
         "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
+        "0e0c1eb22c879203337cee9710471c6fd30b00b1",
         "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
         "a0cdea58195eed97c6f1ba4518c88826c778bb02",
         "407762fa09288fad6a9e39771efc5d738b57be7b",
