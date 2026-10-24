@@ -1,4 +1,4 @@
-# Current state — 2026-10-24 17:46 UTC, bounded founder MVP verified
+# Current state — 2026-10-24 17:50 UTC, bounded founder MVP verified
 
 Independent Sol audit confirms all six founder MVP criteria within the admitted scope. Paperclip owns
 native tasks, dependencies, corrections and wakes; Luna implements, separate Sol reviews, the bridge
@@ -21,8 +21,11 @@ Sol→Luna→fixed tests→independent QA→mandatory final verifier→LOCAL dua
 Brain result is `f86c94ae1b74df0268d1f7643dea24f913edd6f2`, separately normal-pushed/read back on GitHub.
 MEM-12 terminal17:43:27.050→MEM-14 start17:43:27.175 (+125ms) was native issue_blockers_resolved. Full
 recorded user-action audit17:37:34.017539→17:45:49.240134 returned zero/no cursor. This proves useful work
-after CEO exit with disclosed repair assistance, not uninterrupted/endurance autonomy. MEM-14/17 remain
-authorized finite native work; no extra task or per-task CEO bootstrap was added.
+after CEO exit with disclosed repair assistance, not uninterrupted/endurance autonomy. MEM-14 then started
+its source task; its unchanged snapshot returned preflight_unknown. At the final
+readback live0: MEM-14/79 held, QA80 waits79, and MEM-17 waits14. No candidate/publication14 is claimed.
+This optional no-change tail requires separate exact reconciliation, not replay or a fake diff; it is not
+a new MVP prerequisite. No employee is claimed to be running now.
 
 MEM-11 objectively required no new code: exact accepted-base equivalence plus distinct registered fixed
 verification and independent merits completed its native objective. No fake diff, empty commit, candidate

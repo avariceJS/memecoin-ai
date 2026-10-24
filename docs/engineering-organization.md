@@ -53,8 +53,11 @@ protected-data access, paid fallback or unknown-operation replay is authorized b
 
 Automatic dual publication is LOCAL. Separate ordinary GitHub custody confirms Brainf86c94ae and org
 ancestry containing Platform61e/controllerc974; subsequent documentation commits do not change loaded
-source. MEM-14/17 continue as finite authorized native work, not extra MVP prerequisites. Consult private
-`state/HANDOFF.md` for fresh live state before action.
+source. MEM-14 subsequently found its two admitted files unchanged, and source79 returned preflight_unknown
+with its original result absent. Current live0;14/79 are held, QA80 waits79 and17 waits14. No candidate or
+publication14 is claimed. Read-only byte equality is not independent objective acceptance or a verifier
+pass. This optional finite no-change backlog requires exact reconciliation, not replay/fake changes, and
+is not an extra MVP prerequisite. Consult private `state/HANDOFF.md` before further action.
 
 Final independent delta: private `state/resumption-20261024-routing-recovery/post-root-final-audit/`
 `independent-bounded-founder-mvp-final-audit-20261024T174549Z.json`, SHA-256
