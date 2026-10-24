@@ -32,7 +32,12 @@ class CanonicalPublisherTests(unittest.TestCase):
         git(self.repo, "init", "-b", "brain/development")
         git(self.repo, "config", "user.name", "synthetic")
         git(self.repo, "config", "user.email", "synthetic@example.invalid")
-        for path in publisher.ALLOWED_PATHS:
+        self.department_paths = (
+            "src/memecoin_experience/records.py",
+            "tests/test_experience.py",
+            "tests/test_experience_schema.py",
+        )
+        for path in (*publisher.ALLOWED_PATHS, *self.department_paths):
             target = self.repo / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(f"base:{path}\n".encode())
@@ -104,7 +109,7 @@ class CanonicalPublisherTests(unittest.TestCase):
     def test_exact_path_scope_and_trusted_bytes_are_required(self) -> None:
         bad = dict(self.contents)
         bad["README.md"] = b"outside"
-        with self.assertRaisesRegex(publisher.CanonicalPublishError, "exact two allowed"):
+        with self.assertRaisesRegex(publisher.CanonicalPublishError, "exact owner-pinned"):
             publisher.prepare(
                 self.repo, "refs/heads/brain/development", self.base, self.old, self.new, bad
             )
@@ -114,6 +119,47 @@ class CanonicalPublisherTests(unittest.TestCase):
             publisher.prepare(
                 self.repo, "refs/heads/brain/development", self.base, self.old, self.new, wrong
             )
+
+    def test_owner_manifest_can_publish_test_only_change_with_exact_full_receipt(self) -> None:
+        paths = self.department_paths
+        old = {path: self._blob_at(self.base, path) for path in paths}
+        updated = {path: f"base:{path}\n".encode() for path in paths}
+        updated[paths[1]] = b"test-only domain change\n"
+        new_blobs = {path: self._blob(updated[path]) for path in paths}
+        receipt = publisher.prepare(
+            self.repo,
+            "refs/heads/brain/development",
+            self.base,
+            old,
+            new_blobs,
+            updated,
+            allowed_paths=paths,
+        )
+        changed = git(
+            self.repo,
+            "diff-tree",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            self.base,
+            receipt["candidate"],
+        ).splitlines()
+        self.assertEqual(changed, [paths[1]])
+        self.assertEqual([item["path"] for item in receipt["files"]], list(paths))
+        state = publisher.inspect(
+            self.repo, "refs/heads/brain/development", receipt, allowed_paths=paths
+        )
+        self.assertEqual(state["ref_state"], "prepared")
+        result = publisher.publish(
+            self.repo,
+            "refs/heads/brain/development",
+            receipt,
+            receipt["candidate"],
+            receipt["receipt_digest"],
+            allowed_paths=paths,
+        )
+        self.assertEqual(result["status"], "reconciled")
+        self.assertEqual((self.repo / paths[1]).read_bytes(), updated[paths[1]])
 
     def test_dirty_selected_path_is_rejected_and_unrelated_dirty_is_preserved(self) -> None:
         (self.repo / publisher.ALLOWED_PATHS[0]).write_text("owner edit\n")

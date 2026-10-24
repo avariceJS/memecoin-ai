@@ -18,7 +18,7 @@ import tempfile
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 SCHEMA = "paperclip-canonical-content-v1"
 ALLOWED_PATHS = (
@@ -110,20 +110,51 @@ def _repo_ref(repo: Path, ref: str) -> tuple[Path, str]:
     return resolved, ref
 
 
+def _paths(allowed_paths: tuple[str, ...] | list[str]) -> tuple[str, ...]:
+    if type(allowed_paths) not in (tuple, list) or not allowed_paths or len(allowed_paths) > 32:
+        raise CanonicalPublishError("owner-pinned canonical path set is invalid")
+    paths = tuple(allowed_paths)
+    if (
+        len(set(paths)) != len(paths)
+        or any(
+            type(path) is not str
+            or not path
+            or "\\" in path
+            or path.startswith("/")
+            or str(PurePosixPath(path)) != path
+            or any(part in {"", ".", ".."} for part in path.split("/"))
+            or not path.startswith(("src/", "tests/", "engineering/"))
+            for path in paths
+        )
+        or not any(
+            path.startswith("src/") or (path.startswith("engineering/") and "/tests/" not in path)
+            for path in paths
+        )
+        or not any(path.startswith("tests/") or "/tests/" in path for path in paths)
+    ):
+        raise CanonicalPublishError("owner-pinned canonical path set is invalid")
+    return paths
+
+
 def _validate_maps(
-    old_blobs: dict[str, str], new_blobs: dict[str, str], file_bytes: dict[str, bytes]
+    old_blobs: dict[str, str],
+    new_blobs: dict[str, str],
+    file_bytes: dict[str, bytes],
+    allowed_paths: tuple[str, ...],
 ) -> None:
     for mapping in (old_blobs, new_blobs, file_bytes):
-        if type(mapping) is not dict or set(mapping) != set(ALLOWED_PATHS):
-            raise CanonicalPublishError("input must contain the exact two allowed paths")
+        if type(mapping) is not dict or set(mapping) != set(allowed_paths):
+            raise CanonicalPublishError("input must contain the exact owner-pinned paths")
     if any(not _oid(value) for value in (*old_blobs.values(), *new_blobs.values())):
         raise CanonicalPublishError("trusted projected blob identity is invalid")
     if any(type(value) is not bytes for value in file_bytes.values()):
         raise CanonicalPublishError("selected file contents must be bytes")
 
 
-def _tree_blobs(repo: Path, commit: str) -> dict[str, tuple[str, str]]:
-    rows = _git(repo, "ls-tree", "-rz", "--full-tree", commit, "--", *ALLOWED_PATHS)
+def _tree_blobs(
+    repo: Path, commit: str, allowed_paths: tuple[str, ...]
+) -> dict[str, tuple[str, str]]:
+    rows = _git(repo, "ls-tree", "-rz", "--full-tree", commit, "--", *allowed_paths)
     found: dict[str, tuple[str, str]] = {}
     for row in rows.split(b"\0"):
         if row:
@@ -132,8 +163,8 @@ def _tree_blobs(repo: Path, commit: str) -> dict[str, tuple[str, str]]:
             if kind != "blob" or mode != "100644":
                 raise CanonicalPublishError("selected canonical path is not a regular 100644 blob")
             found[path.decode("utf-8")] = (mode, oid)
-    if set(found) != set(ALLOWED_PATHS):
-        raise CanonicalPublishError("canonical base lacks the exact two selected files")
+    if set(found) != set(allowed_paths):
+        raise CanonicalPublishError("canonical base lacks the exact selected files")
     return found
 
 
@@ -158,7 +189,7 @@ def _receipt_digest(receipt: dict) -> str:
     return hashlib.sha256(_canonical(unsigned)).hexdigest()
 
 
-def _validate_receipt(receipt: dict) -> None:
+def _validate_receipt(receipt: dict, allowed_paths: tuple[str, ...]) -> None:
     keys = {"schema", "repo", "ref", "expected_tip", "tree", "candidate", "files", "receipt_digest"}
     if type(receipt) is not dict or set(receipt) != keys or receipt.get("schema") != SCHEMA:
         raise CanonicalPublishError("prepared receipt schema is invalid")
@@ -168,9 +199,9 @@ def _validate_receipt(receipt: dict) -> None:
         or not _REF_RE.fullmatch(receipt["ref"])
         or any(not _oid(receipt.get(key)) for key in ("expected_tip", "tree", "candidate"))
         or type(receipt["files"]) is not list
-        or len(receipt["files"]) != 2
+        or len(receipt["files"]) != len(allowed_paths)
         or [item.get("path") for item in receipt["files"] if type(item) is dict]
-        != list(ALLOWED_PATHS)
+        != list(allowed_paths)
         or any(
             set(item) != {"path", "mode", "old", "new", "sha256"}
             or item.get("mode") != "100644"
@@ -193,16 +224,19 @@ def prepare(
     trusted_old_blobs: dict[str, str],
     trusted_new_blobs: dict[str, str],
     selected_bytes: dict[str, bytes],
+    *,
+    allowed_paths: tuple[str, ...] | list[str] = ALLOWED_PATHS,
 ) -> dict:
-    """Create a deterministic, unreferenced commit by changing only the two allowed blobs."""
+    """Create a deterministic, unreferenced commit by changing only owner-pinned blobs."""
     repo, ref = _repo_ref(canonical_repo, canonical_ref)
-    _validate_maps(trusted_old_blobs, trusted_new_blobs, selected_bytes)
+    allowed = _paths(allowed_paths)
+    _validate_maps(trusted_old_blobs, trusted_new_blobs, selected_bytes, allowed)
     if not _oid(expected_tip):
         raise CanonicalPublishError("expected canonical tip is invalid")
     if _git(repo, "rev-parse", ref).decode().strip() != expected_tip:
         raise CanonicalPublishError("canonical ref is stale")
-    old_tree = _tree_blobs(repo, expected_tip)
-    for path in ALLOWED_PATHS:
+    old_tree = _tree_blobs(repo, expected_tip, allowed)
+    for path in allowed:
         if old_tree[path] != ("100644", trusted_old_blobs[path]):
             raise CanonicalPublishError(f"trusted projected base differs for {path}")
 
@@ -212,7 +246,7 @@ def prepare(
     try:
         _git(repo, "read-tree", expected_tip, index=index)
         rows = []
-        for path in ALLOWED_PATHS:
+        for path in allowed:
             data = selected_bytes[path]
             imported = _git(repo, "hash-object", "-w", "--stdin", data=data).decode().strip()
             if imported != trusted_new_blobs[path]:
@@ -242,9 +276,10 @@ def prepare(
             .decode()
             .strip()
         )
-        if _raw_paths(repo, expected_tip, candidate) != tuple(sorted(ALLOWED_PATHS)):
+        changed = _raw_paths(repo, expected_tip, candidate)
+        if not changed or any(path not in allowed for path in changed):
             raise CanonicalPublishError(
-                "prepared candidate changed paths outside the allowed scope"
+                "prepared candidate changed paths outside the owner-pinned scope"
             )
         files = [
             {
@@ -254,7 +289,7 @@ def prepare(
                 "new": trusted_new_blobs[path],
                 "sha256": hashlib.sha256(selected_bytes[path]).hexdigest(),
             }
-            for path in ALLOWED_PATHS
+            for path in allowed
         ]
         receipt = {
             "schema": SCHEMA,
@@ -300,8 +335,8 @@ def _serialized(repo: Path, ref: str) -> Iterator[None]:
             os.close(fd)
 
 
-def _check_candidate(repo: Path, ref: str, receipt: dict) -> None:
-    _validate_receipt(receipt)
+def _check_candidate(repo: Path, ref: str, receipt: dict, allowed_paths: tuple[str, ...]) -> None:
+    _validate_receipt(receipt, allowed_paths)
     if receipt["repo"] != str(repo) or receipt["ref"] != ref:
         raise CanonicalPublishError("receipt canonical target differs from caller-pinned target")
     row = _git(repo, "rev-list", "--parents", "-n", "1", receipt["candidate"]).decode().split()
@@ -312,15 +347,14 @@ def _check_candidate(repo: Path, ref: str, receipt: dict) -> None:
         != receipt["tree"]
     ):
         raise CanonicalPublishError("candidate tree differs from receipt")
-    base = _tree_blobs(repo, receipt["expected_tip"])
-    candidate = _tree_blobs(repo, receipt["candidate"])
+    base = _tree_blobs(repo, receipt["expected_tip"], allowed_paths)
+    candidate = _tree_blobs(repo, receipt["candidate"], allowed_paths)
     for item in receipt["files"]:
         path = item["path"]
         if base[path] != ("100644", item["old"]) or candidate[path] != ("100644", item["new"]):
             raise CanonicalPublishError("receipt blob provenance differs from canonical objects")
-    if _raw_paths(repo, receipt["expected_tip"], receipt["candidate"]) != tuple(
-        sorted(ALLOWED_PATHS)
-    ):
+    changed = _raw_paths(repo, receipt["expected_tip"], receipt["candidate"])
+    if not changed or any(path not in allowed_paths for path in changed):
         raise CanonicalPublishError("candidate contains changes outside the exact allowed paths")
 
 
@@ -362,10 +396,16 @@ def _file_state(repo: Path, path: str, old: str, new: str) -> str:
     return worktree_oid
 
 
-def inspect(canonical_repo: Path, canonical_ref: str, receipt: dict) -> dict:
+def inspect(
+    canonical_repo: Path,
+    canonical_ref: str,
+    receipt: dict,
+    *,
+    allowed_paths: tuple[str, ...] | list[str] = ALLOWED_PATHS,
+) -> dict:
     """Read publication state without changing the ref, worktree, or index."""
     repo, ref = _repo_ref(canonical_repo, canonical_ref)
-    _check_candidate(repo, ref, receipt)
+    _check_candidate(repo, ref, receipt, _paths(allowed_paths))
     with _serialized(repo, ref):
         tip = _git(repo, "rev-parse", ref).decode().strip()
         if tip not in (receipt["expected_tip"], receipt["candidate"]):
@@ -444,10 +484,12 @@ def publish(
     receipt: dict,
     approved_candidate: str,
     approved_receipt_digest: str,
+    *,
+    allowed_paths: tuple[str, ...] | list[str] = ALLOWED_PATHS,
 ) -> dict:
     """Publish only the exact externally reviewed candidate and reconcile its two paths."""
     repo, ref = _repo_ref(canonical_repo, canonical_ref)
-    _check_candidate(repo, ref, receipt)
+    _check_candidate(repo, ref, receipt, _paths(allowed_paths))
     if (
         approved_candidate != receipt["candidate"]
         or approved_receipt_digest != receipt["receipt_digest"]
@@ -467,8 +509,15 @@ def reconcile(
     receipt: dict,
     approved_candidate: str,
     approved_receipt_digest: str,
+    *,
+    allowed_paths: tuple[str, ...] | list[str] = ALLOWED_PATHS,
 ) -> dict:
     """Resume an approved operation after interruption, without replacing unknown edits."""
     return publish(
-        canonical_repo, canonical_ref, receipt, approved_candidate, approved_receipt_digest
+        canonical_repo,
+        canonical_ref,
+        receipt,
+        approved_candidate,
+        approved_receipt_digest,
+        allowed_paths=allowed_paths,
     )

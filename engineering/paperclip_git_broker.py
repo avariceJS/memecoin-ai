@@ -22,7 +22,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from engineering.git_gate import OWNER_ACTIVE_REFS, Candidate, GitGate, GitGateError, Verifier
+from engineering.git_gate import (
+    OWNER_ACTIVE_REFS,
+    OWNER_CAS_REFS,
+    Candidate,
+    GitGate,
+    GitGateError,
+    Verifier,
+)
 
 ACTIVE_REF = "refs/heads/brain/paperclip-integration"
 SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
@@ -84,7 +91,7 @@ class OperationBinding:
             type(root) is not str or not Path(root).is_absolute() for root in self.owner_roots
         ):
             raise BrokerError("binding owner roots are invalid")
-        if self.active_ref == "refs/heads/brain/development" and (
+        if self.active_ref in OWNER_CAS_REFS and (
             not self.owner_roots or self.owner_config_digest == "0" * 64
         ):
             raise BrokerError("development lane requires owner config and roots")
@@ -370,9 +377,7 @@ class PaperclipGitBroker:
             raise AttributeError("PaperclipGitBroker active ref is immutable")
         super().__setattr__(name, value)
 
-    def __init__(
-        self, gate: GitGate, journal_dir: Path, *, active_ref: str | None = None
-    ) -> None:
+    def __init__(self, gate: GitGate, journal_dir: Path, *, active_ref: str | None = None) -> None:
         if gate.remote is not None:
             raise BrokerError("Paperclip broker requires local-only GitGate publication")
         target_ref = active_ref or (
@@ -380,14 +385,18 @@ class PaperclipGitBroker:
         )
         if target_ref not in OWNER_ACTIVE_REFS:
             raise BrokerError("broker active ref is not an approved owner target")
-        self.gate = gate if gate.active_ref == target_ref else GitGate(
-            gate.source_repo,
-            gate.repo,
-            gate.policy,
-            gate.receipt_store,
-            remote=None,
-            operation_guard=gate.operation_guard,
-            active_ref=target_ref,
+        self.gate = (
+            gate
+            if gate.active_ref == target_ref
+            else GitGate(
+                gate.source_repo,
+                gate.repo,
+                gate.policy,
+                gate.receipt_store,
+                remote=None,
+                operation_guard=gate.operation_guard,
+                active_ref=target_ref,
+            )
         )
         self._active_ref = target_ref
         self.journal_dir = Path(journal_dir).resolve()
@@ -402,7 +411,7 @@ class PaperclipGitBroker:
         binding.validate(self.gate)
         if binding.owner_roots and str(self.journal_dir) not in binding.owner_roots:
             raise BrokerError("binding owner roots differ from configured journal root")
-        if self.active_ref == "refs/heads/brain/development" and (
+        if self.active_ref in OWNER_CAS_REFS and (
             not binding.owner_roots or binding.owner_config_digest == "0" * 64
         ):
             raise BrokerError("development lane requires owner config and roots")
@@ -486,9 +495,7 @@ class PaperclipGitBroker:
                     return candidate
                 raise BrokerError(f"operation is held in state {record['state']}")
 
-            expected_tip = self.gate._ref_sha(
-                self.gate.repo, self.active_ref, missing_ok=True
-            )
+            expected_tip = self.gate._ref_sha(self.gate.repo, self.active_ref, missing_ok=True)
             record = {
                 "schema": "paperclip-git-operation-v1",
                 "operation_key": binding.operation_key,
@@ -498,9 +505,7 @@ class PaperclipGitBroker:
             }
             self._create(path, record)
             try:
-                if self.active_ref == "refs/heads/brain/development" and not (
-                    self.gate.is_detached()
-                ):
+                if self.active_ref in OWNER_CAS_REFS and not (self.gate.is_detached()):
                     raise GitGateError("development publisher HEAD must be detached")
                 candidate = self.gate.submit(
                     Path(worker_checkout),
@@ -508,14 +513,10 @@ class PaperclipGitBroker:
                     binding.base_sha,
                     binding.scope,
                     expected_source_tip=(
-                        binding.base_sha
-                        if self.active_ref == "refs/heads/brain/development"
-                        else None
+                        binding.base_sha if self.active_ref in OWNER_CAS_REFS else None
                     ),
                     expected_integration_tip=(
-                        binding.base_sha
-                        if self.active_ref == "refs/heads/brain/development"
-                        else None
+                        binding.base_sha if self.active_ref in OWNER_CAS_REFS else None
                     ),
                 )
             except BaseException as exc:
