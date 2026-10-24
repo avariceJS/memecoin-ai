@@ -5,6 +5,39 @@ This document owns the current system map and its intended growth boundary.
 
 ## Product goal
 
+### Founder mission and strategic order — 2026-10-24
+
+The ambition is a specialized Solana intelligence system: understand market structure, liquidity,
+transactions, participants and context across thousands of evolving markets; accumulate qualified
+experience; discover useful research questions; and demonstrate improving decisions on independent
+data. This is a target, not an assertion of current reasoning, learning or trading competence.
+Potential trading remains a separately authorized later capability.
+
+Astra owns product strategy and architecture. The founder supplies vision, suggestions, resources
+and permission boundaries, not the next feature or the department backlog. Prioritize falsifiable
+competence over feature count. Current evidence favors fixing observation semantics, population
+coverage and evaluation before increasing model complexity: narrow, correlated evaluation and
+poor conditional calibration cannot support a broad competence claim.
+
+The next approved strategic sequence is:
+
+1. **Trustworthy observations and experience.** Define coverage/missingness and arrival-time
+   contracts for evolving populations, then reproducible experience and exposure audits. Develop
+   code and synthetic fixtures only until acquisition is separately authorized.
+2. **Independent measurement before stronger learners.** Specify prospective cohorts, leakage
+   controls, conditional calibration, simple baselines and predeclared promotion criteria. Keep
+   exposed historical tests diagnostic; never reuse them as an independent benchmark.
+3. **Measured model and decision capability.** Once data/evaluation prerequisites are qualified
+   and training is explicitly authorized, compare representations and models against those
+   baselines. Policy must preserve abstention, uncertainty and execution-cost assumptions.
+4. **Broader ecosystem evidence.** Evaluate new-token discovery, participant behavior and
+   news/social narratives by incremental information value, source availability and cost; these
+   are candidate directions, not active acquisition programs.
+
+No collector, training job, market provider, AUTO, paper ledger or trading process is activated by
+this strategy. Department mandates and the distinction between policy and implemented autonomy
+are owned by [engineering-organization.md](engineering-organization.md).
+
 Build a persistent Solana research Brain that can acquire large market histories, produce
 reproducible model generations, and measure improvement on independent future markets. V1/V2/V3
 must represent meaningful increases in useful corpus, training compute, and validated capability,

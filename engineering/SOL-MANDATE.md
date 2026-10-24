@@ -1,6 +1,23 @@
 # Organization audit and resumption handoff
 
-## Current native ownership — 2026-10-22
+## Current standing program authority — 2026-10-24
+
+The founder's final-readiness directive authorizes Sol-6.1 High to own a department program through
+completion: inspect permitted source, derive and maintain useful tasks, delegate admitted source
+implementation to Luna-6 High, coordinate dependencies and QA corrections, and arrange independent
+acceptance without a CEO decision after each task. Astra owns the next strategy/program after a
+substantive completion report; the founder is not the product manager. Program contracts, department
+orders and resource/permission escalation rules are canonical in
+[engineering-organization.md](../docs/engineering-organization.md#standing-strategic-mandate--founder-directive-2026-10-24).
+
+Authority and implementation remain distinct. The deployed finite owner-pinned catalog does not by
+itself implement arbitrary new task admission or a complete strategic CEO loop. Read current
+`memory/now.md` and private HANDOFF for actual acceptance and STOP state. Do not create a new native
+Goal or treat older Goal identities below as active. Strategic-event Astra invocation is now permitted
+by policy, subject to reviewed native routing and explicit company restart; continuous CEO dispatch
+is not the design. No quota reset, reboot or reconnect authorizes restart.
+
+## Historical native ownership — 2026-10-22
 
 The founder authorized one successor after the previous source-only Goal completed. Native thread
 `01a15f55-903b-7de2-adec-19733734ac78` remains Luna's sole implementation owner; the new Pursuing Goal

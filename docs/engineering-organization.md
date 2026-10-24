@@ -11,6 +11,131 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
+## Standing strategic mandate — founder directive 2026-10-24
+
+This directive supersedes older policy requiring a fresh founder product assignment or forbidding
+all event-driven Astra invocation. It does not itself implement or release an automatic CEO route.
+The founder owns vision, resources and forbidden-activity boundaries. Astra owns CEO, product,
+scientific strategy and architecture decisions within those boundaries. The mission and sequence
+are in [Brain architecture](brain-development.md#founder-mission-and-strategic-order--2026-10-24).
+
+Each of Senses, Experience, Cortex, Evaluation, Policy and Platform has a continuing Sol-6.1 High
+lead responsibility; current shared agent capacity must not be represented as six concurrent leads.
+Luna-6 High implements admitted source changes. A distinct reviewer judges merits; fixed verification
+and GitGate retain publication authority. Sol may investigate permitted source, maintain and reorder
+its program backlog, split work, manage dependencies and QA corrections, and continue without asking
+Astra after each task. This authority is bounded by the program contract and reviewed capability
+envelope, not by an arbitrary number of tasks. New controller capabilities require independent release
+review; a program description cannot grant new filesystem or publication permissions.
+
+A program contract must state rationale, accountable lead, expected deliverables, exclusions,
+dependencies, evidence/acceptance criteria, resource limits and completion/stop conditions. Paperclip
+owns its tasks, assignments, dependencies, wakes and lifecycle. Do not add a second scheduler or
+organizational database. A lead submits accepted results, rejected hypotheses, limitations, actual
+resource use (including unknowns) and successor recommendations at program completion, a material
+failure, architectural conflict or resource boundary. Astra then independently closes, redirects or
+replaces the program and persists the new order in Paperclip plus this document/Founder Desk.
+Routine task completion is not a reason to keep Astra continuously running.
+
+The intended native cycle is mission → CEO program → Sol-managed tasks and independent acceptance →
+program outcome → episodic CEO decision → next native program. A Markdown mandate, a manual API
+assignment, or continuation of a finite catalog is not proof of this complete cycle. Each operational
+claim must identify the actual native trigger, model role, persisted outcome and successor assignment.
+
+Founder suggestions enter the same strategic assessment: expected scientific/product benefit,
+evidence dependencies, costs and priority. Astra may defer them with a reason rather than interrupt
+current work. Escalate to the founder only for additional resources or permissions, with alternatives;
+resolve ordinary engineering choices internally. Never infer permission for market acquisition,
+training, protected data, real trading, paid APIs, production or main from product ambition.
+
+### Next department orders, conditional on explicit restart
+
+These are strategic assignments, not a claim that new source tasks have already been admitted.
+Sol first maps each deliverable to current accepted source and evidence; an already satisfied objective
+needs a distinct fixed verifier and independent merits, never a fake diff. New task/path/verifier
+admission remains subject to the deployed controller's actual capabilities.
+
+| Department | Program and reason | Expected result and acceptance |
+|---|---|---|
+| Senses | Observation integrity for evolving Solana markets; coverage is not implied by a returned event | Source-level coverage/missingness and event/availability/receipt-time contracts; synthetic sparse, late, duplicate and missing-provider cases; no live collection |
+| Experience | Reproducible population-to-experience lineage; avoid concentrated exposure masquerading as broad learning | Pinned population/source/snapshot/exposure relationships, deterministic replay and concentration diagnostics with explicit missing denominators; synthetic fixtures only |
+| Evaluation | Independent competence measurement before model expansion | Registered future-cohort protocol and executable synthetic leakage/calibration/baseline checks; conditional reporting by age/liquidity/regime, uncertainty and failures retained; no protected or new real-data scoring |
+| Cortex | Model/representation contract correctness under Evaluation's protocol | Inspect accepted model-spec and horizon conditioning interfaces; implement only evidenced contract gaps with synthetic checks; no fitting, promotion or claims of improved forecast quality |
+| Policy | Honest decision abstention and evidence boundaries | Uncertainty/missingness/unsupported-execution gates with negative synthetic tests; no orders, signing, AUTO or paper-ledger changes |
+| Platform | Remove demonstrated obstacles to program autonomy | Exact no-change completion, discoverable permitted source reading, reviewed program/task admission and native completion-to-CEO routing; independent negative tests and bounded native proof before broader claims |
+
+Evaluation defines the common measurement contract before Cortex expands model capability. Senses
+and Experience agree observation/population interfaces; Policy depends on their missingness and
+Evaluation's uncertainty semantics. Platform may proceed independently on demonstrated blockers.
+The former MEM-14/17 tail is complete within its exact accepted scope; preserve original unknown
+records and never replay them or recreate accepted work.
+
+The Russian [Founder Desk](../engineering/OWNER-DESK.md) is the concise strategic view. Link each
+program to its actual Paperclip issue/project and label it proposed, admitted, running, accepted,
+rejected or held from a dated native readback. Static text must not imply live synchronization.
+Runtime readbacks and private receipts stay outside Git; no raw session logs or secrets in the Desk.
+
+## Final readiness and Founder STOP — 2026-10-24 19:55 UTC
+
+The standing mandate above is policy; the following is the bounded operational evidence. Native
+MEM-14 completed its unchanged objective through distinct registered accepted-base verification,
+source79, independent QA80 and lead14 merits. Original1295 intent/snapshot remains unknown and
+unchanged, with no fabricated result, diff, candidate or publication. Exact role clarification,
+a known422 description-interface correction and a full existing QA-result mirror were assisted
+repairs. Native child summaries truncate at500 characters; that mirror is not generic transport
+qualification. Independent A audit: private `readiness-20261024-final/A-mem14/`
+`outcome-independent-audit.json`, SHA256 `3e861088f7ad26be7b794c81e7cef9d96c464e34d4af6dfcfc024aca6ad13172`.
+
+Native14→17 followed in175ms. MEM-17 then completed the normal strict source/independent-QA/fixed
+preflight/mandatory-final-verifier/dual-local-publication cycle, without another no-change exception.
+Brain canonical `37cf68f319b158d2253543e2857213367814fa2d` was separately normal-pushed and remotely
+confirmed. Main remains `2f8da5f92da521b511e0d4fb20205981a000cab5`. Independent normal-cycle audit:
+`A-mem14/MEM17-normal-cycle-independent-audit.json`, SHA256
+`1811a27d41c1ec0684c3fe3257e85017666817c8259c0d17f9a6084f30a39406`.
+
+A real native analytical program MEM-82 exercised Sol decomposition, Luna85, substantive QA86
+rejection, corrective Luna87 and independent QA88 acceptance. Original85 exceeded its12k output
+instruction and its proposal was rejected; the corrected10527-character report and11558-character
+QA result are separately retained. Native documents carried the full results. Sol completed82;
+its19:49:23.529 status transition woke actual native Astra at19:49:23.578 (+49ms), via
+native_status_decision/issue_children_completed. This is not after-Sol-run-terminal timing.
+Astra completed at19:52:36.191 and independently chose MEM-89, an assigned but unexecuted backlog
+program for a bounded accepted-source reader. One initial82 admission was followed by no manual
+native task/role dispatch. Ten native runs used the existing subscription. The private observer
+budget was prospectively reviewed from8→12 before the eighth run ended; no native task, role,
+QA gate, output bound or unknown request was changed. Both resource packets remain evidence.
+
+This establishes a bounded Platform analysis→correction→program outcome→episodic CEO→held successor
+cycle, not arbitrary engineering task admission or unrestricted cross-department strategy. Astra
+explicitly lacked the detailed six-department priorities in its permitted context. MEM-89's literal
+escaped newline formatting is preserved; it is not a new execution or acceptance claim. Independent
+B/C audit: `BC-native-cycle/outcome-independent-audit.json`, SHA256
+`25cf7596ca500af431c283784e840c74eb0bc709905e9416b7583d202dea1f75`.
+
+D remains open: Sol lacks source-search/read tools, and Luna's refreshed accepted context is limited
+to stage paths; older helper files are not the complete current accepted base. MEM-89 must qualify
+on-demand bounded list/search/read from an owner-pinned sanitized source projection, separately from
+write/delivery/publication paths. Also open: useful new engineering task admission outside the old
+catalog, generic unchanged-objective completion, and result-document routing for source QA/lead
+roles beyond the exact accepted analysis phase. No broad controller release is claimed.
+
+After the explicit final STOP, all six companies and15 agents were paused, all supported live lists
+were empty, and six reviewed standing department orders were created/read back as backlog:
+Senses90, Experience91, Evaluation92, Cortex93, Policy94, Platform95. MEM-89 is the concrete next
+Platform stage;95 is the standing program, not a duplicate reader task. Preserve127 native tasks,
+existing dependencies, documents and unknown outcomes. Broker drain and native pause precede backup
+and owned-service shutdown. All22 captured owned processes disappeared by birth identity, listed
+ports3310/3312/3313/13310/54339 closed, and postmaster.pid was absent with DB data preserved.
+The hibernate helper reports complete=false:168 unresolved entries comprise165 previous non-succeeded
+runs and three held_unknown journal findings; they are retained, not settled. Physical shutdown does not make resumption reconciliation green.
+Backup gzip integrity passed; restore, every generic wake queue and endurance were not qualified.
+STOP evidence is in `readiness-20261024-final/shutdown/`; current private HANDOFF owns exact custody.
+
+Controllerc974d92/nativeaa0cdc were not replaced by these documentation and native role/configuration
+changes. No new native Goal/scheduler, main/production/protected-data/market/training/AUTO/trading or
+paid-provider authority was added. Historical lint findings and unknown accounting remain. Next
+launch requires a fresh explicit founder command and reconciliation; quota reset is never permission.
+
 ## Bounded founder MVP verified — 2026-10-24
 
 Independent Sol audit confirms all six founder criteria within the admitted scope: six real engineering

@@ -38,13 +38,24 @@ is available from historical Git commits.
 - Keep `memory/now.md` short and dated. Do not recreate the old append-only narrative memory bank;
   Git history and immutable evidence hold the detailed chronology.
 
-## Current organization authority and Git ownership — 2026-10-21
+## Current organization authority and Git ownership — 2026-10-24
 
 The founder-confirmed organization directive supersedes the completed 2026-10-20 audit hold and all
 older role, publication, and continuation instructions. Luna-6 High is the sole owner of autonomous
 source implementation. Sol-6.1 High handles substantial technical decisions and independent review.
-Astra High is an episodic CEO and is never invoked automatically. The existing Luna Goal is the
-durable objective and owner; do not create a replacement Goal or competing implementation owner.
+Astra owns product strategy and architecture as an episodic CEO. The founder's 2026-10-24 directive
+permits strategic-event invocation through independently accepted native Paperclip routing; it does
+not authorize a continuous CEO dispatcher or imply that such routing is already qualified. Sol owns
+department programs and their task decomposition/corrections through completion; Astra chooses the
+next program without a fresh founder product assignment. See the current standing mandate in
+`docs/engineering-organization.md`. Preserve historical Luna Goal ownership and read current native
+Goal state; do not create a replacement Goal, second scheduler or competing implementation owner.
+
+The founder supplies vision, suggestions, resources and permission boundaries, not routine backlog
+management. Escalate only for additional resources/permissions, with alternatives. After Founder STOP,
+quota reset, reboot and reconnection never authorize resumption; require an explicit founder launch
+command plus fresh reconciliation. Source capability, operational admission and product competence
+remain separate claims.
 
 - `org/development` is the unified engineering-organization development branch and audit entry.
   Continue authorized source work there; use isolated candidate checkouts when useful, then preserve
