@@ -118,7 +118,7 @@ class PaperclipLabServerTests(unittest.TestCase):
             pin["patch_tree_equivalence"]["derivative_tree"],
             "16610dcedfc35bc899d39a962a1e5f9a80bcd7aa",
         )
-        self.assertEqual(pin["source_review"]["status"], "pending_source_only_review")
+        self.assertEqual(pin["source_review"]["status"], "accepted_source_only")
         self.assertEqual(
             pin["source_review"]["commit"],
             PAPERCLIP_PIN,
@@ -128,29 +128,33 @@ class PaperclipLabServerTests(unittest.TestCase):
             PAPERCLIP_PARENT_PIN,
         )
         self.assertEqual(
+            pin["source_review"]["receipt_sha256"],
+            "49b3f7461bffc18dc969419e5d01219472d430082593042934499349f508cbc5",
+        )
+        self.assertEqual(
             [record["commit"] for record in pin["source_review_chain"][-5:]],
             [
-                "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
                 "407762fa09288fad6a9e39771efc5d738b57be7b",
                 "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
                 "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
                 "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+                PAPERCLIP_PIN,
             ],
         )
         self.assertEqual(
             pin["source_review_chain"][-1]["commit"],
-            "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+            PAPERCLIP_PIN,
         )
         self.assertEqual(pin["source_review_chain"][-1]["status"], "accepted_source_only")
         self.assertEqual(
             pin["source_review_chain"][-2]["commit"],
-            "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
+            "0e0c1eb22c879203337cee9710471c6fd30b00b1",
         )
         reviewed_commits = {record["commit"] for record in pin["source_review_chain"]}
         self.assertNotIn("a0cdea58195eed97c6f1ba4518c88826c778bb02", reviewed_commits)
         self.assertNotIn("35fbfa29a1b2ebaf81019d8022fdf60d70628ead", reviewed_commits)
         self.assertIn("0e0c1eb22c879203337cee9710471c6fd30b00b1", reviewed_commits)
-        self.assertNotIn(PAPERCLIP_PIN, reviewed_commits)
+        self.assertIn(PAPERCLIP_PIN, reviewed_commits)
         self.assertNotIn(PAPERCLIP_PARENT_PIN, reviewed_commits)
         self.assertEqual(
             PAPERCLIP_SOURCE_CHAIN[:11],

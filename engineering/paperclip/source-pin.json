@@ -27,18 +27,21 @@
   "patch": "managed-codex-isolation.patch",
   "patch_sha256": "cd7dad16f58b359ea41c3faf1da41c615cbc495cdb31755540cece1e440a1762",
   "source_review": {
-    "status": "pending_source_only_review",
+    "status": "accepted_source_only",
     "reviewer": "Sol-6.1 High",
+    "receipt": "state/resumption-20261024-routing-recovery/native-release/finite-recovery/native-local-workspace-settlement-source-independent-review-aa0cdc.json",
+    "receipt_sha256": "49b3f7461bffc18dc969419e5d01219472d430082593042934499349f508cbc5",
     "commit": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
     "parent": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
+    "combined_diff_sha256": "146a81a24dc0add698f5531424128279c8dfb389fd61429d68b1e694d5e217d1",
     "scope": [
-      "settle only the exact stopped local cancelled finalization described by the source candidate",
-      "preserve the old run result and failed operation while recording a new read-only workspace validation receipt",
-      "do not dispatch model work during this local settlement"
+      "strict existing recover-workspace settlement for the exact stopped local cancelled run",
+      "preserve original run and failed operation while recording a new read-only workspace validation receipt",
+      "no model dispatch or semantic result promotion"
     ],
     "limits": [
-      "source acceptance pending; no packaging acceptance or runtime deployment",
-      "actual company resume and pending MEM13 wake remain separate operational proof"
+      "source-only acceptance; packaging and controlled release remain separate",
+      "no native runtime deployment or recovery invocation"
     ]
   },
   "source_review_chain": [
@@ -220,6 +223,24 @@
         "actual paused startup then company resume of the pending MEM13 wake remains an operational acceptance step"
       ],
       "diff_sha256": "3d2d0497b89908aee3f811aa6306a874ce03da16d55837a8c944b735c848a235"
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-routing-recovery/native-release/finite-recovery/native-local-workspace-settlement-source-independent-review-aa0cdc.json",
+      "receipt_sha256": "49b3f7461bffc18dc969419e5d01219472d430082593042934499349f508cbc5",
+      "commit": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
+      "parent": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
+      "combined_diff_sha256": "146a81a24dc0add698f5531424128279c8dfb389fd61429d68b1e694d5e217d1",
+      "scope": [
+        "strict existing recover-workspace settlement for the exact stopped local cancelled run",
+        "preserve original run and failed operation while recording a new read-only workspace validation receipt",
+        "no model dispatch or semantic result promotion"
+      ],
+      "limits": [
+        "source-only acceptance; packaging and controlled release remain separate",
+        "no native runtime deployment or recovery invocation"
+      ]
     }
   ],
   "stop_custody_source_pins": [
@@ -266,10 +287,11 @@
       "reason": "DEFERRED-DEPENDENCY-BOARD-HOLD-01: re-admission bypassed a board-owned unblockDescriptor installed after deferral; corrected by accepted child 0e0c1eb without rewriting history"
     },
     {
-      "status": "unreviewed_intermediate",
+      "status": "included_in_accepted_descendant",
       "commit": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
       "parent": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
-      "reason": "native local workspace settlement candidate predecessor; not an accepted STOP custody pin"
+      "reason": "native local workspace settlement candidate predecessor; not an accepted STOP custody pin",
+      "accepted_descendant": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24"
     }
   ],
   "patch_tree_equivalence": {
