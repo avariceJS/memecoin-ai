@@ -78,7 +78,7 @@ class GitGate:
     SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
 
     def __setattr__(self, name: str, value: object) -> None:
-        if name == "_active_ref" and hasattr(self, "_active_ref"):
+        if name in {"_active_ref", "_owner_engineering_paths"} and hasattr(self, name):
             raise AttributeError("GitGate active ref is immutable")
         super().__setattr__(name, value)
 
@@ -92,6 +92,7 @@ class GitGate:
         remote: str | None = None,
         operation_guard: Callable[[], object] | None = None,
         active_ref: str | None = None,
+        _owner_engineering_paths: Sequence[str] = (),
     ) -> None:
         self.source_repo = Path(source_repo).resolve()
         self.repo = Path(integration_repo).resolve()
@@ -103,11 +104,46 @@ class GitGate:
         if selected_ref != self.ACTIVE_REF and selected_ref not in OWNER_ACTIVE_REFS:
             raise GitGateError("active ref is not an approved owner target")
         self._active_ref = selected_ref
+        self._owner_engineering_paths = self._validate_owner_engineering_paths(
+            _owner_engineering_paths, selected_ref
+        )
         if remote is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", remote):
             raise GitGateError("remote must be a broker-configured Git remote name")
         if not (self.repo / ".git").exists():
             raise GitGateError("integration_repo must be an initialized Git checkout")
         self.receipt_store.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _validate_owner_engineering_paths(paths: Sequence[str], active_ref: str) -> tuple[str, ...]:
+        if isinstance(paths, (str, bytes)) or not isinstance(paths, Sequence):
+            raise GitGateError("owner engineering exception must be an exact path list")
+        if not paths:
+            return ()
+        if active_ref != "refs/heads/org/development":
+            raise GitGateError("owner engineering exception requires org development")
+        if any(type(path) is not str for path in paths):
+            raise GitGateError("owner engineering exception contains an invalid path")
+        normalized = tuple(_safe_path(path) for path in paths)
+        reserved_names = {
+            ".git",
+            ".github",
+            ".gitmodules",
+            ".gitattributes",
+            "AGENTS.md",
+            "policy",
+            "policies",
+        }
+        if (
+            len(set(normalized)) != len(normalized)
+            or any(path != original for path, original in zip(normalized, paths, strict=True))
+            or any(
+                not path.startswith("engineering/")
+                or any(part in reserved_names for part in path.split("/"))
+                for path in normalized
+            )
+        ):
+            raise GitGateError("owner engineering exception must name safe exact files")
+        return tuple(sorted(normalized))
 
     @property
     def active_ref(self) -> str:
@@ -428,10 +464,13 @@ class GitGate:
                 in {"AGENTS.md", ".github", "engineering", "policy", "policies", ".gitattributes"}
                 or name.endswith("/AGENTS.md")
                 or name.endswith("/.gitattributes")
-                or name.startswith((".github/", "engineering/", "policy/", "policies/"))
             ):
                 raise GitGateError(f"protected path changed: {name}")
             if name in {"AGENTS.md", ".gitmodules"} or name.startswith(".git/"):
+                raise GitGateError(f"protected path changed: {name}")
+            if name.startswith((".github/", "policy/", "policies/")):
+                raise GitGateError(f"protected path changed: {name}")
+            if name.startswith("engineering/") and name not in self._owner_engineering_paths:
                 raise GitGateError(f"protected path changed: {name}")
             if not any(name == root or name.startswith(root.rstrip("/") + "/") for root in roots):
                 raise GitGateError(f"path outside allowed scope: {name}")

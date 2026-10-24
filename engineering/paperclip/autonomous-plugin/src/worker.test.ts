@@ -423,6 +423,7 @@ describe("Paperclip autonomous bridge tools", () => {
       worker_agent_id: "worker-1", reviewer_agent_id: "reviewer-1", finite_lead_agent_id: "lead-1",
       finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project", source_workspace_root: "/tmp/brain-source-workspace", source_stage_catalog: [
         { stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40), predecessor_stage_key: null,
+          goal_id: "goal-1",
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
         { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem9" },
@@ -432,10 +433,15 @@ describe("Paperclip autonomous bridge tools", () => {
     await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
     const sourceRun: ToolRunContext = { companyId: "company-1", projectId: "project-1", agentId: "worker-1", runId: "source-run" };
     const issueReads: string[] = [];
+    const boundIssueReads: string[] = [];
     const commentTargets: string[] = [];
+    const boundCommentTargets: string[] = [];
     const issueNotes = new Map<string, string[]>();
     const scopedOrchestration = vi.fn();
     let sourceDescription = "source instructions";
+    let boundReviewGoal: string | null = "goal-1";
+    let boundReviewParent = "lead-issue";
+    let boundReviewAssignee = "reviewer-1";
     const ctx = {
       config: { get: vi.fn(async () => ({ ownerConfigPath: configPath })) },
       executionWorkspaces: { get: vi.fn(async (id: string) => ({
@@ -443,14 +449,34 @@ describe("Paperclip autonomous bridge tools", () => {
         path: "/tmp/brain-source-workspace", cwd: "/tmp/brain-source-workspace",
         repoUrl: null, baseRef: null, branchName: null, providerType: "local_fs", providerMetadata: null,
       })) },
-      issues: { forCurrentToolRun: () => ({
+      issues: {
+        get: vi.fn(async (id: string) => {
+          boundIssueReads.push(id);
+          if (id !== "review-8") throw new Error("untrusted_unscoped_issue_access");
+          return { id, companyId: "company-1", projectId: "project-1", parentId: boundReviewParent,
+            goalId: boundReviewGoal, assigneeAgentId: boundReviewAssignee, status: "blocked" } as never;
+        }),
+        listComments: vi.fn(async (id: string) => {
+          boundCommentTargets.push(`list:${id}`);
+          if (id !== "review-8") throw new Error("untrusted_unscoped_issue_access");
+          return (issueNotes.get(id) ?? []).map((body) => ({ body })) as never;
+        }),
+        createComment: vi.fn(async (id: string, body: string) => {
+          boundCommentTargets.push(`create:${id}`);
+          if (id !== "review-8") throw new Error("untrusted_unscoped_issue_access");
+          issueNotes.set(id, [...(issueNotes.get(id) ?? []), body]);
+          return {} as never;
+        }),
+        forCurrentToolRun: () => ({
         get: vi.fn(async (id: string) => {
           issueReads.push(id);
           if (id !== "source-8" && id !== "lead-issue") throw new Error("sibling_issue_access_denied");
           if (id === "lead-issue") return { id, companyId: "company-1", projectId: "project-1",
+            goalId: "goal-1",
             projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
             assigneeAgentId: "lead-1", status: "in_progress", executionRunId: null } as never;
           return { id, companyId: "company-1", projectId: "project-1", parentId: "lead-issue",
+            goalId: "goal-1",
             projectWorkspaceId: "workspace-project", executionWorkspaceId: "workspace-execution",
             assigneeAgentId: "worker-1", status: "in_progress", executionRunId: "source-run",
             description: sourceDescription } as never;
@@ -469,7 +495,8 @@ describe("Paperclip autonomous bridge tools", () => {
           issueNotes.set(id, [...(issueNotes.get(id) ?? []), body]);
           return {} as never;
         }),
-      }) },
+        }),
+      },
       tools: { register: (name: string, _decl: unknown, handler: (params: unknown, runCtx: ToolRunContext) => Promise<unknown>) => handlers.set(name, handler) },
     } as unknown as PluginContext;
     const handlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<unknown>>();
@@ -487,7 +514,8 @@ describe("Paperclip autonomous bridge tools", () => {
     }));
     const invoke = vi.fn(async (action: string) => {
       if (action === "lookup_source_stage_binding") {
-        return { found: true, stage_binding_key: "a".repeat(64), source_instruction_sha256: digest("source instructions"), review_instruction_sha256: digest("review instructions") };
+        return { found: true, stage_binding_key: "a".repeat(64), source_issue_id: "source-8", review_issue_id: "review-8",
+          source_instruction_sha256: digest("source instructions"), review_instruction_sha256: digest("review instructions") };
       }
       deliveryCalls += 1;
       if (deliveryCalls === 1) return preflightFailure;
@@ -500,6 +528,18 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(JSON.parse(failed.content)).toMatchObject({ status: "preflight_failed", content_check_id: "9".repeat(64) });
     expect(issueNotes.get("source-8")).toBeUndefined();
     expect(issueNotes.get("lead-issue")).toBeUndefined();
+    expect(issueNotes.get("review-8")).toBeUndefined();
+    for (const [field, value] of [["goal", "foreign-goal"], ["parent", "foreign-parent"], ["assignee", "foreign-agent"]] as const) {
+      if (field === "goal") boundReviewGoal = value;
+      if (field === "parent") boundReviewParent = value;
+      if (field === "assignee") boundReviewAssignee = value;
+      await expect(handlers.get("deliver_source_stage_content")!({
+        stage_key: "MEM8", stage_binding_key: "a".repeat(64), source_issue_id: "source-8", files: contentFiles,
+      }, sourceRun)).rejects.toThrow("source_stage_review_binding_mismatch");
+    }
+    boundReviewGoal = "goal-1";
+    boundReviewParent = "lead-issue";
+    boundReviewAssignee = "reviewer-1";
     const delivered = await handlers.get("deliver_source_stage_content")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), source_issue_id: "source-8", files: correctedFiles,
     }, sourceRun) as { content: string };
@@ -508,12 +548,17 @@ describe("Paperclip autonomous bridge tools", () => {
     await expect(handlers.get("deliver_source_stage_content")!({
       stage_key: "MEM8", stage_binding_key: "a".repeat(64), source_issue_id: "source-8", files: contentFiles,
     }, sourceRun)).rejects.toThrow("source_stage_instruction_binding_mismatch");
-    expect(issueReads).toEqual(["source-8", "source-8", "lead-issue", "source-8", "source-8", "source-8", "lead-issue", "source-8", "source-8", "source-8"]);
+    expect(issueReads.filter((id) => id === "source-8")).toHaveLength(14);
+    expect(issueReads.filter((id) => id === "lead-issue")).toHaveLength(2);
     expect(commentTargets).toEqual([
       "list:source-8", "create:source-8", "list:lead-issue", "create:lead-issue",
     ]);
+    expect(boundIssueReads).toEqual(["review-8", "review-8", "review-8", "review-8", "review-8", "review-8"]);
+    expect(boundCommentTargets).toEqual(["list:review-8", "create:review-8"]);
     expect(issueNotes.get("source-8")?.[0]).toContain(`brain-autonomous-bridge:${"c".repeat(64)}:submitted`);
     expect(issueNotes.get("source-8")?.[0]).toContain(`stage_binding_key:${"a".repeat(64)}`);
+    expect(issueNotes.get("review-8")?.[0]).toBe(issueNotes.get("source-8")?.[0]);
+    expect(issueNotes.get("lead-issue")?.[0]).toBe(issueNotes.get("source-8")?.[0]);
     expect(scopedOrchestration).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith("deliver_source_stage_content", {
       company_id: "company-1", project_id: "project-1", worker_agent_id: "worker-1",
@@ -533,7 +578,8 @@ describe("Paperclip autonomous bridge tools", () => {
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem8" },
         { stage_key: "MEM9", workspace_id: "published", initial_base_sha: null, predecessor_stage_key: "MEM8",
           path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"], verifier_policy_id: "policy-mem9" },
-      ], canonical_repo: "/tmp/brain-canonical", canonical_ref: "refs/heads/brain/development",
+      ], expected_dev_ref: "refs/heads/brain/development",
+      canonical_repo: "/tmp/brain-canonical", canonical_ref: "refs/heads/brain/development",
       canonical_expected_tip: "f".repeat(40), python_executable: "/usr/bin/python3",
     };
     const { writeFile } = await import("node:fs/promises");
@@ -592,6 +638,7 @@ describe("Paperclip autonomous bridge tools", () => {
         ? { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), status: "published", evidence_digest: "f".repeat(64),
           projection_status: "published", canonical_status: "published", canonical_candidate_sha: "7".repeat(40), canonical_receipt_digest: "8".repeat(64) }
         : { operation_key: "c".repeat(64), candidate_sha: "d".repeat(40), inspection_digest: "e".repeat(64), diff: "exact diff",
+          target_ref: "refs/heads/brain/development", canonical_ref: "refs/heads/brain/development",
           source_preflight: { status: "passed", content_check_id: "1".repeat(64), snapshot_sha256: "2".repeat(64),
             policy_digest: "3".repeat(64), receipt_sha256: "4".repeat(64), commands_sha256: "5".repeat(64) },
           final_verifier_phase: "pending_after_independent_QA",

@@ -1918,6 +1918,8 @@ def _inspect_candidate_locked(
         "reviewer_agent_id": config.reviewer_agent_id,
         "reviewer_issue_id": config.reviewer_issue_id,
         "reviewer_run_id": reviewer_run_id,
+        "target_ref": config.expected_dev_ref,
+        "canonical_ref": config.canonical_ref,
         "candidate_sha": candidate.sha,
         "projected_base_sha": candidate.base_sha,
         "projected_integration_tip": candidate.integration_tip,
@@ -1960,6 +1962,8 @@ def _inspect_candidate_locked(
         "integration_tip": candidate.integration_tip,
         "changed_paths": list(candidate.changed_paths),
         "policy_digest": binding.policy_digest,
+        "target_ref": config.expected_dev_ref,
+        "canonical_ref": config.canonical_ref,
         "verifier": {
             "state": broker_record.get("state"),
             "receipt_digest": receipt_digest,
@@ -2012,6 +2016,7 @@ class BridgeConfig:
     source_workspace_id: str | None = None
     source_workspace_root: Path | None = None
     _owner_config_digest: str | None = None
+    source_stage_key: str | None = None
 
     @classmethod
     def load(cls, path: Path) -> BridgeConfig:
@@ -2513,6 +2518,33 @@ class BridgeConfig:
         )
 
     def gate(self) -> GitGate:
+        owner_engineering_paths: tuple[str, ...] = ()
+        if self.source_stage_key is not None:
+            stage = self.source_stage(self.source_stage_key)
+            org_ref = "refs/heads/org/development"
+            if (
+                stage.expected_dev_ref == org_ref
+                and stage.canonical_ref == org_ref
+                and self.expected_dev_ref == org_ref
+                and self.fixed_dev_ref == org_ref
+                and self.canonical_ref == org_ref
+                and stage.project_id is not None
+                and stage.project_id == self.project_id
+                and stage.lead_agent_id is not None
+                and stage.lead_agent_id == self.finite_lead_agent_id
+                and stage.lead_issue_id is not None
+                and stage.lead_issue_id == self.finite_lead_issue_id
+                and stage.source_repo is not None
+                and stage.source_repo == self.source_repo
+                and stage.publisher_repo is not None
+                and stage.publisher_repo == self.publisher_repo
+                and stage.canonical_repo is not None
+                and stage.canonical_repo == self.canonical_repo
+                and stage.canonical_expected_tip is not None
+            ):
+                owner_engineering_paths = tuple(
+                    path for path in stage.path_ids if path.startswith("engineering/")
+                )
         return GitGate(
             self.source_repo,
             self.publisher_repo,
@@ -2520,6 +2552,7 @@ class BridgeConfig:
             self.receipt_store,
             remote=None,
             active_ref=self.expected_dev_ref,
+            _owner_engineering_paths=owner_engineering_paths,
         )
 
     def broker(self) -> PaperclipGitBroker:
@@ -2664,6 +2697,7 @@ class BridgeConfig:
             source_workspace_id=stage.source_workspace_id or self.source_workspace_id,
             source_workspace_root=stage.source_workspace_root or self.source_workspace_root,
             allowed_scope=stage.path_ids,
+            source_stage_key=stage.stage_key,
             verifier_policy_id=stage.verifier_policy_id,
             verifier_commands=profile.commands if profile is not None else self.verifier_commands,
             verifier_env=profile.env if profile is not None else self.verifier_env,
