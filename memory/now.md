@@ -1,8 +1,11 @@
-# Current state — 2026-10-24, founder STOP and session handoff
+# Current state — 2026-10-24, founder-authorized MVP resumption
 
-Founder STOP supersedes all prior continuation authority. This checkpoint records shutdown only; no
-new development, admission, experiment, model call, Goal or retry is authorized. Explicit founder
-resumption is required next session. Starting the service alone grants no task admission.
+The founder explicitly resumed work through `prompt/prompt.md`: deliver the six-department engineering
+MVP using existing Paperclip lifecycle, Sol leadership, Luna implementation and independent Sol acceptance.
+Private authority receipt: `state/resumption-20261024-mvp/founder-authority.json`. Live reconciliation
+and exact department admissions are pending; service start alone grants no task admission. Prior STOP
+evidence below is preserved as the shutdown baseline. Historical Pilot STOP and unknown operations remain
+held. No new native Goal, paid API, protected-data, main/production, market, training, AUTO or trading authority.
 
 ## Accepted bounded Senses result; full MVP not achieved
 
@@ -43,7 +46,7 @@ and comment queues are not proof of a global generic-wake inventory. Do not repe
 retry historical `old7c749376` or `recovery5f270934`, or reopen the refused Git-import WIP. That WIP
 remains held as historical work and is not the current admission blocker.
 
-## Next session — only after explicit founder resumption
+## Resumed program — reconciliation before scoped admission
 
 Read the STOP handoff, final receipt, pins, backups and pending intents first. After explicit founder
 resumption, reconcile paused state, roles, queues, holds and accepted refs. Reuse the accepted content-only

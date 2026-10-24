@@ -11,6 +11,21 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
+## Founder-authorized MVP resumption — 2026-10-24
+
+The founder explicitly resumed through `prompt/prompt.md`, targeting engineering capability across all
+six departments and native Paperclip continuation independent of an interactive CEO turn. Use existing
+content-only DTO/controller Git/publication mechanisms; Paperclip owns tasks and lifecycle. Sol leads,
+Luna implements, and independent Sol accepts exact changes. No replacement Goal or scheduler is authorized.
+Private authority receipt: `state/resumption-20261024-mvp/founder-authority.json`.
+
+Reconciliation and exact MEM-10..17 admission are pending. MEM-57 has separate scope and must not block
+independent admissible work. Accepted Senses cycles and bounded stop/resume evidence are retained without
+requalification. Six-department MVP and CEO-independent continuation remain unproved. Subscription-only,
+protected-data, main/production, market/training/AUTO/trading and historical Pilot STOP limits remain.
+The next section is the preserved shutdown baseline; its resumption prohibition is superseded by this
+explicit directive, while historical unknown operations remain held.
+
 ## Founder stop and session handoff — 2026-10-24
 
 The founder requested shutdown and handoff only. This supersedes earlier continuation authority: no new
