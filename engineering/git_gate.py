@@ -61,6 +61,9 @@ class Receipt:
 Verifier = Callable[[Path, str, VerificationPolicy], Mapping[str, str]]
 
 MAX_RECEIPT_BYTES = 256_000
+OWNER_ACTIVE_REFS = frozenset(
+    {"refs/heads/brain/paperclip-integration", "refs/heads/brain/development"}
+)
 
 
 class GitGate:
@@ -68,6 +71,11 @@ class GitGate:
 
     ACTIVE_REF = "refs/heads/research/active"
     SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "_active_ref" and hasattr(self, "_active_ref"):
+            raise AttributeError("GitGate active ref is immutable")
+        super().__setattr__(name, value)
 
     def __init__(
         self,
@@ -78,6 +86,7 @@ class GitGate:
         *,
         remote: str | None = None,
         operation_guard: Callable[[], object] | None = None,
+        active_ref: str | None = None,
     ) -> None:
         self.source_repo = Path(source_repo).resolve()
         self.repo = Path(integration_repo).resolve()
@@ -85,11 +94,19 @@ class GitGate:
         self.receipt_store = Path(receipt_store).resolve()
         self.remote = remote
         self.operation_guard = operation_guard
+        selected_ref = self.ACTIVE_REF if active_ref is None else active_ref
+        if selected_ref != self.ACTIVE_REF and selected_ref not in OWNER_ACTIVE_REFS:
+            raise GitGateError("active ref is not an approved owner target")
+        self._active_ref = selected_ref
         if remote is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", remote):
             raise GitGateError("remote must be a broker-configured Git remote name")
         if not (self.repo / ".git").exists():
             raise GitGateError("integration_repo must be an initialized Git checkout")
         self.receipt_store.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def active_ref(self) -> str:
+        return self._active_ref
 
     def submit(
         self,
@@ -97,6 +114,9 @@ class GitGate:
         commit: str,
         expected_base: str,
         allowed_paths: Sequence[str],
+        *,
+        expected_source_tip: str | None = None,
+        expected_integration_tip: str | None = None,
     ) -> Candidate:
         """Import and merge a worker commit; return an isolated detached candidate checkout."""
         submitted = self._resolve_sha(Path(checkout), commit)
@@ -106,9 +126,10 @@ class GitGate:
         trusted_base = self._resolve_sha(self.source_repo, expected_base)
         # Planning advances on the broker-owned active ref even when the stable checkout HEAD
         # remains on main; a task may use only that active history (or initial HEAD fallback).
-        source_tip = self._ref_sha(self.source_repo, self.ACTIVE_REF, missing_ok=True) or self._rev(
-            self.source_repo, "HEAD"
-        )
+        source_ref_tip = self._ref_sha(self.source_repo, self.active_ref, missing_ok=True)
+        source_tip = source_ref_tip or self._rev(self.source_repo, "HEAD")
+        if expected_source_tip is not None and source_ref_tip != expected_source_tip:
+            raise GitGateError("source active tip differs from the owner-admitted tip")
         if trusted_base != base or not self._is_ancestor(self.source_repo, base, source_tip):
             raise GitGateError("expected base is not in trusted source history")
         paths = self._changed_paths(Path(checkout), base, submitted)
@@ -130,9 +151,10 @@ class GitGate:
         if self._rev(self.repo, imported_ref) != submitted:
             raise GitGateError("imported object id differs from submitted commit")
 
-        tip = self._ref_sha(self.repo, self.ACTIVE_REF, missing_ok=True) or self._rev(
-            self.repo, "HEAD"
-        )
+        integration_ref_tip = self._ref_sha(self.repo, self.active_ref, missing_ok=True)
+        tip = integration_ref_tip or self._rev(self.repo, "HEAD")
+        if expected_integration_tip is not None and integration_ref_tip != expected_integration_tip:
+            raise GitGateError("integration active tip differs from the owner-admitted tip")
         if not self._is_ancestor(self.repo, base, tip):
             raise GitGateError("expected base is not present in canonical integration history")
         # `merge-tree --write-tree` computes a tree without checking out or running hooks.
@@ -169,6 +191,12 @@ class GitGate:
         checkout_path.rmdir()
         self._run(self.repo, ["worktree", "add", "--detach", str(checkout_path), candidate])
         return Candidate(submitted, base, tip, candidate, checkout_path, paths)
+
+    def is_detached(self) -> bool:
+        result = self._run(self.repo, ["symbolic-ref", "--quiet", "HEAD"], check=False)
+        if result.returncode not in (0, 1):
+            raise GitGateError("publisher HEAD could not be inspected")
+        return result.returncode == 1
 
     def verify(self, candidate: Candidate, runner: Verifier) -> Receipt:
         """Run a trusted verifier callback and persist a content-addressed immutable receipt."""
@@ -250,7 +278,7 @@ class GitGate:
             expected = expected_tip
         else:
             expected = self._resolve_sha(self.repo, expected_tip)
-        current_active = self._ref_sha(self.repo, self.ACTIVE_REF, missing_ok=True)
+        current_active = self._ref_sha(self.repo, self.active_ref, missing_ok=True)
         if current_active is None:
             if expected != "0" * len(expected):
                 raise GitGateError("active ref differs from caller's expected tip")
@@ -269,7 +297,7 @@ class GitGate:
         ):
             raise GitGateError("expected ref tip is not an ancestor of candidate")
         if current_active != candidate.sha:
-            self._run(self.repo, ["update-ref", self.ACTIVE_REF, candidate.sha, expected])
+            self._run(self.repo, ["update-ref", self.active_ref, candidate.sha, expected])
         if publish_remote:
             self._publish_remote(candidate.sha, expected_remote_tip, expected_remote_main)
         return candidate.sha
@@ -293,7 +321,7 @@ class GitGate:
         ref = f"refs/tags/{tag}"
         if self._ref_sha(self.repo, ref, missing_ok=True):
             raise GitGateError("archive tag already exists")
-        active = self._ref_sha(self.repo, self.ACTIVE_REF)
+        active = self._ref_sha(self.repo, self.active_ref)
         self._run(self.repo, ["update-ref", ref, active, "0" * len(active)])
         return active
 
@@ -306,7 +334,7 @@ class GitGate:
             return
         self._run(
             self.repo,
-            ["push", self.remote, f"{candidate}:{self.ACTIVE_REF.removeprefix('refs/heads/')}"],
+            ["push", self.remote, f"{candidate}:{self.active_ref.removeprefix('refs/heads/')}"],
         )
         active_after, main_after = self._remote_refs()
         if active_after != candidate or main_after != expected_main:
@@ -327,13 +355,13 @@ class GitGate:
 
     def _remote_refs(self) -> tuple[str | None, str | None]:
         output = self._run(
-            self.repo, ["ls-remote", self.remote or "", self.ACTIVE_REF, "refs/heads/main"]
+            self.repo, ["ls-remote", self.remote or "", self.active_ref, "refs/heads/main"]
         )
         refs = {}
         for line in output.stdout.decode().splitlines():
             sha, name = line.split("\t", 1)
             refs[name] = sha
-        return refs.get(self.ACTIVE_REF), refs.get("refs/heads/main")
+        return refs.get(self.active_ref), refs.get("refs/heads/main")
 
     def load_receipt(self, receipt_hash: str, candidate_sha: str) -> dict:
         """Load and strictly validate the content-addressed verifier receipt."""
@@ -482,7 +510,13 @@ class GitGate:
             raise GitGateError("candidate checkout has modifications or untracked files")
 
     def _run(
-        self, repo: Path, args: Sequence[str], *, input: bytes | None = None, check: bool = True
+        self,
+        repo: Path,
+        args: Sequence[str],
+        *,
+        input: bytes | None = None,
+        check: bool = True,
+        env_overrides: Mapping[str, str] | None = None,
     ) -> subprocess.CompletedProcess[bytes]:
         env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
         env.update(
@@ -494,6 +528,12 @@ class GitGate:
                 "GIT_NO_REPLACE_OBJECTS": "1",
             }
         )
+        if env_overrides is not None:
+            if set(env_overrides) - {"GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"} or any(
+                type(value) is not str or "\x00" in value for value in env_overrides.values()
+            ):
+                raise GitGateError("Git environment override is not permitted")
+            env.update(env_overrides)
         command = [
             "git",
             "-c",

@@ -321,6 +321,66 @@ def test_main_is_not_a_publish_target(setup_gate):
     assert git(integration, "rev-parse", "main") == candidate.integration_tip
 
 
+def test_owner_lane_refs_are_instance_scoped_and_main_is_rejected(setup_gate):
+    _, integration, worker, base, _ = setup_gate
+    lanes = (
+        "refs/heads/brain/paperclip-integration",
+        "refs/heads/brain/development",
+    )
+    for ref in lanes:
+        git(integration, "update-ref", ref, base)
+    gates = [
+        GitGate(
+            integration,
+            integration,
+            VerificationPolicy((("python", "-c", "pass"),)),
+            integration.parent / f"receipts-{index}",
+            active_ref=ref,
+        )
+        for index, ref in enumerate(lanes)
+    ]
+    (worker / "src").mkdir()
+    (worker / "src" / "module.py").write_text("value = 1\n")
+    submitted = commit(worker, "shared lane submission")
+    with pytest.raises(GitGateError, match="source active tip differs"):
+        gates[0].submit(
+            worker,
+            submitted,
+            base,
+            ["src"],
+            expected_source_tip="c" * 40,
+            expected_integration_tip=base,
+        )
+    with pytest.raises(GitGateError, match="integration active tip differs"):
+        gates[0].submit(
+            worker,
+            submitted,
+            base,
+            ["src"],
+            expected_source_tip=base,
+            expected_integration_tip="c" * 40,
+        )
+    candidates = [gate.submit(worker, submitted, base, ["src"]) for gate in gates]
+    for gate, candidate, ref in zip(gates, candidates, lanes, strict=True):
+        receipt = gate.verify(candidate, verifier)
+        gate.publish(candidate, receipt.digest, base)
+        assert git(integration, "rev-parse", ref) == candidate.sha
+    assert git(integration, "rev-parse", "main") == base
+    assert GitGate.ACTIVE_REF == "refs/heads/research/active"
+    with pytest.raises(AttributeError):
+        gates[0].active_ref = "refs/heads/main"
+    with pytest.raises(AttributeError, match="immutable"):
+        gates[0]._active_ref = "refs/heads/main"
+    with pytest.raises(GitGateError, match="approved owner target"):
+        GitGate(
+            integration,
+            integration,
+            VerificationPolicy((("python", "-c", "pass"),)),
+            integration.parent / "receipts-main",
+            active_ref="refs/heads/main",
+        )
+
+
 def test_local_bare_remote_checks_active_and_main_before_normal_push(setup_gate, tmp_path):
     _, integration, worker, base, _ = setup_gate
     bare = tmp_path / "remote.git"
