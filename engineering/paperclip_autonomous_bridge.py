@@ -167,6 +167,7 @@ class ProgramAdmissionMission:
     expected_dev_ref: str
     source_workspace_id: str
     source_workspace_root: Path
+    repository_free_policy_digest: str
 
 
 @dataclass(frozen=True)
@@ -833,7 +834,7 @@ def _stage_binding(config: BridgeConfig, stage_binding_key: str) -> dict[str, An
 
 def _dynamic_stage_from_record(config: BridgeConfig, record: dict[str, Any]) -> SourceStageSpec:
     raw = record.get("dynamic_stage_spec")
-    if type(raw) is not dict or set(raw) != {"mission_project_id", "profile_id", "corpus_id", "goal_id", "path_ids"}:
+    if type(raw) is not dict or set(raw) != {"mission_project_id", "profile_id", "corpus_id", "goal_id", "path_ids", "repository_free_policy_digest"}:
         raise BridgeError("source_stage_binding_invalid")
     if config.program_admission is None:
         raise BridgeError("source_stage_not_owner_admitted")
@@ -842,7 +843,8 @@ def _dynamic_stage_from_record(config: BridgeConfig, record: dict[str, Any]) -> 
         raise BridgeError("source_stage_not_owner_admitted")
     mission = missions[0]
     profiles = [item for item in mission.profiles if item.profile_id == raw.get("profile_id")]
-    if len(profiles) != 1 or raw.get("corpus_id") not in mission.corpus_ids or raw.get("goal_id") not in mission.goal_ids:
+    if (len(profiles) != 1 or raw.get("corpus_id") not in mission.corpus_ids or raw.get("goal_id") not in mission.goal_ids
+        or raw.get("repository_free_policy_digest") != mission.repository_free_policy_digest):
         raise BridgeError("source_stage_not_owner_admitted")
     try:
         path_ids = validate_path_ids(raw.get("path_ids"))
@@ -1220,7 +1222,7 @@ def _parse_program_admission(raw: Any) -> ProgramAdmissionSpec | None:
 
     missions: list[ProgramAdmissionMission] = []
     for row in rows:
-        required = {"project_id", "standing_issue_id", "sol_agent_id", "astra_agent_id", "luna_agent_id", "qa_agent_ids", "goal_ids", "allowed_prefixes", "excluded_prefixes", "corpus_ids", "profiles", "source_repo", "publisher_repo", "canonical_repo", "canonical_ref", "expected_dev_ref", "source_workspace_id", "source_workspace_root"}
+        required = {"project_id", "standing_issue_id", "sol_agent_id", "astra_agent_id", "luna_agent_id", "qa_agent_ids", "goal_ids", "allowed_prefixes", "excluded_prefixes", "corpus_ids", "profiles", "source_repo", "publisher_repo", "canonical_repo", "canonical_ref", "expected_dev_ref", "source_workspace_id", "source_workspace_root", "repository_free_policy_digest"}
         if type(row) is not dict or set(row) != required:
             raise BridgeError("owner_config_program_admission_invalid")
         project_id, standing_issue_id = row["project_id"], row["standing_issue_id"]
@@ -1232,6 +1234,7 @@ def _parse_program_admission(raw: Any) -> ProgramAdmissionSpec | None:
         if any(type(value) is not str or not Path(value).is_absolute() or ".." in Path(value).parts or Path(value) == Path("/") for value in target_paths):
             raise BridgeError("owner_config_program_admission_invalid")
         if (type(row["source_workspace_id"]) is not str or not ID_RE.fullmatch(row["source_workspace_id"])
+            or type(row["repository_free_policy_digest"]) is not str or not HASH_RE.fullmatch(row["repository_free_policy_digest"])
             or row["canonical_ref"] not in {"refs/heads/brain/development", "refs/heads/org/development"}
             or row["expected_dev_ref"] not in {"refs/heads/brain/development", "refs/heads/brain/paperclip-integration", "refs/heads/org/development"}):
             raise BridgeError("owner_config_program_admission_invalid")
@@ -1283,6 +1286,7 @@ def _parse_program_admission(raw: Any) -> ProgramAdmissionSpec | None:
             qa_agent_ids, goal_ids, allowed, excluded, corpus_ids, tuple(profiles),
             Path(row["source_repo"]), Path(row["publisher_repo"]), Path(row["canonical_repo"]),
             row["canonical_ref"], row["expected_dev_ref"], row["source_workspace_id"], Path(row["source_workspace_root"]),
+            row["repository_free_policy_digest"],
         ))
     if len({mission.project_id for mission in missions}) != len(missions):
         raise BridgeError("owner_config_program_admission_invalid")
@@ -2149,7 +2153,8 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
     except Exception as exc:
         raise BridgeError("program_source_stage_accepted_base_unavailable") from exc
     dynamic_spec = {"mission_project_id": mission.project_id, "profile_id": profile.profile_id,
-        "corpus_id": payload["corpus_id"], "goal_id": payload["goal_id"], "path_ids": list(path_ids)}
+        "corpus_id": payload["corpus_id"], "goal_id": payload["goal_id"], "path_ids": list(path_ids),
+        "repository_free_policy_digest": mission.repository_free_policy_digest}
     binding_value: dict[str, Any] = {
         "schema": "paperclip-source-stage-binding-v1", "stage_key": stage_key,
         "source_issue_id": payload["source_issue_id"], "review_issue_id": payload["review_issue_id"],
@@ -2166,6 +2171,7 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
         "accepted_receipt_digest": accepted.acceptance_receipt_digest,
         "accepted_manifest_digest": accepted.manifest_digest,
         "project_id": mission.project_id,
+        "repository_free_policy_digest": mission.repository_free_policy_digest,
         "state": "bound", "qa_intent": None, "source_intent": None,
         "operation_key": None, "candidate_sha": None,
     }
@@ -2179,14 +2185,16 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
             if any(existing.get(key) != value for key, value in binding_value.items() if key not in {"state", "source_intent", "qa_intent", "operation_key", "candidate_sha"}):
                 raise BridgeError("source_stage_bind_replay_mismatch")
             return {"stage_key": stage_key, "stage_binding_key": existing["stage_binding_key"], "base_sha": existing["base_sha"],
-                "canonical_base_sha": existing.get("canonical_base_sha"), "state": existing["state"]}
+                "canonical_base_sha": existing.get("canonical_base_sha"), "state": existing["state"],
+                "repository_free_policy_digest": existing.get("repository_free_policy_digest")}
         workspace_baseline = refresh_owner_workspace(gate, mission.source_repo, accepted.projection_sha,
             mission.source_workspace_root, allowed_paths=path_ids)
         binding_value["workspace_baseline_sha256"] = workspace_baseline
         _write_journal(config, journal_key, binding_value, create=True)
     return {"stage_key": stage_key, "stage_binding_key": binding_key, "base_sha": accepted.projection_sha,
         "canonical_base_sha": accepted.canonical_sha, "state": "bound",
-        "accepted_receipt_digest": accepted.acceptance_receipt_digest}
+        "accepted_receipt_digest": accepted.acceptance_receipt_digest,
+        "repository_free_policy_digest": mission.repository_free_policy_digest}
 
 
 def _lookup_published_stage_predecessor(
@@ -2403,6 +2411,7 @@ def lookup_source_stage_binding(
         "canonical_base_sha": record.get("canonical_base_sha"),
         "path_ids": list(record.get("path_ids", [])),
         "verifier_policy_id": record.get("verifier_policy_id"),
+        "repository_free_policy_digest": record.get("repository_free_policy_digest"),
         "goal_id": record.get("dynamic_stage_spec", {}).get("goal_id") if type(record.get("dynamic_stage_spec")) is dict else None,
         "program_issue_id": record.get("lead_issue_id"),
         "state": record["state"],
@@ -2489,6 +2498,7 @@ def get_program_source_scope(config: BridgeConfig, payload: dict[str, Any]) -> d
         "sol_agent_id": mission.sol_agent_id,
         "astra_agent_id": mission.astra_agent_id,
         "luna_agent_id": mission.luna_agent_id,
+        "repository_free_policy_digest": mission.repository_free_policy_digest,
         "qa_agent_ids": list(mission.qa_agent_ids),
         "goal_id": payload["goal_id"],
         "allowed_prefixes": list(mission.allowed_prefixes),

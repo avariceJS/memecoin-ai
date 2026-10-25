@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { constants, openSync, closeSync, fstatSync, readFileSync, lstatSync } from "node:fs";
+import { constants, openSync, closeSync, fstatSync, readFileSync, lstatSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isAbsolute } from "node:path";
 import { definePlugin, runWorker } from "@paperclipai/plugin-sdk";
@@ -40,7 +40,8 @@ type AcceptedSourceProjection = {
   bootstrap_receipt_digest: string;
 };
 type ProgramAdmissionProfile = { profile_id: string; allowed_path_ids: string[]; allowed_prefixes: string[]; required_test_paths: string[]; verifier_policy_id: string };
-type ProgramAdmissionMission = { project_id: string; standing_issue_id: string; sol_agent_id: string; astra_agent_id: string; luna_agent_id: string; qa_agent_ids: string[]; goal_ids: string[]; allowed_prefixes: string[]; excluded_prefixes: string[]; corpus_ids: string[]; profiles: ProgramAdmissionProfile[]; source_repo: string; publisher_repo: string; canonical_repo: string; canonical_ref: string; expected_dev_ref: string; source_workspace_id: string; source_workspace_root: string };
+type ProgramAdmissionMission = { project_id: string; standing_issue_id: string; sol_agent_id: string; astra_agent_id: string; luna_agent_id: string; qa_agent_ids: string[]; goal_ids: string[]; allowed_prefixes: string[]; excluded_prefixes: string[]; corpus_ids: string[]; profiles: ProgramAdmissionProfile[]; source_repo: string; publisher_repo: string; canonical_repo: string; canonical_ref: string; expected_dev_ref: string; source_workspace_id: string; source_workspace_root: string; repository_free_policy_digest: string };
+type RepositoryFreeTaskWorkspaceStamp = { schema: "paperclip.repository-free-task-workspace.v1"; policyDigest: string; companyId: string; projectId: string; projectWorkspaceId: string; sourceIssueId: string; ownerAgentId: string; runId: string; workspaceBindingRevision: number; seedReceiptDigest: string; rootIdentity: string; rootDevice: string; rootInode: string };
 type OwnerConfig = {
   company_id: string;
   project_id: string;
@@ -178,7 +179,7 @@ function parseProgramAdmission(value: unknown): OwnerConfig["program_admission"]
   const missions = raw.missions.map((entry): ProgramAdmissionMission => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) fail("owner_bridge_config_invalid");
     const row = entry as Record<string, unknown>;
-    const keys = ["allowed_prefixes", "astra_agent_id", "canonical_ref", "canonical_repo", "corpus_ids", "excluded_prefixes", "expected_dev_ref", "goal_ids", "luna_agent_id", "profiles", "project_id", "publisher_repo", "qa_agent_ids", "sol_agent_id", "source_repo", "source_workspace_id", "source_workspace_root", "standing_issue_id"];
+    const keys = ["allowed_prefixes", "astra_agent_id", "canonical_ref", "canonical_repo", "corpus_ids", "excluded_prefixes", "expected_dev_ref", "goal_ids", "luna_agent_id", "profiles", "project_id", "publisher_repo", "qa_agent_ids", "repository_free_policy_digest", "sol_agent_id", "source_repo", "source_workspace_id", "source_workspace_root", "standing_issue_id"];
     if (Object.keys(row).sort().join(",") !== keys.join(",")
         || ![row.project_id, row.standing_issue_id, row.sol_agent_id, row.astra_agent_id, row.luna_agent_id].every((id) => typeof id === "string" && ID_RE.test(id))
         || !Array.isArray(row.qa_agent_ids) || row.qa_agent_ids.length < 1 || row.qa_agent_ids.length > 8
@@ -189,6 +190,7 @@ function parseProgramAdmission(value: unknown): OwnerConfig["program_admission"]
         || row.corpus_ids.some((id) => typeof id !== "string" || !ID_RE.test(id))
         || ![row.source_repo, row.publisher_repo, row.canonical_repo, row.source_workspace_root].every((path) => typeof path === "string" && isAbsolute(path) && !path.split("/").includes("..") && path !== "/")
         || typeof row.source_workspace_id !== "string" || !ID_RE.test(row.source_workspace_id)
+        || typeof row.repository_free_policy_digest !== "string" || !KEY_RE.test(row.repository_free_policy_digest)
         || !["refs/heads/brain/development", "refs/heads/org/development"].includes(row.canonical_ref as string)
         || !["refs/heads/brain/development", "refs/heads/brain/paperclip-integration", "refs/heads/org/development"].includes(row.expected_dev_ref as string)
         || !validPaths(row.allowed_prefixes, true) || !validPaths(row.excluded_prefixes, true, 0)
@@ -220,6 +222,7 @@ function parseProgramAdmission(value: unknown): OwnerConfig["program_admission"]
       canonical_repo: row.canonical_repo as string, canonical_ref: row.canonical_ref as string,
       expected_dev_ref: row.expected_dev_ref as string, source_workspace_id: row.source_workspace_id as string,
       source_workspace_root: row.source_workspace_root as string,
+      repository_free_policy_digest: row.repository_free_policy_digest as string,
     };
   });
   if (new Set(missions.map((mission) => mission.project_id)).size !== missions.length) fail("owner_bridge_config_invalid");
@@ -430,6 +433,63 @@ async function assertPinnedSourceWorkspace(
       || workspace.repoUrl !== null || workspace.baseRef !== null || workspace.branchName !== null
       || workspace.providerType !== "local_fs") {
     fail("source_workspace_metadata_mismatch");
+  }
+}
+
+function assertDynamicRepositoryFreeLogicalIssue(issue: Awaited<ReturnType<typeof readNativeIssue>>, mission: ProgramAdmissionMission): void {
+  if (issue.projectId !== mission.project_id || issue.projectWorkspaceId !== mission.source_workspace_id) {
+    fail("program_source_task_logical_workspace_mismatch");
+  }
+}
+
+/** Dynamic runs own distinct Core roots; only the current actor's run is checked. */
+async function assertDynamicRepositoryFreeRunWorkspace(
+  ctx: Pick<PluginContext, "executionWorkspaces">,
+  issue: Awaited<ReturnType<typeof readNativeIssue>>,
+  mission: ProgramAdmissionMission,
+  runCtx: ToolRunContext,
+): Promise<void> {
+  assertDynamicRepositoryFreeLogicalIssue(issue, mission);
+  const row = issue as typeof issue & { executionWorkspaceId?: string | null; workspaceBindingRevision?: number };
+  if (issue.companyId !== runCtx.companyId || issue.assigneeAgentId !== runCtx.agentId
+      || issue.executionRunId !== runCtx.runId || !Number.isSafeInteger(row.workspaceBindingRevision)
+      || typeof row.executionWorkspaceId !== "string" || !ID_RE.test(row.executionWorkspaceId)) {
+    fail("program_source_task_workspace_binding_mismatch");
+  }
+  const workspace = await ctx.executionWorkspaces.get(row.executionWorkspaceId, runCtx.companyId);
+  const stamp = (workspace as typeof workspace & { repositoryFreeTaskWorkspace?: RepositoryFreeTaskWorkspaceStamp | null } | null)
+    ?.repositoryFreeTaskWorkspace;
+  if (!workspace || workspace.id !== row.executionWorkspaceId || workspace.companyId !== runCtx.companyId
+      || workspace.projectId !== mission.project_id || workspace.projectWorkspaceId !== mission.source_workspace_id
+      || typeof workspace.path !== "string" || !isAbsolute(workspace.path) || workspace.cwd !== workspace.path
+      || workspace.repoUrl !== null || workspace.baseRef !== null || workspace.branchName !== null
+      || workspace.providerType !== "local_fs" || !stamp
+      || stamp.schema !== "paperclip.repository-free-task-workspace.v1"
+      || stamp.policyDigest !== mission.repository_free_policy_digest
+      || stamp.companyId !== runCtx.companyId || stamp.projectId !== mission.project_id
+      || stamp.projectWorkspaceId !== mission.source_workspace_id || stamp.sourceIssueId !== issue.id
+      || stamp.ownerAgentId !== runCtx.agentId || stamp.runId !== runCtx.runId
+      || stamp.workspaceBindingRevision !== row.workspaceBindingRevision
+      || ![stamp.policyDigest, stamp.seedReceiptDigest, stamp.rootIdentity].every(value => KEY_RE.test(value))
+      || typeof stamp.rootDevice !== "string" || !stamp.rootDevice
+      || typeof stamp.rootInode !== "string" || !stamp.rootInode) {
+    fail("program_source_task_workspace_provenance_mismatch");
+  }
+  let fd: number | undefined;
+  try {
+    const canonicalRoot = realpathSync(workspace.path);
+    if (canonicalRoot !== workspace.path) fail("program_source_task_workspace_provenance_mismatch");
+    fd = openSync(workspace.path, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+    const stat = fstatSync(fd);
+    if (!stat.isDirectory() || stamp.rootDevice !== String(stat.dev) || stamp.rootInode !== String(stat.ino)
+        || stamp.rootIdentity !== createHash("sha256").update(stableJson({ canonicalRoot,
+          device: String(stat.dev), inode: String(stat.ino) })).digest("hex")) {
+      fail("program_source_task_workspace_provenance_mismatch");
+    }
+  } catch {
+    fail("program_source_task_workspace_provenance_mismatch");
+  } finally {
+    if (fd !== undefined) closeSync(fd);
   }
 }
 
@@ -1171,6 +1231,7 @@ async function resolveDynamicStageForIssue(
       || !mission.goal_ids.includes(lead.goalId ?? "")
       || (lead as typeof lead & { createdByAgentId?: string }).createdByAgentId !== mission.astra_agent_id
       || !lead.parentId) fail("program_source_stage_parent_mismatch");
+  assertDynamicRepositoryFreeLogicalIssue(lead as Awaited<ReturnType<typeof readNativeIssue>>, mission);
   const astra = await ctx.issues.get(lead.parentId, owner.company_id);
   if (!astra || astra.companyId !== owner.company_id || astra.assigneeAgentId !== mission.astra_agent_id) {
     fail("program_source_stage_astra_parent_mismatch");
@@ -1182,7 +1243,8 @@ async function resolveDynamicStageForIssue(
   if (lookup.found !== true || lookup.stage_binding_key !== bindingKey || lookup.stage_key !== undefined && lookup.stage_key !== stageKey
       || lookup[side] !== issue.id || lookup.program_issue_id !== lead.id || lookup.project_id !== undefined && lookup.project_id !== mission.project_id
       || !Array.isArray(lookup.path_ids) || lookup.path_ids.length < 2
-      || lookup.goal_id !== lead.goalId || typeof lookup.verifier_policy_id !== "string") fail("program_source_stage_binding_unavailable");
+      || lookup.goal_id !== lead.goalId || lookup.repository_free_policy_digest !== mission.repository_free_policy_digest
+      || typeof lookup.verifier_policy_id !== "string") fail("program_source_stage_binding_unavailable");
   const peerId = side === "source_issue_id" ? lookup.review_issue_id : lookup.source_issue_id;
   if (typeof peerId !== "string" || !ID_RE.test(peerId)) fail("program_source_stage_binding_unavailable");
   const peer = await ctx.issues.get(peerId, owner.company_id);
@@ -1525,12 +1587,13 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const scope = await invoke("get_program_source_scope", {
       company_id: owner.company_id, project_id: mission.project_id, goal_id: lead.goalId,
     }, owner.configPath, owner.python_executable);
-    const expectedScopeKeys = ["allowed_prefixes", "astra_agent_id", "corpus_ids", "excluded_prefixes", "goal_id", "luna_agent_id", "profiles", "project_id", "qa_agent_ids", "sol_agent_id", "standing_issue_id", "status"];
+    const expectedScopeKeys = ["allowed_prefixes", "astra_agent_id", "corpus_ids", "excluded_prefixes", "goal_id", "luna_agent_id", "profiles", "project_id", "qa_agent_ids", "repository_free_policy_digest", "sol_agent_id", "standing_issue_id", "status"];
     if (Object.keys(scope).sort().join(",") !== expectedScopeKeys.join(",")
         || scope.status !== "ok" || scope.project_id !== mission.project_id
         || scope.standing_issue_id !== mission.standing_issue_id || scope.goal_id !== lead.goalId
         || scope.sol_agent_id !== mission.sol_agent_id || scope.astra_agent_id !== mission.astra_agent_id
         || scope.luna_agent_id !== mission.luna_agent_id
+        || scope.repository_free_policy_digest !== mission.repository_free_policy_digest
         || JSON.stringify(scope.qa_agent_ids) !== JSON.stringify(mission.qa_agent_ids)
         || JSON.stringify(scope.allowed_prefixes) !== JSON.stringify(mission.allowed_prefixes)
         || JSON.stringify(scope.excluded_prefixes) !== JSON.stringify(mission.excluded_prefixes)
@@ -1608,6 +1671,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
     if (!mission || !mission.corpus_ids.includes(params.corpus_id as string)) fail("program_source_stage_not_owner_admitted");
     const { lead } = await resolveCurrentProgramLead(ctx, runCtx, owner, mission);
+    await assertDynamicRepositoryFreeRunWorkspace(ctx, lead, mission, runCtx);
     const proposedPaths = params.path_ids as string[];
     const proposal = await invoke("validate_program_source_proposal", {
       company_id: owner.company_id, project_id: mission.project_id, goal_id: lead.goalId,
@@ -1638,20 +1702,14 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || !Number.isSafeInteger(review.statusVersion) || reviewOrchestration.blockedByIssueIds.length !== 1
         || reviewOrchestration.blockedByIssueIds[0] !== source.id || reviewReadiness.isDependencyReady !== false
         || !reviewReadiness.unresolvedBlockerIssueIds.includes(source.id)) fail("program_source_stage_native_children_mismatch");
+    assertDynamicRepositoryFreeLogicalIssue(source, mission);
+    assertDynamicRepositoryFreeLogicalIssue(review, mission);
+    if ((source as typeof source & { executionWorkspaceId?: string | null }).executionWorkspaceId !== null
+        || (review as typeof review & { executionWorkspaceId?: string | null }).executionWorkspaceId !== null) {
+      fail("program_source_stage_native_children_mismatch");
+    }
     const sourceInstructionSha = instructionDigest(source.description);
     const reviewInstructionSha = instructionDigest(review.description);
-    const proposalStage = {
-      stage_key: "DYNAMIC-PROPOSAL", workspace_id: "source", initial_base_sha: null,
-      predecessor_stage_key: null, path_ids: proposedPaths,
-      verifier_policy_id: String(proposal.verifier_policy_id), project_id: mission.project_id,
-      goal_id: lead.goalId, lead_agent_id: mission.sol_agent_id, lead_issue_id: lead.id,
-      source_workspace_id: mission.source_workspace_id, source_workspace_root: mission.source_workspace_root,
-      source_repo: mission.source_repo, publisher_repo: mission.publisher_repo, canonical_repo: mission.canonical_repo,
-      canonical_ref: mission.canonical_ref, expected_dev_ref: mission.expected_dev_ref,
-    } as NonNullable<OwnerConfig["source_stage_catalog"]>[number];
-    await assertPinnedSourceWorkspace(ctx, { ...owner, project_id: mission.project_id,
-      source_workspace_id: mission.source_workspace_id, source_workspace_root: mission.source_workspace_root },
-    [lead.id, source.id, review.id], proposalStage);
     const result = await invoke("bind_program_source_stage", {
       company_id: owner.company_id, project_id: mission.project_id, lead_agent_id: mission.sol_agent_id,
       lead_issue_id: lead.id, lead_run_id: runCtx.runId, goal_id: lead.goalId,
@@ -1663,6 +1721,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     if (typeof result.stage_key !== "string" || !ID_RE.test(result.stage_key)
         || typeof result.stage_binding_key !== "string" || !KEY_RE.test(result.stage_binding_key)
         || typeof result.base_sha !== "string" || !SHA_RE.test(result.base_sha)
+        || result.repository_free_policy_digest !== mission.repository_free_policy_digest
         || result.state !== "bound") fail("bridge_result_invalid");
     const bound = { ...owner, project_id: mission.project_id, worker_agent_id: mission.luna_agent_id,
       reviewer_agent_id: reviewAgentId, finite_lead_agent_id: mission.sol_agent_id,
@@ -1713,7 +1772,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         || [...paths as string[]].sort().join("\0") !== [...stage.path_ids].sort().join("\0")) fail("program_source_stage_file_set_mismatch");
     const sourceInstructionSha = instructionDigest(source.description);
     if (lookup.source_instruction_sha256 !== sourceInstructionSha) fail("source_stage_instruction_binding_mismatch");
-    await assertPinnedSourceWorkspace(ctx, dynamicOwner, [lead.id, source.id], stage);
+    await assertDynamicRepositoryFreeRunWorkspace(ctx, source, mission, runCtx);
     const result = await invoke("deliver_source_stage_content", {
       company_id: owner.company_id, project_id: mission.project_id, source_issue_id: source.id,
       worker_agent_id: mission.luna_agent_id, run_id: runCtx.runId, stage_key: stage.stage_key,
@@ -1752,6 +1811,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const source = await resolveCurrentMissionIssue(ctx, runCtx, mission, mission.luna_agent_id);
     const { stage, lookup } = await resolveDynamicStageForIssue(ctx, owner, mission, source,
       params.stage_key, params.stage_binding_key, "source_issue_id", invoke);
+    await assertDynamicRepositoryFreeRunWorkspace(ctx, source, mission, runCtx);
     const sourceInstructionSha = instructionDigest(source.description);
     if (lookup.source_instruction_sha256 !== sourceInstructionSha) fail("source_stage_instruction_binding_mismatch");
     const result = await invoke("verify_source_stage_unchanged", {
@@ -1772,7 +1832,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const bound = await resolveDynamicStageForIssue(ctx, owner, mission, review, stageKey, bindingKey, "review_issue_id", invoke);
     if (review.parentId !== bound.lead.id || review.goalId !== bound.lead.goalId
         || bound.lookup.review_instruction_sha256 !== instructionDigest(review.description)) fail("program_source_stage_review_binding_mismatch");
-    await assertPinnedSourceWorkspace(ctx, bound.owner, [bound.lead.id, review.id], bound.stage);
+    await assertDynamicRepositoryFreeRunWorkspace(ctx, review, mission, runCtx);
     return { ...bound, owner, mission, review, instructionSha: instructionDigest(review.description) };
   };
 
@@ -1935,15 +1995,15 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "accepted_source_reader");
       const reader = owner.accepted_source_reader;
       if (!reader) fail("accepted_source_reader_not_owner_configured");
-      let matchingPrograms = reader.programs.filter((program) => program.project_id === runCtx.projectId
-        && program.corpus_ids.includes(params.corpus_id as string)
-        && [program.sol_agent_id, program.luna_agent_id, ...program.qa_agent_ids].includes(runCtx.agentId));
-      if (matchingPrograms.length === 0) {
-        const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId
-          && row.corpus_ids.includes(params.corpus_id as string)
-          && [row.sol_agent_id, row.luna_agent_id, ...row.qa_agent_ids].includes(runCtx.agentId));
-        if (mission) matchingPrograms = [await resolveCurrentMissionProgram(ctx, runCtx, mission)];
-      }
+      const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId
+        && row.corpus_ids.includes(params.corpus_id as string));
+      // Admission-backed programs resolve from current native ancestry, even if the
+      // reader catalog also contains a compatibility row for this project.
+      let matchingPrograms = mission
+        ? [await resolveCurrentMissionProgram(ctx, runCtx, mission)]
+        : reader.programs.filter((program) => program.project_id === runCtx.projectId
+          && program.corpus_ids.includes(params.corpus_id as string)
+          && [program.sol_agent_id, program.luna_agent_id, ...program.qa_agent_ids].includes(runCtx.agentId));
       if (!matchingPrograms.length) fail("accepted_source_reader_program_not_admitted");
       const currentIssue = await resolveAcceptedSourceRunIssue(ctx, runCtx, matchingPrograms[0]);
       const ancestry = await Promise.all(matchingPrograms.map(async (program) => ({
@@ -1955,6 +2015,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       const admitted = ancestry.filter((item) => item.matches);
       if (admitted.length !== 1) fail("accepted_source_reader_program_ancestry_mismatch");
       const program = admitted[0].program;
+      if (mission) await assertDynamicRepositoryFreeRunWorkspace(ctx, currentIssue, mission, runCtx);
       const result = await invoke(name, {
         company_id: runCtx.companyId,
         project_id: runCtx.projectId,
