@@ -244,11 +244,12 @@ describe("Paperclip autonomous bridge tools", () => {
     issueApi.list = vi.fn(async ({ assigneeAgentId }: { assigneeAgentId: string }) =>
       activeIssue.assigneeAgentId === assigneeAgentId ? [activeIssue] : []);
     issueApi.get = vi.fn(async (id: string) => currentIssues.get(id) ?? null);
+    const orchestrationGet = vi.fn(async ({ issueId }: { issueId: string }) => ({ issueId, companyId: "company-1", runs: [{
+      id: activeRun.runId, issueId: activeIssue.id, agentId: activeRun.agentId, status: "running",
+    }], blockedByIssueIds: issueId === "dynamic-review" ? ["dynamic-source"] : [] }));
     issueApi.forCurrentToolRun = () => ({
       get: vi.fn(async (id: string) => currentIssues.get(id) ?? null),
-      getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({ issueId, companyId: "company-1", runs: [{
-        id: activeRun.runId, issueId: activeIssue.id, agentId: activeRun.agentId, status: "running",
-      }], blockedByIssueIds: issueId === "dynamic-review" ? ["dynamic-source"] : [] })),
+      getOrchestration: orchestrationGet,
       getDependencyReadiness: vi.fn(async () => ({ isDependencyReady: false, unresolvedBlockerIssueIds: ["dynamic-source"] })),
       updateStatusCompareAndSet: vi.fn(async () => ({ status: "todo", statusVersion: 2 })),
       listComments: vi.fn(async () => []),
@@ -436,9 +437,11 @@ describe("Paperclip autonomous bridge tools", () => {
       path: qaRoot, cwd: qaRoot, repoUrl: null, baseRef: null, branchName: null,
       providerType: "local_fs", repositoryFreeTaskWorkspace: coreStamp(review, "qa-agent", qaRun.runId, 2, qaRoot),
     });
+    orchestrationGet.mockClear();
     const inspected = await handlers.get("inspect_program_source_candidate")!({ stage_key: stageKey,
       stage_binding_key: "f".repeat(64), review_issue_id: review.id }, qaRun as ToolRunContext) as { content: string };
     expect(inspected.content).toContain("Candidate diff");
+    expect(orchestrationGet).not.toHaveBeenCalled();
     expect(workspaceRows.get(review.executionWorkspaceId).path).not.toBe(workspaceRows.get(lead.executionWorkspaceId).path);
     const inspectedNoChange = await handlers.get("inspect_program_source_no_change")!({ stage_key: stageKey,
       stage_binding_key: "f".repeat(64), review_issue_id: review.id }, qaRun as ToolRunContext) as { content: string };

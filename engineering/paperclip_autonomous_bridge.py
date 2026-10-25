@@ -667,7 +667,7 @@ def _trusted_stage_source_cache_identity(
     *,
     require_expected_path: bool = True,
 ) -> str:
-    config = _stage_target_config(config, stage, base_sha)
+    config = replace(_stage_target_config(config, stage, base_sha), source_stage_key=None)
     expected_path = _trusted_stage_source_cache_path(config, stage, base_sha)
     if (require_expected_path and path != expected_path) or path.is_symlink() or not path.is_dir():
         raise BridgeError("source_stage_cache_missing_or_changed")
@@ -724,7 +724,7 @@ def _create_trusted_stage_source_cache(
         raise BridgeError("source_stage_cache_changed")
     if final_path.exists():
         return final_path, _trusted_stage_source_cache_identity(config, stage, base_sha, final_path)
-    config = _stage_target_config(config, stage, base_sha)
+    config = replace(_stage_target_config(config, stage, base_sha), source_stage_key=None)
     gate = config.gate()
     ref_before = gate._ref_sha(config.publisher_repo, config.expected_dev_ref, missing_ok=True)
     if ref_before != base_sha:
@@ -872,13 +872,25 @@ def _dynamic_stage_from_record(config: BridgeConfig, record: dict[str, Any]) -> 
             raw["corpus_id"], path_ids, record.get("source_issue_id"), record.get("review_issue_id"),
         )):
         raise BridgeError("source_stage_binding_invalid")
-    return SourceStageSpec(
-        stage_key, "source", record.get("base_sha"), None, path_ids, profile.verifier_policy_id,
+    stage = SourceStageSpec(
+        stage_key, "published", record.get("base_sha"), None, path_ids, profile.verifier_policy_id,
         mission.project_id, raw["goal_id"], mission.sol_agent_id, record.get("lead_issue_id"),
         mission.source_workspace_id, mission.source_workspace_root, mission.source_repo,
         mission.publisher_repo, mission.canonical_repo, mission.canonical_ref,
         record.get("canonical_base_sha"), mission.expected_dev_ref,
     )
+    cache = record.get("trusted_source_cache")
+    cache_tree = record.get("trusted_source_cache_tree")
+    if (
+        type(cache) is not str
+        or type(cache_tree) is not str
+        or not SHA_RE.fullmatch(cache_tree)
+        or _trusted_stage_source_cache_identity(
+            config, stage, record.get("base_sha", ""), Path(cache)
+        ) != cache_tree
+    ):
+        raise BridgeError("source_stage_cache_changed")
+    return stage
 
 
 def _stage_source_repo(
@@ -1574,7 +1586,10 @@ def _published_acceptance_binding(
 
 
 def _resolve_accepted_source_snapshot(
-    config: BridgeConfig, projection: AcceptedSourceProjectionSpec
+    config: BridgeConfig,
+    projection: AcceptedSourceProjectionSpec,
+    *,
+    bootstrap_mission: ProgramAdmissionMission | None = None,
 ):
     if projection.repository.is_symlink():
         raise BridgeError("accepted_source_reader_projection_unavailable")
@@ -1592,11 +1607,26 @@ def _resolve_accepted_source_snapshot(
         raise BridgeError("accepted_source_reader_projection_unavailable") from exc
     if type(projected_sha) is not str or not SHA_RE.fullmatch(projected_sha):
         raise BridgeError("accepted_source_reader_projection_unavailable")
-    provenance = _published_acceptance_binding(config, projection, projected_sha)
-    if provenance is None:
-        if projected_sha != projection.bootstrap_projection_sha:
+    if bootstrap_mission is not None and projected_sha == projection.bootstrap_projection_sha:
+        try:
+            mission_publisher = bootstrap_mission.publisher_repo.resolve(strict=True)
+            mission_canonical = bootstrap_mission.canonical_repo.resolve(strict=True)
+            canonical_sha = gate._ref_sha(mission_canonical, bootstrap_mission.canonical_ref)
+        except (OSError, GitGateError) as exc:
+            raise BridgeError("accepted_source_reader_acceptance_unavailable") from exc
+        if (
+            repository != mission_publisher
+            or projection.ref != bootstrap_mission.expected_dev_ref
+            or canonical_sha != projection.bootstrap_source_sha
+        ):
             raise BridgeError("accepted_source_reader_acceptance_unavailable")
         provenance = (projection.bootstrap_source_sha, projection.bootstrap_receipt_digest)
+    else:
+        provenance = _published_acceptance_binding(config, projection, projected_sha)
+        if provenance is None:
+            if projected_sha != projection.bootstrap_projection_sha:
+                raise BridgeError("accepted_source_reader_acceptance_unavailable")
+            provenance = (projection.bootstrap_source_sha, projection.bootstrap_receipt_digest)
     try:
         snapshot = build_accepted_source_snapshot(
             str(repository),
@@ -2125,7 +2155,9 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
     if len(projection_rows) != 1:
         raise BridgeError("program_source_stage_accepted_base_unavailable")
     try:
-        projection_repo, accepted = _resolve_accepted_source_snapshot(config, projection_rows[0])
+        projection_repo, accepted = _resolve_accepted_source_snapshot(
+            config, projection_rows[0], bootstrap_mission=mission
+        )
     except BridgeError as exc:
         raise BridgeError("program_source_stage_accepted_base_unavailable") from exc
     if projection_repo.resolve(strict=True) != mission.publisher_repo.resolve(strict=True):
@@ -2134,20 +2166,17 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
         config.company_id, mission.project_id, payload["lead_issue_id"], profile.profile_id, payload["corpus_id"],
         path_ids, payload["source_issue_id"], payload["review_issue_id"],
     )
-    stage = SourceStageSpec(stage_key, "source", accepted.projection_sha, None, path_ids, profile.verifier_policy_id,
+    stage = SourceStageSpec(stage_key, "published", accepted.projection_sha, None, path_ids, profile.verifier_policy_id,
         mission.project_id, payload["goal_id"], mission.sol_agent_id, payload["lead_issue_id"],
         mission.source_workspace_id, mission.source_workspace_root, mission.source_repo, mission.publisher_repo,
         mission.canonical_repo, mission.canonical_ref, accepted.canonical_sha, mission.expected_dev_ref)
-    stage_config = config.for_source_stage(stage, source_issue_id=payload["source_issue_id"], reviewer_issue_id=payload["review_issue_id"],
-        base_sha=accepted.projection_sha, canonical_base_sha=accepted.canonical_sha)
+    stage_config = _stage_target_config(config, stage, accepted.projection_sha)
     gate = stage_config.gate()
     try:
         if gate._ref_sha(mission.publisher_repo, mission.expected_dev_ref) != accepted.projection_sha:
             raise BridgeError("program_source_stage_accepted_tip_changed")
         if gate._ref_sha(mission.canonical_repo, mission.canonical_ref) != accepted.canonical_sha:
             raise BridgeError("program_source_stage_canonical_tip_changed")
-        if gate._resolve_sha(mission.source_repo, accepted.projection_sha) != accepted.projection_sha:
-            raise BridgeError("program_source_stage_accepted_base_unavailable")
     except BridgeError:
         raise
     except Exception as exc:
@@ -2161,12 +2190,13 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
         "lead_issue_id": payload["lead_issue_id"], "lead_agent_id": mission.sol_agent_id,
         "lead_run_id": payload["lead_run_id"], "source_version": payload["source_version"],
         "review_version": payload["review_version"], "source_instruction_sha256": payload["source_instruction_sha256"],
-        "review_instruction_sha256": payload["review_instruction_sha256"], "workspace_id": "source",
+        "review_instruction_sha256": payload["review_instruction_sha256"], "workspace_id": "published",
         "path_ids": list(path_ids), "verifier_policy_id": profile.verifier_policy_id,
         "owner_config_digest": config.owner_config_digest, "predecessor_operation_key": None,
         "predecessor_source_issue_id": None, "predecessor_review_issue_id": None,
         "predecessor_lead_issue_id": None, "base_sha": accepted.projection_sha,
         "canonical_base_sha": accepted.canonical_sha, "dynamic_stage_spec": dynamic_spec,
+        "trusted_source_cache": None, "trusted_source_cache_tree": None,
         "accepted_projection_sha": accepted.projection_sha,
         "accepted_receipt_digest": accepted.acceptance_receipt_digest,
         "accepted_manifest_digest": accepted.manifest_digest,
@@ -2175,6 +2205,11 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
         "state": "bound", "qa_intent": None, "source_intent": None,
         "operation_key": None, "candidate_sha": None,
     }
+    cache_path, cache_tree = _create_trusted_stage_source_cache(
+        config, stage, accepted.projection_sha
+    )
+    binding_value["trusted_source_cache"] = str(cache_path)
+    binding_value["trusted_source_cache_tree"] = cache_tree
     binding_key = hashlib.sha256(_canonical(binding_value)).hexdigest()
     binding_value["stage_binding_key"] = binding_key
     journal_key = _stage_journal_key(stage_key)
@@ -2187,7 +2222,7 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
             return {"stage_key": stage_key, "stage_binding_key": existing["stage_binding_key"], "base_sha": existing["base_sha"],
                 "canonical_base_sha": existing.get("canonical_base_sha"), "state": existing["state"],
                 "repository_free_policy_digest": existing.get("repository_free_policy_digest")}
-        workspace_baseline = refresh_owner_workspace(gate, mission.source_repo, accepted.projection_sha,
+        workspace_baseline = refresh_owner_workspace(gate, cache_path, accepted.projection_sha,
             mission.source_workspace_root, allowed_paths=path_ids)
         binding_value["workspace_baseline_sha256"] = workspace_baseline
         _write_journal(config, journal_key, binding_value, create=True)
@@ -5169,9 +5204,34 @@ def _integrate_candidate_locked(
         canonical_record["approved_receipt_digest"] = canonical_record["receipt_digest"]
         journal["state"] = "canonical_publish_intent"
         _write_journal(config, operation_key, journal, create=False)
+        canonical_allowed_paths = _operation_scope(config, journal)
+        if (
+            tuple(canonical_allowed_paths) != tuple(binding_data.get("scope", ()))
+            or binding_data.get("owner_config_digest") != config.owner_config_digest
+            or binding_data.get("policy_digest") != config.policy().digest
+            or (
+                journal.get("source_stage_binding") is not None
+                and journal.get("source_stage_key") is None
+            )
+        ):
+            raise BridgeError("source_stage_operation_binding_mismatch")
         try:
             with company_operation(config.broker_journal_dir, config.company_id):
                 require_company_open(config.broker_journal_dir, config.company_id)
+                locked_journal = _read_json(_journal_path(config, operation_key), MAX_CONFIG_BYTES)
+                locked_binding = locked_journal.get("binding")
+                if (
+                    locked_journal.get("operation_key") != operation_key
+                    or locked_journal.get("source_stage_binding") != journal.get("source_stage_binding")
+                    or locked_journal.get("source_stage_key") != journal.get("source_stage_key")
+                    or locked_journal.get("state") != "canonical_publish_intent"
+                    or type(locked_binding) is not dict
+                    or locked_binding.get("owner_config_digest") != config.owner_config_digest
+                    or locked_binding.get("policy_digest") != config.policy().digest
+                    or locked_binding.get("active_ref") != config.expected_dev_ref
+                    or locked_binding.get("scope") != list(canonical_allowed_paths)
+                ):
+                    raise BridgeError("source_stage_operation_binding_mismatch")
                 if canonical_record.get("status") == "publish_intent":
                     published = canonical_publisher.reconcile(
                         config.canonical_repo,
@@ -5179,7 +5239,7 @@ def _integrate_candidate_locked(
                         canonical_record["receipt"],
                         canonical_record["approved_candidate"],
                         canonical_record["approved_receipt_digest"],
-                        allowed_paths=_operation_scope(config, journal),
+                        allowed_paths=canonical_allowed_paths,
                     )
                 else:
                     published = {"status": canonical_record.get("status")}
@@ -5251,7 +5311,17 @@ def read_accepted_source(
     ):
         raise BridgeError("accepted_source_reader_binding_invalid")
     program, projection = _accepted_source_program(config, payload)
-    repository, snapshot = _resolve_accepted_source_snapshot(config, projection)
+    mission = None
+    if config.program_admission is not None:
+        mission_rows = [
+            item for item in config.program_admission.missions
+            if item.project_id == program.project_id
+        ]
+        if len(mission_rows) == 1:
+            mission = mission_rows[0]
+    repository, snapshot = _resolve_accepted_source_snapshot(
+        config, projection, bootstrap_mission=mission
+    )
     try:
         if action == "list_accepted_source":
             result = list_accepted_source_files(

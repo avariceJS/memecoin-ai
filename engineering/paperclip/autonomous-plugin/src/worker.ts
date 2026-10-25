@@ -1161,15 +1161,12 @@ async function resolveCurrentMissionIssue(
   }
   if (!complete || matches.length !== 1) fail("program_source_stage_run_binding_unknown");
   const scoped = ctx.issues.forCurrentToolRun();
-  const [issue, orchestration] = await Promise.all([
-    scoped.get(matches[0].id, runCtx.companyId),
-    scoped.getOrchestration({ issueId: matches[0].id, companyId: runCtx.companyId }),
-  ]);
-  const boundRun = orchestration.runs.find((run) => run.id === runCtx.runId);
-  if (!issue || issue.id !== matches[0].id || issue.companyId !== runCtx.companyId
-      || issue.projectId !== mission.project_id || issue.assigneeAgentId !== agentId
-      || issue.executionRunId !== runCtx.runId || !allowedStatuses.includes(issue.status)
-      || !boundRun || boundRun.issueId !== issue.id || boundRun.agentId !== agentId || boundRun.status !== "running") {
+  const issue = await scoped.get(matches[0].id, runCtx.companyId);
+  if (
+    !issue || issue.id !== matches[0].id || issue.companyId !== runCtx.companyId
+    || issue.projectId !== mission.project_id || issue.assigneeAgentId !== agentId
+    || issue.executionRunId !== runCtx.runId || !allowedStatuses.includes(issue.status)
+  ) {
     fail("program_source_stage_run_binding_mismatch");
   }
   return issue;

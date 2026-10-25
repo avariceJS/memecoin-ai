@@ -350,8 +350,11 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "goal_id": "goal-1", "profile_id": "senses-v1", "corpus_id": "brain", "path_ids": list(paths),
             "source_issue_id": "source-1", "source_version": 1, "review_issue_id": "review-1", "review_version": 1,
             "source_instruction_sha256": "1" * 64, "review_instruction_sha256": "2" * 64}
-        with (patch("engineering.paperclip_autonomous_bridge._resolve_accepted_source_snapshot", side_effect=lambda *_: (publisher, accepted_rows[0])),
+        with (patch("engineering.paperclip_autonomous_bridge._resolve_accepted_source_snapshot", side_effect=lambda *_args, **_kwargs: (publisher, accepted_rows[0])),
               patch.object(BridgeConfig, "gate", return_value=fake_gate),
+              patch("engineering.paperclip_autonomous_bridge._create_trusted_stage_source_cache",
+                    side_effect=lambda _config, _stage, sha: (root / f"cache-{sha}", "f" * 40)),
+              patch("engineering.paperclip_autonomous_bridge._trusted_stage_source_cache_identity", return_value="f" * 40),
               patch("engineering.paperclip_autonomous_bridge.refresh_owner_workspace", return_value="e" * 64)):
             bound = bind_program_source_stage(config, payload)
             next_task_payload = {**payload, "source_issue_id": "source-2", "review_issue_id": "review-2",
@@ -370,20 +373,237 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertEqual(bound["base_sha"], "a" * 40)
         self.assertEqual(bound["canonical_base_sha"], "b" * 40)
         self.assertEqual(bound["repository_free_policy_digest"], mission.repository_free_policy_digest)
-        record = _stage_binding(config, bound["stage_binding_key"])
+        with patch("engineering.paperclip_autonomous_bridge._trusted_stage_source_cache_identity", return_value="f" * 40):
+            record = _stage_binding(config, bound["stage_binding_key"])
         self.assertEqual(record["path_ids"], list(paths))
         self.assertEqual(record["dynamic_stage_spec"]["repository_free_policy_digest"], mission.repository_free_policy_digest)
         self.assertEqual(record["accepted_receipt_digest"], "c" * 64)
-        lookup = dispatch(config, {"action": "lookup_source_stage_binding", "payload": {
-            "company_id": config.company_id, "project_id": mission.project_id, "lead_agent_id": mission.sol_agent_id,
-            "lead_issue_id": payload["lead_issue_id"], "stage_key": bound["stage_key"],
-            "source_issue_id": payload["source_issue_id"], "review_issue_id": payload["review_issue_id"],
-        }})
+        with patch("engineering.paperclip_autonomous_bridge._trusted_stage_source_cache_identity", return_value="f" * 40):
+            lookup = dispatch(config, {"action": "lookup_source_stage_binding", "payload": {
+                "company_id": config.company_id, "project_id": mission.project_id, "lead_agent_id": mission.sol_agent_id,
+                "lead_issue_id": payload["lead_issue_id"], "stage_key": bound["stage_key"],
+                "source_issue_id": payload["source_issue_id"], "review_issue_id": payload["review_issue_id"],
+            }})
         self.assertEqual(lookup["repository_free_policy_digest"], mission.repository_free_policy_digest)
-        stage = config.source_stage(bound["stage_key"])
+        with patch("engineering.paperclip_autonomous_bridge._trusted_stage_source_cache_identity", return_value="f" * 40):
+            stage = config.source_stage(bound["stage_key"])
+        self.assertEqual(stage.workspace_id, "published")
         self.assertEqual(stage.project_id, mission.project_id)
         self.assertEqual(stage.path_ids, paths)
         self.assertEqual(stage.verifier_policy_id, "policy-senses")
+
+    def test_dynamic_program_stage_uses_published_cache_for_bootstrap_and_next_paired_ack(self):
+        from engineering.paperclip_autonomous_bridge import (
+            ProgramAdmissionMission, ProgramAdmissionProfile, ProgramAdmissionSpec,
+            _stage_binding, _stage_journal_key, bind_program_source_stage,
+        )
+        from engineering.paperclip_accepted_source_reader import AcceptedSourceSnapshot
+
+        root = Path(self.tmp.name)
+        source_run_id = f"source-run-{root.name}"
+        source, publisher, canonical, workspace = (
+            root / name for name in ("program-source-old", "program-publisher", "program-canonical", "program-workspace")
+        )
+        workspace.mkdir()
+        paths = ("src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py")
+
+        def git(repo: Path, *args: str, check: bool = True) -> str:
+            result = subprocess.run(
+                ["/usr/bin/git", "-C", str(repo), *args], check=check,
+                capture_output=True, text=True,
+            )
+            return result.stdout.strip()
+
+        def initialize(repo: Path, contents: dict[str, str]) -> str:
+            repo.mkdir()
+            subprocess.run(["/usr/bin/git", "init", "-q", "-b", "brain/development", str(repo)], check=True)
+            for rel, content in contents.items():
+                file = repo / rel
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_text(content, encoding="utf-8")
+            git(repo, "add", "-A")
+            subprocess.run(["/usr/bin/git", "-C", str(repo), "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "baseline"], check=True, capture_output=True)
+            return git(repo, "rev-parse", "HEAD")
+
+        old_sha = initialize(source, {"README.md": "old finite source repo\n"})
+        base_files = {
+            paths[0]: "VALUE = 1\n",
+            paths[1]: "def test_value():\n    assert True\n",
+        }
+        publisher_sha = initialize(publisher, base_files)
+        canonical_sha = initialize(canonical, base_files)
+        source, publisher, canonical, workspace = (
+            path.resolve() for path in (source, publisher, canonical, workspace)
+        )
+        git(publisher, "checkout", "--detach", publisher_sha)
+        mission = ProgramAdmissionMission(
+            project_id="senses-project", standing_issue_id="standing-90", sol_agent_id="sol",
+            astra_agent_id="astra", luna_agent_id="luna", qa_agent_ids=("qa",), goal_ids=("goal-1",),
+            allowed_prefixes=("src/memecoin_brain_sources/", "tests/brain/"),
+            excluded_prefixes=("src/memecoin_brain_sources/private/",), corpus_ids=("brain",),
+            profiles=(ProgramAdmissionProfile("senses-v1", (), ("src/memecoin_brain_sources/", "tests/brain/"),
+                (paths[1],), "policy-senses"),),
+            source_repo=source, publisher_repo=publisher, canonical_repo=canonical,
+            canonical_ref="refs/heads/brain/development", expected_dev_ref="refs/heads/brain/development",
+            source_workspace_id="senses-workspace", source_workspace_root=workspace,
+            repository_free_policy_digest="e" * 64,
+        )
+        projection = AcceptedSourceProjectionSpec(
+            "brain", publisher, "refs/heads/brain/development", ("src/", "tests/"),
+            publisher_sha, canonical_sha, "c" * 64,
+        )
+        verifier = VerifierProfile("policy-senses", (("/usr/bin/true",),), (), ())
+        config = replace(
+            self.config, project_id=mission.project_id, source_repo=source, publisher_repo=publisher,
+            canonical_repo=canonical, canonical_ref=mission.canonical_ref, canonical_expected_tip=canonical_sha,
+            expected_dev_ref=mission.expected_dev_ref, fixed_dev_ref=mission.expected_dev_ref,
+            bridge_journal_dir=root / "dynamic-program-journals", verifier_policy_catalog=(verifier,),
+            program_admission=ProgramAdmissionSpec((mission,)),
+            accepted_source_reader=AcceptedSourceReaderSpec((projection,), ()),
+        )
+        config.bridge_journal_dir.mkdir(mode=0o700)
+        gate = config.gate()
+        with self.assertRaises(GitGateError):
+            gate._resolve_sha(source, publisher_sha)
+        legacy_operation_key = "a" * 64
+        legacy_binding = {
+            "company_id": config.company_id, "issue_id": "legacy-source", "run_id": "legacy-run",
+            "worker_agent_id": config.worker_agent_id, "reviewer_agent_id": config.reviewer_agent_id,
+            "base_sha": publisher_sha, "active_ref": mission.expected_dev_ref,
+            "owner_config_digest": config.owner_config_digest,
+        }
+        legacy_record_path = config.bridge_journal_dir / f"operation-{legacy_operation_key}.json"
+        legacy_record_path.write_text(json.dumps({
+            "schema": "paperclip-autonomous-operation-v1", "operation_key": legacy_operation_key,
+            "state": "published", "binding": legacy_binding, "candidate": {"candidate_sha": publisher_sha},
+            "source_stage_key": "MEM17", "source_stage_binding": "b" * 64,
+        }), encoding="utf-8")
+        legacy_record_path.chmod(0o600)
+
+        bootstrap_read = dispatch(config, {"action": "read_accepted_source", "payload": {
+            "company_id": config.company_id, "project_id": mission.project_id,
+            "program_issue_id": "program-1", "issue_id": "program-1", "agent_id": "sol",
+            "run_id": "program-run", "corpus_id": "brain", "path": paths[0],
+            "start_line": 1, "line_count": 1,
+        }})
+        self.assertEqual(bootstrap_read["projection_sha"], publisher_sha)
+        self.assertEqual(bootstrap_read["canonical_sha"], canonical_sha)
+        self.assertEqual(bootstrap_read["result"]["lines"][0]["text"], "VALUE = 1")
+
+        payload = {
+            "company_id": config.company_id, "project_id": mission.project_id, "lead_agent_id": "sol",
+            "lead_issue_id": "program-1", "lead_run_id": "program-run", "goal_id": "goal-1",
+            "profile_id": "senses-v1", "corpus_id": "brain", "path_ids": list(paths),
+            "source_issue_id": "source-1", "source_version": 1, "review_issue_id": "review-1",
+            "review_version": 1, "source_instruction_sha256": "1" * 64,
+            "review_instruction_sha256": "2" * 64,
+        }
+        first = bind_program_source_stage(config, payload)
+        self.assertEqual(first["base_sha"], publisher_sha)
+        first_record = _stage_binding(config, first["stage_binding_key"])
+        self.assertEqual(first_record["workspace_id"], "published")
+        self.assertEqual(Path(first_record["trusted_source_cache"]).resolve(),
+            (config.bridge_journal_dir / "trusted-stage-sources" / f"{first['stage_key']}-{publisher_sha}").resolve())
+        self.assertEqual(first_record["trusted_source_cache_tree"], git(Path(first_record["trusted_source_cache"]), "rev-parse", "HEAD^{tree}"))
+
+        for activation in (
+            {"step": "intent", "stage_binding_key": first["stage_binding_key"], "issue_id": "source-1",
+             "observed_status": "backlog", "observed_version": 1},
+            {"step": "ack", "stage_binding_key": first["stage_binding_key"], "issue_id": "source-1",
+             "mutation_status": "todo", "mutation_status_version": 2},
+        ):
+            dispatch(config, {"action": "source_stage_activation", "payload": activation})
+        files = [
+            {"path_id": paths[0], "content": "VALUE = 2\n", "size": len(b"VALUE = 2\n"),
+             "sha256": hashlib.sha256(b"VALUE = 2\n").hexdigest()},
+            {"path_id": paths[1], "content": base_files[paths[1]], "size": len(base_files[paths[1]].encode()),
+             "sha256": hashlib.sha256(base_files[paths[1]].encode()).hexdigest()},
+        ]
+        delivered = dispatch(config, {"action": "deliver_source_stage_content", "payload": {
+            "company_id": config.company_id, "project_id": mission.project_id,
+            "source_issue_id": "source-1", "worker_agent_id": config.worker_agent_id,
+            "run_id": source_run_id, "stage_key": first["stage_key"],
+            "stage_binding_key": first["stage_binding_key"],
+            "source_instruction_sha256": payload["source_instruction_sha256"], "files": files,
+        }})
+        self.assertIn("operation_key", delivered, delivered)
+        review_payload = {
+            "company_id": config.company_id, "project_id": mission.project_id,
+            "reviewer_agent_id": config.reviewer_agent_id, "reviewer_run_id": "review-run-1",
+            "reviewer_issue_id": "review-1", "stage_key": first["stage_key"],
+            "stage_binding_key": first["stage_binding_key"],
+            "review_instruction_sha256": payload["review_instruction_sha256"],
+        }
+        inspected = dispatch(config, {"action": "inspect_bound_source_stage", "payload": review_payload})
+        approved = dispatch(config, {"action": "approve_bound_source_stage", "payload": {
+            **review_payload, "approved": True, "evidence": {
+                "inspection_digest": inspected["inspection_digest"],
+                "canonical_candidate_sha": inspected["canonical_candidate_sha"],
+                "canonical_receipt_digest": inspected["canonical_receipt_digest"],
+                "rationale": "synthetic full source, QA and publication cycle",
+            },
+        }})
+        self.assertEqual(approved["status"], "published")
+        projected_n1 = approved["candidate_sha"]
+        canonical_n1 = approved["canonical_candidate_sha"]
+        tree_n1 = git(publisher, "rev-parse", f"{projected_n1}^{{tree}}")
+
+        next_payload = {**payload, "source_issue_id": "source-2", "review_issue_id": "review-2",
+            "source_version": 2, "review_version": 2, "source_instruction_sha256": "3" * 64,
+            "review_instruction_sha256": "4" * 64}
+        second = bind_program_source_stage(config, next_payload)
+        self.assertEqual(second["base_sha"], projected_n1)
+        self.assertEqual(second["canonical_base_sha"], canonical_n1)
+        second_record = _stage_binding(config, second["stage_binding_key"])
+        self.assertEqual(second_record["trusted_source_cache_tree"], tree_n1)
+        reader_result = dispatch(config, {"action": "read_accepted_source", "payload": {
+            "company_id": config.company_id, "project_id": mission.project_id,
+            "program_issue_id": "program-1", "issue_id": "source-2", "agent_id": "luna",
+            "run_id": "source-run-2", "corpus_id": "brain", "path": paths[0],
+            "start_line": 1, "line_count": 1,
+        }})
+        self.assertEqual(reader_result["projection_sha"], projected_n1)
+        self.assertEqual(reader_result["canonical_sha"], canonical_n1)
+        self.assertEqual(reader_result["result"]["lines"][0]["text"], "VALUE = 2")
+
+        # A path alias in the completed source-stage record is rejected before it
+        # can establish the next task's accepted base.
+        stage_record_path = config.bridge_journal_dir / f"operation-{_stage_journal_key(first['stage_key'])}.json"
+        published_stage_record = json.loads(stage_record_path.read_text(encoding="utf-8"))
+        cache_alias = root / "cache-alias"
+        cache_alias.symlink_to(Path(published_stage_record["trusted_source_cache"]), target_is_directory=True)
+        stage_record_path.write_text(json.dumps({**published_stage_record, "trusted_source_cache": str(cache_alias)}), encoding="utf-8")
+        stage_record_path.chmod(0o600)
+        with self.assertRaisesRegex(BridgeError, "program_source_stage_accepted_base_unavailable"):
+            bind_program_source_stage(config, next_payload)
+        stage_record_path.write_text(json.dumps(published_stage_record, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+        stage_record_path.chmod(0o600)
+
+        changed_policy_mission = replace(mission, repository_free_policy_digest="f" * 64)
+        changed_policy_config = replace(config, program_admission=ProgramAdmissionSpec((changed_policy_mission,)))
+        with self.assertRaisesRegex(BridgeError, "program_source_stage_accepted_base_unavailable"):
+            bind_program_source_stage(changed_policy_config, {**next_payload, "source_issue_id": "source-policy", "review_issue_id": "review-policy"})
+
+        # ACK provenance still binds to the live canonical tip; moving that ref
+        # behind the accepted receipt makes a new task fail closed.
+        git(canonical, "update-ref", mission.canonical_ref, canonical_sha)
+        with self.assertRaisesRegex(BridgeError, "program_source_stage_canonical_tip_changed"):
+            bind_program_source_stage(config, {**next_payload, "source_issue_id": "source-canonical", "review_issue_id": "review-canonical"})
+        git(canonical, "update-ref", mission.canonical_ref, canonical_n1)
+
+        # An unexplained publisher advance has no accepted paired ACK and is not a
+        # usable base, even when the object is present in the publisher repository.
+        git(publisher, "checkout", "--detach", projected_n1)
+        (publisher / paths[0]).write_text("VALUE = 3\n", encoding="utf-8")
+        git(publisher, "add", "-A")
+        subprocess.run(["/usr/bin/git", "-C", str(publisher), "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "unacknowledged N+2"], check=True, capture_output=True)
+        unknown_tip = git(publisher, "rev-parse", "HEAD")
+        git(publisher, "update-ref", mission.expected_dev_ref, unknown_tip)
+        with self.assertRaisesRegex(BridgeError, "program_source_stage_accepted_base_unavailable"):
+            bind_program_source_stage(config, {**next_payload, "source_issue_id": "source-unknown", "review_issue_id": "review-unknown"})
+        with self.assertRaisesRegex(BridgeError, "program_source_stage_issue_pair_invalid"):
+            bind_program_source_stage(config, {**next_payload, "source_issue_id": "source-same", "review_issue_id": "source-same"})
+        self.assertNotEqual(old_sha, publisher_sha)
 
     def test_accepted_source_reader_requires_paired_publication_ack_after_bootstrap(self):
         root = Path(self.tmp.name)
