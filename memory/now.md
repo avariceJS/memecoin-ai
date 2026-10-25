@@ -1,4 +1,4 @@
-# Current state — 2026-10-25, real manager resume / existing Source104 continuation
+# Current state — 2026-10-25, third rejection / exact candidate context
 
 Explicit founder engineering resumption: current prompt/prompt.md. No Founder STOP for reporting,
 no replacement Goal (entry API null), scheduler or duplicate standing MEM90..95 mandates.
@@ -10,7 +10,7 @@ Paperclip owns lifecycle; Luna implements, Sol leads/reviews, Astra chooses stra
   descriptor/handler/fingerprint18 and matching inert state were verified before activation. Roles
   Source5/Lead9 applied by exact CAS; models/efforts/write policy unchanged. HANDOFF owns exact custody.
 - MEM/fence active, only four required actors resumed; assessor/analyst and other five companies paused.
-  Bootstrap implementation frozen; native Luna owns admitted source work. Source interval23/36,
+  Bootstrap implementation frozen; native Luna owns admitted source work. Source interval26/36,
   same historical anchor317/no reset. Three programme source/QA pairs used; max3 is operator-observed
   resource/role authority, NOT a dynamic controller counter. Do not change owner-config to adjust it.
 - Existing canonical manager authority is now expressible through optional resume on comment_on_task;
@@ -41,25 +41,29 @@ This is a specific tool-input gap/assisted recovery, not absent canonical manage
 Native Luna20 implemented three files. Fixed preflight first collected122:120 passed/2 failed/0skip;
 then corrected preflight passed and sealed439b33d5/canonical CANDIDATEebba2724/opb25 was delivered.
 Exact final successful test count is not independently inferred from the receipt. Source104 then
-blocked with objective false/substantial mandatory-matrix omissions; Source22 now handles the same
-sealed contribution following Sol clarification, but ended blocked again. Current preflight was
-PASSED; matrix NOT_RUN/pending_comment2 unmet. QA105 also ran once as dependency-blocked comment
-triage while104 was active: context/history/interim result only, NO inspection/merits/approval.
-One explicit owner disposition to end the sealed attempt AS INCOMPLETE is under native-contract
-representability review; no further closure run before a genuinely narrower current contract exists. First
-finish call definitely failed but its arguments/error text are unavailable (0B); do not invent cause.
-Historical failed verification was also present in the later payload, a possible guard condition only.
-Current source-contract/phase closure and remaining matrix decomposition are native Sol decisions;
-no forced full-objective completion, sealed-candidate rewrite, QA acceptance or publication.
+blocked with objective false/substantial mandatory-matrix omissions. Source22 repeated that block;
+QA23 was only dependency-blocked comment triage, not merits. Owner explicitly narrowed the CURRENT
+recording action: actual Source24 contract6b7c7653/rev4 had one objective/hash68a3 and no old pending
+matrix criteria. Native finish accepted END INCOMPLETE; original feature/matrix remain unsatisfied.
+QA25 then genuinely inspected439/ebba, recorded review_rejected for duplicates/replay/legacy shapes/
+interruption labels/missing matrix, and finished. Natural Sol26 resumed at17:11:29.459UTC.
+No new QA test execution or publication. First Source20 finish input/error remain unavailable.
+
+QA saved six fenced native documents with the complete inspection-displayed diff; independent
+reassembly exactly matched45329 bytes/SHA2f5c4089. Canonical default-context diff is a different
+representation. These are rejected-candidate evidence, never accepted base. Existing lead cross-task
+write_task_document grant/context relay and prospective pair-cap amendment are under review, not applied.
+Preserve owner-config digest, existing bindings, used3pairs and anchor317; no fourth pair yet.
 
 The verifier executes candidate-authored test_raw_sources.py in a pinned clean checkout under fixed
 command/environment/sandbox; QA judges test coverage/semantics. Written tests, executed tests, static
 QA and final Gate are separate claims. No final Gate has run on these rejected/unreviewed candidates.
-Historical169 unresolved entries remain separate from current definite rejections and preparedb25.
+Historical169 unresolved entries remain separate from current definite rejections, including b25.
 Normal no-change, accepted corrected publication, next strategy and useful post-root continuation
 remain open. Service/source checks and candidate delivery are not company/product readiness.
 
 Private receipts: /Users/root1/Developer/brain-paperclip-lab/state/resumption-20261025/.
+Latest phase/QA/context proof: sol-independent-native104-owner-disposition-QA105-rejection-full-diff.json (f2ffdf76).
 Current coordination proof: sol-independent-native-comment-resume-first-live-use.json (6489b07f).
 Unaccepted candidate: sol-independent-native104-candidate-fixed-preflight-lifecycle-block.json (dcd9b17a).
 Accounting: resource-interval-extension/same-anchor-36-applied-authority.json (d650183a).

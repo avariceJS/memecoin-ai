@@ -149,17 +149,23 @@ resume after release. Unique actual-use proof:
 `resumption-20261025/sol-independent-native-comment-resume-first-live-use.json`
 (SHA2566489b07fc50684289a4412d1da118392e87761f75ce853400935723dc9931dd9).
 MEM/fence active, four required actors resumed, two manual and other five companies paused; bootstrap
-frozen/native Luna source ownership.23/36 sameanchor317, three pairs used. Source22 again ended blocked:
-current preflight PASSED, mandatory matrix NOT_RUN/pending_comment2 unmet. QA105 ran as a manager-comment
-dependencyBlockedInteraction while104 was active: context/history/interim result only, no candidate
-inspection, merits or approval. This was not a completed source→QA review transition. Proof:
-`resumption-20261025/sol-independent-native105-triage-source-dependency-block-addendum.json`, SHA256
-4bd3ad10686809870d16b871d20de641e0632912cf34c9b2efb0e52d3021629d.
-A single explicit owner disposition to END the sealed attempt AS INCOMPLETE is under review against
-existing native contract/supersession mechanisms. It must create a genuinely narrower current action
-contract, not force satisfaction of the old matrix criterion. No repeated closure run, status PATCH,
-redelivery or QA weakening is authorized by this clarification. Source104 description/binding/candidate and unknown first finish
-error remain unchanged. Phase closure/remaining decomposition stay native Sol decisions.
+frozen/native Luna source ownership. At snapshot26/36 sameanchor317, three pairs used. Source22 again
+blocked on matrix/pending_comment2; QA23 was dependency-blocked comment triage only. A single explicit
+owner disposition narrowed CURRENT Source24 to recording/end of the sealed attempt AS INCOMPLETE.
+Pure native compiler preview matched the actual contract6b7c7653/rev4: one objective/hash68a3, no old
+pending matrix criteria. Native finish/finalization succeeded; original implementation/matrix remain
+unsatisfied programme obligations, not retrospectively completed. No source edits/redelivery/status PATCH.
+Then QA25 automatically inspected439/ebba, recorded approved:false/review_rejected for duplicate counts,
+replay validity, legacy shapes, interruption labels and missing matrix, and finished. Natural Sol26
+resumed17:11:29.459UTC. QA findings are static; no new executed attacks, final Gate or publication.
+QA also saved six fenced native documents; independent exact unwrapping/reassembly matched the actual
+inspection-displayed diff:45329bytes/SHA2f5c40891098ace35fe98b6b2ed6b1b292cb8680d6ba45d3a6f8b213d3f256e8.
+Native body trimming initially lost a newline; fenced revisions preserved inner bytes. Canonical
+standard-context diff is a separate representation, not hash-comparable. Lead relay into a NEW source
+child's own documents is under focused existing-tool grant/authority review; not yet actual proof.
+Rejected code is correction evidence, never accepted base. Unique phase/QA/context proof:
+`resumption-20261025/sol-independent-native104-owner-disposition-QA105-rejection-full-diff.json`
+(SHA256f2ffdf76945e32c66ed9e6f3a6e8e8f891cd905198e0668d49fb0e3c3a922ef1).
 
 Read-only limit audit located max3 only in accepted operator-observed resource/role authority, not
 program_admission/dynamic bind code. A prospective reviewed resource/context amendment after current
@@ -172,7 +178,7 @@ backup or stable release. No runtime/private artifacts or unreviewed upstream hi
 Fixed preflight and final Gate run candidate-authored test_raw_sources.py in a pinned clean candidate
 checkout; fixed command/environment/sandbox are external, test content is not a frozen external matrix.
 QA independently judges coverage/semantics. No new QA test execution or final Gate is claimed here.
-Historical169 entries remain separate from current rejections/preparedb25. Normal no-change, accepted
+Historical169 entries remain separate from current rejections includingb25. Normal no-change, accepted
 corrected publication, next strategy and useful post-root continuation remain open. Assisted repairs
 are disclosed; real native implementation/correction does not yet establish product/company acceptance.
 
