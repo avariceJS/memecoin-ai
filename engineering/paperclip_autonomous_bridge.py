@@ -3745,32 +3745,6 @@ class BridgeConfig:
                 }
                 for stage in self.source_stage_catalog
             ],
-            "program_admission": None if self.program_admission is None else [
-                {
-                    "project_id": mission.project_id,
-                    "standing_issue_id": mission.standing_issue_id,
-                    "sol_agent_id": mission.sol_agent_id,
-                    "astra_agent_id": mission.astra_agent_id,
-                    "luna_agent_id": mission.luna_agent_id,
-                    "qa_agent_ids": mission.qa_agent_ids,
-                    "goal_ids": mission.goal_ids,
-                    "allowed_prefixes": mission.allowed_prefixes,
-                    "excluded_prefixes": mission.excluded_prefixes,
-                    "corpus_ids": mission.corpus_ids,
-                    "profiles": [
-                        {"profile_id": item.profile_id, "allowed_path_ids": item.allowed_path_ids,
-                         "allowed_prefixes": item.allowed_prefixes, "required_test_paths": item.required_test_paths,
-                         "verifier_policy_id": item.verifier_policy_id}
-                        for item in mission.profiles
-                    ],
-                    "source_repo": str(mission.source_repo), "publisher_repo": str(mission.publisher_repo),
-                    "canonical_repo": str(mission.canonical_repo), "canonical_ref": mission.canonical_ref,
-                    "expected_dev_ref": mission.expected_dev_ref, "source_workspace_id": mission.source_workspace_id,
-                    "source_workspace_root": str(mission.source_workspace_root),
-                    "repository_free_policy_digest": mission.repository_free_policy_digest,
-                }
-                for mission in self.program_admission.missions
-            ],
             "verifier_policy_catalog": [
                 {
                     "policy_id": profile.policy_id,
@@ -3803,6 +3777,33 @@ class BridgeConfig:
                 str(path) for path in self.verifier_runtime_read_roots
             ),
         }
+        if self.program_admission is not None:
+            value["program_admission"] = [
+                {
+                    "project_id": mission.project_id,
+                    "standing_issue_id": mission.standing_issue_id,
+                    "sol_agent_id": mission.sol_agent_id,
+                    "astra_agent_id": mission.astra_agent_id,
+                    "luna_agent_id": mission.luna_agent_id,
+                    "qa_agent_ids": mission.qa_agent_ids,
+                    "goal_ids": mission.goal_ids,
+                    "allowed_prefixes": mission.allowed_prefixes,
+                    "excluded_prefixes": mission.excluded_prefixes,
+                    "corpus_ids": mission.corpus_ids,
+                    "profiles": [
+                        {"profile_id": item.profile_id, "allowed_path_ids": item.allowed_path_ids,
+                         "allowed_prefixes": item.allowed_prefixes, "required_test_paths": item.required_test_paths,
+                         "verifier_policy_id": item.verifier_policy_id}
+                        for item in mission.profiles
+                    ],
+                    "source_repo": str(mission.source_repo), "publisher_repo": str(mission.publisher_repo),
+                    "canonical_repo": str(mission.canonical_repo), "canonical_ref": mission.canonical_ref,
+                    "expected_dev_ref": mission.expected_dev_ref, "source_workspace_id": mission.source_workspace_id,
+                    "source_workspace_root": str(mission.source_workspace_root),
+                    "repository_free_policy_digest": mission.repository_free_policy_digest,
+                }
+                for mission in self.program_admission.missions
+            ]
         return hashlib.sha256(_canonical(value)).hexdigest()
 
     def source_stage(self, stage_key: str) -> SourceStageSpec:
