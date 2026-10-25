@@ -225,6 +225,116 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             with self.assertRaisesRegex(BridgeError, "acceptance_unavailable"):
                 dispatch(configured, {"action": "list_accepted_source", "payload": list_payload})
 
+    def test_program_source_scope_returns_only_owner_envelope_and_rejects_unmapped_project(self):
+        from engineering.paperclip_autonomous_bridge import (
+            ProgramAdmissionMission, ProgramAdmissionProfile, ProgramAdmissionSpec,
+        )
+        mission = ProgramAdmissionMission(
+            project_id="senses-project", standing_issue_id="standing-90",
+            sol_agent_id="sol", astra_agent_id="astra", luna_agent_id="luna",
+            qa_agent_ids=("qa",), goal_ids=("goal-1",),
+            allowed_prefixes=("src/memecoin_brain_sources/", "tests/brain/"),
+            excluded_prefixes=("src/memecoin_brain_sources/private/",),
+            corpus_ids=("brain",), profiles=(ProgramAdmissionProfile(
+                "senses-v1", ("src/memecoin_brain_sources/events.py",),
+                ("src/memecoin_brain_sources/", "tests/brain/"), ("tests/brain/test_raw_sources.py",), "policy-senses",
+            ),), source_repo=Path(self.tmp.name) / "source", publisher_repo=Path(self.tmp.name) / "publisher",
+            canonical_repo=Path(self.tmp.name) / "canonical", canonical_ref="refs/heads/brain/development",
+            expected_dev_ref="refs/heads/brain/development", source_workspace_id="workspace-senses",
+            source_workspace_root=Path(self.tmp.name) / "workspace",
+        )
+        config = replace(self.config, program_admission=ProgramAdmissionSpec((mission,)))
+        result = dispatch(config, {"action": "get_program_source_scope", "payload": {
+            "company_id": config.company_id, "project_id": "senses-project", "goal_id": "goal-1",
+        }})
+        self.assertEqual(result["standing_issue_id"], "standing-90")
+        self.assertEqual(result["profiles"][0]["required_test_paths"], ["tests/brain/test_raw_sources.py"])
+        self.assertNotIn("source_repo", result)
+        self.assertNotIn("owner_roots", result)
+        proposal = dispatch(config, {"action": "validate_program_source_proposal", "payload": {
+            "company_id": config.company_id, "project_id": "senses-project", "goal_id": "goal-1",
+            "profile_id": "senses-v1", "path_ids": [
+                "src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py",
+            ],
+        }})
+        self.assertEqual(proposal["status"], "admitted")
+        self.assertEqual(proposal["path_ids"], ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"])
+        from engineering.paperclip_autonomous_bridge import _accepted_source_program
+        projection = AcceptedSourceProjectionSpec("brain", Path(self.tmp.name) / "projection",
+            "refs/heads/brain/development", ("src/", "tests/"), "a" * 40, "b" * 40, "c" * 64)
+        reader_config = replace(config, accepted_source_reader=AcceptedSourceReaderSpec((projection,), ()))
+        dynamic_program, dynamic_projection = _accepted_source_program(reader_config, {
+            "program_issue_id": "ceo-created-sol-program", "project_id": mission.project_id,
+            "agent_id": mission.sol_agent_id, "corpus_id": "brain",
+        })
+        self.assertEqual(dynamic_program.program_issue_id, "ceo-created-sol-program")
+        self.assertEqual(dynamic_projection.corpus_id, "brain")
+        with self.assertRaisesRegex(BridgeError, "outside_owner_envelope"):
+            dispatch(config, {"action": "validate_program_source_proposal", "payload": {
+                "company_id": config.company_id, "project_id": "senses-project", "goal_id": "goal-1",
+                "profile_id": "senses-v1", "path_ids": [
+                    "src/memecoin_brain_sources/private/secret.py", "tests/brain/test_raw_sources.py",
+                ],
+            }})
+        with self.assertRaisesRegex(BridgeError, "program_source_scope_not_admitted"):
+            dispatch(config, {"action": "get_program_source_scope", "payload": {
+                "company_id": config.company_id, "project_id": "other-project", "goal_id": "goal-1",
+            }})
+
+    def test_dynamic_program_stage_binds_selected_compatible_subset_to_current_accepted_ack(self):
+        from engineering.paperclip_autonomous_bridge import (
+            ProgramAdmissionMission, ProgramAdmissionProfile, ProgramAdmissionSpec,
+            _stage_binding, bind_program_source_stage,
+        )
+        from engineering.paperclip_accepted_source_reader import AcceptedSourceSnapshot
+        root = Path(self.tmp.name)
+        source, publisher, canonical, workspace = (root / name for name in ("dynamic-source", "dynamic-publisher", "dynamic-canonical", "dynamic-workspace"))
+        for path in (source, publisher, canonical, workspace): path.mkdir()
+        paths = ("src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py")
+        profile = VerifierProfile("policy-senses", (("/usr/bin/python3", "-c", "pass"),), (), ())
+        mission = ProgramAdmissionMission(
+            project_id="senses-project", standing_issue_id="standing-90", sol_agent_id="sol",
+            astra_agent_id="astra", luna_agent_id="luna", qa_agent_ids=("qa",), goal_ids=("goal-1",),
+            allowed_prefixes=("src/memecoin_brain_sources/", "tests/brain/"), excluded_prefixes=("src/private/",),
+            corpus_ids=("brain",), profiles=(ProgramAdmissionProfile("senses-v1", (),
+                ("src/memecoin_brain_sources/", "tests/brain/"), (paths[1],), "policy-senses"),),
+            source_repo=source, publisher_repo=publisher, canonical_repo=canonical,
+            canonical_ref="refs/heads/brain/development", expected_dev_ref="refs/heads/brain/development",
+            source_workspace_id="senses-workspace", source_workspace_root=workspace,
+        )
+        projection = AcceptedSourceProjectionSpec("brain", publisher, "refs/heads/brain/development",
+            ("src/", "tests/"), "a" * 40, "b" * 40, "c" * 64)
+        config = replace(self.config, bridge_journal_dir=root / "dynamic-journals", source_repo=source,
+            publisher_repo=publisher, canonical_repo=canonical, canonical_ref="refs/heads/brain/development",
+            canonical_expected_tip="b" * 40, expected_dev_ref="refs/heads/brain/development",
+            fixed_dev_ref="refs/heads/brain/development", expected_base_sha="a" * 40,
+            verifier_policy_catalog=(profile,), program_admission=ProgramAdmissionSpec((mission,)),
+            accepted_source_reader=AcceptedSourceReaderSpec((projection,), ()))
+        config.bridge_journal_dir.mkdir(mode=0o700)
+        accepted = AcceptedSourceSnapshot("a" * 40, "b" * 40, "c" * 64, "d" * 64, ())
+        fake_gate = SimpleNamespace(
+            _ref_sha=lambda repo, ref: "a" * 40 if Path(repo) == publisher else "b" * 40,
+            _resolve_sha=lambda repo, sha: sha,
+        )
+        payload = {"company_id": config.company_id, "project_id": mission.project_id,
+            "lead_agent_id": "sol", "lead_issue_id": "program-1", "lead_run_id": "program-run",
+            "goal_id": "goal-1", "profile_id": "senses-v1", "corpus_id": "brain", "path_ids": list(paths),
+            "source_issue_id": "source-1", "source_version": 1, "review_issue_id": "review-1", "review_version": 1,
+            "source_instruction_sha256": "1" * 64, "review_instruction_sha256": "2" * 64}
+        with (patch("engineering.paperclip_autonomous_bridge._resolve_accepted_source_snapshot", return_value=(publisher, accepted)),
+              patch.object(BridgeConfig, "gate", return_value=fake_gate),
+              patch("engineering.paperclip_autonomous_bridge.refresh_owner_workspace", return_value="e" * 64)):
+            bound = bind_program_source_stage(config, payload)
+        self.assertEqual(bound["base_sha"], "a" * 40)
+        self.assertEqual(bound["canonical_base_sha"], "b" * 40)
+        record = _stage_binding(config, bound["stage_binding_key"])
+        self.assertEqual(record["path_ids"], list(paths))
+        self.assertEqual(record["accepted_receipt_digest"], "c" * 64)
+        stage = config.source_stage(bound["stage_key"])
+        self.assertEqual(stage.project_id, mission.project_id)
+        self.assertEqual(stage.path_ids, paths)
+        self.assertEqual(stage.verifier_policy_id, "policy-senses")
+
     def test_accepted_source_reader_requires_paired_publication_ack_after_bootstrap(self):
         root = Path(self.tmp.name)
         projection_repo = root / "accepted-projection"
@@ -2372,6 +2482,16 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "source_instruction_sha256": "1" * 64,
             "files": files,
         }
+        with (
+            patch("engineering.paperclip_autonomous_bridge._snapshot_base_hashes", return_value={path: "b" * 40 for path in SOURCE_PATHS}),
+            patch("engineering.paperclip_autonomous_bridge._preflight_source_stage_content") as preflight,
+        ):
+            unchanged = dispatch(config, {"action": "deliver_source_stage_content", "payload": worker_envelope})
+        self.assertEqual(unchanged["status"], "unchanged_not_submitted")
+        self.assertEqual(unchanged["baseline_action"], "verify_source_stage_unchanged")
+        self.assertEqual(set(unchanged["path_hashes"]), set(SOURCE_PATHS))
+        self.assertNotIn("candidate_sha", unchanged)
+        preflight.assert_not_called()
         with self.assertRaisesRegex(BridgeError, "source_stage_instruction_binding_mismatch"):
             dispatch(
                 config,
@@ -2454,6 +2574,74 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 "base_sha",
             },
         )
+
+    def test_unchanged_base_verifier_is_distinct_and_refuses_stale_tip(self):
+        from engineering.paperclip_autonomous_bridge import (
+            _stage_journal_key, verify_source_stage_unchanged,
+        )
+        root = Path(self.tmp.name)
+        repo = root / "accepted-source"
+        repo.mkdir()
+        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "brain/paperclip-integration", str(repo)], check=True)
+        paths = ("src/example.py", "tests/test_example.py")
+        for path, content in zip(paths, ("VALUE = 1\n", "def test_value(): assert True\n"), strict=True):
+            target = repo / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+        git = ["/usr/bin/git", "-C", str(repo)]
+        subprocess.run([*git, "add", "-A"], check=True)
+        subprocess.run([*git, "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "accepted"], check=True, capture_output=True)
+        base = subprocess.run([*git, "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        stage = SourceStageSpec("NOCHANGE-1", "source", base, None, paths, "policy-test")
+        profile = VerifierProfile("policy-test", (("/usr/bin/python3", "-c", "pass"),), (), ())
+        config = replace(self.config, source_repo=repo, publisher_repo=repo, worker_checkout=None,
+            source_issue_id=None, reviewer_issue_id=None, expected_base_sha=base,
+            fixed_dev_ref="refs/heads/brain/paperclip-integration", expected_dev_ref="refs/heads/brain/paperclip-integration",
+            source_stage_catalog=(stage,), verifier_policy_catalog=(profile,),
+            finite_lead_agent_id="lead-1", finite_lead_issue_id="lead-issue",
+            bridge_journal_dir=root / "bridge", verifier_scratch_root=root / "scratch")
+        config.bridge_journal_dir.mkdir(mode=0o700)
+        key = "d" * 64
+        record = {"schema": "paperclip-source-stage-binding-v1", "stage_key": stage.stage_key,
+            "stage_binding_key": key, "source_issue_id": "source-1", "review_issue_id": "review-1",
+            "lead_issue_id": "lead-issue", "lead_agent_id": "lead-1", "lead_run_id": "lead-run",
+            "source_version": 1, "review_version": 1, "source_instruction_sha256": "1" * 64,
+            "review_instruction_sha256": "2" * 64, "workspace_id": "source", "path_ids": list(paths),
+            "verifier_policy_id": "policy-test", "owner_config_digest": config.owner_config_digest,
+            "base_sha": base, "canonical_base_sha": None, "state": "active", "source_intent": None,
+            "operation_key": None, "candidate_sha": None}
+        from engineering.paperclip_autonomous_bridge import _write_journal
+        _write_journal(config, _stage_journal_key(stage.stage_key), record, create=True)
+        payload = {"company_id": config.company_id, "project_id": config.project_id,
+            "worker_agent_id": config.worker_agent_id, "run_id": "source-run", "source_issue_id": "source-1",
+            "stage_key": stage.stage_key, "stage_binding_key": key, "source_instruction_sha256": "1" * 64}
+        fake_scratch = root / "scratch" / "fake-verifier"
+        fake_scratch.mkdir(parents=True)
+        with patch("engineering.paperclip_autonomous_bridge._verifier", return_value=(lambda *_args: {"status": "passed", "commands": []}, fake_scratch)):
+            result = verify_source_stage_unchanged(config, payload)
+        self.assertEqual(result["status"], "passed")
+        self.assertEqual(result["base_sha"], base)
+        self.assertEqual(set(result["path_hashes"]), set(paths))
+        self.assertNotIn("candidate_sha", result)
+        self.assertEqual(verify_source_stage_unchanged(config, payload), result)
+        review_payload = {"company_id": config.company_id, "project_id": config.project_id,
+            "reviewer_agent_id": config.reviewer_agent_id, "reviewer_run_id": "qa-run",
+            "reviewer_issue_id": "review-1", "stage_key": stage.stage_key,
+            "stage_binding_key": key, "review_instruction_sha256": "2" * 64}
+        inspection = dispatch(config, {"action": "inspect_source_stage_no_change", "payload": review_payload})
+        merits = dispatch(config, {"action": "record_source_stage_no_change_merits", "payload": {
+            **review_payload, "merits": True,
+            "evidence": {"inspection_digest": inspection["inspection_digest"], "rationale": "The accepted baseline meets the scoped product requirement."},
+        }})
+        self.assertTrue(merits["merits"])
+        self.assertEqual(merits["receipt_digest"], result["receipt_digest"])
+        self.assertNotIn("operation_key", merits)
+        self.assertNotIn("candidate_sha", merits)
+        (repo / paths[0]).write_text("VALUE = 2\n", encoding="utf-8")
+        subprocess.run([*git, "add", "-A"], check=True)
+        subprocess.run([*git, "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "tip drift"], check=True, capture_output=True)
+        with self.assertRaisesRegex(BridgeError, "source_stage_accepted_tip_changed"):
+            verify_source_stage_unchanged(config, payload)
 
     def test_inspection_binds_passed_preflight_and_final_verifier_failure_holds_both_refs(self):
         from engineering.paperclip_autonomous_bridge import _load_journal, _write_journal

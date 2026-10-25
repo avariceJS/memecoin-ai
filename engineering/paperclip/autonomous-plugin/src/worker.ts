@@ -14,7 +14,7 @@ const SHA_RE = /^[0-9a-f]{40,64}$/;
 const KEY_RE = /^[0-9a-f]{64}$/;
 const CONFIG_SCHEMA = "paperclip-autonomous-bridge-config-v1";
 
-type ToolAction = "deliver_source_content" | "deliver_source_stage_content" | "bind_source_stage" | "lookup_source_stage_binding" | "source_stage_activation" | "inspect_bound_source_stage" | "approve_bound_source_stage" | "inspect_candidate" | "approve_candidate" | "list_accepted_source" | "search_accepted_source" | "read_accepted_source";
+type ToolAction = "deliver_source_content" | "deliver_source_stage_content" | "deliver_program_source_content" | "bind_source_stage" | "bind_program_source_stage" | "lookup_source_stage_binding" | "source_stage_activation" | "inspect_bound_source_stage" | "approve_bound_source_stage" | "inspect_candidate" | "approve_candidate" | "list_accepted_source" | "search_accepted_source" | "read_accepted_source" | "get_program_source_scope" | "validate_program_source_proposal" | "verify_source_stage_unchanged" | "verify_program_source_unchanged" | "inspect_source_stage_no_change" | "inspect_program_source_no_change" | "record_source_stage_no_change_merits" | "record_program_source_no_change_merits" | "inspect_program_source_candidate" | "approve_program_source_candidate";
 type BridgeResult = Record<string, unknown>;
 type BridgeInvoker = (
   action: ToolAction,
@@ -39,6 +39,8 @@ type AcceptedSourceProjection = {
   bootstrap_source_sha: string;
   bootstrap_receipt_digest: string;
 };
+type ProgramAdmissionProfile = { profile_id: string; allowed_path_ids: string[]; allowed_prefixes: string[]; required_test_paths: string[]; verifier_policy_id: string };
+type ProgramAdmissionMission = { project_id: string; standing_issue_id: string; sol_agent_id: string; astra_agent_id: string; luna_agent_id: string; qa_agent_ids: string[]; goal_ids: string[]; allowed_prefixes: string[]; excluded_prefixes: string[]; corpus_ids: string[]; profiles: ProgramAdmissionProfile[]; source_repo: string; publisher_repo: string; canonical_repo: string; canonical_ref: string; expected_dev_ref: string; source_workspace_id: string; source_workspace_root: string };
 type OwnerConfig = {
   company_id: string;
   project_id: string;
@@ -58,6 +60,7 @@ type OwnerConfig = {
   source_workspace_id?: string;
   source_workspace_root?: string;
   accepted_source_reader?: { programs: AcceptedSourceProgram[]; projections: AcceptedSourceProjection[] };
+  program_admission?: { missions: ProgramAdmissionMission[] };
   python_executable: string;
   configPath: string;
 };
@@ -160,12 +163,75 @@ function parseAcceptedSourceReader(value: unknown): OwnerConfig["accepted_source
   return { programs, projections };
 }
 
+function parseProgramAdmission(value: unknown): OwnerConfig["program_admission"] {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) fail("owner_bridge_config_invalid");
+  const raw = value as Record<string, unknown>;
+  if (Object.keys(raw).sort().join(",") !== "missions" || !Array.isArray(raw.missions)
+      || raw.missions.length < 1 || raw.missions.length > 8) fail("owner_bridge_config_invalid");
+  const validPaths = (items: unknown, prefix: boolean, min = 1): items is string[] => Array.isArray(items)
+    && items.length >= min && items.length <= 32
+    && items.every((item) => typeof item === "string" && !!item && !item.startsWith("/")
+      && !item.includes("\\") && !item.includes("\0") && item.endsWith(prefix ? "/" : "")
+      && item.replace(/\/$/, "").split("/").every((part) => !!part && part !== "." && part !== ".." && !part.startsWith(".")))
+    && new Set(items).size === items.length;
+  const missions = raw.missions.map((entry): ProgramAdmissionMission => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) fail("owner_bridge_config_invalid");
+    const row = entry as Record<string, unknown>;
+    const keys = ["allowed_prefixes", "astra_agent_id", "canonical_ref", "canonical_repo", "corpus_ids", "excluded_prefixes", "expected_dev_ref", "goal_ids", "luna_agent_id", "profiles", "project_id", "publisher_repo", "qa_agent_ids", "sol_agent_id", "source_repo", "source_workspace_id", "source_workspace_root", "standing_issue_id"];
+    if (Object.keys(row).sort().join(",") !== keys.join(",")
+        || ![row.project_id, row.standing_issue_id, row.sol_agent_id, row.astra_agent_id, row.luna_agent_id].every((id) => typeof id === "string" && ID_RE.test(id))
+        || !Array.isArray(row.qa_agent_ids) || row.qa_agent_ids.length < 1 || row.qa_agent_ids.length > 8
+        || row.qa_agent_ids.some((id) => typeof id !== "string" || !ID_RE.test(id))
+        || !Array.isArray(row.goal_ids) || row.goal_ids.length < 1 || row.goal_ids.length > 16
+        || row.goal_ids.some((id) => typeof id !== "string" || !ID_RE.test(id))
+        || !Array.isArray(row.corpus_ids) || row.corpus_ids.length < 1 || row.corpus_ids.length > 8
+        || row.corpus_ids.some((id) => typeof id !== "string" || !ID_RE.test(id))
+        || ![row.source_repo, row.publisher_repo, row.canonical_repo, row.source_workspace_root].every((path) => typeof path === "string" && isAbsolute(path) && !path.split("/").includes("..") && path !== "/")
+        || typeof row.source_workspace_id !== "string" || !ID_RE.test(row.source_workspace_id)
+        || !["refs/heads/brain/development", "refs/heads/org/development"].includes(row.canonical_ref as string)
+        || !["refs/heads/brain/development", "refs/heads/brain/paperclip-integration", "refs/heads/org/development"].includes(row.expected_dev_ref as string)
+        || !validPaths(row.allowed_prefixes, true) || !validPaths(row.excluded_prefixes, true, 0)
+        || !Array.isArray(row.profiles) || row.profiles.length < 1 || row.profiles.length > 16) fail("owner_bridge_config_invalid");
+    const roleIds = [row.sol_agent_id, row.astra_agent_id, row.luna_agent_id, ...(row.qa_agent_ids as string[])];
+    if (new Set(roleIds).size !== roleIds.length || new Set(row.goal_ids).size !== row.goal_ids.length
+        || new Set(row.corpus_ids).size !== row.corpus_ids.length) fail("owner_bridge_config_invalid");
+    const profiles = row.profiles.map((candidate): ProgramAdmissionProfile => {
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) fail("owner_bridge_config_invalid");
+      const profile = candidate as Record<string, unknown>;
+      const profileKeys = ["allowed_path_ids", "allowed_prefixes", "profile_id", "required_test_paths", "verifier_policy_id"];
+      if (Object.keys(profile).sort().join(",") !== profileKeys.join(",")
+          || typeof profile.profile_id !== "string" || !ID_RE.test(profile.profile_id)
+          || typeof profile.verifier_policy_id !== "string" || !ID_RE.test(profile.verifier_policy_id)
+          || !validPaths(profile.allowed_path_ids, false, 0) || !validPaths(profile.allowed_prefixes, true, 0)
+          || !validPaths(profile.required_test_paths, false)
+          || ((profile.allowed_path_ids as string[]).length === 0 && (profile.allowed_prefixes as string[]).length === 0)
+          || (profile.required_test_paths as string[]).some((path) => !path.startsWith("tests/") && !path.includes("/tests/"))) fail("owner_bridge_config_invalid");
+      return { profile_id: profile.profile_id, allowed_path_ids: profile.allowed_path_ids as string[], allowed_prefixes: profile.allowed_prefixes as string[], required_test_paths: profile.required_test_paths as string[], verifier_policy_id: profile.verifier_policy_id };
+    });
+    if (new Set(profiles.map((profile) => profile.profile_id)).size !== profiles.length) fail("owner_bridge_config_invalid");
+    return {
+      project_id: row.project_id as string, standing_issue_id: row.standing_issue_id as string,
+      sol_agent_id: row.sol_agent_id as string, astra_agent_id: row.astra_agent_id as string,
+      luna_agent_id: row.luna_agent_id as string, qa_agent_ids: row.qa_agent_ids as string[],
+      goal_ids: row.goal_ids as string[], allowed_prefixes: row.allowed_prefixes as string[],
+      excluded_prefixes: row.excluded_prefixes as string[], corpus_ids: row.corpus_ids as string[], profiles,
+      source_repo: row.source_repo as string, publisher_repo: row.publisher_repo as string,
+      canonical_repo: row.canonical_repo as string, canonical_ref: row.canonical_ref as string,
+      expected_dev_ref: row.expected_dev_ref as string, source_workspace_id: row.source_workspace_id as string,
+      source_workspace_root: row.source_workspace_root as string,
+    };
+  });
+  if (new Set(missions.map((mission) => mission.project_id)).size !== missions.length) fail("owner_bridge_config_invalid");
+  return { missions };
+}
+
 async function readOwnerConfig(
   ctx: Pick<PluginContext, "config">,
   companyId: string,
   projectId?: string,
   stageKey?: string,
-  purpose: "write" | "accepted_source_reader" = "write",
+  purpose: "write" | "accepted_source_reader" | "program_source_scope" = "write",
 ): Promise<OwnerConfig> {
   const pluginConfig = await ctx.config.get(companyId);
   const configPath = pluginConfig.ownerConfigPath;
@@ -188,11 +254,17 @@ async function readOwnerConfig(
     }
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const acceptedSourceReader = parseAcceptedSourceReader(parsed.accepted_source_reader);
+    const programAdmission = parseProgramAdmission(parsed.program_admission);
+    if (programAdmission && programAdmission.missions.some((mission) => mission.luna_agent_id !== parsed.worker_agent_id
+        || mission.qa_agent_ids.length !== 1 || mission.qa_agent_ids[0] !== parsed.reviewer_agent_id)) {
+      fail("owner_bridge_config_invalid");
+    }
     const keys = ["company_id", "project_id", "worker_agent_id", "reviewer_agent_id"] as const;
     const hasAnyLegacyPair = parsed.source_issue_id !== undefined || parsed.reviewer_issue_id !== undefined;
     const hasLegacyPair = typeof parsed.source_issue_id === "string" && typeof parsed.reviewer_issue_id === "string";
     const finite = Array.isArray(parsed.source_stage_catalog) && parsed.source_stage_catalog.length >= 1
       && parsed.source_stage_catalog.length <= 32;
+    const hasProgramAdmission = programAdmission !== undefined;
     const canonicalFields = ["canonical_repo", "canonical_ref", "canonical_expected_tip"];
     const hasCanonical = canonicalFields.some((key) => parsed[key] !== undefined);
     const canonicalValid = !hasCanonical || (typeof parsed.canonical_repo === "string" && isAbsolute(parsed.canonical_repo)
@@ -253,6 +325,8 @@ async function readOwnerConfig(
     });
     const readerProjectAdmitted = purpose === "accepted_source_reader" && !!projectId
       && acceptedSourceReader?.programs.some((program) => program.project_id === projectId);
+    const programProjectAdmitted = (purpose === "program_source_scope" || purpose === "accepted_source_reader") && !!projectId
+      && programAdmission?.missions.some((mission) => mission.project_id === projectId);
     const laneIdentityValid = !hasLaneIdentities || (!!projectId && (projectStages.length > 0 || readerProjectAdmitted) && (() => {
       const laneConfigs = new Map<string, string>();
       for (const stage of rawStages) {
@@ -277,7 +351,7 @@ async function readOwnerConfig(
         laneConfigs.set(lane, config);
       }
       return projectStages.length === 0
-        ? readerProjectAdmitted === true
+        ? readerProjectAdmitted === true || programProjectAdmitted === true
         : selectedStages.every((stage) => stage.project_id === projectId);
     })());
     const workspaceValid = !finite || (typeof laneWorkspaceId === "string" && ID_RE.test(laneWorkspaceId)
@@ -285,7 +359,7 @@ async function readOwnerConfig(
       && !laneWorkspaceRoot.split("/").includes("..") && laneWorkspaceRoot !== "/");
     if (parsed.schema !== CONFIG_SCHEMA || keys.some((key) => typeof parsed[key] !== "string" || !ID_RE.test(parsed[key] as string))
         || (hasAnyLegacyPair && !hasLegacyPair)
-        || (!hasLegacyPair && !finite)
+        || (!hasLegacyPair && !finite && !hasProgramAdmission)
         || (hasLegacyPair && (!ID_RE.test(parsed.source_issue_id as string) || !ID_RE.test(parsed.reviewer_issue_id as string)))
         || (finite && ((!laneAgent || !ID_RE.test(laneAgent as string)) || (!laneIssue || !ID_RE.test(laneIssue as string)) || !stageCatalogValid || !laneIdentityValid))
         || !canonicalValid || (hasCanonical && !finite) || !workspaceValid
@@ -320,6 +394,7 @@ async function readOwnerConfig(
         ? { reviewer_parent_issue_id: parsed.reviewer_parent_issue_id }
         : {}),
       ...(acceptedSourceReader ? { accepted_source_reader: acceptedSourceReader } : {}),
+      ...(programAdmission ? { program_admission: programAdmission } : {}),
       python_executable: parsed.python_executable,
       configPath,
     } as OwnerConfig;
@@ -976,6 +1051,168 @@ async function hasAcceptedSourceProgramAncestry(
   return false;
 }
 
+async function resolveCurrentProgramLead(
+  ctx: Pick<PluginContext, "issues">,
+  runCtx: ToolRunContext,
+  owner: OwnerConfig,
+  mission: ProgramAdmissionMission,
+) {
+  if (runCtx.companyId !== owner.company_id || runCtx.projectId !== mission.project_id
+      || runCtx.agentId !== mission.sol_agent_id) fail("program_source_scope_actor_not_admitted");
+  const matches = [];
+  let complete = false;
+  for (let offset = 0; offset < 2_000; offset += 100) {
+    const page = await ctx.issues.list({ companyId: owner.company_id, projectId: mission.project_id,
+      assigneeAgentId: mission.sol_agent_id, limit: 100, offset });
+    if (!Array.isArray(page) || page.length > 100) fail("program_source_scope_run_binding_unknown");
+    matches.push(...page.filter((issue) => issue.executionRunId === runCtx.runId));
+    if (matches.length > 1) fail("program_source_scope_run_binding_ambiguous");
+    if (page.length < 100) { complete = true; break; }
+  }
+  if (!complete || matches.length !== 1) fail("program_source_scope_run_binding_unknown");
+  const lead = await readNativeIssue(ctx, matches[0].id, owner.company_id);
+  if (lead.projectId !== mission.project_id || lead.assigneeAgentId !== mission.sol_agent_id
+      || lead.executionRunId !== runCtx.runId || lead.status !== "in_progress"
+      || !mission.goal_ids.includes(lead.goalId ?? "")
+      || (lead as typeof lead & { createdByAgentId?: string }).createdByAgentId !== mission.astra_agent_id
+      || typeof lead.parentId !== "string") fail("program_source_scope_lead_binding_mismatch");
+  const parent = await ctx.issues.get(lead.parentId, owner.company_id);
+  if (!parent || parent.id !== lead.parentId || parent.companyId !== owner.company_id
+      || parent.assigneeAgentId !== mission.astra_agent_id) {
+    fail("program_source_scope_astra_parent_mismatch");
+  }
+  return { lead, parent };
+}
+
+async function resolveCurrentMissionIssue(
+  ctx: Pick<PluginContext, "issues">,
+  runCtx: ToolRunContext,
+  mission: ProgramAdmissionMission,
+  agentId: string,
+  allowedStatuses: string[] = ["in_progress"],
+) {
+  if (runCtx.companyId.length === 0 || runCtx.projectId !== mission.project_id || runCtx.agentId !== agentId) {
+    fail("program_source_stage_actor_not_admitted");
+  }
+  const matches = [];
+  let complete = false;
+  for (let offset = 0; offset < 2_000; offset += 100) {
+    const page = await ctx.issues.list({ companyId: runCtx.companyId, projectId: mission.project_id,
+      assigneeAgentId: agentId, limit: 100, offset });
+    if (!Array.isArray(page) || page.length > 100) fail("program_source_stage_run_binding_unknown");
+    matches.push(...page.filter((issue) => issue.executionRunId === runCtx.runId));
+    if (matches.length > 1) fail("program_source_stage_run_binding_ambiguous");
+    if (page.length < 100) { complete = true; break; }
+  }
+  if (!complete || matches.length !== 1) fail("program_source_stage_run_binding_unknown");
+  const scoped = ctx.issues.forCurrentToolRun();
+  const [issue, orchestration] = await Promise.all([
+    scoped.get(matches[0].id, runCtx.companyId),
+    scoped.getOrchestration({ issueId: matches[0].id, companyId: runCtx.companyId }),
+  ]);
+  const boundRun = orchestration.runs.find((run) => run.id === runCtx.runId);
+  if (!issue || issue.id !== matches[0].id || issue.companyId !== runCtx.companyId
+      || issue.projectId !== mission.project_id || issue.assigneeAgentId !== agentId
+      || issue.executionRunId !== runCtx.runId || !allowedStatuses.includes(issue.status)
+      || !boundRun || boundRun.issueId !== issue.id || boundRun.agentId !== agentId || boundRun.status !== "running") {
+    fail("program_source_stage_run_binding_mismatch");
+  }
+  return issue;
+}
+
+async function resolveCurrentMissionProgram(
+  ctx: Pick<PluginContext, "issues">,
+  runCtx: ToolRunContext,
+  mission: ProgramAdmissionMission,
+): Promise<AcceptedSourceProgram> {
+  if (![mission.sol_agent_id, mission.luna_agent_id, ...mission.qa_agent_ids].includes(runCtx.agentId)) {
+    fail("accepted_source_reader_actor_not_admitted");
+  }
+  const current = await resolveCurrentMissionIssue(ctx, runCtx, mission, runCtx.agentId,
+    mission.qa_agent_ids.includes(runCtx.agentId) ? ["in_progress", "in_review"] : ["in_progress"]);
+  let ancestor = current;
+  for (let depth = 0; depth <= 32; depth += 1) {
+    if (ancestor.projectId === mission.project_id && ancestor.assigneeAgentId === mission.sol_agent_id
+        && (ancestor as typeof ancestor & { createdByAgentId?: string }).createdByAgentId === mission.astra_agent_id) {
+      if (!ancestor.parentId) fail("accepted_source_reader_program_ancestry_mismatch");
+      const astraParent = await ctx.issues.get(ancestor.parentId, runCtx.companyId);
+      if (!astraParent || astraParent.companyId !== runCtx.companyId
+          || astraParent.assigneeAgentId !== mission.astra_agent_id) {
+        fail("accepted_source_reader_program_ancestry_mismatch");
+      }
+      return {
+        project_id: mission.project_id, program_issue_id: ancestor.id,
+        sol_agent_id: mission.sol_agent_id, luna_agent_id: mission.luna_agent_id,
+        qa_agent_ids: mission.qa_agent_ids, corpus_ids: mission.corpus_ids,
+      };
+    }
+    if (!ancestor.parentId) break;
+    const parent = await ctx.issues.get(ancestor.parentId, runCtx.companyId);
+    if (!parent || parent.companyId !== runCtx.companyId) break;
+    ancestor = parent as typeof ancestor;
+  }
+  fail("accepted_source_reader_program_ancestry_mismatch");
+}
+
+async function resolveDynamicStageForIssue(
+  ctx: Pick<PluginContext, "issues">,
+  owner: OwnerConfig,
+  mission: ProgramAdmissionMission,
+  issue: Awaited<ReturnType<typeof readNativeIssue>>,
+  stageKey: string,
+  bindingKey: string,
+  side: "source_issue_id" | "review_issue_id",
+  invoke: BridgeInvoker,
+) {
+  if (!issue.parentId) fail("program_source_stage_parent_mismatch");
+  const lead = await ctx.issues.get(issue.parentId, owner.company_id);
+  if (!lead || lead.id !== issue.parentId || lead.companyId !== owner.company_id
+      || lead.projectId !== mission.project_id || lead.assigneeAgentId !== mission.sol_agent_id
+      || !mission.goal_ids.includes(lead.goalId ?? "")
+      || (lead as typeof lead & { createdByAgentId?: string }).createdByAgentId !== mission.astra_agent_id
+      || !lead.parentId) fail("program_source_stage_parent_mismatch");
+  const astra = await ctx.issues.get(lead.parentId, owner.company_id);
+  if (!astra || astra.companyId !== owner.company_id || astra.assigneeAgentId !== mission.astra_agent_id) {
+    fail("program_source_stage_astra_parent_mismatch");
+  }
+  const lookup = await invoke("lookup_source_stage_binding", {
+    company_id: owner.company_id, project_id: mission.project_id, lead_agent_id: mission.sol_agent_id,
+    lead_issue_id: lead.id, stage_key: stageKey, stage_binding_key: bindingKey, [side]: issue.id,
+  }, owner.configPath, owner.python_executable);
+  if (lookup.found !== true || lookup.stage_binding_key !== bindingKey || lookup.stage_key !== undefined && lookup.stage_key !== stageKey
+      || lookup[side] !== issue.id || lookup.program_issue_id !== lead.id || lookup.project_id !== undefined && lookup.project_id !== mission.project_id
+      || !Array.isArray(lookup.path_ids) || lookup.path_ids.length < 2
+      || lookup.goal_id !== lead.goalId || typeof lookup.verifier_policy_id !== "string") fail("program_source_stage_binding_unavailable");
+  const peerId = side === "source_issue_id" ? lookup.review_issue_id : lookup.source_issue_id;
+  if (typeof peerId !== "string" || !ID_RE.test(peerId)) fail("program_source_stage_binding_unavailable");
+  const peer = await ctx.issues.get(peerId, owner.company_id);
+  const reviewAgentId = side === "review_issue_id" ? issue.assigneeAgentId : peer?.assigneeAgentId;
+  if (typeof reviewAgentId !== "string" || !mission.qa_agent_ids.includes(reviewAgentId)) fail("program_source_stage_binding_unavailable");
+  if (!peer || peer.companyId !== owner.company_id || peer.projectId !== mission.project_id
+      || peer.parentId !== lead.id || peer.goalId !== lead.goalId
+      || (peer as typeof peer & { createdByAgentId?: string }).createdByAgentId !== mission.sol_agent_id
+      || (side === "source_issue_id" && (peer.status !== "blocked" || peer.executionRunId !== null))
+      || (side === "review_issue_id" && (peer.assigneeAgentId !== mission.luna_agent_id
+        || peer.status !== "done" || peer.executionRunId !== null))) fail("program_source_stage_peer_binding_mismatch");
+  const stage = {
+    stage_key: stageKey, workspace_id: "source", initial_base_sha: lookup.base_sha,
+    predecessor_stage_key: null, path_ids: lookup.path_ids as string[], verifier_policy_id: lookup.verifier_policy_id,
+    project_id: mission.project_id, goal_id: lead.goalId, lead_agent_id: mission.sol_agent_id, lead_issue_id: lead.id,
+    source_workspace_id: mission.source_workspace_id, source_workspace_root: mission.source_workspace_root,
+    source_repo: mission.source_repo, publisher_repo: mission.publisher_repo, canonical_repo: mission.canonical_repo,
+    canonical_ref: mission.canonical_ref, canonical_expected_tip: lookup.canonical_base_sha,
+    expected_dev_ref: mission.expected_dev_ref,
+  } as NonNullable<OwnerConfig["source_stage_catalog"]>[number];
+  const dynamicOwner: OwnerConfig = {
+    ...owner, project_id: mission.project_id, worker_agent_id: mission.luna_agent_id,
+    reviewer_agent_id: reviewAgentId,
+    finite_lead_agent_id: mission.sol_agent_id, finite_lead_issue_id: lead.id,
+    source_workspace_id: mission.source_workspace_id, source_workspace_root: mission.source_workspace_root,
+    source_stage_catalog: [stage],
+  };
+  return { stage, owner: dynamicOwner, lead, lookup };
+}
+
 async function readOwnerLeadOrchestration(
   ctx: Pick<PluginContext, "issues">,
   owner: OwnerConfig,
@@ -1273,6 +1510,388 @@ async function validateStageReviewRun(
 }
 
 export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoker): void {
+  ctx.tools.register("get_program_source_scope", {
+    displayName: "Get Program Source Scope",
+    description: "Return the immutable department source envelope for the current Astra-created Sol program.",
+    parametersSchema: { type: "object", properties: {}, additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw as object).length !== 0) {
+      fail("program_source_scope_parameters_invalid");
+    }
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "program_source_scope");
+    const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
+    if (!mission) fail("program_source_scope_actor_not_admitted");
+    const { lead, parent } = await resolveCurrentProgramLead(ctx, runCtx, owner, mission);
+    const scope = await invoke("get_program_source_scope", {
+      company_id: owner.company_id, project_id: mission.project_id, goal_id: lead.goalId,
+    }, owner.configPath, owner.python_executable);
+    const expectedScopeKeys = ["allowed_prefixes", "astra_agent_id", "corpus_ids", "excluded_prefixes", "goal_id", "luna_agent_id", "profiles", "project_id", "qa_agent_ids", "sol_agent_id", "standing_issue_id", "status"];
+    if (Object.keys(scope).sort().join(",") !== expectedScopeKeys.join(",")
+        || scope.status !== "ok" || scope.project_id !== mission.project_id
+        || scope.standing_issue_id !== mission.standing_issue_id || scope.goal_id !== lead.goalId
+        || scope.sol_agent_id !== mission.sol_agent_id || scope.astra_agent_id !== mission.astra_agent_id
+        || scope.luna_agent_id !== mission.luna_agent_id
+        || JSON.stringify(scope.qa_agent_ids) !== JSON.stringify(mission.qa_agent_ids)
+        || JSON.stringify(scope.allowed_prefixes) !== JSON.stringify(mission.allowed_prefixes)
+        || JSON.stringify(scope.excluded_prefixes) !== JSON.stringify(mission.excluded_prefixes)
+        || JSON.stringify(scope.corpus_ids) !== JSON.stringify(mission.corpus_ids)
+        || !Array.isArray(scope.profiles) || scope.profiles.length !== mission.profiles.length) fail("program_source_scope_response_invalid");
+    for (const profile of mission.profiles) {
+      const returned = scope.profiles.find((item) => item && typeof item === "object" && !Array.isArray(item)
+        && (item as Record<string, unknown>).profile_id === profile.profile_id) as Record<string, unknown> | undefined;
+      if (!returned || returned.verifier_policy_id !== profile.verifier_policy_id
+          || JSON.stringify(returned.allowed_path_ids) !== JSON.stringify(profile.allowed_path_ids)
+          || JSON.stringify(returned.allowed_prefixes) !== JSON.stringify(profile.allowed_prefixes)
+          || JSON.stringify(returned.required_test_paths) !== JSON.stringify(profile.required_test_paths)) {
+        fail("program_source_scope_response_invalid");
+      }
+    }
+    return { content: JSON.stringify({
+      ...scope, program_issue_id: lead.id, actual_goal_id: lead.goalId,
+      actual_parent_issue_id: parent.id,
+    }, null, 2) };
+  });
+
+  ctx.tools.register("validate_program_source_proposal", {
+    displayName: "Validate Program Source Proposal",
+    description: "Check a Sol-proposed normalized path subset against the owner envelope and compatible fixed verifier registry.",
+    parametersSchema: { type: "object", properties: {
+      profile_id: { type: "string" }, path_ids: { type: "array", minItems: 2, maxItems: 32, items: { type: "string", maxLength: 1024 } },
+    }, required: ["profile_id", "path_ids"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("program_source_proposal_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (Object.keys(params).sort().join(",") !== "path_ids,profile_id"
+        || typeof params.profile_id !== "string" || !ID_RE.test(params.profile_id)
+        || !Array.isArray(params.path_ids) || params.path_ids.length < 2 || params.path_ids.length > 32
+        || params.path_ids.some((path) => typeof path !== "string" || !path || path.startsWith("/")
+          || path.includes("\\") || path.includes("\0")
+          || path.split("/").some((part) => !part || part === "." || part === ".." || part.startsWith(".")))
+        || new Set(params.path_ids).size !== params.path_ids.length) fail("program_source_proposal_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "program_source_scope");
+    const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
+    if (!mission) fail("program_source_scope_actor_not_admitted");
+    const { lead } = await resolveCurrentProgramLead(ctx, runCtx, owner, mission);
+    const proposedPaths = params.path_ids as string[];
+    const result = await invoke("validate_program_source_proposal", {
+      company_id: owner.company_id, project_id: mission.project_id, goal_id: lead.goalId,
+      profile_id: params.profile_id, path_ids: proposedPaths,
+    }, owner.configPath, owner.python_executable);
+    if (Object.keys(result).sort().join(",") !== "goal_id,path_ids,profile_id,project_id,required_test_paths,status,verifier_policy_id"
+        || result.status !== "admitted" || result.project_id !== mission.project_id || result.goal_id !== lead.goalId
+        || result.profile_id !== params.profile_id || typeof result.verifier_policy_id !== "string"
+        || !Array.isArray(result.path_ids) || result.path_ids.length !== proposedPaths.length
+        || result.path_ids.some((path, index) => path !== proposedPaths[index])) fail("program_source_proposal_response_invalid");
+    return { content: JSON.stringify({ ...result, program_issue_id: lead.id }, null, 2) };
+  });
+
+  ctx.tools.register("bind_program_source_stage", {
+    displayName: "Bind Proposed Program Source Stage",
+    description: "Bind Sol-created Luna and independent QA children to a validated owner-compatible path subset and current accepted publication ACK.",
+    parametersSchema: { type: "object", properties: {
+      profile_id: { type: "string" }, corpus_id: { type: "string" }, path_ids: { type: "array", minItems: 2, maxItems: 32, items: { type: "string" } },
+      source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
+    }, required: ["profile_id", "corpus_id", "path_ids", "source_issue_id", "review_issue_id"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("program_source_stage_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (Object.keys(params).sort().join(",") !== "corpus_id,path_ids,profile_id,review_issue_id,source_issue_id"
+        || typeof params.profile_id !== "string" || !ID_RE.test(params.profile_id)
+        || typeof params.corpus_id !== "string" || !ID_RE.test(params.corpus_id)
+        || typeof params.source_issue_id !== "string" || !ID_RE.test(params.source_issue_id)
+        || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
+        || !Array.isArray(params.path_ids) || params.path_ids.length < 2 || params.path_ids.length > 32
+        || params.path_ids.some((path) => typeof path !== "string" || !path || path.startsWith("/") || path.includes("\\")
+          || path.split("/").some((part) => !part || part === "." || part === ".." || part.startsWith(".")))
+        || new Set(params.path_ids).size !== params.path_ids.length) fail("program_source_stage_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "program_source_scope");
+    const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
+    if (!mission || !mission.corpus_ids.includes(params.corpus_id as string)) fail("program_source_stage_not_owner_admitted");
+    const { lead } = await resolveCurrentProgramLead(ctx, runCtx, owner, mission);
+    const proposedPaths = params.path_ids as string[];
+    const proposal = await invoke("validate_program_source_proposal", {
+      company_id: owner.company_id, project_id: mission.project_id, goal_id: lead.goalId,
+      profile_id: params.profile_id, path_ids: proposedPaths,
+    }, owner.configPath, owner.python_executable);
+    if (Object.keys(proposal).sort().join(",") !== "goal_id,path_ids,profile_id,project_id,required_test_paths,status,verifier_policy_id"
+        || proposal.status !== "admitted" || proposal.profile_id !== params.profile_id
+        || proposal.verifier_policy_id !== mission.profiles.find((item) => item.profile_id === params.profile_id)?.verifier_policy_id
+        || !Array.isArray(proposal.path_ids) || proposal.path_ids.length !== proposedPaths.length
+        || proposal.path_ids.some((path, index) => path !== proposedPaths[index])) fail("program_source_proposal_response_invalid");
+    const [source, review] = await Promise.all([
+      readNativeIssue(ctx, params.source_issue_id as string, owner.company_id),
+      readNativeIssue(ctx, params.review_issue_id as string, owner.company_id),
+    ]);
+    const createdBy = (issue: typeof source) => (issue as typeof issue & { createdByAgentId?: string }).createdByAgentId;
+    const reviewAgentId = review.assigneeAgentId;
+    if (typeof reviewAgentId !== "string" || !mission.qa_agent_ids.includes(reviewAgentId)) fail("program_source_stage_native_children_mismatch");
+    const scoped = ctx.issues.forCurrentToolRun();
+    const [reviewOrchestration, reviewReadiness] = await Promise.all([
+      scoped.getOrchestration({ issueId: review.id, companyId: owner.company_id }),
+      scoped.getDependencyReadiness(review.id, owner.company_id),
+    ]);
+    if (source.projectId !== mission.project_id || source.parentId !== lead.id || createdBy(source) !== mission.sol_agent_id
+        || source.assigneeAgentId !== mission.luna_agent_id || source.goalId !== lead.goalId || source.status !== "backlog"
+        || source.executionRunId !== null || !Number.isSafeInteger(source.statusVersion)
+        || review.projectId !== mission.project_id || review.parentId !== lead.id || createdBy(review) !== mission.sol_agent_id
+        || review.goalId !== lead.goalId || review.status !== "blocked" || review.executionRunId !== null
+        || !Number.isSafeInteger(review.statusVersion) || reviewOrchestration.blockedByIssueIds.length !== 1
+        || reviewOrchestration.blockedByIssueIds[0] !== source.id || reviewReadiness.isDependencyReady !== false
+        || !reviewReadiness.unresolvedBlockerIssueIds.includes(source.id)) fail("program_source_stage_native_children_mismatch");
+    const sourceInstructionSha = instructionDigest(source.description);
+    const reviewInstructionSha = instructionDigest(review.description);
+    const proposalStage = {
+      stage_key: "DYNAMIC-PROPOSAL", workspace_id: "source", initial_base_sha: null,
+      predecessor_stage_key: null, path_ids: proposedPaths,
+      verifier_policy_id: String(proposal.verifier_policy_id), project_id: mission.project_id,
+      goal_id: lead.goalId, lead_agent_id: mission.sol_agent_id, lead_issue_id: lead.id,
+      source_workspace_id: mission.source_workspace_id, source_workspace_root: mission.source_workspace_root,
+      source_repo: mission.source_repo, publisher_repo: mission.publisher_repo, canonical_repo: mission.canonical_repo,
+      canonical_ref: mission.canonical_ref, expected_dev_ref: mission.expected_dev_ref,
+    } as NonNullable<OwnerConfig["source_stage_catalog"]>[number];
+    await assertPinnedSourceWorkspace(ctx, { ...owner, project_id: mission.project_id,
+      source_workspace_id: mission.source_workspace_id, source_workspace_root: mission.source_workspace_root },
+    [lead.id, source.id, review.id], proposalStage);
+    const result = await invoke("bind_program_source_stage", {
+      company_id: owner.company_id, project_id: mission.project_id, lead_agent_id: mission.sol_agent_id,
+      lead_issue_id: lead.id, lead_run_id: runCtx.runId, goal_id: lead.goalId,
+      profile_id: params.profile_id, corpus_id: params.corpus_id, path_ids: params.path_ids,
+      source_issue_id: source.id, source_version: source.statusVersion,
+      review_issue_id: review.id, review_version: review.statusVersion,
+      source_instruction_sha256: sourceInstructionSha, review_instruction_sha256: reviewInstructionSha,
+    }, owner.configPath, owner.python_executable);
+    if (typeof result.stage_key !== "string" || !ID_RE.test(result.stage_key)
+        || typeof result.stage_binding_key !== "string" || !KEY_RE.test(result.stage_binding_key)
+        || typeof result.base_sha !== "string" || !SHA_RE.test(result.base_sha)
+        || result.state !== "bound") fail("bridge_result_invalid");
+    const bound = { ...owner, project_id: mission.project_id, worker_agent_id: mission.luna_agent_id,
+      reviewer_agent_id: reviewAgentId, finite_lead_agent_id: mission.sol_agent_id,
+      finite_lead_issue_id: lead.id };
+    await activateSourceStage(ctx, invoke, bound, owner.configPath, result.stage_binding_key, {
+      id: source.id, status: source.status, statusVersion: source.statusVersion as number,
+    });
+    const note = [`brain-autonomous-bridge:${result.stage_binding_key}:dynamic-binding`,
+      `stage_key:${result.stage_key}`, `stage_binding_key:${result.stage_binding_key}`,
+      `base_sha:${result.base_sha}`, `canonical_base_sha:${String(result.canonical_base_sha ?? "")}`,
+      `profile_id:${params.profile_id}`, `path_ids:${(params.path_ids as string[]).join(",")}`,
+      "state:active", "publication_authority:not_granted"].join("\n");
+    await persistIssueNote(ctx, lead.id, owner.company_id, `${result.stage_binding_key}:dynamic-binding`, note);
+    await persistIssueNote(ctx, source.id, owner.company_id, `${result.stage_binding_key}:dynamic-binding`, note);
+    await persistIssueNote(ctx, review.id, owner.company_id, `${result.stage_binding_key}:dynamic-binding`, note);
+    return { content: note };
+  });
+
+  ctx.tools.register("deliver_program_source_content", {
+    displayName: "Deliver Proposed Program Source Content",
+    description: "Deliver a bounded complete snapshot for the exact dynamic stage bound to this current Luna run.",
+    parametersSchema: { type: "object", properties: {
+      stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" },
+      files: { type: "array", minItems: 2, maxItems: 32, items: { type: "object", properties: {
+        path_id: { type: "string" }, content: { type: "string" }, size: { type: "integer" }, sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+      }, required: ["path_id", "content", "size", "sha256"], additionalProperties: false } },
+    }, required: ["stage_key", "stage_binding_key", "files"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("program_source_delivery_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (Object.keys(params).sort().join(",") !== "files,stage_binding_key,stage_key"
+        || typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
+        || !Array.isArray(params.files) || params.files.length < 2 || params.files.length > 32
+        || Buffer.byteLength(JSON.stringify(params.files), "utf8") > 1_600_000) fail("program_source_delivery_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "program_source_scope");
+    const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
+    if (!mission) fail("program_source_stage_actor_not_admitted");
+    const source = await resolveCurrentMissionIssue(ctx, runCtx, mission, mission.luna_agent_id);
+    const { stage, owner: dynamicOwner, lead, lookup } = await resolveDynamicStageForIssue(
+      ctx, owner, mission, source, params.stage_key, params.stage_binding_key, "source_issue_id", invoke,
+    );
+    if (source.parentId !== lead.id || source.assigneeAgentId !== mission.luna_agent_id
+        || source.goalId !== lead.goalId || params.files.length !== stage.path_ids.length) fail("program_source_stage_source_binding_mismatch");
+    const files = params.files as Array<Record<string, unknown>>;
+    const paths = files.map((file) => file.path_id);
+    if (paths.some((path) => typeof path !== "string") || new Set(paths).size !== paths.length
+        || [...paths as string[]].sort().join("\0") !== [...stage.path_ids].sort().join("\0")) fail("program_source_stage_file_set_mismatch");
+    const sourceInstructionSha = instructionDigest(source.description);
+    if (lookup.source_instruction_sha256 !== sourceInstructionSha) fail("source_stage_instruction_binding_mismatch");
+    await assertPinnedSourceWorkspace(ctx, dynamicOwner, [lead.id, source.id], stage);
+    const result = await invoke("deliver_source_stage_content", {
+      company_id: owner.company_id, project_id: mission.project_id, source_issue_id: source.id,
+      worker_agent_id: mission.luna_agent_id, run_id: runCtx.runId, stage_key: stage.stage_key,
+      stage_binding_key: params.stage_binding_key, source_instruction_sha256: sourceInstructionSha,
+      files: params.files,
+    }, owner.configPath, owner.python_executable);
+    if (result.status === "unchanged_not_submitted") {
+      if (result.stage_binding_key !== params.stage_binding_key || result.base_sha !== lookup.base_sha
+          || result.baseline_action !== "verify_source_stage_unchanged"
+          || !result.path_hashes || typeof result.path_hashes !== "object" || Array.isArray(result.path_hashes)) fail("bridge_result_invalid");
+      return { content: JSON.stringify(result, null, 2) };
+    }
+    if (result.status === "preflight_failed" || result.status === "preflight_unknown") {
+      if ("operation_key" in result || "candidate_sha" in result) fail("bridge_result_invalid");
+      return { content: JSON.stringify(result, null, 2) };
+    }
+    if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
+        || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)) fail("bridge_result_invalid");
+    return { content: JSON.stringify({ ...result, stage_key: stage.stage_key, stage_binding_key: params.stage_binding_key,
+      source_issue_id: source.id, reviewer_issue_id: lookup.review_issue_id }, null, 2) };
+  });
+
+  ctx.tools.register("verify_program_source_unchanged", {
+    displayName: "Verify Proposed Program Accepted Base",
+    description: "Run the registered fixed verifier on the exact accepted base after unchanged content delivery.",
+    parametersSchema: { type: "object", properties: { stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" } }, required: ["stage_key", "stage_binding_key"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("program_source_no_change_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (Object.keys(params).sort().join(",") !== "stage_binding_key,stage_key"
+        || typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)) fail("program_source_no_change_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "program_source_scope");
+    const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
+    if (!mission) fail("program_source_stage_actor_not_admitted");
+    const source = await resolveCurrentMissionIssue(ctx, runCtx, mission, mission.luna_agent_id);
+    const { stage, lookup } = await resolveDynamicStageForIssue(ctx, owner, mission, source,
+      params.stage_key, params.stage_binding_key, "source_issue_id", invoke);
+    const sourceInstructionSha = instructionDigest(source.description);
+    if (lookup.source_instruction_sha256 !== sourceInstructionSha) fail("source_stage_instruction_binding_mismatch");
+    const result = await invoke("verify_source_stage_unchanged", {
+      company_id: owner.company_id, project_id: mission.project_id, worker_agent_id: mission.luna_agent_id,
+      run_id: runCtx.runId, source_issue_id: source.id, stage_key: stage.stage_key,
+      stage_binding_key: params.stage_binding_key, source_instruction_sha256: sourceInstructionSha,
+    }, owner.configPath, owner.python_executable);
+    if (![ "passed", "preflight_failed", "no_change_unknown" ].includes(String(result.status))) fail("bridge_result_invalid");
+    return { content: JSON.stringify(result, null, 2) };
+  });
+
+  const dynamicReviewContext = async (runCtx: ToolRunContext, stageKey: string, bindingKey: string, reviewIssueId: string) => {
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "program_source_scope");
+    const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
+    if (!mission || !mission.qa_agent_ids.includes(runCtx.agentId)) fail("program_source_stage_actor_not_admitted");
+    const review = await resolveCurrentMissionIssue(ctx, runCtx, mission, runCtx.agentId);
+    if (review.id !== reviewIssueId) fail("program_source_stage_run_binding_mismatch");
+    const bound = await resolveDynamicStageForIssue(ctx, owner, mission, review, stageKey, bindingKey, "review_issue_id", invoke);
+    if (review.parentId !== bound.lead.id || review.goalId !== bound.lead.goalId
+        || bound.lookup.review_instruction_sha256 !== instructionDigest(review.description)) fail("program_source_stage_review_binding_mismatch");
+    await assertPinnedSourceWorkspace(ctx, bound.owner, [bound.lead.id, review.id], bound.stage);
+    return { ...bound, owner, mission, review, instructionSha: instructionDigest(review.description) };
+  };
+
+  const dynamicReviewParams = (raw: unknown) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("program_source_review_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (Object.keys(params).sort().join(",") !== "review_issue_id,stage_binding_key,stage_key"
+        || typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
+        || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)) fail("program_source_review_parameters_invalid");
+    return params as { stage_key: string; stage_binding_key: string; review_issue_id: string };
+  };
+
+  ctx.tools.register("inspect_program_source_candidate", {
+    displayName: "Inspect Proposed Program Candidate",
+    description: "Inspect the exact dynamic candidate and bounded diff in the independent QA run.",
+    parametersSchema: { type: "object", properties: { stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" }, review_issue_id: { type: "string" } }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    const params = dynamicReviewParams(raw);
+    const bound = await dynamicReviewContext(runCtx, params.stage_key, params.stage_binding_key, params.review_issue_id);
+    const result = await invoke("inspect_bound_source_stage", {
+      company_id: bound.owner.company_id, project_id: bound.mission.project_id,
+      reviewer_agent_id: bound.review.assigneeAgentId, reviewer_run_id: runCtx.runId,
+      reviewer_issue_id: bound.review.id, stage_key: bound.stage.stage_key,
+      stage_binding_key: params.stage_binding_key, review_instruction_sha256: bound.instructionSha,
+    }, bound.owner.configPath, bound.owner.python_executable);
+    if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
+        || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)
+        || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 60_000
+        || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)) fail("bridge_result_invalid");
+    const metadata = { ...result }; delete metadata.diff; delete metadata.canonical_diff;
+    return { content: JSON.stringify(metadata, null, 2) + "\n\n--- Candidate diff ---\n" + result.diff };
+  });
+
+  ctx.tools.register("approve_program_source_candidate", {
+    displayName: "Record Proposed Program Candidate Review",
+    description: "Record independent merits for the exact dynamic candidate and invoke the fixed GitGate publication path.",
+    parametersSchema: { type: "object", properties: { stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" }, review_issue_id: { type: "string" }, approved: { type: "boolean" }, evidence: { type: "object", properties: { inspection_digest: { type: "string", pattern: "^[0-9a-f]{64}$" }, rationale: { type: "string", minLength: 1, maxLength: 4000 } }, required: ["inspection_digest", "rationale"], additionalProperties: false } }, required: ["stage_key", "stage_binding_key", "review_issue_id", "approved", "evidence"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("program_source_review_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
+        || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
+        || typeof params.approved !== "boolean" || !params.evidence || typeof params.evidence !== "object" || Array.isArray(params.evidence)) fail("program_source_review_parameters_invalid");
+    const evidence = params.evidence as Record<string, unknown>;
+    if (Object.keys(evidence).sort().join(",") !== "inspection_digest,rationale"
+        || typeof evidence.inspection_digest !== "string" || !KEY_RE.test(evidence.inspection_digest)
+        || typeof evidence.rationale !== "string" || !evidence.rationale.trim()
+        || Buffer.byteLength(evidence.rationale, "utf8") > 4_000) fail("program_source_review_parameters_invalid");
+    const bound = await dynamicReviewContext(runCtx, params.stage_key, params.stage_binding_key, params.review_issue_id);
+    const result = await invoke("approve_bound_source_stage", {
+      company_id: bound.owner.company_id, project_id: bound.mission.project_id,
+      reviewer_agent_id: bound.review.assigneeAgentId, reviewer_run_id: runCtx.runId,
+      reviewer_issue_id: bound.review.id, stage_key: bound.stage.stage_key,
+      stage_binding_key: params.stage_binding_key, approved: params.approved,
+      evidence, review_instruction_sha256: bound.instructionSha,
+    }, bound.owner.configPath, bound.owner.python_executable);
+    if (typeof result.status !== "string" || typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)) fail("bridge_result_invalid");
+    const note = "brain-autonomous-bridge:" + result.operation_key + ":dynamic-review\nstatus:" + result.status + "\noperation_key:" + result.operation_key + "\nstage_key:" + bound.stage.stage_key
+      + "\nstage_binding_key:" + params.stage_binding_key + "\ninspection_digest:" + evidence.inspection_digest
+      + "\nrationale:" + evidence.rationale;
+    await persistIssueNote(ctx, bound.review.id, bound.owner.company_id, result.operation_key + ":dynamic-review", note);
+    await persistIssueNote(ctx, bound.lead.id, bound.owner.company_id, result.operation_key + ":dynamic-review", note);
+    return { content: note };
+  });
+
+  ctx.tools.register("inspect_program_source_no_change", {
+    displayName: "Inspect Proposed Program No Change",
+    description: "Inspect the exact accepted-base verification receipt and current accepted tip before product-merit review.",
+    parametersSchema: { type: "object", properties: { stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" }, review_issue_id: { type: "string" } }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    const params = dynamicReviewParams(raw);
+    const bound = await dynamicReviewContext(runCtx, params.stage_key, params.stage_binding_key, params.review_issue_id);
+    const result = await invoke("inspect_source_stage_no_change", {
+      company_id: bound.owner.company_id, project_id: bound.mission.project_id,
+      reviewer_agent_id: bound.review.assigneeAgentId, reviewer_run_id: runCtx.runId,
+      reviewer_issue_id: bound.review.id, stage_key: bound.stage.stage_key,
+      stage_binding_key: params.stage_binding_key, review_instruction_sha256: bound.instructionSha,
+    }, bound.owner.configPath, bound.owner.python_executable);
+    if (result.schema !== "paperclip-source-stage-no-change-inspection-v1"
+        || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)) fail("bridge_result_invalid");
+    return { content: JSON.stringify(result, null, 2) };
+  });
+
+  ctx.tools.register("record_program_source_no_change_merits", {
+    displayName: "Record Proposed Program No Change Merits",
+    description: "Record independent product merits for the verified accepted base without candidate creation or publication.",
+    parametersSchema: { type: "object", properties: { stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" }, review_issue_id: { type: "string" }, merits: { type: "boolean" }, evidence: { type: "object", properties: { inspection_digest: { type: "string", pattern: "^[0-9a-f]{64}$" }, rationale: { type: "string", minLength: 1, maxLength: 4000 } }, required: ["inspection_digest", "rationale"], additionalProperties: false } }, required: ["stage_key", "stage_binding_key", "review_issue_id", "merits", "evidence"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("program_source_no_change_merits_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
+        || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
+        || typeof params.merits !== "boolean" || !params.evidence || typeof params.evidence !== "object" || Array.isArray(params.evidence)) fail("program_source_no_change_merits_parameters_invalid");
+    const evidence = params.evidence as Record<string, unknown>;
+    if (Object.keys(evidence).sort().join(",") !== "inspection_digest,rationale"
+        || typeof evidence.inspection_digest !== "string" || !KEY_RE.test(evidence.inspection_digest)
+        || typeof evidence.rationale !== "string" || !evidence.rationale.trim()
+        || Buffer.byteLength(evidence.rationale, "utf8") > 4_000) fail("program_source_no_change_merits_parameters_invalid");
+    const bound = await dynamicReviewContext(runCtx, params.stage_key, params.stage_binding_key, params.review_issue_id);
+    const result = await invoke("record_source_stage_no_change_merits", {
+      company_id: bound.owner.company_id, project_id: bound.mission.project_id,
+      reviewer_agent_id: bound.review.assigneeAgentId, reviewer_run_id: runCtx.runId,
+      reviewer_issue_id: bound.review.id, stage_key: bound.stage.stage_key,
+      stage_binding_key: params.stage_binding_key, review_instruction_sha256: bound.instructionSha,
+      merits: params.merits, evidence,
+    }, bound.owner.configPath, bound.owner.python_executable);
+    if (typeof result.merits_digest !== "string" || !KEY_RE.test(result.merits_digest) || result.merits !== params.merits) fail("bridge_result_invalid");
+    const note = "brain-autonomous-bridge:" + result.merits_digest + ":dynamic-no-change-merits\nmerits:" + result.merits + "\nstage_key:" + bound.stage.stage_key + "\nstage_binding_key:" + params.stage_binding_key
+      + "\nreceipt_digest:" + String(result.receipt_digest) + "\ninspection_digest:" + String(result.inspection_digest)
+      + "\nmerits_digest:" + result.merits_digest + "\nrationale:" + String(result.rationale)
+      + "\nclaim:independent_product_merits_only;no_candidate_or_publication";
+    await persistIssueNote(ctx, bound.review.id, bound.owner.company_id, result.merits_digest + ":dynamic-no-change-merits", note);
+    await persistIssueNote(ctx, bound.lead.id, bound.owner.company_id, result.merits_digest + ":dynamic-no-change-merits", note);
+    return { content: note };
+  });
+
   const readTool = (
     name: "list_accepted_source" | "search_accepted_source" | "read_accepted_source",
     schema: Record<string, unknown>,
@@ -1316,9 +1935,15 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "accepted_source_reader");
       const reader = owner.accepted_source_reader;
       if (!reader) fail("accepted_source_reader_not_owner_configured");
-      const matchingPrograms = reader.programs.filter((program) => program.project_id === runCtx.projectId
+      let matchingPrograms = reader.programs.filter((program) => program.project_id === runCtx.projectId
         && program.corpus_ids.includes(params.corpus_id as string)
         && [program.sol_agent_id, program.luna_agent_id, ...program.qa_agent_ids].includes(runCtx.agentId));
+      if (matchingPrograms.length === 0) {
+        const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId
+          && row.corpus_ids.includes(params.corpus_id as string)
+          && [row.sol_agent_id, row.luna_agent_id, ...row.qa_agent_ids].includes(runCtx.agentId));
+        if (mission) matchingPrograms = [await resolveCurrentMissionProgram(ctx, runCtx, mission)];
+      }
       if (!matchingPrograms.length) fail("accepted_source_reader_program_not_admitted");
       const currentIssue = await resolveAcceptedSourceRunIssue(ctx, runCtx, matchingPrograms[0]);
       const ancestry = await Promise.all(matchingPrograms.map(async (program) => ({
@@ -1830,6 +2455,25 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       stage_binding_key: params.stage_binding_key, source_instruction_sha256: sourceInstructionSha256,
       files: params.files,
     }, owner.configPath, owner.python_executable);
+    if (result.status === "unchanged_not_submitted") {
+      if (result.stage_key !== stage.stage_key || result.stage_binding_key !== params.stage_binding_key
+          || result.base_sha !== sourceBinding.base_sha || typeof result.snapshot_sha256 !== "string" || !KEY_RE.test(result.snapshot_sha256)
+          || !result.path_hashes || typeof result.path_hashes !== "object" || Array.isArray(result.path_hashes)
+          || result.baseline_action !== "verify_source_stage_unchanged"
+          || Object.keys(result.path_hashes as object).sort().join(",") !== [...stage.path_ids].sort().join(",")
+          || Object.values(result.path_hashes as Record<string, unknown>).some((value) => typeof value !== "string" || !SHA_RE.test(value))) {
+        fail("bridge_result_invalid");
+      }
+      const note = [
+        `brain-autonomous-bridge:${params.stage_binding_key}:unchanged-delivery`,
+        `status:${result.status}`, `stage_key:${stage.stage_key}`, `stage_binding_key:${params.stage_binding_key}`,
+        `base_sha:${String(result.base_sha)}`, `snapshot_sha256:${result.snapshot_sha256}`,
+        "candidate:not_created", "publication:not_attempted", "next_action:verify_source_stage_unchanged",
+      ].join("\n");
+      await persistIssueNote(ctx, sourceIssue.id, owner.company_id, `${params.stage_binding_key}:unchanged-delivery`, note);
+      await persistIssueNote(ctx, owner.finite_lead_issue_id!, owner.company_id, `${params.stage_binding_key}:unchanged-delivery`, note);
+      return { content: JSON.stringify(result, null, 2) };
+    }
     if (result.status === "preflight_failed" || result.status === "preflight_unknown") {
       if (typeof result.content_check_id !== "string" || !KEY_RE.test(result.content_check_id)
           || typeof result.snapshot_sha256 !== "string" || !KEY_RE.test(result.snapshot_sha256)
@@ -1913,6 +2557,110 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     await validateReviewerWakeTarget(ctx, owner);
     await ctx.issues.forCurrentToolRun().update(owner.reviewer_issue_id, "todo", owner.company_id);
     return { content: `operation_key:${result.operation_key}\ncandidate_sha:${result.candidate_sha}` };
+  });
+
+  ctx.tools.register("verify_source_stage_unchanged", {
+    displayName: "Verify Accepted Base Without Change",
+    description: "Run the registered fixed verifier against the exact accepted base after an unchanged delivery; no candidate or publication is created.",
+    parametersSchema: { type: "object", properties: { stage_key: { type: "string" }, stage_binding_key: { type: "string" }, source_issue_id: { type: "string" } }, required: ["stage_key", "stage_binding_key", "source_issue_id"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (Object.keys(params).sort().join(",") !== "source_issue_id,stage_binding_key,stage_key"
+        || typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
+        || typeof params.source_issue_id !== "string" || !ID_RE.test(params.source_issue_id)) fail("source_stage_no_change_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, params.stage_key);
+    const stage = requireSourceStage(owner, params.stage_key);
+    if (runCtx.agentId !== owner.worker_agent_id || runCtx.projectId !== owner.project_id) fail("worker_actor_binding_mismatch");
+    await assertStageCurrentRun(ctx, runCtx, params.source_issue_id, ["in_progress"], stageGoalId(owner, stage));
+    const source = await readNativeIssue(ctx, params.source_issue_id, owner.company_id);
+    if (source.parentId !== owner.finite_lead_issue_id || source.assigneeAgentId !== owner.worker_agent_id
+        || !stageGoalMatches(source, owner, stage)) fail("source_stage_source_parent_mismatch");
+    const instructionSha = await assertBoundInstruction(invoke, owner, stage.stage_key, "source_issue_id", source, params.stage_binding_key);
+    const result = await invoke("verify_source_stage_unchanged", {
+      company_id: owner.company_id, project_id: owner.project_id, worker_agent_id: owner.worker_agent_id,
+      run_id: runCtx.runId, source_issue_id: source.id, stage_key: stage.stage_key,
+      stage_binding_key: params.stage_binding_key, source_instruction_sha256: instructionSha,
+    }, owner.configPath, owner.python_executable);
+    if (!(["passed", "preflight_failed"] as unknown[]).includes(result.status) || result.schema !== "paperclip-source-stage-no-change-result-v1"
+        || result.stage_binding_key !== params.stage_binding_key || result.source_issue_id !== source.id
+        || typeof result.receipt_digest !== "string" || !KEY_RE.test(result.receipt_digest)
+        || typeof result.base_sha !== "string" || !SHA_RE.test(result.base_sha)
+        || !result.path_hashes || typeof result.path_hashes !== "object" || Array.isArray(result.path_hashes)) fail("bridge_result_invalid");
+    const note = [`brain-autonomous-bridge:${result.receipt_digest}:no-change-source`,
+      `status:${result.status === "passed" ? "accepted_base_fixed_verifier_passed" : "accepted_base_fixed_verifier_failed"}`, `stage_key:${stage.stage_key}`,
+      `stage_binding_key:${params.stage_binding_key}`, `base_sha:${result.base_sha}`,
+      `tree_sha:${String(result.tree_sha)}`, `receipt_digest:${result.receipt_digest}`,
+      `claim:accepted_base_fixed_verifier_passed;product_merit_not_decided`, "candidate:not_created", "publication:not_attempted"].join("\n");
+    await persistIssueNote(ctx, source.id, owner.company_id, `${result.receipt_digest}:no-change-source`, note);
+    await persistIssueNote(ctx, owner.finite_lead_issue_id!, owner.company_id, `${result.receipt_digest}:no-change-source`, note);
+    return { content: JSON.stringify(result, null, 2) };
+  });
+
+  ctx.tools.register("inspect_source_stage_no_change", {
+    displayName: "Inspect Accepted Base Assessment",
+    description: "Inspect the exact accepted-base verification receipt and current accepted tip before independent product-merit review.",
+    parametersSchema: { type: "object", properties: { stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" } }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (Object.keys(params).sort().join(",") !== "review_issue_id,stage_binding_key,stage_key"
+        || typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
+        || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)) fail("source_stage_no_change_review_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, params.stage_key);
+    const { stage, review } = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    const instructionSha = await assertBoundInstruction(invoke, owner, stage.stage_key, "review_issue_id", review, params.stage_binding_key);
+    const result = await invoke("inspect_source_stage_no_change", {
+      company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
+      reviewer_run_id: runCtx.runId, reviewer_issue_id: review.id, stage_key: stage.stage_key,
+      stage_binding_key: params.stage_binding_key, review_instruction_sha256: instructionSha,
+    }, owner.configPath, owner.python_executable);
+    if (result.schema !== "paperclip-source-stage-no-change-inspection-v1"
+        || result.stage_binding_key !== params.stage_binding_key || result.reviewer_issue_id !== review.id
+        || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)
+        || typeof result.receipt_digest !== "string" || !KEY_RE.test(result.receipt_digest)
+        || typeof result.base_sha !== "string" || !SHA_RE.test(result.base_sha)) fail("bridge_result_invalid");
+    return { content: JSON.stringify(result, null, 2) };
+  });
+
+  ctx.tools.register("record_source_stage_no_change_merits", {
+    displayName: "Record No Change Product Merits",
+    description: "Record explicit independent product merits for a fixed-verifier accepted-base assessment, without candidate approval or publication.",
+    parametersSchema: { type: "object", properties: { stage_key: { type: "string" }, stage_binding_key: { type: "string" }, review_issue_id: { type: "string" }, merits: { type: "boolean" }, evidence: { type: "object", properties: { inspection_digest: { type: "string" }, rationale: { type: "string", maxLength: 4000 } }, required: ["inspection_digest", "rationale"], additionalProperties: false } }, required: ["stage_key", "stage_binding_key", "review_issue_id", "merits", "evidence"], additionalProperties: false },
+  }, async (raw, runCtx): Promise<ToolResult> => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("tool_parameters_invalid");
+    const params = raw as Record<string, unknown>;
+    if (Object.keys(params).sort().join(",") !== "evidence,merits,review_issue_id,stage_binding_key,stage_key"
+        || typeof params.stage_key !== "string" || !ID_RE.test(params.stage_key)
+        || typeof params.stage_binding_key !== "string" || !KEY_RE.test(params.stage_binding_key)
+        || typeof params.review_issue_id !== "string" || !ID_RE.test(params.review_issue_id)
+        || typeof params.merits !== "boolean" || !params.evidence || typeof params.evidence !== "object" || Array.isArray(params.evidence)) fail("source_stage_no_change_merits_parameters_invalid");
+    const evidence = params.evidence as Record<string, unknown>;
+    if (Object.keys(evidence).sort().join(",") !== "inspection_digest,rationale"
+        || typeof evidence.inspection_digest !== "string" || !KEY_RE.test(evidence.inspection_digest)
+        || typeof evidence.rationale !== "string" || !evidence.rationale.trim()
+        || Buffer.byteLength(evidence.rationale, "utf8") > 4_000) fail("source_stage_no_change_merits_parameters_invalid");
+    const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, params.stage_key);
+    const { stage, review } = await validateStageReviewRun(ctx, runCtx, owner, params.stage_key, params.review_issue_id);
+    const instructionSha = await assertBoundInstruction(invoke, owner, stage.stage_key, "review_issue_id", review, params.stage_binding_key);
+    const result = await invoke("record_source_stage_no_change_merits", {
+      company_id: owner.company_id, project_id: owner.project_id, reviewer_agent_id: owner.reviewer_agent_id,
+      reviewer_run_id: runCtx.runId, reviewer_issue_id: review.id, stage_key: stage.stage_key,
+      stage_binding_key: params.stage_binding_key, review_instruction_sha256: instructionSha,
+      merits: params.merits, evidence,
+    }, owner.configPath, owner.python_executable);
+    if (typeof result.merits_digest !== "string" || !KEY_RE.test(result.merits_digest)
+        || result.merits !== params.merits || result.inspection_digest !== evidence.inspection_digest) fail("bridge_result_invalid");
+    const note = [`brain-autonomous-bridge:${result.merits_digest}:no-change-merits`,
+      `merits:${String(result.merits)}`, `stage_key:${stage.stage_key}`,
+      `stage_binding_key:${params.stage_binding_key}`, `receipt_digest:${String(result.receipt_digest)}`,
+      `inspection_digest:${String(result.inspection_digest)}`, `merits_digest:${result.merits_digest}`,
+      `rationale:${String(result.rationale)}`, `claim:independent_product_merits_only;no_content_candidate_or_publication`].join("\n");
+    await persistIssueNote(ctx, review.id, owner.company_id, `${result.merits_digest}:no-change-merits`, note);
+    await persistIssueNote(ctx, owner.finite_lead_issue_id!, owner.company_id, `${result.merits_digest}:no-change-merits`, note);
+    return { content: note };
   });
 
   ctx.tools.register("inspect_source_stage_candidate", {
