@@ -1,4 +1,4 @@
-# Current state — 2026-10-25, MEM100 candidate / QA101 rejection recording repair
+# Current state — 2026-10-25, QA101 rejection recorded / native Sol correction
 
 Explicit founder resumption authority is in the current `prompt/prompt.md`; native Goal remains
 null. Paperclip owns lifecycle, Luna source implementation, Sol programs and independent review.
@@ -6,9 +6,9 @@ No new Goal, scheduler or duplicate MEM-89/MEM-90..95 mandates.
 
 ## Accepted and observed
 
-- Controller `64d25086` and native `15f93e91` are independently accepted and deployed; plugin
-  PID72472 and owned service PID71797 were verified by birth/artifacts and inert configuration
-  readback at13:48UTC. Rejected d25 compile evidence remains preserved. Exact custody is in HANDOFF.
+- Controller `1ffdb0c7`/config7 and native `15f93e91` are independently accepted and deployed.
+  Hot Python repair preserved pluginPID72472/servicePID71797 births and workerJS; matching inert
+  readback e079c34e preceded known101 continuation. Earlier failures remain preserved in HANDOFF.
 - Actual Sol list/search/read succeeded after an assisted assignment-profile correction. Initial
   e61 tool-unavailable result remains preserved.
 - Luna MEM-96 run ac3a9bf7 succeeded with 15 actual Brain reader calls, full result and provenance.
@@ -33,7 +33,7 @@ No new Goal, scheduler or duplicate MEM-89/MEM-90..95 mandates.
 ## Current continuation and limits
 
 Reader phase:8 terminal runs,7 reached providers. Source interval:24 additional runs anchored317;
-seven used,324 terminal/live0. Private-context repair enabled actual Sol99 scope/CoreDTO handler,
+nine used; natural parent Sol99 is active after QA completion. Private-context repair enabled actual Sol99 scope/CoreDTO handler,
 14 Brain reads and proposal. Sol created MEM100 Source/MEM101 QA and dynamically bound them without
 per-task owner configuration. First Luna40125 blocked on wrong corpus IDs. Native Sol triaged and
 prepared the literal-brain clarification; owner transported it/resumed existing100, explicitly assisted.
@@ -45,22 +45,27 @@ full11020-character substantive rejection: lost known-signature counts on interr
 hydration before budget admission, shared-signature replay ambiguity, missing required regressions.
 These are static-review findings, not newly executed QA tests. The approved:false recording failed:
 public tool allows inspection_digest/rationale, but Python demands hidden canonical candidate fields.
-Actual op44ad4281 is prepared/review null, no Gate/publication.101 blocked/v2, known result retained.
-MEM/all six actors are paused/manual, fence draining, live0 for the narrow evidence-binding repair.
-Source custody explicitly returned to bootstrap Luna; native Luna paused, no concurrent source writer.
-Other five companies remain paused. Existing comment_on_task can support ordinary child clarification;
-lead-only grant is under review, not applied. No new scheduler/Goal or task duplication.
+The interface repair was independently accepted/deployed as1ffdb0c7. Known QA101 continuation72a67840
+freshly inspected the same candidate and successfully recorded approved:false with public-only evidence.
+Persisted bridge review_rejected/broker rejected; six merits findings unchanged, no approved candidate
+or publication. Full11997-character QA result retained. Natural Sol99/21ded625 began14:50:23.162UTC,
+own workspace25dd28d3/rev4, programme in_progress/v6; corrective work is now its responsibility.
+MEM/fence active, only four required actors resumed; assessor/analyst and other five companies paused.
+Bootstrap implementation idle; native Luna owns admitted source work. The lead-only comment_on_task
+role/grant was independently accepted and applied; actual manager-driven child correction remains
+unproved. No new scheduler/Goal, task duplication or write-envelope expansion.
+
 Future Astra Medium/historical98 High/Sol-Luna-QA High unchanged. Actual no-change merits, accepted
 changed-source publication, next programme and useful post-root continuation remain unproved.
 
-The independently accepted Senses/Experience program-only write envelope is held during this repair. Fixed synthetic
+The independently accepted Senses/Experience program-only write envelope is active after the reviewed repair. Fixed synthetic
 baseline:110 Senses/20 Experience/3 composition, zero failures/skips. Senses used verified read-only
 interpreter aliases without command change. Roles/access/policy intents and current scope were
-reviewed; the scoped fence is now draining again.35 prior immutable operation/stage records remain
-unchanged; owner-fence transitions and current prepared operation44ad are retained separately.
+reviewed; scoped fence reopening preserved35 prior immutable operation/stage records. Current44ad
+now records a definite rejection; original prepared and failed recording outcomes remain in history.
 Current canonical Brain37cf/pairedACK verified; old operations ineligible and no old live writers/leases.
-Generic hibernation remains incomplete with169 preserved entries (old168 plus known failed96);
-current prepared44ad is pending, not settled or silently reclassified as historical unknown.
+Historical169 entries (old168 plus known failed96) remain; generic reconciliation is not declared
+complete. Current44ad rejected outcome is separate from those historical unknowns.
 
 Actual Astra98 created Senses99; lead scope/CoreDTO handler path, reading, proposal, new children and
 binding are proved. No-change merits, changed-source QA/publication, next strategic program and
@@ -73,6 +78,6 @@ backups and failed candidate histories are retained in private HANDOFF/immutable
 No market collection, training, AUTO/trading, protected data, production/main or paid fallback.
 
 Private current evidence: `/Users/root1/Developer/brain-paperclip-lab/state/resumption-20261025/`;
-`sol-independent-native100-candidate-QA101-rejection-recording-blocker.json` records the current
-candidate, static rejection and recording failure; earlier proof and failures remain immutable.
+`sol-independent-native101-rejection-ACK-repaired-proof.json` records the fresh QA rejection ACK
+and unchanged publication refs; earlier candidate/recording failures remain immutable.
 Private HANDOFF owns exact operational custody; `engineering/OWNER-DESK.md` is the Russian projection.

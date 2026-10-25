@@ -84,18 +84,27 @@ failures on the same binding. Source100 finished with full result and candidate3
 CANDIDATE8290fa1e; accepted canonical remains37cf68f. Natural QA101/339ddaae inspected the bound private
 candidate and rejected it for concrete accounting/replay defects and missing regressions. These were
 static findings, not newly run QA tests. Its approved:false recording failed because the public schema
-cannot supply canonical fields demanded by Python. Current operation44ad is prepared/review null,
+cannot supply canonical fields demanded by Python. At that failed recording, operation44ad was prepared/review null,
 not published or settled. Unique outcome receipt:
 `resumption-20261025/sol-independent-native100-candidate-QA101-rejection-recording-blocker.json`
 (SHA25604056ae8672e4ad21724a1348f9bd1bf7b824abdddf34216436bc23bf6ea6222).
-Current maintenance: seven of24 source attempts,324 terminal/live0, all MEM actors manual/company
-paused/fence draining; other five companies paused. Source custody returned explicitly to bootstrap
-Luna for the narrow trusted inspection-to-canonical-review evidence fix, without concurrent native
-writer. The existing native comment_on_task path can support ordinary child correction; lead-only
-configuration is under review, not yet applied. Historical169 unresolved records remain separate
-from current prepared44ad. Actual no-change merits, accepted changed-source publication, subsequent
-strategy and useful post-root continuation remain open. A candidate, static rejection, source checks
-and service startup are not company readiness.
+That maintenance preserved seven of24 source attempts and returned source custody to bootstrap Luna.
+The two-file trusted inspection-to-canonical-review repair was independently accepted, integrated and
+hot-deployed as1ffdb0c7/config7, preserving native15f93/service71797/plugin72472/workerJS. Lead-only
+comment_on_task role/grant was also independently accepted/applied; native comment authority remains
+its existing API authority, not a newly claimed exact-binding enforcement boundary.
+After matching inert readback, only four MEM roles resumed. Known QA101/72a67840 freshly inspected
+the same candidate and recorded approved:false using only public fields; trusted controller derived
+canonical evidence. Persisted bridge review_rejected/broker rejected, no approved candidate or publication;
+all six findings remained byte-identical. Full11997-character QA result is preserved. Unique proof:
+`resumption-20261025/sol-independent-native101-rejection-ACK-repaired-proof.json`
+(SHA256a178fd59c462191e757648e8bb65983e935824c5fc336c3e17238dd68d7fd1d2).
+Natural Sol99/21ded625 started14:50:23.162UTC with no dispatch after the known QA continuation. Source
+interval9/24, programme in_progress/v6, own workspace25dd28d3/rev4. MEM/fence active, assessor/analyst
+and five other companies paused; bootstrap idle/native Luna source ownership. Historical169 entries
+remain separate from the definite44ad rejection. Manager-driven corrective execution, normal no-change,
+accepted changed-source publication, next strategy and useful post-root continuation remain open.
+Source/QA repair assistance is disclosed; candidate rejection is not product acceptance or company readiness.
 
 ## Standing strategic mandate — founder directive 2026-10-24
 
