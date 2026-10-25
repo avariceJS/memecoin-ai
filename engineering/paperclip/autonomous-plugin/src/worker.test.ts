@@ -480,7 +480,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const currentIssue = {
       id: "mem89-child", companyId: workerRun.companyId, projectId: readerRun.projectId,
       parentId: "mem89-issue", assigneeAgentId: workerRun.agentId, status: "in_progress",
-      executionRunId: workerRun.runId,
+      executionRunId: workerRun.runId, blockedByIssueIds: ["mem96-done-sibling"],
     };
     const programIssue = {
       id: "mem89-issue", companyId: workerRun.companyId, projectId: readerRun.projectId,
@@ -489,11 +489,14 @@ describe("Paperclip autonomous bridge tools", () => {
     const issueApi = ctx.issues as unknown as Record<string, unknown>;
     issueApi.list = vi.fn(async () => [currentIssue]);
     issueApi.get = vi.fn(async (id: string) => id === programIssue.id ? programIssue : null);
+    const orchestrationLookup = vi.fn(async () => {
+      throw new Error("sibling_blocker_issue_scope_denied");
+    });
     issueApi.forCurrentToolRun = () => ({
       get: vi.fn(async (id: string) => id === currentIssue.id ? currentIssue : null),
-      getOrchestration: vi.fn(async () => ({ issueId: currentIssue.id, companyId: workerRun.companyId, runs: [{
-        id: workerRun.runId, issueId: currentIssue.id, agentId: workerRun.agentId, status: "running",
-      }] })),
+      // The native scoped summary denies an unrelated completed sibling blocker;
+      // reader run identity must rely on the current-run scoped issue lookup only.
+      getOrchestration: orchestrationLookup,
     });
     const invoke = vi.fn(async () => ({
       status: "ok", program_issue_id: "mem89-issue", issue_id: currentIssue.id, corpus_id: "platform",
@@ -508,9 +511,13 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(invoke).toHaveBeenCalledWith("search_accepted_source", expect.objectContaining({
       program_issue_id: "mem89-issue", issue_id: currentIssue.id, corpus_id: "platform", run_id: workerRun.runId,
     }), configPath, "/usr/bin/python3");
+    expect(orchestrationLookup).not.toHaveBeenCalled();
     await expect(handlers.get("search_accepted_source")!({
       corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
     }, { ...readerRun, agentId: "unauthorized-agent" })).rejects.toThrow("accepted_source_reader_program_not_admitted");
+    await expect(handlers.get("search_accepted_source")!({
+      corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
+    }, { ...readerRun, runId: "another-run" })).rejects.toThrow("accepted_source_reader_run_binding_unknown");
     currentIssue.parentId = "other-program";
     await expect(handlers.get("search_accepted_source")!({
       corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
@@ -520,6 +527,20 @@ describe("Paperclip autonomous bridge tools", () => {
     await expect(handlers.get("search_accepted_source")!({
       corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
     }, readerRun)).rejects.toThrow("accepted_source_reader_run_binding_unknown");
+    currentIssue.executionRunId = workerRun.runId;
+    const boundMismatchCases = [
+      { field: "assigneeAgentId", value: "another-agent" },
+      { field: "projectId", value: "another-project" },
+      { field: "status", value: "blocked" },
+    ] as const;
+    for (const mismatch of boundMismatchCases) {
+      const previous = currentIssue[mismatch.field];
+      currentIssue[mismatch.field] = mismatch.value;
+      await expect(handlers.get("search_accepted_source")!({
+        corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
+      }, readerRun)).rejects.toThrow("accepted_source_reader_run_binding_mismatch");
+      currentIssue[mismatch.field] = previous;
+    }
     expect(invoke).toHaveBeenCalledTimes(1);
   });
 
