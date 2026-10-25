@@ -438,6 +438,10 @@ def search_text(
     next_position: tuple[int, int] | None = None
     start_file, start_line_index = position
     for index in range(start_file, len(files)):
+        # A completed prior file records a continuation position, not a stop
+        # signal. Clear it before scanning the next file; only a bound hit
+        # during this file should stop the scan and preserve a cursor.
+        next_position = None
         if scan_bytes + files[index].size_bytes > MAX_SEARCH_SCAN_BYTES:
             next_position = (index, 0)
             break

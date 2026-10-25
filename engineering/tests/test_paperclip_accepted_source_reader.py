@@ -101,6 +101,33 @@ class AcceptedSourceReaderTests(unittest.TestCase):
         content = read_lines(str(self.repo), snapshot, "src/pkg/module.py", start_line=2, line_count=1)
         self.assertEqual(content["lines"], [{"line": 2, "text": "second needle", "line_truncated": False}])
 
+    def test_search_covers_multiple_files_once_with_and_without_paging(self):
+        for name in ("a.py", "b.py", "c.py"):
+            self._write(f"src/multi/{name}", f"needle in {name}\n")
+        self.pin = commit(self.repo, "add three-file search fixture")
+        snapshot = self.snapshot()
+        expected = [f"src/multi/{name}" for name in ("a.py", "b.py", "c.py")]
+
+        single_page = search_text(
+            str(self.repo), snapshot, self.owner_digest, "needle", prefix="src/multi/", limit=50
+        )
+        self.assertFalse(single_page["truncated"])
+        self.assertEqual([row["path"] for row in single_page["matches"]], expected)
+
+        pages = []
+        cursor = None
+        while True:
+            page = search_text(
+                str(self.repo), snapshot, self.owner_digest, "needle", prefix="src/multi/",
+                limit=1, cursor=cursor,
+            )
+            pages.extend(row["path"] for row in page["matches"])
+            if not page["truncated"]:
+                break
+            cursor = page["next_cursor"]
+        self.assertEqual(pages, expected)
+        self.assertEqual(len(pages), len(set(pages)))
+
     def test_cursor_rejects_projection_drift_and_manifest_rejects_unapproved_root(self):
         snapshot = self.snapshot()
         first = list_files(str(self.repo), snapshot, self.owner_digest, limit=1)
