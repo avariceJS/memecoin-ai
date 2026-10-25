@@ -838,6 +838,49 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(invoke.mock.calls.filter(([action]) => action === "deliver_source_stage_content")).toHaveLength(2);
   });
 
+  it("records fixed-verifier failure honestly for finite unchanged-base assessments", async () => {
+    await installConfig();
+    const finiteConfig = {
+      schema: "paperclip-autonomous-bridge-config-v1", company_id: "company-1", project_id: "project-1",
+      worker_agent_id: "worker-1", reviewer_agent_id: "reviewer-1", finite_lead_agent_id: "lead-1",
+      finite_lead_issue_id: "lead-issue", source_workspace_id: "workspace-project",
+      source_workspace_root: "/tmp/brain-source-workspace", source_stage_catalog: [{
+        stage_key: "MEM8", workspace_id: "source", initial_base_sha: "b".repeat(40), predecessor_stage_key: null,
+        goal_id: "goal-1", path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
+        verifier_policy_id: "policy-mem8",
+      }], python_executable: "/usr/bin/python3",
+    };
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(configPath, JSON.stringify(finiteConfig), { mode: 0o600 });
+    const { ctx, handlers, notes } = fixture(configPath, "backlog", {}, ["issue-worker"], "issue-worker", "lead-issue");
+    const issues = ctx.issues as unknown as { forCurrentToolRun: () => Record<string, unknown> };
+    const originalForRun = issues.forCurrentToolRun;
+    issues.forCurrentToolRun = () => {
+      const scoped = originalForRun() as { get: (id: string, companyId: string) => Promise<Record<string, unknown> | null> };
+      return { ...scoped, get: vi.fn(async (id: string, companyId: string) => {
+        const issue = await scoped.get(id, companyId);
+        return issue ? { ...issue, goalId: "goal-1" } : null;
+      }) };
+    };
+    const binding = "a".repeat(64);
+    const invoke = vi.fn(async (action: string) => {
+      if (action === "lookup_source_stage_binding") return { found: true, stage_binding_key: binding,
+        source_issue_id: "issue-worker", review_issue_id: "issue-reviewer",
+        source_instruction_sha256: digest("source instructions"), review_instruction_sha256: digest("review instructions") };
+      return { schema: "paperclip-source-stage-no-change-result-v1", status: "preflight_failed",
+        stage_binding_key: binding, source_issue_id: "issue-worker", receipt_digest: "c".repeat(64),
+        base_sha: "b".repeat(40), tree_sha: "d".repeat(40), path_hashes: {}, failure_code: "sandboxed_verifier_failed" };
+    });
+    registerAutonomousTools(ctx, invoke as never);
+    const result = await handlers.get("verify_source_stage_unchanged")!({ stage_key: "MEM8",
+      stage_binding_key: binding, source_issue_id: "issue-worker" }, workerRun) as { content: string };
+    expect(JSON.parse(result.content)).toMatchObject({ status: "preflight_failed" });
+    const sourceNote = notes.get("issue-worker")?.join("\n") ?? "";
+    expect(sourceNote).toContain("status:accepted_base_fixed_verifier_failed");
+    expect(sourceNote).toContain("claim:accepted_base_fixed_verifier_failed;product_merit_not_decided");
+    expect(sourceNote).not.toContain("claim:accepted_base_fixed_verifier_passed");
+  });
+
   it("stage review derives its candidate from the binding without reading the producer sibling", async () => {
     await installConfig();
     const finiteConfig = {
