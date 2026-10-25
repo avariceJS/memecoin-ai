@@ -1114,29 +1114,20 @@ async function resolveCurrentProgramLead(
 ) {
   if (runCtx.companyId !== owner.company_id || runCtx.projectId !== mission.project_id
       || runCtx.agentId !== mission.sol_agent_id) fail("program_source_scope_actor_not_admitted");
-  const matches = [];
-  let complete = false;
-  for (let offset = 0; offset < 2_000; offset += 100) {
-    const page = await ctx.issues.list({ companyId: owner.company_id, projectId: mission.project_id,
-      assigneeAgentId: mission.sol_agent_id, limit: 100, offset });
-    if (!Array.isArray(page) || page.length > 100) fail("program_source_scope_run_binding_unknown");
-    matches.push(...page.filter((issue) => issue.executionRunId === runCtx.runId));
-    if (matches.length > 1) fail("program_source_scope_run_binding_ambiguous");
-    if (page.length < 100) { complete = true; break; }
-  }
-  if (!complete || matches.length !== 1) fail("program_source_scope_run_binding_unknown");
-  const lead = await readNativeIssue(ctx, matches[0].id, owner.company_id);
+  const context = await ctx.issues.forCurrentToolRun().getProgramContext({
+    companyId: owner.company_id, expectedProjectId: mission.project_id,
+    expectedSolAgentId: mission.sol_agent_id, expectedAstraAgentId: mission.astra_agent_id,
+  });
+  const lead = context.currentIssue;
   if (lead.projectId !== mission.project_id || lead.assigneeAgentId !== mission.sol_agent_id
       || lead.executionRunId !== runCtx.runId || lead.status !== "in_progress"
       || !mission.goal_ids.includes(lead.goalId ?? "")
-      || (lead as typeof lead & { createdByAgentId?: string }).createdByAgentId !== mission.astra_agent_id
-      || typeof lead.parentId !== "string") fail("program_source_scope_lead_binding_mismatch");
-  const parent = await ctx.issues.get(lead.parentId, owner.company_id);
-  if (!parent || parent.id !== lead.parentId || parent.companyId !== owner.company_id
-      || parent.assigneeAgentId !== mission.astra_agent_id) {
+      || context.program.id !== lead.id || context.program.projectWorkspaceId === null) fail("program_source_scope_lead_binding_mismatch");
+  const parent = context.astraParent;
+  if (parent.companyId !== owner.company_id || parent.assigneeAgentId !== mission.astra_agent_id) {
     fail("program_source_scope_astra_parent_mismatch");
   }
-  return { lead, parent };
+  return { lead, parent, context };
 }
 
 async function resolveCurrentMissionIssue(
@@ -1145,89 +1136,55 @@ async function resolveCurrentMissionIssue(
   mission: ProgramAdmissionMission,
   agentId: string,
   allowedStatuses: string[] = ["in_progress"],
+  expectedSource?: { issueId: string; agentId: string },
 ) {
   if (runCtx.companyId.length === 0 || runCtx.projectId !== mission.project_id || runCtx.agentId !== agentId) {
     fail("program_source_stage_actor_not_admitted");
   }
-  const matches = [];
-  let complete = false;
-  for (let offset = 0; offset < 2_000; offset += 100) {
-    const page = await ctx.issues.list({ companyId: runCtx.companyId, projectId: mission.project_id,
-      assigneeAgentId: agentId, limit: 100, offset });
-    if (!Array.isArray(page) || page.length > 100) fail("program_source_stage_run_binding_unknown");
-    matches.push(...page.filter((issue) => issue.executionRunId === runCtx.runId));
-    if (matches.length > 1) fail("program_source_stage_run_binding_ambiguous");
-    if (page.length < 100) { complete = true; break; }
-  }
-  if (!complete || matches.length !== 1) fail("program_source_stage_run_binding_unknown");
-  const scoped = ctx.issues.forCurrentToolRun();
-  const issue = await scoped.get(matches[0].id, runCtx.companyId);
+  const context = await ctx.issues.forCurrentToolRun().getProgramContext({
+    companyId: runCtx.companyId, expectedProjectId: mission.project_id,
+    expectedSolAgentId: mission.sol_agent_id, expectedAstraAgentId: mission.astra_agent_id,
+    ...(mission.qa_agent_ids.includes(agentId) && expectedSource ? {
+      expectedSourceIssueId: expectedSource.issueId, expectedSourceAgentId: expectedSource.agentId,
+    } : {}),
+  });
+  let attestation = context;
+  let issue = attestation.currentIssue;
   if (
-    !issue || issue.id !== matches[0].id || issue.companyId !== runCtx.companyId
+    !issue || issue.companyId !== runCtx.companyId
     || issue.projectId !== mission.project_id || issue.assigneeAgentId !== agentId
     || issue.executionRunId !== runCtx.runId || !allowedStatuses.includes(issue.status)
   ) {
     fail("program_source_stage_run_binding_mismatch");
   }
-  return issue;
-}
-
-async function resolveCurrentMissionProgram(
-  ctx: Pick<PluginContext, "issues">,
-  runCtx: ToolRunContext,
-  mission: ProgramAdmissionMission,
-): Promise<AcceptedSourceProgram> {
-  if (![mission.sol_agent_id, mission.luna_agent_id, ...mission.qa_agent_ids].includes(runCtx.agentId)) {
-    fail("accepted_source_reader_actor_not_admitted");
-  }
-  const current = await resolveCurrentMissionIssue(ctx, runCtx, mission, runCtx.agentId,
-    mission.qa_agent_ids.includes(runCtx.agentId) ? ["in_progress", "in_review"] : ["in_progress"]);
-  let ancestor = current;
-  for (let depth = 0; depth <= 32; depth += 1) {
-    if (ancestor.projectId === mission.project_id && ancestor.assigneeAgentId === mission.sol_agent_id
-        && (ancestor as typeof ancestor & { createdByAgentId?: string }).createdByAgentId === mission.astra_agent_id) {
-      if (!ancestor.parentId) fail("accepted_source_reader_program_ancestry_mismatch");
-      const astraParent = await ctx.issues.get(ancestor.parentId, runCtx.companyId);
-      if (!astraParent || astraParent.companyId !== runCtx.companyId
-          || astraParent.assigneeAgentId !== mission.astra_agent_id) {
-        fail("accepted_source_reader_program_ancestry_mismatch");
-      }
-      return {
-        project_id: mission.project_id, program_issue_id: ancestor.id,
-        sol_agent_id: mission.sol_agent_id, luna_agent_id: mission.luna_agent_id,
-        qa_agent_ids: mission.qa_agent_ids, corpus_ids: mission.corpus_ids,
-      };
-    }
-    if (!ancestor.parentId) break;
-    const parent = await ctx.issues.get(ancestor.parentId, runCtx.companyId);
-    if (!parent || parent.companyId !== runCtx.companyId) break;
-    ancestor = parent as typeof ancestor;
-  }
-  fail("accepted_source_reader_program_ancestry_mismatch");
+  if (context.program.projectId !== mission.project_id || context.program.assigneeAgentId !== mission.sol_agent_id
+      || context.program.createdByAgentId !== mission.astra_agent_id
+      || !mission.goal_ids.includes(context.program.goalId ?? "")
+      || context.astraParent.companyId !== runCtx.companyId
+      || context.astraParent.assigneeAgentId !== mission.astra_agent_id) fail("program_source_stage_program_context_mismatch");
+  return { issue, context };
 }
 
 async function resolveDynamicStageForIssue(
   ctx: Pick<PluginContext, "issues">,
   owner: OwnerConfig,
   mission: ProgramAdmissionMission,
-  issue: Awaited<ReturnType<typeof readNativeIssue>>,
+  context: Awaited<ReturnType<typeof resolveCurrentMissionIssue>>["context"],
   stageKey: string,
   bindingKey: string,
   side: "source_issue_id" | "review_issue_id",
   invoke: BridgeInvoker,
 ) {
-  if (!issue.parentId) fail("program_source_stage_parent_mismatch");
-  const lead = await ctx.issues.get(issue.parentId, owner.company_id);
-  if (!lead || lead.id !== issue.parentId || lead.companyId !== owner.company_id
-      || lead.projectId !== mission.project_id || lead.assigneeAgentId !== mission.sol_agent_id
-      || !mission.goal_ids.includes(lead.goalId ?? "")
-      || (lead as typeof lead & { createdByAgentId?: string }).createdByAgentId !== mission.astra_agent_id
-      || !lead.parentId) fail("program_source_stage_parent_mismatch");
-  assertDynamicRepositoryFreeLogicalIssue(lead as Awaited<ReturnType<typeof readNativeIssue>>, mission);
-  const astra = await ctx.issues.get(lead.parentId, owner.company_id);
-  if (!astra || astra.companyId !== owner.company_id || astra.assigneeAgentId !== mission.astra_agent_id) {
-    fail("program_source_stage_astra_parent_mismatch");
-  }
+  let attestation = context;
+  let issue = context.currentIssue;
+  const lead = context.program;
+  if (lead.companyId !== owner.company_id || lead.projectId !== mission.project_id
+      || lead.assigneeAgentId !== mission.sol_agent_id || lead.createdByAgentId !== mission.astra_agent_id
+      || !mission.goal_ids.includes(lead.goalId ?? "") || lead.projectWorkspaceId === null
+      || context.astraParent.companyId !== owner.company_id
+      || context.astraParent.assigneeAgentId !== mission.astra_agent_id) fail("program_source_stage_parent_mismatch");
+  if (side === "source_issue_id" && context.sourceDependency !== undefined) fail("program_source_stage_context_mismatch");
+  assertDynamicRepositoryFreeLogicalIssue(lead as unknown as Awaited<ReturnType<typeof readNativeIssue>>, mission);
   const lookup = await invoke("lookup_source_stage_binding", {
     company_id: owner.company_id, project_id: mission.project_id, lead_agent_id: mission.sol_agent_id,
     lead_issue_id: lead.id, stage_key: stageKey, stage_binding_key: bindingKey, [side]: issue.id,
@@ -1239,15 +1196,25 @@ async function resolveDynamicStageForIssue(
       || typeof lookup.verifier_policy_id !== "string") fail("program_source_stage_binding_unavailable");
   const peerId = side === "source_issue_id" ? lookup.review_issue_id : lookup.source_issue_id;
   if (typeof peerId !== "string" || !ID_RE.test(peerId)) fail("program_source_stage_binding_unavailable");
-  const peer = await ctx.issues.get(peerId, owner.company_id);
-  const reviewAgentId = side === "review_issue_id" ? issue.assigneeAgentId : peer?.assigneeAgentId;
+  const reviewAgentId = lookup.review_agent_id;
   if (typeof reviewAgentId !== "string" || !mission.qa_agent_ids.includes(reviewAgentId)) fail("program_source_stage_binding_unavailable");
-  if (!peer || peer.companyId !== owner.company_id || peer.projectId !== mission.project_id
-      || peer.parentId !== lead.id || peer.goalId !== lead.goalId
-      || (peer as typeof peer & { createdByAgentId?: string }).createdByAgentId !== mission.sol_agent_id
-      || (side === "source_issue_id" && (peer.status !== "blocked" || peer.executionRunId !== null))
-      || (side === "review_issue_id" && (peer.assigneeAgentId !== mission.luna_agent_id
-        || peer.status !== "done" || peer.executionRunId !== null))) fail("program_source_stage_peer_binding_mismatch");
+  if (side === "review_issue_id") {
+    attestation = await ctx.issues.forCurrentToolRun().getProgramContext({
+      companyId: owner.company_id, expectedProjectId: mission.project_id,
+      expectedSolAgentId: mission.sol_agent_id, expectedAstraAgentId: mission.astra_agent_id,
+      expectedProgramIssueId: lead.id, expectedSourceIssueId: lookup.source_issue_id as string,
+      expectedSourceAgentId: mission.luna_agent_id,
+    });
+    issue = attestation.currentIssue;
+  }
+  if (side === "review_issue_id" && (issue.id !== lookup.review_issue_id
+      || issue.assigneeAgentId !== reviewAgentId || issue.parentId !== lead.id || issue.goalId !== lead.goalId
+      || attestation.sourceDependency?.issueId !== lookup.source_issue_id
+      || attestation.sourceDependency?.assigneeAgentId !== mission.luna_agent_id)) fail("program_source_stage_peer_binding_mismatch");
+  if (side === "source_issue_id" && (issue.id !== lookup.source_issue_id
+      || issue.assigneeAgentId !== mission.luna_agent_id || issue.parentId !== lead.id || issue.goalId !== lead.goalId)) {
+    fail("program_source_stage_peer_binding_mismatch");
+  }
   const stage = {
     stage_key: stageKey, workspace_id: "source", initial_base_sha: lookup.base_sha,
     predecessor_stage_key: null, path_ids: lookup.path_ids as string[], verifier_policy_id: lookup.verifier_policy_id,
@@ -1576,6 +1543,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
     if (!mission) fail("program_source_scope_actor_not_admitted");
     const { lead, parent } = await resolveCurrentProgramLead(ctx, runCtx, owner, mission);
+    await assertDynamicRepositoryFreeRunWorkspace(ctx, lead, mission, runCtx);
     const scope = await invoke("get_program_source_scope", {
       company_id: owner.company_id, project_id: mission.project_id, goal_id: lead.goalId,
     }, owner.configPath, owner.python_executable);
@@ -1627,6 +1595,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
     if (!mission) fail("program_source_scope_actor_not_admitted");
     const { lead } = await resolveCurrentProgramLead(ctx, runCtx, owner, mission);
+    await assertDynamicRepositoryFreeRunWorkspace(ctx, lead, mission, runCtx);
     const proposedPaths = params.path_ids as string[];
     const result = await invoke("validate_program_source_proposal", {
       company_id: owner.company_id, project_id: mission.project_id, goal_id: lead.goalId,
@@ -1707,7 +1676,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       lead_issue_id: lead.id, lead_run_id: runCtx.runId, goal_id: lead.goalId,
       profile_id: params.profile_id, corpus_id: params.corpus_id, path_ids: params.path_ids,
       source_issue_id: source.id, source_version: source.statusVersion,
-      review_issue_id: review.id, review_version: review.statusVersion,
+      review_issue_id: review.id, review_version: review.statusVersion, review_agent_id: reviewAgentId,
       source_instruction_sha256: sourceInstructionSha, review_instruction_sha256: reviewInstructionSha,
     }, owner.configPath, owner.python_executable);
     if (typeof result.stage_key !== "string" || !ID_RE.test(result.stage_key)
@@ -1752,9 +1721,9 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "program_source_scope");
     const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
     if (!mission) fail("program_source_stage_actor_not_admitted");
-    const source = await resolveCurrentMissionIssue(ctx, runCtx, mission, mission.luna_agent_id);
+    const { issue: source, context } = await resolveCurrentMissionIssue(ctx, runCtx, mission, mission.luna_agent_id);
     const { stage, owner: dynamicOwner, lead, lookup } = await resolveDynamicStageForIssue(
-      ctx, owner, mission, source, params.stage_key, params.stage_binding_key, "source_issue_id", invoke,
+      ctx, owner, mission, context, params.stage_key, params.stage_binding_key, "source_issue_id", invoke,
     );
     if (source.parentId !== lead.id || source.assigneeAgentId !== mission.luna_agent_id
         || source.goalId !== lead.goalId || params.files.length !== stage.path_ids.length) fail("program_source_stage_source_binding_mismatch");
@@ -1800,8 +1769,8 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "program_source_scope");
     const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
     if (!mission) fail("program_source_stage_actor_not_admitted");
-    const source = await resolveCurrentMissionIssue(ctx, runCtx, mission, mission.luna_agent_id);
-    const { stage, lookup } = await resolveDynamicStageForIssue(ctx, owner, mission, source,
+    const { issue: source, context } = await resolveCurrentMissionIssue(ctx, runCtx, mission, mission.luna_agent_id);
+    const { stage, lookup } = await resolveDynamicStageForIssue(ctx, owner, mission, context,
       params.stage_key, params.stage_binding_key, "source_issue_id", invoke);
     await assertDynamicRepositoryFreeRunWorkspace(ctx, source, mission, runCtx);
     const sourceInstructionSha = instructionDigest(source.description);
@@ -1819,9 +1788,9 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "program_source_scope");
     const mission = owner.program_admission?.missions.find((row) => row.project_id === runCtx.projectId);
     if (!mission || !mission.qa_agent_ids.includes(runCtx.agentId)) fail("program_source_stage_actor_not_admitted");
-    const review = await resolveCurrentMissionIssue(ctx, runCtx, mission, runCtx.agentId);
+    const { issue: review, context } = await resolveCurrentMissionIssue(ctx, runCtx, mission, runCtx.agentId);
     if (review.id !== reviewIssueId) fail("program_source_stage_run_binding_mismatch");
-    const bound = await resolveDynamicStageForIssue(ctx, owner, mission, review, stageKey, bindingKey, "review_issue_id", invoke);
+    const bound = await resolveDynamicStageForIssue(ctx, owner, mission, context, stageKey, bindingKey, "review_issue_id", invoke);
     if (review.parentId !== bound.lead.id || review.goalId !== bound.lead.goalId
         || bound.lookup.review_instruction_sha256 !== instructionDigest(review.description)) fail("program_source_stage_review_binding_mismatch");
     await assertDynamicRepositoryFreeRunWorkspace(ctx, review, mission, runCtx);
@@ -1888,7 +1857,6 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       + "\nstage_binding_key:" + params.stage_binding_key + "\ninspection_digest:" + evidence.inspection_digest
       + "\nrationale:" + evidence.rationale;
     await persistIssueNote(ctx, bound.review.id, bound.owner.company_id, result.operation_key + ":dynamic-review", note);
-    await persistIssueNote(ctx, bound.lead.id, bound.owner.company_id, result.operation_key + ":dynamic-review", note);
     return { content: note };
   });
 
@@ -1940,7 +1908,6 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       + "\nmerits_digest:" + result.merits_digest + "\nrationale:" + String(result.rationale)
       + "\nclaim:independent_product_merits_only;no_candidate_or_publication";
     await persistIssueNote(ctx, bound.review.id, bound.owner.company_id, result.merits_digest + ":dynamic-no-change-merits", note);
-    await persistIssueNote(ctx, bound.lead.id, bound.owner.company_id, result.merits_digest + ":dynamic-no-change-merits", note);
     return { content: note };
   });
 
@@ -1991,23 +1958,34 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
         && row.corpus_ids.includes(params.corpus_id as string));
       // Admission-backed programs resolve from current native ancestry, even if the
       // reader catalog also contains a compatibility row for this project.
-      let matchingPrograms = mission
-        ? [await resolveCurrentMissionProgram(ctx, runCtx, mission)]
-        : reader.programs.filter((program) => program.project_id === runCtx.projectId
+      let currentIssue: Awaited<ReturnType<typeof readNativeIssue>>;
+      let program: AcceptedSourceProgram;
+      if (mission) {
+        const { issue, context } = await resolveCurrentMissionIssue(ctx, runCtx, mission, runCtx.agentId,
+          mission.qa_agent_ids.includes(runCtx.agentId) ? ["in_progress", "in_review"] : ["in_progress"]);
+        currentIssue = issue;
+        program = {
+          project_id: mission.project_id, program_issue_id: context.program.id,
+          sol_agent_id: mission.sol_agent_id, luna_agent_id: mission.luna_agent_id,
+          qa_agent_ids: mission.qa_agent_ids, corpus_ids: mission.corpus_ids,
+        };
+        await assertDynamicRepositoryFreeRunWorkspace(ctx, currentIssue, mission, runCtx);
+      } else {
+        const matchingPrograms = reader.programs.filter((program) => program.project_id === runCtx.projectId
           && program.corpus_ids.includes(params.corpus_id as string)
           && [program.sol_agent_id, program.luna_agent_id, ...program.qa_agent_ids].includes(runCtx.agentId));
-      if (!matchingPrograms.length) fail("accepted_source_reader_program_not_admitted");
-      const currentIssue = await resolveAcceptedSourceRunIssue(ctx, runCtx, matchingPrograms[0]);
-      const ancestry = await Promise.all(matchingPrograms.map(async (program) => ({
-        program,
-        matches: await hasAcceptedSourceProgramAncestry(
-          ctx, currentIssue, runCtx.companyId, runCtx.projectId, program.program_issue_id,
-        ),
-      })));
-      const admitted = ancestry.filter((item) => item.matches);
-      if (admitted.length !== 1) fail("accepted_source_reader_program_ancestry_mismatch");
-      const program = admitted[0].program;
-      if (mission) await assertDynamicRepositoryFreeRunWorkspace(ctx, currentIssue, mission, runCtx);
+        if (!matchingPrograms.length) fail("accepted_source_reader_program_not_admitted");
+        currentIssue = await resolveAcceptedSourceRunIssue(ctx, runCtx, matchingPrograms[0]);
+        const ancestry = await Promise.all(matchingPrograms.map(async (candidate) => ({
+          candidate,
+          matches: await hasAcceptedSourceProgramAncestry(
+            ctx, currentIssue, runCtx.companyId, runCtx.projectId, candidate.program_issue_id,
+          ),
+        })));
+        const admitted = ancestry.filter((item) => item.matches);
+        if (admitted.length !== 1) fail("accepted_source_reader_program_ancestry_mismatch");
+        program = admitted[0].candidate;
+      }
       const result = await invoke(name, {
         company_id: runCtx.companyId,
         project_id: runCtx.projectId,

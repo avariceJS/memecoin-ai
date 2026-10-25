@@ -834,7 +834,7 @@ def _stage_binding(config: BridgeConfig, stage_binding_key: str) -> dict[str, An
 
 def _dynamic_stage_from_record(config: BridgeConfig, record: dict[str, Any]) -> SourceStageSpec:
     raw = record.get("dynamic_stage_spec")
-    if type(raw) is not dict or set(raw) != {"mission_project_id", "profile_id", "corpus_id", "goal_id", "path_ids", "repository_free_policy_digest"}:
+    if type(raw) is not dict or set(raw) != {"mission_project_id", "profile_id", "corpus_id", "goal_id", "path_ids", "repository_free_policy_digest", "review_agent_id"}:
         raise BridgeError("source_stage_binding_invalid")
     if config.program_admission is None:
         raise BridgeError("source_stage_not_owner_admitted")
@@ -844,7 +844,9 @@ def _dynamic_stage_from_record(config: BridgeConfig, record: dict[str, Any]) -> 
     mission = missions[0]
     profiles = [item for item in mission.profiles if item.profile_id == raw.get("profile_id")]
     if (len(profiles) != 1 or raw.get("corpus_id") not in mission.corpus_ids or raw.get("goal_id") not in mission.goal_ids
-        or raw.get("repository_free_policy_digest") != mission.repository_free_policy_digest):
+        or raw.get("repository_free_policy_digest") != mission.repository_free_policy_digest
+        or type(raw.get("review_agent_id")) is not str or raw.get("review_agent_id") not in mission.qa_agent_ids
+        or record.get("review_agent_id") != raw.get("review_agent_id")):
         raise BridgeError("source_stage_not_owner_admitted")
     try:
         path_ids = validate_path_ids(raw.get("path_ids"))
@@ -870,6 +872,7 @@ def _dynamic_stage_from_record(config: BridgeConfig, record: dict[str, Any]) -> 
         or stage_key != _dynamic_stage_key(
             config.company_id, mission.project_id, record["lead_issue_id"], profile.profile_id,
             raw["corpus_id"], path_ids, record.get("source_issue_id"), record.get("review_issue_id"),
+            raw["review_agent_id"],
         )):
         raise BridgeError("source_stage_binding_invalid")
     stage = SourceStageSpec(
@@ -2109,17 +2112,17 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
 
 def _dynamic_stage_key(
     company_id: str, project_id: str, lead_issue_id: str, profile_id: str, corpus_id: str,
-    path_ids: tuple[str, ...], source_issue_id: str, review_issue_id: str,
+    path_ids: tuple[str, ...], source_issue_id: str, review_issue_id: str, review_agent_id: str,
 ) -> str:
     digest = hashlib.sha256(_canonical([
         "paperclip-program-source-stage-v2", company_id, project_id, lead_issue_id, profile_id, corpus_id,
-        path_ids, source_issue_id, review_issue_id,
+        path_ids, source_issue_id, review_issue_id, review_agent_id,
     ])).hexdigest()
     return f"DYN-{digest[:32]}"
 
 
 def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
-    required = {"company_id", "project_id", "lead_agent_id", "lead_issue_id", "lead_run_id", "goal_id", "profile_id", "corpus_id", "path_ids", "source_issue_id", "source_version", "review_issue_id", "review_version", "source_instruction_sha256", "review_instruction_sha256"}
+    required = {"company_id", "project_id", "lead_agent_id", "lead_issue_id", "lead_run_id", "goal_id", "profile_id", "corpus_id", "path_ids", "source_issue_id", "source_version", "review_issue_id", "review_version", "review_agent_id", "source_instruction_sha256", "review_instruction_sha256"}
     if type(payload) is not dict or set(payload) != required:
         raise BridgeError("program_source_stage_bind_payload_invalid")
     mission_rows = [row for row in (config.program_admission.missions if config.program_admission else ()) if row.project_id == payload.get("project_id")]
@@ -2140,9 +2143,11 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
     proposal = validate_program_source_proposal(config, {key: payload[key] for key in ("company_id", "project_id", "goal_id", "profile_id", "path_ids")})
     if proposal["path_ids"] != list(path_ids):
         raise BridgeError("program_source_proposal_path_invalid")
-    for name in ("lead_issue_id", "lead_run_id", "source_issue_id", "review_issue_id"):
+    for name in ("lead_issue_id", "lead_run_id", "source_issue_id", "review_issue_id", "review_agent_id"):
         if type(payload[name]) is not str or not ID_RE.fullmatch(payload[name]):
             raise BridgeError("program_source_stage_identity_invalid")
+    if payload["review_agent_id"] not in mission.qa_agent_ids:
+        raise BridgeError("program_source_stage_review_actor_not_admitted")
     for name in ("source_version", "review_version"):
         if type(payload[name]) is not int or payload[name] < 0:
             raise BridgeError("program_source_stage_identity_invalid")
@@ -2164,7 +2169,7 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
         raise BridgeError("program_source_stage_accepted_base_target_mismatch")
     stage_key = _dynamic_stage_key(
         config.company_id, mission.project_id, payload["lead_issue_id"], profile.profile_id, payload["corpus_id"],
-        path_ids, payload["source_issue_id"], payload["review_issue_id"],
+        path_ids, payload["source_issue_id"], payload["review_issue_id"], payload["review_agent_id"],
     )
     stage = SourceStageSpec(stage_key, "published", accepted.projection_sha, None, path_ids, profile.verifier_policy_id,
         mission.project_id, payload["goal_id"], mission.sol_agent_id, payload["lead_issue_id"],
@@ -2183,10 +2188,12 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
         raise BridgeError("program_source_stage_accepted_base_unavailable") from exc
     dynamic_spec = {"mission_project_id": mission.project_id, "profile_id": profile.profile_id,
         "corpus_id": payload["corpus_id"], "goal_id": payload["goal_id"], "path_ids": list(path_ids),
+        "review_agent_id": payload["review_agent_id"],
         "repository_free_policy_digest": mission.repository_free_policy_digest}
     binding_value: dict[str, Any] = {
         "schema": "paperclip-source-stage-binding-v1", "stage_key": stage_key,
         "source_issue_id": payload["source_issue_id"], "review_issue_id": payload["review_issue_id"],
+        "review_agent_id": payload["review_agent_id"],
         "lead_issue_id": payload["lead_issue_id"], "lead_agent_id": mission.sol_agent_id,
         "lead_run_id": payload["lead_run_id"], "source_version": payload["source_version"],
         "review_version": payload["review_version"], "source_instruction_sha256": payload["source_instruction_sha256"],
@@ -2440,6 +2447,7 @@ def lookup_source_stage_binding(
         "stage_binding_key": record["stage_binding_key"],
         "source_issue_id": record.get("source_issue_id"),
         "review_issue_id": record.get("review_issue_id"),
+        "review_agent_id": record.get("review_agent_id"),
         "source_version": record.get("source_version"),
         "review_version": record.get("review_version"),
         "base_sha": record["base_sha"],
