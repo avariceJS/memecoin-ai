@@ -1,11 +1,21 @@
-# Current state — 2026-10-25, explicit founder resumption / reconciliation
+# Current state — 2026-10-25, actual Sol reader use; MEM-89 continuing
 
 The founder explicitly ordered execution of `prompt/prompt.md`, authorizing engineering resumption
 following the 2026-10-24 STOP. Fresh entry: org HEAD `8882960`, only owner prompt untracked;
-native Goal null. Sol-6.1 High verified custody and started only the accepted service (PID39647).
-Supported API readback: all six companies and 15 employees remain paused, zero live/queued runs;
-MEM-89 and MEM-90..95 retain their backlog identities. Sole Luna is preparing the reader source
-candidate under Sol. Employee activation and operational readiness are not claimed.
+native Goal null. Reader source `4c448eba` passed independent Sol review; integrated/deployed
+controller `5fe88d8` is remote-confirmed. Loaded plugin PID56616, artifact hashes and ten schemas
+were read back. The exact read-only release packet, configuration and three roles were accepted.
+Native Sol run `e61a72fd-a83f-449a-b714-d4c5eeee2ab9` returned a known blocked outcome:
+reader tools were missing from its tool inventory despite registered schemas. Its full result
+document is preserved. Independently reviewed assignment-profile repair added only three reader
+methods to each of three actors; effective assignments were read back. Supported fresh-session
+continuation `995a64df` performed actual Brain/Platform search with bound provenance. Sol reader
+delivery is proved; native Luna/QA outcome and general engineering autonomy remain open.
+Only MEM Sol/Luna/QA are enabled; its other three agents have manual holds and other five companies
+remain paused. Broker drain and no source-write tools preserve this read-only stage. Native reader
+use is not yet accepted as useful engineering or operational readiness.
+Bootstrap Luna remains the sole source implementer for new-task admission and generic no-change.
+MEM-90..95 retain their standing backlog identities; no duplicate mandates were created.
 
 Start with existing MEM-89, then minimum new-task admission, generic no-change and full-result
 routing gaps. After independent native engineering proof, continue useful Brain development under
@@ -41,8 +51,8 @@ weekly quota reset/reboot/reconnect do not. Read private HANDOFF before any acti
   actual episodic Astra81→held reader program MEM-89. Ten subscription runs; one initial entry,
   no subsequent manual native dispatch. Prospective observer budget8→12 is disclosed. Bounded
   Platform analysis/strategy only, not general engineering admission or full cross-department context.
-- D open: no general permitted accepted-source search/read. Priorities: MEM-89 reader, new engineering
-  task admission beyond finite catalog, generic no-change and full result-doc routing for source roles.
+- D: reader source/release accepted on October25; missing tool routing was repaired with review.
+  Actual native Sol search succeeded. Complete Luna/QA evidence, new task admission and no-change.
 - Six standing native backlog orders: Senses90, Experience91, Evaluation92, Cortex93, Policy94,
   Platform95.95 is the standing program;89 is its specific next stage, not a duplicate to recreate.
   Strategy/authority: docs/brain-development.md, docs/engineering-organization.md, SOL-MANDATE.
