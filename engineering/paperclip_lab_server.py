@@ -25,6 +25,12 @@ from typing import Any
 from engineering.processes import process_identity, terminate_owned
 
 PAPERCLIP_SOURCE_CHAIN = (
+    "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
+    "d560a09538a255c779e4a10b14d41a3114bf10f2",
+    "44b4a1c13d23094283914b8326c902fea9d0d994",
+    "b89d1f5e82f7275e372087799f21566721814029",
+    "b00893db62c0e1719f731c94f20c9c70cecfac11",
+    "c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343",
     "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
     "89cd827fdb36ede8d12fce16302cf595c88d2ade",
     "0e0c1eb22c879203337cee9710471c6fd30b00b1",
@@ -63,6 +69,7 @@ PAPERCLIP_STOP_CUSTODY_PINS = frozenset(
         "fecf7b18def542fb6b58e7e665011e66599ffffb",
         "519c892646ec7b06996e990e9e728f794e1a689e",
         "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
+        "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
     }
 )
 DEFAULT_LAB_ROOT = Path("/Users/root1/Developer/brain-paperclip-lab")

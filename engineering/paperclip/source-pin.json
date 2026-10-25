@@ -1,9 +1,15 @@
 {
-  "schema": "brain-paperclip-source-v5",
+  "schema": "brain-paperclip-source-v6",
   "upstream_repository": "https://github.com/paperclipai/paperclip",
   "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
-  "predecessor_commit": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
+  "predecessor_commit": "d560a09538a255c779e4a10b14d41a3114bf10f2",
   "predecessor_chain": [
+    "d560a09538a255c779e4a10b14d41a3114bf10f2",
+    "44b4a1c13d23094283914b8326c902fea9d0d994",
+    "b89d1f5e82f7275e372087799f21566721814029",
+    "b00893db62c0e1719f731c94f20c9c70cecfac11",
+    "c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343",
+    "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
     "89cd827fdb36ede8d12fce16302cf595c88d2ade",
     "0e0c1eb22c879203337cee9710471c6fd30b00b1",
     "f24926c8e7fd231e4cac127532ed642247b222c2",
@@ -23,25 +29,26 @@
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
     "043f2514e67c50320433a0013fb228a75a51325c"
   ],
-  "derivative_commit": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
-  "patch": "managed-codex-isolation.patch",
-  "patch_sha256": "cd7dad16f58b359ea41c3faf1da41c615cbc495cdb31755540cece1e440a1762",
+  "derivative_commit": "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
+  "patch": "managed-codex-isolation-3eb.patch",
+  "patch_sha256": "e5280d26ea3243483f88cce9c15457eae50f1ec1930de39f1f6412827880368e",
   "source_review": {
     "status": "accepted_source_only",
     "reviewer": "Sol-6.1 High",
-    "receipt": "state/resumption-20261024-routing-recovery/native-release/finite-recovery/native-local-workspace-settlement-source-independent-review-aa0cdc.json",
-    "receipt_sha256": "49b3f7461bffc18dc969419e5d01219472d430082593042934499349f508cbc5",
-    "commit": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
-    "parent": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
-    "combined_diff_sha256": "146a81a24dc0add698f5531424128279c8dfb389fd61429d68b1e694d5e217d1",
+    "receipt": "state/resumption-20261025/sol-independent-native-core-workspace-dto-review-3eb3-accepted.json",
+    "receipt_sha256": "737aec6399ec3c5b82f95ffd900ea01aee85998cfcfb480e2838a02d17a5beae",
+    "commit": "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
+    "parent": "d560a09538a255c779e4a10b14d41a3114bf10f2",
+    "combined_diff_sha256": "e5280d26ea3243483f88cce9c15457eae50f1ec1930de39f1f6412827880368e",
     "scope": [
-      "strict existing recover-workspace settlement for the exact stopped local cancelled run",
-      "preserve original run and failed operation while recording a new read-only workspace validation receipt",
-      "no model dispatch or semantic result promotion"
+      "allocate a distinct empty repository-free execution root and Core workspace row per task run while retaining prior run rows",
+      "expose only a narrow typed Core-owned repository-free workspace provenance projection through the existing SDK read interface",
+      "reject malformed Core identity and ignore providerMetadata lookalikes"
     ],
     "limits": [
-      "source-only acceptance; packaging and controlled release remain separate",
-      "no native runtime deployment or recovery invocation"
+      "source-only acceptance and emitted SDK validation; no native deployment or live service verification",
+      "no MEM89/MEM96 retry, migration, or current Brain runtime DTO consumption accepted by this source receipt",
+      "Brain consumer must validate current issue/run/assignee, owner policy, binding revision, seed, and filesystem identity"
     ]
   },
   "source_review_chain": [
@@ -241,6 +248,27 @@
         "source-only acceptance; packaging and controlled release remain separate",
         "no native runtime deployment or recovery invocation"
       ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261025/sol-independent-native-workspace-source-review-44b4-accepted.json",
+      "receipt_sha256": "5950dcc6a3cbf341471e5abedf505ab1799a66b42244e199ff913076f72483c4",
+      "commit": "44b4a1c13d23094283914b8326c902fea9d0d994",
+      "parent": "b89d1f5e82f7275e372087799f21566721814029",
+      "diff_sha256": "1c44e2619eff68690efe3cc138cccb98e0750b79c7a0cfc15d74154d4c3952a6"
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261025/sol-independent-native-core-workspace-dto-review-3eb3-accepted.json",
+      "receipt_sha256": "737aec6399ec3c5b82f95ffd900ea01aee85998cfcfb480e2838a02d17a5beae",
+      "commit": "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
+      "parent": "d560a09538a255c779e4a10b14d41a3114bf10f2",
+      "diff_sha256": "6fb6ee6bafead77da89dd9fe2561425fdb27b26e56ce6b27630ebee8e2dad340",
+      "scope": [
+        "narrow typed Core provenance DTO; Core row/schema identity checks; providerMetadata lookalike ignored"
+      ]
     }
   ],
   "stop_custody_source_pins": [
@@ -257,7 +285,8 @@
     "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
     "fecf7b18def542fb6b58e7e665011e66599ffffb",
     "519c892646ec7b06996e990e9e728f794e1a689e",
-    "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595"
+    "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
+    "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24"
   ],
   "runtime_acceptance": "pending",
   "launcher_scope": "managed Codex startup; preconfigured home excluded from lab qualification",
@@ -292,13 +321,39 @@
       "parent": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
       "reason": "native local workspace settlement candidate predecessor; not an accepted STOP custody pin",
       "accepted_descendant": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24"
+    },
+    {
+      "status": "rejected",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261025/sol-independent-native-workspace-source-review-c9a2ac-rejected.json",
+      "receipt_sha256": "61637bb85bdc2f9228b5ae681f7db7734d2c654a2e6e3442772044729c3ff80a",
+      "commit": "c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343",
+      "reason": "repository-free repeat/run ownership lifecycle and owner-project policy anchoring defects; superseded without rewriting history"
+    },
+    {
+      "status": "superseded_intermediate",
+      "commit": "b00893db62c0e1719f731c94f20c9c70cecfac11",
+      "parent": "c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343",
+      "reason": "repeat-run workspace row and stamp could disagree; superseded by unique-root-per-run semantics"
+    },
+    {
+      "status": "superseded_intermediate",
+      "commit": "b89d1f5e82f7275e372087799f21566721814029",
+      "parent": "b00893db62c0e1719f731c94f20c9c70cecfac11",
+      "reason": "interim continuation semantics superseded by per-run roots and final typed provenance"
+    },
+    {
+      "status": "rejected_superseded",
+      "commit": "d560a09538a255c779e4a10b14d41a3114bf10f2",
+      "parent": "44b4a1c13d23094283914b8326c902fea9d0d994",
+      "reason": "nullable trusted-row identity fields could pass as null DTO identities; fixed by accepted child 3eb3e6d"
     }
   ],
   "patch_tree_equivalence": {
     "status": "verified",
     "method": "git apply cumulative patch at upstream commit and compare Git tree IDs",
     "upstream_tree": "547374c4e8abe51ff22b8cecc51644800f794dd6",
-    "derivative_tree": "16610dcedfc35bc899d39a962a1e5f9a80bcd7aa"
+    "derivative_tree": "d01cfc0f7a898dadcc91c99af4e4d4cc72c8a27b"
   },
   "prior_accepted_source_review": {
     "status": "accepted_source_only",
