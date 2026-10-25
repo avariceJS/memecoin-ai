@@ -8,7 +8,9 @@ import type { PluginContext, ToolRunContext, ToolResult } from "@paperclipai/plu
 import manifest from "./manifest.js";
 
 const BRIDGE = fileURLToPath(new URL("../../../paperclip_autonomous_bridge.py", import.meta.url));
-const MAX_OUTPUT = 200_000;
+// Two complete 120k diff fields can each expand to six JSON bytes per source byte.
+// Keep bounded room for the inspection envelope and stderr while still rejecting overages.
+const MAX_OUTPUT = 2 * 120_000 * 6 + 160_000;
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SHA_RE = /^[0-9a-f]{40,64}$/;
 const KEY_RE = /^[0-9a-f]{64}$/;
@@ -1822,7 +1824,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     }, bound.owner.configPath, bound.owner.python_executable);
     if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
         || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)
-        || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 60_000
+        || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 120_000
         || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)) fail("bridge_result_invalid");
     const metadata = { ...result }; delete metadata.diff; delete metadata.canonical_diff;
     return { content: JSON.stringify(metadata, null, 2) + "\n\n--- Candidate diff ---\n" + result.diff };
@@ -2721,7 +2723,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     }, owner.configPath, owner.python_executable);
     if (typeof result.operation_key !== "string" || !KEY_RE.test(result.operation_key)
         || typeof result.candidate_sha !== "string" || !SHA_RE.test(result.candidate_sha)
-        || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 60_000
+        || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 120_000
         || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)) fail("bridge_result_invalid");
     const targetRef = stage.expected_dev_ref ?? owner.expected_dev_ref;
     const canonicalRef = stage.canonical_ref ?? owner.canonical_ref ?? null;
@@ -2742,7 +2744,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
     const canonicalDiff = result.canonical_diff;
     if (owner.canonical_repo && (typeof result.canonical_candidate_sha !== "string"
         || typeof result.canonical_receipt_digest !== "string" || typeof canonicalDiff !== "string"
-        || Buffer.byteLength(canonicalDiff, "utf8") > 60_000)) fail("bridge_result_invalid");
+        || Buffer.byteLength(canonicalDiff, "utf8") > 120_000)) fail("bridge_result_invalid");
     delete metadata.canonical_diff;
     return { content: `${JSON.stringify(metadata, null, 2)}\n\n--- Projected candidate diff ---\n${result.diff}`
       + (typeof canonicalDiff === "string" ? `\n\n--- Canonical candidate diff ---\n${canonicalDiff}` : "") };
@@ -2842,7 +2844,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       candidate_sha: params.candidate_sha,
     }, owner.configPath, owner.python_executable);
     if (result.operation_key !== params.operation_key || result.candidate_sha !== params.candidate_sha
-        || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 60_000
+        || typeof result.diff !== "string" || Buffer.byteLength(result.diff, "utf8") > 120_000
         || typeof result.inspection_digest !== "string" || !KEY_RE.test(result.inspection_digest)) fail("bridge_result_invalid");
     const metadata = { ...result };
     delete metadata.diff;
