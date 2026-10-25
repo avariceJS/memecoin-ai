@@ -1,94 +1,56 @@
-# Current state — 2026-10-25, second candidate rejected / native Sol continuation
+# Current state — 2026-10-25, third candidate / source-only resume-tool maintenance
 
-Explicit founder resumption authority is in the current `prompt/prompt.md`; native Goal remains
-null. Paperclip owns lifecycle, Luna source implementation, Sol programs and independent review.
-No new Goal, scheduler or duplicate MEM-89/MEM-90..95 mandates.
+Explicit founder engineering resumption: current prompt/prompt.md. No Founder STOP for reporting,
+no replacement Goal (entry API null), scheduler or duplicate standing MEM90..95 mandates.
+Paperclip owns lifecycle; Luna implements, Sol leads/reviews, Astra chooses strategy episodically.
 
-## Accepted and observed
+## Current custody
 
-- Controller `1ffdb0c7`/config7 and native `15f93e91` are independently accepted and deployed.
-  Hot Python repair preserved pluginPID72472/servicePID71797 births and workerJS; matching inert
-  readback e079c34e preceded known101 continuation. Earlier failures remain preserved in HANDOFF.
-- Actual Sol list/search/read succeeded after an assisted assignment-profile correction. Initial
-  e61 tool-unavailable result remains preserved.
-- Luna MEM-96 run ac3a9bf7 succeeded with 15 actual Brain reader calls, full result and provenance.
-  It did not establish the hypothesized admission/as-of defect or change source. It recommended
-  checking explicit signature-enumeration coverage, retaining omissions. Brain remains `37cf68f`.
-- Owner-opt-in automatic no-Git isolation is deployed. Luna96, natural parent Sol89 and NEW QA97
-  have three distinct issue/run-owned empty roots, Core/seed identity and no extra roots/restore.
-  This is not a new OS-sandbox or general-autonomy qualification. Previous failed96 is retained.
-- QA97 first-start succeeded automatically, but its initial reader authentication unnecessarily requested
-  orchestration and dereferenced sibling96; the scoped SDK refused it. QA preserved blocked/unknown
-  merits and its full result, not acceptance. Reviewed/applied hotfix9451786/integrated66c12a8 removed
-  that unnecessary read while keeping current-run/actor/program authorization. Known continuation45d
-  completed 27 real reader calls and independent QA: static/as-of trace accepted, proposed coverage
-  objective qualified for investigation/specification only, not a demonstrated defect.
-- Native parent Sol89 continued without owner dispatch and completed the bounded reader program.
-  Full result revision2a3a7866 is retained. Sol created exactly one held strategic successor MEM98
-  initially assigned to paused Astra (backlog/noexec). This was assisted reader acceptance, not a
-  new engineering autonomy proof. MEM98 was subsequently activated once under the accepted source
-  release: actual Astra41d23750 read full results and created Senses MEM99/64b62281, assigned Sol.
-  Native parent98/inheritedgoal0a507 are distinct from the standing90 strategic charter.
+- Root org/development docs/source remain recoverable on GitHub; main2f8da5f remains unchanged.
+  Deployed controller1ffdb0c7/config7, native15f93e91/service71797/plugin72472/workerJS unchanged.
+  Private HANDOFF owns exact loaded/process/configuration custody, not repository HEAD inference.
+- Source interval20/36, same historical anchor317/no reset;337 MEM runs terminal/live0 at maintenance.
+  Max3 source pairs consumed. Only native LunaC73 manually paused for source ownership transfer;
+  company, other actors, publisher fence and deployed pins unchanged. Other five companies paused.
+- Sole bootstrap Luna implements optional resume on EXISTING comment_on_task in an isolated native
+  candidate. Canonical manager authority already exists; strict tool schema cannot express resume.
+  Preserve default body-only behavior, actual agent identity, canonical holds/authority checks.
+  No deployment before independent exact acceptance; no Brain edits/fourth pair/new route or grant.
+  Custody: native-comment-resume-maintenance/source-ownership-bootstrap-return.json (a96ecb1b).
 
-## Current continuation and limits
+## Actual programme and remaining work
 
-Reader phase:8 terminal runs,7 reached providers. Source interval was independently extended24→36 with the same anchor317 and no reset;
-16 used/20 remaining. Natural parent Sol99 is active after the second QA rejection. Private-context repair enabled actual Sol99 scope/CoreDTO handler,
-14 Brain reads and proposal. Sol created MEM100 Source/MEM101 QA and dynamically bound them without
-per-task owner configuration. First Luna40125 blocked on wrong corpus IDs. Native Sol triaged and
-prepared the literal-brain clarification; owner transported it/resumed existing100, explicitly assisted.
-Native Lunaf96 read successfully, implemented three files and corrected three fixed-preflight failures
-on the same binding. Source100 DONE with full6789-character result. Projected candidate358452a3 /
-canonical CANDIDATE8290fa1e is not published; accepted canonical Brain remains37cf68f.
-Native QA101/339ddaae started naturally, inspected the exact candidate/private dependency and returned
-full11020-character substantive rejection: lost known-signature counts on interruption, attempted
-hydration before budget admission, shared-signature replay ambiguity, missing required regressions.
-These are static-review findings, not newly executed QA tests. The approved:false recording failed:
-public tool allows inspection_digest/rationale, but Python demands hidden canonical candidate fields.
-The interface repair was independently accepted/deployed as1ffdb0c7. Known QA101 continuation72a67840
-freshly inspected the same candidate and successfully recorded approved:false with public-only evidence.
-Persisted bridge review_rejected/broker rejected; six merits findings unchanged, no approved candidate
-or publication. Full11997-character QA result retained. Natural Sol99/21ded625 created corrective Source102/QA103, bound pair2 and automatically started
-Lunaec864.44 Brain reads passed; one preflight failure was corrected before candidatec33c695c /
-canonical CANDIDATEd5a4 delivery. Luna requested inline review while admitting missing mandatory tests;
-inline QA failed before provider (attempt11), and separate103 remained blocked. Native Sol triaged
-and actually commented on102; owner rejected the inline card using Sol's proposed route. Attempts12,
-13(comment wake),14(card response) remain distinct, not an unassisted recovery claim. Source102 then
-truthfully completed current contract3's human_response criterion, with full frozen matrix explicitly
-UNSATISFIED. Candidate/source remained unchanged; no forced full-objective or QA acceptance.
-QA103/33ab7d0b started automatically and recorded a genuine static rejection: page/cursor integrity,
-replay workflow/parity, version/shared-signature handling and incomplete mandatory matrix. Full11724-
-character result retained, op61d/broker rejected, no approved candidate/Gate/publication. Natural
-Sol99/f8f6cb06 began15:18:07.314UTC without further owner dispatch. Pair limit remains3 (two used);
-normal no-change remains open. Native lead decides the next corrective work, not a founder backlog.
-MEM/fence active, only four required actors resumed; assessor/analyst and other five companies paused.
-Bootstrap implementation idle; native Luna owns admitted source work. Lead-only comment_on_task was
-independently admitted and actually used. No new scheduler/Goal or write-envelope expansion.
+MEM89 reader completed with real Sol/Luna/QA use and full results; assisted tool assignment/no-Git/
+private-context repairs remain disclosed. No original admission/as-of bug was established.
+Native Astra98 created Senses99; actual98 used High, future Astra is reviewed Medium. Sol/Luna/QA High.
+Private current-task/CoreDTO guards, source reading/proposal, new native source/QA pairs and dynamic
+binding passed in real runs without per-task owner configuration. Accepted Brain remains37cf68f.
 
-Future Astra Medium/historical98 High/Sol-Luna-QA High unchanged. Actual no-change merits, accepted
-changed-source publication, next programme and useful post-root continuation remain unproved.
+Candidates1 and2 were independently rejected by native QA101/103 for substantive static findings and
+missing matrix coverage. Controller rejection recording was repaired; both rejections persisted, no
+Gate/publication. Their full results, prior test failures and assisted lifecycle/context repairs remain.
+Source104/pair3 first stopped before implementation; Sol actually commented a concrete correction.
+Board-owned unblock metadata suppressed ordinary comment wake; owner explicitly resumed the same104.
+This is a specific tool-input gap/assisted recovery, not absent canonical manager authority.
 
-The independently accepted Senses/Experience program-only write envelope is active after the reviewed repair. Fixed synthetic
-baseline:110 Senses/20 Experience/3 composition, zero failures/skips. Senses used verified read-only
-interpreter aliases without command change. Roles/access/policy intents and current scope were
-reviewed; scoped fence reopening preserved35 prior immutable operation/stage records. Current44ad and61d
-now record definite rejections; original prepared and failed recording outcomes remain in history.
-Current canonical Brain37cf/pairedACK verified; old operations ineligible and no old live writers/leases.
-Historical169 entries (old168 plus known failed96) remain; generic reconciliation is not declared
-complete. Current rejected outcomes are separate from those historical unknowns.
+Native Luna20 implemented three files. Fixed preflight first collected122:120 passed/2 failed/0skip;
+then corrected preflight passed and sealed439b33d5/canonical CANDIDATEebba2724/opb25 was delivered.
+Exact final successful test count is not independently inferred from the receipt. Source104 then
+blocked with objective false/substantial mandatory-matrix omissions; QA105 has not started. First
+finish call definitely failed but its arguments/error text are unavailable (0B); do not invent cause.
+Historical failed verification was also present in the later payload, a possible guard condition only.
+Current source-contract/phase closure and remaining matrix decomposition are native Sol decisions;
+no forced full-objective completion, sealed-candidate rewrite, QA acceptance or publication.
 
-Actual Astra98 created Senses99; lead scope/CoreDTO handler path, reading, proposal, new children and
-binding are proved. No-change merits, changed-source QA/publication, next strategic program and
-useful continuation after root final are still required. Do not infer engineering readiness from
-program creation, source tests, or the earlier reader outcome. No accepted/published new Brain capability yet.
+The verifier executes candidate-authored test_raw_sources.py in a pinned clean checkout under fixed
+command/environment/sandbox; QA judges test coverage/semantics. Written tests, executed tests, static
+QA and final Gate are separate claims. No final Gate has run on these rejected/unreviewed candidates.
+Historical169 unresolved entries remain separate from current definite rejections and preparedb25.
+Normal no-change, accepted corrected publication, next strategy and useful post-root continuation
+remain open. Service/source checks and candidate delivery are not company/product readiness.
 
-Historical168 unresolved records remain, not live tasks or zero usage. Original MEM14/17 and bounded
-analytical CEO82/81/89 evidence remain accepted in their scopes; do not replay them. October24 STOP,
-backups and failed candidate histories are retained in private HANDOFF/immutable receipts and Git.
-No market collection, training, AUTO/trading, protected data, production/main or paid fallback.
-
-Private current evidence: `/Users/root1/Developer/brain-paperclip-lab/state/resumption-20261025/`;
-`sol-independent-native103-pair2-rejection-recorded-proof.json` records the second static rejection;
-`resource-interval-extension/same-anchor-36-applied-authority.json` owns current accounting authority.
-Earlier failures, assistance and current-contract closure evidence remain immutable.
-Private HANDOFF owns exact operational custody; `engineering/OWNER-DESK.md` is the Russian projection.
+Private receipts: /Users/root1/Developer/brain-paperclip-lab/state/resumption-20261025/.
+Current result: sol-independent-native104-candidate-fixed-preflight-lifecycle-block.json (dcd9b17a).
+Accounting: resource-interval-extension/same-anchor-36-applied-authority.json (d650183a).
+Founder Desk is Russian; technical docs English. No market acquisition, training, AUTO/trading,
+protected F01/D43/holdouts, production/main, paid API/fallback, unknown replay or history reset.

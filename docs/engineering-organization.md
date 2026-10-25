@@ -115,14 +115,40 @@ No new QA tests were run. Full11724-character result and op61d/broker rejection 
 Brain37cf68f remains unchanged. Natural Sol99/f8f6cb06 started15:18:07.314UTC without further dispatch.
 Unique merits/outcome proof: `resumption-20261025/sol-independent-native103-pair2-rejection-recorded-proof.json`
 (SHA2564b15dee45090ed814075c6072fa99166639e86b36f6c3b29e3c0551c5751b551).
-The observation interval was independently extended24→36 using the same anchor317/no reset:16 used,
-20 remaining. Authority: `resumption-20261025/resource-interval-extension/same-anchor-36-applied-authority.json`
+The observation interval was independently extended24→36 using the same anchor317/no reset.
+Authority: `resumption-20261025/resource-interval-extension/same-anchor-36-applied-authority.json`
 (SHA256d650183a2288e24c899b1be168f0ce6205de7f7dca813cde3959edcc56f7c46c).
-This changes accounting only, not actors/scopes/write policy or max3 source pairs (two used).
-MEM/fence active, assessor/analyst and five other companies paused; bootstrap idle/native Luna source
-ownership. Historical169 entries remain separate from current definite rejections. Normal no-change,
-accepted corrected publication, next strategy and useful post-root continuation remain open. Assisted
-lifecycle repair is disclosed; natural corrective work is real but product/company acceptance is not proved.
+This changes accounting only, not actors/scopes/write policy or max3 source pairs. A temporary owner
+lifecycle-only instruction was initially read as a continuing hold; an explicitly assisted scope/expiry
+clarification restored the standing mandate. Sol then created/bound pair104/105 without per-task config.
+Source104 first blocked before implementation, not on a demonstrated API denial. Sol actually commented
+an implementation sequence; board-owned unblock metadata suppressed ordinary wake, requiring explicit
+owner resume. Native manager authority already permits the canonical action, but strict comment_on_task
+cannot express resume:true. This is an input-surface gap, not a need for board identity or broader authority.
+
+Luna20 implemented three files, corrected a definite122-collected/120-pass/2-fail/0-skip preflight, and
+delivered sealed439b33d5/canonical CANDIDATEebba2724/opb25 after corrected preflight passed. Exact final
+successful count is not inferred from the receipt. It then blocked with incomplete mandatory matrix;
+QA105 has not started. First finish failed with no exposed arguments/error text; no precise cause is
+claimed. Historical failed verification in the later payload is a possible guard condition only.
+No source/QA acceptance, final Gate or publication. Outcome receipt:
+`resumption-20261025/sol-independent-native104-candidate-fixed-preflight-lifecycle-block.json`
+(SHA256dcd9b17a8fe96f21b502d4a28faec408a7d545e62ca05cc57b3a882e69bc99de).
+At source-only maintenance,20/36 attempts and337 terminal/live0 were reconciled. Only native LunaC73
+was manually held; company/other actors/publisher fence/pins remained unchanged. Explicit custody
+returned to sole bootstrap Luna for minimal optional resume on the existing comment tool, preserving
+body-only default, actual agent identity and canonical authority/hold guards. No Brain edits/fourth
+pair/new route/grant. Independent source/release acceptance is required before deployment; source
+phase closure and remaining matrix decomposition stay native Sol decisions, not forced completion.
+Custody: `resumption-20261025/native-comment-resume-maintenance/source-ownership-bootstrap-return.json`
+(SHA256a96ecb1be2d08fb8159fce12abc3f272bc29fe8136c734de7a06c4a8b27b391b).
+
+Fixed preflight and final Gate run candidate-authored test_raw_sources.py in a pinned clean candidate
+checkout; fixed command/environment/sandbox are external, test content is not a frozen external matrix.
+QA independently judges coverage/semantics. No new QA test execution or final Gate is claimed here.
+Historical169 entries remain separate from current rejections/preparedb25. Normal no-change, accepted
+corrected publication, next strategy and useful post-root continuation remain open. Assisted repairs
+are disclosed; real native implementation/correction does not yet establish product/company acceptance.
 
 ## Standing strategic mandate — founder directive 2026-10-24
 
