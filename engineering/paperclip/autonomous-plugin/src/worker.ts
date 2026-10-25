@@ -1075,16 +1075,11 @@ async function resolveAcceptedSourceRunIssue(
   if (!complete || matches.length !== 1) fail("accepted_source_reader_run_binding_unknown");
   const listed = matches[0];
   const scoped = ctx.issues.forCurrentToolRun();
-  const [issue, orchestration] = await Promise.all([
-    scoped.get(listed.id, runCtx.companyId),
-    scoped.getOrchestration({ issueId: listed.id, companyId: runCtx.companyId }),
-  ]);
-  const boundRun = orchestration.runs.find((run) => run.id === runCtx.runId);
+  const issue = await scoped.get(listed.id, runCtx.companyId);
   const qaActor = program.qa_agent_ids.includes(runCtx.agentId);
   if (!issue || issue.id !== listed.id || issue.companyId !== runCtx.companyId
       || issue.projectId !== runCtx.projectId || issue.assigneeAgentId !== runCtx.agentId
-      || issue.executionRunId !== runCtx.runId || !["in_progress", ...(qaActor ? ["in_review"] : [])].includes(issue.status)
-      || !boundRun || boundRun.issueId !== issue.id || boundRun.agentId !== runCtx.agentId || boundRun.status !== "running") {
+      || issue.executionRunId !== runCtx.runId || !["in_progress", ...(qaActor ? ["in_review"] : [])].includes(issue.status)) {
     fail("accepted_source_reader_run_binding_mismatch");
   }
   return issue;
