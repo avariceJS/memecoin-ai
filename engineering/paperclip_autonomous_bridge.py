@@ -5113,6 +5113,29 @@ def _integrate_candidate_locked(
         )
         raise BridgeError(error)
     canonical_record = journal.get("canonical")
+    dynamic_program_stage = (
+        journal.get("source_stage_binding") is not None
+        and type(journal.get("source_stage_key")) is str
+        and journal["source_stage_key"].startswith("DYN-")
+    )
+    if dynamic_program_stage:
+        if set(evidence) != {"inspection_digest", "rationale"}:
+            raise BridgeError("review_evidence_invalid")
+        if (
+            type(canonical_record) is not dict
+            or inspection.get("canonical_candidate_sha") != canonical_record.get("candidate")
+            or inspection.get("canonical_receipt_digest") != canonical_record.get("receipt_digest")
+        ):
+            raise BridgeError("canonical_review_binding_mismatch")
+        # The public dynamic QA contract intentionally contains only the
+        # inspection digest and rationale. Bind canonical identity from the
+        # current operation journal and that exact persisted inspection while
+        # still under the existing operation lock.
+        evidence = {
+            **evidence,
+            "canonical_candidate_sha": canonical_record["candidate"],
+            "canonical_receipt_digest": canonical_record["receipt_digest"],
+        }
     if canonical_record is not None and (
         evidence.get("canonical_candidate_sha") != canonical_record.get("candidate")
         or evidence.get("canonical_receipt_digest") != canonical_record.get("receipt_digest")

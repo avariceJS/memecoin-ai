@@ -538,11 +538,83 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "review_instruction_sha256": payload["review_instruction_sha256"],
         }
         inspected = dispatch(config, {"action": "inspect_bound_source_stage", "payload": review_payload})
+        public_evidence = {
+            "inspection_digest": inspected["inspection_digest"],
+            "rationale": "synthetic full source, QA and publication cycle",
+        }
+        self.assertEqual(set(public_evidence), {"inspection_digest", "rationale"})
+        with self.assertRaisesRegex(BridgeError, "review_evidence_inspection_mismatch"):
+            dispatch(config, {"action": "approve_bound_source_stage", "payload": {
+                **review_payload, "approved": False,
+                "evidence": {**public_evidence, "inspection_digest": "0" * 64},
+            }})
+        from engineering.paperclip_autonomous_bridge import _load_journal, _write_journal
+        operation = _load_journal(config, delivered["operation_key"])
+        saved_canonical = operation["canonical"]
+        operation["canonical"] = {**saved_canonical, "candidate": "0" * 40}
+        _write_journal(config, delivered["operation_key"], operation, create=False)
+        with self.assertRaisesRegex(BridgeError, "canonical_review_binding_mismatch"):
+            dispatch(config, {"action": "approve_bound_source_stage", "payload": {
+                **review_payload, "approved": False, "evidence": public_evidence,
+            }})
+        operation = _load_journal(config, delivered["operation_key"])
+        operation["canonical"] = None
+        _write_journal(config, delivered["operation_key"], operation, create=False)
+        with self.assertRaises(BridgeError):
+            dispatch(config, {"action": "approve_bound_source_stage", "payload": {
+                **review_payload, "approved": False, "evidence": public_evidence,
+            }})
+        operation = _load_journal(config, delivered["operation_key"])
+        operation["canonical"] = saved_canonical
+        _write_journal(config, delivered["operation_key"], operation, create=False)
+        rejected = dispatch(config, {"action": "approve_bound_source_stage", "payload": {
+            **review_payload, "approved": False, "evidence": public_evidence,
+        }})
+        self.assertEqual(rejected["status"], "review_rejected")
+        self.assertEqual(git(publisher, "rev-parse", mission.expected_dev_ref), publisher_sha)
+        self.assertEqual(git(canonical, "rev-parse", mission.canonical_ref), canonical_sha)
+        rejected_operation = _load_journal(config, delivered["operation_key"])
+        self.assertEqual(rejected_operation["state"], "review_rejected")
+        self.assertEqual(rejected_operation["review"]["evidence"]["canonical_candidate_sha"], inspected["canonical_candidate_sha"])
+        self.assertEqual(rejected_operation["review"]["evidence"]["canonical_receipt_digest"], inspected["canonical_receipt_digest"])
+        self.assertEqual(rejected_operation["canonical"]["status"], "prepared")
+        self.assertNotIn("approved_candidate", rejected_operation["canonical"])
+
+        next_payload = {**payload, "source_issue_id": "source-2", "review_issue_id": "review-2",
+            "source_version": 2, "review_version": 2, "source_instruction_sha256": "3" * 64,
+            "review_instruction_sha256": "4" * 64}
+        second = bind_program_source_stage(config, next_payload)
+        self.assertEqual(second["base_sha"], publisher_sha)
+        self.assertEqual(second["canonical_base_sha"], canonical_sha)
+        for activation in (
+            {"step": "intent", "stage_binding_key": second["stage_binding_key"], "issue_id": "source-2",
+             "observed_status": "backlog", "observed_version": 2},
+            {"step": "ack", "stage_binding_key": second["stage_binding_key"], "issue_id": "source-2",
+             "mutation_status": "todo", "mutation_status_version": 3},
+        ):
+            dispatch(config, {"action": "source_stage_activation", "payload": activation})
+        next_files = [
+            {"path_id": paths[0], "content": "VALUE = 3\n", "size": len(b"VALUE = 3\n"),
+             "sha256": hashlib.sha256(b"VALUE = 3\n").hexdigest()},
+            {"path_id": paths[1], "content": base_files[paths[1]], "size": len(base_files[paths[1]].encode()),
+             "sha256": hashlib.sha256(base_files[paths[1]].encode()).hexdigest()},
+        ]
+        second_delivery = dispatch(config, {"action": "deliver_source_stage_content", "payload": {
+            "company_id": config.company_id, "project_id": mission.project_id,
+            "source_issue_id": "source-2", "worker_agent_id": config.worker_agent_id,
+            "run_id": "source-run-2", "stage_key": second["stage_key"],
+            "stage_binding_key": second["stage_binding_key"],
+            "source_instruction_sha256": next_payload["source_instruction_sha256"], "files": next_files,
+        }})
+        second_review = {
+            **review_payload, "reviewer_run_id": "review-run-2", "reviewer_issue_id": "review-2",
+            "stage_key": second["stage_key"], "stage_binding_key": second["stage_binding_key"],
+            "review_instruction_sha256": next_payload["review_instruction_sha256"],
+        }
+        second_inspection = dispatch(config, {"action": "inspect_bound_source_stage", "payload": second_review})
         approved = dispatch(config, {"action": "approve_bound_source_stage", "payload": {
-            **review_payload, "approved": True, "evidence": {
-                "inspection_digest": inspected["inspection_digest"],
-                "canonical_candidate_sha": inspected["canonical_candidate_sha"],
-                "canonical_receipt_digest": inspected["canonical_receipt_digest"],
+            **second_review, "approved": True, "evidence": {
+                "inspection_digest": second_inspection["inspection_digest"],
                 "rationale": "synthetic full source, QA and publication cycle",
             },
         }})
@@ -550,15 +622,17 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         projected_n1 = approved["candidate_sha"]
         canonical_n1 = approved["canonical_candidate_sha"]
         tree_n1 = git(publisher, "rev-parse", f"{projected_n1}^{{tree}}")
-
-        next_payload = {**payload, "source_issue_id": "source-2", "review_issue_id": "review-2",
-            "source_version": 2, "review_version": 2, "source_instruction_sha256": "3" * 64,
-            "review_instruction_sha256": "4" * 64}
-        second = bind_program_source_stage(config, next_payload)
-        self.assertEqual(second["base_sha"], projected_n1)
-        self.assertEqual(second["canonical_base_sha"], canonical_n1)
+        self.assertEqual(second["base_sha"], publisher_sha)
         second_record = _stage_binding(config, second["stage_binding_key"])
-        self.assertEqual(second_record["trusted_source_cache_tree"], tree_n1)
+        self.assertEqual(second_record["trusted_source_cache_tree"], git(publisher, "rev-parse", f"{publisher_sha}^{{tree}}"))
+        third_payload = {**payload, "source_issue_id": "source-3", "review_issue_id": "review-3",
+            "source_version": 4, "review_version": 4, "source_instruction_sha256": "5" * 64,
+            "review_instruction_sha256": "6" * 64}
+        third = bind_program_source_stage(config, third_payload)
+        self.assertEqual(third["base_sha"], projected_n1)
+        self.assertEqual(third["canonical_base_sha"], canonical_n1)
+        third_record = _stage_binding(config, third["stage_binding_key"])
+        self.assertEqual(third_record["trusted_source_cache_tree"], tree_n1)
         reader_result = dispatch(config, {"action": "read_accepted_source", "payload": {
             "company_id": config.company_id, "project_id": mission.project_id,
             "program_issue_id": "program-1", "issue_id": "source-2", "agent_id": "luna",
@@ -567,45 +641,45 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         }})
         self.assertEqual(reader_result["projection_sha"], projected_n1)
         self.assertEqual(reader_result["canonical_sha"], canonical_n1)
-        self.assertEqual(reader_result["result"]["lines"][0]["text"], "VALUE = 2")
+        self.assertEqual(reader_result["result"]["lines"][0]["text"], "VALUE = 3")
 
         # A path alias in the completed source-stage record is rejected before it
         # can establish the next task's accepted base.
-        stage_record_path = config.bridge_journal_dir / f"operation-{_stage_journal_key(first['stage_key'])}.json"
+        stage_record_path = config.bridge_journal_dir / f"operation-{_stage_journal_key(second['stage_key'])}.json"
         published_stage_record = json.loads(stage_record_path.read_text(encoding="utf-8"))
         cache_alias = root / "cache-alias"
         cache_alias.symlink_to(Path(published_stage_record["trusted_source_cache"]), target_is_directory=True)
         stage_record_path.write_text(json.dumps({**published_stage_record, "trusted_source_cache": str(cache_alias)}), encoding="utf-8")
         stage_record_path.chmod(0o600)
         with self.assertRaisesRegex(BridgeError, "program_source_stage_accepted_base_unavailable"):
-            bind_program_source_stage(config, next_payload)
+            bind_program_source_stage(config, third_payload)
         stage_record_path.write_text(json.dumps(published_stage_record, sort_keys=True, separators=(",", ":")), encoding="utf-8")
         stage_record_path.chmod(0o600)
 
         changed_policy_mission = replace(mission, repository_free_policy_digest="f" * 64)
         changed_policy_config = replace(config, program_admission=ProgramAdmissionSpec((changed_policy_mission,)))
         with self.assertRaisesRegex(BridgeError, "program_source_stage_accepted_base_unavailable"):
-            bind_program_source_stage(changed_policy_config, {**next_payload, "source_issue_id": "source-policy", "review_issue_id": "review-policy"})
+            bind_program_source_stage(changed_policy_config, {**third_payload, "source_issue_id": "source-policy", "review_issue_id": "review-policy"})
 
         # ACK provenance still binds to the live canonical tip; moving that ref
         # behind the accepted receipt makes a new task fail closed.
         git(canonical, "update-ref", mission.canonical_ref, canonical_sha)
         with self.assertRaisesRegex(BridgeError, "program_source_stage_canonical_tip_changed"):
-            bind_program_source_stage(config, {**next_payload, "source_issue_id": "source-canonical", "review_issue_id": "review-canonical"})
+            bind_program_source_stage(config, {**third_payload, "source_issue_id": "source-canonical", "review_issue_id": "review-canonical"})
         git(canonical, "update-ref", mission.canonical_ref, canonical_n1)
 
         # An unexplained publisher advance has no accepted paired ACK and is not a
         # usable base, even when the object is present in the publisher repository.
         git(publisher, "checkout", "--detach", projected_n1)
-        (publisher / paths[0]).write_text("VALUE = 3\n", encoding="utf-8")
+        (publisher / paths[0]).write_text("VALUE = 4\n", encoding="utf-8")
         git(publisher, "add", "-A")
         subprocess.run(["/usr/bin/git", "-C", str(publisher), "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "unacknowledged N+2"], check=True, capture_output=True)
         unknown_tip = git(publisher, "rev-parse", "HEAD")
         git(publisher, "update-ref", mission.expected_dev_ref, unknown_tip)
         with self.assertRaisesRegex(BridgeError, "program_source_stage_accepted_base_unavailable"):
-            bind_program_source_stage(config, {**next_payload, "source_issue_id": "source-unknown", "review_issue_id": "review-unknown"})
+            bind_program_source_stage(config, {**third_payload, "source_issue_id": "source-unknown", "review_issue_id": "review-unknown"})
         with self.assertRaisesRegex(BridgeError, "program_source_stage_issue_pair_invalid"):
-            bind_program_source_stage(config, {**next_payload, "source_issue_id": "source-same", "review_issue_id": "source-same"})
+            bind_program_source_stage(config, {**third_payload, "source_issue_id": "source-same", "review_issue_id": "source-same"})
         self.assertNotEqual(old_sha, publisher_sha)
 
     def test_admitted_program_reads_platform_bootstrap_without_rebinding_brain_write_scope(self):
