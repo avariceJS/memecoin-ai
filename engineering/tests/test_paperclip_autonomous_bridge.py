@@ -17,6 +17,7 @@ from engineering.paperclip_autonomous_bridge import (
     BridgeConfig,
     BridgeError,
     SourceStageSpec,
+    VerifierProfile,
     _accepted_base_context,
     _accepted_base_context_note,
     _accepted_base_delivery,
@@ -228,7 +229,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         root = Path(self.tmp.name)
         projection_repo = root / "accepted-projection"
         projection_repo.mkdir()
-        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "brain/development", str(projection_repo)], check=True)
+        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "org/development", str(projection_repo)], check=True)
         source_file = projection_repo / "engineering" / "example.py"
         source_file.parent.mkdir()
         source_file.write_text("def accepted_tip():\n    return 17\n", encoding="utf-8")
@@ -244,10 +245,61 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         bridge_dir.mkdir(mode=0o700, exist_ok=True)
         broker_dir = self.config.broker_journal_dir
         canonical_candidate = "f" * 40
+        source_repo = root / "source"
+        canonical_repo = root / "canonical"
+        verifier_profile = VerifierProfile(
+            "policy-platform-stage", (("/usr/bin/python3", "-c", "pass"),), (), ()
+        )
+        stage = SourceStageSpec(
+            "PLATFORM-READER-TEST", "source", bootstrap_sha, None,
+            ("src/example.py", "tests/test_example.py"), "policy-platform-stage",
+            project_id="project-platform", goal_id="mission-platform",
+            lead_agent_id="sol-platform", lead_issue_id="mem89-issue",
+            source_repo=source_repo, publisher_repo=projection_repo,
+            canonical_repo=canonical_repo, canonical_ref="refs/heads/org/development",
+            canonical_expected_tip="a" * 40, expected_dev_ref="refs/heads/org/development",
+        )
+        configured = replace(
+            self.config,
+            project_id="project-mem17",
+            source_repo=root / "mem17-source",
+            publisher_repo=projection_repo,
+            expected_dev_ref="refs/heads/brain/paperclip-integration",
+            fixed_dev_ref="refs/heads/brain/paperclip-integration",
+            canonical_repo=canonical_repo,
+            canonical_ref="refs/heads/org/development",
+            canonical_expected_tip="a" * 40,
+            source_stage_catalog=(stage,),
+            verifier_policy_catalog=(verifier_profile,),
+        )
+        stage_binding_key = "8" * 64
+        operation_key = hashlib.sha256(
+            json.dumps(["company-1", "source-task", "source-run"], separators=(",", ":")).encode()
+        ).hexdigest()
+        stage_record = {
+            "schema": "paperclip-source-stage-binding-v1", "stage_key": stage.stage_key,
+            "source_issue_id": "source-task", "review_issue_id": "review-task",
+            "lead_issue_id": stage.lead_issue_id, "lead_agent_id": stage.lead_agent_id,
+            "lead_run_id": "sol-run", "source_version": 1, "review_version": 1,
+            "source_instruction_sha256": "9" * 64, "review_instruction_sha256": "0" * 64,
+            "workspace_id": stage.workspace_id, "path_ids": list(stage.path_ids),
+            "verifier_policy_id": stage.verifier_policy_id,
+            "owner_config_digest": configured.owner_config_digest,
+            "base_sha": bootstrap_sha, "canonical_base_sha": "a" * 40,
+            "state": "active", "stage_binding_key": stage_binding_key,
+            "operation_key": operation_key, "candidate_sha": projected_sha,
+        }
+        stage_binding_path = bridge_dir / f"operation-{_stage_journal_key(stage.stage_key)}.json"
+        stage_binding_path.write_text(json.dumps(stage_record))
+        stage_binding_path.chmod(0o600)
+        operation_config = configured.for_source_stage(
+            stage, source_issue_id="source-task", reviewer_issue_id="review-task",
+            base_sha=bootstrap_sha, canonical_base_sha="a" * 40, source_repo=source_repo,
+        )
         canonical_receipt = {
             "schema": "paperclip-canonical-content-v1",
-            "repo": "/synthetic/canonical",
-            "ref": "refs/heads/brain/development",
+            "repo": str(canonical_repo),
+            "ref": "refs/heads/org/development",
             "expected_tip": "a" * 40,
             "tree": "b" * 40,
             "candidate": canonical_candidate,
@@ -257,27 +309,25 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             json.dumps(canonical_receipt, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
         canonical_receipt["receipt_digest"] = canonical_receipt_digest
-        operation_key = hashlib.sha256(
-            json.dumps(["company-1", "source-task", "source-run"], separators=(",", ":")).encode()
-        ).hexdigest()
         binding = {
             "company_id": "company-1", "issue_id": "source-task", "run_id": "source-run",
             "worker_agent_id": "worker-1", "reviewer_agent_id": "reviewer-1",
             "base_sha": bootstrap_sha, "submitted_sha": "2" * 40, "scope": ["src/example.py"],
-            "policy_digest": "3" * 64, "active_ref": "refs/heads/brain/development",
-            "owner_config_digest": self.config.owner_config_digest, "owner_roots": [],
+            "policy_digest": operation_config.policy().digest, "active_ref": "refs/heads/org/development",
+            "owner_config_digest": configured.owner_config_digest, "owner_roots": list(operation_config.owner_roots),
         }
         bridge_record = {
             "schema": "paperclip-autonomous-operation-v1", "operation_key": operation_key, "state": "published",
             "binding": binding, "candidate": {"candidate_sha": projected_sha},
             "source_snapshot_sha256": "4" * 64,
+            "source_stage_binding": stage_binding_key, "source_stage_key": stage.stage_key,
             "canonical": {
                 "status": "published", "candidate": canonical_candidate,
                 "receipt_digest": canonical_receipt_digest, "receipt": canonical_receipt,
                 "approved_candidate": canonical_candidate,
                 "approved_receipt_digest": canonical_receipt_digest,
                 "ack": {"status": "reconciled", "candidate": canonical_candidate,
-                    "receipt_digest": canonical_receipt_digest, "ref": "refs/heads/brain/development"},
+                    "receipt_digest": canonical_receipt_digest, "ref": "refs/heads/org/development"},
             },
         }
         broker_record = {
@@ -285,7 +335,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "publish_ack": "confirmed", "binding": binding, "candidate": {"sha": projected_sha},
             "receipt_digest": "5" * 64,
             "approval": {"approved": True, "company_id": "company-1", "run_id": "source-run",
-                "candidate_sha": projected_sha, "reviewer_agent_id": "reviewer-1", "policy_digest": "3" * 64},
+                "candidate_sha": projected_sha, "reviewer_agent_id": "reviewer-1", "policy_digest": operation_config.policy().digest},
         }
         bridge_path = bridge_dir / f"operation-{operation_key}.json"
         bridge_path.write_text(json.dumps(bridge_record))
@@ -294,13 +344,13 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         broker_path.write_text(json.dumps(broker_record))
         broker_path.chmod(0o600)
         projection = AcceptedSourceProjectionSpec(
-            "brain", projection_repo, "refs/heads/brain/development", ("engineering/",),
+            "brain", projection_repo, "refs/heads/org/development", ("engineering/",),
             bootstrap_sha, "6" * 40, "7" * 64,
         )
-        program = AcceptedSourceProgramSpec("project-1", "mem89-issue", "sol-1", "luna-1", (), ("brain",))
-        configured = replace(self.config, accepted_source_reader=AcceptedSourceReaderSpec((projection,), (program,)))
+        program = AcceptedSourceProgramSpec("project-platform", "mem89-issue", "sol-1", "luna-1", (), ("brain",))
+        configured = replace(configured, accepted_source_reader=AcceptedSourceReaderSpec((projection,), (program,)))
         payload = {
-            "company_id": "company-1", "project_id": "project-1", "program_issue_id": "mem89-issue",
+            "company_id": "company-1", "project_id": "project-platform", "program_issue_id": "mem89-issue",
             "issue_id": "source-task", "agent_id": "sol-1", "run_id": "active-run", "corpus_id": "brain",
             "prefix": "engineering/", "cursor": None, "limit": 10,
         }
@@ -311,11 +361,24 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             ).stdout.strip(),
             load_receipt=lambda _digest, _sha: {"result": {"status": "passed"}},
         )
-        with patch.object(BridgeConfig, "gate", return_value=read_gate):
+        gate_calls = []
+        def gate_for_config(instance):
+            gate_calls.append((instance.verifier_policy_id, instance.publisher_repo, instance.expected_dev_ref))
+            return read_gate
+        with patch.object(BridgeConfig, "gate", gate_for_config):
             result = dispatch(configured, {"action": "list_accepted_source", "payload": payload})
         self.assertEqual(result["projection_sha"], projected_sha)
         self.assertEqual(result["canonical_sha"], canonical_candidate)
         self.assertEqual(result["acceptance_receipt_digest"], canonical_receipt_digest)
+        self.assertIn(("policy-platform-stage", projection_repo, "refs/heads/org/development"), gate_calls)
+        wrong_roots = list(configured.owner_roots)
+        bridge_record["binding"] = {**binding, "owner_roots": wrong_roots}
+        broker_record["binding"] = {**binding, "owner_roots": wrong_roots}
+        bridge_path.write_text(json.dumps(bridge_record))
+        broker_path.write_text(json.dumps(broker_record))
+        with patch.object(BridgeConfig, "gate", gate_for_config):
+            with self.assertRaisesRegex(BridgeError, "acceptance_unavailable"):
+                dispatch(configured, {"action": "list_accepted_source", "payload": payload})
 
     def test_submit_rejects_mismatched_worker_or_issue(self):
         for key, value in (("worker_agent_id", "reviewer-1"), ("source_issue_id", "other-issue")):
