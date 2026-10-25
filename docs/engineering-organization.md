@@ -68,9 +68,9 @@ readback at13:48UTC verified actual loaded processes/configuration. Unique opera
 `resumption-20261025/private-program-context-maintenance/apply/actual-matching-inert-boundary.json`
 (SHA256be62d3b549c2f385e4e559cbae103e8cce6a88955be48e249ef65b9a54f00972).
 Supported known99 continuation d31dff49 started13:50:13.471UTC in fresh own workspace6c7f53fc,
-without recreating the programme or replaying unknown history. MEM/fence are active with only four
-required actors resumed; the other five companies remain paused. Bootstrap implementation is idle
-and source custody returns to native Luna. Future CEO effort is independently accepted Medium;
+without recreating the programme or replaying unknown history. At that activation, MEM/fence were active with only four
+required actors resumed; the other five companies remain paused. Bootstrap implementation was idle
+and source custody returned to native Luna for that interval. Future CEO effort is independently accepted Medium;
 historical98 High and Sol/Luna/QA High are unchanged. The169 historical entries remain; global
 hibernation is not declared complete. Actual lead scope,14 Brain reader calls and proposal succeeded;
 the accepted handler necessarily consumed native attestation/CoreDTO guards, but internal RPC payload
@@ -78,13 +78,24 @@ was not independently exposed. Sol created MEM100 Source/MEM101 QA and bound the
 per-task owner configuration. Paperclip automatically started Luna40125c9f in its own new root.
 Luna ended blocked after four invalid corpus IDs, never literal brain: no successful source read,
 candidate/verifier/QA/publication. This proves a parameter failure, not a backend authorization defect.
-MEM99/100/101 are blocked with live0 and four of24 source attempts used; correction routing/context is
-being examined. Unique outcome receipt:
-`resumption-20261025/sol-independent-native99-dynamic-binding-source100-parameter-blocker.json`
-(SHA256ed77699439994815447a3fbc0525ecf339ddd7eeebb33dcccbe9aac747fd783e).
-Actual no-change merits, useful changed-source publication, subsequent strategy and useful post-root
-continuation remain open. Source acceptance,
-service startup and the completed reader programme are not company readiness.
+Native Sol prepared a precise corpus correction; owner transport/resume of existing100 was explicitly
+assisted. Lunaf96 then read source, implemented three files and corrected three definite fixed-preflight
+failures on the same binding. Source100 finished with full result and candidate358452a3/canonical
+CANDIDATE8290fa1e; accepted canonical remains37cf68f. Natural QA101/339ddaae inspected the bound private
+candidate and rejected it for concrete accounting/replay defects and missing regressions. These were
+static findings, not newly run QA tests. Its approved:false recording failed because the public schema
+cannot supply canonical fields demanded by Python. Current operation44ad is prepared/review null,
+not published or settled. Unique outcome receipt:
+`resumption-20261025/sol-independent-native100-candidate-QA101-rejection-recording-blocker.json`
+(SHA25604056ae8672e4ad21724a1348f9bd1bf7b824abdddf34216436bc23bf6ea6222).
+Current maintenance: seven of24 source attempts,324 terminal/live0, all MEM actors manual/company
+paused/fence draining; other five companies paused. Source custody returned explicitly to bootstrap
+Luna for the narrow trusted inspection-to-canonical-review evidence fix, without concurrent native
+writer. The existing native comment_on_task path can support ordinary child correction; lead-only
+configuration is under review, not yet applied. Historical169 unresolved records remain separate
+from current prepared44ad. Actual no-change merits, accepted changed-source publication, subsequent
+strategy and useful post-root continuation remain open. A candidate, static rejection, source checks
+and service startup are not company readiness.
 
 ## Standing strategic mandate — founder directive 2026-10-24
 
