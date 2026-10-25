@@ -242,15 +242,39 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             canonical_repo=Path(self.tmp.name) / "canonical", canonical_ref="refs/heads/brain/development",
             expected_dev_ref="refs/heads/brain/development", source_workspace_id="workspace-senses",
             source_workspace_root=Path(self.tmp.name) / "workspace",
+            repository_free_policy_digest="e" * 64,
         )
         config = replace(self.config, program_admission=ProgramAdmissionSpec((mission,)))
         result = dispatch(config, {"action": "get_program_source_scope", "payload": {
             "company_id": config.company_id, "project_id": "senses-project", "goal_id": "goal-1",
         }})
         self.assertEqual(result["standing_issue_id"], "standing-90")
+        self.assertEqual(result["repository_free_policy_digest"], mission.repository_free_policy_digest)
         self.assertEqual(result["profiles"][0]["required_test_paths"], ["tests/brain/test_raw_sources.py"])
         self.assertNotIn("source_repo", result)
         self.assertNotIn("owner_roots", result)
+        from engineering.paperclip_autonomous_bridge import _parse_program_admission
+        mission_row = {
+            "project_id": mission.project_id, "standing_issue_id": mission.standing_issue_id,
+            "sol_agent_id": mission.sol_agent_id, "astra_agent_id": mission.astra_agent_id,
+            "luna_agent_id": mission.luna_agent_id, "qa_agent_ids": list(mission.qa_agent_ids),
+            "goal_ids": list(mission.goal_ids), "allowed_prefixes": list(mission.allowed_prefixes),
+            "excluded_prefixes": list(mission.excluded_prefixes), "corpus_ids": list(mission.corpus_ids),
+            "profiles": [{"profile_id": profile.profile_id,
+                "allowed_prefixes": list(profile.allowed_prefixes), "required_test_paths": list(profile.required_test_paths),
+                "verifier_policy_id": profile.verifier_policy_id} for profile in mission.profiles],
+            "source_repo": str(mission.source_repo), "publisher_repo": str(mission.publisher_repo),
+            "canonical_repo": str(mission.canonical_repo), "canonical_ref": mission.canonical_ref,
+            "expected_dev_ref": mission.expected_dev_ref, "source_workspace_id": mission.source_workspace_id,
+            "source_workspace_root": str(mission.source_workspace_root),
+            "repository_free_policy_digest": mission.repository_free_policy_digest,
+        }
+        parsed_admission = _parse_program_admission({"missions": [mission_row]})
+        self.assertEqual(parsed_admission.missions[0].repository_free_policy_digest, mission.repository_free_policy_digest)
+        invalid_mission_row = dict(mission_row)
+        invalid_mission_row["repository_free_policy_digest"] = "invalid"
+        with self.assertRaisesRegex(BridgeError, "owner_config_program_admission_invalid"):
+            _parse_program_admission({"missions": [invalid_mission_row]})
         proposal = dispatch(config, {"action": "validate_program_source_proposal", "payload": {
             "company_id": config.company_id, "project_id": "senses-project", "goal_id": "goal-1",
             "profile_id": "senses-v1", "path_ids": [
@@ -301,6 +325,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             source_repo=source, publisher_repo=publisher, canonical_repo=canonical,
             canonical_ref="refs/heads/brain/development", expected_dev_ref="refs/heads/brain/development",
             source_workspace_id="senses-workspace", source_workspace_root=workspace,
+            repository_free_policy_digest="e" * 64,
         )
         projection = AcceptedSourceProjectionSpec("brain", publisher, "refs/heads/brain/development",
             ("src/", "tests/"), "a" * 40, "b" * 40, "c" * 64)
@@ -341,9 +366,17 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 bind_program_source_stage(config, payload)
         self.assertEqual(bound["base_sha"], "a" * 40)
         self.assertEqual(bound["canonical_base_sha"], "b" * 40)
+        self.assertEqual(bound["repository_free_policy_digest"], mission.repository_free_policy_digest)
         record = _stage_binding(config, bound["stage_binding_key"])
         self.assertEqual(record["path_ids"], list(paths))
+        self.assertEqual(record["dynamic_stage_spec"]["repository_free_policy_digest"], mission.repository_free_policy_digest)
         self.assertEqual(record["accepted_receipt_digest"], "c" * 64)
+        lookup = dispatch(config, {"action": "lookup_source_stage_binding", "payload": {
+            "company_id": config.company_id, "project_id": mission.project_id, "lead_agent_id": mission.sol_agent_id,
+            "lead_issue_id": payload["lead_issue_id"], "stage_key": bound["stage_key"],
+            "source_issue_id": payload["source_issue_id"], "review_issue_id": payload["review_issue_id"],
+        }})
+        self.assertEqual(lookup["repository_free_policy_digest"], mission.repository_free_policy_digest)
         stage = config.source_stage(bound["stage_key"])
         self.assertEqual(stage.project_id, mission.project_id)
         self.assertEqual(stage.path_ids, paths)

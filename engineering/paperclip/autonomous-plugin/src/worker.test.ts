@@ -207,7 +207,7 @@ describe("Paperclip autonomous bridge tools", () => {
         }], source_repo: "/tmp/brain-source", publisher_repo: "/tmp/brain-publisher",
         canonical_repo: "/tmp/brain-canonical", canonical_ref: "refs/heads/brain/development",
         expected_dev_ref: "refs/heads/brain/development", source_workspace_id: "senses-workspace",
-        source_workspace_root: "/tmp/senses-workspace",
+      source_workspace_root: "/tmp/senses-workspace", repository_free_policy_digest: "e".repeat(64),
       }],
     };
     await installConfig({ ...config, worker_agent_id: "luna-agent", reviewer_agent_id: "qa-agent", program_admission: admission,
@@ -220,22 +220,44 @@ describe("Paperclip autonomous bridge tools", () => {
       } });
     const { ctx, handlers } = fixture(configPath);
     const solRun = { ...workerRun, projectId: "senses-project", agentId: "sol-agent", runId: "sol-run" };
+    const lunaRun = { ...solRun, agentId: "luna-agent", runId: "luna-run" };
+    const qaRun = { ...solRun, agentId: "qa-agent", runId: "qa-run" };
     const lead = { id: "sol-program", companyId: "company-1", projectId: "senses-project", parentId: "astra-program",
       createdByAgentId: "astra-agent", assigneeAgentId: "sol-agent", goalId: "mission-goal", status: "in_progress", executionRunId: "sol-run",
-      projectWorkspaceId: "senses-workspace", executionWorkspaceId: "dynamic-execution" };
+      projectWorkspaceId: "senses-workspace", executionWorkspaceId: "dynamic-execution", workspaceBindingRevision: 0 };
     const parent = { id: "astra-program", companyId: "company-1", projectId: "previous-project", assigneeAgentId: "astra-agent", status: "in_progress" };
+    const { mkdir } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    const { realpathSync, statSync } = await import("node:fs");
+    const solRootPath = join(configDir, "dynamic-sol-run");
+    const lunaRootPath = join(configDir, "dynamic-luna-run");
+    const qaRootPath = join(configDir, "dynamic-qa-run");
+    await Promise.all([mkdir(solRootPath), mkdir(lunaRootPath), mkdir(qaRootPath)]);
+    const solRoot = realpathSync(solRootPath);
+    const lunaRoot = realpathSync(lunaRootPath);
+    const qaRoot = realpathSync(qaRootPath);
+    const currentIssues = new Map<string, any>([[lead.id, lead], [parent.id, parent]]);
+    const workspaceRows = new Map<string, any>();
+    let activeRun: typeof solRun = solRun;
+    let activeIssue: any = lead;
     const issueApi = ctx.issues as unknown as Record<string, unknown>;
-    issueApi.list = vi.fn(async () => [lead]);
-    issueApi.get = vi.fn(async (id: string) => id === parent.id ? parent : null);
+    issueApi.list = vi.fn(async ({ assigneeAgentId }: { assigneeAgentId: string }) =>
+      activeIssue.assigneeAgentId === assigneeAgentId ? [activeIssue] : []);
+    issueApi.get = vi.fn(async (id: string) => currentIssues.get(id) ?? null);
     issueApi.forCurrentToolRun = () => ({
-      get: vi.fn(async (id: string) => id === lead.id ? lead : null),
-      getOrchestration: vi.fn(async () => ({ issueId: lead.id, companyId: "company-1", runs: [{
-        id: solRun.runId, issueId: lead.id, agentId: solRun.agentId, status: "running",
-      }] })),
+      get: vi.fn(async (id: string) => currentIssues.get(id) ?? null),
+      getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({ issueId, companyId: "company-1", runs: [{
+        id: activeRun.runId, issueId: activeIssue.id, agentId: activeRun.agentId, status: "running",
+      }], blockedByIssueIds: issueId === "dynamic-review" ? ["dynamic-source"] : [] })),
+      getDependencyReadiness: vi.fn(async () => ({ isDependencyReady: false, unresolvedBlockerIssueIds: ["dynamic-source"] })),
+      updateStatusCompareAndSet: vi.fn(async () => ({ status: "todo", statusVersion: 2 })),
+      listComments: vi.fn(async () => []),
+      createComment: vi.fn(async () => ({})),
     });
     const invoke = vi.fn(async (_action, payload) => ({
       status: "ok", project_id: payload.project_id, standing_issue_id: "standing-90", goal_id: "mission-goal",
       sol_agent_id: "sol-agent", astra_agent_id: "astra-agent", luna_agent_id: "luna-agent", qa_agent_ids: ["qa-agent"],
+      repository_free_policy_digest: "e".repeat(64),
       allowed_prefixes: ["src/memecoin_brain_sources/", "tests/brain/"],
       excluded_prefixes: ["src/memecoin_brain_sources/private/"], corpus_ids: ["brain"], profiles: admission.missions[0].profiles,
     }));
@@ -260,6 +282,33 @@ describe("Paperclip autonomous bridge tools", () => {
     await expect(handlers.get("validate_program_source_proposal")!({ profile_id: "senses-v1", path_ids: [
       "src/memecoin_brain_sources/private/secret.py", "tests/brain/test_raw_sources.py",
     ] }, solRun as ToolRunContext)).rejects.toThrow("program_source_proposal_response_invalid");
+    const source = { id: "dynamic-source", companyId: "company-1", projectId: "senses-project", parentId: lead.id,
+      createdByAgentId: "sol-agent", assigneeAgentId: "luna-agent", goalId: "mission-goal", status: "backlog",
+      executionRunId: null, statusVersion: 1, description: "Implement the selected source change",
+      projectWorkspaceId: "senses-workspace", executionWorkspaceId: null, workspaceBindingRevision: 0 };
+    const review = { id: "dynamic-review", companyId: "company-1", projectId: "senses-project", parentId: lead.id,
+      createdByAgentId: "sol-agent", assigneeAgentId: "qa-agent", goalId: "mission-goal", status: "blocked",
+      executionRunId: null, statusVersion: 1, description: "Review source merits independently",
+      projectWorkspaceId: "senses-workspace", executionWorkspaceId: null, workspaceBindingRevision: 0 };
+    currentIssues.set(source.id, source);
+    currentIssues.set(review.id, review);
+    const coreStamp = (issue: any, agentId: string, runId: string, revision: number, root: string) => {
+      const canonicalRoot = realpathSync(root);
+      const stat = statSync(root);
+      return {
+        schema: "paperclip.repository-free-task-workspace.v1", policyDigest: "e".repeat(64), companyId: "company-1",
+        projectId: "senses-project", projectWorkspaceId: "senses-workspace", sourceIssueId: issue.id,
+        ownerAgentId: agentId, runId, workspaceBindingRevision: revision, seedReceiptDigest: "a".repeat(64),
+        rootIdentity: digest(JSON.stringify({ canonicalRoot, device: String(stat.dev), inode: String(stat.ino) })),
+        rootDevice: String(stat.dev), rootInode: String(stat.ino),
+      };
+    };
+    workspaceRows.set("dynamic-execution", {
+      id: "dynamic-execution", companyId: "company-1", projectId: "senses-project", projectWorkspaceId: "senses-workspace",
+      path: solRoot, cwd: solRoot, repoUrl: null, baseRef: null, branchName: null,
+      providerType: "local_fs", repositoryFreeTaskWorkspace: coreStamp(lead, "sol-agent", "sol-run", 0, solRoot),
+    });
+    (ctx.executionWorkspaces as unknown as { get: unknown }).get = vi.fn(async (id: string) => workspaceRows.get(id) ?? null);
     const readerInvoke = vi.fn(async (_action, payload) => ({
       status: "ok", program_issue_id: payload.program_issue_id, issue_id: payload.issue_id, corpus_id: "brain",
       projection_sha: "a".repeat(40), canonical_sha: "b".repeat(40),
@@ -272,37 +321,35 @@ describe("Paperclip autonomous bridge tools", () => {
     expect(readerInvoke).toHaveBeenCalledWith("read_accepted_source", expect.objectContaining({
       project_id: "senses-project", program_issue_id: "sol-program", issue_id: "sol-program", corpus_id: "brain",
     }), configPath, "/usr/bin/python3");
-    const source = { id: "dynamic-source", companyId: "company-1", projectId: "senses-project", parentId: lead.id,
-      createdByAgentId: "sol-agent", assigneeAgentId: "luna-agent", goalId: "mission-goal", status: "backlog",
-      executionRunId: null, statusVersion: 1, description: "Implement the selected source change",
-      projectWorkspaceId: "senses-workspace", executionWorkspaceId: "dynamic-execution" };
-    const review = { id: "dynamic-review", companyId: "company-1", projectId: "senses-project", parentId: lead.id,
-      createdByAgentId: "sol-agent", assigneeAgentId: "qa-agent", goalId: "mission-goal", status: "blocked",
-      executionRunId: null, statusVersion: 1, description: "Review source merits independently",
-      projectWorkspaceId: "senses-workspace", executionWorkspaceId: "dynamic-execution" };
-    const currentIssues = new Map([[lead.id, lead], [source.id, source], [review.id, review], [parent.id, parent]]);
-    issueApi.forCurrentToolRun = () => ({
-      get: vi.fn(async (id: string) => currentIssues.get(id) ?? null),
-      getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({
-        issueId, companyId: "company-1", runs: [{ id: solRun.runId, issueId: lead.id, agentId: solRun.agentId, status: "running" }],
-        blockedByIssueIds: issueId === review.id ? [source.id] : [],
-      })),
-      getDependencyReadiness: vi.fn(async () => ({ isDependencyReady: false, unresolvedBlockerIssueIds: [source.id] })),
-      updateStatusCompareAndSet: vi.fn(async () => ({ status: "todo", statusVersion: 2 })),
-      listComments: vi.fn(async () => []),
-      createComment: vi.fn(async () => ({})),
-    });
-    issueApi.get = vi.fn(async (id: string) => currentIssues.get(id) ?? null);
-    (ctx.executionWorkspaces as unknown as { get: unknown }).get = vi.fn(async () => ({
-      projectWorkspaceId: "senses-workspace", path: "/tmp/senses-workspace", cwd: "/tmp/senses-workspace",
-      repoUrl: null, baseRef: null, branchName: null, providerType: "local_fs",
-    }));
+    const acceptedRootRow = workspaceRows.get("dynamic-execution");
+    workspaceRows.set("dynamic-execution", { ...acceptedRootRow, repositoryFreeTaskWorkspace: {
+      ...acceptedRootRow.repositoryFreeTaskWorkspace, policyDigest: "9".repeat(64),
+    } });
+    await expect(handlers.get("read_accepted_source")!({ corpus_id: "brain", path: "src/memecoin_brain_sources/events.py",
+      start_line: 1, line_count: 1 }, solRun as ToolRunContext))
+      .rejects.toThrow("program_source_task_workspace_provenance_mismatch");
+    expect(readerInvoke).toHaveBeenCalledTimes(1);
+    workspaceRows.set("dynamic-execution", acceptedRootRow);
     const bindInvoke = vi.fn(async (action: string, payload: Record<string, unknown>) => {
+      if (action === "lookup_source_stage_binding") return { found: true, stage_key: "DYN-0123456789abcdef0123456789abcdef",
+        stage_binding_key: "f".repeat(64), project_id: "senses-project", program_issue_id: lead.id,
+        source_issue_id: source.id, review_issue_id: review.id, path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
+        goal_id: "mission-goal", verifier_policy_id: "mem-senses-slot-version-v1", base_sha: "a".repeat(40),
+        repository_free_policy_digest: "e".repeat(64),
+        canonical_base_sha: "b".repeat(40), source_instruction_sha256: digest(source.description),
+        review_instruction_sha256: digest(review.description) };
+      if (action === "verify_source_stage_unchanged") return { status: "passed", stage_key: "DYN-0123456789abcdef0123456789abcdef",
+        stage_binding_key: "f".repeat(64), base_sha: "a".repeat(40), verifier_policy_id: "mem-senses-slot-version-v1" };
+      if (action === "inspect_bound_source_stage") return { operation_key: "8".repeat(64), candidate_sha: "d".repeat(40),
+        diff: "", inspection_digest: "9".repeat(64), target_ref: "refs/heads/brain/development" };
+      if (action === "inspect_source_stage_no_change") return { schema: "paperclip-source-stage-no-change-inspection-v1",
+        inspection_digest: "7".repeat(64), status: "passed" };
       if (action === "validate_program_source_proposal") return { status: "admitted", project_id: "senses-project",
         goal_id: "mission-goal", profile_id: "senses-v1", verifier_policy_id: "mem-senses-slot-version-v1",
         path_ids: payload.path_ids, required_test_paths: ["tests/brain/test_raw_sources.py"] };
       if (action === "bind_program_source_stage") return { stage_key: "DYN-0123456789abcdef0123456789abcdef",
-        stage_binding_key: "f".repeat(64), base_sha: "a".repeat(40), canonical_base_sha: "b".repeat(40), state: "bound" };
+        stage_binding_key: "f".repeat(64), base_sha: "a".repeat(40), canonical_base_sha: "b".repeat(40),
+        repository_free_policy_digest: "e".repeat(64), state: "bound" };
       if (action === "source_stage_activation" && payload.step === "intent") return { intent: "created" };
       if (action === "source_stage_activation" && payload.step === "ack") return { intent: "acknowledged" };
       throw new Error(`unexpected bridge action: ${action}`);
@@ -316,6 +363,86 @@ describe("Paperclip autonomous bridge tools", () => {
       lead_issue_id: lead.id, source_issue_id: source.id, review_issue_id: review.id,
       path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
     }), configPath, "/usr/bin/python3");
+
+    const stageKey = "DYN-0123456789abcdef0123456789abcdef";
+    source.status = "in_progress";
+    source.executionRunId = lunaRun.runId;
+    source.executionWorkspaceId = "dynamic-luna-execution";
+    source.workspaceBindingRevision = 1;
+    activeRun = lunaRun;
+    activeIssue = source;
+    workspaceRows.set(source.executionWorkspaceId, {
+      id: source.executionWorkspaceId, companyId: "company-1", projectId: "senses-project", projectWorkspaceId: "senses-workspace",
+      path: lunaRoot, cwd: lunaRoot, repoUrl: null, baseRef: null, branchName: null,
+      providerType: "local_fs", repositoryFreeTaskWorkspace: coreStamp(source, "luna-agent", lunaRun.runId, 1, lunaRoot),
+    });
+    const unchanged = await handlers.get("verify_program_source_unchanged")!({ stage_key: stageKey,
+      stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext) as { content: string };
+    expect(JSON.parse(unchanged.content).status).toBe("passed");
+    expect(bindInvoke).toHaveBeenCalledWith("verify_source_stage_unchanged", expect.objectContaining({
+      source_issue_id: source.id, run_id: lunaRun.runId,
+    }), configPath, "/usr/bin/python3");
+    const lunaWorkspace = workspaceRows.get(source.executionWorkspaceId);
+    const validStamp = lunaWorkspace.repositoryFreeTaskWorkspace;
+    source.executionRunId = "stale-run";
+    await expect(handlers.get("verify_program_source_unchanged")!({ stage_key: stageKey,
+      stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext)).rejects.toThrow("program_source_stage_run_binding_unknown");
+    source.executionRunId = lunaRun.runId;
+    source.assigneeAgentId = "wrong-agent";
+    await expect(handlers.get("verify_program_source_unchanged")!({ stage_key: stageKey,
+      stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext)).rejects.toThrow("program_source_stage_run_binding_unknown");
+    source.assigneeAgentId = "luna-agent";
+    for (const [field, value] of Object.entries({
+      sourceIssueId: "another-issue", ownerAgentId: "wrong-agent", runId: "another-run",
+      policyDigest: "f".repeat(64), workspaceBindingRevision: 0, rootIdentity: "c".repeat(64),
+      rootDevice: "0", rootInode: "0",
+    })) {
+      workspaceRows.set(source.executionWorkspaceId, { ...lunaWorkspace, repositoryFreeTaskWorkspace: { ...validStamp, [field]: value } });
+      await expect(handlers.get("verify_program_source_unchanged")!({ stage_key: stageKey,
+        stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext)).rejects.toThrow("program_source_task_workspace_provenance_mismatch");
+    }
+    workspaceRows.set(source.executionWorkspaceId, lunaWorkspace);
+    const { rename, symlink, unlink, rm } = await import("node:fs/promises");
+    const movedRoot = `${lunaRoot}-saved`;
+    await rename(lunaRoot, movedRoot);
+    await symlink(movedRoot, lunaRoot);
+    try {
+      await expect(handlers.get("verify_program_source_unchanged")!({ stage_key: stageKey,
+        stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext)).rejects.toThrow("program_source_task_workspace_provenance_mismatch");
+    } finally {
+      await unlink(lunaRoot);
+      await rename(movedRoot, lunaRoot);
+    }
+    await rename(lunaRoot, movedRoot);
+    await mkdir(lunaRoot);
+    try {
+      await expect(handlers.get("verify_program_source_unchanged")!({ stage_key: stageKey,
+        stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext)).rejects.toThrow("program_source_task_workspace_provenance_mismatch");
+    } finally {
+      await rm(lunaRoot, { recursive: true, force: true });
+      await rename(movedRoot, lunaRoot);
+    }
+
+    source.status = "done";
+    source.executionRunId = null;
+    review.status = "in_progress";
+    review.executionRunId = qaRun.runId;
+    review.executionWorkspaceId = "dynamic-qa-execution";
+    review.workspaceBindingRevision = 2;
+    activeRun = qaRun;
+    activeIssue = review;
+    workspaceRows.set(review.executionWorkspaceId, {
+      id: review.executionWorkspaceId, companyId: "company-1", projectId: "senses-project", projectWorkspaceId: "senses-workspace",
+      path: qaRoot, cwd: qaRoot, repoUrl: null, baseRef: null, branchName: null,
+      providerType: "local_fs", repositoryFreeTaskWorkspace: coreStamp(review, "qa-agent", qaRun.runId, 2, qaRoot),
+    });
+    const inspected = await handlers.get("inspect_program_source_candidate")!({ stage_key: stageKey,
+      stage_binding_key: "f".repeat(64), review_issue_id: review.id }, qaRun as ToolRunContext) as { content: string };
+    expect(inspected.content).toContain("Candidate diff");
+    expect(workspaceRows.get(review.executionWorkspaceId).path).not.toBe(workspaceRows.get(lead.executionWorkspaceId).path);
+    const inspectedNoChange = await handlers.get("inspect_program_source_no_change")!({ stage_key: stageKey,
+      stage_binding_key: "f".repeat(64), review_issue_id: review.id }, qaRun as ToolRunContext) as { content: string };
+    expect(JSON.parse(inspectedNoChange.content).inspection_digest).toBe("7".repeat(64));
     const wrongActor = { ...solRun, agentId: "luna-agent" };
     await expect(handlers.get("get_program_source_scope")!({}, wrongActor as ToolRunContext)).rejects.toThrow("program_source_scope_actor_not_admitted");
   });
