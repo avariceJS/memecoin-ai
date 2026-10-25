@@ -99,12 +99,30 @@ canonical evidence. Persisted bridge review_rejected/broker rejected, no approve
 all six findings remained byte-identical. Full11997-character QA result is preserved. Unique proof:
 `resumption-20261025/sol-independent-native101-rejection-ACK-repaired-proof.json`
 (SHA256a178fd59c462191e757648e8bb65983e935824c5fc336c3e17238dd68d7fd1d2).
-Natural Sol99/21ded625 started14:50:23.162UTC with no dispatch after the known QA continuation. Source
-interval9/24, programme in_progress/v6, own workspace25dd28d3/rev4. MEM/fence active, assessor/analyst
-and five other companies paused; bootstrap idle/native Luna source ownership. Historical169 entries
-remain separate from the definite44ad rejection. Manager-driven corrective execution, normal no-change,
-accepted changed-source publication, next strategy and useful post-root continuation remain open.
-Source/QA repair assistance is disclosed; candidate rejection is not product acceptance or company readiness.
+Natural Sol99/21ded625 created corrective pair102/103 and bound it without owner task/configuration
+changes. Automatic Lunaec864 read44 Brain responses and corrected one definite preflight failure before
+candidatec33c695c/canonical CANDIDATEd5a4 delivery. It then requested inline review with incomplete
+mandatory tests; inline QA failed before provider, leaving separate103 blocked. Native Sol triaged and
+actually used comment_on_task; owner rejected the inline card using the proposed native route. The
+comment-wake and card-response attempts remain separate. Current source contract3 required only its
+human_response criterion; that response completed while full frozen matrix remained UNSATISFIED.
+No sealed-candidate writes or forced product acceptance occurred. Unique lifecycle proof:
+`resumption-20261025/sol-independent-native102-current-contract-closure-QA103-start.json`
+(SHA2562a63727003828002e72cb70da101310416f9fe8198684a16e78a7786ce712f27).
+Natural QA103/33ab7d0b inspected the exact second candidate and recorded a genuine static rejection for
+page/cursor integrity, replay parity, version/shared-signature handling and missing matrix coverage.
+No new QA tests were run. Full11724-character result and op61d/broker rejection are retained; accepted
+Brain37cf68f remains unchanged. Natural Sol99/f8f6cb06 started15:18:07.314UTC without further dispatch.
+Unique merits/outcome proof: `resumption-20261025/sol-independent-native103-pair2-rejection-recorded-proof.json`
+(SHA2564b15dee45090ed814075c6072fa99166639e86b36f6c3b29e3c0551c5751b551).
+The observation interval was independently extended24→36 using the same anchor317/no reset:16 used,
+20 remaining. Authority: `resumption-20261025/resource-interval-extension/same-anchor-36-applied-authority.json`
+(SHA256d650183a2288e24c899b1be168f0ce6205de7f7dca813cde3959edcc56f7c46c).
+This changes accounting only, not actors/scopes/write policy or max3 source pairs (two used).
+MEM/fence active, assessor/analyst and five other companies paused; bootstrap idle/native Luna source
+ownership. Historical169 entries remain separate from current definite rejections. Normal no-change,
+accepted corrected publication, next strategy and useful post-root continuation remain open. Assisted
+lifecycle repair is disclosed; natural corrective work is real but product/company acceptance is not proved.
 
 ## Standing strategic mandate — founder directive 2026-10-24
 
