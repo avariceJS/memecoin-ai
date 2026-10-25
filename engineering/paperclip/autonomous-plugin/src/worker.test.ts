@@ -194,6 +194,132 @@ describe("Paperclip autonomous bridge tools", () => {
       .properties?.attempt?.maximum).toBe(3);
   });
 
+  it("returns the program envelope only to the current Astra-created Sol program run", async () => {
+    const admission = {
+      missions: [{
+        project_id: "senses-project", standing_issue_id: "standing-90", sol_agent_id: "sol-agent",
+        astra_agent_id: "astra-agent", luna_agent_id: "luna-agent", qa_agent_ids: ["qa-agent"],
+        goal_ids: ["mission-goal"], allowed_prefixes: ["src/memecoin_brain_sources/", "tests/brain/"],
+        excluded_prefixes: ["src/memecoin_brain_sources/private/"], corpus_ids: ["brain"], profiles: [{
+          profile_id: "senses-v1", allowed_path_ids: ["src/memecoin_brain_sources/events.py"],
+          allowed_prefixes: ["src/memecoin_brain_sources/"], required_test_paths: ["tests/brain/test_raw_sources.py"],
+          verifier_policy_id: "mem-senses-slot-version-v1",
+        }], source_repo: "/tmp/brain-source", publisher_repo: "/tmp/brain-publisher",
+        canonical_repo: "/tmp/brain-canonical", canonical_ref: "refs/heads/brain/development",
+        expected_dev_ref: "refs/heads/brain/development", source_workspace_id: "senses-workspace",
+        source_workspace_root: "/tmp/senses-workspace",
+      }],
+    };
+    await installConfig({ ...config, worker_agent_id: "luna-agent", reviewer_agent_id: "qa-agent", program_admission: admission,
+      accepted_source_reader: {
+        projections: [{ corpus_id: "brain", repository: "/tmp/brain-projection", ref: "refs/heads/brain/development",
+          allowed_roots: ["src/", "tests/"], bootstrap_projection_sha: "a".repeat(40),
+          bootstrap_source_sha: "b".repeat(40), bootstrap_receipt_digest: "c".repeat(64) }],
+        programs: [{ project_id: "old-project", program_issue_id: "old-program", sol_agent_id: "old-sol",
+          luna_agent_id: "old-luna", qa_agent_ids: [], corpus_ids: ["brain"] }],
+      } });
+    const { ctx, handlers } = fixture(configPath);
+    const solRun = { ...workerRun, projectId: "senses-project", agentId: "sol-agent", runId: "sol-run" };
+    const lead = { id: "sol-program", companyId: "company-1", projectId: "senses-project", parentId: "astra-program",
+      createdByAgentId: "astra-agent", assigneeAgentId: "sol-agent", goalId: "mission-goal", status: "in_progress", executionRunId: "sol-run",
+      projectWorkspaceId: "senses-workspace", executionWorkspaceId: "dynamic-execution" };
+    const parent = { id: "astra-program", companyId: "company-1", projectId: "previous-project", assigneeAgentId: "astra-agent", status: "in_progress" };
+    const issueApi = ctx.issues as unknown as Record<string, unknown>;
+    issueApi.list = vi.fn(async () => [lead]);
+    issueApi.get = vi.fn(async (id: string) => id === parent.id ? parent : null);
+    issueApi.forCurrentToolRun = () => ({
+      get: vi.fn(async (id: string) => id === lead.id ? lead : null),
+      getOrchestration: vi.fn(async () => ({ issueId: lead.id, companyId: "company-1", runs: [{
+        id: solRun.runId, issueId: lead.id, agentId: solRun.agentId, status: "running",
+      }] })),
+    });
+    const invoke = vi.fn(async (_action, payload) => ({
+      status: "ok", project_id: payload.project_id, standing_issue_id: "standing-90", goal_id: "mission-goal",
+      sol_agent_id: "sol-agent", astra_agent_id: "astra-agent", luna_agent_id: "luna-agent", qa_agent_ids: ["qa-agent"],
+      allowed_prefixes: ["src/memecoin_brain_sources/", "tests/brain/"],
+      excluded_prefixes: ["src/memecoin_brain_sources/private/"], corpus_ids: ["brain"], profiles: admission.missions[0].profiles,
+    }));
+    registerAutonomousTools(ctx, invoke as never);
+    const result = await handlers.get("get_program_source_scope")!({}, solRun as ToolRunContext) as { content: string };
+    const response = JSON.parse(result.content);
+    expect(response.program_issue_id).toBe("sol-program");
+    expect(response.actual_parent_issue_id).toBe("astra-program");
+    expect(response.profiles[0].required_test_paths).toEqual(["tests/brain/test_raw_sources.py"]);
+    expect(invoke).toHaveBeenCalledWith("get_program_source_scope", {
+      company_id: "company-1", project_id: "senses-project", goal_id: "mission-goal",
+    }, configPath, "/usr/bin/python3");
+    const proposalInvoke = vi.fn(async () => ({ status: "admitted", project_id: "senses-project", goal_id: "mission-goal",
+      profile_id: "senses-v1", verifier_policy_id: "mem-senses-slot-version-v1",
+      path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
+      required_test_paths: ["tests/brain/test_raw_sources.py"] }));
+    registerAutonomousTools(ctx, proposalInvoke as never);
+    const proposed = await handlers.get("validate_program_source_proposal")!({ profile_id: "senses-v1", path_ids: [
+      "src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py",
+    ] }, solRun as ToolRunContext) as { content: string };
+    expect(JSON.parse(proposed.content).verifier_policy_id).toBe("mem-senses-slot-version-v1");
+    await expect(handlers.get("validate_program_source_proposal")!({ profile_id: "senses-v1", path_ids: [
+      "src/memecoin_brain_sources/private/secret.py", "tests/brain/test_raw_sources.py",
+    ] }, solRun as ToolRunContext)).rejects.toThrow("program_source_proposal_response_invalid");
+    const readerInvoke = vi.fn(async (_action, payload) => ({
+      status: "ok", program_issue_id: payload.program_issue_id, issue_id: payload.issue_id, corpus_id: "brain",
+      projection_sha: "a".repeat(40), canonical_sha: "b".repeat(40),
+      acceptance_receipt_digest: "c".repeat(64), manifest_digest: "d".repeat(64),
+      result: { path: "src/memecoin_brain_sources/events.py", lines: [{ line: 1, text: "VALUE = 1" }] },
+    }));
+    registerAutonomousTools(ctx, readerInvoke as never);
+    const read = await handlers.get("read_accepted_source")!({ corpus_id: "brain", path: "src/memecoin_brain_sources/events.py", start_line: 1, line_count: 1 }, solRun as ToolRunContext) as { content: string };
+    expect(JSON.parse(read.content).program_issue_id).toBe("sol-program");
+    expect(readerInvoke).toHaveBeenCalledWith("read_accepted_source", expect.objectContaining({
+      project_id: "senses-project", program_issue_id: "sol-program", issue_id: "sol-program", corpus_id: "brain",
+    }), configPath, "/usr/bin/python3");
+    const source = { id: "dynamic-source", companyId: "company-1", projectId: "senses-project", parentId: lead.id,
+      createdByAgentId: "sol-agent", assigneeAgentId: "luna-agent", goalId: "mission-goal", status: "backlog",
+      executionRunId: null, statusVersion: 1, description: "Implement the selected source change",
+      projectWorkspaceId: "senses-workspace", executionWorkspaceId: "dynamic-execution" };
+    const review = { id: "dynamic-review", companyId: "company-1", projectId: "senses-project", parentId: lead.id,
+      createdByAgentId: "sol-agent", assigneeAgentId: "qa-agent", goalId: "mission-goal", status: "blocked",
+      executionRunId: null, statusVersion: 1, description: "Review source merits independently",
+      projectWorkspaceId: "senses-workspace", executionWorkspaceId: "dynamic-execution" };
+    const currentIssues = new Map([[lead.id, lead], [source.id, source], [review.id, review], [parent.id, parent]]);
+    issueApi.forCurrentToolRun = () => ({
+      get: vi.fn(async (id: string) => currentIssues.get(id) ?? null),
+      getOrchestration: vi.fn(async ({ issueId }: { issueId: string }) => ({
+        issueId, companyId: "company-1", runs: [{ id: solRun.runId, issueId: lead.id, agentId: solRun.agentId, status: "running" }],
+        blockedByIssueIds: issueId === review.id ? [source.id] : [],
+      })),
+      getDependencyReadiness: vi.fn(async () => ({ isDependencyReady: false, unresolvedBlockerIssueIds: [source.id] })),
+      updateStatusCompareAndSet: vi.fn(async () => ({ status: "todo", statusVersion: 2 })),
+      listComments: vi.fn(async () => []),
+      createComment: vi.fn(async () => ({})),
+    });
+    issueApi.get = vi.fn(async (id: string) => currentIssues.get(id) ?? null);
+    (ctx.executionWorkspaces as unknown as { get: unknown }).get = vi.fn(async () => ({
+      projectWorkspaceId: "senses-workspace", path: "/tmp/senses-workspace", cwd: "/tmp/senses-workspace",
+      repoUrl: null, baseRef: null, branchName: null, providerType: "local_fs",
+    }));
+    const bindInvoke = vi.fn(async (action: string, payload: Record<string, unknown>) => {
+      if (action === "validate_program_source_proposal") return { status: "admitted", project_id: "senses-project",
+        goal_id: "mission-goal", profile_id: "senses-v1", verifier_policy_id: "mem-senses-slot-version-v1",
+        path_ids: payload.path_ids, required_test_paths: ["tests/brain/test_raw_sources.py"] };
+      if (action === "bind_program_source_stage") return { stage_key: "DYN-0123456789abcdef0123456789abcdef",
+        stage_binding_key: "f".repeat(64), base_sha: "a".repeat(40), canonical_base_sha: "b".repeat(40), state: "bound" };
+      if (action === "source_stage_activation" && payload.step === "intent") return { intent: "created" };
+      if (action === "source_stage_activation" && payload.step === "ack") return { intent: "acknowledged" };
+      throw new Error(`unexpected bridge action: ${action}`);
+    });
+    registerAutonomousTools(ctx, bindInvoke as never);
+    const bound = await handlers.get("bind_program_source_stage")!({ profile_id: "senses-v1", corpus_id: "brain",
+      path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
+      source_issue_id: source.id, review_issue_id: review.id }, solRun as ToolRunContext) as { content: string };
+    expect(bound.content).toContain("state:active");
+    expect(bindInvoke).toHaveBeenCalledWith("bind_program_source_stage", expect.objectContaining({
+      lead_issue_id: lead.id, source_issue_id: source.id, review_issue_id: review.id,
+      path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
+    }), configPath, "/usr/bin/python3");
+    const wrongActor = { ...solRun, agentId: "luna-agent" };
+    await expect(handlers.get("get_program_source_scope")!({}, wrongActor as ToolRunContext)).rejects.toThrow("program_source_scope_actor_not_admitted");
+  });
+
   it("routes accepted-source reads only from the active run under an admitted program", async () => {
     const acceptedSourceConfig = {
       ...config,

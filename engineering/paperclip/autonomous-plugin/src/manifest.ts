@@ -25,6 +25,90 @@ const manifest: PaperclipPluginManifestV1 = {
   entrypoints: { worker: "./dist/worker.js" },
   tools: [
     {
+      name: "get_program_source_scope",
+      displayName: "Get Program Source Scope",
+      description: "Return the immutable owner-defined department paths and compatible fixed verifiers for the current Astra-created Sol program.",
+      parametersSchema: { type: "object", properties: {}, additionalProperties: false },
+    },
+    {
+      name: "validate_program_source_proposal",
+      displayName: "Validate Program Source Proposal",
+      description: "Check a proposed normalized path subset against the owner program envelope and compatible fixed verifier registry.",
+      parametersSchema: { type: "object", properties: {
+        profile_id: { type: "string" }, path_ids: { type: "array", minItems: 2, maxItems: 32, items: { type: "string", maxLength: 1024 } },
+      }, required: ["profile_id", "path_ids"], additionalProperties: false },
+    },
+    {
+      name: "bind_program_source_stage",
+      displayName: "Bind Proposed Program Source Stage",
+      description: "Bind Sol-created Luna and independent QA children to a compatible proposed path subset and the current accepted publication ACK.",
+      parametersSchema: { type: "object", properties: {
+        profile_id: { type: "string" }, corpus_id: { type: "string" },
+        path_ids: { type: "array", minItems: 2, maxItems: 32, items: { type: "string", maxLength: 1024 } },
+        source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
+      }, required: ["profile_id", "corpus_id", "path_ids", "source_issue_id", "review_issue_id"], additionalProperties: false },
+    },
+    {
+      name: "deliver_program_source_content",
+      displayName: "Deliver Proposed Program Source Content",
+      description: "Deliver the complete bounded snapshot for the dynamic stage bound to the current Luna run.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        files: { type: "array", minItems: 2, maxItems: 32, items: { type: "object", properties: {
+          path_id: { type: "string" }, content: { type: "string" }, size: { type: "integer" },
+          sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        }, required: ["path_id", "content", "size", "sha256"], additionalProperties: false } },
+      }, required: ["stage_key", "stage_binding_key", "files"], additionalProperties: false },
+    },
+    {
+      name: "verify_program_source_unchanged",
+      displayName: "Verify Proposed Program Accepted Base",
+      description: "Run the registered fixed verifier against the unchanged accepted base without creating or publishing a candidate.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" },
+      }, required: ["stage_key", "stage_binding_key"], additionalProperties: false },
+    },
+    {
+      name: "inspect_program_source_candidate",
+      displayName: "Inspect Proposed Program Candidate",
+      description: "Inspect the exact dynamic candidate and bounded diff in the independent QA run.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" }, review_issue_id: { type: "string" },
+      }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
+    },
+    {
+      name: "approve_program_source_candidate",
+      displayName: "Record Proposed Program Candidate Review",
+      description: "Record independent candidate merits and invoke the fixed GitGate publication path.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        review_issue_id: { type: "string" }, approved: { type: "boolean" },
+        evidence: { type: "object", properties: {
+          inspection_digest: { type: "string", pattern: "^[0-9a-f]{64}$" }, rationale: { type: "string", minLength: 1, maxLength: 4000 },
+        }, required: ["inspection_digest", "rationale"], additionalProperties: false },
+      }, required: ["stage_key", "stage_binding_key", "review_issue_id", "approved", "evidence"], additionalProperties: false },
+    },
+    {
+      name: "inspect_program_source_no_change",
+      displayName: "Inspect Proposed Program No Change",
+      description: "Inspect the exact accepted-base verification receipt and current accepted tip before product-merit review.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" }, review_issue_id: { type: "string" },
+      }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
+    },
+    {
+      name: "record_program_source_no_change_merits",
+      displayName: "Record Proposed Program No Change Merits",
+      description: "Record independent product merits for the verified accepted base without candidate creation or publication.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        review_issue_id: { type: "string" }, merits: { type: "boolean" },
+        evidence: { type: "object", properties: {
+          inspection_digest: { type: "string", pattern: "^[0-9a-f]{64}$" }, rationale: { type: "string", minLength: 1, maxLength: 4000 },
+        }, required: ["inspection_digest", "rationale"], additionalProperties: false },
+      }, required: ["stage_key", "stage_binding_key", "review_issue_id", "merits", "evidence"], additionalProperties: false },
+    },
+    {
       name: "list_accepted_source",
       displayName: "List Accepted Source",
       description: "List a bounded page of paths in the owner-pinned sanitized accepted-source projection.",
@@ -64,6 +148,33 @@ const manifest: PaperclipPluginManifestV1 = {
           operation_key: { type: "string" }, source_issue_id: { type: "string" }, review_issue_id: { type: "string" },
         }, required: ["operation_key", "source_issue_id", "review_issue_id"], additionalProperties: false },
       }, required: ["stage_key", "source_issue_id", "review_issue_id"], additionalProperties: false },
+    },
+    {
+      name: "verify_source_stage_unchanged",
+      displayName: "Verify Accepted Base Without Change",
+      description: "Run the registered fixed verifier against the unchanged accepted base with no candidate or publication.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" }, source_issue_id: { type: "string" },
+      }, required: ["stage_key", "stage_binding_key", "source_issue_id"], additionalProperties: false },
+    },
+    {
+      name: "inspect_source_stage_no_change",
+      displayName: "Inspect Accepted Base Assessment",
+      description: "Inspect an accepted-base verifier receipt and current accepted tip before independent merit review.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" }, review_issue_id: { type: "string" },
+      }, required: ["stage_key", "stage_binding_key", "review_issue_id"], additionalProperties: false },
+    },
+    {
+      name: "record_source_stage_no_change_merits",
+      displayName: "Record No Change Product Merits",
+      description: "Record independent product merits without approving or publishing a content candidate.",
+      parametersSchema: { type: "object", properties: {
+        stage_key: { type: "string" }, stage_binding_key: { type: "string", pattern: "^[0-9a-f]{64}$" }, review_issue_id: { type: "string" },
+        merits: { type: "boolean" }, evidence: { type: "object", properties: {
+          inspection_digest: { type: "string", pattern: "^[0-9a-f]{64}$" }, rationale: { type: "string", minLength: 1, maxLength: 4000 },
+        }, required: ["inspection_digest", "rationale"], additionalProperties: false },
+      }, required: ["stage_key", "stage_binding_key", "review_issue_id", "merits", "evidence"], additionalProperties: false },
     },
     {
       name: "deliver_source_stage_content",
