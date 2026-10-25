@@ -1,4 +1,4 @@
-# Current state — 2026-10-25, MEM-89 reader program done; engineering admission pending
+# Current state — 2026-10-25, MEM99 private context blocker / bounded maintenance
 
 Explicit founder resumption authority is in the current `prompt/prompt.md`; native Goal remains
 null. Paperclip owns lifecycle, Luna source implementation, Sol programs and independent review.
@@ -6,8 +6,8 @@ No new Goal, scheduler or duplicate MEM-89/MEM-90..95 mandates.
 
 ## Accepted and observed
 
-- Controller source `66c12a8` is independently reviewed, remote-confirmed and deployed with plugin
-  PID52304. Native `3eb3e6d` is accepted/deployed, owned
+- Controller `80362` is independently accepted/deployed with plugin PID27380. Native `3eb3e6d`
+  is accepted/deployed, owned
   service PID25396. Exact loaded artifacts/configuration and process custody are in private HANDOFF.
 - Actual Sol list/search/read succeeded after an assisted assignment-profile correction. Initial
   e61 tool-unavailable result remains preserved.
@@ -25,22 +25,33 @@ No new Goal, scheduler or duplicate MEM-89/MEM-90..95 mandates.
   objective qualified for investigation/specification only, not a demonstrated defect.
 - Native parent Sol89 continued without owner dispatch and completed the bounded reader program.
   Full result revision2a3a7866 is retained. Sol created exactly one held strategic successor MEM98
-  assigned to paused Astra (backlog/noexec). This is assisted reader acceptance, not a new engineering
-  or strategic autonomy proof. Do not duplicate98 or claim it has executed.
+  initially assigned to paused Astra (backlog/noexec). This was assisted reader acceptance, not a
+  new engineering autonomy proof. MEM98 was subsequently activated once under the accepted source
+  release: actual Astra41d23750 read full results and created Senses MEM99/64b62281, assigned Sol.
+  Native parent98/inheritedgoal0a507 are distinct from the standing90 strategic charter.
 
 ## Current continuation and limits
 
-Eight of twelve reader jobs terminal, live zero; no blind retries. Only necessary MEM lead,
-worker and QA may resume; its other three agents have manual holds and other five companies stay
-paused. Broker drain remains set; current native phase has no source-write grants. The bounded
-reader phase is complete. Next program-write envelope and initial MEM98 activation await
-independent release/scoped-fence acceptance.
+Reader phase:8 terminal runs,7 reached providers. New source interval:24 additional runs anchored
+at317 historical runs; two have completed. Astra98 done, native Sol99 blocked with full result because
+generic SDK discovery could not read its private task; no source children/admission/publication.
+Explicit source custody returned to bootstrap Luna. MEM is manually paused/fenced with no live runs,
+other five companies remain paused. One narrow native current-run/program/dependency attestation
+and matching controller are being implemented; existing privacy denials remain, no open tasks or
+per-task memberships. No new Goal/dispatcher; full six-mission context remains in CEO roles.
 
-Dynamic program admission and generic no-change are source-accepted and included in current code,
-but a reviewed program envelope, scoped historical reconciliation and actual useful source/QA/
-publication/strategic continuation remain required. No useful new Brain engineering or full company
-readiness is claimed. Bootstrap Luna owns maintenance source work until explicit handover to native
-Luna at write activation. Senses90/Experience91 and Evaluation92 remain the next strategic priorities.
+The independently accepted Senses/Experience program-only write envelope is held for maintenance. Fixed synthetic
+baseline:110 Senses/20 Experience/3 composition, zero failures/skips. Senses used verified read-only
+interpreter aliases without command change. Roles/access/policy intents and current scope were
+reviewed; broker fence initially opened through the scoped owner transaction, NOT generic all-history
+resume, and is now closed again for this known integration repair.
+Current canonical Brain37cf/pairedACK verified; old operations ineligible and no old live writers/leases.
+Generic hibernation remains incomplete with169 preserved entries (old168 plus known failed96).
+
+Actual Astra98 is a verified subscription call and has created native Senses99; useful decomposition,
+dynamic CoreDTO use, no-change merits, changed-source QA/publication, next strategic program and
+useful continuation after root final are still required. Do not infer engineering readiness from
+program creation, source tests, or the earlier reader outcome. No useful new Brain change yet.
 
 Historical168 unresolved records remain, not live tasks or zero usage. Original MEM14/17 and bounded
 analytical CEO82/81/89 evidence remain accepted in their scopes; do not replay them. October24 STOP,

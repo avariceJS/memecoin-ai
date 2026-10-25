@@ -49,12 +49,25 @@ remain disclosed assisted repairs. Existing histories and unknown accounting wer
 Unique private outcome receipt: `resumption-20261025/sol-independent-native89-reader-program-completed-proof.json`
 (SHA25685ae631c1a22515ff2abb9d52e2dac14c000a9ed094ce619bc626f4d6f146da3).
 
-Sol created exactly one held strategic MEM-98 for paused Astra. It has not executed and is not proof
-of engineering completion-to-CEO continuation. Dynamic admission/no-change source is accepted, but
-program-only bootstrap/current-base/N+1 compatibility is still under independent review. A reviewed
-write envelope, scoped historical reconciliation, actual no-change merits, useful changed-source
-publication and strategic continuation remain operational gates. Broker drain and no-write grants
-remain in the reader phase; source tests or this reader outcome do not establish company readiness.
+Sol created exactly one strategic MEM-98. After independent acceptance of the program-only
+Senses/Experience envelope, fixed verifier baselines and scoped historical reconciliation, the owner
+activated that existing issue once. Actual native Astra98 read the full prior outcomes and created
+Senses MEM-99: auditable bounded observation-scope accounting, while retaining unknown global
+completeness. Its actual inherited native goal remains distinct from the standing90 charter goal.
+Astra's recorded run used gpt-6-astra/high; it must not be relabeled as Medium. Sol99 started naturally
+but blocked before source-child creation: generic plugin discovery with privacy actor none could not
+find the private current issue. Full strategy and blocked results remain preserved. Unique private
+receipt: `resumption-20261025/sol-independent-native98-to99-first-dynamic-blocker.json`
+(SHA25684a354cf093129a6aa986e43cf92bf73df66e5aff8f128f529f499192718a35e).
+
+The scope helper remains incomplete for private programmes. A narrow native current-run/program/
+source-dependency metadata attestation and matching controller are under qualification; private
+ancestor bodies, arbitrary peer reads and broader task visibility are not the remedy. Known99 is
+retained for supported continuation, not recreated. MEM is paused/fenced during this bounded repair,
+with source custody explicitly returned to bootstrap Luna and no competing native source writer.
+The169 historical entries remain unchanged; global hibernation is not declared complete. Actual
+no-change merits, useful changed-source publication, subsequent strategy and useful post-root
+continuation remain open. Source acceptance and the completed reader programme are not company readiness.
 
 ## Standing strategic mandate — founder directive 2026-10-24
 
