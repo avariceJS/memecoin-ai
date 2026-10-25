@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 
+const childProcessMock = vi.hoisted(() => ({ spawn: vi.fn() }));
+vi.mock("node:child_process", () => childProcessMock);
+
 vi.mock("@paperclipai/plugin-sdk", () => ({
   definePlugin: (value: unknown) => value,
   runWorker: vi.fn(),
 }));
 
-import { registerAutonomousTools } from "./worker.js";
+import plugin, { registerAutonomousTools } from "./worker.js";
 import manifest from "./manifest.js";
 import type { PluginContext, ToolRunContext } from "@paperclipai/plugin-sdk";
 
@@ -164,6 +167,7 @@ describe("Paperclip autonomous bridge tools", () => {
   let configPath = "";
   let configDir = "";
   afterEach(async () => {
+    childProcessMock.spawn.mockReset();
     if (configDir) {
       const { rm } = await import("node:fs/promises");
       await rm(configDir, { recursive: true, force: true }).catch(() => undefined);
@@ -688,6 +692,52 @@ describe("Paperclip autonomous bridge tools", () => {
     }), configPath, "/usr/bin/python3");
     expect(result.content).toContain(diff);
     await expect(handlers.get("inspect_candidate")!({ operation_key: "a".repeat(64), candidate_sha: "b".repeat(40) }, workerRun)).rejects.toThrow("reviewer_actor_binding_mismatch");
+  });
+
+  it("accepts a complete 120k inspection diff and rejects a byte over the cap", async () => {
+    await installConfig();
+    const { ctx, handlers } = fixture(configPath, "in_progress");
+    let diff = "x".repeat(120_000);
+    const invoke = vi.fn(async () => ({
+      operation_key: "a".repeat(64), candidate_sha: "b".repeat(40),
+      inspection_digest: "c".repeat(64), diff,
+    }));
+    registerAutonomousTools(ctx, invoke as never);
+    const params = { operation_key: "a".repeat(64), candidate_sha: "b".repeat(40) };
+    const complete = await handlers.get("inspect_candidate")!(params, reviewerRun) as { content: string };
+    expect(complete.content.endsWith(diff)).toBe(true);
+    diff += "x";
+    await expect(handlers.get("inspect_candidate")!(params, reviewerRun)).rejects.toThrow("bridge_result_invalid");
+  });
+
+  it("transports two escape-heavy 120k diff fields through the worker subprocess boundary", async () => {
+    await installConfig();
+    const { ctx, handlers } = fixture(configPath, "in_progress");
+    const realChildProcess = await vi.importActual<typeof import("node:child_process")>("node:child_process");
+    let outputSize = 120_000;
+    const pythonScript = [
+      "import json,sys",
+      "sys.stdin.read()",
+      "escaped=chr(1)*int(sys.argv[1])",
+      "result={'operation_key':'a'*64,'candidate_sha':'b'*40,'inspection_digest':'c'*64,'diff':escaped,'canonical_diff':escaped}",
+      "sys.stdout.write(json.dumps({'ok':True,'result':result},ensure_ascii=False,separators=(',',':'))) ",
+    ].join("\n");
+    childProcessMock.spawn.mockImplementation((_command, _args, options) => realChildProcess.spawn(
+      "/usr/bin/python3", ["-I", "-S", "-c", pythonScript, String(outputSize)], options as never,
+    ) as never);
+    await plugin.setup(ctx);
+    const result = await handlers.get("inspect_candidate")!({
+      operation_key: "a".repeat(64), candidate_sha: "b".repeat(40),
+    }, reviewerRun) as { content: string };
+    expect(result.content).toContain("canonical_diff");
+    expect(result.content.endsWith("\u0001".repeat(120_000))).toBe(true);
+    outputSize = 140_000;
+    await expect(handlers.get("inspect_candidate")!({
+      operation_key: "a".repeat(64), candidate_sha: "b".repeat(40),
+    }, reviewerRun)).rejects.toThrow("bridge_output_limit");
+    expect(childProcessMock.spawn).toHaveBeenCalledWith("/usr/bin/python3",
+      expect.arrayContaining(["-I", "-S", "-B"]), expect.objectContaining({ shell: false }));
+    childProcessMock.spawn.mockReset();
   });
 
   it("requires the SDK issue executionRunId and orchestration run summary to match the host run", async () => {

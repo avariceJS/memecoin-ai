@@ -1,4 +1,5 @@
 import hashlib
+import io
 import json
 import subprocess
 import sys
@@ -18,11 +19,13 @@ from engineering.paperclip_autonomous_bridge import (
     BridgeError,
     SourceStageSpec,
     VerifierProfile,
+    MAX_REVIEW_DIFF_BYTES,
     _accepted_base_context,
     _accepted_base_context_note,
     _accepted_base_delivery,
     _binding,
     _bounded_candidate_diff,
+    main,
     _load_journal,
     _stage_journal_key,
     _trusted_stage_source_cache_identity,
@@ -1133,6 +1136,20 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
                 config,
                 {"action": "inspect_candidate", "payload": {**reviewer, "candidate_sha": "0" * 40}},
             )
+        inspection_gate = config.gate()
+        original_gate_run = inspection_gate._run
+
+        def oversized_canonical_diff(repo, args, **kwargs):
+            if Path(repo).resolve() == canonical.resolve() and args[:1] == ["diff"]:
+                return type("DiffResult", (), {"stdout": b"x" * (MAX_REVIEW_DIFF_BYTES + 1)})()
+            return original_gate_run(repo, args, **kwargs)
+
+        with (
+            patch.object(inspection_gate, "_run", side_effect=oversized_canonical_diff),
+            patch.object(BridgeConfig, "gate", return_value=inspection_gate),
+            self.assertRaisesRegex(BridgeError, "canonical_inspection_failed:BridgeError"),
+        ):
+            dispatch(config, {"action": "inspect_candidate", "payload": reviewer})
         inspected = dispatch(config, {"action": "inspect_candidate", "payload": reviewer})
         self.assertEqual(inspected["target_ref"], config.expected_dev_ref)
         self.assertEqual(inspected["canonical_ref"], config.canonical_ref)
@@ -1408,6 +1425,76 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             _bounded_candidate_diff(
                 Candidate(binary_sha, tip, tip, binary_sha, repo, ("example.py", "payload.bin"))
             )
+
+    def test_projected_diff_is_complete_at_120k_and_fails_closed_above_it(self):
+        repo = Path(self.tmp.name) / "diff-boundary-repo"
+        repo.mkdir()
+
+        def git(*args):
+            subprocess.run(
+                ["/usr/bin/git", "-C", str(repo), *args], check=True, capture_output=True
+            )
+
+        git("init", "-q")
+        git("config", "user.name", "Bridge Test")
+        git("config", "user.email", "bridge-test@example.invalid")
+        git("commit", "--allow-empty", "-qm", "base")
+        tip = subprocess.run(
+            ["/usr/bin/git", "-C", str(repo), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+
+        def commit_candidate(content: bytes) -> Candidate:
+            (repo / "example.py").write_bytes(content)
+            git("add", "example.py")
+            git("commit", "-qm", "candidate")
+            sha = subprocess.run(
+                ["/usr/bin/git", "-C", str(repo), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            return Candidate(sha, tip, tip, sha, repo, ("example.py",))
+
+        small_content = b"x\n"
+        small = _bounded_candidate_diff(commit_candidate(small_content)).encode("utf-8")
+        fixed_bytes = len(small) - len(small_content)
+        for target in (MAX_REVIEW_DIFF_BYTES - 1, MAX_REVIEW_DIFF_BYTES):
+            with self.subTest(target=target):
+                content_size = target - fixed_bytes
+                content = b"x" * (content_size - 1) + b"\n"
+                candidate = commit_candidate(content)
+                diff = _bounded_candidate_diff(candidate).encode("utf-8")
+                self.assertEqual(len(diff), target)
+                expected = subprocess.run(
+                    ["/usr/bin/git", "-C", str(repo), "diff", "--no-ext-diff", "--no-textconv",
+                     "--no-color", "--full-index", "--no-renames", "--unified=80",
+                     f"{tip}..{candidate.sha}", "--"],
+                    check=True, capture_output=True,
+                ).stdout
+                self.assertEqual(diff, expected)
+
+        candidate = commit_candidate(b"x" * (MAX_REVIEW_DIFF_BYTES - fixed_bytes) + b"\n")
+        with self.assertRaisesRegex(BridgeError, "candidate_diff_exceeds_review_limit"):
+            _bounded_candidate_diff(candidate)
+
+    def test_bridge_json_transport_fits_two_worst_case_escaped_review_diffs(self):
+        escaped = "\x01" * MAX_REVIEW_DIFF_BYTES
+        output = io.BytesIO()
+        request = io.BytesIO(b"{}")
+        fake_input = type("BinaryInput", (), {"buffer": request})()
+        fake_output = type("BinaryOutput", (), {"buffer": output})()
+        result = {"diff": escaped, "canonical_diff": escaped}
+        with (
+            patch.object(sys, "argv", ["paperclip_autonomous_bridge.py", "/tmp/owner.json"]),
+            patch.object(sys, "stdin", fake_input),
+            patch.object(sys, "stdout", fake_output),
+            patch.object(BridgeConfig, "load", return_value=object()),
+            patch("engineering.paperclip_autonomous_bridge.dispatch", return_value=result),
+        ):
+            self.assertEqual(main(), 0)
+        serialized = output.getvalue()
+        self.assertGreater(len(serialized), 1_400_000)
+        self.assertLessEqual(len(serialized), 1_600_000)
+        self.assertEqual(json.loads(serialized), {"ok": True, "result": result})
 
     @unittest.skipUnless(Path("/usr/bin/sandbox-exec").exists(), "macOS Seatbelt is unavailable")
     def test_integrated_gitgate_submit_inspect_approve_publish_and_exact_replay(self):
