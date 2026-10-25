@@ -24,7 +24,7 @@ from typing import Any
 
 from engineering.processes import process_identity, terminate_owned
 
-PAPERCLIP_SOURCE_CHAIN = (
+PAPERCLIP_PATCH_SOURCE_CHAIN = (
     "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
     "d560a09538a255c779e4a10b14d41a3114bf10f2",
     "44b4a1c13d23094283914b8326c902fea9d0d994",
@@ -51,7 +51,13 @@ PAPERCLIP_SOURCE_CHAIN = (
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
     "043f2514e67c50320433a0013fb228a75a51325c",
 )
+PAPERCLIP_SOURCE_CHAIN = (
+    "15f93e91bd7a561e6b4c3460ccd619923e15165b",
+    "d25b4b51f9f81298c49aea42957fb487f7a17ae5",
+    *PAPERCLIP_PATCH_SOURCE_CHAIN,
+)
 PAPERCLIP_PIN, PAPERCLIP_PARENT_PIN = PAPERCLIP_SOURCE_CHAIN[:2]
+PAPERCLIP_PATCH_PIN, PAPERCLIP_PATCH_PARENT_PIN = PAPERCLIP_PATCH_SOURCE_CHAIN[:2]
 PAPERCLIP_UPSTREAM_PIN = PAPERCLIP_SOURCE_CHAIN[-1]
 PAPERCLIP_STOP_CUSTODY_PINS = frozenset(
     {
@@ -72,6 +78,7 @@ PAPERCLIP_STOP_CUSTODY_PINS = frozenset(
         "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
     }
 )
+PAPERCLIP_CLEANUP_ONLY_PINS = PAPERCLIP_STOP_CUSTODY_PINS | frozenset({PAPERCLIP_PATCH_PIN})
 DEFAULT_LAB_ROOT = Path("/Users/root1/Developer/brain-paperclip-lab")
 PORT = 3310
 HEALTH_URL = f"http://127.0.0.1:{PORT}/api/health"
@@ -263,7 +270,7 @@ def _read_manifest(path: Path, *, allow_historical_source: bool = False) -> dict
     historical_source = (
         type(data) is dict
         and type(data.get("source_pin")) is str
-        and data.get("source_pin") in PAPERCLIP_STOP_CUSTODY_PINS
+        and data.get("source_pin") in PAPERCLIP_CLEANUP_ONLY_PINS
         and data.get("upstream_pin") == PAPERCLIP_UPSTREAM_PIN
     )
     if (
