@@ -2592,7 +2592,8 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
       `status:${result.status === "passed" ? "accepted_base_fixed_verifier_passed" : "accepted_base_fixed_verifier_failed"}`, `stage_key:${stage.stage_key}`,
       `stage_binding_key:${params.stage_binding_key}`, `base_sha:${result.base_sha}`,
       `tree_sha:${String(result.tree_sha)}`, `receipt_digest:${result.receipt_digest}`,
-      `claim:accepted_base_fixed_verifier_passed;product_merit_not_decided`, "candidate:not_created", "publication:not_attempted"].join("\n");
+      `claim:${result.status === "passed" ? "accepted_base_fixed_verifier_passed" : "accepted_base_fixed_verifier_failed"};product_merit_not_decided`,
+      "candidate:not_created", "publication:not_attempted"].join("\n");
     await persistIssueNote(ctx, source.id, owner.company_id, `${result.receipt_digest}:no-change-source`, note);
     await persistIssueNote(ctx, owner.finite_lead_issue_id!, owner.company_id, `${result.receipt_digest}:no-change-source`, note);
     return { content: JSON.stringify(result, null, 2) };
