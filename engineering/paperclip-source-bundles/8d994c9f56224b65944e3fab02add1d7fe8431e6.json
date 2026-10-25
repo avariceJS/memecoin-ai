@@ -1,0 +1,29 @@
+{
+  "schema": "paperclip-managed-native-code-custody-v1",
+  "state": "reviewed-source-custody-not-stable-or-operational-release",
+  "native_source_commit": "8d994c9f56224b65944e3fab02add1d7fe8431e6",
+  "native_source_tree": "70253e37239b6c998083097260d5c36dfb01fea1",
+  "prerequisite_commit": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "prerequisite_note": "Requires already preserved 8aa code; restore 8aa using its existing source bundle and upstream043f shallow prerequisite. This artifact contains only seven new managed commits after8aa, not upstream history.",
+  "exported_ref": "refs/heads/luna/failed-resume-owner-20261025",
+  "bundle_file": "8d994c9f56224b65944e3fab02add1d7fe8431e6.bundle",
+  "bundle_bytes": 17159,
+  "bundle_sha256": "7cfd32f6f79a2dab9c605de62717fbc9bc2c5ec00de65c76481c0cf331f3acef",
+  "incremental_commits": [
+    "1637ad0b50c17c5896784b95c9fb97a31defbf4c",
+    "aa0c5b08f0e8ce09343ffd146f3441e984ede8f7",
+    "9667379fcc3e0247ac632659850fbedf59b99229",
+    "4f969bc74ea0aca1c2a81edde74796c92f221d1c",
+    "ffc6a3c844faa92dcad570f0a1184434a9a3d6d0",
+    "1d9eccf898ec00f9f59ef5f536b69154c211a359",
+    "8d994c9f56224b65944e3fab02add1d7fe8431e6"
+  ],
+  "changed_source_paths": [
+    "server/src/services/heartbeat.ts",
+    "server/src/services/native-runtime/native-restart-recovery.ts",
+    "server/src/services/native-runtime/native-runner-restart-recovery.integration.test.ts"
+  ],
+  "source_acceptance_receipt_sha256": "9e3dcc22e81a789c46853aa5c9b6d52da5f794010ceeb22cb4f2d7ec960a088e",
+  "restore_qualification": "Qualified8aabaselinewithdeclared043fshallowboundary +thisincrementalbundle restores exact finalcommit/tree; gitfsck--strictpassed. No fullupstreamhistory/runtime/database/config/credential/lease/checkpoint restoration implied.",
+  "historical_candidates": "Intermediate candidate commits remain source history only; rejected/unaccepted ancestors confer no launch/cleanup authority. Only independently accepted current launcher+operative admission govern runtime."
+}
