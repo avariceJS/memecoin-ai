@@ -218,7 +218,7 @@ describe("Paperclip autonomous bridge tools", () => {
         programs: [{ project_id: "old-project", program_issue_id: "old-program", sol_agent_id: "old-sol",
           luna_agent_id: "old-luna", qa_agent_ids: [], corpus_ids: ["brain"] }],
       } });
-    const { ctx, handlers } = fixture(configPath);
+    const { ctx, handlers, notes } = fixture(configPath);
     const solRun = { ...workerRun, projectId: "senses-project", agentId: "sol-agent", runId: "sol-run" };
     const lunaRun = { ...solRun, agentId: "luna-agent", runId: "luna-run" };
     const qaRun = { ...solRun, agentId: "qa-agent", runId: "qa-run" };
@@ -241,19 +241,53 @@ describe("Paperclip autonomous bridge tools", () => {
     let activeRun: typeof solRun = solRun;
     let activeIssue: any = lead;
     const issueApi = ctx.issues as unknown as Record<string, unknown>;
-    issueApi.list = vi.fn(async ({ assigneeAgentId }: { assigneeAgentId: string }) =>
-      activeIssue.assigneeAgentId === assigneeAgentId ? [activeIssue] : []);
-    issueApi.get = vi.fn(async (id: string) => currentIssues.get(id) ?? null);
+    const createdComments: string[] = [];
+    let denyPrivateParentComment = false;
+    issueApi.list = vi.fn(async () => { throw new Error("private_program_list_not_available"); });
+    issueApi.get = vi.fn(async () => { throw new Error("private_ancestor_get_denied"); });
     const orchestrationGet = vi.fn(async ({ issueId }: { issueId: string }) => ({ issueId, companyId: "company-1", runs: [{
       id: activeRun.runId, issueId: activeIssue.id, agentId: activeRun.agentId, status: "running",
     }], blockedByIssueIds: issueId === "dynamic-review" ? ["dynamic-source"] : [] }));
     issueApi.forCurrentToolRun = () => ({
+      getProgramContext: vi.fn(async (input: Record<string, string>) => {
+        const contextProgram = activeIssue.id === lead.id ? lead : currentIssues.get(activeIssue.parentId);
+        if (!contextProgram || contextProgram.assigneeAgentId !== "sol-agent"
+            || contextProgram.createdByAgentId !== "astra-agent"
+            || (input.expectedProgramIssueId && input.expectedProgramIssueId !== contextProgram.id)) {
+          throw new Error("Current programme context is unavailable");
+        }
+        const result: Record<string, unknown> = {
+          currentIssue: activeIssue,
+          program: { id: contextProgram.id, companyId: contextProgram.companyId, projectId: contextProgram.projectId,
+            projectWorkspaceId: contextProgram.projectWorkspaceId, parentId: contextProgram.parentId,
+            goalId: contextProgram.goalId, assigneeAgentId: contextProgram.assigneeAgentId,
+            createdByAgentId: contextProgram.createdByAgentId },
+          astraParent: { id: parent.id, companyId: parent.companyId, assigneeAgentId: parent.assigneeAgentId },
+        };
+        if (input.expectedSourceIssueId) {
+          const sourceDependency = currentIssues.get(input.expectedSourceIssueId);
+          if (!sourceDependency || activeIssue.id !== review.id || sourceDependency.id !== "dynamic-source"
+              || sourceDependency.status !== "done"
+              || sourceDependency.assigneeAgentId !== input.expectedSourceAgentId) {
+            throw new Error("Bound source dependency is unavailable");
+          }
+          result.sourceDependency = { issueId: sourceDependency.id, parentId: sourceDependency.parentId,
+            projectId: sourceDependency.projectId, goalId: sourceDependency.goalId,
+            assigneeAgentId: sourceDependency.assigneeAgentId, createdByAgentId: sourceDependency.createdByAgentId,
+            status: "done", executionRunId: null, dependencyReady: true };
+        }
+        return result;
+      }),
       get: vi.fn(async (id: string) => currentIssues.get(id) ?? null),
       getOrchestration: orchestrationGet,
       getDependencyReadiness: vi.fn(async () => ({ isDependencyReady: false, unresolvedBlockerIssueIds: ["dynamic-source"] })),
       updateStatusCompareAndSet: vi.fn(async () => ({ status: "todo", statusVersion: 2 })),
       listComments: vi.fn(async () => []),
-      createComment: vi.fn(async () => ({})),
+      createComment: vi.fn(async (id: string) => {
+        if (denyPrivateParentComment && id === lead.id) throw new Error("private_parent_comment_denied");
+        createdComments.push(id);
+        return {};
+      }),
     });
     const invoke = vi.fn(async (_action, payload) => ({
       status: "ok", project_id: payload.project_id, standing_issue_id: "standing-90", goal_id: "mission-goal",
@@ -263,26 +297,6 @@ describe("Paperclip autonomous bridge tools", () => {
       excluded_prefixes: ["src/memecoin_brain_sources/private/"], corpus_ids: ["brain"], profiles: admission.missions[0].profiles,
     }));
     registerAutonomousTools(ctx, invoke as never);
-    const result = await handlers.get("get_program_source_scope")!({}, solRun as ToolRunContext) as { content: string };
-    const response = JSON.parse(result.content);
-    expect(response.program_issue_id).toBe("sol-program");
-    expect(response.actual_parent_issue_id).toBe("astra-program");
-    expect(response.profiles[0].required_test_paths).toEqual(["tests/brain/test_raw_sources.py"]);
-    expect(invoke).toHaveBeenCalledWith("get_program_source_scope", {
-      company_id: "company-1", project_id: "senses-project", goal_id: "mission-goal",
-    }, configPath, "/usr/bin/python3");
-    const proposalInvoke = vi.fn(async () => ({ status: "admitted", project_id: "senses-project", goal_id: "mission-goal",
-      profile_id: "senses-v1", verifier_policy_id: "mem-senses-slot-version-v1",
-      path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
-      required_test_paths: ["tests/brain/test_raw_sources.py"] }));
-    registerAutonomousTools(ctx, proposalInvoke as never);
-    const proposed = await handlers.get("validate_program_source_proposal")!({ profile_id: "senses-v1", path_ids: [
-      "src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py",
-    ] }, solRun as ToolRunContext) as { content: string };
-    expect(JSON.parse(proposed.content).verifier_policy_id).toBe("mem-senses-slot-version-v1");
-    await expect(handlers.get("validate_program_source_proposal")!({ profile_id: "senses-v1", path_ids: [
-      "src/memecoin_brain_sources/private/secret.py", "tests/brain/test_raw_sources.py",
-    ] }, solRun as ToolRunContext)).rejects.toThrow("program_source_proposal_response_invalid");
     const source = { id: "dynamic-source", companyId: "company-1", projectId: "senses-project", parentId: lead.id,
       createdByAgentId: "sol-agent", assigneeAgentId: "luna-agent", goalId: "mission-goal", status: "backlog",
       executionRunId: null, statusVersion: 1, description: "Implement the selected source change",
@@ -310,6 +324,26 @@ describe("Paperclip autonomous bridge tools", () => {
       providerType: "local_fs", repositoryFreeTaskWorkspace: coreStamp(lead, "sol-agent", "sol-run", 0, solRoot),
     });
     (ctx.executionWorkspaces as unknown as { get: unknown }).get = vi.fn(async (id: string) => workspaceRows.get(id) ?? null);
+    const result = await handlers.get("get_program_source_scope")!({}, solRun as ToolRunContext) as { content: string };
+    const response = JSON.parse(result.content);
+    expect(response.program_issue_id).toBe("sol-program");
+    expect(response.actual_parent_issue_id).toBe("astra-program");
+    expect(response.profiles[0].required_test_paths).toEqual(["tests/brain/test_raw_sources.py"]);
+    expect(invoke).toHaveBeenCalledWith("get_program_source_scope", {
+      company_id: "company-1", project_id: "senses-project", goal_id: "mission-goal",
+    }, configPath, "/usr/bin/python3");
+    const proposalInvoke = vi.fn(async () => ({ status: "admitted", project_id: "senses-project", goal_id: "mission-goal",
+      profile_id: "senses-v1", verifier_policy_id: "mem-senses-slot-version-v1",
+      path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
+      required_test_paths: ["tests/brain/test_raw_sources.py"] }));
+    registerAutonomousTools(ctx, proposalInvoke as never);
+    const proposed = await handlers.get("validate_program_source_proposal")!({ profile_id: "senses-v1", path_ids: [
+      "src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py",
+    ] }, solRun as ToolRunContext) as { content: string };
+    expect(JSON.parse(proposed.content).verifier_policy_id).toBe("mem-senses-slot-version-v1");
+    await expect(handlers.get("validate_program_source_proposal")!({ profile_id: "senses-v1", path_ids: [
+      "src/memecoin_brain_sources/private/secret.py", "tests/brain/test_raw_sources.py",
+    ] }, solRun as ToolRunContext)).rejects.toThrow("program_source_proposal_response_invalid");
     const readerInvoke = vi.fn(async (_action, payload) => ({
       status: "ok", program_issue_id: payload.program_issue_id, issue_id: payload.issue_id, corpus_id: "brain",
       projection_sha: "a".repeat(40), canonical_sha: "b".repeat(40),
@@ -334,7 +368,7 @@ describe("Paperclip autonomous bridge tools", () => {
     const bindInvoke = vi.fn(async (action: string, payload: Record<string, unknown>) => {
       if (action === "lookup_source_stage_binding") return { found: true, stage_key: "DYN-0123456789abcdef0123456789abcdef",
         stage_binding_key: "f".repeat(64), project_id: "senses-project", program_issue_id: lead.id,
-        source_issue_id: source.id, review_issue_id: review.id, path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
+        source_issue_id: source.id, review_issue_id: review.id, review_agent_id: "qa-agent", path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
         goal_id: "mission-goal", verifier_policy_id: "mem-senses-slot-version-v1", base_sha: "a".repeat(40),
         repository_free_policy_digest: "e".repeat(64),
         canonical_base_sha: "b".repeat(40), source_instruction_sha256: digest(source.description),
@@ -345,6 +379,8 @@ describe("Paperclip autonomous bridge tools", () => {
         diff: "", inspection_digest: "9".repeat(64), target_ref: "refs/heads/brain/development" };
       if (action === "inspect_source_stage_no_change") return { schema: "paperclip-source-stage-no-change-inspection-v1",
         inspection_digest: "7".repeat(64), status: "passed" };
+      if (action === "record_source_stage_no_change_merits") return { merits_digest: "6".repeat(64), merits: true,
+        receipt_digest: "5".repeat(64), inspection_digest: "7".repeat(64), rationale: "accepted base merits" };
       if (action === "validate_program_source_proposal") return { status: "admitted", project_id: "senses-project",
         goal_id: "mission-goal", profile_id: "senses-v1", verifier_policy_id: "mem-senses-slot-version-v1",
         path_ids: payload.path_ids, required_test_paths: ["tests/brain/test_raw_sources.py"] };
@@ -361,9 +397,10 @@ describe("Paperclip autonomous bridge tools", () => {
       source_issue_id: source.id, review_issue_id: review.id }, solRun as ToolRunContext) as { content: string };
     expect(bound.content).toContain("state:active");
     expect(bindInvoke).toHaveBeenCalledWith("bind_program_source_stage", expect.objectContaining({
-      lead_issue_id: lead.id, source_issue_id: source.id, review_issue_id: review.id,
+      lead_issue_id: lead.id, source_issue_id: source.id, review_issue_id: review.id, review_agent_id: "qa-agent",
       path_ids: ["src/memecoin_brain_sources/events.py", "tests/brain/test_raw_sources.py"],
     }), configPath, "/usr/bin/python3");
+    denyPrivateParentComment = true;
 
     const stageKey = "DYN-0123456789abcdef0123456789abcdef";
     source.status = "in_progress";
@@ -387,11 +424,11 @@ describe("Paperclip autonomous bridge tools", () => {
     const validStamp = lunaWorkspace.repositoryFreeTaskWorkspace;
     source.executionRunId = "stale-run";
     await expect(handlers.get("verify_program_source_unchanged")!({ stage_key: stageKey,
-      stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext)).rejects.toThrow("program_source_stage_run_binding_unknown");
+      stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext)).rejects.toThrow("program_source_stage_run_binding_mismatch");
     source.executionRunId = lunaRun.runId;
     source.assigneeAgentId = "wrong-agent";
     await expect(handlers.get("verify_program_source_unchanged")!({ stage_key: stageKey,
-      stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext)).rejects.toThrow("program_source_stage_run_binding_unknown");
+      stage_binding_key: "f".repeat(64) }, lunaRun as ToolRunContext)).rejects.toThrow("program_source_stage_run_binding_mismatch");
     source.assigneeAgentId = "luna-agent";
     for (const [field, value] of Object.entries({
       sourceIssueId: "another-issue", ownerAgentId: "wrong-agent", runId: "another-run",
@@ -446,6 +483,13 @@ describe("Paperclip autonomous bridge tools", () => {
     const inspectedNoChange = await handlers.get("inspect_program_source_no_change")!({ stage_key: stageKey,
       stage_binding_key: "f".repeat(64), review_issue_id: review.id }, qaRun as ToolRunContext) as { content: string };
     expect(JSON.parse(inspectedNoChange.content).inspection_digest).toBe("7".repeat(64));
+    const merits = await handlers.get("record_program_source_no_change_merits")!({ stage_key: stageKey,
+      stage_binding_key: "f".repeat(64), review_issue_id: review.id, merits: true,
+      evidence: { inspection_digest: "7".repeat(64), rationale: "accepted base merits" } }, qaRun as ToolRunContext) as { content: string };
+    expect(merits.content).toContain("no_candidate_or_publication");
+    expect(createdComments.filter((id) => id === lead.id)).toHaveLength(1);
+    expect(issueApi.get).not.toHaveBeenCalled();
+    expect(issueApi.list).not.toHaveBeenCalled();
     const wrongActor = { ...solRun, agentId: "luna-agent" };
     await expect(handlers.get("get_program_source_scope")!({}, wrongActor as ToolRunContext)).rejects.toThrow("program_source_scope_actor_not_admitted");
   });

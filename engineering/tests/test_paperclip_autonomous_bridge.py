@@ -349,7 +349,10 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "lead_agent_id": "sol", "lead_issue_id": "program-1", "lead_run_id": "program-run",
             "goal_id": "goal-1", "profile_id": "senses-v1", "corpus_id": "brain", "path_ids": list(paths),
             "source_issue_id": "source-1", "source_version": 1, "review_issue_id": "review-1", "review_version": 1,
+            "review_agent_id": "qa",
             "source_instruction_sha256": "1" * 64, "review_instruction_sha256": "2" * 64}
+        with self.assertRaisesRegex(BridgeError, "program_source_stage_review_actor_not_admitted"):
+            bind_program_source_stage(config, {**payload, "review_agent_id": "unapproved-qa"})
         with (patch("engineering.paperclip_autonomous_bridge._resolve_accepted_source_snapshot", side_effect=lambda *_args, **_kwargs: (publisher, accepted_rows[0])),
               patch.object(BridgeConfig, "gate", return_value=fake_gate),
               patch("engineering.paperclip_autonomous_bridge._create_trusted_stage_source_cache",
@@ -495,7 +498,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "lead_issue_id": "program-1", "lead_run_id": "program-run", "goal_id": "goal-1",
             "profile_id": "senses-v1", "corpus_id": "brain", "path_ids": list(paths),
             "source_issue_id": "source-1", "source_version": 1, "review_issue_id": "review-1",
-            "review_version": 1, "source_instruction_sha256": "1" * 64,
+            "review_version": 1, "review_agent_id": "qa", "source_instruction_sha256": "1" * 64,
             "review_instruction_sha256": "2" * 64,
         }
         first = bind_program_source_stage(config, payload)
@@ -690,7 +693,7 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "lead_issue_id": "program-1", "lead_run_id": "program-run", "goal_id": "goal-1",
             "profile_id": "senses-v1", "corpus_id": "platform", "path_ids": brain_paths,
             "source_issue_id": "source-platform-write", "source_version": 1,
-            "review_issue_id": "review-platform-write", "review_version": 1,
+            "review_issue_id": "review-platform-write", "review_version": 1, "review_agent_id": "qa",
             "source_instruction_sha256": "1" * 64, "review_instruction_sha256": "2" * 64,
         }
         with self.assertRaisesRegex(BridgeError, "program_source_stage_accepted_base_unavailable"):
