@@ -169,7 +169,8 @@ Rejected code is correction evidence, never accepted base. Unique phase/QA/conte
 
 Read-only limit audit located max3 only in accepted operator-observed resource/role authority, not
 program_admission/dynamic bind code. Changing owner digest would invalidate existing bindings and
-paired-ACK recovery; a resource adjustment must preserve it. Limit remains3, all used.
+paired-ACK recovery; a resource adjustment must preserve it. Three pairs used; separately reviewed
+owner amendment now permits exactly one more(total4), native revision427d92fa. Pair4 not created.
 Native Sol26 autonomously created material-failure Astra106; actual selected gpt-6-astra/medium read
 full results and completed assessment. Natural Sol28 kept99 blocked. Astra recommends STOP current
 authority; conditional SAME99 recovery allows exactly one further pair(total4), finite reconciled
@@ -184,15 +185,22 @@ planning content accepted, no implementation/verification claim. P10 fixed CU/at
 P14 failed-hydration integrity qualification preserve frozen semantics. Review:
 `resumption-20261025/recovery-feasibility/root-independent-feasibility-review-v1.json`
 (SHA256f4e836207ebd4df783741a2d3db39e579bb96b73f1c01532b880e6b0bde4ba37).
-Remaining admission conditions: reviewed guarded child-document relay/readback, source-only finite
-600 to1800s timeout and complete review diff60000 to120000-byte capacity. Existing45329-byte diff leaves
-14671 bytes for a substantial matrix; oversize inspection currently fails closed, never truncates.
-Minimal bounded capacity change requires sole Luna implementation and independent source/release
-review; no schema/framework/paths/verifier changes or pair4 dispatch yet. Current maintenance boundary
-pauses MEM/all six actors, live0, broker fenced/draining; sole bootstrap Luna custody explicitly
-restored for this minimal controller change, native source held. No Founder STOP. Root planning review is not
-a native run; at least four downstream native starts need reconciled finite reserve. Exact artifacts,
-layered run29 failure and current custody remain in HANDOFF. Historical169 remain unchanged.
+Operational conditions were independently accepted/applied: guarded lead child-document relay,
+Source/FD finite1800s timeout, complete review diff120000-byte bound with bounded escaped transport,
+and QA own-agent/current-task result paging. Controller6d61729b/config9/native8aa/service87842/newplugin51624;
+loaded/inert proof recovery-inspection-maintenance/apply/actual-matching-inert-boundary.json (df921d20).
+Writer digest5a, source paths/verifier/Brain refs unchanged. Root operational addendum b40f3dca requires
+one-time mechanical relay qualification BEFORE binding, then the same pair continues; five anticipated
+native starts fit remaining7 if no intervening starts. Planning review itself is not a native run.
+Actual activation failed to start Sol30: FD remains PAUSING after manual holds clear. Known FAILED29
+retains an expired observed/resuming_session finalization owner, no environment lease/provider process.
+The stop guard refuses it. Read-only metadata17d096fd and independent route audit82db1bcc establish no
+existing stop-only preserving-FAILED owner route. Current repair re-holds MEM/all6manual/live0/fenced;
+FD truthfully PAUSING, sole bootstrap Luna custody9fb2f8c8 restored. Minimal native cleanup is being
+scoped against exact pre-provider heartbeat catch omission, not deployed;
+no SQL mutation, status relabel, provider replay or speculative restart. Other169 unknowns unchanged.
+Full artifacts and present lifecycle/custody remain in HANDOFF; resource admission is not readiness.
+
 Native source custody checkpointa774299 contains verified8aa incremental bundle/index; upstream043f
 is required, not a self-contained runtime backup or stable release. No private runtime publication.
 

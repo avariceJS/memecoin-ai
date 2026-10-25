@@ -6,14 +6,20 @@ Paperclip owns lifecycle; Luna implements, Sol leads/reviews, Astra chooses stra
 
 ## Current custody
 
-- Deployed controller30d8aa83/config8 and native8aa17aa0; fresh service87842/plugin87932. Installed
-  descriptor/handler/fingerprint18 and matching inert state were verified before activation. Roles
-  Source5/Lead9 applied by exact CAS; models/efforts/write policy unchanged. HANDOFF owns exact custody.
-- Current bounded maintenance: MEM paused, all six explicit manual, live0, broker fenced/draining;
-  other five companies unchanged paused. Explicit sole source custody returned to bootstrap Luna
-  for the minimal inspection-cap change; native Luna held. Source interval29/36,
-  same historical anchor317/no reset. Three programme source/QA pairs used; max3 is operator-observed
-  resource/role authority, NOT a dynamic controller counter. Do not change owner-config to adjust it.
+- Deployed controller6d61729b/config9 and native8aa17aa0; service87842 unchanged, fresh plugin51624.
+  Exact loaded build/inert boundary df921d20 verified; owner-write digest5a unchanged. Full diff bound
+  120000 bytes and bounded escaped transport installed. Source/FD finite timeout1800; lead task-document
+  relay and QA own-task result paging granted/reviewed. No actual new source/QA use yet.
+- Activation did NOT start Sol30. FD remained PAUSING despite cleared manual holds. Current repair
+  maintenance re-pauses MEM/all six manual/live0/fenced; FD truthfully PAUSING. Sole bootstrap Luna
+  custody returned9fb2f8c8, native source held. Known failed29 has expired observed/resuming_session owner
+  (17:58:33), no environment lease/provider process. Read-only metadata17d096fd and route audit82db1bcc
+  show no supported stop-only cleanup preserving FAILED. Minimal native cleanup fix is being scoped;
+  no status rewrite, SQL mutation, provider replay or speculative restart.
+- Source interval29/36, same historical anchor317/no reset; used3pairs. Separately reviewed/applied
+  native owner resource document rev427d92fa permits exactly one more pair(total4), same objective,
+  no automatic extension. Pair4 not created. First exact child-document relay qualification must
+  precede binding. Current technical custody/re-hold for repair belongs in private HANDOFF.
 - Existing canonical manager authority is now expressible through optional resume on comment_on_task;
   default behavior/actual agent identity/canonical holds preserved. Old v17 provider checkpoints are
   incompatible with fingerprint18. Real Sol21/775bb4cb in a fresh provider session successfully called
@@ -53,7 +59,7 @@ No new QA test execution or publication. First Source20 finish input/error remai
 QA saved six fenced native documents with the complete inspection-displayed diff; independent
 reassembly exactly matched45329 bytes/SHA2f5c4089. Canonical default-context diff is a different
 representation. These are rejected-candidate evidence, never accepted base. Existing lead cross-task
-write_task_document grant/context relay is under review, not applied. Natural Sol26 created actual
+write_task_document grant is now applied; first child-context relay remains unproved. Natural Sol26 created actual
 Astra106 material-failure assessment; real selected gpt-6-astra/medium completed it, then natural
 Sol28 kept MEM99 blocked. Recommendation STOP current authority; conditional recovery ONLY one more
 pair(total4), fresh finite allowance, substantive clause→producer/replay observable-assertion matrix
@@ -63,11 +69,11 @@ Sol28 had no feasibility artifact. Owner posted one feasibility-only context; So
 continuation/pre-provider native_execution_input_persisted_binding_mismatch. No operator retry/new run.
 Root independently accepted planning content against frozen contract/QA, not implementation or release.
 P10 co-trigger and P14 failed-hydration reachability qualifications preserve the original guards.
-Source-only1800s finite timeout, guarded exact-document relay and complete diff cap60000 to120000 need
-independent qualification before pair4; current45329-byte diff leaves only14671 bytes of old capacity.
-No truncation/new framework. Bootstrap source custody must be explicit while native source idle.
-Not authorized to create/bind pair4. Actual29/36 dated accounting was saved to native authority doc;
-owner-config digest, used3pairs, accepted bases and anchor317 unchanged. No grant/amendment yet.
+Operational conditions were independently reviewed/applied: Source/FD1800, exact-document relay,
+complete diff cap120000 with escaped transport and own-task QA result paging. Root operational addendum
+b40f3dca preserves one-time assisted pre-bind qualification/five projected starts within remaining7.
+Actual continuation is blocked by failed29 expired recovery ownership, not unaccepted plan or resources.
+No pair4 binding or new source run. Historical failed29 and five saved docs remain unchanged.
 Planning review: recovery-feasibility/root-independent-feasibility-review-v1.json (f4e83620).
 Strategy proof: sol-independent-native106-AstraMedium-Sol28-stop-feasibility-gap.json (02d9c3a4).
 
