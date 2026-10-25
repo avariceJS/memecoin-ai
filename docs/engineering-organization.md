@@ -145,11 +145,11 @@ were verified. This loaded-build evidence is bounded; no nonexistent in-memory s
 After scoped activation, real Sol21/775bb4cb in a fresh provider session with fingerprint18 invoked
 comment_on_task on existing104 with resume:true. Canonical201 attributed commentfe950670 to agentfd/run775;
 issue.comment.reopen/resumeIntent/followUp caused Source22/8cc27e00 at16:42:45.781UTC. No operator child
-resume after release. Unique actual-use proof:
+resume caused that Source22 wake. Unique actual-use proof:
 `resumption-20261025/sol-independent-native-comment-resume-first-live-use.json`
 (SHA2566489b07fc50684289a4412d1da118392e87761f75ce853400935723dc9931dd9).
-MEM/fence active, four required actors resumed, two manual and other five companies paused; bootstrap
-frozen/native Luna source ownership. At snapshot26/36 sameanchor317, three pairs used. Source22 again
+At the earlier26/36 snapshot MEM/fence was active, four required actors resumed, two manual and other
+five companies paused; bootstrap frozen/native Luna source ownership. At that snapshot26/36 sameanchor317, three pairs used. Source22 again
 blocked on matrix/pending_comment2; QA23 was dependency-blocked comment triage only. A single explicit
 owner disposition narrowed CURRENT Source24 to recording/end of the sealed attempt AS INCOMPLETE.
 Pure native compiler preview matched the actual contract6b7c7653/rev4: one objective/hash68a3, no old
@@ -168,12 +168,33 @@ Rejected code is correction evidence, never accepted base. Unique phase/QA/conte
 (SHA256f2ffdf76945e32c66ed9e6f3a6e8e8f891cd905198e0668d49fb0e3c3a922ef1).
 
 Read-only limit audit located max3 only in accepted operator-observed resource/role authority, not
-program_admission/dynamic bind code. A prospective reviewed resource/context amendment after current
-QA settles can preserve owner-config bytes, all used pairs and historical records. Changing
-program_admission instead changes owner digest and invalidates existing bindings/paired-ACK recovery;
-that is not the route for a resource adjustment. Limit remains3. Native source custody checkpointa774299
-contains the verified8aa incremental bundle/index; upstream043f is required, not a self-contained runtime
-backup or stable release. No runtime/private artifacts or unreviewed upstream history were published.
+program_admission/dynamic bind code. Changing owner digest would invalidate existing bindings and
+paired-ACK recovery; a resource adjustment must preserve it. Limit remains3, all used.
+Native Sol26 autonomously created material-failure Astra106; actual selected gpt-6-astra/medium read
+full results and completed assessment. Natural Sol28 kept99 blocked. Astra recommends STOP current
+authority; conditional SAME99 recovery allows exactly one further pair(total4), finite reconciled
+resources, credible complete matrix/plan and independent admission. No automatic extension after
+rejection/exhaustion. This is a real failure-strategy cycle, not useful programme completion. Proof:
+`resumption-20261025/sol-independent-native106-AstraMedium-Sol28-stop-feasibility-gap.json` (02d9c3a4).
+Owner posted one feasibility-only context, not source admission. Sol29 saved five supporting documents,
+then600s timeout and same-run native checkpoint continuation ended in pre-provider persisted-binding
+mismatch. Both failures retained; no operator retry/new run and no successful final result. Actual
+same-anchor usage29/36. Root independently read all five exact revisions, frozen contract and full QA;
+planning content accepted, no implementation/verification claim. P10 fixed CU/attempt co-trigger and
+P14 failed-hydration integrity qualification preserve frozen semantics. Review:
+`resumption-20261025/recovery-feasibility/root-independent-feasibility-review-v1.json`
+(SHA256f4e836207ebd4df783741a2d3db39e579bb96b73f1c01532b880e6b0bde4ba37).
+Remaining admission conditions: reviewed guarded child-document relay/readback, source-only finite
+600 to1800s timeout and complete review diff60000 to120000-byte capacity. Existing45329-byte diff leaves
+14671 bytes for a substantial matrix; oversize inspection currently fails closed, never truncates.
+Minimal bounded capacity change requires sole Luna implementation and independent source/release
+review; no schema/framework/paths/verifier changes or pair4 dispatch yet. Current maintenance boundary
+pauses MEM/all six actors, live0, broker fenced/draining; sole bootstrap Luna custody explicitly
+restored for this minimal controller change, native source held. No Founder STOP. Root planning review is not
+a native run; at least four downstream native starts need reconciled finite reserve. Exact artifacts,
+layered run29 failure and current custody remain in HANDOFF. Historical169 remain unchanged.
+Native source custody checkpointa774299 contains verified8aa incremental bundle/index; upstream043f
+is required, not a self-contained runtime backup or stable release. No private runtime publication.
 
 Fixed preflight and final Gate run candidate-authored test_raw_sources.py in a pinned clean candidate
 checkout; fixed command/environment/sandbox are external, test content is not a frozen external matrix.

@@ -9,15 +9,16 @@ Paperclip owns lifecycle; Luna implements, Sol leads/reviews, Astra chooses stra
 - Deployed controller30d8aa83/config8 and native8aa17aa0; fresh service87842/plugin87932. Installed
   descriptor/handler/fingerprint18 and matching inert state were verified before activation. Roles
   Source5/Lead9 applied by exact CAS; models/efforts/write policy unchanged. HANDOFF owns exact custody.
-- MEM/fence active, only four required actors resumed; assessor/analyst and other five companies paused.
-  Bootstrap implementation frozen; native Luna owns admitted source work. Source interval26/36,
+- Current bounded maintenance: MEM paused, all six explicit manual, live0, broker fenced/draining;
+  other five companies unchanged paused. Explicit sole source custody returned to bootstrap Luna
+  for the minimal inspection-cap change; native Luna held. Source interval29/36,
   same historical anchor317/no reset. Three programme source/QA pairs used; max3 is operator-observed
   resource/role authority, NOT a dynamic controller counter. Do not change owner-config to adjust it.
 - Existing canonical manager authority is now expressible through optional resume on comment_on_task;
   default behavior/actual agent identity/canonical holds preserved. Old v17 provider checkpoints are
   incompatible with fingerprint18. Real Sol21/775bb4cb in a fresh provider session successfully called
   resume:true on EXISTING104; canonical201/agentfd/commentfe950670 automatically caused Source22/8cc27e00
-  at16:42:45.781UTC. No owner child-resume after release. New worker/runtime/provider progress is bounded
+  at16:42:45.781UTC. No owner child-resume caused that Source22 wake. New worker/runtime/provider progress is bounded
   evidence, not generic autonomy or product readiness.
 - Native source objects preserved in GitHub checkpointa774299 (bundle62613125, source8aa, upstream043f
   prerequisite); source recovery inventory/restore/fsck checked, no runtime/stable-release claim.
@@ -52,8 +53,23 @@ No new QA test execution or publication. First Source20 finish input/error remai
 QA saved six fenced native documents with the complete inspection-displayed diff; independent
 reassembly exactly matched45329 bytes/SHA2f5c4089. Canonical default-context diff is a different
 representation. These are rejected-candidate evidence, never accepted base. Existing lead cross-task
-write_task_document grant/context relay and prospective pair-cap amendment are under review, not applied.
-Preserve owner-config digest, existing bindings, used3pairs and anchor317; no fourth pair yet.
+write_task_document grant/context relay is under review, not applied. Natural Sol26 created actual
+Astra106 material-failure assessment; real selected gpt-6-astra/medium completed it, then natural
+Sol28 kept MEM99 blocked. Recommendation STOP current authority; conditional recovery ONLY one more
+pair(total4), fresh finite allowance, substantive clause→producer/replay observable-assertion matrix
+and credible finite plan before binding. No automatic extension after rejection/exhaustion.
+Sol28 had no feasibility artifact. Owner posted one feasibility-only context; Sol29 saved five full supporting documents, but failed:
+600s timeout followed same-run checkpoint
+continuation/pre-provider native_execution_input_persisted_binding_mismatch. No operator retry/new run.
+Root independently accepted planning content against frozen contract/QA, not implementation or release.
+P10 co-trigger and P14 failed-hydration reachability qualifications preserve the original guards.
+Source-only1800s finite timeout, guarded exact-document relay and complete diff cap60000 to120000 need
+independent qualification before pair4; current45329-byte diff leaves only14671 bytes of old capacity.
+No truncation/new framework. Bootstrap source custody must be explicit while native source idle.
+Not authorized to create/bind pair4. Actual29/36 dated accounting was saved to native authority doc;
+owner-config digest, used3pairs, accepted bases and anchor317 unchanged. No grant/amendment yet.
+Planning review: recovery-feasibility/root-independent-feasibility-review-v1.json (f4e83620).
+Strategy proof: sol-independent-native106-AstraMedium-Sol28-stop-feasibility-gap.json (02d9c3a4).
 
 The verifier executes candidate-authored test_raw_sources.py in a pinned clean checkout under fixed
 command/environment/sandbox; QA judges test coverage/semantics. Written tests, executed tests, static
