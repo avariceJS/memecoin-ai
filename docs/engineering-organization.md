@@ -129,19 +129,45 @@ cannot express resume:true. This is an input-surface gap, not a need for board i
 Luna20 implemented three files, corrected a definite122-collected/120-pass/2-fail/0-skip preflight, and
 delivered sealed439b33d5/canonical CANDIDATEebba2724/opb25 after corrected preflight passed. Exact final
 successful count is not inferred from the receipt. It then blocked with incomplete mandatory matrix;
-QA105 has not started. First finish failed with no exposed arguments/error text; no precise cause is
+At that checkpoint, QA105 had not started. First finish failed with no exposed arguments/error text; no precise cause is
 claimed. Historical failed verification in the later payload is a possible guard condition only.
 No source/QA acceptance, final Gate or publication. Outcome receipt:
 `resumption-20261025/sol-independent-native104-candidate-fixed-preflight-lifecycle-block.json`
 (SHA256dcd9b17a8fe96f21b502d4a28faec408a7d545e62ca05cc57b3a882e69bc99de).
-At source-only maintenance,20/36 attempts and337 terminal/live0 were reconciled. Only native LunaC73
-was manually held; company/other actors/publisher fence/pins remained unchanged. Explicit custody
-returned to sole bootstrap Luna for minimal optional resume on the existing comment tool, preserving
-body-only default, actual agent identity and canonical authority/hold guards. No Brain edits/fourth
-pair/new route/grant. Independent source/release acceptance is required before deployment; source
-phase closure and remaining matrix decomposition stay native Sol decisions, not forced completion.
-Custody: `resumption-20261025/native-comment-resume-maintenance/source-ownership-bootstrap-return.json`
-(SHA256a96ecb1be2d08fb8159fce12abc3f272bc29fe8136c734de7a06c4a8b27b391b).
+At source-only maintenance,20/36 attempts and337 terminal/live0 were reconciled; only native Luna was
+held for bootstrap source ownership. Matching release then paused/fenced MEM before restart. Exact
+native8aa17aa0/controller30d8aa83/config8/roles Source5+Lead9 were independently accepted and applied.
+Fingerprint18 rejects old v17 provider checkpoints; default body-only comment behavior, actual agent
+identity and canonical authority/hold guards remain. No new grant, route, Brain edit or fourth pair.
+Fresh service87842/plugin87932, installed descriptors/handler/fingerprint and matching inert state
+were verified. This loaded-build evidence is bounded; no nonexistent in-memory schema endpoint claimed.
+
+After scoped activation, real Sol21/775bb4cb in a fresh provider session with fingerprint18 invoked
+comment_on_task on existing104 with resume:true. Canonical201 attributed commentfe950670 to agentfd/run775;
+issue.comment.reopen/resumeIntent/followUp caused Source22/8cc27e00 at16:42:45.781UTC. No operator child
+resume after release. Unique actual-use proof:
+`resumption-20261025/sol-independent-native-comment-resume-first-live-use.json`
+(SHA2566489b07fc50684289a4412d1da118392e87761f75ce853400935723dc9931dd9).
+MEM/fence active, four required actors resumed, two manual and other five companies paused; bootstrap
+frozen/native Luna source ownership.23/36 sameanchor317, three pairs used. Source22 again ended blocked:
+current preflight PASSED, mandatory matrix NOT_RUN/pending_comment2 unmet. QA105 ran as a manager-comment
+dependencyBlockedInteraction while104 was active: context/history/interim result only, no candidate
+inspection, merits or approval. This was not a completed source→QA review transition. Proof:
+`resumption-20261025/sol-independent-native105-triage-source-dependency-block-addendum.json`, SHA256
+4bd3ad10686809870d16b871d20de641e0632912cf34c9b2efb0e52d3021629d.
+A single explicit owner disposition to END the sealed attempt AS INCOMPLETE is under review against
+existing native contract/supersession mechanisms. It must create a genuinely narrower current action
+contract, not force satisfaction of the old matrix criterion. No repeated closure run, status PATCH,
+redelivery or QA weakening is authorized by this clarification. Source104 description/binding/candidate and unknown first finish
+error remain unchanged. Phase closure/remaining decomposition stay native Sol decisions.
+
+Read-only limit audit located max3 only in accepted operator-observed resource/role authority, not
+program_admission/dynamic bind code. A prospective reviewed resource/context amendment after current
+QA settles can preserve owner-config bytes, all used pairs and historical records. Changing
+program_admission instead changes owner digest and invalidates existing bindings/paired-ACK recovery;
+that is not the route for a resource adjustment. Limit remains3. Native source custody checkpointa774299
+contains the verified8aa incremental bundle/index; upstream043f is required, not a self-contained runtime
+backup or stable release. No runtime/private artifacts or unreviewed upstream history were published.
 
 Fixed preflight and final Gate run candidate-authored test_raw_sources.py in a pinned clean candidate
 checkout; fixed command/environment/sandbox are external, test content is not a frozen external matrix.
