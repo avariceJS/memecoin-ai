@@ -60,14 +60,21 @@ find the private current issue. Full strategy and blocked results remain preserv
 receipt: `resumption-20261025/sol-independent-native98-to99-first-dynamic-blocker.json`
 (SHA25684a354cf093129a6aa986e43cf92bf73df66e5aff8f128f529f499192718a35e).
 
-The scope helper remains incomplete for private programmes. A narrow native current-run/program/
-source-dependency metadata attestation and matching controller are under qualification; private
-ancestor bodies, arbitrary peer reads and broader task visibility are not the remedy. Known99 is
-retained for supported continuation, not recreated. MEM is paused/fenced during this bounded repair,
-with source custody explicitly returned to bootstrap Luna and no competing native source writer.
-The169 historical entries remain unchanged; global hibernation is not declared complete. Actual
-no-change merits, useful changed-source publication, subsequent strategy and useful post-root
-continuation remain open. Source acceptance and the completed reader programme are not company readiness.
+The narrow native current-run/program/source-dependency metadata attestation and matching controller
+were independently accepted and deployed as native15f93e91/controller64d25086. Hidden ancestor bodies,
+arbitrary peer reads and broader task visibility remain denied. Rejected d25 compile evidence remains
+preserved; corrected standard typecheck and focused DB/SDK/controller checks passed. Matching inert
+readback at13:48UTC verified actual loaded processes/configuration. Unique operational receipt:
+`resumption-20261025/private-program-context-maintenance/apply/actual-matching-inert-boundary.json`
+(SHA256be62d3b549c2f385e4e559cbae103e8cce6a88955be48e249ef65b9a54f00972).
+Supported known99 continuation d31dff49 started13:50:13.471UTC in fresh own workspace6c7f53fc,
+without recreating the programme or replaying unknown history. MEM/fence are active with only four
+required actors resumed; the other five companies remain paused. Bootstrap implementation is idle
+and source custody returns to native Luna. Future CEO effort is independently accepted Medium;
+historical98 High and Sol/Luna/QA High are unchanged. The169 historical entries remain; global
+hibernation is not declared complete. Actual private tool use, no-change merits, useful changed-source
+publication, subsequent strategy and useful post-root continuation remain open. Source acceptance,
+service startup and the completed reader programme are not company readiness.
 
 ## Standing strategic mandate — founder directive 2026-10-24
 

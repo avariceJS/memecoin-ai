@@ -1,4 +1,4 @@
-# Current state — 2026-10-25, MEM99 private context blocker / bounded maintenance
+# Current state — 2026-10-25, MEM99 known continuation after private-context repair
 
 Explicit founder resumption authority is in the current `prompt/prompt.md`; native Goal remains
 null. Paperclip owns lifecycle, Luna source implementation, Sol programs and independent review.
@@ -6,9 +6,9 @@ No new Goal, scheduler or duplicate MEM-89/MEM-90..95 mandates.
 
 ## Accepted and observed
 
-- Controller `80362` is independently accepted/deployed with plugin PID27380. Native `3eb3e6d`
-  is accepted/deployed, owned
-  service PID25396. Exact loaded artifacts/configuration and process custody are in private HANDOFF.
+- Controller `64d25086` and native `15f93e91` are independently accepted and deployed; plugin
+  PID72472 and owned service PID71797 were verified by birth/artifacts and inert configuration
+  readback at13:48UTC. Rejected d25 compile evidence remains preserved. Exact custody is in HANDOFF.
 - Actual Sol list/search/read succeeded after an assisted assignment-profile correction. Initial
   e61 tool-unavailable result remains preserved.
 - Luna MEM-96 run ac3a9bf7 succeeded with 15 actual Brain reader calls, full result and provenance.
@@ -33,18 +33,22 @@ No new Goal, scheduler or duplicate MEM-89/MEM-90..95 mandates.
 ## Current continuation and limits
 
 Reader phase:8 terminal runs,7 reached providers. New source interval:24 additional runs anchored
-at317 historical runs; two have completed. Astra98 done, native Sol99 blocked with full result because
-generic SDK discovery could not read its private task; no source children/admission/publication.
-Explicit source custody returned to bootstrap Luna. MEM is manually paused/fenced with no live runs,
-other five companies remain paused. One narrow native current-run/program/dependency attestation
-and matching controller are being implemented; existing privacy denials remain, no open tasks or
-per-task memberships. No new Goal/dispatcher; full six-mission context remains in CEO roles.
+at317 historical runs. Astra98 done; first Sol99 blocked because generic SDK discovery could not
+read its private task. Narrow current-run/program/source-dependency attestation and matching
+controller were independently accepted and deployed, preserving existing privacy denials and full
+history. Supported continuation d31dff49 actually started13:50:13.471UTC, source attempt3/24,
+MEM99 in_progress/v3, fresh own workspace6c7f53fc/bindingRev2. No new programme or unknown replay.
+MEM is active, fence open, only Sol/Luna/QA/Astra resumed; assessor/analyst and other five companies
+remain paused. Bootstrap implementation is idle; native Luna owns admitted source work. Actual
+private tool use, source children and useful Brain publication still need evidence.
+Future Astra uses the independently accepted Medium setting; historical MEM98 used High. Sol/Luna/QA
+remain High; model/subscription/runtime unchanged. No new Goal/dispatcher or broadened task visibility.
 
-The independently accepted Senses/Experience program-only write envelope is held for maintenance. Fixed synthetic
+The independently accepted Senses/Experience program-only write envelope is active again after maintenance. Fixed synthetic
 baseline:110 Senses/20 Experience/3 composition, zero failures/skips. Senses used verified read-only
 interpreter aliases without command change. Roles/access/policy intents and current scope were
-reviewed; broker fence initially opened through the scoped owner transaction, NOT generic all-history
-resume, and is now closed again for this known integration repair.
+reviewed; broker fence reopened through the scoped owner transaction, NOT generic all-history
+resume.35 immutable operation/stage records are unchanged; one owner-fence record tracks transitions.
 Current canonical Brain37cf/pairedACK verified; old operations ineligible and no old live writers/leases.
 Generic hibernation remains incomplete with169 preserved entries (old168 plus known failed96).
 
