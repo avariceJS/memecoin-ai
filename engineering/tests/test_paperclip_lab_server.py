@@ -34,6 +34,13 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(
             PAPERCLIP_SOURCE_CHAIN,
             (
+                "8d994c9f56224b65944e3fab02add1d7fe8431e6",
+                "1d9eccf898ec00f9f59ef5f536b69154c211a359",
+                "ffc6a3c844faa92dcad570f0a1184434a9a3d6d0",
+                "4f969bc74ea0aca1c2a81edde74796c92f221d1c",
+                "9667379fcc3e0247ac632659850fbedf59b99229",
+                "aa0c5b08f0e8ce09343ffd146f3441e984ede8f7",
+                "1637ad0b50c17c5896784b95c9fb97a31defbf4c",
                 "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
                 "2905d23263ceb188689cd68624332bfa2d56b600",
                 "15f93e91bd7a561e6b4c3460ccd619923e15165b",
@@ -41,8 +48,8 @@ class PaperclipLabServerTests(unittest.TestCase):
                 *PAPERCLIP_PATCH_SOURCE_CHAIN,
             ),
         )
-        self.assertEqual(PAPERCLIP_PIN, "8aa17aa0600aa952ff50af9373a05a01bd6125a8")
-        self.assertEqual(PAPERCLIP_PARENT_PIN, "2905d23263ceb188689cd68624332bfa2d56b600")
+        self.assertEqual(PAPERCLIP_PIN, "8d994c9f56224b65944e3fab02add1d7fe8431e6")
+        self.assertEqual(PAPERCLIP_PARENT_PIN, "1d9eccf898ec00f9f59ef5f536b69154c211a359")
         self.assertEqual(PAPERCLIP_UPSTREAM_PIN, "043f2514e67c50320433a0013fb228a75a51325c")
         self.assertEqual(PAPERCLIP_PATCH_PIN, "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd")
         self.assertEqual(PAPERCLIP_PATCH_PARENT_PIN, "d560a09538a255c779e4a10b14d41a3114bf10f2")
@@ -68,6 +75,13 @@ class PaperclipLabServerTests(unittest.TestCase):
 
     def test_rejected_and_interim_native_descendants_cannot_launch(self):
         for old_pin in (
+            "1d9eccf898ec00f9f59ef5f536b69154c211a359",
+            "ffc6a3c844faa92dcad570f0a1184434a9a3d6d0",
+            "4f969bc74ea0aca1c2a81edde74796c92f221d1c",
+            "9667379fcc3e0247ac632659850fbedf59b99229",
+            "aa0c5b08f0e8ce09343ffd146f3441e984ede8f7",
+            "1637ad0b50c17c5896784b95c9fb97a31defbf4c",
+            "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
             "2905d23263ceb188689cd68624332bfa2d56b600",
             "15f93e91bd7a561e6b4c3460ccd619923e15165b",
             "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
@@ -224,6 +238,14 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertNotIn(rejected_wake_fix["commit"], reviewed_commits)
         self.assertNotIn(rejected_wake_fix["commit"], PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertIn(PAPERCLIP_PATCH_PIN, PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertIn("8aa17aa0600aa952ff50af9373a05a01bd6125a8", PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertNotIn("8d994c9f56224b65944e3fab02add1d7fe8431e6", PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertNotIn("1d9eccf898ec00f9f59ef5f536b69154c211a359", PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertNotIn("ffc6a3c844faa92dcad570f0a1184434a9a3d6d0", PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertNotIn("4f969bc74ea0aca1c2a81edde74796c92f221d1c", PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertNotIn("9667379fcc3e0247ac632659850fbedf59b99229", PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertNotIn("aa0c5b08f0e8ce09343ffd146f3441e984ede8f7", PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertNotIn("1637ad0b50c17c5896784b95c9fb97a31defbf4c", PAPERCLIP_CLEANUP_ONLY_PINS)
         self.assertIn("15f93e91bd7a561e6b4c3460ccd619923e15165b", PAPERCLIP_CLEANUP_ONLY_PINS)
         self.assertNotIn("15f93e91bd7a561e6b4c3460ccd619923e15165b", PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn("2905d23263ceb188689cd68624332bfa2d56b600", PAPERCLIP_CLEANUP_ONLY_PINS)
@@ -232,6 +254,8 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertNotIn("d25b4b51f9f81298c49aea42957fb487f7a17ae5", PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn(PAPERCLIP_PATCH_PIN, PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn(PAPERCLIP_PIN, PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertNotIn("aa0c5b08f0e8ce09343ffd146f3441e984ede8f7", PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertNotIn("1637ad0b50c17c5896784b95c9fb97a31defbf4c", PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn("c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343", PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn("b00893db62c0e1719f731c94f20c9c70cecfac11", PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn("b89d1f5e82f7275e372087799f21566721814029", PAPERCLIP_STOP_CUSTODY_PINS)
