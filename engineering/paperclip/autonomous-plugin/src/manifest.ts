@@ -25,6 +25,34 @@ const manifest: PaperclipPluginManifestV1 = {
   entrypoints: { worker: "./dist/worker.js" },
   tools: [
     {
+      name: "list_accepted_source",
+      displayName: "List Accepted Source",
+      description: "List a bounded page of paths in the owner-pinned sanitized accepted-source projection.",
+      parametersSchema: { type: "object", properties: {
+        corpus_id: { type: "string" }, prefix: { type: "string", maxLength: 1024 },
+        cursor: { type: ["string", "null"], maxLength: 4096 }, limit: { type: "integer", minimum: 1, maximum: 50 },
+      }, required: ["corpus_id", "prefix", "cursor", "limit"], additionalProperties: false },
+    },
+    {
+      name: "search_accepted_source",
+      displayName: "Search Accepted Source",
+      description: "Search bounded literal text in the owner-pinned sanitized accepted-source projection.",
+      parametersSchema: { type: "object", properties: {
+        corpus_id: { type: "string" }, query: { type: "string", minLength: 1, maxLength: 512 },
+        prefix: { type: "string", maxLength: 1024 }, cursor: { type: ["string", "null"], maxLength: 4096 },
+        limit: { type: "integer", minimum: 1, maximum: 50 },
+      }, required: ["corpus_id", "query", "prefix", "cursor", "limit"], additionalProperties: false },
+    },
+    {
+      name: "read_accepted_source",
+      displayName: "Read Accepted Source",
+      description: "Read a bounded line excerpt from one file in the owner-pinned sanitized accepted-source projection.",
+      parametersSchema: { type: "object", properties: {
+        corpus_id: { type: "string" }, path: { type: "string", maxLength: 1024 },
+        start_line: { type: "integer", minimum: 1 }, line_count: { type: "integer", minimum: 1, maximum: 80 },
+      }, required: ["corpus_id", "path", "start_line", "line_count"], additionalProperties: false },
+    },
+    {
       name: "bind_source_stage",
       displayName: "Bind Finite Brain Source Stage",
       description: "Bind the owner-admitted native source and review tasks to one finite content stage.",

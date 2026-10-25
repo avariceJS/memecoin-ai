@@ -172,14 +172,14 @@ describe("Paperclip autonomous bridge tools", () => {
     }
   });
 
-  async function installConfig() {
+  async function installConfig(value: unknown = config) {
     const { mkdtemp, writeFile } = await import("node:fs/promises");
     const { join } = await import("node:path");
     const { tmpdir } = await import("node:os");
     const dir = await mkdtemp(join(tmpdir(), "pc-bridge-test-"));
     configDir = dir;
     configPath = join(dir, "owner.json");
-    await writeFile(configPath, JSON.stringify(config), { mode: 0o600 });
+    await writeFile(configPath, JSON.stringify(value), { mode: 0o600 });
   }
 
   it("declares the finite stage tools in the native plugin manifest", () => {
@@ -192,6 +192,61 @@ describe("Paperclip autonomous bridge tools", () => {
     const bindTool = manifest.tools.find((tool) => tool.name === "bind_source_stage");
     expect((bindTool?.parametersSchema as { properties?: Record<string, { maximum?: number }> })
       .properties?.attempt?.maximum).toBe(3);
+  });
+
+  it("routes accepted-source reads only from the active run under an admitted program", async () => {
+    const acceptedSourceConfig = {
+      ...config,
+      accepted_source_reader: {
+        projections: [{
+          corpus_id: "platform", repository: "/tmp/sanitized-projection", ref: "refs/heads/org/development",
+          allowed_roots: ["engineering/"], bootstrap_projection_sha: "a".repeat(40),
+          bootstrap_source_sha: "b".repeat(40), bootstrap_receipt_digest: "c".repeat(64),
+        }],
+        programs: [{
+          project_id: "project-1", program_issue_id: "mem89-issue", sol_agent_id: workerRun.agentId,
+          luna_agent_id: "luna-agent", qa_agent_ids: [], corpus_ids: ["platform"],
+        }],
+      },
+    };
+    await installConfig(acceptedSourceConfig);
+    const { ctx, handlers } = fixture(configPath);
+    const currentIssue = {
+      id: "mem89-child", companyId: workerRun.companyId, projectId: workerRun.projectId,
+      parentId: "mem89-issue", assigneeAgentId: workerRun.agentId, status: "in_progress",
+      executionRunId: workerRun.runId,
+    };
+    const programIssue = {
+      id: "mem89-issue", companyId: workerRun.companyId, projectId: workerRun.projectId,
+      parentId: null, assigneeAgentId: workerRun.agentId, status: "in_progress", executionRunId: null,
+    };
+    const issueApi = ctx.issues as unknown as Record<string, unknown>;
+    issueApi.list = vi.fn(async () => [currentIssue]);
+    issueApi.get = vi.fn(async (id: string) => id === programIssue.id ? programIssue : null);
+    issueApi.forCurrentToolRun = () => ({
+      get: vi.fn(async (id: string) => id === currentIssue.id ? currentIssue : null),
+      getOrchestration: vi.fn(async () => ({ issueId: currentIssue.id, companyId: workerRun.companyId, runs: [{
+        id: workerRun.runId, issueId: currentIssue.id, agentId: workerRun.agentId, status: "running",
+      }] })),
+    });
+    const invoke = vi.fn(async () => ({
+      status: "ok", program_issue_id: "mem89-issue", issue_id: currentIssue.id, corpus_id: "platform",
+      projection_sha: "d".repeat(40), canonical_sha: "e".repeat(40), acceptance_receipt_digest: "f".repeat(64),
+      manifest_digest: "1".repeat(64), result: { matches: [], truncated: false, next_cursor: null },
+    }));
+    registerAutonomousTools(ctx, invoke as never);
+    const result = await handlers.get("search_accepted_source")!({
+      corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
+    }, workerRun) as { content: string };
+    expect(JSON.parse(result.content).issue_id).toBe(currentIssue.id);
+    expect(invoke).toHaveBeenCalledWith("search_accepted_source", expect.objectContaining({
+      program_issue_id: "mem89-issue", issue_id: currentIssue.id, corpus_id: "platform", run_id: workerRun.runId,
+    }), configPath, "/usr/bin/python3");
+    currentIssue.executionRunId = "stale-run";
+    await expect(handlers.get("search_accepted_source")!({
+      corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
+    }, workerRun)).rejects.toThrow("accepted_source_reader_run_binding_unknown");
+    expect(invoke).toHaveBeenCalledTimes(1);
   });
 
   it("uses only host context and delivers bounded source contents", async () => {
