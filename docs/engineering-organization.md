@@ -31,18 +31,30 @@ receive the complete six-department mission and outcomes when selecting successo
 work running after the interactive CEO turn; ordinary report completion is not Founder STOP.
 Current activation and acceptance facts remain in `memory/now.md` and the private HANDOFF.
 
-The permitted-source reader was independently accepted at `4c448eba`, integrated and deployed as
-`5fe88d8`. It exposes bounded list/search/read over sanitized accepted Brain and Platform projections,
-with explicit source identity and truncation. The Brain projection contains all225 accepted `src/`
-files and a separately limited synthetic-test set. Trusted publisher ACKs bind snapshot advancement;
-read access does not widen stage write scope. Independent review corrected pagination, read/write
-project coupling and stage-specific acceptance-policy lookup before release. The separately reviewed
-read-only MEM-89 configuration enables only lead/worker/QA and native full result documents; broker
-drain remains set. The first native run preserved a known `tool_unavailable` result: schemas were
-registered but reader tools were absent from the role's actual inventory. An independently reviewed
-assignment-profile correction and supported fresh-session continuation enabled actual Sol search
-with bound Brain/Platform provenance. This assisted repair is explicit. Luna/QA reader outcomes and
-useful engineering acceptance are still pending.
+The permitted-source reader exposes bounded list/search/read over sanitized accepted Brain and
+Platform projections with explicit identity, pagination and truncation. Brain includes all225 accepted
+`src/` files and a separately limited synthetic-test set. Trusted publisher ACKs bind advancement;
+reading never expands write scope. Accepted controller66c12a8/native3eb3e6d now support owner-opt-in
+empty per-issue/run workspaces with typed Core ownership/seed provenance. Provider-supplied metadata
+cannot replace that provenance. This reuses native task/workspace lifecycle, not a second scheduler.
+
+MEM-89 completed a real bounded reader program: Sol discovery, Luna96 full report, independent QA97
+and natural parent completion. QA accepted the static/as-of trace, but treated signature-enumeration
+coverage as an investigation/specification proposal: existing bounded/history_complete flags did not
+establish a defect. No fake source change, verifier or publication was claimed. Eight terminal runs
+(seven reached providers), three roles' actual reader use, full documents/revisions and new QA first
+start/repeated parent isolation were independently recorded. Initial missing tool assignments, failed
+no-Git child startup, workspace configuration corrections and the sibling-orchestration reader denial
+remain disclosed assisted repairs. Existing histories and unknown accounting were not rewritten.
+Unique private outcome receipt: `resumption-20261025/sol-independent-native89-reader-program-completed-proof.json`
+(SHA25685ae631c1a22515ff2abb9d52e2dac14c000a9ed094ce619bc626f4d6f146da3).
+
+Sol created exactly one held strategic MEM-98 for paused Astra. It has not executed and is not proof
+of engineering completion-to-CEO continuation. Dynamic admission/no-change source is accepted, but
+program-only bootstrap/current-base/N+1 compatibility is still under independent review. A reviewed
+write envelope, scoped historical reconciliation, actual no-change merits, useful changed-source
+publication and strategic continuation remain operational gates. Broker drain and no-write grants
+remain in the reader phase; source tests or this reader outcome do not establish company readiness.
 
 ## Standing strategic mandate — founder directive 2026-10-24
 
