@@ -1126,6 +1126,79 @@ def _read_owner_record(path: Path, *, limit: int = 2_000_000) -> dict[str, Any]:
     return raw
 
 
+def _read_only_published_operation_config(
+    config: BridgeConfig, operation_key: str, bridge_record: dict[str, Any]
+) -> BridgeConfig:
+    """Resolve the fixed verifier/roots for a published operation without lifecycle APIs."""
+    stage_binding_key = bridge_record.get("source_stage_binding")
+    stage_key = bridge_record.get("source_stage_key")
+    if stage_binding_key is None:
+        if stage_key is not None:
+            raise BridgeError("accepted_source_reader_acceptance_unavailable")
+        return config
+    if type(stage_binding_key) is not str or not HASH_RE.fullmatch(stage_binding_key):
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    if type(stage_key) is not str:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    try:
+        stage = config.source_stage(stage_key)
+    except BridgeError as exc:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable") from exc
+    binding = bridge_record.get("binding")
+    base_sha = binding.get("base_sha") if type(binding) is dict else None
+    if type(base_sha) is not str or not SHA_RE.fullmatch(base_sha):
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+
+    records: list[tuple[int, dict[str, Any]]] = []
+    for attempt in range(1, _stage_attempt_limit(stage) + 1):
+        path = config.bridge_journal_dir / f"operation-{_stage_journal_key(stage.stage_key, attempt)}.json"
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise BridgeError("accepted_source_reader_acceptance_unavailable") from exc
+        record = _read_owner_record(path)
+        if record.get("stage_binding_key") == stage_binding_key:
+            records.append((attempt, record))
+    if len(records) != 1:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    attempt, record = records[0]
+    expected_schema = (
+        "paperclip-source-stage-binding-v1"
+        if attempt == 1
+        else f"paperclip-source-stage-binding-attempt-v{attempt}"
+    )
+    if (
+        record.get("schema") != expected_schema
+        or _record_attempt(record) != attempt
+        or record.get("stage_key") != stage.stage_key
+        or record.get("owner_config_digest") != config.owner_config_digest
+        or record.get("path_ids") != list(stage.path_ids)
+        or record.get("verifier_policy_id") != stage.verifier_policy_id
+        or record.get("workspace_id") != stage.workspace_id
+        or record.get("lead_issue_id") != (stage.lead_issue_id or config.finite_lead_issue_id)
+        or record.get("lead_agent_id") != (stage.lead_agent_id or config.finite_lead_agent_id)
+        or record.get("operation_key") != operation_key
+        or record.get("candidate_sha") != bridge_record.get("candidate", {}).get("candidate_sha")
+        or record.get("source_issue_id") != binding.get("issue_id")
+        or record.get("state") != "active"
+    ):
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    try:
+        source_repo = _stage_source_repo(config, stage, record)
+        return config.for_source_stage(
+            stage,
+            source_issue_id=record["source_issue_id"],
+            reviewer_issue_id=record["review_issue_id"],
+            base_sha=base_sha,
+            canonical_base_sha=record.get("canonical_base_sha"),
+            source_repo=source_repo,
+        )
+    except (BridgeError, KeyError, TypeError) as exc:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable") from exc
+
+
 def _validate_canonical_acceptance(
     config: BridgeConfig, operation_key: str, projected_sha: str, bridge_record: dict[str, Any]
 ) -> tuple[str, str]:
@@ -1222,6 +1295,12 @@ def _published_acceptance_binding(
         raise BridgeError("accepted_source_reader_acceptance_ambiguous")
     operation_key, bridge_record = matches[0]
     binding = bridge_record.get("binding")
+    operation_config = _read_only_published_operation_config(config, operation_key, bridge_record)
+    try:
+        expected_publisher = operation_config.publisher_repo.resolve(strict=True)
+        projection_repository = projection.repository.resolve(strict=True)
+    except OSError as exc:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable") from exc
     if (
         bridge_record.get("schema") != "paperclip-autonomous-operation-v1"
         or bridge_record.get("state") != "published"
@@ -1233,7 +1312,12 @@ def _published_acceptance_binding(
         or binding.get("worker_agent_id") != config.worker_agent_id
         or binding.get("reviewer_agent_id") != config.reviewer_agent_id
         or binding.get("owner_config_digest") != config.owner_config_digest
-        or binding.get("active_ref") != projection.ref
+        or binding.get("active_ref") != operation_config.expected_dev_ref
+        or projection.ref != operation_config.expected_dev_ref
+        or projection_repository != expected_publisher
+        or binding.get("owner_roots") != list(operation_config.owner_roots)
+        or binding.get("policy_digest") != operation_config.policy().digest
+        or binding.get("issue_id") != operation_config.source_issue_id
         or bridge_record.get("source_snapshot_sha256") is None
         or type(bridge_record.get("source_snapshot_sha256")) is not str
         or not HASH_RE.fullmatch(bridge_record["source_snapshot_sha256"])
@@ -1262,12 +1346,12 @@ def _published_acceptance_binding(
     ):
         raise BridgeError("accepted_source_reader_acceptance_unavailable")
     try:
-        gate_receipt = config.gate().load_receipt(broker_record.get("receipt_digest"), projected_sha)
+        gate_receipt = operation_config.gate().load_receipt(broker_record.get("receipt_digest"), projected_sha)
     except Exception as exc:
         raise BridgeError("accepted_source_reader_acceptance_unavailable") from exc
     if gate_receipt.get("result", {}).get("status") != "passed":
         raise BridgeError("accepted_source_reader_acceptance_unavailable")
-    return _validate_canonical_acceptance(config, operation_key, projected_sha, bridge_record)
+    return _validate_canonical_acceptance(operation_config, operation_key, projected_sha, bridge_record)
 
 
 def _resolve_accepted_source_snapshot(

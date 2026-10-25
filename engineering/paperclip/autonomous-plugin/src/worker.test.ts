@@ -197,6 +197,18 @@ describe("Paperclip autonomous bridge tools", () => {
   it("routes accepted-source reads only from the active run under an admitted program", async () => {
     const acceptedSourceConfig = {
       ...config,
+      project_id: "mem17-project",
+      finite_lead_agent_id: "mem17-lead",
+      finite_lead_issue_id: "mem17-lead-issue",
+      source_workspace_id: "mem17-workspace",
+      source_workspace_root: "/tmp/mem17-workspace",
+      source_stage_catalog: [{
+        stage_key: "MEM17", workspace_id: "source", initial_base_sha: "9".repeat(40),
+        predecessor_stage_key: null, project_id: "mem17-project", goal_id: "mem17-goal",
+        lead_agent_id: "mem17-lead", lead_issue_id: "mem17-lead-issue",
+        source_workspace_id: "mem17-workspace", source_workspace_root: "/tmp/mem17-workspace",
+        path_ids: ["src/example.py", "tests/test_example.py"], verifier_policy_id: "policy-mem17",
+      }],
       accepted_source_reader: {
         projections: [{
           corpus_id: "platform", repository: "/tmp/sanitized-projection", ref: "refs/heads/org/development",
@@ -204,20 +216,21 @@ describe("Paperclip autonomous bridge tools", () => {
           bootstrap_source_sha: "b".repeat(40), bootstrap_receipt_digest: "c".repeat(64),
         }],
         programs: [{
-          project_id: "project-1", program_issue_id: "mem89-issue", sol_agent_id: workerRun.agentId,
+          project_id: "mem89-project", program_issue_id: "mem89-issue", sol_agent_id: workerRun.agentId,
           luna_agent_id: "luna-agent", qa_agent_ids: [], corpus_ids: ["platform"],
         }],
       },
     };
     await installConfig(acceptedSourceConfig);
     const { ctx, handlers } = fixture(configPath);
+    const readerRun = { ...workerRun, projectId: "mem89-project" };
     const currentIssue = {
-      id: "mem89-child", companyId: workerRun.companyId, projectId: workerRun.projectId,
+      id: "mem89-child", companyId: workerRun.companyId, projectId: readerRun.projectId,
       parentId: "mem89-issue", assigneeAgentId: workerRun.agentId, status: "in_progress",
       executionRunId: workerRun.runId,
     };
     const programIssue = {
-      id: "mem89-issue", companyId: workerRun.companyId, projectId: workerRun.projectId,
+      id: "mem89-issue", companyId: workerRun.companyId, projectId: readerRun.projectId,
       parentId: null, assigneeAgentId: workerRun.agentId, status: "in_progress", executionRunId: null,
     };
     const issueApi = ctx.issues as unknown as Record<string, unknown>;
@@ -237,15 +250,23 @@ describe("Paperclip autonomous bridge tools", () => {
     registerAutonomousTools(ctx, invoke as never);
     const result = await handlers.get("search_accepted_source")!({
       corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
-    }, workerRun) as { content: string };
+    }, readerRun) as { content: string };
     expect(JSON.parse(result.content).issue_id).toBe(currentIssue.id);
     expect(invoke).toHaveBeenCalledWith("search_accepted_source", expect.objectContaining({
       program_issue_id: "mem89-issue", issue_id: currentIssue.id, corpus_id: "platform", run_id: workerRun.runId,
     }), configPath, "/usr/bin/python3");
+    await expect(handlers.get("search_accepted_source")!({
+      corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
+    }, { ...readerRun, agentId: "unauthorized-agent" })).rejects.toThrow("accepted_source_reader_program_not_admitted");
+    currentIssue.parentId = "other-program";
+    await expect(handlers.get("search_accepted_source")!({
+      corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
+    }, readerRun)).rejects.toThrow("accepted_source_reader_program_ancestry_mismatch");
+    currentIssue.parentId = "mem89-issue";
     currentIssue.executionRunId = "stale-run";
     await expect(handlers.get("search_accepted_source")!({
       corpus_id: "platform", query: "source", prefix: "engineering/", cursor: null, limit: 10,
-    }, workerRun)).rejects.toThrow("accepted_source_reader_run_binding_unknown");
+    }, readerRun)).rejects.toThrow("accepted_source_reader_run_binding_unknown");
     expect(invoke).toHaveBeenCalledTimes(1);
   });
 

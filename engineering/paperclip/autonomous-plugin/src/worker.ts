@@ -165,6 +165,7 @@ async function readOwnerConfig(
   companyId: string,
   projectId?: string,
   stageKey?: string,
+  purpose: "write" | "accepted_source_reader" = "write",
 ): Promise<OwnerConfig> {
   const pluginConfig = await ctx.config.get(companyId);
   const configPath = pluginConfig.ownerConfigPath;
@@ -250,7 +251,9 @@ async function readOwnerConfig(
           && ["refs/heads/brain/development", "refs/heads/org/development"].includes(stage.canonical_ref as string)
           && typeof stage.canonical_expected_tip === "string" && SHA_RE.test(stage.canonical_expected_tip)));
     });
-    const laneIdentityValid = !hasLaneIdentities || (!!projectId && projectStages.length > 0 && (() => {
+    const readerProjectAdmitted = purpose === "accepted_source_reader" && !!projectId
+      && acceptedSourceReader?.programs.some((program) => program.project_id === projectId);
+    const laneIdentityValid = !hasLaneIdentities || (!!projectId && (projectStages.length > 0 || readerProjectAdmitted) && (() => {
       const laneConfigs = new Map<string, string>();
       for (const stage of rawStages) {
         const lane = JSON.stringify([
@@ -273,7 +276,9 @@ async function readOwnerConfig(
         if (prior !== undefined && prior !== config) return false;
         laneConfigs.set(lane, config);
       }
-      return selectedStages.every((stage) => stage.project_id === projectId);
+      return projectStages.length === 0
+        ? readerProjectAdmitted === true
+        : selectedStages.every((stage) => stage.project_id === projectId);
     })());
     const workspaceValid = !finite || (typeof laneWorkspaceId === "string" && ID_RE.test(laneWorkspaceId)
       && typeof laneWorkspaceRoot === "string" && isAbsolute(laneWorkspaceRoot)
@@ -1308,7 +1313,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
           || !Number.isSafeInteger(params.line_count) || (params.line_count as number) < 1 || (params.line_count as number) > 80)) {
         fail("accepted_source_reader_parameters_invalid");
       }
-      const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId);
+      const owner = await readOwnerConfig(ctx, runCtx.companyId, runCtx.projectId, undefined, "accepted_source_reader");
       const reader = owner.accepted_source_reader;
       if (!reader) fail("accepted_source_reader_not_owner_configured");
       const matchingPrograms = reader.programs.filter((program) => program.project_id === runCtx.projectId
