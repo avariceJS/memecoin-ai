@@ -3767,6 +3767,7 @@ class BridgeConfig:
                     "canonical_repo": str(mission.canonical_repo), "canonical_ref": mission.canonical_ref,
                     "expected_dev_ref": mission.expected_dev_ref, "source_workspace_id": mission.source_workspace_id,
                     "source_workspace_root": str(mission.source_workspace_root),
+                    "repository_free_policy_digest": mission.repository_free_policy_digest,
                 }
                 for mission in self.program_admission.missions
             ],
