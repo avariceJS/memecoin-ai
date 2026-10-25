@@ -1,0 +1,14 @@
+{
+  "schema": "paperclip-managed-source-custody-v1",
+  "bundle": "8aa17aa0600aa952ff50af9373a05a01bd6125a8.bundle",
+  "bundle_sha256": "626131255423ca510266d4606772e188deb51a9ee6ae7423d7d3131ceec12358",
+  "bundle_bytes": 167285,
+  "head": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "upstream_prerequisite": "043f2514e67c50320433a0013fb228a75a51325c",
+  "managed_commits": 28,
+  "tree": "6013efebe4fbc115af696702d3ac5ac6a80a61f9",
+  "source_custody_acceptance_sha256": "0aecbdf87b27afea426217af574364b174bad60c95d988e61fd1e7f56300fae9",
+  "scope": "Incremental tracked managed source objects only; full upstream history, Git config/hooks, untracked files, runtime/database and private receipts are not bundled.",
+  "restore_requirements": "A Git repository already containing the exact upstream prerequisite and its reachable objects; verify bundle before fetching HEAD and verify exact resulting head/tree. Offline restore was checked with strict fsck.",
+  "limits": "Source custody only, not a stable release, runtime restore or operational qualification. Preserved rejected intermediate commits do not acquire launch authority; only the separately qualified launcher pin may launch."
+}
