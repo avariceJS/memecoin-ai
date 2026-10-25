@@ -1,4 +1,24 @@
-# Current state — 2026-10-24 19:55 UTC, Founder STOP / hibernation
+# Current state — 2026-10-25, explicit founder resumption / reconciliation
+
+The founder explicitly ordered execution of `prompt/prompt.md`, authorizing engineering resumption
+following the 2026-10-24 STOP. Fresh entry: org HEAD `8882960`, only owner prompt untracked;
+native Goal null. Sol-6.1 High verified custody and started only the accepted service (PID39647).
+Supported API readback: all six companies and 15 employees remain paused, zero live/queued runs;
+MEM-89 and MEM-90..95 retain their backlog identities. Sole Luna is preparing the reader source
+candidate under Sol. Employee activation and operational readiness are not claimed.
+
+Start with existing MEM-89, then minimum new-task admission, generic no-change and full-result
+routing gaps. After independent native engineering proof, continue useful Brain development under
+MEM-90..95 without another founder product assignment. Luna-6 High remains sole source implementer;
+Paperclip owns lifecycle; independent QA and GitGate remain mandatory. No new Goal/scheduler.
+
+Private authority receipt: `state/resumption-20261025/founder-resumption-authority.json` in the
+Paperclip lab. Private HANDOFF owns operational custody. Market collection, training, AUTO, trading,
+production, main, protected data and paid fallback remain forbidden. Unknown history is preserved.
+
+## Previous stopped checkpoint — retained evidence
+
+### 2026-10-24 19:55 UTC, Founder STOP / hibernation
 
 Immediate founder STOP reaffirmed 2026-10-24 20:02:41 UTC (reported quota1%). No further model calls,
 reviews, assignments or development. Remaining reviewer session interrupted; Sol completed.
@@ -27,7 +47,7 @@ weekly quota reset/reboot/reconnect do not. Read private HANDOFF before any acti
   Platform95.95 is the standing program;89 is its specific next stage, not a duplicate to recreate.
   Strategy/authority: docs/brain-development.md, docs/engineering-organization.md, SOL-MANDATE.
 
-## STOP and custody
+## Historical STOP custody — 2026-10-24
 
 All6 companies/15 agents paused; supported live lists0.127 native tasks/documents/history retained.
 Broker drain set. Server86350 and all22 captured owned processes stopped by birth identity; ports

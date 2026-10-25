@@ -11,6 +11,26 @@ runtimes. Technical documentation is English; the [Founder Desk](../engineering/
 Russian. Brain architecture and scientific validity remain owned by `brain-development.md`,
 `brain-source-architecture.md`, `training-evaluation.md`, and `contracts.md`.
 
+## Explicit founder resumption — 2026-10-25
+
+The founder explicitly authorized execution of the current `prompt/prompt.md` after the October 24
+STOP. This resumes engineering preparation and, after independent acceptance of the missing native
+boundaries, ongoing useful Brain development. It does not grant market acquisition, training, AUTO,
+trading, protected-data access, production/main changes or paid API/fallback authority.
+
+Reuse MEM-89 and MEM-90..95. First qualify permitted accepted-source discovery, program-bounded new
+engineering task admission and generic unchanged/full-result handling. Use existing Paperclip
+lifecycle and documents. Sol chooses concrete tasks and corrections; Luna owns implementation and a
+separate Sol reviewer accepts exact results. Native useful engineering and a successor program must
+be observed before claiming the requested autonomy. Prior accepted cycles need not be repeated.
+
+The first subsequent Brain priority is Senses observation/coverage integrity (MEM-90), then
+Experience lineage (MEM-91), with Evaluation measurement contracts (MEM-92) wherever dependencies
+permit. These are existing standing programs, not new duplicate assignments. The episodic CEO must
+receive the complete six-department mission and outcomes when selecting successors. Keep authorized
+work running after the interactive CEO turn; ordinary report completion is not Founder STOP.
+Current activation and acceptance facts remain in `memory/now.md` and the private HANDOFF.
+
 ## Standing strategic mandate — founder directive 2026-10-24
 
 This directive supersedes older policy requiring a fresh founder product assignment or forbidding
@@ -48,7 +68,7 @@ current work. Escalate to the founder only for additional resources or permissio
 resolve ordinary engineering choices internally. Never infer permission for market acquisition,
 training, protected data, real trading, paid APIs, production or main from product ambition.
 
-### Next department orders, conditional on explicit restart
+### Standing department orders; restart authorized, technical admission still required
 
 These are strategic assignments, not a claim that new source tasks have already been admitted.
 Sol first maps each deliverable to current accepted source and evidence; an already satisfied objective
