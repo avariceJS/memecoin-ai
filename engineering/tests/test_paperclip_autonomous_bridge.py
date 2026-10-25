@@ -1187,6 +1187,23 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         self.assertNotEqual(lane_binding.owner_config_digest, roots_binding.owner_config_digest)
         self.assertNotEqual(lane_binding.owner_config_digest, alias_binding.owner_config_digest)
 
+    def test_reader_v2_legacy_write_and_read_digests_remain_stable(self):
+        # The owner config stays private; this local compatibility check asserts only its digests.
+        legacy_path = Path(
+            "/Users/root1/Developer/brain-paperclip-lab/state/resumption-20261025/reader-release/owner-config-reader-v2.json"
+        )
+        if not legacy_path.is_file():
+            self.skipTest("private reader-v2 compatibility fixture is unavailable")
+        legacy = BridgeConfig.load(legacy_path)
+        self.assertEqual(
+            legacy.owner_config_digest,
+            "761441474ec19a013666c1cc70cad78f876797c0d3e4e99911ee73481870bda2",
+        )
+        self.assertEqual(
+            legacy.accepted_source_read_policy_digest,
+            "fe569791a81382c664f62c96b7744b62b3d9cdfbc45d6ae58e6fba9275132327",
+        )
+
     def test_prepared_journal_cannot_replay_under_different_lane(self):
         with patch.object(
             BridgeConfig,
