@@ -59,6 +59,13 @@ from engineering.paperclip_source_delivery import (  # noqa: E402
     snapshot_records,
     validate_path_ids,
 )
+from engineering.paperclip_accepted_source_reader import (  # noqa: E402
+    AcceptedSourceReadError,
+    build_snapshot as build_accepted_source_snapshot,
+    list_files as list_accepted_source_files,
+    read_lines as read_accepted_source_lines,
+    search_text as search_accepted_source_text,
+)
 
 MAX_CONFIG_BYTES = 128_000
 MAX_REQUEST_BYTES = 1_700_000
@@ -97,6 +104,38 @@ class SourceStageSpec:
     canonical_ref: str | None = None
     canonical_expected_tip: str | None = None
     expected_dev_ref: str | None = None
+
+
+@dataclass(frozen=True)
+class AcceptedSourceProjectionSpec:
+    corpus_id: str
+    repository: Path
+    ref: str
+    allowed_roots: tuple[str, ...]
+    bootstrap_projection_sha: str
+    bootstrap_source_sha: str
+    bootstrap_receipt_digest: str
+
+
+@dataclass(frozen=True)
+class AcceptedSourceProgramSpec:
+    project_id: str
+    program_issue_id: str
+    sol_agent_id: str
+    luna_agent_id: str
+    qa_agent_ids: tuple[str, ...]
+    corpus_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class AcceptedSourceReaderSpec:
+    projections: tuple[AcceptedSourceProjectionSpec, ...]
+    programs: tuple[AcceptedSourceProgramSpec, ...]
+    max_file_bytes: int = 2_000_000
+    max_page_size: int = 50
+    max_read_lines: int = 80
+    max_result_bytes: int = 48_000
+    max_search_scan_bytes: int = 8_000_000
 
 
 @dataclass(frozen=True)
@@ -917,6 +956,355 @@ def _accepted_base_delivery(
     if len(_canonical(delivery)) > _ACCEPTED_BASE_DELIVERY_MAX_BYTES:
         raise BridgeError("source_stage_accepted_base_context_serialized_too_large")
     return delivery
+
+
+def _parse_accepted_source_reader(raw: Any) -> AcceptedSourceReaderSpec | None:
+    if raw is None:
+        return None
+    if type(raw) is not dict or set(raw) != {"projections", "programs"}:
+        raise BridgeError("owner_config_accepted_source_reader_invalid")
+    raw_projections = raw.get("projections")
+    raw_programs = raw.get("programs")
+    if (
+        type(raw_projections) is not list
+        or not raw_projections
+        or len(raw_projections) > 8
+        or type(raw_programs) is not list
+        or not raw_programs
+        or len(raw_programs) > 16
+    ):
+        raise BridgeError("owner_config_accepted_source_reader_invalid")
+    projections: list[AcceptedSourceProjectionSpec] = []
+    for row in raw_projections:
+        if type(row) is not dict or set(row) != {
+            "corpus_id",
+            "repository",
+            "ref",
+            "allowed_roots",
+            "bootstrap_projection_sha",
+            "bootstrap_source_sha",
+            "bootstrap_receipt_digest",
+        }:
+            raise BridgeError("owner_config_accepted_source_projection_invalid")
+        corpus_id = row.get("corpus_id")
+        repository = row.get("repository")
+        ref = row.get("ref")
+        roots = row.get("allowed_roots")
+        projection_sha = row.get("bootstrap_projection_sha")
+        source_sha = row.get("bootstrap_source_sha")
+        receipt_digest = row.get("bootstrap_receipt_digest")
+        if (
+            type(corpus_id) is not str
+            or not ID_RE.fullmatch(corpus_id)
+            or type(repository) is not str
+            or not Path(repository).is_absolute()
+            or Path(repository) == Path("/")
+            or ".." in Path(repository).parts
+            or type(ref) is not str
+            or ref not in {
+                "refs/heads/brain/development",
+                "refs/heads/org/development",
+            }
+            or type(roots) is not list
+            or not roots
+            or len(roots) > 16
+            or any(
+                type(root) is not str
+                or not root
+                or "\0" in root
+                or "\\" in root
+                or root.startswith("/")
+                or any(part in {"", ".", ".."} for part in root.rstrip("/").split("/"))
+                or (not root.endswith("/") and "/" in root)
+                for root in roots
+            )
+            or len(set(roots)) != len(roots)
+            or type(projection_sha) is not str
+            or not SHA_RE.fullmatch(projection_sha)
+            or type(source_sha) is not str
+            or not SHA_RE.fullmatch(source_sha)
+            or type(receipt_digest) is not str
+            or not HASH_RE.fullmatch(receipt_digest)
+        ):
+            raise BridgeError("owner_config_accepted_source_projection_invalid")
+        projections.append(
+            AcceptedSourceProjectionSpec(
+                corpus_id,
+                Path(repository),
+                ref,
+                tuple(roots),
+                projection_sha,
+                source_sha,
+                receipt_digest,
+            )
+        )
+    if len({item.corpus_id for item in projections}) != len(projections):
+        raise BridgeError("owner_config_accepted_source_projection_invalid")
+    corpus_ids = {item.corpus_id for item in projections}
+    programs: list[AcceptedSourceProgramSpec] = []
+    for row in raw_programs:
+        if type(row) is not dict or set(row) != {
+            "project_id",
+            "program_issue_id",
+            "sol_agent_id",
+            "luna_agent_id",
+            "qa_agent_ids",
+            "corpus_ids",
+        }:
+            raise BridgeError("owner_config_accepted_source_program_invalid")
+        identities = tuple(row.get(key) for key in (
+            "project_id", "program_issue_id", "sol_agent_id", "luna_agent_id"
+        ))
+        qa_ids = row.get("qa_agent_ids")
+        allowed_projections = row.get("corpus_ids")
+        if (
+            any(type(value) is not str or not ID_RE.fullmatch(value) for value in identities)
+            or identities[2] == identities[3]
+            or type(qa_ids) is not list
+            or len(qa_ids) > 8
+            or any(type(value) is not str or not ID_RE.fullmatch(value) for value in qa_ids)
+            or len(set(qa_ids)) != len(qa_ids)
+            or identities[2] in qa_ids
+            or identities[3] in qa_ids
+            or type(allowed_projections) is not list
+            or not allowed_projections
+            or len(allowed_projections) > 8
+            or any(type(value) is not str or value not in corpus_ids for value in allowed_projections)
+            or len(set(allowed_projections)) != len(allowed_projections)
+        ):
+            raise BridgeError("owner_config_accepted_source_program_invalid")
+        programs.append(
+            AcceptedSourceProgramSpec(
+                identities[0], identities[1], identities[2], identities[3],
+                tuple(qa_ids), tuple(allowed_projections),
+            )
+        )
+    if len({(item.project_id, item.program_issue_id) for item in programs}) != len(programs):
+        raise BridgeError("owner_config_accepted_source_program_invalid")
+    return AcceptedSourceReaderSpec(tuple(projections), tuple(programs))
+
+
+def _accepted_source_program(
+    config: BridgeConfig, payload: dict[str, Any]
+) -> tuple[AcceptedSourceProgramSpec, AcceptedSourceProjectionSpec]:
+    reader = config.accepted_source_reader
+    if reader is None:
+        raise BridgeError("accepted_source_reader_not_owner_configured")
+    program_id = payload.get("program_issue_id")
+    project_id = payload.get("project_id")
+    agent_id = payload.get("agent_id")
+    corpus_id = payload.get("corpus_id")
+    if any(
+        type(value) is not str or not ID_RE.fullmatch(value)
+        for value in (program_id, project_id, agent_id, corpus_id)
+    ):
+        raise BridgeError("accepted_source_reader_binding_invalid")
+    matches = [
+        item
+        for item in reader.programs
+        if item.program_issue_id == program_id and item.project_id == project_id
+    ]
+    if len(matches) != 1:
+        raise BridgeError("accepted_source_reader_program_not_admitted")
+    program = matches[0]
+    if agent_id not in {program.sol_agent_id, program.luna_agent_id, *program.qa_agent_ids}:
+        raise BridgeError("accepted_source_reader_actor_not_admitted")
+    if corpus_id not in program.corpus_ids:
+        raise BridgeError("accepted_source_reader_projection_not_admitted")
+    projection_matches = [item for item in reader.projections if item.corpus_id == corpus_id]
+    if len(projection_matches) != 1:
+        raise BridgeError("accepted_source_reader_projection_not_admitted")
+    return program, projection_matches[0]
+
+
+def _read_owner_record(path: Path, *, limit: int = 2_000_000) -> dict[str, Any]:
+    """Read one private immutable owner receipt without following links."""
+    try:
+        raw = _read_json(path, limit)
+    except BridgeError as exc:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable") from exc
+    return raw
+
+
+def _validate_canonical_acceptance(
+    config: BridgeConfig, operation_key: str, projected_sha: str, bridge_record: dict[str, Any]
+) -> tuple[str, str]:
+    canonical = bridge_record.get("canonical")
+    if type(canonical) is not dict:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    receipt = canonical.get("receipt")
+    acknowledgement = canonical.get("ack")
+    candidate_sha = canonical.get("candidate")
+    receipt_digest = canonical.get("receipt_digest")
+    if (
+        canonical.get("status") != "published"
+        or type(candidate_sha) is not str
+        or not SHA_RE.fullmatch(candidate_sha)
+        or type(receipt_digest) is not str
+        or not HASH_RE.fullmatch(receipt_digest)
+        or canonical.get("approved_candidate") != candidate_sha
+        or canonical.get("approved_receipt_digest") != receipt_digest
+        or type(receipt) is not dict
+        or type(acknowledgement) is not dict
+        or acknowledgement.get("status") != "reconciled"
+        or acknowledgement.get("candidate") != candidate_sha
+        or acknowledgement.get("receipt_digest") != receipt_digest
+        or acknowledgement.get("ref") not in {
+            "refs/heads/brain/development",
+            "refs/heads/org/development",
+        }
+        or receipt.get("schema") != "paperclip-canonical-content-v1"
+        or receipt.get("candidate") != candidate_sha
+        or receipt.get("receipt_digest") != receipt_digest
+        or receipt.get("ref") != acknowledgement.get("ref")
+        or set(receipt) != {
+            "schema", "repo", "ref", "expected_tip", "tree", "candidate", "files", "receipt_digest"
+        }
+        or type(receipt.get("repo")) is not str
+        or (config.canonical_repo is not None and receipt["repo"] != str(config.canonical_repo))
+        or (config.canonical_ref is not None and receipt["ref"] != config.canonical_ref)
+        or type(receipt.get("files")) is not list
+        or not receipt["files"]
+        or any(
+            type(row) is not dict
+            or set(row) != {"path", "mode", "old", "new", "sha256"}
+            or row.get("mode") != "100644"
+            or type(row.get("path")) is not str
+            or type(row.get("sha256")) is not str
+            or not HASH_RE.fullmatch(row["sha256"])
+            or type(row.get("old")) is not str
+            or not SHA_RE.fullmatch(row["old"])
+            or type(row.get("new")) is not str
+            or not SHA_RE.fullmatch(row["new"])
+            for row in receipt["files"]
+        )
+    ):
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    unsigned_receipt = {key: value for key, value in receipt.items() if key != "receipt_digest"}
+    if hashlib.sha256(_canonical(unsigned_receipt)).hexdigest() != receipt_digest:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    if bridge_record.get("operation_key") != operation_key:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    return candidate_sha, receipt_digest
+
+
+def _published_acceptance_binding(
+    config: BridgeConfig, projection: AcceptedSourceProjectionSpec, projected_sha: str
+) -> tuple[str, str] | None:
+    """Find the unique paired bridge/GitGate ACK for the live sanitized publisher tip."""
+    directory = config.bridge_journal_dir
+    if directory.is_symlink() or not directory.is_dir():
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    directory_info = directory.stat()
+    if directory_info.st_uid != os.getuid() or directory_info.st_mode & 0o077:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    try:
+        entries = sorted(directory.iterdir(), key=lambda item: item.name)
+    except OSError as exc:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable") from exc
+    operation_entries = [
+        item for item in entries if item.name.startswith("operation-") and item.name.endswith(".json")
+    ]
+    if len(operation_entries) > 8192:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    matches: list[tuple[str, dict[str, Any]]] = []
+    for path in operation_entries:
+        operation_key = path.name[len("operation-") : -len(".json")]
+        if not OPERATION_RE.fullmatch(operation_key) or path.is_symlink():
+            raise BridgeError("accepted_source_reader_acceptance_unavailable")
+        bridge_record = _read_owner_record(path)
+        candidate = bridge_record.get("candidate")
+        if type(candidate) is dict and candidate.get("candidate_sha") == projected_sha:
+            matches.append((operation_key, bridge_record))
+    if not matches:
+        return None
+    if len(matches) != 1:
+        raise BridgeError("accepted_source_reader_acceptance_ambiguous")
+    operation_key, bridge_record = matches[0]
+    binding = bridge_record.get("binding")
+    if (
+        bridge_record.get("schema") != "paperclip-autonomous-operation-v1"
+        or bridge_record.get("state") != "published"
+        or type(binding) is not dict
+        or hashlib.sha256(
+            _canonical([binding.get("company_id"), binding.get("issue_id"), binding.get("run_id")])
+        ).hexdigest() != operation_key
+        or binding.get("company_id") != config.company_id
+        or binding.get("worker_agent_id") != config.worker_agent_id
+        or binding.get("reviewer_agent_id") != config.reviewer_agent_id
+        or binding.get("owner_config_digest") != config.owner_config_digest
+        or binding.get("active_ref") != projection.ref
+        or bridge_record.get("source_snapshot_sha256") is None
+        or type(bridge_record.get("source_snapshot_sha256")) is not str
+        or not HASH_RE.fullmatch(bridge_record["source_snapshot_sha256"])
+    ):
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    broker_path = config.broker_journal_dir / f"{operation_key}.json"
+    broker_record = _read_owner_record(broker_path)
+    broker_binding = broker_record.get("binding")
+    broker_candidate = broker_record.get("candidate")
+    approval = broker_record.get("approval")
+    if (
+        broker_record.get("schema") != "paperclip-git-operation-v1"
+        or broker_record.get("operation_key") != operation_key
+        or broker_record.get("state") != "published"
+        or broker_record.get("publish_ack") not in {"confirmed", "reconciled_exact_tip"}
+        or broker_binding != binding
+        or type(broker_candidate) is not dict
+        or broker_candidate.get("sha") != projected_sha
+        or type(approval) is not dict
+        or approval.get("approved") is not True
+        or approval.get("company_id") != config.company_id
+        or approval.get("run_id") != binding.get("run_id")
+        or approval.get("candidate_sha") != projected_sha
+        or approval.get("reviewer_agent_id") != binding.get("reviewer_agent_id")
+        or approval.get("policy_digest") != binding.get("policy_digest")
+    ):
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    try:
+        gate_receipt = config.gate().load_receipt(broker_record.get("receipt_digest"), projected_sha)
+    except Exception as exc:
+        raise BridgeError("accepted_source_reader_acceptance_unavailable") from exc
+    if gate_receipt.get("result", {}).get("status") != "passed":
+        raise BridgeError("accepted_source_reader_acceptance_unavailable")
+    return _validate_canonical_acceptance(config, operation_key, projected_sha, bridge_record)
+
+
+def _resolve_accepted_source_snapshot(
+    config: BridgeConfig, projection: AcceptedSourceProjectionSpec
+):
+    if projection.repository.is_symlink():
+        raise BridgeError("accepted_source_reader_projection_unavailable")
+    try:
+        repository = projection.repository.resolve(strict=True)
+        if not repository.is_dir():
+            raise BridgeError("accepted_source_reader_projection_unavailable")
+        if config.canonical_repo is not None:
+            canonical = config.canonical_repo
+            if repository == canonical or repository in canonical.parents or canonical in repository.parents:
+                raise BridgeError("accepted_source_reader_projection_invalid")
+        gate = config.gate()
+        projected_sha = gate._ref_sha(repository, projection.ref)
+    except (OSError, GitGateError) as exc:
+        raise BridgeError("accepted_source_reader_projection_unavailable") from exc
+    if type(projected_sha) is not str or not SHA_RE.fullmatch(projected_sha):
+        raise BridgeError("accepted_source_reader_projection_unavailable")
+    provenance = _published_acceptance_binding(config, projection, projected_sha)
+    if provenance is None:
+        if projected_sha != projection.bootstrap_projection_sha:
+            raise BridgeError("accepted_source_reader_acceptance_unavailable")
+        provenance = (projection.bootstrap_source_sha, projection.bootstrap_receipt_digest)
+    try:
+        snapshot = build_accepted_source_snapshot(
+            str(repository),
+            projected_sha,
+            provenance[0],
+            provenance[1],
+            projection.allowed_roots,
+        )
+    except AcceptedSourceReadError as exc:
+        raise BridgeError(str(exc)) from exc
+    return repository, snapshot
 
 
 def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
@@ -2204,6 +2592,7 @@ class BridgeConfig:
     canonical_base_sha: str | None = None
     source_workspace_id: str | None = None
     source_workspace_root: Path | None = None
+    accepted_source_reader: AcceptedSourceReaderSpec | None = None
     _owner_config_digest: str | None = None
     source_stage_key: str | None = None
 
@@ -2246,6 +2635,7 @@ class BridgeConfig:
             "canonical_expected_tip",
             "source_workspace_id",
             "source_workspace_root",
+            "accepted_source_reader",
         }
         if set(raw) - allowed_keys:
             raise BridgeError("owner_config_unknown_fields")
@@ -2672,6 +3062,7 @@ class BridgeConfig:
             raw["verifier_policy_id"]
         ):
             raise BridgeError("owner_config_policy_id_invalid")
+        reader_spec = _parse_accepted_source_reader(raw.get("accepted_source_reader"))
         config = cls(
             **{key: raw[key] for key in ids},
             source_issue_id=source_issue,
@@ -2696,6 +3087,7 @@ class BridgeConfig:
             canonical_expected_tip=raw.get("canonical_expected_tip"),
             source_workspace_id=source_workspace_id,
             source_workspace_root=source_workspace_root,
+            accepted_source_reader=reader_spec,
         )
         return replace(config, _owner_config_digest=config._compute_owner_config_digest())
 
@@ -2772,6 +3164,38 @@ class BridgeConfig:
     @property
     def owner_config_digest(self) -> str:
         return self._owner_config_digest or self._compute_owner_config_digest()
+
+    @property
+    def accepted_source_read_policy_digest(self) -> str:
+        if self.accepted_source_reader is None:
+            raise BridgeError("accepted_source_reader_not_owner_configured")
+        value = {
+            "owner_config_digest": self.owner_config_digest,
+            "projections": [
+                {
+                    "corpus_id": item.corpus_id,
+                    "repository": str(item.repository),
+                    "ref": item.ref,
+                    "allowed_roots": item.allowed_roots,
+                    "bootstrap_projection_sha": item.bootstrap_projection_sha,
+                    "bootstrap_source_sha": item.bootstrap_source_sha,
+                    "bootstrap_receipt_digest": item.bootstrap_receipt_digest,
+                }
+                for item in self.accepted_source_reader.projections
+            ],
+            "programs": [
+                {
+                    "project_id": item.project_id,
+                    "program_issue_id": item.program_issue_id,
+                    "sol_agent_id": item.sol_agent_id,
+                    "luna_agent_id": item.luna_agent_id,
+                    "qa_agent_ids": item.qa_agent_ids,
+                    "corpus_ids": item.corpus_ids,
+                }
+                for item in self.accepted_source_reader.programs
+            ],
+        }
+        return hashlib.sha256(_canonical(value)).hexdigest()
 
     def _compute_owner_config_digest(self) -> str:
         value = {
@@ -3997,6 +4421,81 @@ def _integrate_candidate_locked(
     }
 
 
+_READ_ACTOR_FIELDS = {
+    "company_id",
+    "project_id",
+    "program_issue_id",
+    "issue_id",
+    "agent_id",
+    "run_id",
+    "corpus_id",
+}
+
+
+def read_accepted_source(
+    config: BridgeConfig, action: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    """Serve a bounded read from the current owner-approved sanitized projection tip."""
+    action_fields = {
+        "list_accepted_source": {"prefix", "cursor", "limit"},
+        "search_accepted_source": {"query", "prefix", "cursor", "limit"},
+        "read_accepted_source": {"path", "start_line", "line_count"},
+    }
+    if action not in action_fields or set(payload) != _READ_ACTOR_FIELDS | action_fields[action]:
+        raise BridgeError("accepted_source_reader_request_shape_invalid")
+    company_id = payload.get("company_id")
+    run_id = payload.get("run_id")
+    issue_id = payload.get("issue_id")
+    if (
+        company_id != config.company_id
+        or any(type(value) is not str or not ID_RE.fullmatch(value) for value in (run_id, issue_id))
+    ):
+        raise BridgeError("accepted_source_reader_binding_invalid")
+    program, projection = _accepted_source_program(config, payload)
+    repository, snapshot = _resolve_accepted_source_snapshot(config, projection)
+    try:
+        if action == "list_accepted_source":
+            result = list_accepted_source_files(
+                str(repository),
+                snapshot,
+                config.accepted_source_read_policy_digest,
+                prefix=payload["prefix"],
+                cursor=payload["cursor"],
+                limit=payload["limit"],
+            )
+        elif action == "search_accepted_source":
+            result = search_accepted_source_text(
+                str(repository),
+                snapshot,
+                config.accepted_source_read_policy_digest,
+                payload["query"],
+                prefix=payload["prefix"],
+                cursor=payload["cursor"],
+                limit=payload["limit"],
+            )
+        else:
+            result = read_accepted_source_lines(
+                str(repository),
+                snapshot,
+                payload["path"],
+                start_line=payload["start_line"],
+                line_count=payload["line_count"],
+            )
+    except AcceptedSourceReadError as exc:
+        raise BridgeError(str(exc)) from exc
+    return {
+        "status": "ok",
+        "program_issue_id": program.program_issue_id,
+        "issue_id": issue_id,
+        "corpus_id": projection.corpus_id,
+        "projection_sha": snapshot.projection_sha,
+        "canonical_sha": snapshot.canonical_sha,
+        "acceptance_receipt_digest": snapshot.acceptance_receipt_digest,
+        "manifest_digest": snapshot.manifest_digest,
+        "result": result,
+    }
+
+
 def dispatch(config: BridgeConfig, request: dict[str, Any]) -> dict[str, Any]:
     action = request.get("action")
     payload = request.get("payload")
@@ -4018,6 +4517,8 @@ def dispatch(config: BridgeConfig, request: dict[str, Any]) -> dict[str, Any]:
         return inspect_bound_source_stage(config, payload)
     if action == "approve_bound_source_stage":
         return approve_bound_source_stage(config, payload)
+    if action in {"list_accepted_source", "search_accepted_source", "read_accepted_source"}:
+        return read_accepted_source(config, action, payload)
     if action in {"approve_candidate", "inspect_candidate"} and "stage_binding_key" in payload:
         operation_key = payload.get("operation_key")
         if type(operation_key) is not str or not OPERATION_RE.fullmatch(operation_key):

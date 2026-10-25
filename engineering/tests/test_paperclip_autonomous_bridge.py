@@ -11,6 +11,9 @@ from unittest.mock import patch
 
 from engineering.git_gate import Candidate, GitGate, GitGateError
 from engineering.paperclip_autonomous_bridge import (
+    AcceptedSourceProgramSpec,
+    AcceptedSourceProjectionSpec,
+    AcceptedSourceReaderSpec,
     BridgeConfig,
     BridgeError,
     SourceStageSpec,
@@ -169,6 +172,150 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         payload["worker_checkout"] = "/tmp/attacker"
         with self.assertRaisesRegex(BridgeError, "submit_payload_shape_invalid"):
             dispatch(self.config, {"action": "submit_candidate", "payload": payload})
+
+    def test_accepted_source_reader_uses_reviewed_bootstrap_projection_and_binds_actor(self):
+        root = Path(self.tmp.name)
+        projection_repo = root / "accepted-projection"
+        projection_repo.mkdir()
+        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "brain/development", str(projection_repo)], check=True)
+        source_file = projection_repo / "engineering" / "example.py"
+        source_file.parent.mkdir()
+        source_file.write_text("def existing_answer():\n    return 42\n", encoding="utf-8")
+        git_args = ["/usr/bin/git", "-C", str(projection_repo)]
+        subprocess.run([*git_args, "add", "-A"], check=True)
+        subprocess.run([*git_args, "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "accepted projection"], check=True, capture_output=True)
+        projection_sha = subprocess.run([*git_args, "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        (self.config.bridge_journal_dir).mkdir(mode=0o700, exist_ok=True)
+        projection = AcceptedSourceProjectionSpec(
+            "platform", projection_repo, "refs/heads/brain/development", ("engineering/",),
+            projection_sha, "d" * 40, "e" * 64,
+        )
+        program = AcceptedSourceProgramSpec("project-1", "mem89-issue", "sol-1", "luna-1", ("qa-1",), ("platform",))
+        configured = replace(
+            self.config,
+            accepted_source_reader=AcceptedSourceReaderSpec((projection,), (program,)),
+        )
+        self.assertEqual(configured.owner_config_digest, self.config.owner_config_digest)
+        payload = {
+            "company_id": "company-1", "project_id": "project-1", "program_issue_id": "mem89-issue",
+            "issue_id": "source-task", "agent_id": "sol-1", "run_id": "active-run",
+            "corpus_id": "platform", "path": "engineering/example.py", "start_line": 1, "line_count": 2,
+        }
+        ref_reader = lambda repo, ref: subprocess.run(
+            ["/usr/bin/git", "-C", str(repo), "rev-parse", "--verify", ref],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        with patch.object(BridgeConfig, "gate", return_value=SimpleNamespace(_ref_sha=ref_reader)):
+            result = dispatch(configured, {"action": "read_accepted_source", "payload": payload})
+        self.assertEqual(result["projection_sha"], projection_sha)
+        self.assertEqual(result["canonical_sha"], "d" * 40)
+        self.assertIn("return 42", result["result"]["lines"][1]["text"])
+        denied = {**payload, "agent_id": "other-agent"}
+        with self.assertRaisesRegex(BridgeError, "actor_not_admitted"):
+            dispatch(configured, {"action": "read_accepted_source", "payload": denied})
+        source_file.write_text("def existing_answer():\n    return 43\n", encoding="utf-8")
+        subprocess.run([*git_args, "add", "-A"], check=True)
+        subprocess.run([*git_args, "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "unacknowledged advance"], check=True, capture_output=True)
+        list_payload = {
+            **{key: value for key, value in payload.items() if key not in {"path", "start_line", "line_count"}},
+            "prefix": "engineering/", "cursor": None, "limit": 10,
+        }
+        with patch.object(BridgeConfig, "gate", return_value=SimpleNamespace(_ref_sha=ref_reader)):
+            with self.assertRaisesRegex(BridgeError, "acceptance_unavailable"):
+                dispatch(configured, {"action": "list_accepted_source", "payload": list_payload})
+
+    def test_accepted_source_reader_requires_paired_publication_ack_after_bootstrap(self):
+        root = Path(self.tmp.name)
+        projection_repo = root / "accepted-projection"
+        projection_repo.mkdir()
+        subprocess.run(["/usr/bin/git", "init", "-q", "-b", "brain/development", str(projection_repo)], check=True)
+        source_file = projection_repo / "engineering" / "example.py"
+        source_file.parent.mkdir()
+        source_file.write_text("def accepted_tip():\n    return 17\n", encoding="utf-8")
+        git_args = ["/usr/bin/git", "-C", str(projection_repo)]
+        subprocess.run([*git_args, "add", "-A"], check=True)
+        subprocess.run([*git_args, "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "bootstrap"], check=True, capture_output=True)
+        bootstrap_sha = subprocess.run([*git_args, "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        source_file.write_text("def accepted_tip():\n    return 18\n", encoding="utf-8")
+        subprocess.run([*git_args, "add", "-A"], check=True)
+        subprocess.run([*git_args, "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "accepted next tip"], check=True, capture_output=True)
+        projected_sha = subprocess.run([*git_args, "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        bridge_dir = self.config.bridge_journal_dir
+        bridge_dir.mkdir(mode=0o700, exist_ok=True)
+        broker_dir = self.config.broker_journal_dir
+        canonical_candidate = "f" * 40
+        canonical_receipt = {
+            "schema": "paperclip-canonical-content-v1",
+            "repo": "/synthetic/canonical",
+            "ref": "refs/heads/brain/development",
+            "expected_tip": "a" * 40,
+            "tree": "b" * 40,
+            "candidate": canonical_candidate,
+            "files": [{"path": "src/example.py", "mode": "100644", "old": "c" * 40, "new": "d" * 40, "sha256": "e" * 64}],
+        }
+        canonical_receipt_digest = hashlib.sha256(
+            json.dumps(canonical_receipt, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        canonical_receipt["receipt_digest"] = canonical_receipt_digest
+        operation_key = hashlib.sha256(
+            json.dumps(["company-1", "source-task", "source-run"], separators=(",", ":")).encode()
+        ).hexdigest()
+        binding = {
+            "company_id": "company-1", "issue_id": "source-task", "run_id": "source-run",
+            "worker_agent_id": "worker-1", "reviewer_agent_id": "reviewer-1",
+            "base_sha": bootstrap_sha, "submitted_sha": "2" * 40, "scope": ["src/example.py"],
+            "policy_digest": "3" * 64, "active_ref": "refs/heads/brain/development",
+            "owner_config_digest": self.config.owner_config_digest, "owner_roots": [],
+        }
+        bridge_record = {
+            "schema": "paperclip-autonomous-operation-v1", "operation_key": operation_key, "state": "published",
+            "binding": binding, "candidate": {"candidate_sha": projected_sha},
+            "source_snapshot_sha256": "4" * 64,
+            "canonical": {
+                "status": "published", "candidate": canonical_candidate,
+                "receipt_digest": canonical_receipt_digest, "receipt": canonical_receipt,
+                "approved_candidate": canonical_candidate,
+                "approved_receipt_digest": canonical_receipt_digest,
+                "ack": {"status": "reconciled", "candidate": canonical_candidate,
+                    "receipt_digest": canonical_receipt_digest, "ref": "refs/heads/brain/development"},
+            },
+        }
+        broker_record = {
+            "schema": "paperclip-git-operation-v1", "operation_key": operation_key, "state": "published",
+            "publish_ack": "confirmed", "binding": binding, "candidate": {"sha": projected_sha},
+            "receipt_digest": "5" * 64,
+            "approval": {"approved": True, "company_id": "company-1", "run_id": "source-run",
+                "candidate_sha": projected_sha, "reviewer_agent_id": "reviewer-1", "policy_digest": "3" * 64},
+        }
+        bridge_path = bridge_dir / f"operation-{operation_key}.json"
+        bridge_path.write_text(json.dumps(bridge_record))
+        bridge_path.chmod(0o600)
+        broker_path = broker_dir / f"{operation_key}.json"
+        broker_path.write_text(json.dumps(broker_record))
+        broker_path.chmod(0o600)
+        projection = AcceptedSourceProjectionSpec(
+            "brain", projection_repo, "refs/heads/brain/development", ("engineering/",),
+            bootstrap_sha, "6" * 40, "7" * 64,
+        )
+        program = AcceptedSourceProgramSpec("project-1", "mem89-issue", "sol-1", "luna-1", (), ("brain",))
+        configured = replace(self.config, accepted_source_reader=AcceptedSourceReaderSpec((projection,), (program,)))
+        payload = {
+            "company_id": "company-1", "project_id": "project-1", "program_issue_id": "mem89-issue",
+            "issue_id": "source-task", "agent_id": "sol-1", "run_id": "active-run", "corpus_id": "brain",
+            "prefix": "engineering/", "cursor": None, "limit": 10,
+        }
+        read_gate = SimpleNamespace(
+            _ref_sha=lambda repo, ref: subprocess.run(
+                ["/usr/bin/git", "-C", str(repo), "rev-parse", "--verify", ref],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip(),
+            load_receipt=lambda _digest, _sha: {"result": {"status": "passed"}},
+        )
+        with patch.object(BridgeConfig, "gate", return_value=read_gate):
+            result = dispatch(configured, {"action": "list_accepted_source", "payload": payload})
+        self.assertEqual(result["projection_sha"], projected_sha)
+        self.assertEqual(result["canonical_sha"], canonical_candidate)
+        self.assertEqual(result["acceptance_receipt_digest"], canonical_receipt_digest)
 
     def test_submit_rejects_mismatched_worker_or_issue(self):
         for key, value in (("worker_agent_id", "reviewer-1"), ("source_issue_id", "other-issue")):
