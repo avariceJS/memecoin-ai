@@ -865,7 +865,10 @@ def _dynamic_stage_from_record(config: BridgeConfig, record: dict[str, Any]) -> 
         or record.get("project_id") != mission.project_id
         or record.get("lead_agent_id") != mission.sol_agent_id
         or type(record.get("lead_issue_id")) is not str
-        or stage_key != _dynamic_stage_key(config.company_id, mission.project_id, record["lead_issue_id"], profile.profile_id, raw["corpus_id"], path_ids)):
+        or stage_key != _dynamic_stage_key(
+            config.company_id, mission.project_id, record["lead_issue_id"], profile.profile_id,
+            raw["corpus_id"], path_ids, record.get("source_issue_id"), record.get("review_issue_id"),
+        )):
         raise BridgeError("source_stage_binding_invalid")
     return SourceStageSpec(
         stage_key, "source", record.get("base_sha"), None, path_ids, profile.verifier_policy_id,
@@ -2070,8 +2073,14 @@ def bind_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> dict[str
     }
 
 
-def _dynamic_stage_key(company_id: str, project_id: str, lead_issue_id: str, profile_id: str, corpus_id: str, path_ids: tuple[str, ...]) -> str:
-    digest = hashlib.sha256(_canonical(["paperclip-program-source-stage-v1", company_id, project_id, lead_issue_id, profile_id, corpus_id, path_ids])).hexdigest()
+def _dynamic_stage_key(
+    company_id: str, project_id: str, lead_issue_id: str, profile_id: str, corpus_id: str,
+    path_ids: tuple[str, ...], source_issue_id: str, review_issue_id: str,
+) -> str:
+    digest = hashlib.sha256(_canonical([
+        "paperclip-program-source-stage-v2", company_id, project_id, lead_issue_id, profile_id, corpus_id,
+        path_ids, source_issue_id, review_issue_id,
+    ])).hexdigest()
     return f"DYN-{digest[:32]}"
 
 
@@ -2117,7 +2126,10 @@ def bind_program_source_stage(config: BridgeConfig, payload: dict[str, Any]) -> 
         raise BridgeError("program_source_stage_accepted_base_unavailable") from exc
     if projection_repo.resolve(strict=True) != mission.publisher_repo.resolve(strict=True):
         raise BridgeError("program_source_stage_accepted_base_target_mismatch")
-    stage_key = _dynamic_stage_key(config.company_id, mission.project_id, payload["lead_issue_id"], profile.profile_id, payload["corpus_id"], path_ids)
+    stage_key = _dynamic_stage_key(
+        config.company_id, mission.project_id, payload["lead_issue_id"], profile.profile_id, payload["corpus_id"],
+        path_ids, payload["source_issue_id"], payload["review_issue_id"],
+    )
     stage = SourceStageSpec(stage_key, "source", accepted.projection_sha, None, path_ids, profile.verifier_policy_id,
         mission.project_id, payload["goal_id"], mission.sol_agent_id, payload["lead_issue_id"],
         mission.source_workspace_id, mission.source_workspace_root, mission.source_repo, mission.publisher_repo,
