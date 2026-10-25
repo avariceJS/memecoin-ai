@@ -605,6 +605,101 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             bind_program_source_stage(config, {**next_payload, "source_issue_id": "source-same", "review_issue_id": "source-same"})
         self.assertNotEqual(old_sha, publisher_sha)
 
+    def test_admitted_program_reads_platform_bootstrap_without_rebinding_brain_write_scope(self):
+        from engineering.paperclip_autonomous_bridge import (
+            ProgramAdmissionMission, ProgramAdmissionProfile, ProgramAdmissionSpec,
+            bind_program_source_stage,
+        )
+
+        root = Path(self.tmp.name)
+        source, publisher, canonical, platform_repo, workspace = (
+            root / name for name in ("platform-read-source", "brain-publisher", "brain-canonical", "platform-projection", "brain-workspace")
+        )
+        workspace.mkdir()
+
+        def git(repo: Path, *args: str) -> str:
+            result = subprocess.run(["/usr/bin/git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
+            return result.stdout.strip()
+
+        def initialize(repo: Path, branch: str, files: dict[str, str]) -> str:
+            repo.mkdir()
+            subprocess.run(["/usr/bin/git", "init", "-q", "-b", branch, str(repo)], check=True)
+            for name, content in files.items():
+                target = repo / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(content, encoding="utf-8")
+            git(repo, "add", "-A")
+            subprocess.run(["/usr/bin/git", "-C", str(repo), "-c", "user.name=owner", "-c", "user.email=owner@example.invalid", "commit", "-m", "accepted base"], check=True, capture_output=True)
+            return git(repo, "rev-parse", "HEAD")
+
+        source.mkdir()
+        brain_files = {
+            "src/memecoin_brain_sources/events.py": "VALUE = 1\n",
+            "tests/brain/test_raw_sources.py": "def test_raw_source():\n    assert True\n",
+        }
+        brain_sha = initialize(publisher, "brain/development", brain_files)
+        canonical_sha = initialize(canonical, "brain/development", brain_files)
+        platform_sha = initialize(platform_repo, "org/development", {"engineering/platform.md": "Platform corpus\n"})
+        source, publisher, canonical, platform_repo, workspace = (
+            path.resolve() for path in (source, publisher, canonical, platform_repo, workspace)
+        )
+        mission = ProgramAdmissionMission(
+            project_id="senses-project", standing_issue_id="standing-90", sol_agent_id="sol",
+            astra_agent_id="astra", luna_agent_id="luna", qa_agent_ids=("qa",), goal_ids=("goal-1",),
+            allowed_prefixes=("src/memecoin_brain_sources/", "tests/brain/"),
+            excluded_prefixes=("src/memecoin_brain_sources/private/",), corpus_ids=("brain", "platform"),
+            profiles=(ProgramAdmissionProfile("senses-v1", (),
+                ("src/memecoin_brain_sources/", "tests/brain/"),
+                ("tests/brain/test_raw_sources.py",), "policy-senses"),),
+            source_repo=source, publisher_repo=publisher, canonical_repo=canonical,
+            canonical_ref="refs/heads/brain/development", expected_dev_ref="refs/heads/brain/development",
+            source_workspace_id="senses-workspace", source_workspace_root=workspace,
+            repository_free_policy_digest="e" * 64,
+        )
+        brain_projection = AcceptedSourceProjectionSpec(
+            "brain", publisher, "refs/heads/brain/development", ("src/", "tests/"),
+            brain_sha, canonical_sha, "c" * 64,
+        )
+        platform_projection = AcceptedSourceProjectionSpec(
+            "platform", platform_repo, "refs/heads/org/development", ("engineering/",),
+            platform_sha, "d" * 40, "f" * 64,
+        )
+        config = replace(
+            self.config, project_id=mission.project_id, source_repo=source, publisher_repo=publisher,
+            canonical_repo=canonical, canonical_ref=mission.canonical_ref, canonical_expected_tip=canonical_sha,
+            expected_dev_ref=mission.expected_dev_ref, fixed_dev_ref=mission.expected_dev_ref,
+            bridge_journal_dir=root / "platform-read-journals",
+            verifier_policy_catalog=(VerifierProfile("policy-senses", (("/usr/bin/true",),), (), ()),),
+            program_admission=ProgramAdmissionSpec((mission,)),
+            accepted_source_reader=AcceptedSourceReaderSpec((brain_projection, platform_projection), ()),
+        )
+        config.bridge_journal_dir.mkdir(mode=0o700)
+        read = dispatch(config, {"action": "read_accepted_source", "payload": {
+            "company_id": config.company_id, "project_id": mission.project_id,
+            "program_issue_id": "program-1", "issue_id": "program-1", "agent_id": "sol",
+            "run_id": "program-run", "corpus_id": "platform", "path": "engineering/platform.md",
+            "start_line": 1, "line_count": 1,
+        }})
+        self.assertEqual(read["projection_sha"], platform_sha)
+        self.assertEqual(read["canonical_sha"], "d" * 40)
+        self.assertEqual(read["result"]["lines"][0]["text"], "Platform corpus")
+
+        brain_paths = list(brain_files)
+        bind_payload = {
+            "company_id": config.company_id, "project_id": mission.project_id, "lead_agent_id": "sol",
+            "lead_issue_id": "program-1", "lead_run_id": "program-run", "goal_id": "goal-1",
+            "profile_id": "senses-v1", "corpus_id": "platform", "path_ids": brain_paths,
+            "source_issue_id": "source-platform-write", "source_version": 1,
+            "review_issue_id": "review-platform-write", "review_version": 1,
+            "source_instruction_sha256": "1" * 64, "review_instruction_sha256": "2" * 64,
+        }
+        with self.assertRaisesRegex(BridgeError, "program_source_stage_accepted_base_unavailable"):
+            bind_program_source_stage(config, bind_payload)
+        brain_bound = bind_program_source_stage(config, {**bind_payload, "corpus_id": "brain",
+            "source_issue_id": "source-brain-write", "review_issue_id": "review-brain-write"})
+        self.assertEqual(brain_bound["base_sha"], brain_sha)
+        self.assertEqual(brain_bound["canonical_base_sha"], canonical_sha)
+
     def test_accepted_source_reader_requires_paired_publication_ack_after_bootstrap(self):
         root = Path(self.tmp.name)
         projection_repo = root / "accepted-projection"

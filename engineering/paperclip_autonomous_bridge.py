@@ -5318,7 +5318,13 @@ def read_accepted_source(
             if item.project_id == program.project_id
         ]
         if len(mission_rows) == 1:
-            mission = mission_rows[0]
+            candidate_mission = mission_rows[0]
+            if (
+                projection.ref == candidate_mission.expected_dev_ref
+                and projection.repository.resolve(strict=False)
+                == candidate_mission.publisher_repo.resolve(strict=False)
+            ):
+                mission = candidate_mission
     repository, snapshot = _resolve_accepted_source_snapshot(
         config, projection, bootstrap_mission=mission
     )
