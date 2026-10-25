@@ -72,8 +72,18 @@ without recreating the programme or replaying unknown history. MEM/fence are act
 required actors resumed; the other five companies remain paused. Bootstrap implementation is idle
 and source custody returns to native Luna. Future CEO effort is independently accepted Medium;
 historical98 High and Sol/Luna/QA High are unchanged. The169 historical entries remain; global
-hibernation is not declared complete. Actual private tool use, no-change merits, useful changed-source
-publication, subsequent strategy and useful post-root continuation remain open. Source acceptance,
+hibernation is not declared complete. Actual lead scope,14 Brain reader calls and proposal succeeded;
+the accepted handler necessarily consumed native attestation/CoreDTO guards, but internal RPC payload
+was not independently exposed. Sol created MEM100 Source/MEM101 QA and bound the dynamic stage without
+per-task owner configuration. Paperclip automatically started Luna40125c9f in its own new root.
+Luna ended blocked after four invalid corpus IDs, never literal brain: no successful source read,
+candidate/verifier/QA/publication. This proves a parameter failure, not a backend authorization defect.
+MEM99/100/101 are blocked with live0 and four of24 source attempts used; correction routing/context is
+being examined. Unique outcome receipt:
+`resumption-20261025/sol-independent-native99-dynamic-binding-source100-parameter-blocker.json`
+(SHA256ed77699439994815447a3fbc0525ecf339ddd7eeebb33dcccbe9aac747fd783e).
+Actual no-change merits, useful changed-source publication, subsequent strategy and useful post-root
+continuation remain open. Source acceptance,
 service startup and the completed reader programme are not company readiness.
 
 ## Standing strategic mandate — founder directive 2026-10-24

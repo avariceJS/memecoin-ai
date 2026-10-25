@@ -1,4 +1,4 @@
-# Current state — 2026-10-25, MEM99 known continuation after private-context repair
+# Current state — 2026-10-25, dynamic MEM100/101 admitted; source parameter blocker
 
 Explicit founder resumption authority is in the current `prompt/prompt.md`; native Goal remains
 null. Paperclip owns lifecycle, Luna source implementation, Sol programs and independent review.
@@ -37,10 +37,16 @@ at317 historical runs. Astra98 done; first Sol99 blocked because generic SDK dis
 read its private task. Narrow current-run/program/source-dependency attestation and matching
 controller were independently accepted and deployed, preserving existing privacy denials and full
 history. Supported continuation d31dff49 actually started13:50:13.471UTC, source attempt3/24,
-MEM99 in_progress/v3, fresh own workspace6c7f53fc/bindingRev2. No new programme or unknown replay.
+fresh own workspace6c7f53fc/bindingRev2. Actual scope,14 Brain reader calls and proposal passed.
+Sol created MEM100 Source/MEM101 QA and bound DYN-1d2099fd78d857e4086d1fd69ed1340d without
+per-task owner configuration. Native Luna40125c9f started automatically in fresh own rootb075b832.
+It ended blocked after four invalid corpus_id values, never using literal brain; no valid source
+read/delivery/verifier/QA/publication. MEM99/100/101 blocked, live0, four of24 attempts used.
+This is a model parameter failure; backend denial is not established. Existing correction routing
+and parameter discoverability are being examined. No new programme or unknown replay.
 MEM is active, fence open, only Sol/Luna/QA/Astra resumed; assessor/analyst and other five companies
 remain paused. Bootstrap implementation is idle; native Luna owns admitted source work. Actual
-private tool use, source children and useful Brain publication still need evidence.
+lead private context/read/proposal and child binding are proved; source execution remains unproved.
 Future Astra uses the independently accepted Medium setting; historical MEM98 used High. Sol/Luna/QA
 remain High; model/subscription/runtime unchanged. No new Goal/dispatcher or broadened task visibility.
 
@@ -52,8 +58,8 @@ resume.35 immutable operation/stage records are unchanged; one owner-fence recor
 Current canonical Brain37cf/pairedACK verified; old operations ineligible and no old live writers/leases.
 Generic hibernation remains incomplete with169 preserved entries (old168 plus known failed96).
 
-Actual Astra98 is a verified subscription call and has created native Senses99; useful decomposition,
-dynamic CoreDTO use, no-change merits, changed-source QA/publication, next strategic program and
+Actual Astra98 created Senses99; lead scope/CoreDTO handler path, reading, proposal, new children and
+binding are proved. No-change merits, changed-source QA/publication, next strategic program and
 useful continuation after root final are still required. Do not infer engineering readiness from
 program creation, source tests, or the earlier reader outcome. No useful new Brain change yet.
 
@@ -63,5 +69,6 @@ backups and failed candidate histories are retained in private HANDOFF/immutable
 No market collection, training, AUTO/trading, protected data, production/main or paid fallback.
 
 Private current evidence: `/Users/root1/Developer/brain-paperclip-lab/state/resumption-20261025/`;
-`sol-independent-native96-97-isolation-proof-and-reader-blocker.json` preserves actual native proof.
+`sol-independent-native99-dynamic-binding-source100-parameter-blocker.json` records the current
+new-task proof and parameter failure; earlier reader/isolation evidence remains immutable.
 Private HANDOFF owns exact operational custody; `engineering/OWNER-DESK.md` is the Russian projection.
