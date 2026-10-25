@@ -312,8 +312,9 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             accepted_source_reader=AcceptedSourceReaderSpec((projection,), ()))
         config.bridge_journal_dir.mkdir(mode=0o700)
         accepted = AcceptedSourceSnapshot("a" * 40, "b" * 40, "c" * 64, "d" * 64, ())
+        accepted_rows = [accepted]
         fake_gate = SimpleNamespace(
-            _ref_sha=lambda repo, ref: "a" * 40 if Path(repo) == publisher else "b" * 40,
+            _ref_sha=lambda repo, ref: accepted_rows[0].projection_sha if Path(repo) == publisher else accepted_rows[0].canonical_sha,
             _resolve_sha=lambda repo, sha: sha,
         )
         payload = {"company_id": config.company_id, "project_id": mission.project_id,
@@ -321,10 +322,23 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             "goal_id": "goal-1", "profile_id": "senses-v1", "corpus_id": "brain", "path_ids": list(paths),
             "source_issue_id": "source-1", "source_version": 1, "review_issue_id": "review-1", "review_version": 1,
             "source_instruction_sha256": "1" * 64, "review_instruction_sha256": "2" * 64}
-        with (patch("engineering.paperclip_autonomous_bridge._resolve_accepted_source_snapshot", return_value=(publisher, accepted)),
+        with (patch("engineering.paperclip_autonomous_bridge._resolve_accepted_source_snapshot", side_effect=lambda *_: (publisher, accepted_rows[0])),
               patch.object(BridgeConfig, "gate", return_value=fake_gate),
               patch("engineering.paperclip_autonomous_bridge.refresh_owner_workspace", return_value="e" * 64)):
             bound = bind_program_source_stage(config, payload)
+            next_task_payload = {**payload, "source_issue_id": "source-2", "review_issue_id": "review-2",
+                "source_instruction_sha256": "3" * 64, "review_instruction_sha256": "4" * 64}
+            second_bound = bind_program_source_stage(config, next_task_payload)
+            self.assertNotEqual(bound["stage_key"], second_bound["stage_key"])
+            self.assertNotEqual(bound["stage_binding_key"], second_bound["stage_binding_key"])
+            accepted_rows[0] = AcceptedSourceSnapshot("5" * 40, "6" * 40, "7" * 64, "8" * 64, ())
+            third_task_payload = {**payload, "source_issue_id": "source-3", "review_issue_id": "review-3",
+                "source_instruction_sha256": "9" * 64, "review_instruction_sha256": "0" * 64}
+            third_bound = bind_program_source_stage(config, third_task_payload)
+            self.assertNotEqual(second_bound["stage_key"], third_bound["stage_key"])
+            self.assertEqual(third_bound["base_sha"], "5" * 40)
+            with self.assertRaisesRegex(BridgeError, "source_stage_bind_replay_mismatch"):
+                bind_program_source_stage(config, payload)
         self.assertEqual(bound["base_sha"], "a" * 40)
         self.assertEqual(bound["canonical_base_sha"], "b" * 40)
         record = _stage_binding(config, bound["stage_binding_key"])
