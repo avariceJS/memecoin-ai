@@ -11,8 +11,12 @@ from unittest.mock import patch
 
 from engineering.paperclip_lab_server import (
     PAPERCLIP_PARENT_PIN,
+    PAPERCLIP_PATCH_PARENT_PIN,
+    PAPERCLIP_PATCH_PIN,
+    PAPERCLIP_PATCH_SOURCE_CHAIN,
     PAPERCLIP_PIN,
     PAPERCLIP_SOURCE_CHAIN,
+    PAPERCLIP_CLEANUP_ONLY_PINS,
     PAPERCLIP_STOP_CUSTODY_PINS,
     PAPERCLIP_UPSTREAM_PIN,
     LabPaths,
@@ -30,36 +34,16 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(
             PAPERCLIP_SOURCE_CHAIN,
             (
-                "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
-                "d560a09538a255c779e4a10b14d41a3114bf10f2",
-                "44b4a1c13d23094283914b8326c902fea9d0d994",
-                "b89d1f5e82f7275e372087799f21566721814029",
-                "b00893db62c0e1719f731c94f20c9c70cecfac11",
-                "c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343",
-                "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
-                "89cd827fdb36ede8d12fce16302cf595c88d2ade",
-                "0e0c1eb22c879203337cee9710471c6fd30b00b1",
-                "f24926c8e7fd231e4cac127532ed642247b222c2",
-                "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
-                "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
-                "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
-                "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
-                "a0cdea58195eed97c6f1ba4518c88826c778bb02",
-                "407762fa09288fad6a9e39771efc5d738b57be7b",
-                "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
-                "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
-                "d142b1dee5c25980169109f0d6161a8c4c7380a2",
-                "01302914b5501fbb274b39477e087ac1692d9b6a",
-                "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
-                "fecf7b18def542fb6b58e7e665011e66599ffffb",
-                "519c892646ec7b06996e990e9e728f794e1a689e",
-                "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
-                "043f2514e67c50320433a0013fb228a75a51325c",
+                "15f93e91bd7a561e6b4c3460ccd619923e15165b",
+                "d25b4b51f9f81298c49aea42957fb487f7a17ae5",
+                *PAPERCLIP_PATCH_SOURCE_CHAIN,
             ),
         )
-        self.assertEqual(PAPERCLIP_PIN, "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd")
-        self.assertEqual(PAPERCLIP_PARENT_PIN, "d560a09538a255c779e4a10b14d41a3114bf10f2")
+        self.assertEqual(PAPERCLIP_PIN, "15f93e91bd7a561e6b4c3460ccd619923e15165b")
+        self.assertEqual(PAPERCLIP_PARENT_PIN, "d25b4b51f9f81298c49aea42957fb487f7a17ae5")
         self.assertEqual(PAPERCLIP_UPSTREAM_PIN, "043f2514e67c50320433a0013fb228a75a51325c")
+        self.assertEqual(PAPERCLIP_PATCH_PIN, "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd")
+        self.assertEqual(PAPERCLIP_PATCH_PARENT_PIN, "d560a09538a255c779e4a10b14d41a3114bf10f2")
         with tempfile.TemporaryDirectory() as directory:
             paths = LabPaths.resolve(Path(directory))
             paths.source.mkdir()
@@ -82,6 +66,8 @@ class PaperclipLabServerTests(unittest.TestCase):
 
     def test_rejected_and_interim_native_descendants_cannot_launch(self):
         for old_pin in (
+            "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
+            "d25b4b51f9f81298c49aea42957fb487f7a17ae5",
             "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
             "c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343",
             "b00893db62c0e1719f731c94f20c9c70cecfac11",
@@ -131,12 +117,12 @@ class PaperclipLabServerTests(unittest.TestCase):
         patch_path = pin_path.parent / pin["patch"]
         self.assertEqual(pin["schema"], "brain-paperclip-source-v6")
         self.assertEqual(pin["upstream_commit"], PAPERCLIP_UPSTREAM_PIN)
-        self.assertEqual(pin["predecessor_commit"], PAPERCLIP_PARENT_PIN)
+        self.assertEqual(pin["predecessor_commit"], PAPERCLIP_PATCH_PARENT_PIN)
         self.assertEqual(
             pin["predecessor_chain"],
-            list(PAPERCLIP_SOURCE_CHAIN[1:]),
+            list(PAPERCLIP_PATCH_SOURCE_CHAIN[1:]),
         )
-        self.assertEqual(pin["derivative_commit"], PAPERCLIP_PIN)
+        self.assertEqual(pin["derivative_commit"], PAPERCLIP_PATCH_PIN)
         self.assertEqual(pin["patch_sha256"], hashlib.sha256(patch_path.read_bytes()).hexdigest())
         self.assertEqual(pin["patch_tree_equivalence"]["status"], "verified")
         self.assertEqual(
@@ -146,11 +132,11 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(pin["source_review"]["status"], "accepted_source_only")
         self.assertEqual(
             pin["source_review"]["commit"],
-            PAPERCLIP_PIN,
+            PAPERCLIP_PATCH_PIN,
         )
         self.assertEqual(
             pin["source_review"]["parent"],
-            PAPERCLIP_PARENT_PIN,
+            PAPERCLIP_PATCH_PARENT_PIN,
         )
         self.assertEqual(
             pin["source_review"]["receipt_sha256"],
@@ -160,12 +146,12 @@ class PaperclipLabServerTests(unittest.TestCase):
             [record["commit"] for record in pin["source_review_chain"][-2:]],
             [
                 "44b4a1c13d23094283914b8326c902fea9d0d994",
-                PAPERCLIP_PIN,
+                PAPERCLIP_PATCH_PIN,
             ],
         )
         self.assertEqual(
             pin["source_review_chain"][-1]["commit"],
-            PAPERCLIP_PIN,
+            PAPERCLIP_PATCH_PIN,
         )
         self.assertEqual(pin["source_review_chain"][-1]["status"], "accepted_source_only")
         self.assertEqual(
@@ -176,10 +162,10 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertNotIn("a0cdea58195eed97c6f1ba4518c88826c778bb02", reviewed_commits)
         self.assertNotIn("35fbfa29a1b2ebaf81019d8022fdf60d70628ead", reviewed_commits)
         self.assertIn("0e0c1eb22c879203337cee9710471c6fd30b00b1", reviewed_commits)
-        self.assertIn(PAPERCLIP_PIN, reviewed_commits)
-        self.assertNotIn(PAPERCLIP_PARENT_PIN, reviewed_commits)
+        self.assertIn(PAPERCLIP_PATCH_PIN, reviewed_commits)
+        self.assertNotIn(PAPERCLIP_PATCH_PARENT_PIN, reviewed_commits)
         self.assertEqual(
-            PAPERCLIP_SOURCE_CHAIN[:7],
+            PAPERCLIP_PATCH_SOURCE_CHAIN[:7],
             (
                 "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
                 "d560a09538a255c779e4a10b14d41a3114bf10f2",
@@ -233,6 +219,8 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(rejected_wake_fix["status"], "rejected")
         self.assertNotIn(rejected_wake_fix["commit"], reviewed_commits)
         self.assertNotIn(rejected_wake_fix["commit"], PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertIn(PAPERCLIP_PATCH_PIN, PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertNotIn(PAPERCLIP_PATCH_PIN, PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn(PAPERCLIP_PIN, PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn("c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343", PAPERCLIP_STOP_CUSTODY_PINS)
         self.assertNotIn("b00893db62c0e1719f731c94f20c9c70cecfac11", PAPERCLIP_STOP_CUSTODY_PINS)
@@ -328,7 +316,7 @@ class PaperclipLabServerTests(unittest.TestCase):
             command = (
                 f"node --env-file={paths.env_file} --import {paths.loader} server/src/index.ts"
             )
-            for old_pin in sorted(PAPERCLIP_STOP_CUSTODY_PINS):
+            for old_pin in sorted(PAPERCLIP_CLEANUP_ONLY_PINS):
                 manifest = {
                     "schema": "paperclip-lab-process-v3",
                     "pid": 1234,
