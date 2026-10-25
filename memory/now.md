@@ -1,4 +1,4 @@
-# Current state — 2026-10-25, actual Sol reader use; MEM-89 continuing
+# Current state — 2026-10-25, Sol reader proved; MEM-89 blocked pending workspace repair
 
 The founder explicitly ordered execution of `prompt/prompt.md`, authorizing engineering resumption
 following the 2026-10-24 STOP. Fresh entry: org HEAD `8882960`, only owner prompt untracked;
@@ -11,6 +11,12 @@ document is preserved. Independently reviewed assignment-profile repair added on
 methods to each of three actors; effective assignments were read back. Supported fresh-session
 continuation `995a64df` performed actual Brain/Platform search with bound provenance. Sol reader
 delivery is proved; native Luna/QA outcome and general engineering autonomy remain open.
+Sol created MEM-96; its startup failed before provider work because child inheritance selected
+git_worktree for the no-Git parent copy. MEM-89/96 are blocked, native live runs zero, three of twelve
+reader jobs used. Luna is implementing a narrow owner-opt-in automatic isolated no-Git startup path;
+manual per-child repair would not qualify future autonomy. Dynamic admission/no-change source
+`57cb2c0` was independently accepted and integrated/remote-confirmed as `aef2183`, not deployed.
+Its workspace guard also needs the exact new native policy/seed binding before operational release.
 Only MEM Sol/Luna/QA are enabled; its other three agents have manual holds and other five companies
 remain paused. Broker drain and no source-write tools preserve this read-only stage. Native reader
 use is not yet accepted as useful engineering or operational readiness.
