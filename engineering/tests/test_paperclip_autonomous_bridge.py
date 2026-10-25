@@ -245,6 +245,9 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
             repository_free_policy_digest="e" * 64,
         )
         config = replace(self.config, program_admission=ProgramAdmissionSpec((mission,)))
+        changed_policy = replace(mission, repository_free_policy_digest="f" * 64)
+        changed_policy_config = replace(config, program_admission=ProgramAdmissionSpec((changed_policy,)))
+        self.assertNotEqual(config.owner_config_digest, changed_policy_config.owner_config_digest)
         result = dispatch(config, {"action": "get_program_source_scope", "payload": {
             "company_id": config.company_id, "project_id": "senses-project", "goal_id": "goal-1",
         }})
