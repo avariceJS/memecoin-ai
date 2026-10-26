@@ -256,16 +256,17 @@ class NativeDeliveryTests(unittest.TestCase):
         req = opened.call_args.args[0]
         self.assertEqual(req.get_header("X-paperclip-run-id"), env["PAPERCLIP_RUN_ID"])
 
-    def test_git_uses_only_the_explicit_osxkeychain_helper(self) -> None:
+    def test_git_uses_only_the_pinned_gh_helper_and_config_directory(self) -> None:
         result = subprocess.CompletedProcess([], 0, stdout=b"", stderr=b"")
         with patch(
             "engineering.paperclip_native_delivery.subprocess.run", return_value=result
         ) as run:
-            delivery.remote_git(self.work, "ls-remote", "origin", osxkeychain=True)
+            delivery.remote_git(self.work, "ls-remote", "origin", github_auth=True)
         command = run.call_args.args[0]
         self.assertIn("credential.helper=", command)
-        self.assertIn("credential.helper=osxkeychain", command)
+        self.assertIn(f"credential.helper={delivery.GH_HELPER}", command)
         self.assertEqual(run.call_args.kwargs["env"]["HOME"], "/var/empty")
+        self.assertEqual(run.call_args.kwargs["env"]["GH_CONFIG_DIR"], delivery.GH_CONFIG_DIR)
         self.assertNotIn("PAPERCLIP_API_KEY", run.call_args.kwargs["env"])
 
     def test_saved_native_run_shape_uses_id_and_included_subscription_billing(self) -> None:

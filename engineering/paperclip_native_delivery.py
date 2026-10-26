@@ -25,6 +25,8 @@ QA_SCHEMA = "brain-native-qa-result-v1"
 PUBLISH_REF = "refs/heads/brain/development"
 CANDIDATE_REF = "refs/heads/brain/native-report-20261026"
 GIT = "/usr/bin/git"
+GH_HELPER = "!/opt/homebrew/bin/gh auth git-credential"
+GH_CONFIG_DIR = "/Users/root1/.config/gh"
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 OID = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
@@ -595,7 +597,7 @@ def validate_qa(
         raise DeliveryError("qa_result_checks_invalid")
 
 
-def remote_git(repo: Path, *args: str, osxkeychain: bool = False) -> bytes:
+def remote_git(repo: Path, *args: str, github_auth: bool = False) -> bytes:
     env = {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
         "HOME": "/var/empty",
@@ -604,11 +606,15 @@ def remote_git(repo: Path, *args: str, osxkeychain: bool = False) -> bytes:
         "GIT_TERMINAL_PROMPT": "0",
         "GIT_OPTIONAL_LOCKS": "0",
     }
+    if github_auth:
+        config_dir = safe_dir(GH_CONFIG_DIR, "gh_config")
+        require(config_dir.lstat().st_uid == os.getuid(), "gh_config_not_owner_owned")
+        env["GH_CONFIG_DIR"] = GH_CONFIG_DIR
     if os.environ.get("SSH_AUTH_SOCK"):
         env["SSH_AUTH_SOCK"] = os.environ["SSH_AUTH_SOCK"]
     command = [GIT, "-c", "core.hooksPath=/dev/null", "-c", "credential.helper="]
-    if osxkeychain:
-        command.extend(["-c", "credential.helper=osxkeychain"])
+    if github_auth:
+        command.extend(["-c", f"credential.helper={GH_HELPER}"])
     result = subprocess.run(
         [*command, "-C", str(repo), *args],
         capture_output=True,
@@ -629,7 +635,7 @@ def remote_refs(m: dict[str, Any]) -> dict[str, str]:
     if not c["remote_url"].startswith("https://github.com/"):
         raise DeliveryError("remote_transport_not_approved")
     raw = remote_git(
-        repo, "ls-remote", c["remote_name"], c["ref"], c["candidate_ref"], osxkeychain=True
+        repo, "ls-remote", c["remote_name"], c["ref"], c["candidate_ref"], github_auth=True
     )
     refs = {}
     for line in raw.decode("ascii").splitlines():
@@ -647,7 +653,7 @@ def push_ref(m: dict[str, Any], source: str, target_ref: str) -> None:
         "remote_url"
     ] or not c["remote_url"].startswith("https://github.com/"):
         raise DeliveryError("remote_url_changed")
-    remote_git(repo, "push", c["remote_name"], f"{source}:{target_ref}", osxkeychain=True)
+    remote_git(repo, "push", c["remote_name"], f"{source}:{target_ref}", github_auth=True)
 
 
 def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
