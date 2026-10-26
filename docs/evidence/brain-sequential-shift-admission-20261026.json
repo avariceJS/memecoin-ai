@@ -1,0 +1,84 @@
+{
+  "schema": "brain-sequential-shift-admission-v1",
+  "date": "2026-10-26",
+  "state": "prepared; inspect private dispatch.json for actual launch",
+  "first_shift_result": "accepted Brain61ed120; do not requalify",
+  "brain_base": "61ed12086311d08ea4b2a261da582bc5e09ea09a",
+  "main_preserved": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+  "paperclip_pin": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "planning": "MEM137 two model runs; proposals selected from existing private MEM90",
+  "manager": "MEM138",
+  "results_cap": 2,
+  "correction_cap_per_task": 1,
+  "same_serial_roles": true,
+  "model": "gpt-6-luna/high for manager/developer/independent QA; fixed stage/publish no model",
+  "outcomes": [
+    {
+      "slot": 1,
+      "module": "memecoin_experience.expected_observation_timeliness",
+      "paths": [
+        "src/memecoin_experience/expected_observation_timeliness.py",
+        "tests/test_research_expected_observation_timeliness.py"
+      ],
+      "tasks": {
+        "developer": "MEM-139",
+        "stage": "MEM-140",
+        "qa": "MEM-141",
+        "publish": "MEM-142"
+      }
+    },
+    {
+      "slot": 2,
+      "module": "memecoin_experience.source_value_concordance",
+      "paths": [
+        "src/memecoin_experience/source_value_concordance.py",
+        "tests/test_research_source_value_concordance.py"
+      ],
+      "tasks": {
+        "developer": "MEM-143",
+        "stage": "MEM-144",
+        "qa": "MEM-145",
+        "publish": "MEM-146"
+      }
+    }
+  ],
+  "publication_order": "second source remains backlog until manager independently admits it after first publisher terminal success; second publication binds immutable predecessor receipt",
+  "adapter_review": {
+    "accepted_source_candidate": "948b537fb63ade057108f772ab828196a2f259f9",
+    "reviewer": "independent Luna High collaboration review_chain",
+    "decision": "accept",
+    "review_scope": "existing native publisher predecessor binding; report projection offline fixture",
+    "candidate_tests": "18 unittest tests passed; real temporary Git replay coverage",
+    "integrated_affected_tests": "29 passed, 22 subtests; native delivery + canonical publisher",
+    "ruff": "passed after mechanical test-only formatting cb155e51f7cc752de1da71750d64c7877d74f4fa",
+    "production_file_sha256": "8101a079e162a3d4a9f5a7f77cb45964ff5c3d9860242968217af6f7f4c8df2f",
+    "report_projection_sha256": "4f4563e186c60f4900ce97fc116ff9cacba40c9c7b44355a0714d06084348e77",
+    "report_projection_fixture": "prior native summary:8runs,3manager,correct QAUUID, unmetered pre-provider attempt retained",
+    "runtime_verified": false
+  },
+  "reporting": "native structured records -> one-shift offline JSON formatting; no new API/ledger/controller; current final manager marked pending; next audit reads terminal expense",
+  "preparation_interventions": [
+    "native planning clarification with exact MEM90 and researcher questions",
+    "normal access grant to selected private programme for manager",
+    "owner preprovisioned manager and source/stage/QA/publish tasks and configured safe source/QA copies",
+    "independent publisher review corrections before launch"
+  ],
+  "planning_usage": {
+    "model_runs": 2,
+    "input_tokens": 250779,
+    "output_tokens": 19986,
+    "cached_input_tokens": 2304768,
+    "billing": "subscription_included",
+    "excludes": "interactive CEO and collaboration implementation/review; not a whole-session total"
+  },
+  "preserved": [
+    "MEM118123 canRetryfalse",
+    "MEM126 pending human_only",
+    "main/production/protected data",
+    "no market collection/training/AUTO/trading/paid API",
+    "no concurrency increase or new company scheduler"
+  ],
+  "stop": "after2 accepted results or substantial blocker, withdraw unstarted downstream work, clear monitor, preserve evidence; no nextshift; agent cannot impersonate board for pause",
+  "private_locator": "brain-paperclip-lab/state/sequential-shift-20261026",
+  "sequential_continuation_proven": false
+}

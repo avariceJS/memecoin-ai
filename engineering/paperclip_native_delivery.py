@@ -154,7 +154,13 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
         "custody_dir",
     }
     require(
-        frozenset(m) in {frozenset(base_fields), frozenset(base_fields | {"manager_task_id"})},
+        frozenset(m)
+        in {
+            frozenset(base_fields),
+            frozenset(base_fields | {"manager_task_id"}),
+            frozenset(base_fields | {"predecessor"}),
+            frozenset(base_fields | {"manager_task_id", "predecessor"}),
+        },
         "manifest_fields_invalid",
     )
     if "manager_task_id" in m:
@@ -240,6 +246,30 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
     )
     safe_dir(m["qa_workspace"], "qa_workspace")
     safe_dir(m["custody_dir"], "custody", private=True)
+    if "predecessor" in m:
+        predecessor = m["predecessor"]
+        require(
+            type(predecessor) is dict
+            and set(predecessor)
+            == {
+                "manifest_path",
+                "manifest_sha256",
+                "source_task_id",
+                "publish_task_id",
+                "receipt_path",
+            },
+            "predecessor_binding_invalid",
+        )
+        require(
+            type(predecessor["manifest_path"]) is str
+            and Path(predecessor["manifest_path"]).is_absolute()
+            and type(predecessor["receipt_path"]) is str
+            and Path(predecessor["receipt_path"]).is_absolute()
+            and re.fullmatch(r"[0-9a-f]{64}", str(predecessor["manifest_sha256"]))
+            and UUID.fullmatch(str(predecessor["source_task_id"]))
+            and UUID.fullmatch(str(predecessor["publish_task_id"])),
+            "predecessor_binding_invalid",
+        )
     return m, digest(raw)
 
 
@@ -411,6 +441,15 @@ class Paperclip:
             raise DeliveryError("interactions_response_invalid")
         if any(row.get("status") == "pending" for row in rows):
             raise DeliveryError("pending_interaction")
+
+    def no_pending_terminal(self, task_id: str) -> None:
+        rows = self.request("GET", f"/issues/{task_id}/interactions")
+        rows = rows.get("interactions") if type(rows) is dict else rows
+        if type(rows) is not list or any(type(row) is not dict for row in rows):
+            raise DeliveryError("interactions_response_invalid")
+        terminal = {"accepted", "rejected", "answered", "cancelled", "expired", "failed"}
+        if any(row.get("status") not in terminal for row in rows):
+            raise DeliveryError("predecessor_interaction_not_terminal")
 
     def complete(self, task_id: str) -> None:
         if self.issue(task_id).get("status") == "done":
@@ -953,6 +992,200 @@ def push_ref(m: dict[str, Any], source: str, target_ref: str) -> None:
     remote_git(repo, "push", c["remote_name"], f"{source}:{target_ref}", github_auth=True)
 
 
+def predecessor_expected_tip(
+    m: dict[str, Any], manifest_hash: str, api: Paperclip
+) -> str | None:
+    """Resolve a second slot only from its explicitly pinned first-slot receipt."""
+    binding = m.get("predecessor")
+    if binding is None:
+        return None
+    parent, parent_hash = load_manifest(binding["manifest_path"])
+    require(parent_hash == binding["manifest_sha256"], "predecessor_manifest_hash_mismatch")
+    require("predecessor" not in parent, "predecessor_chain_depth_invalid")
+    require(
+        parent["company_id"] == m["company_id"]
+        and parent["source"]["base_sha"] == m["source"]["base_sha"]
+        and parent["canonical"]["repo"] == m["canonical"]["repo"]
+        and parent["canonical"]["ref"] == m["canonical"]["ref"]
+        and parent["canonical"]["remote_name"] == m["canonical"]["remote_name"]
+        and parent["canonical"]["remote_url"] == m["canonical"]["remote_url"]
+        and parent["canonical"]["expected_tip"] == m["canonical"]["expected_tip"],
+        "predecessor_target_mismatch",
+    )
+    require(
+        set(parent["source"]["paths"]).isdisjoint(m["source"]["paths"]),
+        "predecessor_source_paths_overlap",
+    )
+    require(
+        parent["developer"]["task_id"] == binding["source_task_id"]
+        and parent["publish"]["task_id"] == binding["publish_task_id"],
+        "predecessor_task_binding_mismatch",
+    )
+    issue = api.issue(binding["publish_task_id"])
+    require(
+        issue.get("id") == binding["publish_task_id"]
+        and issue.get("companyId") == m["company_id"]
+        and issue.get("assigneeAgentId") == parent["publish"]["agent_id"]
+        and issue.get("status") == "done",
+        "predecessor_publish_task_not_done",
+    )
+    api.no_pending_terminal(binding["publish_task_id"])
+    parent_runs = api.request("GET", f"/issues/{binding['publish_task_id']}/runs")
+    require(
+        type(parent_runs) is list
+        and bool(parent_runs)
+        and all(
+            type(row) is dict
+            and row.get("status") in {"succeeded", "failed", "cancelled", "timed_out"}
+            for row in parent_runs
+        ),
+        "predecessor_publish_run_not_terminal",
+    )
+    latest = max(
+        parent_runs,
+        key=lambda row: str(row.get("finishedAt") or row.get("startedAt") or "")
+        if type(row) is dict
+        else "",
+    )
+    run_id = latest.get("runId") or latest.get("id") if type(latest) is dict else None
+    require(
+        type(latest) is dict
+        and latest.get("status") == "succeeded"
+        and latest.get("agentId") == parent["publish"]["agent_id"]
+        and UUID.fullmatch(str(run_id or "")),
+        "predecessor_publish_run_not_succeeded",
+    )
+    native_run = api.request("GET", f"/heartbeat-runs/{run_id}")
+    require(
+        type(native_run) is dict
+        and native_run.get("id") == run_id
+        and native_run.get("status") == "succeeded"
+        and native_run.get("runtimeMode") == "legacy"
+        and native_run.get("agentId") == parent["publish"]["agent_id"]
+        and native_run.get("companyId") == m["company_id"]
+        and native_run.get("issueId") == binding["publish_task_id"],
+        "predecessor_publish_run_not_succeeded",
+    )
+
+    path = Path(binding["receipt_path"])
+    try:
+        info = path.lstat()
+        parent_info = path.parent.lstat()
+    except OSError as exc:
+        raise DeliveryError("predecessor_publication_receipt_missing") from exc
+    require(
+        path.is_absolute()
+        and stat.S_ISREG(info.st_mode)
+        and info.st_uid == os.getuid()
+        and not stat.S_IMODE(info.st_mode) & 0o077
+        and not stat.S_IMODE(info.st_mode) & 0o222
+        and stat.S_ISDIR(parent_info.st_mode)
+        and parent_info.st_uid == os.getuid()
+        and not stat.S_IMODE(parent_info.st_mode) & 0o077,
+        "predecessor_publication_receipt_not_private",
+    )
+    try:
+        saved = json.loads(path.read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise DeliveryError("predecessor_publication_receipt_invalid") from exc
+    require(type(saved) is dict, "predecessor_publication_receipt_invalid")
+    unsigned = {k: v for k, v in saved.items() if k != "publication_digest"}
+    receipt = saved.get("canonical_receipt")
+    require(
+        type(saved) is dict
+        and saved.get("schema") == PUBLISH_SCHEMA
+        and saved.get("manifest_sha256") == parent_hash
+        and saved.get("source_task_id") == binding["source_task_id"]
+        and saved.get("expected_tip") == parent["canonical"]["expected_tip"]
+        and saved.get("canonical_ref") == parent["canonical"]["ref"]
+        and saved.get("candidate_ref") == parent["canonical"]["candidate_ref"]
+        and type(receipt) is dict
+        and OID.fullmatch(str(receipt.get("candidate", "")))
+        and saved.get("publication_digest") == digest(json_bytes(unsigned)),
+        "predecessor_publication_receipt_invalid",
+    )
+    paths = list(parent["source"]["paths"])
+    require(
+        type(saved.get("files")) is dict and set(saved["files"]) == set(paths),
+        "predecessor_publication_receipt_invalid",
+    )
+    repo = Path(m["canonical"]["repo"])
+    publisher._check_candidate(
+        repo.resolve(strict=True), parent["canonical"]["ref"], receipt, tuple(paths)
+    )
+    candidate = receipt["candidate"]
+    own_receipt_path = Path(m["custody_dir"]) / f"publication-{m['developer']['task_id']}.json"
+    own_candidate = None
+    if own_receipt_path.exists() or own_receipt_path.is_symlink():
+        own_info = own_receipt_path.lstat()
+        require(
+            stat.S_ISREG(own_info.st_mode)
+            and own_info.st_uid == os.getuid()
+            and not stat.S_IMODE(own_info.st_mode) & 0o077
+            and not stat.S_IMODE(own_info.st_mode) & 0o222,
+            "publication_receipt_not_private",
+        )
+        try:
+            own_saved = json.loads(own_receipt_path.read_bytes())
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise DeliveryError("publication_receipt_invalid") from exc
+        require(type(own_saved) is dict, "publication_receipt_invalid")
+        own_unsigned = {k: v for k, v in own_saved.items() if k != "publication_digest"}
+        own_receipt = own_saved.get("canonical_receipt")
+        require(
+            own_saved.get("schema") == PUBLISH_SCHEMA
+            and own_saved.get("source_task_id") == m["developer"]["task_id"]
+            and own_saved.get("manifest_sha256") == manifest_hash
+            and own_saved.get("expected_tip") == candidate
+            and own_saved.get("canonical_ref") == m["canonical"]["ref"]
+            and own_saved.get("candidate_ref") == m["canonical"]["candidate_ref"]
+            and type(own_receipt) is dict
+            and OID.fullmatch(str(own_receipt.get("candidate", "")))
+            and own_saved.get("publication_digest") == digest(json_bytes(own_unsigned)),
+            "publication_receipt_conflict",
+        )
+        publisher.inspect(
+            repo, m["canonical"]["ref"], own_receipt, allowed_paths=list(m["source"]["paths"])
+        )
+        own_candidate = own_receipt["candidate"]
+    local_head = git(repo, "rev-parse", parent["canonical"]["ref"]).decode().strip()
+    require(
+        local_head == candidate or (own_candidate is not None and local_head == own_candidate),
+        "predecessor_canonical_head_unexpected",
+    )
+    if local_head == candidate:
+        publisher.inspect(repo, parent["canonical"]["ref"], receipt, allowed_paths=paths)
+    c = parent["canonical"]
+    raw = remote_git(
+        repo,
+        "ls-remote",
+        c["remote_name"],
+        c["ref"],
+        c["candidate_ref"],
+        m["canonical"]["candidate_ref"],
+        github_auth=True,
+    )
+    refs: dict[str, str] = {}
+    try:
+        for line in raw.decode("ascii").splitlines():
+            oid, ref = line.split("\t")
+            require(bool(OID.fullmatch(oid)) and ref not in refs, "remote_refs_malformed")
+            refs[ref] = oid
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise DeliveryError("remote_refs_malformed") from exc
+    require(
+        refs.get(parent["canonical"]["ref"])
+        in ({candidate} | ({own_candidate} if own_candidate is not None else set()))
+        and refs.get(parent["canonical"]["candidate_ref"]) == candidate
+        and (
+            own_candidate is None
+            or refs.get(m["canonical"]["candidate_ref"]) in {None, own_candidate}
+        ),
+        "predecessor_remote_head_unexpected",
+    )
+    return candidate
+
+
 def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     api = Paperclip(m)
     own_task = api.current("publish")
@@ -982,7 +1215,7 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         raise DeliveryError("custodied_file_hash_mismatch")
     c = slot["canonical"]
     repo = Path(c["repo"])
-    expected = c["expected_tip"]
+    expected = predecessor_expected_tip(m, manifest_hash, api) or c["expected_tip"]
     old = {p: None for p in record["paths"]}
     new = {
         p: publisher._git(repo, "hash-object", "--stdin", data=files[p]).decode().strip()

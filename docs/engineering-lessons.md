@@ -1,5 +1,16 @@
 # Engineering lessons and retrieval
 
+### E15 — Derive shift summaries from native records
+
+- **Trigger:** A manager summarizes a shift with multiple native runs.
+- **Finding:** MEM-133's hand-authored result mistyped the QA UUID and omitted three manager runs,
+  although the independently accepted publication itself was valid.
+- **Action:** Construct IDs and usage from native returned records; filter exact task/agent bindings,
+  deduplicate IDs, include manager and failed attempts, and label the final still-active run as pending.
+  Final terminal cost requires the later native ledger, not a self-reported pre-terminal total.
+- **Source:** [Accepted shift and reporting correction](engineering-organization.md#accepted-post-ceo-shift-and-sequential-preparation--2026-10-26).
+- **Revalidate:** Native telemetry schema or lifecycle changes. Preserve the original faulty artifact.
+
 ### E14 — Verify installed process interfaces before useful admission
 
 - **Trigger:** A small deterministic action bridges native developer artifacts to QA/publication.

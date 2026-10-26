@@ -1,5 +1,54 @@
 # Brain Engineering Organization
 
+## Accepted post-CEO shift and sequential preparation — 2026-10-26
+
+The first bounded shift is accepted; do not requalify it. After the CEO turn ended at
+18:01:19.018Z, native developer tools produced `expected_slot_coverage`, independent Luna QA accepted
+nine tests plus CLI checks, and the fixed publisher published Brain `61ed12086311d08ea4b2a261da582bc5e09ea09a`
+at 18:06:10.434Z. MEM-133 completed at 18:09:15.019Z after clearing its monitor. No user mutation
+occurred between CEO exit and completion. The founder-authorized board pause followed at 18:12:29.104Z;
+all companies were paused with zero live runs. Main remained `2f8da5f` and historical holds stayed intact.
+Native MEM-132..136 and private `state/autonomous-shift-20261026/custody/publication-*.json` own the
+underlying immutable evidence. First-pass acceptance does not qualify correction or repeated shifts.
+
+The attached SHIFT-RESULT.json correctly identifies the accepted publication but mistypes the QA run
+UUID and omits all three manager runs. The authoritative QA run is
+`65e8abca-6468-45e4-9a6a-a8ff5582e7ce`, also bound by the publisher receipt. Do not overwrite the original
+artifact. Reporting must derive run identities from native records, include manager/source/QA/process
+and failed attempts, deduplicate by returned ID, and separate cached input from uncached input/output.
+An artifact produced during the final manager run must identify that run as still pending and label
+usage as-of; it cannot know its own future terminal usage. The native terminal ledger is authoritative
+for the final readback. No guessed total, quota conversion or silent omission is acceptable.
+
+Founder authorizes one new bounded sequential shift, at most two useful accepted Brain outcomes.
+Luna's MEM-137 planning selected expected-observation timeliness and aligned source-value concordance
+from existing Senses MEM-90. Native search omitted that private programme; the owner supplied its exact
+identity and research questions, then provided normal scoped programme access and preprovisioned the
+selected source tasks. These are preparation interventions, not post-handoff autonomy evidence.
+
+MEM-138 owns source139 → stage140 → independentQA141 → publisher142, then chooses whether to admit
+source143 → stage144 → independentQA145 → publisher146. Same serial developer and separate QA;
+TEST Luna High unchanged. The second source remains backlog until the first publication is terminal
+and independently accepted. Both tasks use disjoint new paths and the accepted starting source.
+The existing fixed publisher now accepts an optional exact predecessor-manifest/receipt binding:
+no arbitrary latest-HEAD admission, two-slot maximum, canonical/remote readback and held/unknown
+operations fail closed. Independent Luna accepted production candidate `948b537`; mechanical test-only
+Ruff cleanup `cb155e5` follows. The affected suites passed29 tests/22subtests; this is preparation evidence,
+not proof that the second native publication has occurred. No new scheduler or reporting service.
+
+A task-local offline JSON projection replaces manually copied run IDs and usage in SHIFT-RESULT:
+raw native summary records, exact task/agent filtering, all manager/planning/source/QA/process runs,
+explicit missing/pending scopes, and separate cached/uncached/output subtotals. Actual prior-run fixture
+retains the correct QA UUID and all3 manager runs. The final current run stays as-of pending; terminal
+native readback owns final expense. Original faulty MEM-133 artifact remains unchanged.
+
+One real QA correction per task; a second rejection or substantial blocker stops the shift. Preserve
+human_only126 and cancellation holds118123. Clear monitors, withdraw only unstarted downstream work,
+record result/blocker, and do not start another shift. Board-only pause cannot be impersonated by a worker.
+The owner checkpoints then launches MEM-138 and ends the interactive turn. Inspect private dispatch.json
+for actual admission; this document is not evidence of launch or sequential completion.
+[Admission receipt](evidence/brain-sequential-shift-admission-20261026.json).
+
 ## Bounded post-session shift admission — 2026-10-26
 
 Founder authorizes one autonomous shift capped at two new accepted results, using the proven native
