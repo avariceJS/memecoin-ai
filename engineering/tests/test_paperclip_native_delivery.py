@@ -369,9 +369,29 @@ class NativeDeliveryTests(unittest.TestCase):
         path.write_bytes(delivery.json_bytes(manifest))
         path.chmod(0o600)
         loaded, _ = delivery.load_manifest(str(path.resolve()))
+        self.assertNotIn("role_models", loaded)
         self.assertEqual(
             loaded["canonical"]["candidate_ref"], manifest["canonical"]["candidate_ref"]
         )
+        manifest["role_models"] = {"developer": "gpt-6-luna", "qa": "gpt-6.1-sol"}
+        path.write_bytes(delivery.json_bytes(manifest))
+        loaded, _ = delivery.load_manifest(str(path.resolve()))
+        self.assertEqual(loaded["role_models"], manifest["role_models"])
+        for role_models in (
+            None,
+            {"developer": "gpt-6.1-sol", "qa": "gpt-6-luna"},
+            {"developer": "gpt-6-luna", "qa": "gpt-unknown"},
+            {"developer": "gpt-6-luna", "qa": []},
+            {"developer": "gpt-6-luna"},
+            {"developer": "gpt-6-luna", "qa": "gpt-6.1-sol", "stage": "gpt-6-luna"},
+            ["gpt-6-luna", "gpt-6.1-sol"],
+        ):
+            with self.subTest(role_models=role_models):
+                manifest["role_models"] = role_models
+                path.write_bytes(delivery.json_bytes(manifest))
+                with self.assertRaisesRegex(delivery.DeliveryError, "manifest_role_models_invalid"):
+                    delivery.load_manifest(str(path.resolve()))
+        manifest.pop("role_models")
         manifest["canonical"]["candidate_ref"] = "refs/heads/main"
         path.write_bytes(delivery.json_bytes(manifest))
         with self.assertRaisesRegex(delivery.DeliveryError, "manifest_canonical_target_invalid"):
@@ -1073,35 +1093,76 @@ class NativeDeliveryTests(unittest.TestCase):
         agent_id = "00000000-0000-4000-8000-000000000013"
         run_id = "00000000-0000-4000-8000-000000000014"
         api = delivery.Paperclip.__new__(delivery.Paperclip)
-        api.m = {"company_id": company}
-        run_record = {
-            "id": run_id,
-            "issueId": task_id,
-            "nativeIssueId": task_id,
-            "agentId": agent_id,
-            "companyId": company,
-            "runtimeMode": "native",
-            "status": "succeeded",
-            "runnerProfileJson": {
-                "nativeExecutionInput": {
-                    "provider": {"kind": "codex", "model": "gpt-6-luna", "reasoningEffort": "high"}
-                }
-            },
-            "usageJson": {"billingType": "subscription_included"},
+        developer = {"task_id": task_id, "agent_id": agent_id}
+        qa = {
+            "task_id": "00000000-0000-4000-8000-000000000015",
+            "agent_id": "00000000-0000-4000-8000-000000000016",
         }
+        api.m = {
+            "company_id": company,
+            "developer": developer,
+            "qa": qa,
+            "role_models": {"developer": "gpt-6-luna", "qa": "gpt-6.1-sol"},
+        }
+        provider_model = "gpt-6.1-sol"
+        current_task_id = qa["task_id"]
+        current_agent_id = qa["agent_id"]
 
         def response(_method: str, route: str, **_kwargs):
-            if route == f"/issues/{task_id}/runs":
+            if route == f"/issues/{current_task_id}/runs":
                 return [
-                    {"id": run_id, "issueId": task_id, "agentId": agent_id, "status": "succeeded"}
+                    {
+                        "id": run_id,
+                        "issueId": current_task_id,
+                        "agentId": current_agent_id,
+                        "status": "succeeded",
+                    }
                 ]
             if route == f"/heartbeat-runs/{run_id}":
-                return run_record
+                return {
+                    "id": run_id,
+                    "issueId": current_task_id,
+                    "nativeIssueId": current_task_id,
+                    "agentId": current_agent_id,
+                    "companyId": company,
+                    "runtimeMode": "native",
+                    "status": "succeeded",
+                    "runnerProfileJson": {
+                        "nativeExecutionInput": {
+                            "provider": {
+                                "kind": "codex",
+                                "model": provider_model,
+                                "reasoningEffort": "high",
+                            }
+                        }
+                    },
+                    "usageJson": {"billingType": "subscription_included"},
+                }
             raise AssertionError(route)
 
         with patch.object(api, "request", side_effect=response):
-            run = api.latest_run({"task_id": task_id, "agent_id": agent_id})
+            run = api.latest_run(qa)
         self.assertEqual(run["runId"], run_id)
+        for task, model in ((developer, "gpt-6.1-sol"), (qa, "gpt-6-luna")):
+            current_task_id = task["task_id"]
+            current_agent_id = task["agent_id"]
+            provider_model = model
+            with patch.object(api, "request", side_effect=response):
+                with self.assertRaisesRegex(
+                    delivery.DeliveryError, "latest_run_identity_or_subscription_invalid"
+                ):
+                    api.latest_run(task)
+        api.m.pop("role_models")
+        current_task_id = qa["task_id"]
+        current_agent_id = qa["agent_id"]
+        provider_model = "gpt-6-luna"
+        with patch.object(api, "request", side_effect=response):
+            self.assertEqual(api.latest_run(qa)["runId"], run_id)
+        with self.assertRaisesRegex(delivery.DeliveryError, "task_role_binding_invalid"):
+            api.latest_run({"task_id": "unbound", "agent_id": agent_id})
+        api.m["role_models"] = {"developer": "gpt-6.1-sol", "qa": "gpt-6.1-sol"}
+        with self.assertRaisesRegex(delivery.DeliveryError, "manifest_role_models_invalid"):
+            api.latest_run(qa)
 
 
 if __name__ == "__main__":

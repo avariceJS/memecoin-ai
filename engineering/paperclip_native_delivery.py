@@ -48,6 +48,24 @@ def require(condition: bool, reason: str) -> None:
         raise DeliveryError(reason)
 
 
+def validated_role_models(manifest: dict[str, Any]) -> dict[str, str]:
+    if "role_models" not in manifest:
+        return {"developer": "gpt-6-luna", "qa": "gpt-6-luna"}
+    role_models = manifest.get("role_models")
+    require(
+        type(role_models) is dict and set(role_models) == {"developer", "qa"},
+        "manifest_role_models_invalid",
+    )
+    require(
+        type(role_models["developer"]) is str
+        and role_models["developer"] == "gpt-6-luna"
+        and type(role_models["qa"]) is str
+        and role_models["qa"] in {"gpt-6-luna", "gpt-6.1-sol"},
+        "manifest_role_models_invalid",
+    )
+    return role_models
+
+
 def safe_dir(raw: object, name: str, private: bool = False) -> Path:
     require(type(raw) is str and Path(raw).is_absolute(), f"{name}_path_invalid")
     path = Path(raw)
@@ -153,16 +171,23 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
         "qa_workspace",
         "custody_dir",
     }
+    manifest_fields = frozenset(m)
     require(
-        frozenset(m)
+        manifest_fields
         in {
             frozenset(base_fields),
             frozenset(base_fields | {"manager_task_id"}),
             frozenset(base_fields | {"predecessor"}),
             frozenset(base_fields | {"manager_task_id", "predecessor"}),
+            frozenset(base_fields | {"role_models"}),
+            frozenset(base_fields | {"manager_task_id", "role_models"}),
+            frozenset(base_fields | {"predecessor", "role_models"}),
+            frozenset(base_fields | {"manager_task_id", "predecessor", "role_models"}),
         },
         "manifest_fields_invalid",
     )
+    if "role_models" in m:
+        validated_role_models(m)
     if "manager_task_id" in m:
         require(UUID.fullmatch(str(m["manager_task_id"])), "manifest_manager_task_invalid")
     require(
@@ -459,6 +484,13 @@ class Paperclip:
             raise DeliveryError("task_completion_readback_failed")
 
     def latest_run(self, task: dict[str, str]) -> dict[str, Any]:
+        role = next(
+            (name for name in ("developer", "qa", "stage", "publish") if self.m.get(name) == task),
+            None,
+        )
+        if role is None:
+            raise DeliveryError("task_role_binding_invalid")
+        model = validated_role_models(self.m).get(role, "gpt-6-luna")
         rows = self.request("GET", f"/issues/{task['task_id']}/runs")
         if type(rows) is not list or not rows:
             raise DeliveryError("task_runs_missing")
@@ -480,7 +512,7 @@ class Paperclip:
             or run.get("issueId") != task["task_id"]
             or run.get("nativeIssueId") not in {None, task["task_id"]}
             or provider.get("kind") != "codex"
-            or provider.get("model") != "gpt-6-luna"
+            or provider.get("model") != model
             or provider.get("reasoningEffort") != "high"
             or usage.get("billingType", usage.get("billing_type"))
             not in {"subscription", "subscription_included"}
