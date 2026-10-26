@@ -395,7 +395,9 @@ class NativeDeliveryTests(unittest.TestCase):
         self.assertEqual(collision.read_bytes(), b"owner data")
 
     def test_pinned_predecessor_receipt_resolves_only_a_done_exact_chain(self) -> None:
-        task = lambda number: f"00000000-0000-4000-8000-{number:012d}"
+        def task(number):
+            return f"00000000-0000-4000-8000-{number:012d}"
+
         candidate = "f" * 40
         base = "e" * 40
         parent_manifest = {
@@ -468,7 +470,8 @@ class NativeDeliveryTests(unittest.TestCase):
 
             def no_pending_terminal(self, _task_id):
                 if self.interactions_override is not None and any(
-                    row.get("status") not in {"accepted", "rejected", "answered", "cancelled", "expired", "failed"}
+                    row.get("status")
+                    not in {"accepted", "rejected", "answered", "cancelled", "expired", "failed"}
                     for row in self.interactions_override
                 ):
                     raise delivery.DeliveryError("predecessor_interaction_not_terminal")
@@ -497,10 +500,14 @@ class NativeDeliveryTests(unittest.TestCase):
             patch.object(delivery.publisher, "inspect"),
             patch.object(delivery, "git", return_value=candidate.encode()),
             patch.object(
-                delivery, "remote_git", return_value=f"{candidate}\t{delivery.PUBLISH_REF}\n{candidate}\trefs/heads/brain/first\n".encode()
+                delivery,
+                "remote_git",
+                return_value=f"{candidate}\t{delivery.PUBLISH_REF}\n{candidate}\trefs/heads/brain/first\n".encode(),
             ),
         ):
-            self.assertEqual(delivery.predecessor_expected_tip(child, manifest_hash, api), candidate)
+            self.assertEqual(
+                delivery.predecessor_expected_tip(child, manifest_hash, api), candidate
+            )
 
             with self.subTest("durable second-slot replay after canonical advanced"):
                 child_candidate = "d" * 40
@@ -534,33 +541,39 @@ class NativeDeliveryTests(unittest.TestCase):
                     self.assertEqual(
                         delivery.predecessor_expected_tip(child, manifest_hash, api), candidate
                     )
-                with patch.object(
-                    delivery,
-                    "git",
-                    return_value=child_candidate.encode(),
-                ), patch.object(
-                    delivery,
-                    "remote_git",
-                    return_value=(
-                        f"{child_candidate}\t{delivery.PUBLISH_REF}\n"
-                        f"{candidate}\trefs/heads/brain/first\n"
-                    ).encode(),
+                with (
+                    patch.object(
+                        delivery,
+                        "git",
+                        return_value=child_candidate.encode(),
+                    ),
+                    patch.object(
+                        delivery,
+                        "remote_git",
+                        return_value=(
+                            f"{child_candidate}\t{delivery.PUBLISH_REF}\n"
+                            f"{candidate}\trefs/heads/brain/first\n"
+                        ).encode(),
+                    ),
                 ):
                     self.assertEqual(
                         delivery.predecessor_expected_tip(child, manifest_hash, api), candidate
                     )
-                with patch.object(
-                    delivery,
-                    "git",
-                    return_value=child_candidate.encode(),
-                ), patch.object(
-                    delivery,
-                    "remote_git",
-                    return_value=(
-                        f"{child_candidate}\t{delivery.PUBLISH_REF}\n"
-                        f"{candidate}\trefs/heads/brain/first\n"
-                        f"{'a' * 40}\t{child['canonical']['candidate_ref']}\n"
-                    ).encode(),
+                with (
+                    patch.object(
+                        delivery,
+                        "git",
+                        return_value=child_candidate.encode(),
+                    ),
+                    patch.object(
+                        delivery,
+                        "remote_git",
+                        return_value=(
+                            f"{child_candidate}\t{delivery.PUBLISH_REF}\n"
+                            f"{candidate}\trefs/heads/brain/first\n"
+                            f"{'a' * 40}\t{child['canonical']['candidate_ref']}\n"
+                        ).encode(),
+                    ),
                 ):
                     with self.assertRaisesRegex(delivery.DeliveryError, "remote_head_unexpected"):
                         delivery.predecessor_expected_tip(child, manifest_hash, api)
@@ -591,7 +604,9 @@ class NativeDeliveryTests(unittest.TestCase):
                     delivery.predecessor_expected_tip(wrong, manifest_hash, api)
 
             with self.subTest("manifest identity mismatch"):
-                with patch.object(delivery, "load_manifest", return_value=(parent_manifest, "c" * 64)):
+                with patch.object(
+                    delivery, "load_manifest", return_value=(parent_manifest, "c" * 64)
+                ):
                     with self.assertRaisesRegex(delivery.DeliveryError, "manifest_hash_mismatch"):
                         delivery.predecessor_expected_tip(child, manifest_hash, api)
 
@@ -623,7 +638,9 @@ class NativeDeliveryTests(unittest.TestCase):
 
             with self.subTest("unexpected local head"):
                 with patch.object(delivery, "git", return_value=base.encode()):
-                    with self.assertRaisesRegex(delivery.DeliveryError, "canonical_head_unexpected"):
+                    with self.assertRaisesRegex(
+                        delivery.DeliveryError, "canonical_head_unexpected"
+                    ):
                         delivery.predecessor_expected_tip(child, manifest_hash, api)
 
             with self.subTest("unexpected remote head"):
@@ -635,9 +652,10 @@ class NativeDeliveryTests(unittest.TestCase):
                     with self.assertRaisesRegex(delivery.DeliveryError, "remote_head_unexpected"):
                         delivery.predecessor_expected_tip(child, manifest_hash, api)
 
-
     def test_predecessor_receipt_replay_after_real_child_reconcile(self) -> None:
-        task = lambda number: f"00000000-0000-4000-8000-{number:012d}"
+        def task(number):
+            return f"00000000-0000-4000-8000-{number:012d}"
+
         repo = self.root / "chain-repo"
         base = init_repo(repo)
         ref = delivery.PUBLISH_REF
@@ -662,7 +680,9 @@ class NativeDeliveryTests(unittest.TestCase):
                 .strip()
                 for name, data in files.items()
             }
-            return delivery.publisher.prepare(repo, ref, expected, old, new, files, allowed_paths=paths)
+            return delivery.publisher.prepare(
+                repo, ref, expected, old, new, files, allowed_paths=paths
+            )
 
         parent_candidate_receipt = publish_objects(base, parent_files, parent_paths)
         parent_candidate = parent_candidate_receipt["candidate"]
@@ -703,7 +723,9 @@ class NativeDeliveryTests(unittest.TestCase):
             "expected_tip": base,
             "canonical_ref": ref,
             "candidate_ref": parent_manifest["canonical"]["candidate_ref"],
-            "files": {name: hashlib.sha256(value).hexdigest() for name, value in parent_files.items()},
+            "files": {
+                name: hashlib.sha256(value).hexdigest() for name, value in parent_files.items()
+            },
         }
         parent_saved = {**parent_op, "canonical_receipt": parent_candidate_receipt}
         parent_saved["publication_digest"] = delivery.digest(delivery.json_bytes(parent_saved))
@@ -735,7 +757,9 @@ class NativeDeliveryTests(unittest.TestCase):
             "expected_tip": parent_candidate,
             "canonical_ref": ref,
             "candidate_ref": child["canonical"]["candidate_ref"],
-            "files": {name: hashlib.sha256(value).hexdigest() for name, value in child_files.items()},
+            "files": {
+                name: hashlib.sha256(value).hexdigest() for name, value in child_files.items()
+            },
         }
         child_saved = {**child_op, "canonical_receipt": child_candidate_receipt}
         child_saved["publication_digest"] = delivery.digest(delivery.json_bytes(child_saved))
@@ -804,6 +828,7 @@ class NativeDeliveryTests(unittest.TestCase):
             self.assertEqual(
                 delivery.predecessor_expected_tip(child, "b" * 64, api), parent_candidate
             )
+
     def test_wrong_current_actor_cannot_complete_a_pinned_task(self) -> None:
         api = delivery.Paperclip.__new__(delivery.Paperclip)
         api.m = {
