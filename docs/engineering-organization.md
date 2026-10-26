@@ -1,5 +1,41 @@
 # Brain Engineering Organization
 
+## Bounded post-session shift admission — 2026-10-26
+
+Founder authorizes one autonomous shift capped at two new accepted results, using the proven native
+path after the CEO interactive turn ends. Native Luna lead MEM-131 inspected accepted source and
+created one justified backlog task MEM-132: expected-slot observation coverage, complementary to
+availability_profile's extant-row latency analysis. No second task was manufactured. This shift admits
+one result and at most one correction, which is within the founder ceiling. MEM-118/123 remain held;
+this task neither duplicates nor replaces their calibration/representation work.
+
+Fixed cohort: manager MEM-133, source132, process stage134, independent QA135 and process publish136.
+The owner preprovisions safe source/QA workspaces and immutable policy; then the native Luna manager
+admits source, handles actual QA findings, admits publication only on exact acceptance, and records
+SHIFT-RESULT.json. Native source/stage/QA dependencies and supported comment/API wakes own dispatch.
+The manager uses one bounded native watchdog, not an interactive CEO poll loop or a new scheduler.
+Existing service listener PID87842 had parent1 at preparation; it is independent of this interactive turn.
+
+Accepted adapter4fed0d7 adds immutable per-run stage history, exactly one rejection-bound correction,
+predecessor/current-byte CAS replay, and fixed manager notifications with intent/attempt/readback.
+Independent Luna review:27 focused tests+8subtests. A corrected QA task must remain done/rejected
+until stage2 verifies that rejection; only then does the manager reopen QA. Publication stays backlog
+until the manager sees an accept; a task being done alone never means accepted. Source/QA role models
+remain gpt-6-luna/high; two mechanical actors have no model. No new controller or old pipeline.
+
+After the admitted result or a material blocker, stop new assignments, clear native monitors and
+preserve a result/blocker record. Agent/company pause endpoints are board-only in this pin: the manager
+must not impersonate board. Logical shift completion may therefore leave company.active but no admitted
+work or timers. It must not start another shift. Unknown/failed operations are not blindly retried;
+not-yet-running downstream tasks move to backlog on a blocker. Existing holds and human_only persist.
+
+This is admission, not a result: post-session continuation is still unproven. The next session must
+compare actual CEO final-response time with strictly later useful native tools/QA/publication events,
+then read MEM-133's result and exact artifacts. Mere queued/running status or pre-final activity is
+insufficient. Native planning used1 Luna run:47081 uncached input,6313 output,606464 cached input tokens;
+CEO/collaboration preparation cost is outside that ledger. No quota percentage is inferred.
+[Admission receipt](evidence/brain-autonomous-shift-admission-20261026.json).
+
 ## One unattended native handoff cycle — 2026-10-26
 
 MEM-125 now adds `memecoin_experience.research_report`, accepted by independent Luna High MEM-129

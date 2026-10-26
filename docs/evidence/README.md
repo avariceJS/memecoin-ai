@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [Bounded autonomous shift admission](brain-autonomous-shift-admission-20261026.json): one justified task within the founder ceiling of two, finite correction and native manager routing; post-session outcome remains to be measured.
+
 - [Native handoff cycle](brain-native-handoff-20261026.json): one research dossier accepted/published with no CEO mutation from dispatch to publication; source-backed Retry, automatic stage/QA/publish, measured usage and explicit correction-loop limits.
 
 - [Productive backlog continuation](brain-productive-backlog-20261026.json): two accepted population diagnostics, native Retry workspace limitation, throughput/usage and final stop; excludes raw logs and private IDs.

@@ -1,0 +1,58 @@
+{
+  "schema": "brain-autonomous-shift-admission-v1",
+  "date": "2026-10-26",
+  "state": "prepared; launch occurs after this checkpoint is published",
+  "founder_result_ceiling": 2,
+  "admitted_result_ceiling": 1,
+  "reason_for_one": "Native Luna lead bounded source inspection justified expected-slot coverage only; no second artificial task.",
+  "brain_base": "69b926d37c8dd7822d0c0a213a882166fe1574c6",
+  "paperclip_pin": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "accepted_adapter_commit": "4fed0d78bc0fc84585f023693de918a8e563ec7f",
+  "adapter_independent_review": "Luna High accept;27 focused tests+8subtests",
+  "roles": {
+    "manager": "Luna High",
+    "developer": "Luna High",
+    "independent_qa": "Luna High",
+    "stage_publish": "fixed process adapter, no model"
+  },
+  "tasks": {
+    "planning": "MEM-131 done",
+    "manager": "MEM-133",
+    "developer": "MEM-132 expected_slot_coverage",
+    "stage": "MEM-134",
+    "qa": "MEM-135",
+    "publish": "MEM-136"
+  },
+  "source_files": [
+    "src/memecoin_experience/expected_slot_coverage.py",
+    "tests/test_research_expected_slot_coverage.py"
+  ],
+  "candidate_branch": "brain/autonomous-coverage-20261026",
+  "max_corrections": 1,
+  "workflow": "Manager admits source; native source->stage->QA dependencies; manager handles exact QA verdict and one possible correction; publisher remains backlog until manager admits accept; publisher notifies manager after readback; manager records result and clears monitor.",
+  "bounded_failure": "No failed-provider Retry or unknown replay. One native watchdog, finite correction. Preserve unknown active work; withdraw not-yet-running downstream assignments and record blocker.",
+  "stop_semantics": "No new assignments/timers after result or blocker. Company status pause is board-only; logical shift stop may leave company.active with idle profiles. No board impersonation.",
+  "post_interactive_continuation_proven": false,
+  "proof_required_next_session": "Compare actual CEO final-response boundary with strictly later useful native task/tool, QA and publication events; manager start alone is insufficient.",
+  "planning_usage": {
+    "model_runs": 1,
+    "input_tokens": 47081,
+    "output_tokens": 6313,
+    "cached_input_tokens": 606464,
+    "billing": "subscription_included",
+    "scope": "planning only; collaboration adapter implementation/review and CEO excluded"
+  },
+  "measured_service_independence": {
+    "listener_pid": 87842,
+    "parent_pid": 1,
+    "note": "Existing Paperclip server, not a process kept alive by interactive CEO turn."
+  },
+  "preserved": [
+    "MEM118/123 canRetry=false",
+    "MEM126 original human_only pending",
+    "main2f8da5f",
+    "No protected-data/market/training/AUTO/trading/production/paid API activity"
+  ],
+  "private_locator": "brain-paperclip-lab/state/autonomous-shift-20261026",
+  "outcome_locator": "Native MEM133 SHIFT-RESULT.json plus source/QA attachments and private custody publication receipt; inspect next session."
+}
