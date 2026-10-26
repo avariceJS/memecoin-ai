@@ -1,5 +1,37 @@
 # Brain Engineering Organization
 
+## TEST model composition — 2026-10-26
+
+The founder now authorizes an inexpensive, reversible TEST composition while continuing bounded
+organization scaling. This supersedes model assignments below, not organizational roles or gates.
+Astra's CEO model and authority remain unchanged. Department/program leads, developers and separate
+independent QA use `gpt-6-luna` with `modelReasoningEffort=high`. Routing-only tasks may use Medium
+when justified; none was dispatched simply to verify the switch. QA still reviews the complete
+candidate independently and receives exact prior candidates/full feedback on correction.
+
+Installed pin `8aa17aa0` explicitly removed cheap profiles in migration0236; its runtime validator
+rejects `modelProfiles`. Use native agent `adapterConfig` fields, not a custom mode manager. Five
+existing Sol lead/QA configurations were changed through native PATCH; all other adapter fields,
+roles, permissions, auth, workspace bindings and holds were verified unchanged. All113 existing
+issues are byte-equivalent as decoded API records and no issue model override was present. Twelve
+non-CEO MEM agents now use Luna High; CEO remains its original Astra Medium native configuration.
+The interactive CEO was not changed. Historical agent names containing Sol denote preserved identity,
+not the actual configured model. Other qualification companies were not migrated or resumed.
+
+Rollback: with affected runs idle, PATCH only the saved model/effort fields back to `gpt-6.1-sol/high`
+for the five lead/QA agents; preserve newer configuration. Private snapshot is in lab
+`state/test-model-mode-20261026/restore-model-fields.json`. Workers remain Luna. Before full operating
+admission, inspect actual model identities on the first useful lead and independent QA runs; TEST
+workflow success cannot establish future Sol-role quality. No separate review campaign per small action.
+
+Continue scaling from accepted Brain40084d1 and the completed four-worker cohort. Native semantic
+`create_task` in this pin has no workspace input, so keep explicit supported issue-API bindings before
+worker dispatch; no new scheduler or adapter refactor. Refresh source context without discarding prior
+branches/tasks, preserve separate QA identity and serial publication. Existing historic holds and
+unknown operations are not a scaling backlog to replay. No new model run was needed for this switch.
+[Configuration receipt](evidence/brain-test-model-mode-20261026.json).
+
+
 ## Bounded native developer path — 2026-10-26
 
 This checkpoint supersedes the older active-path instructions below for the completed cohort.

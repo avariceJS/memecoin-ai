@@ -46,6 +46,16 @@ is available from historical Git commits.
 - Keep `memory/now.md` short and dated. Do not recreate the old append-only narrative memory bank;
   Git history and immutable evidence hold the detailed chronology.
 
+## Current TEST model override — 2026-10-26
+
+Founder explicitly selected reversible TEST mode: department/program leads, implementers and
+independent QA use GPT-6 Luna High; Medium is permitted for simple routing checks. Astra's model
+and CEO authority remain unchanged. Roles, independent QA, tasks, workspaces and protected boundaries
+are unchanged. This model override supersedes older Sol role-model assignments below during TEST.
+Use native Paperclip adapterConfig fields; installed modelProfiles/cheap are unsupported. Do not
+silently restore Sol. Before full operating admission restore Sol High for leads/independent QA and
+verify actual models in useful runs. Canonical configuration/rollback: docs/engineering-organization.md.
+
 ## Current organization authority and Git ownership — 2026-10-24
 
 The founder-confirmed organization directive supersedes the completed 2026-10-20 audit hold and all

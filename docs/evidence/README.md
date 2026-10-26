@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [TEST model configuration](brain-test-model-mode-20261026.json): native reversible Luna lead/worker/QA composition, unchanged-role/task readback and model-only rollback; no test campaign.
+
 - [Bounded native parallel cohort](brain-native-parallel-cohort-20261026.json): four real concurrent Luna developers, independent Sol QA, accepted Brain integration, measured native tokens and explicit assisted-workflow limits. Raw private logs excluded.
 
 Evidence is immutable and task-scoped. Do not read this directory wholesale. Historical receipts

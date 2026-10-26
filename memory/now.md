@@ -1,5 +1,18 @@
 # Current state — 2026-10-26, bounded native cohort complete
 
+## Current model policy update
+
+Founder now authorizes reversible TEST composition and continued bounded scaling. All twelve
+non-CEO MEM agents use Luna High, including two leads and three independent QA identities;
+five Sol profiles changed by native API. CEO unchanged. Installed cheap/modelProfiles removed.
+113 task records and all non-model agent configuration preserved; no new model runs for switching.
+Use `docs/engineering-organization.md` TEST section and receipt `docs/evidence/brain-test-model-mode-20261026.json`.
+Restore saved model fields to Sol High for leads/QA before operating admission, then verify actual
+useful-run models. Historical cohort completion below is not a new STOP; historic failed operations
+and manual holds remain protected. Continue with explicit native issue workspace binding and
+accepted-source refresh; do not build a switch service or launch campaign40 to check configuration.
+
+
 Founder authorized one simplified native Paperclip developer cohort, then checkpoint and stop.
 All MEM-107..113 tasks are done. All six companies are paused; live runs: zero at final readback.
 This is completion of the bounded authorization, not a new Founder STOP or authority for campaign40.

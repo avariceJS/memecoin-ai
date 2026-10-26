@@ -1,0 +1,115 @@
+{
+  "schema": "brain.test-model-mode.v1",
+  "date": "2026-10-26",
+  "paperclip_pin": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "mode": "TEST",
+  "mechanism": "Native PATCH /api/agents/:id adapterConfig.model and modelReasoningEffort; no switching service",
+  "cheap_profile_supported": false,
+  "support_evidence": [
+    "packages/db/src/migrations/0236_remove_cheap_model_profiles.sql",
+    "packages/shared/src/validators/agent.ts: agentRuntimeConfigSchema rejects modelProfiles",
+    "server/src/routes/agents.ts: native model-only configuration patch"
+  ],
+  "changed_agent_count": 5,
+  "agents": [
+    {
+      "name": "Luna Senses Engineer",
+      "role": "engineer",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Parallel luna-2 20261026",
+      "role": "engineer",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Parallel sol-lead 20261026",
+      "role": "cto",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Parallel luna-1 20261026",
+      "role": "engineer",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Parallel luna-3 20261026",
+      "role": "engineer",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Sol Independent Reviewer",
+      "role": "qa",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Parallel sol-qa 20261026",
+      "role": "qa",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Sol Engineering Lead",
+      "role": "cto",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Platform Sol SDK Release Assessor",
+      "role": "qa",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Astra",
+      "role": "ceo",
+      "model": "gpt-6-astra",
+      "effort": "medium"
+    },
+    {
+      "name": "Luna Research Analyst",
+      "role": "researcher",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Parallel luna-4 20261026",
+      "role": "engineer",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    },
+    {
+      "name": "Luna Native Qualification 20261026",
+      "role": "engineer",
+      "model": "gpt-6-luna",
+      "effort": "high"
+    }
+  ],
+  "verification": {
+    "all_113_existing_issue_records_equal_before_after": true,
+    "roles_permissions_workspaces_auth_holds_equal_before_after": true,
+    "ceo_adapter_configuration_unchanged": true,
+    "task_model_overrides_found": 0,
+    "configuration_readback_passed": true,
+    "new_model_runs_for_switch": 0
+  },
+  "rollback": {
+    "mechanism": "Native PATCH same five agents with saved model fields only; do not replace newer whole configurations",
+    "target": "gpt-6.1-sol, modelReasoningEffort=high for leads and independent QA; workers stay gpt-6-luna/high; CEO unchanged",
+    "private_field_snapshot": "lab state/test-model-mode-20261026/restore-model-fields.json",
+    "precondition": "No active affected runs; reconcile current task model overrides first",
+    "operational_admission": "Verify actual runnerProfile/usage model in first useful lead and independent QA runs after restoration. TEST does not prove Sol quality."
+  },
+  "continuation": {
+    "authorized": "Continue bounded scaling under current founder request; no campaign40 just to test model switch",
+    "next_bounded_step": "Refresh accepted-source context to Brain40084d1, keep distinct lead/implementer/QA identities, explicitly bind child tasks to own clones through supported issue API before dispatch. Reuse existing tasks/workspaces and completed cohort evidence; no old unknown-operation replay.",
+    "installed_gap": "Native create_task semantic dispatcher has no workspace-configuration input; owner/API binding remains necessary in this pin."
+  },
+  "boundaries": "No production/main/protected data/market/training/AUTO/trading or paid API authorization. Historic manual holds unchanged. No automatic restoration to Sol during TEST."
+}
