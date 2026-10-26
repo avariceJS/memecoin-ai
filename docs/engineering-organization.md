@@ -1,5 +1,81 @@
 # Brain Engineering Organization
 
+## Final functional acceptance — 2026-10-27
+
+**Qualified delivery; full unassisted organization acceptance remains incomplete.** The finite founder
+programme has ended. All six companies are Board-paused, with zero live runs; no further campaign is
+admitted. This section supersedes historical current-state/TEST wording below.
+[Immutable acceptance receipt](evidence/brain-final-acceptance-20261027.json) binds publications,
+independent QA, exact native accounting, lifecycle readback and private evidence hashes.
+
+Five useful research tools were independently accepted and published on `brain/development`, advancing
+`66bbed1` to `54fb180`: provider-roster coverage, paired-loss sign-flip, missing-loss bounds, target-cohort
+mix sensitivity and cluster-removal influence. All ten final source/test hashes match their QA-bound
+publication receipts. These are synthetic-tested research capabilities, not measured market/model gains.
+
+Reviewed organization source `66f63b8` supplies exact actor/task run selection, pinned role models and
+one-shot `prepare --envelope` in the existing delivery adapter. The corrected prepare candidate passed
+independent QA (25 tests, 38 subtests and Ruff). Native dependencies own dispatch; no new scheduler or
+controller was introduced. Initial safe source/base and owner-private envelope remain admission work.
+The qualified route admits two new regular files per result, not arbitrary multi-file development.
+
+Normal roles are restored through reversible model-only configuration: eight lead/QA profiles use Sol
+High, developers Luna High, Astra unchanged. Actual useful Sol management, Luna implementation and
+separate Sol QA runs published accepted results. TEST was retained until the basic path was demonstrated.
+Native completion invoked episodic Astra157, who chose programme158; Astra172 subsequently selected
+another useful two-outcome programme. Selection is demonstrated; general automatic strategy-to-admission
+without owner preparation is not.
+
+Real QA correction was exercised without artificial bugs. In programme158 the manager returned complete
+findings and the full previous candidate to the same developer, restaged revision2 and obtained independent
+reassessment. A second numeric rejection stopped the programme at its correction cap. A separately bounded
+numeric rework passed QA and published `48b0bf3`; both rejected histories remain. In programme173 a genuine
+CLI/large-integer rejection likewise produced an autonomous correction, later accepted and published.
+That reassessment initially stopped over historical artifact access and an extra metadata expectation.
+CEO clarified the existing stage contract; product acceptance and candidate bytes were not weakened.
+
+The QA allowlist was extended with existing `call_api`, but the resumed provider still reported that tool
+absent. QA recovered retained historical bytes and checked hashes; the lead independently retrieved the
+native originals and verified equality. Configuration readback is **not** proof of actual QA tool exposure.
+Direct QA artifact retrieval remains unqualified; do not hide this behind the successful product review.
+
+Strict repeated unassisted development remains open. First TEST slot required casing guidance and two
+known-no-effect publisher recoveries. The final pair required the artifact clarification above and an
+explicit model-run budget increase from 18 to 22, made at 23:16:22Z **after** first publication at23:15:45Z.
+Its 20 model runs (MEM173..183, excluding two separate Astra172 runs) completed by23:35:33Z, before the
+unchanged23:43:33Z deadline. Source149 and source180 each completed admission through publication without
+CEO mutations. Earlier post-session delivery evidence remains valid, but these facts do not establish a
+whole two-task programme free of interactive CEO assistance. Do not relabel the assisted histories.
+
+The roster contains40 engineers/52 total profiles. Newly provisioned developers15 and16 performed useful
+work through native isolated worktrees; native planning/prepare created task and QA workspace graphs.
+At the roster snapshot27 engineers were eligible and13 historical manual pauses were retained. Not all40
+are individually workload-qualified. Current acceptance peaked at two simultaneous unique model run IDs;
+historical four-Luna overlap plus429 is separate evidence, not a promise of40-way execution or a measured
+fixed resource ceiling. No artificial mass load was launched.
+
+Final accounting covers72 exact-context runs:54 model,18 process;70 succeeded and two retained publisher
+failures. Run success does not mean semantic QA acceptance. Uncached input including cache writes:
+7,235,414 tokens; output:1,091,937; cached input:202,566,528. Management dominates native usage. Interactive
+CEO/collaboration preparation is outside this ledger; USD cost is unavailable. Whole-account subscription
+telemetry at2026-10-26T23:45:52Z showed80% used/20% remaining, not programme-attributable quota.
+
+Lifecycle checks distinguished logical shift stop, employee pause and Board pause/resume. Manual employee
+pause survived company resume; explicit employee resume and final Board pause preserved all183 task
+projections and five retained candidate hashes, with zero live runs throughout. MEM118/123 holds and
+MEM126 human_only remain unchanged. This qualifies idle lifecycle and retained work, not arbitrary in-flight
+cancellation, crash recovery or multiweek reliability. Main remains `2f8da5f`; production, protected data,
+market acquisition, training, AUTO and trading were not admitted.
+
+Verification:855 engineering tests and293 subtests passed; synthetic smoke passed. Full
+`make engineering-release-check` is **not green**:253 pre-existing Ruff diagnostics are identical at
+`cba78f6` and`66f63b8`; changed native-delivery files have none. Reuse this evidence for unchanged source.
+
+Remaining acceptance is bounded: verify actual QA artifact access (or the supported full-evidence handoff),
+then obtain a fresh two-useful-task programme with no interactive configuration/budget assistance. Keep
+owner-private admission and two-file limits explicit. The completed bounded programme is stopped; a new
+founder launch is required before further execution. No external resource exhaustion is claimed.
+
 ## Accepted shifts and bounded publisher repair — 2026-10-26
 
 The first bounded shift is accepted; do not requalify it. After the CEO turn ended at

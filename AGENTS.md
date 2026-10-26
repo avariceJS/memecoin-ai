@@ -57,15 +57,15 @@ product outcomes into genuinely independent tasks; do not replace product initia
 bug searches or split trivial changes merely to fill worker slots. Use native Paperclip tasks,
 normal Codex workspaces and independent finished-candidate QA; existing protected boundaries apply.
 
-## Current TEST model override — 2026-10-26
+## Current normal model composition — 2026-10-27
 
-Founder explicitly selected reversible TEST mode: department/program leads, implementers and
-independent QA use GPT-6 Luna High; Medium is permitted for simple routing checks. Astra's model
-and CEO authority remain unchanged. Roles, independent QA, tasks, workspaces and protected boundaries
-are unchanged. This model override supersedes older Sol role-model assignments below during TEST.
-Use native Paperclip adapterConfig fields; installed modelProfiles/cheap are unsupported. Do not
-silently restore Sol. Before full operating admission restore Sol High for leads/independent QA and
-verify actual models in useful runs. Canonical configuration/rollback: docs/engineering-organization.md.
+Under the founder's bounded final-acceptance directive, TEST was retained for early checks and then
+reversibly restored to normal roles: Sol High for department/program leads and independent QA,
+Luna High for implementers, and the existing Astra CEO configuration. Actual Sol/Luna/Sol runs and
+an independently accepted Brain publication verified these roles; configuration alone is not proof.
+Use native Paperclip adapterConfig fields and preserve subscription/runtime bindings. Do not silently
+return leads or QA to Luna TEST. The saved model-only rollback is private; canonical evidence and
+limits are in docs/engineering-organization.md. This composition does not authorize a new campaign.
 
 ## Current organization authority and Git ownership — 2026-10-24
 

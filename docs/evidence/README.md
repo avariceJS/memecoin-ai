@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [Final bounded acceptance](brain-final-acceptance-20261027.json): five accepted publications, normal roles, real correction, native strategy, lifecycle and exact accounting; strict repeated unassisted acceptance remains incomplete.
+
 - [Predecessor publisher repair](brain-predecessor-publisher-repair-20261026.json): activity-linked manager run caused false rejection; one Luna QA, existing MEM-146 completed through native recovery and publication readback.
 
 - [Bounded autonomous shift admission](brain-autonomous-shift-admission-20261026.json): one justified task within the founder ceiling of two, finite correction and native manager routing; post-session outcome remains to be measured.

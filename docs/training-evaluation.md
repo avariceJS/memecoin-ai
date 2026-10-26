@@ -1,5 +1,40 @@
 # Training and Evaluation
 
+## Roster support and paired-loss diagnostics — 2026-10-27
+
+Five independently accepted additions are published through Brain54fb180. All consume explicit
+caller-supplied JSON via `analyze(payload)` or `python -m <module>`; they do not discover data or run
+training. They use `brain-research-diagnostic.v1`; the earlier research-report composer has a frozen
+kind allowlist and is not automatically extended by these new producers.
+
+| Module | Question and result | Interpretation limit |
+|---|---|---|
+| `memecoin_experience.provider_roster_coverage` | Given expected identities, providers and identified observations, report per-provider/shared absence, denominators and repeated provider/identity rows. | Roster, alignment and provenance are caller claims; omitted identities/providers remain unknown. |
+| `memecoin_runner.paired_loss_signflip` | Exact sign-flip comparison over supplied complete pairs, with bounded enumeration. | The sign-exchangeability assumption is explicit; no population representativeness or trading claim follows. |
+| `memecoin_runner.paired_loss_missing_bounds` | Bound all-roster mean `loss_b-loss_a` when either loss is missing, using caller-declared valid loss cap U; retain cohort/support counts. | U must be valid for the metric; observed maxima cannot validate an unbounded metric. No imputation, confidence interval or winner gate. |
+
+The later two standalone modules use the same envelope and exact rational intermediates:
+
+| Module | Question and result | Interpretation limit |
+|---|---|---|
+| `memecoin_runner.paired_loss_target_mix` | Compare pooled paired-loss mean with a caller-declared cohort mixture; missing positive-weight cohort support makes the target mean null. | No silent renormalization, inferred target distribution or transportability claim. |
+| `memecoin_runner.paired_loss_cluster_influence` | Recompute pooled mean after removing each declared cluster; report exact sign reversals and shifts using remaining row counts. | Removal range is not a confidence interval and does not recommend deleting clusters. |
+
+The target-mixture example changes pooled−0.5 to target+0.5 under declared weights. The cluster example
+has full mean−2/3 and leave-out means1,−3/2,−3/2, with one strict sign reversal. Target-mix QA first
+rejected non-JSON CLI errors and serialization of valid computed4301-digit integers; the corrected
+candidate passed16 independent check groups. Cluster influence passed11 groups at its first assessment.
+The lead carried the concrete CLI/numeric lessons into the second task without changing its contract.
+These results are synthetic diagnostic behavior only, not evidence of model improvement.
+
+For missing bounds, the four-row synthetic example has complete-pair mean−0.1 but all-roster range
+[-0.575,0.425]; a complete-case advantage is inconclusive over that roster. Exact rational
+intermediates preserve adjacent large-integer differences and finite extreme inputs; final JSON
+representation may round. Two genuine prior QA rejections remain preserved. The accepted numeric
+rework passed28 focused tests and independent Decimal endpoint/adversarial checks. These are software
+semantics and synthetic acceptance, not real-data evaluation findings or improved model competence.
+[Organization acceptance and evidence](engineering-organization.md#final-functional-acceptance--2026-10-27).
+
 ## Research dossier — 2026-10-26
 
 Accepted Brain `69b926d` provides `memecoin_experience.research_report.analyze({"reports": [...]})`,

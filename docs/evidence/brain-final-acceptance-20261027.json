@@ -1,0 +1,360 @@
+{
+  "schema": "brain-final-functional-acceptance-v1",
+  "recorded_at_utc": "2026-10-26T23:50:45.268765+00:00",
+  "verdict": "qualified_workflow_delivery_not_full_unassisted_organization_acceptance",
+  "authority": "Founder bounded final acceptance; necessary source/configuration work, useful development and existing publication. No indefinite campaign.",
+  "org_source_commit": "66f63b8e9040a78df610fdebe8fd2ab0fa501fbe",
+  "delivery_source_sha256": "afcafad6dac8bf3419fc57d4edc55011219f033e38d75890a92014859f8b7f1f",
+  "paperclip_source_pin": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "native_service_replaced": false,
+  "brain_published_commit": "54fb18054ec49ee53bbe7fd19a1936c3e2d699e5",
+  "main_unchanged_commit": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+  "publications": [
+    {
+      "receipt_path": "/Users/root1/Developer/brain-paperclip-lab/state/final-acceptance-20261026/prepared-cycle-20261026/slot1/custody/publication-d698fef6-0f46-4c6d-ba2a-13081da0d1f4.json",
+      "receipt_sha256": "361525a242f453162b308bbd60665f19b5e91951d608120d7642718fc3873be5",
+      "candidate": "e324b501bfc84dc53e0dce3d81be293942473164",
+      "expected_tip": "66bbed1bed4c4f66fd950e4c6c2c634932080e12",
+      "qa_run_id": "f17f6680-ca92-4426-8e59-0015b7d3f89e",
+      "source_run_id": "17b8b9a5-acf1-49de-a5de-e51362c3ee59",
+      "source_task_id": "d698fef6-0f46-4c6d-ba2a-13081da0d1f4",
+      "qa_task_id": "9bde7839-39bf-48ef-bac9-a10eb1913420",
+      "qa_attachment_id": "ad82268c-c4a9-4e96-9bde-24b1e15f465c",
+      "qa_sha256": "6c65d562f8e89594bef9b00be575905d6f021d55bcacab48204a0c76da19b01b",
+      "files": {
+        "src/memecoin_experience/provider_roster_coverage.py": "2dd1443bfc72bdfb6fc5d2392e2ba1a99d64f07f41b173be762630624876e61a",
+        "tests/test_research_provider_roster_coverage.py": "7d42ee5bc71927269a961709e0c78216267650bd01d7f50e28c66e6cad2fa0a8"
+      }
+    },
+    {
+      "receipt_path": "/Users/root1/Developer/brain-paperclip-lab/state/final-acceptance-20261026/prepared-cycle-20261026/slot2/custody/publication-341a0da7-cbee-4b32-8d15-dd83907a48bc.json",
+      "receipt_sha256": "25a3b39c687ff02e5ef2ac4684fe028fbb9278a644306d46e52e48a0cec37dde",
+      "candidate": "60ffee3c26ee7c6e90c0523830e10ce8c1c50261",
+      "expected_tip": "e324b501bfc84dc53e0dce3d81be293942473164",
+      "qa_run_id": "6d9c0c57-3a90-4008-a505-43456e4a5f9d",
+      "source_run_id": "3535a9c4-2fcc-46e1-8afe-d86bb3f5e099",
+      "source_task_id": "341a0da7-cbee-4b32-8d15-dd83907a48bc",
+      "qa_task_id": "88b15da9-aced-4cd5-a43c-550a3a89ab10",
+      "qa_attachment_id": "2c154446-d274-4192-945f-de805fd0f0ac",
+      "qa_sha256": "60211f261409a2d0ea494322b5f45f6f554ed72e4a49935175fc2e370cb8ae90",
+      "files": {
+        "src/memecoin_runner/paired_loss_signflip.py": "d9192ef17b256f305dacbe325131d72af1cf1e5b402a65d0822bb7aa54cba809",
+        "tests/test_research_paired_loss_signflip.py": "3830170c1addfd42b635177d19e5c989b2d4dac2f96a5b60e891b8e98c22efa1"
+      }
+    },
+    {
+      "receipt_path": "/Users/root1/Developer/brain-paperclip-lab/state/final-acceptance-20261026/programme158-numeric-rework/prepared/slot1/custody/publication-726a8e77-bdcc-4b77-a04c-5d18d333e86b.json",
+      "receipt_sha256": "d7a8219f81869c808ffa627f9dcab613f97d827324eb7443a776fbb1bd728a6a",
+      "candidate": "48b0bf3f9e6876b9f23ebefbbe5c16f5207a2aae",
+      "expected_tip": "60ffee3c26ee7c6e90c0523830e10ce8c1c50261",
+      "qa_run_id": "fba6a86e-5d16-46de-80f3-a2dcebe75d23",
+      "source_run_id": "df8c09d7-b71a-4e72-bcc3-a4528edecfcc",
+      "source_task_id": "726a8e77-bdcc-4b77-a04c-5d18d333e86b",
+      "qa_task_id": "44d8e4c9-0cb0-4b5a-a069-7160fb6a9c5a",
+      "qa_attachment_id": "aae32ea9-1ece-4ee3-bc9b-ba444ba44715",
+      "qa_sha256": "1ccafc751ff336d49a376e294def43260e0a9a60398f93e883de109fc4faf6da",
+      "files": {
+        "src/memecoin_runner/paired_loss_missing_bounds.py": "dbcddab350c3480edc822c43dcfab3649dd09b82f8e89431a63844782ed9975e",
+        "tests/test_research_paired_loss_missing_bounds.py": "3108a2668aade337d26deb4b86d86a1f7db4932029201d74ebb0938d74740806"
+      }
+    },
+    {
+      "receipt_path": "/Users/root1/Developer/brain-paperclip-lab/state/final-acceptance-20261026/final-sequential/prepared/slot1/custody/publication-1d26a803-f716-49d0-a192-d116d812408e.json",
+      "receipt_sha256": "905f5392a2bf3f1cc2e126bfd5931dd764d3ef2e70fa07fd6458dd05c2cecd8f",
+      "candidate": "bde1da022002d5bbb6d0919e2779e187b40d04df",
+      "expected_tip": "48b0bf3f9e6876b9f23ebefbbe5c16f5207a2aae",
+      "qa_run_id": "15666275-d78e-4c6e-b8fc-05c05c2a5b2a",
+      "source_run_id": "45203d89-a561-4bfe-b9e8-ed71632371b3",
+      "source_task_id": "1d26a803-f716-49d0-a192-d116d812408e",
+      "qa_task_id": "6ed76462-e3ef-4e33-a8e5-bcf4428e5fba",
+      "qa_attachment_id": "dd671306-4992-48e7-88ad-abb48be5b1a3",
+      "qa_sha256": "955ba88564ed05fecdc28dc22fb575ed523c98ef9ee6d2f428d30e3b1d7e62b2",
+      "files": {
+        "src/memecoin_runner/paired_loss_target_mix.py": "97bb73c48571863539b8e331d9ae4e5d32b46f209b3555f2793fc6093810209f",
+        "tests/test_research_paired_loss_target_mix.py": "91e3e73eae4bd4eb642aada5accd6e6a3942e8a0099cdba9030a13f29afb2101"
+      }
+    },
+    {
+      "receipt_path": "/Users/root1/Developer/brain-paperclip-lab/state/final-acceptance-20261026/final-sequential/prepared/slot2/custody/publication-69b5d942-80ee-4dce-a41a-a1bc662e176f.json",
+      "receipt_sha256": "9f45073a2150ce69b0b4891f9e7ba3e6bd4f41f21e507f82c2f1bde13f528702",
+      "candidate": "54fb18054ec49ee53bbe7fd19a1936c3e2d699e5",
+      "expected_tip": "bde1da022002d5bbb6d0919e2779e187b40d04df",
+      "qa_run_id": "e28e5536-aa4c-49e9-8e12-dab9de7ab6c9",
+      "source_run_id": "a732e4c4-2c4d-4d27-b7b9-3999cb2019be",
+      "source_task_id": "69b5d942-80ee-4dce-a41a-a1bc662e176f",
+      "qa_task_id": "a39a8763-c7f8-4b5b-905b-5e3c0d89f646",
+      "qa_attachment_id": "b12abbe9-f2f0-44c5-8a4c-385d6eab7152",
+      "qa_sha256": "1e3a5cdcfdf67ac558e97af13c3fe011431f22813bf36302dedf4184725fe75c",
+      "files": {
+        "src/memecoin_runner/paired_loss_cluster_influence.py": "722f82f975b04418153f9fb1ebbba21ed6ddc2036291b60b2e403812755cdff8",
+        "tests/test_research_paired_loss_cluster_influence.py": "90bf2b9ef0858c2aab88431feb1fef7b647eea453e92502d431f8a7e7c8ceb9a"
+      }
+    }
+  ],
+  "all_ten_published_file_hashes_verified": true,
+  "criteria": [
+    {
+      "criterion": 1,
+      "name": "Sequential autonomy",
+      "status": "partial",
+      "observed": "Five accepted useful publications; native lead routed sequential source/QA/publication. Source149 and source180 each completed admission through publication without CEO task/code/workspace intervention. Earlier independent evidence proves native useful work after actual interactive CEO exit.",
+      "not_proven": "A complete repeated two-task programme without interactive CEO assistance throughout. First TEST pair needed casing/publisher repair; final pair needed custody/tool clarification and a resource-cap extension. The latter occurred at23:16:22Z after publication1 at23:15:45Z, so do not label that pair wholly unassisted."
+    },
+    {
+      "criterion": 2,
+      "name": "Real QA correction",
+      "status": "mechanism_observed_with_limits",
+      "observed": "Real rejects, complete findings and full previous candidate returned to same developer; revision2 restaging and same independent QA reassessment. First normal programme stopped on second semantic rejection; separate numeric rework accepted. Final target-mix correction was accepted and published.",
+      "limit": "Final corrected QA initially stopped on historical-byte access/extra metadata expectation; CEO clarified existing stage contract. No artificial bug or weakened product acceptance."
+    },
+    {
+      "criterion": 3,
+      "name": "Episodic strategy",
+      "status": "selection_observed_admission_bounded",
+      "observed": "Completion of manager150 natively invoked Astra157; Astra selected programme158. Astra172 later selected two independent useful outcomes without founder feature assignment; native Sol created eight child tasks and two QA workspaces.",
+      "limit": "Owner-private publication envelope and safe source/base preparation remain initial admission work. Unrestricted automatic strategy-to-programme admission and arbitrary multi-file delivery are not qualified."
+    },
+    {
+      "criterion": 4,
+      "name": "Lifecycle",
+      "status": "passed_for_idle_pause_resume_and_retained_work",
+      "observed": "Logical shift stop, separate employee pause, Board pause/resume, explicit employee resume and final Board pause preserved all183 task projections and5 historical candidate byte hashes; zero live runs throughout. Manual employee pause survived company resume.",
+      "limit": "No arbitrary in-flight cancellation/crash recovery or multiweek resilience claim."
+    },
+    {
+      "criterion": 5,
+      "name": "Normal roles",
+      "status": "passed",
+      "observed": "Eight lead/QA profiles restored to Sol High via reversible partial configuration; developers Luna High, Astra unchanged. Actual Sol lead/Luna developer/distinct Sol QA runs and accepted publication verified.",
+      "limit": "Actual useful role verification covers the admitted actors, not every paused profile."
+    },
+    {
+      "criterion": 6,
+      "name": "Workforce and throughput",
+      "status": "bounded_template_and_useful_throughput_observed",
+      "observed": "40 engineer profiles,52total. New developers15 and16 performed useful source/test/correction work through native Git worktrees. Native prepare created exact task/QA workspace graphs; five useful publications. Peak2 simultaneous unique model run IDs in this acceptance.",
+      "limit": "13 historical engineer pauses retained; roster is not concurrency. Not all40 individually workload-tested. Historical4-Luna overlap plus429 remains separate evidence; exact provider/host ceiling and40-way execution are not established."
+    }
+  ],
+  "native_accounting": {
+    "distinct_run_count": 72,
+    "model_run_count": 54,
+    "process_run_count": 18,
+    "model_run_counts_by_model": {
+      "gpt-6-astra": 3,
+      "gpt-6-luna": 21,
+      "gpt-6.1-sol": 30
+    },
+    "uncached_input_tokens_including_cache_writes": 7235414,
+    "output_tokens": 1091937,
+    "cached_input_tokens": 202566528,
+    "max_concurrent_model_run_ids": 2,
+    "run_status_counts": {
+      "failed": 2,
+      "succeeded": 70
+    },
+    "usage_source_counts": {
+      "per_run": 72
+    },
+    "billing_type_counts": {
+      "subscription_included": 54,
+      "unknown": 18
+    },
+    "max_concurrency_witness_intervals": [
+      {
+        "active_model_run_ids": [
+          "17b8b9a5-acf1-49de-a5de-e51362c3ee59",
+          "88269e2d-fb68-41b5-a078-f531a8e6421c"
+        ],
+        "overlap_interval_end_utc": "2026-10-26T20:31:50.017000+00:00",
+        "overlap_interval_start_utc": "2026-10-26T20:31:25.610000+00:00",
+        "overlap_model_run_id_count": 2,
+        "runs": [
+          {
+            "finished_at": "2026-10-26T20:33:12.379Z",
+            "model": "gpt-6-luna",
+            "run_id": "17b8b9a5-acf1-49de-a5de-e51362c3ee59",
+            "started_at": "2026-10-26T20:31:25.610Z",
+            "task_function": "developer",
+            "task_identifier": "MEM-148"
+          },
+          {
+            "finished_at": "2026-10-26T20:31:50.017Z",
+            "model": "gpt-6-luna",
+            "run_id": "88269e2d-fb68-41b5-a078-f531a8e6421c",
+            "started_at": "2026-10-26T20:30:40.916Z",
+            "task_function": "manager",
+            "task_identifier": "MEM-150"
+          }
+        ],
+        "witness_at_utc": "2026-10-26T20:31:25.610000+00:00"
+      }
+    ]
+  },
+  "accounting_limits": [
+    "Exact executor/task-context run IDs deduplicated; cached reads separate from uncached input including cache writes.",
+    "Succeeded run status is not semantic QA acceptance; genuine rejections and a preflight block are retained.",
+    "Owner/interactive CEO and collaboration preparation/review are outside this native ledger; USD cost is unavailable.",
+    "Whole-account subscription percentages are not attributable programme quota.",
+    "Prior through171 ledger counted distinct model names for its concurrency field; final ledger correctly counts unique model run IDs, and the actual peak remains2."
+  ],
+  "final_product_programme_budget": {
+    "task_range": "MEM173..183",
+    "model_runs": 20,
+    "original_cap": 18,
+    "amended_cap": 22,
+    "extension": 4,
+    "deadline_utc": "2026-10-26T23:43:33.107346Z",
+    "manager_terminal_at": "2026-10-26T23:35:33.279Z",
+    "separate_strategy_runs_MEM172": 2,
+    "no_further_campaign": true
+  },
+  "qa_artifact_access": {
+    "configuration": "Existing call_api added to active QA allowlist; other permissions preserved.",
+    "actual_resume_observation": "QA reported call_api/search_api absent in resumed provider context. It recovered prior bytes from retained evidence and verified hashes; native lead independently retrieved originals and checked byte equality.",
+    "qualification": "Direct QA API retrieval is NOT runtime-qualified by this run. Permission readback alone is not proof of tool exposure. No new stage field/helper/service was required."
+  },
+  "verification": {
+    "engineering_pytest_passed": 855,
+    "engineering_subtests_passed": 293,
+    "smoke": "passed synthetic fixture/reproducibility checks",
+    "independent_prepare_review": "Corrected candidatee9bd918 accepted;25focused tests38subtests and Ruff; integratedadfa29e+66f63b8. First rejected candidate preserved.",
+    "full_engineering_release_check": "NOT GREEN:253 pre-existing Ruff diagnostics identical atcba78f6 and66f63b8; changed native-delivery files clean.",
+    "product_qa": "Separate native finished-candidate QA for all five published results; exact final hashes read back. No production/runtime/data/training inference."
+  },
+  "subscription_snapshot": {
+    "checked_at": "2026-10-26T23:45:52.472Z",
+    "source": "codex_wham",
+    "limits": [
+      {
+        "scope": null,
+        "windowDurationSeconds": 604800,
+        "resetsAt": "2026-11-02T06:53:53.000Z",
+        "used": null,
+        "limit": null,
+        "remaining": null,
+        "unit": "percent",
+        "allowed": true,
+        "id": "codex.primary_window",
+        "label": "Codex · Primary",
+        "usedPercent": 80,
+        "limitReached": false,
+        "remainingPercent": 20
+      },
+      {
+        "scope": null,
+        "windowDurationSeconds": null,
+        "resetsAt": null,
+        "used": null,
+        "limit": null,
+        "remaining": null,
+        "unit": null,
+        "allowed": null,
+        "id": "spend_control",
+        "label": "Workspace spend control",
+        "limitReached": false,
+        "usedPercent": null,
+        "remainingPercent": null
+      }
+    ],
+    "scope": "whole account",
+    "usd_cost_known": false
+  },
+  "final_state": {
+    "company_status": "paused",
+    "all_six_companies_paused": true,
+    "live_runs_all_companies": 0,
+    "protected_holds": [
+      "MEM118 blocked/no replay",
+      "MEM123 blocked/no replay",
+      "MEM126 in_review/human_only"
+    ],
+    "task_state_and_candidate_preservation": true,
+    "roles_retained": "normal Sol/Luna/Astra",
+    "next_launch_requires_explicit_founder_command": true
+  },
+  "remaining_work": [
+    "Qualify a fresh two-useful-task programme without interactive CEO configuration/budget assistance; do not relabel the assisted runs.",
+    "Verify actual artifact-reader availability in a fresh QA context or qualify the supported lead-to-QA full-evidence route; preserve exact bytes and independent QA.",
+    "Keep initial owner-private programme admission and two-new-file route limits explicit; general autonomous admission is not established."
+  ],
+  "private_evidence_root": "/Users/root1/Developer/brain-paperclip-lab/state/final-acceptance-20261026",
+  "private_evidence": {
+    "publication-final-readback.json": {
+      "sha256": "794daf9a7865b2983813da2f187b125d81b64540a58d1d6b328357a0e297a456",
+      "bytes": 5869
+    },
+    "accounting-final-through183.json": {
+      "sha256": "aa5192ac6ac8034544fafbf604fe6b6dd17792886ecdc40f30cb5be6f1825f13",
+      "bytes": 505303
+    },
+    "final-lifecycle-check.json": {
+      "sha256": "506217ba2e347c35a5073970a6a44abadc7b7572d6778060f84ea90210415691",
+      "bytes": 488451
+    },
+    "final-runtime-readback.json": {
+      "sha256": "5d7219f3499a52ed43f6c560b93ff7afcdc99534f9c07df38b9efc7d1cee4abd",
+      "bytes": 1044
+    },
+    "subscription-final.json": {
+      "sha256": "6bb66c03fffeedb34226463562ab6fdf9abff67bc41d335ddf0bc277239147e4",
+      "bytes": 1237
+    },
+    "normal-model-restoration.json": {
+      "sha256": "2cae21d287b504172272a67caca1161949c18d98457cedde8f71b191e1d3c691",
+      "bytes": 4695
+    },
+    "normal-role-instruction-update.json": {
+      "sha256": "6452612fdea13f694fed0a66e2168df2de43973a89ee610bf74ce3afe62781c5",
+      "bytes": 290462
+    },
+    "workforce-provisioning.json": {
+      "sha256": "c1d2da0aa67b61d917327baf81177f61c553c041ee3f9c327246de03d57e4143",
+      "bytes": 7122
+    },
+    "prepare-independent-review.json": {
+      "sha256": "e94096e3a328c02dc73cb38dc75ca8e1e68a644874230dca91c8403121f07c09",
+      "bytes": 1138
+    },
+    "engineering-pytest.log": {
+      "sha256": "bd66f3860dfa1bda7a217785b684adbc3cf5688158ba5c4f52f9cca3c8d5d86d",
+      "bytes": 1533
+    },
+    "smoke.log": {
+      "sha256": "e74f77ed30218c7b0e0aa7c4faeb5f7c14c732e05c56cd0d997cd9a3a05874e2",
+      "bytes": 576
+    },
+    "engineering-lint-baseline-comparison.json": {
+      "sha256": "1206b4d6c66d3fe69db072e3a801c291d1a2d0f553354913bdbf5e3a3023868a",
+      "bytes": 227
+    },
+    "final-sequential/qa-existing-api-capability.json": {
+      "sha256": "7391dc6db268cb60b077451103b7fce319407caf0eee59174e1cb7c2fb73e374",
+      "bytes": 1461
+    },
+    "final-sequential/custody-clarification-continuation.json": {
+      "sha256": "103a8c1e98be71d98a789e3e9b20ef3e6b02156dcb08238188e9c130b548a5cf",
+      "bytes": 4688
+    },
+    "final-sequential/resource-budget-correction.json": {
+      "sha256": "eac76613a390bbc7075caccf5ba15b1a368e4c939647626b61c2da390621240e",
+      "bytes": 1769
+    },
+    "final-sequential/slot1-qa-first.json": {
+      "sha256": "151d3dbec48fb5c23e3f221257b6f9c9f23c9453fe22f0b765a18c9f76f1281b",
+      "bytes": 3911
+    },
+    "final-sequential/slot1-qa-revision2-blocker.json": {
+      "sha256": "9f52869d666f189d2d0bd2ccc296ea42eec5f0efb31a15fcd52eda37b9ac46cb",
+      "bytes": 3266
+    },
+    "final-sequential/slot1-qa-corrected.json": {
+      "sha256": "963a051fdb3d5b127fa868b6b3501327b2132a0c28b73456409e5a09650bb7a8",
+      "bytes": 3340
+    },
+    "final-sequential/slot2-qa-result.json": {
+      "sha256": "be8c43e16674a15c60007573612f5d9df8ce306870049331f733c536815fc6c8",
+      "bytes": 2830
+    }
+  }
+}

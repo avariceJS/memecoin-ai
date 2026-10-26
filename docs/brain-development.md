@@ -1,5 +1,14 @@
 # Brain Architecture
 
+## Explicit-support research tools — 2026-10-27
+
+Brain54fb180 includes independently accepted provider-roster coverage, paired-loss sign-flip,
+missing-loss bounds, target-cohort mixture sensitivity and cluster-removal influence. They strengthen offline support/interpretation of supplied observations; no
+acquisition, model training, promotion or runtime activation follows. The missing-loss diagnostic
+shows how a complete-case comparison can remain inconclusive over the declared roster.
+[Contracts and limitations](training-evaluation.md#roster-support-and-paired-loss-diagnostics--2026-10-27).
+The two held calibration/representation tasks remain protected; these additions do not replace them.
+
 ## Research dossier accepted — 2026-10-26
 
 Brain `69b926d` adds `memecoin_experience.research_report`: deterministic composition of explicit

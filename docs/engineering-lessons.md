@@ -1,5 +1,29 @@
 # Engineering lessons and retrieval
 
+### E17 — Verify artifact access in the actual QA context
+
+- **Trigger:** Reassessment needs the complete prior candidate and rejection evidence.
+- **Finding:** A native permission update read back correctly, but resumed QA still lacked the API tool.
+  Hash-verified retained bytes and independent lead retrieval preserved review, with CEO clarification.
+- **Action:** Check actual tool exposure before admission, or bind the supported complete-evidence handoff.
+  Do not infer runtime capability from configuration or add an unsupported metadata requirement to an
+  already accepted staging contract. Preserve the operational block separately from semantic rejection.
+- **Source:** [Final acceptance](engineering-organization.md#final-functional-acceptance--2026-10-27).
+- **Revalidate:** Fresh provider context, artifact interface or native permission changes.
+
+### E16 — Preserve numeric information and rejected candidates
+
+- **Trigger:** A scientific diagnostic validates or compares caller-supplied numeric values.
+- **Finding:** Real independent QA rejected both rounded out-of-range integers and valid adjacent
+  integer losses whose difference collapsed to zero after early float conversion. Developer tests
+  passing did not establish the numeric contract.
+- **Action:** Preserve original values through validation/differences/aggregation, round only the
+  final representation, and use an independently constructed oracle. On rejection return the full
+  previous candidate and concrete findings to the same worker; retain prior QA and enforce the
+  correction cap. A later accepted admission does not erase an earlier stopped programme.
+- **Source:** [Final organization acceptance](engineering-organization.md#final-functional-acceptance--2026-10-27).
+- **Revalidate:** Numeric input/output contract, representation or correction policy changes.
+
 ### E15 — Derive shift summaries from native records
 
 - **Trigger:** A manager summarizes a shift with multiple native runs.
