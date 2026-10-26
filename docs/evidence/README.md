@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [Bounded native parallel cohort](brain-native-parallel-cohort-20261026.json): four real concurrent Luna developers, independent Sol QA, accepted Brain integration, measured native tokens and explicit assisted-workflow limits. Raw private logs excluded.
+
 Evidence is immutable and task-scoped. Do not read this directory wholesale. Historical receipts
 and figures retain their original bytes. Reports/receipts can
 contain large exact payloads, so open only the named artifact needed for a specific claim.

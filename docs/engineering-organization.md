@@ -1,5 +1,43 @@
 # Brain Engineering Organization
 
+## Bounded native developer path — 2026-10-26
+
+This checkpoint supersedes the older active-path instructions below for the completed cohort.
+The founder explicitly authorized simplification and one bounded parallel run, followed by stop.
+Installed Paperclip 0.3.1 (`8aa17aa0`) already supports Codex native shell/edit/test tools through
+`paperclip_runner`; no newer upstream feature or adapter patch was required. Its native Codex
+is 0.160.0. Use native tasks, lifecycle and full QA feedback; the custom source-reader/proposal
+relay and duplicate queue are excluded from this path. Old failed operations and MEM-99 remain held,
+not recreated, erased or retried. Historical source repair `8d994c9` remains uninstalled.
+
+Four Luna-6 High developers worked in separate independent Git clones projected from accepted
+Brain `37cf68f`, with relevant accepted rules, adapted skills and lessons. Native tool evidence
+confirms real source edits and tests across an overlapping 115.745-second interval. A separate
+Sol-6.1 High planned four useful tasks; another independently reviewed completed candidates.
+Three passed first review; scoring needed one test-only correction with the prior candidate and
+complete feedback retained. All four are now accepted and integrated/published at `40084d1` in
+`brain/development`; final combined focused suite: 54 passed, 1 training test deselected.
+An earlier F01-dependent test failure remains recorded; protected config was not supplied.
+
+Retain standard OS filesystem confinement, denied shell network, subscription-only delegated auth,
+independent exact-candidate QA and serial controlled publication. Clones carry no owner Git history,
+personal memory or credentials. The isolated service HOME has no owner GitHub/SSH credentials;
+worktrees alone are not a security boundary. Existing Python/test dependencies were copied into
+private local runtimes, including sqlite/SSL libraries; no new dependency or security framework.
+Fixture probes demonstrated sibling read/write and shell-network denial. Worker runs actually read
+accepted guidance. This qualifies this bounded environment, not arbitrary-host isolation.
+
+Assistance remains explicit: owner corrected one inherited-workspace binding batch before launch,
+provisioned profiles/runtime, transferred candidates, dispatched the correction and serialized Git
+integration. No intervention occurred inside the four initial implementation runs. Native create_task
+inherited the lead workspace: verify each effective cwd before a concurrent cohort. Nine native
+subscription runs are measured; no USD/quota-percent conversion is available. Scale40 and unattended
+workspace/export/integration are not qualified; no account or hardware ceiling was demonstrated.
+All seven cohort tasks are done, all six companies paused, live runs zero. No automatic next campaign.
+
+Exact pins, intervals, file hashes, candidates, tests, QA and metering:
+[cohort receipt](evidence/brain-native-parallel-cohort-20261026.json).
+
 Founder clarification (2026-10-23): a local component hold does not prohibit independent useful
 work. CEO owns architecture and may remove the affected path rather than repair it, without
 circumventing protective refusals. Qualified source-only work may proceed with publication held;

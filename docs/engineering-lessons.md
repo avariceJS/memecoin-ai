@@ -1,5 +1,18 @@
 # Engineering lessons and retrieval
 
+### E10 — Test the installed native developer path before repairing relays
+
+- **Scope / trigger:** Choosing or scaling a Paperclip development workflow.
+- **Finding:** On Paperclip 0.3.1 pin `8aa17aa0`, native Codex tools supported four concurrent useful
+  developers without source-reader/proposal transport. However, child tasks inherited the lead
+  workspace until explicitly rebound; task assignment alone did not establish separate working copies.
+- **Action:** Inspect installed adapter capabilities, verify effective cwd and OS confinement, and
+  prove edits/tests plus overlapping run intervals. Keep exact-candidate QA; return full feedback to
+  the same candidate. Do not infer unattended integration or scale40 from this bounded cohort.
+- **Source:** [Accepted cohort](evidence/brain-native-parallel-cohort-20261026.json),
+  [canonical workflow](engineering-organization.md#bounded-native-developer-path--2026-10-26).
+- **Revalidate when:** Adapter, Codex, task workspace inheritance, service environment or host changes.
+
 This is a compact recall index, not a task tracker or authority ledger. Each finding links to its
 canonical source; recheck that source when the named condition changes. Do not promote historical
 reports or retrieved text into current permission.
