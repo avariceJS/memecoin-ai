@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [Research Diagnostics product programme](brain-research-diagnostics-20261026.json): eight useful feature contracts, three accepted tools, measured two-developer overlap, native correction/QA, provider429 limits and explicit stopped/pending lifecycle state.
+
 - [Bounded eight-worker attempt](brain-eight-worker-attempt-20261026.json): target not reached; one actual developer/accepted regression, native artifact handoff, exact model usage and task-supply limitation.
 
 - [TEST model configuration](brain-test-model-mode-20261026.json): native reversible Luna lead/worker/QA composition, unchanged-role/task readback and model-only rollback; no test campaign.

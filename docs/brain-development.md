@@ -1,5 +1,26 @@
 # Brain Architecture
 
+## Research diagnostics programme — 2026-10-26
+
+Product work is not restricted to reproduced bugs. The CEO-selected next increment is an offline
+research toolkit that explains whether observations, corpus composition, evaluation and decision
+uncertainty support a research conclusion. Leads turn these useful questions into independent
+capabilities with explicit inputs and executable acceptance; bounded duplicate checks replace broad
+searches for defects. The six department ownerships and existing scientific boundaries are retained.
+
+The programme identified eight distinct outcomes: availability latency (Senses), exposure contrast
+and attrition funnels (Experience), conditional calibration and paired-loss comparison (Evaluation),
+fixed-bin representation shift (Cortex), abstention sensitivity (Policy), and a readable common
+research dossier (Platform). A frozen diagnostic envelope permits independent implementation; no
+scheduler, management framework or new runtime dependency is introduced.
+
+Three are now accepted in Brain `cc5573b`: availability latency, paired-loss comparison and abstention
+sensitivity. Five source tasks remain blocked by actual provider429 refusals, not lack of useful work.
+Their contracts remain in native Paperclip tasks. Usage and examples for the implemented tools belong
+to [training/evaluation](training-evaluation.md#offline-research-diagnostics--2026-10-26); organizational
+limits and the bounded stop belong to [engineering organization](engineering-organization.md).
+
+
 **Status:** exploratory supervised forecasting and virtual paper; no demonstrated trading edge.
 This document owns the current system map and its intended growth boundary.
 

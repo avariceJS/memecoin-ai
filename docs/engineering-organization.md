@@ -1,5 +1,49 @@
 # Brain Engineering Organization
 
+## Product-led diagnostics cohort — 2026-10-26
+
+The current founder clarification supersedes the prior defect-only interpretation of department
+work: new features and scientific tools need a concrete benefit, a bounded existing-capability check
+and executable acceptance, not a pre-existing reproduced failure. Bug claims still require reproduction.
+The CEO selected Offline Research Diagnostics across all six departments; Luna lead independently
+checked compatibility and created eight real developer tasks MEM-118..125 and two QA tasks. The
+common report contract and disjoint modules avoided code dependencies; Platform's task was a research
+report tool, not organization infrastructure. Existing held profiles were reused with fresh safe-source
+clones; no old work, unknown outcomes or protected data were replayed.
+
+Three substantive capabilities are accepted/published in Brain `cc5573b`: availability latency,
+paired-loss comparison and abstention sensitivity.32 integrated tests and three CLI demonstrations
+pass. Five feature tasks remain blocked because Codex returned429 before tools. The response does
+not disclose which subscription/rate/concurrency sublimit applied. One read-back/cooldown batch of
+at most4 preserved the same tasks/identities: two previously unstarted workers succeeded, another
+failed429 and an original failed execution refused retry with execution_reconciliation_required.
+That protective refusal was preserved; no replacement operation or infrastructure repair followed.
+Actual useful developer peak was2 for126.761seconds. Eight-way scaling is not demonstrated.
+
+Independent Luna QA accepted two candidates, rejected one on a concrete finite-mean overflow, then
+accepted the corrected candidate. Luna manager itself dispatched full feedback via native
+comment_on_task(resume:true) on the original task/worker. Prior candidate/rejection remain preserved;
+unchanged two-candidate acceptance was reused. Native register_deliverable carried patches,
+demonstrations and QA reports. Owner still binds workspaces, stages artifacts and integrates serially.
+A confined Git-index staging refusal was not relaxed: corrected QA working-tree bytes were bound to
+the immutable canonical candidate by hashes. A local demo-harness module alias assumption was corrected
+without source changes or repeated model QA. No new scheduler, broker, framework or dependency.
+
+Eight successful native Luna High runs: management2, development4 including one correction, QA2.
+There were also5 pre-tool429 failures,3 queue cancellations before provider start and1 skipped retry
+(non-run). Complete successful receipts:600025 uncached input,95840 output,5479424 cached input tokens;
+failed-turn accounting is incomplete. Subscription only; USD/quota fraction and interactive CEO costs
+are not measured. All six companies are paused/live0. Three source tasks and manager are done; five
+source tasks and unused QA are blocked. MEM-126 remains in_review because the first QA created an
+explicit human_only completion-confirmation request; it was not resolved by impersonating a human or
+forcing task status. Corrected source acceptance and authorized publication are distinct from that
+pending native workflow record. No16/40 or automatic retry campaign is admitted by this checkpoint.
+
+[Product/source owner](brain-development.md#research-diagnostics-programme--2026-10-26),
+[tool contracts/examples](training-evaluation.md#offline-research-diagnostics--2026-10-26), and
+[bounded receipt](evidence/brain-research-diagnostics-20261026.json).
+
+
 ## Eight-worker attempt closed — 2026-10-26
 
 The founder authorized one bounded TEST cohort targeting eight concurrent useful developers,

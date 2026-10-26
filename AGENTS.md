@@ -46,6 +46,17 @@ is available from historical Git commits.
 - Keep `memory/now.md` short and dated. Do not recreate the old append-only narrative memory bank;
   Git history and immutable evidence hold the detailed chronology.
 
+## Product-led backlog — founder clarification 2026-10-26
+
+Astra owns Brain product strategy and architecture across Senses, Experience, Cortex, Evaluation,
+Policy and Platform. New functions, scientific capabilities and analysis tools are valid work when
+there is a concrete user/research question, a bounded check against existing capability, and an
+observable acceptance result. A reproduced defect or absent invariant is NOT a prerequisite for
+new feature work. Reproduction remains required for claims about existing bugs. Leads decompose
+product outcomes into genuinely independent tasks; do not replace product initiative with broad
+bug searches or split trivial changes merely to fill worker slots. Use native Paperclip tasks,
+normal Codex workspaces and independent finished-candidate QA; existing protected boundaries apply.
+
 ## Current TEST model override — 2026-10-26
 
 Founder explicitly selected reversible TEST mode: department/program leads, implementers and

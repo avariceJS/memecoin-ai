@@ -1,5 +1,20 @@
 # Engineering lessons and retrieval
 
+### E12 — Product capability is an admission basis; defects are a separate work class
+
+- **Scope / trigger:** Defining a Brain department programme or interpreting a thin backlog.
+- **Finding:** A bounded defect search found one regression task, while a CEO-led programme of
+  explicit research questions yielded eight independent capability contracts. Three tools were
+  implemented and accepted; provider429, not lack of useful tasks, blocked the remaining five.
+- **Action:** Check existing capability narrowly, then admit new functionality by benefit and
+  executable behavior. Require reproductions for bug claims, not for invention. Preserve exact
+  source QA and distinguish actual productive overlap from pre-tool failed run status. Do not infer
+  a fixed concurrency ceiling from an unspecified429 or repair infrastructure indefinitely.
+- **Source:** [Product programme](brain-development.md#research-diagnostics-programme--2026-10-26)
+  and [bounded outcome](evidence/brain-research-diagnostics-20261026.json).
+- **Revalidate when:** Product goal, accepted capability or provider/account execution conditions change.
+
+
 ### E11 — Prove useful task supply before provisioning concurrency
 
 - **Scope / trigger:** Increasing the number of native developers.

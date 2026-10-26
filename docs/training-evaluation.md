@@ -1,5 +1,41 @@
 # Training and Evaluation
 
+## Offline research diagnostics — 2026-10-26
+
+Accepted source `cc5573ba65f0df90b28a164c7fe5c9e70ced0611` adds three opt-in stdlib tools. Each exposes
+`analyze(payload)` and a `python -m <module>` CLI reading one caller-supplied JSON value from stdin and
+writing one JSON report. Use the project Python environment with `src` importable. No store discovery,
+collection, artifact loading, training, serving, policy activation or ledger mutation occurs.
+
+| Module | Scientific question and input | Descriptive output |
+|---|---|---|
+| `memecoin_experience.availability_profile` | Which streams arrive after a decision? Supply `decision_ns` and rows with identity, stream, event/availability/receipt timestamps. | Per-stream/global missing and ordering counts, late availability, valid delay support and nearest-rank p50/p95. Unknown availability is never inferred from event time. |
+| `memecoin_runner.paired_loss_comparison` | Which cohorts improve or regress between two models? Supply model names, loss metric and identified cohort rows with both losses or null. | Strict paired support, one-sided/both missing counts, wins/ties, cohort deltas, micro and macro means. Positive `loss_b-loss_a` favors model A. No significance claim. |
+| `memecoin_runner.abstention_frontier` | How does a declared uncertainty threshold change coverage and observed loss? Supply thresholds and identified supported/uncertainty/loss rows. | Coverage and disjoint abstention reasons per threshold, known/unknown accepted-loss support and finite mean loss. This is a diagnostic sensitivity curve, not an execution policy. |
+
+Reports use `brain-research-diagnostic.v1`, a tool `kind`, SHA256 of compact sorted UTF8 input JSON,
+`summary`, `details`, and `limitations`. The hash identifies supplied input; it does not establish
+its provenance, completeness or historical availability. Empty/unknown denominators remain explicit.
+The accepted module docstrings define complete input and output details.
+
+Example from an accepted synthetic CLI demonstration:
+
+```sh
+printf '%s\n' '{"decision_ns":10,"rows":[{"id":"late","stream":"ticks","event_ns":5,"available_ns":12,"receipt_ns":15},{"id":"zero","stream":"ticks","event_ns":10,"available_ns":10,"receipt_ns":10}]}' | PYTHONPATH=src python -m memecoin_experience.availability_profile
+```
+
+This separates one not-yet-available observation from one known zero delay; valid event-to-availability
+p50/p95 are 0/7 ns. The paired demonstration intentionally yields different micro 1.75 and macro 4.5
+mean deltas from unequal cohort sizes. Missing outcomes never become zero loss. Independent QA
+rejected the first abstention candidate for overflowing two finite 1e308 losses; the corrected mean
+and complete finite CLI JSON passed re-review. These examples establish software semantics only,
+not real-data calibration, forecasting gains, independent benchmark competence or trading edge.
+
+Validation: 32 integrated focused tests and three real integrated CLI demonstration replays with exact
+output/input-hash matches. The five other planned tools are not implemented or qualified by this result.
+[Exact source/QA/verification receipt](evidence/brain-research-diagnostics-20261026.json).
+
+
 **Status:** latest official champion is empirical; latest GRU candidate was not promoted. The
 broad prospective benchmark is not populated. This document owns model/training semantics,
 benchmark policy, current experiment conclusions, and ML evidence pointers.
