@@ -1163,7 +1163,10 @@ def predecessor_expected_tip(
         refs.get(parent["canonical"]["ref"])
         in ({candidate} | ({own_candidate} if own_candidate is not None else set()))
         and refs.get(parent["canonical"]["candidate_ref"]) == candidate
-        and (own_candidate is None or refs.get(m["canonical"]["candidate_ref"]) == own_candidate),
+        and (
+            own_candidate is None
+            or refs.get(m["canonical"]["candidate_ref"]) in {None, own_candidate}
+        ),
         "predecessor_remote_head_unexpected",
     )
     return candidate

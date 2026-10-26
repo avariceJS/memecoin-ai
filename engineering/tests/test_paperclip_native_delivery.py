@@ -525,6 +525,36 @@ class NativeDeliveryTests(unittest.TestCase):
                     self.assertEqual(
                         delivery.predecessor_expected_tip(child, manifest_hash, api), candidate
                     )
+                with patch.object(
+                    delivery,
+                    "git",
+                    return_value=child_candidate.encode(),
+                ), patch.object(
+                    delivery,
+                    "remote_git",
+                    return_value=(
+                        f"{child_candidate}\t{delivery.PUBLISH_REF}\n"
+                        f"{candidate}\trefs/heads/brain/first\n"
+                    ).encode(),
+                ):
+                    self.assertEqual(
+                        delivery.predecessor_expected_tip(child, manifest_hash, api), candidate
+                    )
+                with patch.object(
+                    delivery,
+                    "git",
+                    return_value=child_candidate.encode(),
+                ), patch.object(
+                    delivery,
+                    "remote_git",
+                    return_value=(
+                        f"{child_candidate}\t{delivery.PUBLISH_REF}\n"
+                        f"{candidate}\trefs/heads/brain/first\n"
+                        f"{'a' * 40}\t{child['canonical']['candidate_ref']}\n"
+                    ).encode(),
+                ):
+                    with self.assertRaisesRegex(delivery.DeliveryError, "remote_head_unexpected"):
+                        delivery.predecessor_expected_tip(child, manifest_hash, api)
                 own_path.unlink()
 
             with self.subTest("missing receipt"):
