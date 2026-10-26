@@ -37,6 +37,16 @@ def _number(value: Any, label: str, *, minimum: float, maximum: float | None = N
     return result
 
 
+def _finite_mean(values: list[float]) -> float | None:
+    """Average nonnegative finite values after scaling to avoid sum overflow."""
+    if not values:
+        return None
+    scale = max(values)
+    if scale == 0:
+        return 0.0
+    return (sum(value / scale for value in values) / len(values)) * scale
+
+
 def analyze(payload: dict) -> dict:
     """Validate and analyze explicit thresholds and rows; input is not mutated."""
     if not isinstance(payload, dict):
@@ -102,7 +112,7 @@ def analyze(payload: dict) -> dict:
             },
             "accepted_known_loss_count": len(known_losses),
             "accepted_missing_loss_count": missing_losses,
-            "mean_loss": sum(known_losses) / len(known_losses) if known_losses else None,
+            "mean_loss": _finite_mean(known_losses),
         })
 
     canonical = json.dumps(

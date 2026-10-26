@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import subprocess
 import sys
 
@@ -90,3 +91,26 @@ def test_cli_rejects_json_nonfinite_values() -> None:
     assert process.returncode == 2
     assert process.stdout == ""
     assert "nonfinite_json_number" in process.stderr
+
+
+def test_large_finite_losses_have_finite_mean_and_valid_cli_json() -> None:
+    payload = {
+        "thresholds": [1.0],
+        "rows": [
+            {"id": "large-a", "uncertainty": 1.0, "supported": True, "loss": 1e308},
+            {"id": "large-b", "uncertainty": 1.0, "supported": True, "loss": 1e308},
+        ],
+    }
+    result = analyze(payload)
+    mean_loss = result["details"][0]["mean_loss"]
+    assert math.isfinite(mean_loss)
+    assert mean_loss == 1e308
+
+    process = subprocess.run(
+        [sys.executable, "-m", "memecoin_runner.abstention_frontier"],
+        input=json.dumps(payload), text=True, capture_output=True, check=True,
+    )
+    cli_result = json.loads(process.stdout, parse_constant=lambda value: pytest.fail(value))
+    assert cli_result == result
+    assert math.isfinite(cli_result["details"][0]["mean_loss"])
+    assert process.stderr == ""
