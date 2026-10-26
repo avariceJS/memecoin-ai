@@ -1,39 +1,26 @@
-# Current state — 2026-10-26, bounded native cohort complete
+# Current state — 2026-10-26, bounded eight-worker attempt closed
 
-## Current model policy update
+- Founder authorized one TEST scaling attempt, then stop. MEM-114..116 are done; all six companies
+  paused/live0. No automatic16/40 follow-on; no Sol restoration. CEO unchanged.
+- Eight developer profiles prepared, only one dispatched: manager found one evidenced useful
+  independent task in two bounded passes. Maximum active developers1 for137.943seconds; eight-way
+  overlap0. This is a bounded planning result, not global work scarcity or measured capacity ceiling.
+- One test-only observation duplicate/chunk publication regression independently accepted by a
+  different Luna High.7passed on final integration. Brain `brain/development` published at
+  `6c4eceb9f7c8bc25d4253b30d931c03d1536f15e`; candidate branch brain/eight-luna-1-20261026 at
+  `e1c4fd26f0036fa5cab478dc5b1bf244668d2868`. Main remains2f8da5f.
+- Four native Luna High runs: management2, development1, QA1. Native usage338103 uncached input,
+  31851 output,2872704 cached input tokens; subscription included, USD/quota fraction unknown.
+- Native register_deliverable handed off patch and QA JSON with byte/hash verification. Explicit
+  issue workspace binding and owner QA staging/serial publication remain assisted. Three corrective
+  interventions (two setup-validation repairs, one plan refinement); zero during developer/QA runs.
+- Installed Paperclip8aa17aa0 unchanged. Historical MEM99/unknown operations and old manual holds
+  preserved; historical Sol lifecycle pausing unchanged. Eight unused new profiles remain held.
+- TEST composition applies to new roles: Luna High lead/developer/QA; independent QA identity.
+  Sol may return only by separate founder decision, then actual useful-run model verification.
+- Before another scaling attempt, establish independent useful backlog before allocating workers.
+  No protected data/config, production/main, market, training, AUTO, trading or paid API admission.
 
-Founder now authorizes reversible TEST composition and continued bounded scaling. All twelve
-non-CEO MEM agents use Luna High, including two leads and three independent QA identities;
-five Sol profiles changed by native API. CEO unchanged. Installed cheap/modelProfiles removed.
-113 task records and all non-model agent configuration preserved; no new model runs for switching.
-Use `docs/engineering-organization.md` TEST section and receipt `docs/evidence/brain-test-model-mode-20261026.json`.
-Restore saved model fields to Sol High for leads/QA before operating admission, then verify actual
-useful-run models. Historical cohort completion below is not a new STOP; historic failed operations
-and manual holds remain protected. Continue with explicit native issue workspace binding and
-accepted-source refresh; do not build a switch service or launch campaign40 to check configuration.
-
-
-Founder authorized one simplified native Paperclip developer cohort, then checkpoint and stop.
-All MEM-107..113 tasks are done. All six companies are paused; live runs: zero at final readback.
-This is completion of the bounded authorization, not a new Founder STOP or authority for campaign40.
-
-- Four Luna-6 High developers actually overlapped for 115.745 seconds on independent useful tasks.
-  Sol-6.1 High planned and independently reviewed exact candidates. Three accepted first pass;
-  the fourth accepted after one test-only correction on the same candidate/task.
-- Brain `brain/development` is published at `40084d195c3a1b16c8b41a0186911c299edda94f`.
-  Four candidate branches and integration branch are published. Final focused tests: 54 passed,
-  1 training test deselected. Protected configuration was not supplied; an earlier F01-dependent
-  failed command remains failed evidence, replaced for acceptance by hermetic scoring regressions.
-- Setup `46bde3d` is published in `org/development`. Main remains `2f8da5f`.
-- Native Paperclip 0.3.1 pin `8aa17aa0` and Codex 0.160.0 handled normal developer tools in confined
-  independent safe-source clones. No adapter/controller repair was installed. Worker guidance and
-  adapted skills were actually read. Owner workspace binding, export and integration remain assisted.
-- Original MEM agents/manual holds and MEM-99 history remain preserved. Historical Sol status is paused, lifecycleState remains
-  pausing; accepted repair `8d994c9` is not installed. No old-path work was resumed.
-- Nine native subscription-included runs: 655073 uncached input, 79505 output, 7480192 cached input
-  tokens. USD/quota fraction unknown; auxiliary/root usage excluded. No paid API or credit fallback.
-
-Canonical detail: `docs/engineering-organization.md`; curated evidence:
-`docs/evidence/brain-native-parallel-cohort-20261026.json`.
-Private handoff: `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md`.
-No runtime, production, protected data, collection, training, AUTO or trading admission.
+Canonical: docs/engineering-organization.md; receipt docs/evidence/brain-eight-worker-attempt-20261026.json.
+Private evidence/rollback custody: lab state/eight-native-20261026 and state/HANDOFF.md.
+Prior four-way success remains valid historical evidence at Brain40084d1; this run does not extend it.

@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [Bounded eight-worker attempt](brain-eight-worker-attempt-20261026.json): target not reached; one actual developer/accepted regression, native artifact handoff, exact model usage and task-supply limitation.
+
 - [TEST model configuration](brain-test-model-mode-20261026.json): native reversible Luna lead/worker/QA composition, unchanged-role/task readback and model-only rollback; no test campaign.
 
 - [Bounded native parallel cohort](brain-native-parallel-cohort-20261026.json): four real concurrent Luna developers, independent Sol QA, accepted Brain integration, measured native tokens and explicit assisted-workflow limits. Raw private logs excluded.

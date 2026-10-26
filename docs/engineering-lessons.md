@@ -1,5 +1,19 @@
 # Engineering lessons and retrieval
 
+### E11 — Prove useful task supply before provisioning concurrency
+
+- **Scope / trigger:** Increasing the number of native developers.
+- **Finding:** The bounded eight-worker attempt prepared eight profiles but found only one evidenced
+  independent task after two planning passes. This did not measure an eight-run platform limit.
+  Native `register_deliverable` did successfully transfer a source patch and independent QA JSON
+  with exact size/hash verification; owner staging/integration remained assisted.
+- **Action:** Establish a useful independent backlog before allocating the cohort. Treat rejected
+  candidate areas and limited search as scoped evidence, not global absence of work. Use native
+  task attachments for completed artifacts; do not invent queue/transport infrastructure.
+- **Source:** [Bounded attempt](evidence/brain-eight-worker-attempt-20261026.json).
+- **Revalidate when:** Product programme, source baseline, adapter or workspace/artifact interfaces change.
+
+
 ### E10 — Test the installed native developer path before repairing relays
 
 - **Scope / trigger:** Choosing or scaling a Paperclip development workflow.

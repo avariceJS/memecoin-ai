@@ -1,5 +1,40 @@
 # Brain Engineering Organization
 
+## Eight-worker attempt closed — 2026-10-26
+
+The founder authorized one bounded TEST cohort targeting eight concurrent useful developers,
+then company stop. Eight profiles/clones were prepared, but the Luna manager selected only one
+independent useful regression task after an initial pass and one bounded refinement. Candidate
+areas already had the inspected coverage; the detailed exclusions are in the receipt. This is a
+planning/task-supply limit of this attempt, not proof of global work scarcity or a hardware,
+subscription or adapter concurrency ceiling. Eight-way scaling was NOT exercised or demonstrated.
+
+Actual model execution: two management runs, one developer run and one separate independent QA run,
+all confirmed `gpt-6-luna/high`. Maximum active developers: one for137.943seconds; eight-way overlap0.
+One test-only candidate adds duplicate observation identity rejection across publication chunks and
+checks no manifest is published after failure. It does not claim a production implementation defect.
+Independent QA accepted; final integrated focused suite7passed. Candidate `e1c4fd2` and integration
+`6c4eceb` are published in their own branches and `brain/development`. Main remains unchanged.
+
+A concrete simplification was exercised: native `register_deliverable` published the candidate patch
+and QA JSON as task attachments. Native content downloads verified exact byte size/SHA256; no whole
+files were relayed through model text and no custom transport was added. Owner still staged the patch
+for QA and serialized integration. Child workspace binding used one ordinary issue-API batch.
+There were three corrective interventions: two rejected setup requests corrected after state/schema
+inspection, and one bounded planning refinement. No intervention inside developer or QA runs, no
+source correction. Planned preparation, binding, QA staging, integration and shutdown remain assisted.
+
+Measured native usage:338103 uncached input,31851 output,2872704 cached input tokens; four subscription
+runs, USD/quota fraction unavailable, interactive CEO excluded. Native start-to-final-QA completion
+728.943seconds; refinement-to-developer gap107.609seconds and developer-to-QA gap29.881seconds include
+owner handling, not demonstrated queue pressure. All MEM-114..116 done; all six companies paused/live0.
+Seven prepared developers and second QA were never dispatched. No automatic16/40 follow-on.
+Before a future scaling experiment, establish a substantive independent backlog first, then provision
+only needed roles; do not equate prepared profiles with useful demand. Keep native attachments,
+explicit workspace selection and independent final-candidate QA. TEST remains active; no Sol restoration.
+[Exact bounded-attempt receipt](evidence/brain-eight-worker-attempt-20261026.json).
+
+
 ## TEST model composition — 2026-10-26
 
 The founder now authorizes an inexpensive, reversible TEST composition while continuing bounded
