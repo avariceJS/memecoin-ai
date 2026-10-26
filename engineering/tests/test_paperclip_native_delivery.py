@@ -479,7 +479,13 @@ class NativeDeliveryTests(unittest.TestCase):
             def request(self, _method, _route):
                 if "/runs" in _route:
                     return self.runs_override or [
-                        {"status": "succeeded", "id": task(5), "agentId": task(4)}
+                        {
+                            "status": "succeeded",
+                            "id": task(5),
+                            "agentId": task(4),
+                            "contextIssueId": task(3),
+                            "adapterType": "codex_local",
+                        }
                     ]
                 return {
                     "id": task(5),
@@ -508,6 +514,115 @@ class NativeDeliveryTests(unittest.TestCase):
             self.assertEqual(
                 delivery.predecessor_expected_tip(child, manifest_hash, api), candidate
             )
+
+            with self.subTest("later unrelated manager runs do not replace publisher run"):
+                api.runs_override = [
+                    {
+                        "status": "succeeded",
+                        "id": task(5),
+                        "agentId": task(4),
+                        "contextIssueId": task(3),
+                        "adapterType": "codex_local",
+                        "finishedAt": "2026-10-26T18:54:33.974Z",
+                    },
+                    {
+                        "status": "succeeded",
+                        "id": task(7),
+                        "agentId": task(8),
+                        "contextIssueId": task(3),
+                        "adapterType": "codex_local",
+                        "finishedAt": "2026-10-26T18:54:44.265Z",
+                    },
+                    {
+                        "status": "running",
+                        "id": task(9),
+                        "agentId": task(8),
+                        "contextIssueId": task(3),
+                        "adapterType": "codex_local",
+                        "startedAt": "2026-10-26T18:55:00.000Z",
+                    },
+                    {
+                        "status": "failed",
+                        "id": task(11),
+                        "agentId": task(8),
+                        "contextIssueId": task(3),
+                        "adapterType": "codex_local",
+                        "finishedAt": "2026-10-26T18:56:00.000Z",
+                    },
+                ]
+                self.assertEqual(
+                    delivery.predecessor_expected_tip(child, manifest_hash, api), candidate
+                )
+                api.runs_override = None
+
+            with self.subTest("latest pinned publisher failure blocks historical success"):
+                api.runs_override = [
+                    {
+                        "status": "succeeded",
+                        "id": task(5),
+                        "agentId": task(4),
+                        "contextIssueId": task(3),
+                        "finishedAt": "2026-10-26T18:54:33.974Z",
+                    },
+                    {
+                        "status": "failed",
+                        "id": task(13),
+                        "agentId": task(4),
+                        "contextIssueId": task(3),
+                        "finishedAt": "2026-10-26T18:57:00.000Z",
+                    },
+                ]
+                with self.assertRaisesRegex(
+                    delivery.DeliveryError, "predecessor_publish_run_not_succeeded"
+                ):
+                    delivery.predecessor_expected_tip(child, manifest_hash, api)
+                api.runs_override = None
+
+            with self.subTest("latest pinned publisher running blocks historical success"):
+                api.runs_override = [
+                    {
+                        "status": "succeeded",
+                        "id": task(5),
+                        "agentId": task(4),
+                        "contextIssueId": task(3),
+                        "finishedAt": "2026-10-26T18:54:33.974Z",
+                    },
+                    {
+                        "status": "running",
+                        "id": task(14),
+                        "agentId": task(4),
+                        "contextIssueId": task(3),
+                        "startedAt": "2026-10-26T18:57:00.000Z",
+                    },
+                ]
+                with self.assertRaisesRegex(
+                    delivery.DeliveryError, "predecessor_publish_run_not_terminal"
+                ):
+                    delivery.predecessor_expected_tip(child, manifest_hash, api)
+                api.runs_override = None
+
+            with self.subTest("missing pinned publisher run blocks unrelated success"):
+                api.runs_override = [
+                    {
+                        "status": "succeeded",
+                        "id": task(15),
+                        "agentId": task(8),
+                        "contextIssueId": task(3),
+                        "finishedAt": "2026-10-26T18:57:00.000Z",
+                    },
+                    {
+                        "status": "succeeded",
+                        "id": task(16),
+                        "agentId": task(4),
+                        "contextIssueId": task(17),
+                        "finishedAt": "2026-10-26T18:58:00.000Z",
+                    },
+                ]
+                with self.assertRaisesRegex(
+                    delivery.DeliveryError, "predecessor_publish_run_not_terminal"
+                ):
+                    delivery.predecessor_expected_tip(child, manifest_hash, api)
+                api.runs_override = None
 
             with self.subTest("durable second-slot replay after canonical advanced"):
                 child_candidate = "d" * 40
@@ -782,7 +897,14 @@ class NativeDeliveryTests(unittest.TestCase):
 
             def request(self, _method, route):
                 if "/runs" in route:
-                    return [{"status": "succeeded", "id": task(5), "agentId": task(4)}]
+                    return [
+                        {
+                            "status": "succeeded",
+                            "id": task(5),
+                            "agentId": task(4),
+                            "contextIssueId": task(3),
+                        }
+                    ]
                 return {
                     "id": task(5),
                     "status": "succeeded",

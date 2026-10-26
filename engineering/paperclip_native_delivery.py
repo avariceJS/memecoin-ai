@@ -992,9 +992,7 @@ def push_ref(m: dict[str, Any], source: str, target_ref: str) -> None:
     remote_git(repo, "push", c["remote_name"], f"{source}:{target_ref}", github_auth=True)
 
 
-def predecessor_expected_tip(
-    m: dict[str, Any], manifest_hash: str, api: Paperclip
-) -> str | None:
+def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Paperclip) -> str | None:
     """Resolve a second slot only from its explicitly pinned first-slot receipt."""
     binding = m.get("predecessor")
     if binding is None:
@@ -1031,28 +1029,32 @@ def predecessor_expected_tip(
     )
     api.no_pending_terminal(binding["publish_task_id"])
     parent_runs = api.request("GET", f"/issues/{binding['publish_task_id']}/runs")
-    require(
-        type(parent_runs) is list
-        and bool(parent_runs)
-        and all(
-            type(row) is dict
-            and row.get("status") in {"succeeded", "failed", "cancelled", "timed_out"}
+    publisher_runs = (
+        [
+            row
             for row in parent_runs
+            if type(row) is dict
+            and row.get("agentId") == parent["publish"]["agent_id"]
+            and row.get("contextIssueId") == binding["publish_task_id"]
+        ]
+        if type(parent_runs) is list
+        else []
+    )
+    require(
+        bool(publisher_runs)
+        and all(
+            row.get("status") in {"succeeded", "failed", "cancelled", "timed_out"}
+            for row in publisher_runs
         ),
         "predecessor_publish_run_not_terminal",
     )
     latest = max(
-        parent_runs,
-        key=lambda row: str(row.get("finishedAt") or row.get("startedAt") or "")
-        if type(row) is dict
-        else "",
+        publisher_runs,
+        key=lambda row: str(row.get("finishedAt") or row.get("startedAt") or ""),
     )
-    run_id = latest.get("runId") or latest.get("id") if type(latest) is dict else None
+    run_id = latest.get("runId") or latest.get("id")
     require(
-        type(latest) is dict
-        and latest.get("status") == "succeeded"
-        and latest.get("agentId") == parent["publish"]["agent_id"]
-        and UUID.fullmatch(str(run_id or "")),
+        latest.get("status") == "succeeded" and UUID.fullmatch(str(run_id or "")),
         "predecessor_publish_run_not_succeeded",
     )
     native_run = api.request("GET", f"/heartbeat-runs/{run_id}")
