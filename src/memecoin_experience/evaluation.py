@@ -65,6 +65,23 @@ def denominator_summary(report):
             or coverage["exact_scored"] + len(unscored) != coverage["present_in_snapshot"]
             or type(scored_origins) is not int
             or scored_origins < 0
+            or coverage["exact_scored"] > scored_origins
+            or (coverage["exact_scored"] == 0) != (scored_origins == 0)
+            or any(
+                key in population
+                and (type(population[key]) is not int or population[key] < 0)
+                for key in (
+                    "test_exact_usable_origins",
+                    "test",
+                    "test_assigned_origins",
+                )
+            )
+            or "test_exact_usable_origins" in population
+            and population["test_exact_usable_origins"] != scored_origins
+            or "test" in population
+            and population["test"] != scored_origins
+            or "test_assigned_origins" in population
+            and scored_origins > population["test_assigned_origins"]
         ):
             raise ValueError("experience_evaluation_denominator_summary")
         return dict(
@@ -95,6 +112,8 @@ def denominator_summary(report):
         or any(type(value) is not int or value < 0 for value in records.values())
         or set(usable_records) != set(records)
         or any(type(value) is not int or value < 0 for value in usable_records.values())
+        or any(usable_records[pool] > records[pool] for pool in records)
+        or population["usable"] != sum(usable_records.values())
         or sum(value > 0 for value in usable_records.values()) != supported
     ):
         raise ValueError("experience_evaluation_denominator_summary")
