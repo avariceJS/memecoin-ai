@@ -1100,7 +1100,9 @@ def predecessor_expected_tip(
         "predecessor_publication_receipt_invalid",
     )
     repo = Path(m["canonical"]["repo"])
-    publisher.inspect(repo, parent["canonical"]["ref"], receipt, allowed_paths=paths)
+    publisher._check_candidate(
+        repo.resolve(strict=True), parent["canonical"]["ref"], receipt, tuple(paths)
+    )
     candidate = receipt["candidate"]
     own_receipt_path = Path(m["custody_dir"]) / f"publication-{m['developer']['task_id']}.json"
     own_candidate = None
@@ -1136,11 +1138,13 @@ def predecessor_expected_tip(
             repo, m["canonical"]["ref"], own_receipt, allowed_paths=list(m["source"]["paths"])
         )
         own_candidate = own_receipt["candidate"]
-    local_head = git(repo, parent["canonical"]["ref"]).decode().strip()
+    local_head = git(repo, "rev-parse", parent["canonical"]["ref"]).decode().strip()
     require(
         local_head == candidate or (own_candidate is not None and local_head == own_candidate),
         "predecessor_canonical_head_unexpected",
     )
+    if local_head == candidate:
+        publisher.inspect(repo, parent["canonical"]["ref"], receipt, allowed_paths=paths)
     c = parent["canonical"]
     raw = remote_git(
         repo,

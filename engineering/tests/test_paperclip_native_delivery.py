@@ -485,6 +485,7 @@ class NativeDeliveryTests(unittest.TestCase):
         api = API()
         with (
             patch.object(delivery, "load_manifest", return_value=(parent_manifest, manifest_hash)),
+            patch.object(delivery.publisher, "_check_candidate"),
             patch.object(delivery.publisher, "inspect"),
             patch.object(delivery, "git", return_value=candidate.encode()),
             patch.object(
@@ -555,6 +556,7 @@ class NativeDeliveryTests(unittest.TestCase):
                 ):
                     with self.assertRaisesRegex(delivery.DeliveryError, "remote_head_unexpected"):
                         delivery.predecessor_expected_tip(child, manifest_hash, api)
+
                 own_path.unlink()
 
             with self.subTest("missing receipt"):
@@ -611,6 +613,172 @@ class NativeDeliveryTests(unittest.TestCase):
                     with self.assertRaisesRegex(delivery.DeliveryError, "remote_head_unexpected"):
                         delivery.predecessor_expected_tip(child, manifest_hash, api)
 
+
+    def test_predecessor_receipt_replay_after_real_child_reconcile(self) -> None:
+        task = lambda number: f"00000000-0000-4000-8000-{number:012d}"
+        repo = self.root / "chain-repo"
+        base = init_repo(repo)
+        ref = delivery.PUBLISH_REF
+        git(repo, "update-ref", ref, base)
+        git(repo, "symbolic-ref", "HEAD", ref)
+        parent_paths = ["src/chain_one.py", "tests/test_chain_one.py"]
+        child_paths = ["src/chain_two.py", "tests/test_chain_two.py"]
+        parent_files = {parent_paths[0]: b"ONE = 1\n", parent_paths[1]: b"assert ONE == 1\n"}
+        child_files = {child_paths[0]: b"TWO = 2\n", child_paths[1]: b"assert TWO == 2\n"}
+        for files in (parent_files, child_files):
+            for name, data in files.items():
+                target = repo / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+        git(repo, "add", "--", *parent_paths, *child_paths)
+
+        def publish_objects(expected: str, files: dict[str, bytes], paths: list[str]):
+            old = {name: None for name in paths}
+            new = {
+                name: delivery.publisher._git(repo, "hash-object", "--stdin", data=data)
+                .decode()
+                .strip()
+                for name, data in files.items()
+            }
+            return delivery.publisher.prepare(repo, ref, expected, old, new, files, allowed_paths=paths)
+
+        parent_candidate_receipt = publish_objects(base, parent_files, parent_paths)
+        parent_candidate = parent_candidate_receipt["candidate"]
+        delivery.publisher.reconcile(
+            repo,
+            ref,
+            parent_candidate_receipt,
+            parent_candidate,
+            parent_candidate_receipt["receipt_digest"],
+            allowed_paths=parent_paths,
+        )
+
+        company = task(1)
+        parent_hash = "a" * 64
+        parent_custody = self.root / "real-parent-custody"
+        parent_custody.mkdir(mode=0o700)
+        child_custody = self.root / "real-child-custody"
+        child_custody.mkdir(mode=0o700)
+        parent_manifest = {
+            "company_id": company,
+            "source": {"base_sha": base, "paths": parent_paths},
+            "developer": {"task_id": task(2)},
+            "publish": {"task_id": task(3), "agent_id": task(4)},
+            "canonical": {
+                "repo": str(repo.resolve()),
+                "ref": ref,
+                "expected_tip": base,
+                "remote_name": "origin",
+                "remote_url": "https://github.com/example/brain.git",
+                "candidate_ref": "refs/heads/brain/chain-one",
+            },
+        }
+        parent_receipt_path = parent_custody / f"publication-{task(2)}.json"
+        parent_op = {
+            "schema": delivery.PUBLISH_SCHEMA,
+            "manifest_sha256": parent_hash,
+            "source_task_id": task(2),
+            "expected_tip": base,
+            "canonical_ref": ref,
+            "candidate_ref": parent_manifest["canonical"]["candidate_ref"],
+            "files": {name: hashlib.sha256(value).hexdigest() for name, value in parent_files.items()},
+        }
+        parent_saved = {**parent_op, "canonical_receipt": parent_candidate_receipt}
+        parent_saved["publication_digest"] = delivery.digest(delivery.json_bytes(parent_saved))
+        delivery.save_record(parent_receipt_path, parent_saved)
+
+        child = {
+            "company_id": company,
+            "source": {"base_sha": base, "paths": child_paths},
+            "developer": {"task_id": task(6)},
+            "custody_dir": str(child_custody.resolve()),
+            "canonical": {
+                **parent_manifest["canonical"],
+                "candidate_ref": "refs/heads/brain/chain-two",
+            },
+            "predecessor": {
+                "manifest_path": str(self.root / "parent-manifest.json"),
+                "manifest_sha256": parent_hash,
+                "source_task_id": task(2),
+                "publish_task_id": task(3),
+                "receipt_path": str(parent_receipt_path.resolve()),
+            },
+        }
+        child_candidate_receipt = publish_objects(parent_candidate, child_files, child_paths)
+        child_candidate = child_candidate_receipt["candidate"]
+        child_op = {
+            "schema": delivery.PUBLISH_SCHEMA,
+            "manifest_sha256": "b" * 64,
+            "source_task_id": task(6),
+            "expected_tip": parent_candidate,
+            "canonical_ref": ref,
+            "candidate_ref": child["canonical"]["candidate_ref"],
+            "files": {name: hashlib.sha256(value).hexdigest() for name, value in child_files.items()},
+        }
+        child_saved = {**child_op, "canonical_receipt": child_candidate_receipt}
+        child_saved["publication_digest"] = delivery.digest(delivery.json_bytes(child_saved))
+        delivery.save_record(child_custody / f"publication-{task(6)}.json", child_saved)
+
+        class API:
+            def issue(self, _task_id):
+                return {
+                    "id": task(3),
+                    "companyId": company,
+                    "assigneeAgentId": task(4),
+                    "status": "done",
+                }
+
+            def no_pending(self, _task_id):
+                return None
+
+            def request(self, _method, route):
+                if "/runs" in route:
+                    return [{"status": "succeeded", "id": task(5), "agentId": task(4)}]
+                return {
+                    "id": task(5),
+                    "status": "succeeded",
+                    "runtimeMode": "legacy",
+                    "agentId": task(4),
+                    "companyId": company,
+                    "issueId": task(3),
+                }
+
+        remote_canonical = parent_candidate
+        remote_child_candidate = None
+
+        def remote_refs(_repo, *_args, **_kwargs):
+            rows = [f"{remote_canonical}\t{ref}", f"{parent_candidate}\trefs/heads/brain/chain-one"]
+            if remote_child_candidate is not None:
+                rows.append(f"{remote_child_candidate}\trefs/heads/brain/chain-two")
+            return ("\n".join(rows) + "\n").encode()
+
+        with (
+            patch.object(delivery, "load_manifest", return_value=(parent_manifest, parent_hash)),
+            patch.object(delivery, "remote_git", side_effect=remote_refs),
+        ):
+            api = API()
+            # Receipt saved, but canonical reconcile has not happened yet.
+            self.assertEqual(
+                delivery.predecessor_expected_tip(child, "b" * 64, api), parent_candidate
+            )
+            # Reconcile child locally and remotely, while its remote candidate ref is still absent.
+            delivery.publisher.reconcile(
+                repo,
+                ref,
+                child_candidate_receipt,
+                child_candidate,
+                child_candidate_receipt["receipt_digest"],
+                allowed_paths=child_paths,
+            )
+            remote_canonical = child_candidate
+            self.assertEqual(
+                delivery.predecessor_expected_tip(child, "b" * 64, api), parent_candidate
+            )
+            # Once the candidate ref has been pushed, completed publication replay stays valid.
+            remote_child_candidate = child_candidate
+            self.assertEqual(
+                delivery.predecessor_expected_tip(child, "b" * 64, api), parent_candidate
+            )
     def test_wrong_current_actor_cannot_complete_a_pinned_task(self) -> None:
         api = delivery.Paperclip.__new__(delivery.Paperclip)
         api.m = {
