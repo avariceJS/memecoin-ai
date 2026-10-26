@@ -8,6 +8,14 @@ Current agent-facing documentation is English; the founder-facing `engineering/O
 2. `git status --short`, `git rev-parse HEAD`, and the read-only owner runtime status when relevant.
 3. `docs/INDEX.md`, then only the canonical source for the task.
 
+For Brain work, use `docs/INDEX.md` to select a canonical source and, when useful, retrieve a
+bounded task-specific excerpt with `python3 tools/agent_context.py --task <architecture|data|ml|operator|review|docs> --query 'terms'`.
+The linked [engineering lessons](docs/engineering-lessons.md) are recall aids; verify dated claims at
+their current source when the action depends on them. Explicit current founder permission applies
+within its scope; routine authorized reads and local tests need no whole-company reconciliation.
+For nontrivial subsystem choices, recurring integration failures, scope expansion, or proportional
+verification, use `.agents/skills/brain-delivery-calibration/SKILL.md`; skip it for trivial edits.
+
 Canonical ownership:
 
 - Project architecture and Brain scope: `docs/brain-development.md`.
@@ -56,6 +64,11 @@ management. Escalate only for additional resources/permissions, with alternative
 quota reset, reboot and reconnection never authorize resumption; require an explicit founder launch
 command plus fresh reconciliation. Source capability, operational admission and product competence
 remain separate claims.
+
+This standing mandate governs ordinary Brain development. A current founder request may explicitly
+scope a session to local Codex maintenance and exclude company activity; that does not resume a
+company, authorize Paperclip/runtime access, or change worker configuration. Dated state and recalled
+lessons are evidence to reconcile, never a current launch command.
 
 - `org/development` is the unified engineering-organization development branch and audit entry.
   Continue authorized source work there; use isolated candidate checkouts when useful, then preserve
