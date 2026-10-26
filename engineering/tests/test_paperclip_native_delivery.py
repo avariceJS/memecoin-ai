@@ -1293,5 +1293,325 @@ class NativeDeliveryTests(unittest.TestCase):
                 api.latest_run(qa)
 
 
+class PreparationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory(prefix="native-preparation-")
+        self.root = Path(self.temp.name).resolve()
+        self.seed = self.root / "seed"
+        self.base = init_repo(self.seed)
+        self.canonical = self.root / "canonical"
+        init_repo(self.canonical)
+        git(self.canonical, "update-ref", delivery.PUBLISH_REF, "HEAD")
+        self.output = self.root / "prepared"
+        self.ids = {
+            name: f"00000000-0000-4000-8000-{number:012d}"
+            for number, name in enumerate(
+                (
+                    "company",
+                    "planning",
+                    "planning_agent",
+                    "prepare",
+                    "prepare_agent",
+                    "manager",
+                    "manager_agent",
+                    "developer",
+                    "stage",
+                    "qa",
+                    "publish",
+                    "source_project",
+                    "source_workspace",
+                    "qa_project",
+                    "qa_workspace",
+                    "source_task",
+                    "stage_task",
+                    "qa_task",
+                    "publish_task",
+                    "run",
+                    "attachment",
+                ),
+                100,
+            )
+        }
+        self.acceptance = "The module and focused unit check behave deterministically."
+        self.envelope = {
+            "schema": delivery.PREPARATION_SCHEMA,
+            "api_origin": "http://127.0.0.1:3310",
+            "company_id": self.ids["company"],
+            "planning": {"task_id": self.ids["planning"], "agent_id": self.ids["planning_agent"]},
+            "prepare": {"task_id": self.ids["prepare"], "agent_id": self.ids["prepare_agent"]},
+            "manager": {"task_id": self.ids["manager"], "agent_id": self.ids["manager_agent"]},
+            "roles": {name: self.ids[name] for name in ("developer", "stage", "qa", "publish")},
+            "role_models": {
+                "planning": "gpt-6.1-sol",
+                "manager": "gpt-6.1-sol",
+                "developer": "gpt-6-luna",
+                "qa": "gpt-6.1-sol",
+            },
+            "source": {
+                "project_id": self.ids["source_project"],
+                "project_workspace_id": self.ids["source_workspace"],
+                "workspace_path": str(self.seed),
+                "seed_repo": str(self.seed),
+                "base_sha": self.base,
+            },
+            "canonical": {
+                "repo": str(self.canonical),
+                "ref": delivery.PUBLISH_REF,
+                "expected_tip": git(self.canonical, "rev-parse", delivery.PUBLISH_REF)
+                .decode()
+                .strip(),
+                "remote_name": "origin",
+                "remote_url": "https://github.com/brain/example.git",
+            },
+            "output_root": str(self.output),
+            "slots": [
+                {
+                    "slot": 1,
+                    "paths": ["src/new_module.py", "tests/test_new_module.py"],
+                    "acceptance_sha256": hashlib.sha256(self.acceptance.encode()).hexdigest(),
+                    "qa_project_id": self.ids["qa_project"],
+                    "candidate_ref": "refs/heads/brain/candidate-slot-1",
+                }
+            ],
+        }
+        self.envelope_path = self.root / "prepare.json"
+        self.envelope_path.write_bytes(delivery.json_bytes(self.envelope))
+        self.envelope_path.chmod(0o600)
+        self.plan = {
+            "schema": delivery.DELIVERY_PLAN_SCHEMA,
+            "company_id": self.ids["company"],
+            "planning_task_id": self.ids["planning"],
+            "manager_task_id": self.ids["manager"],
+            "slots": [
+                {
+                    "slot": 1,
+                    "title": "Add bounded feature",
+                    "module": "Senses",
+                    "benefit": "Answers a concrete data-quality question.",
+                    "acceptance": self.acceptance,
+                    "nonduplication_evidence": "Current source lacks this exact bounded check.",
+                    "paths": self.envelope["slots"][0]["paths"],
+                    "source_task_id": self.ids["source_task"],
+                    "stage_task_id": self.ids["stage_task"],
+                    "qa_task_id": self.ids["qa_task"],
+                    "publish_task_id": self.ids["publish_task"],
+                    "qa_workspace_id": self.ids["qa_workspace"],
+                }
+            ],
+        }
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def fake_api(self, *, bad_qa_selection: bool = False):
+        ids, task = self.ids, self.plan["slots"][0]
+        manifest_path = self.output / "slot1" / "manifest.json"
+        qa_path = self.output / "slot1" / "qa"
+        plan_bytes = delivery.json_bytes(self.plan)
+
+        def issue_row(
+            task_id: str, agent: str, title: str, status: str, blocked: list[str], extra: dict
+        ):
+            return {
+                "id": task_id,
+                "companyId": ids["company"],
+                "parentId": ids["manager"],
+                "assigneeAgentId": agent,
+                "status": status,
+                "executionWorkspaceId": None,
+                "blockedBy": [{"id": item} for item in blocked],
+                "title": title,
+                **extra,
+            }
+
+        source = issue_row(
+            ids["source_task"],
+            ids["developer"],
+            task["title"],
+            "backlog",
+            [],
+            {
+                "projectId": ids["source_project"],
+                "projectWorkspaceId": ids["source_workspace"],
+                "workspaceSelection": {
+                    "version": 1,
+                    "source": "explicit",
+                    "selection": {
+                        "kind": "configured_source",
+                        "projectWorkspaceId": ids["source_workspace"],
+                        "mode": "managed_isolated",
+                    },
+                },
+                "executionWorkspaceSettings": {"mode": "isolated_workspace"},
+                "description": self.acceptance + " src/new_module.py tests/test_new_module.py",
+                "assigneeAdapterOverrides": {
+                    "adapterConfig": {"cwd": str(self.seed)},
+                    "useProjectWorkspace": True,
+                },
+            },
+        )
+        stage = issue_row(
+            ids["stage_task"],
+            ids["stage"],
+            f"Stage slot 1: {task['title']}",
+            "blocked",
+            [ids["source_task"]],
+            {
+                "assigneeAdapterOverrides": delivery._expected_process_override(
+                    "stage", manifest_path
+                )
+            },
+        )
+        selection = {
+            "kind": "configured_source",
+            "projectWorkspaceId": ids["qa_workspace"],
+            "mode": "managed_isolated" if bad_qa_selection else "shared",
+        }
+        qa = issue_row(
+            ids["qa_task"],
+            ids["qa"],
+            f"Independent QA slot 1: {task['title']}",
+            "blocked",
+            [ids["stage_task"]],
+            {
+                "projectId": ids["qa_project"],
+                "projectWorkspaceId": ids["qa_workspace"],
+                "workspaceSelection": {"version": 1, "source": "explicit", "selection": selection},
+                "assigneeAdapterOverrides": {
+                    "adapterConfig": {"cwd": str(qa_path)},
+                    "useProjectWorkspace": False,
+                },
+                "description": self.acceptance,
+            },
+        )
+        publish = issue_row(
+            ids["publish_task"],
+            ids["publish"],
+            f"Publish slot 1: {task['title']}",
+            "backlog",
+            [ids["qa_task"]],
+            {
+                "assigneeAdapterOverrides": delivery._expected_process_override(
+                    "publish", manifest_path
+                )
+            },
+        )
+        rows = {row["id"]: row for row in (source, stage, qa, publish)}
+        source_workspace = {
+            "id": ids["source_workspace"],
+            "companyId": ids["company"],
+            "projectId": ids["source_project"],
+            "sourceType": "local_path",
+            "cwd": str(self.seed),
+            "repoRef": self.base,
+            "defaultRef": self.base,
+            "repoUrl": None,
+            "isPrimary": False,
+        }
+        qa_workspace = {
+            "id": ids["qa_workspace"],
+            "companyId": ids["company"],
+            "projectId": ids["qa_project"],
+            "sourceType": "local_path",
+            "cwd": str(qa_path),
+            "repoRef": self.base,
+            "defaultRef": self.base,
+            "repoUrl": None,
+            "isPrimary": False,
+        }
+
+        class FakeApi:
+            completed = []
+            m = {"company_id": ids["company"]}
+
+            def current(_self, _action):
+                return ids["prepare"]
+
+            def issue(_self, task_id):
+                if task_id in rows:
+                    return rows[task_id]
+                if task_id == ids["planning"]:
+                    return {
+                        "id": task_id,
+                        "companyId": ids["company"],
+                        "assigneeAgentId": ids["planning_agent"],
+                        "status": "done",
+                    }
+                if task_id == ids["manager"]:
+                    return {
+                        "id": task_id,
+                        "companyId": ids["company"],
+                        "assigneeAgentId": ids["manager_agent"],
+                        "status": "backlog",
+                    }
+                raise AssertionError(task_id)
+
+            def no_pending(_self, _task_id):
+                pass
+
+            def latest_run_for_task(_self, _binding, _model):
+                return {"runId": ids["run"]}
+
+            def artifact(_self, _binding, _run, _name, _limit):
+                return ({"id": ids["attachment"]}, plan_bytes)
+
+            def complete(_self, task_id):
+                _self.completed.append(task_id)
+
+            def request(_self, _method, route):
+                if route.startswith("/companies/"):
+                    return [{"id": key} for key in rows]
+                if route == f"/projects/{ids['source_project']}":
+                    return {
+                        "id": ids["source_project"],
+                        "companyId": ids["company"],
+                        "executionWorkspacePolicy": {
+                            "enabled": True,
+                            "workspaceStrategy": {"type": "git_worktree", "baseRef": self.base},
+                        },
+                    }
+                if route == f"/projects/{ids['source_project']}/workspaces":
+                    return [source_workspace]
+                if route == f"/projects/{ids['qa_project']}/workspaces":
+                    return [qa_workspace]
+                raise AssertionError(route)
+
+        return FakeApi()
+
+    def test_prepare_clones_qa_and_writes_bound_manifest_and_receipt(self) -> None:
+        api = self.fake_api()
+        with patch.object(delivery, "Paperclip", return_value=api):
+            result = delivery.prepare(str(self.envelope_path))
+        self.assertEqual(result["status"], "prepared")
+        self.assertEqual(api.completed, [self.ids["prepare"]])
+        receipt = json.loads(Path(result["receipt"]).read_bytes())
+        self.assertEqual(receipt["planning_task_id"], self.ids["planning"])
+        manifest_path = self.output / "slot1" / "manifest.json"
+        manifest, _ = delivery.load_manifest(str(manifest_path))
+        self.assertEqual(manifest["role_models"], {"developer": "gpt-6-luna", "qa": "gpt-6.1-sol"})
+        self.assertEqual(git(Path(manifest["qa_workspace"]), "remote", "-v"), b"")
+
+    def test_prepare_graph_binding_mismatch_fails_before_output_writes(self) -> None:
+        api = self.fake_api(bad_qa_selection=True)
+        with patch.object(delivery, "Paperclip", return_value=api):
+            with self.assertRaisesRegex(delivery.DeliveryError, "preparation_qa_binding_mismatch"):
+                delivery.prepare(str(self.envelope_path))
+        self.assertFalse(self.output.exists())
+        self.assertEqual(api.completed, [])
+
+    def test_prepare_replay_rejects_existing_output_root(self) -> None:
+        self.output.mkdir(mode=0o700)
+        with self.assertRaisesRegex(delivery.DeliveryError, "preparation_output_exists"):
+            delivery.validate_preparation_envelope(self.envelope)
+
+    def test_cli_dispatches_prepare_with_private_envelope_argument(self) -> None:
+        with (
+            patch.object(delivery, "prepare", return_value={"status": "prepared"}) as prepare,
+            patch("sys.stdout"),
+        ):
+            self.assertEqual(delivery.main(["prepare", "--envelope", str(self.envelope_path)]), 0)
+        prepare.assert_called_once_with(str(self.envelope_path))
+
+
 if __name__ == "__main__":
     unittest.main()
