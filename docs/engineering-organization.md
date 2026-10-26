@@ -1,6 +1,6 @@
 # Brain Engineering Organization
 
-## Accepted post-CEO shift and sequential preparation — 2026-10-26
+## Accepted shifts and bounded publisher repair — 2026-10-26
 
 The first bounded shift is accepted; do not requalify it. After the CEO turn ended at
 18:01:19.018Z, native developer tools produced `expected_slot_coverage`, independent Luna QA accepted
@@ -20,34 +20,35 @@ An artifact produced during the final manager run must identify that run as stil
 usage as-of; it cannot know its own future terminal usage. The native terminal ledger is authoritative
 for the final readback. No guessed total, quota conversion or silent omission is acceptable.
 
-Founder authorizes one new bounded sequential shift, at most two useful accepted Brain outcomes.
-Luna's MEM-137 planning selected expected-observation timeliness and aligned source-value concordance
-from existing Senses MEM-90. Native search omitted that private programme; the owner supplied its exact
-identity and research questions, then provided normal scoped programme access and preprovisioned the
-selected source tasks. These are preparation interventions, not post-handoff autonomy evidence.
+The second bounded shift independently completed source MEM-139 and MEM-143 with separate Luna QA
+MEM-141 and MEM-145. MEM-142 published `7e5489938a256d4db94a10a17121cc68cdcfc902`; MEM-146 then
+failed at the added predecessor gate. The original manager blocker report and failed run are preserved.
+Founder subsequently authorized only this publisher repair and completion, not another shift.
 
-MEM-138 owns source139 → stage140 → independentQA141 → publisher142, then chooses whether to admit
-source143 → stage144 → independentQA145 → publisher146. Same serial developer and separate QA;
-TEST Luna High unchanged. The second source remains backlog until the first publication is terminal
-and independently accepted. Both tasks use disjoint new paths and the accepted starting source.
-The existing fixed publisher now accepts an optional exact predecessor-manifest/receipt binding:
-no arbitrary latest-HEAD admission, two-slot maximum, canonical/remote readback and held/unknown
-operations fail closed. Independent Luna accepted production candidate `948b537`; mechanical test-only
-Ruff cleanup `cb155e5` follows. The affected suites passed29 tests/22subtests; this is preparation evidence,
-not proof that the second native publication has occurred. No new scheduler or reporting service.
+The installed Paperclip issue-run endpoint includes activity-linked runs, not only the task's executor.
+The old gate selected the greatest `finishedAt` across all actors: the manager finished at 18:54:44.265Z,
+after the successful publisher at 18:54:33.974Z, and failed the publisher `agentId` comparison.
+Source `c862e81` selects the pinned publisher and exact `contextIssueId` before terminal/latest checks.
+It does not search backward for any successful run: a failed/running/missing publisher still blocks.
+One independent Luna QA accepted the change; 29 focused tests and 26 subtests passed, plus Ruff.
+Only mechanical formatting followed review. The original defect was also reproduced against the live
+GET-only API and exact manifest, then the fixed route resolved the confirmed predecessor.
 
-A task-local offline JSON projection replaces manually copied run IDs and usage in SHIFT-RESULT:
-raw native summary records, exact task/agent filtering, all manager/planning/source/QA/process runs,
-explicit missing/pending scopes, and separate cached/uncached/output subtotals. Actual prior-run fixture
-retains the correct QA UUID and all3 manager runs. The final current run stays as-of pending; terminal
-native readback owns final expense. Original faulty MEM-133 artifact remains unchanged.
+Retain this narrow check for the current route: MEM-146 depends on QA, not directly on MEM-142, and
+the publication receipt is persisted before Git push. Neither receipt presence nor dependency readiness
+alone proves completed publication. Full heartbeat identity, immutable receipt/candidate checks,
+expected-tip checks, local/remote readback and unknown-outcome holds remain. Lesson: an activity-linked
+run collection is not an executor identity; filter by the pinned task/actor before interpreting status.
+Revisit the extra gate only if the native dependency/result contract becomes equivalent.
 
-One real QA correction per task; a second rejection or substantial blocker stops the shift. Preserve
-human_only126 and cancellation holds118123. Clear monitors, withdraw only unstarted downstream work,
-record result/blocker, and do not start another shift. Board-only pause cannot be impersonated by a worker.
-The owner checkpoints then launches MEM-138 and ends the interactive turn. Inspect private dispatch.json
-for actual admission; this document is not evidence of launch or sequential completion.
-[Admission receipt](evidence/brain-sequential-shift-admission-20261026.json).
+After reconciling that the old process stopped before any publication, one native Retry and the existing
+recovery evidence API completed the original MEM-146. Process success at 19:52:03.308Z and GitHub
+readback confirm `66bbed1bed4c4f66fd950e4c6c2c634932080e12` on `brain/development` and its slot-2 ref.
+Published file hashes match the previously accepted QA-bound custody; no new product QA was needed.
+All other 145 task states/assignees/monitors and MEM-118/123/126 holds are unchanged; main remains
+`2f8da5f`. The manager was paused to prevent further work, MEM-138 remains blocked, live runs are zero,
+and the company remains active but idle. No scheduler, controller, broker, recovery service or new shift.
+[Repair receipt](evidence/brain-predecessor-publisher-repair-20261026.json).
 
 ## Bounded post-session shift admission — 2026-10-26
 

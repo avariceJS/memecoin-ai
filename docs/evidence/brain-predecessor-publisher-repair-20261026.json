@@ -1,0 +1,59 @@
+{
+  "schema": "brain-predecessor-publisher-repair-v1",
+  "date": "2026-10-26",
+  "scope": "Existing MEM-146 only; no new shift or subsystem",
+  "source_commit": "c862e812562697e248b2a2fd65bcc9a71ffd6812",
+  "cause": {
+    "endpoint": "GET /issues/:id/runs includes activity-linked runs",
+    "wrong_condition": "max(finishedAt) across all related actors, followed by pinned publisher agentId equality",
+    "publisher_finished_at": "2026-10-26T18:54:33.974Z",
+    "manager_finished_at": "2026-10-26T18:54:44.265Z",
+    "reproduced_original": "predecessor_publish_run_not_succeeded"
+  },
+  "fix": "Select pinned publisher agentId and exact contextIssueId before terminal/latest checks; preserve heartbeat identity, receipt and Git verification",
+  "retained_gate_reason": "MEM-146 depends on QA, not directly on MEM-142. Publication receipt is persisted before push, so receipt existence is not terminal publication proof.",
+  "qa": {
+    "model": "gpt-6-luna",
+    "reasoning": "high",
+    "verdict": "accept",
+    "reviewed_diff_sha256": "c852c3cc9ce78aa2eed79c4021f65bc0ba93aec8d4f7d7e02026bf45716521ef",
+    "formatted_diff_sha256": "d3382eaa167f118ec4a81cdcc0f7d8c3eb2eb1e79c5e506eafaffe1019eebfa9",
+    "format_only_after_review": true,
+    "tests": {
+      "command": ".venv/bin/python -m pytest -q engineering/tests/test_paperclip_native_delivery.py engineering/tests/test_paperclip_canonical_publish.py",
+      "passed": 29,
+      "subtests_passed": 26
+    },
+    "ruff_check": "passed",
+    "ruff_format_final": "passed",
+    "source_commit": "c862e81",
+    "findings": "No semantic defect. Correct pinned publisher selection; failed/running/missing publisher blocks; heartbeat identity and receipt/Git safeguards remain."
+  },
+  "runtime": {
+    "task": "MEM-146",
+    "status": "done",
+    "run_status": "succeeded",
+    "started_at": "2026-10-26T19:51:50.169Z",
+    "finished_at": "2026-10-26T19:52:03.308Z",
+    "normal_route": "One native Retry plus supported recovery-actions/resolve with verified not_performed evidence",
+    "original_failed_attempt_preserved": true,
+    "candidate": "66bbed1bed4c4f66fd950e4c6c2c634932080e12",
+    "remote_refs": {
+      "refs/heads/brain/development": "66bbed1bed4c4f66fd950e4c6c2c634932080e12",
+      "refs/heads/brain/sequential-senses-1-20261026": "7e5489938a256d4db94a10a17121cc68cdcfc902",
+      "refs/heads/brain/sequential-senses-2-20261026": "66bbed1bed4c4f66fd950e4c6c2c634932080e12",
+      "refs/heads/main": "2f8da5f92da521b511e0d4fb20205981a000cab5"
+    },
+    "published_files_match_accepted_receipt": true
+  },
+  "boundaries": {
+    "other145_task_states_unchanged": true,
+    "holds118123_and_human_only126_unchanged": true,
+    "live_runs": 0,
+    "manager_paused_to_prevent_new_work": true,
+    "company_remains_active_idle": true,
+    "new_subsystems": 0,
+    "new_shift": false
+  },
+  "private_evidence_locator": "brain-paperclip-lab/state/sequential-shift-20261026/publisher-repair-*.json"
+}

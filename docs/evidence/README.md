@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [Predecessor publisher repair](brain-predecessor-publisher-repair-20261026.json): activity-linked manager run caused false rejection; one Luna QA, existing MEM-146 completed through native recovery and publication readback.
+
 - [Bounded autonomous shift admission](brain-autonomous-shift-admission-20261026.json): one justified task within the founder ceiling of two, finite correction and native manager routing; post-session outcome remains to be measured.
 
 - [Native handoff cycle](brain-native-handoff-20261026.json): one research dossier accepted/published with no CEO mutation from dispatch to publication; source-backed Retry, automatic stage/QA/publish, measured usage and explicit correction-loop limits.

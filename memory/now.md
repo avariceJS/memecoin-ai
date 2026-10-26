@@ -1,26 +1,17 @@
-# Current state — 2026-10-26, sequential Brain shift preparation
+# Current state — 2026-10-26, bounded MEM-146 repair complete
 
-- First post-CEO shift is ACCEPTED, not subject to requalification: Brain61ed120 published,
-  independent QA9tests, zero user mutation after CEO exit until completion. MEM133done,
-  monitor cleared; board pause18:12:29Z, all companiespaused/live0. Main2f8da5f unchanged.
-- Founder authorizes ONE next shift, maxTWO accepted outcomes, no concurrency increase.
-  Native Luna planningMEM137 selected Senses expected_observation_timeliness and
-  source_value_concordance from existingMEM90; two disjoint offline source+test contracts.
-- ManagerMEM138 owns source139→stage140→QA141→publish142, then independent decision/admission
-  of source143→stage144→QA145→publish146. Same developer and separate QA, LunaHigh.
-  Both sources/publishers remainbacklog while preparing; native stage/QA blocked on predecessors.
-- Exact private context: lab state/sequential-shift-20261026. Owner preprovisioned selected tasks
-  after normal scoped access grant to privateMEM90; parent owner/visibility/holds unchanged.
-  No market/data/training/AUTO/trading/paidAPI/main/production authority.
-- Existing publisher needs exact immutable predecessor receipt binding for second publication;
-  independently accepted948b537, installed with29tests/22subtests and Ruff passed.
-  No new scheduler/accounting service.
-- PriorSHIFT-RESULT had wrongQAUUID and omitted3manager runs. New one-shift offline formatter
-  derives inventory/usage from nativeJSON. Current finalmanager run stays explicitly pending;
-  terminal native ledger gives final expense. Failed/unmetered attempts retained, no quota guesses.
-- One realQA correction per task; secondreject/materialblocker stops new assignments, clearsmonitor.
-  Human_onlyMEM126 and canRetryfalseMEM118123 preserved. No automatic nextshift or CEO polling.
-- At final admission owner checkpoints then launches native manager and ENDS interactive turn.
-  Read private dispatch.json for actual launch; this preparation note is not launch evidence.
+- First autonomous shift remains accepted (Brain61ed120); do not requalify it.
+- Sequential shift completed source139/143 and independentQA141/145; publisher142 published7e548993.
+  Publisher146 failed because its predecessor gate chose a later activity-linked manager run.
+- Founder authorized only repair and completion of existing146. Sourcec862e81 filters exact publisher
+  agent/task before terminal/latest checks. Independent Luna QA accepted29tests/26subtests; Ruffpassed.
+  Live GET-only reproduction failed before and resolved exact predecessor after the fix.
+- Native Retry plus supported recovery evidence (old publication not_performed) completed146 at
+  19:52:03.308Z. Brain66bbed1 confirmed on GitHub development/slot2; accepted file hashes match.
+- All other145 task states/assignees/monitors unchanged; MEM118/123canRetryfalse and126human_only
+  unchanged. Main2f8da5f. Manager paused to prevent further work; MEM138blocked; live0.
+  Company remainsactive/idle; no newshift/staff/subsystem. No automatic continuation authorized.
+- Preserve original failed run and SHIFT-RESULT. Exact private repair snapshots remain under
+  lab state/sequential-shift-20261026/publisher-repair-*.json.
 
 Canonical: docs/engineering-organization.md; private state/HANDOFF.md.
