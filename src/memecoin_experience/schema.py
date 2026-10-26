@@ -238,6 +238,10 @@ def checked_samples(rows, schema, cutoff):
                     )
                 ):
                     raise ValueError("experience_target_contract")
+                if target["kind"].startswith("observed_process_count@") and (
+                    type(value) is not int or value < 0
+                ):
+                    raise ValueError("experience_count_target")
             elif (
                 status not in {"pending", "missing_future", "unsupported", "censored"}
                 or value is not None
