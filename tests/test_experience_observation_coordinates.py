@@ -86,6 +86,24 @@ def test_coordinate_fact_keeps_slot_position_and_receipt_availability(tmp_path):
     )
 
 
+def test_duplicate_observation_identity_across_chunks_publishes_no_manifest(tmp_path):
+    schema = _schema()
+    row = _row(454_538_109, [0, 2])
+    store = tmp_path / "duplicate-source"
+
+    with pytest.raises(ValueError, match="observation_order_or_duplicate"):
+        observations.publish(
+            store,
+            [row, dict(row)],
+            schema=schema,
+            cutoff=17,
+            sources=[dict(kind="synthetic_reconciliation", pin="b" * 64)],
+            chunk=1,
+        )
+
+    assert list((store / "observation-sources").glob("*.json")) == []
+
+
 def test_coordinate_domain_pin_and_fields_are_verified(tmp_path):
     schema = _schema()
     schema["streams"]["pumpswap_invocation"]["coordinate_domain_pin"] = "c" * 64
