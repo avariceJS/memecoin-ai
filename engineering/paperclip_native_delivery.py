@@ -442,6 +442,15 @@ class Paperclip:
         if any(row.get("status") == "pending" for row in rows):
             raise DeliveryError("pending_interaction")
 
+    def no_pending_terminal(self, task_id: str) -> None:
+        rows = self.request("GET", f"/issues/{task_id}/interactions")
+        rows = rows.get("interactions") if type(rows) is dict else rows
+        if type(rows) is not list or any(type(row) is not dict for row in rows):
+            raise DeliveryError("interactions_response_invalid")
+        terminal = {"accepted", "rejected", "answered", "cancelled", "expired", "failed"}
+        if any(row.get("status") not in terminal for row in rows):
+            raise DeliveryError("predecessor_interaction_not_terminal")
+
     def complete(self, task_id: str) -> None:
         if self.issue(task_id).get("status") == "done":
             return
@@ -1020,16 +1029,17 @@ def predecessor_expected_tip(
         and issue.get("status") == "done",
         "predecessor_publish_task_not_done",
     )
-    api.no_pending(binding["publish_task_id"])
+    api.no_pending_terminal(binding["publish_task_id"])
     parent_runs = api.request("GET", f"/issues/{binding['publish_task_id']}/runs")
     require(
         type(parent_runs) is list
         and bool(parent_runs)
-        and not any(
-            type(row) is not dict or row.get("status") in {"queued", "running", "pending"}
+        and all(
+            type(row) is dict
+            and row.get("status") in {"succeeded", "failed", "cancelled", "timed_out"}
             for row in parent_runs
         ),
-        "predecessor_publish_run_pending",
+        "predecessor_publish_run_not_terminal",
     )
     latest = max(
         parent_runs,

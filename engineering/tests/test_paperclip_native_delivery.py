@@ -452,6 +452,7 @@ class NativeDeliveryTests(unittest.TestCase):
 
         class API:
             runs_override = None
+            interactions_override = None
             issue_value = {
                 "id": task(3),
                 "companyId": task(1),
@@ -464,6 +465,13 @@ class NativeDeliveryTests(unittest.TestCase):
 
             def no_pending(self, _task_id):
                 return None
+
+            def no_pending_terminal(self, _task_id):
+                if self.interactions_override is not None and any(
+                    row.get("status") not in {"accepted", "rejected", "answered", "cancelled", "expired", "failed"}
+                    for row in self.interactions_override
+                ):
+                    raise delivery.DeliveryError("predecessor_interaction_not_terminal")
 
             def request(self, _method, _route):
                 if "/runs" in _route:
@@ -595,9 +603,23 @@ class NativeDeliveryTests(unittest.TestCase):
 
             with self.subTest("publish run still active"):
                 api.runs_override = [{"status": "running", "id": task(5), "agentId": task(4)}]
-                with self.assertRaisesRegex(delivery.DeliveryError, "run_pending"):
+                with self.assertRaisesRegex(delivery.DeliveryError, "run_not_terminal"):
                     delivery.predecessor_expected_tip(child, manifest_hash, api)
                 api.runs_override = None
+
+            for status in ("interrupted", "scheduled_retry", "unknown"):
+                with self.subTest(run_status=status):
+                    api.runs_override = [{"status": status, "id": task(5), "agentId": task(4)}]
+                    with self.assertRaisesRegex(delivery.DeliveryError, "run_not_terminal"):
+                        delivery.predecessor_expected_tip(child, manifest_hash, api)
+            api.runs_override = None
+
+            for status in ("pending", "unknown"):
+                with self.subTest(interaction_status=status):
+                    api.interactions_override = [{"status": status}]
+                    with self.assertRaisesRegex(delivery.DeliveryError, "interaction_not_terminal"):
+                        delivery.predecessor_expected_tip(child, manifest_hash, api)
+            api.interactions_override = None
 
             with self.subTest("unexpected local head"):
                 with patch.object(delivery, "git", return_value=base.encode()):
@@ -729,6 +751,9 @@ class NativeDeliveryTests(unittest.TestCase):
                 }
 
             def no_pending(self, _task_id):
+                return None
+
+            def no_pending_terminal(self, _task_id):
                 return None
 
             def request(self, _method, route):
