@@ -1114,6 +1114,7 @@ class NativeDeliveryTests(unittest.TestCase):
                     {
                         "id": run_id,
                         "issueId": current_task_id,
+                        "contextIssueId": current_task_id,
                         "agentId": current_agent_id,
                         "status": "succeeded",
                     }
@@ -1163,6 +1164,133 @@ class NativeDeliveryTests(unittest.TestCase):
         api.m["role_models"] = {"developer": "gpt-6.1-sol", "qa": "gpt-6.1-sol"}
         with self.assertRaisesRegex(delivery.DeliveryError, "manifest_role_models_invalid"):
             api.latest_run(qa)
+
+    def test_latest_run_ignores_activity_linked_runs_and_fails_closed(self) -> None:
+        company = "00000000-0000-4000-8000-000000000041"
+        qa_task = "00000000-0000-4000-8000-000000000042"
+        qa_agent = "00000000-0000-4000-8000-000000000043"
+        manager_task = "00000000-0000-4000-8000-000000000044"
+        manager_agent = "00000000-0000-4000-8000-000000000045"
+        successful_run = "00000000-0000-4000-8000-000000000046"
+        latest_run = "00000000-0000-4000-8000-000000000047"
+        qa = {"task_id": qa_task, "agent_id": qa_agent}
+        api = delivery.Paperclip.__new__(delivery.Paperclip)
+        api.m = {
+            "company_id": company,
+            "developer": {
+                "task_id": "00000000-0000-4000-8000-000000000048",
+                "agent_id": "00000000-0000-4000-8000-000000000049",
+            },
+            "qa": qa,
+        }
+        rows = [
+            {
+                "runId": successful_run,
+                "runtimeMode": "native",
+                "status": "succeeded",
+                "agentId": qa_agent,
+                "startedAt": "2026-10-26T20:42:08.806Z",
+                "finishedAt": "2026-10-26T20:42:40.047Z",
+                "contextIssueId": qa_task,
+            },
+            {
+                "runId": latest_run,
+                "runtimeMode": "native",
+                "status": "succeeded",
+                "agentId": manager_agent,
+                "startedAt": "2026-10-26T20:41:23.058Z",
+                "finishedAt": "2026-10-26T20:43:09.578Z",
+                "contextIssueId": manager_task,
+            },
+            "malformed-row",
+        ]
+        heartbeat = {
+            "id": successful_run,
+            "issueId": qa_task,
+            "nativeIssueId": qa_task,
+            "agentId": qa_agent,
+            "companyId": company,
+            "runtimeMode": "native",
+            "status": "succeeded",
+            "runnerProfileJson": {
+                "nativeExecutionInput": {
+                    "provider": {
+                        "kind": "codex",
+                        "model": "gpt-6-luna",
+                        "reasoningEffort": "high",
+                    }
+                }
+            },
+            "usageJson": {"billingType": "subscription_included"},
+        }
+
+        def response(_method: str, route: str, **_kwargs):
+            if route == f"/issues/{qa_task}/runs":
+                return rows
+            if route == f"/heartbeat-runs/{successful_run}":
+                return heartbeat
+            if route == f"/heartbeat-runs/{latest_run}":
+                return {
+                    **heartbeat,
+                    "id": latest_run,
+                    "issueId": qa_task,
+                    "status": rows[0]["status"],
+                }
+            raise AssertionError(route)
+
+        with patch.object(api, "request", side_effect=response):
+            self.assertEqual(api.latest_run(qa)["runId"], successful_run)
+
+        for status in ("failed", "running"):
+            with self.subTest(latest_correct_actor_status=status):
+                rows[:] = [
+                    {
+                        "runId": successful_run,
+                        "agentId": qa_agent,
+                        "contextIssueId": qa_task,
+                        "status": "succeeded",
+                        "finishedAt": "2026-10-26T20:42:40.047Z",
+                    },
+                    {
+                        "runId": latest_run,
+                        "agentId": qa_agent,
+                        "contextIssueId": qa_task,
+                        "status": status,
+                        "finishedAt": "2026-10-26T20:43:09.578Z",
+                    },
+                    {
+                        "runId": "00000000-0000-4000-8000-000000000050",
+                        "agentId": manager_agent,
+                        "contextIssueId": manager_task,
+                        "status": "succeeded",
+                        "finishedAt": "2026-10-26T20:44:09.578Z",
+                    },
+                ]
+                with patch.object(api, "request", side_effect=response):
+                    with self.assertRaisesRegex(
+                        delivery.DeliveryError, "latest_task_run_not_successful"
+                    ):
+                        api.latest_run(qa)
+
+        rows[:] = [
+            {
+                "runId": latest_run,
+                "agentId": manager_agent,
+                "contextIssueId": manager_task,
+                "status": "succeeded",
+                "finishedAt": "2026-10-26T20:43:09.578Z",
+            },
+            {
+                "runId": successful_run,
+                "agentId": qa_agent,
+                "contextIssueId": manager_task,
+                "status": "succeeded",
+                "finishedAt": "2026-10-26T20:42:40.047Z",
+            },
+        ]
+        with patch.object(api, "request", side_effect=response):
+            with self.assertRaisesRegex(delivery.DeliveryError, "latest_task_run_not_successful"):
+                api.latest_run(qa)
 
 
 if __name__ == "__main__":

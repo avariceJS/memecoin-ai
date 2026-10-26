@@ -494,7 +494,19 @@ class Paperclip:
         rows = self.request("GET", f"/issues/{task['task_id']}/runs")
         if type(rows) is not list or not rows:
             raise DeliveryError("task_runs_missing")
-        latest = max(rows, key=lambda r: str(r.get("finishedAt") or r.get("startedAt") or ""))
+        pinned_runs = [
+            row
+            for row in rows
+            if type(row) is dict
+            and row.get("agentId") == task["agent_id"]
+            and row.get("contextIssueId") == task["task_id"]
+        ]
+        if not pinned_runs:
+            raise DeliveryError("latest_task_run_not_successful")
+        latest = max(
+            pinned_runs,
+            key=lambda r: str(r.get("finishedAt") or r.get("startedAt") or ""),
+        )
         if latest.get("status") != "succeeded" or latest.get("agentId") != task["agent_id"]:
             raise DeliveryError("latest_task_run_not_successful")
         run_id = latest.get("runId") or latest.get("id")
