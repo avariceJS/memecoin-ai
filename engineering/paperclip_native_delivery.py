@@ -23,7 +23,6 @@ STAGE_SCHEMA = "brain-native-delivery-stage-v1"
 PUBLISH_SCHEMA = "brain-native-delivery-publication-v1"
 QA_SCHEMA = "brain-native-qa-result-v1"
 PUBLISH_REF = "refs/heads/brain/development"
-CANDIDATE_REF = "refs/heads/brain/native-report-20261026"
 GIT = "/usr/bin/git"
 GH_HELPER = "!/opt/homebrew/bin/gh auth git-credential"
 GH_CONFIG_DIR = "/Users/root1/.config/gh"
@@ -141,23 +140,25 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise DeliveryError("manifest_invalid_json") from exc
     require(type(m) is dict and m.get("schema") == MANIFEST_SCHEMA, "manifest_schema_invalid")
+    base_fields = {
+        "schema",
+        "api_origin",
+        "company_id",
+        "developer",
+        "qa",
+        "stage",
+        "publish",
+        "source",
+        "canonical",
+        "qa_workspace",
+        "custody_dir",
+    }
     require(
-        set(m)
-        == {
-            "schema",
-            "api_origin",
-            "company_id",
-            "developer",
-            "qa",
-            "stage",
-            "publish",
-            "source",
-            "canonical",
-            "qa_workspace",
-            "custody_dir",
-        },
+        frozenset(m) in {frozenset(base_fields), frozenset(base_fields | {"manager_task_id"})},
         "manifest_fields_invalid",
     )
+    if "manager_task_id" in m:
+        require(UUID.fullmatch(str(m["manager_task_id"])), "manifest_manager_task_invalid")
     require(
         m.get("api_origin") == "http://127.0.0.1:3310"
         and UUID.fullmatch(str(m.get("company_id", ""))),
@@ -209,7 +210,11 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
     )
     require(
         canonical["ref"] == PUBLISH_REF
-        and canonical["candidate_ref"] == CANDIDATE_REF
+        and type(canonical["candidate_ref"]) is str
+        and re.fullmatch(r"refs/heads/brain/[A-Za-z0-9._/-]{1,100}", canonical["candidate_ref"])
+        and canonical["candidate_ref"] != canonical["ref"]
+        and ".." not in canonical["candidate_ref"]
+        and "//" not in canonical["candidate_ref"]
         and OID.fullmatch(str(canonical["expected_tip"])),
         "manifest_canonical_target_invalid",
     )
@@ -228,6 +233,11 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
     )
     safe_dir(src["seed_repo"], "seed")
     safe_dir(canonical["repo"], "canonical")
+    require(
+        publisher._git(Path(canonical["repo"]), "check-ref-format", canonical["candidate_ref"])
+        == b"",
+        "manifest_candidate_ref_invalid",
+    )
     safe_dir(m["qa_workspace"], "qa_workspace")
     safe_dir(m["custody_dir"], "custody", private=True)
     return m, digest(raw)
@@ -296,6 +306,13 @@ def _utf8(data: bytes) -> bool:
         return False
 
 
+def task_binding(manifest: dict[str, Any], action: str, agent_id: str) -> dict[str, str]:
+    task = manifest[action]
+    if task.get("agent_id") != agent_id:
+        raise DeliveryError("current_actor_mismatch")
+    return task
+
+
 class Paperclip:
     def __init__(self, manifest: dict[str, Any]):
         env = os.environ
@@ -341,7 +358,7 @@ class Paperclip:
         return value.get("issue", value) if type(value) is dict else {}
 
     def current(self, action: str) -> str:
-        task = self.m[action]
+        task = task_binding(self.m, action, self.agent_id)
         me = self.request("GET", "/agents/me")
         run = self.request("GET", f"/heartbeat-runs/{self.run_id}")
         issue = self.issue(task["task_id"])
@@ -472,6 +489,90 @@ def latest_successful(api: Paperclip, task: dict[str, str]) -> dict[str, Any]:
     return api.latest_run(task)
 
 
+def stage_path(custody: Path, developer_id: str, run_id: str) -> Path:
+    return custody / f"stage-{developer_id}-{run_id}.json"
+
+
+def stage_history(
+    custody: Path, developer_id: str, manifest_hash: str
+) -> list[tuple[Path, dict[str, Any]]]:
+    rows = []
+    for path in custody.glob(f"stage-{developer_id}-*.json"):
+        info = path.lstat()
+        require(stat.S_ISREG(info.st_mode), "stage_history_not_regular")
+        value = json.loads(path.read_bytes())
+        require(
+            value.get("schema") == STAGE_SCHEMA
+            and value.get("manifest_sha256") == manifest_hash
+            and value.get("developer_task_id") == developer_id
+            and value.get("developer_run_id") == path.stem.removeprefix(f"stage-{developer_id}-")
+            and value.get("revision") in {1, 2},
+            "stage_history_identity_invalid",
+        )
+        rows.append((path, value))
+    rows.sort(key=lambda item: int(item[1]["revision"]))
+    require(
+        len(rows) <= 2 and len({row[1]["revision"] for row in rows}) == len(rows),
+        "correction_limit_reached",
+    )
+    require(not rows or rows[0][1]["revision"] == 1, "stage_history_chain_invalid")
+    if len(rows) == 2:
+        require(
+            rows[1][1].get("previous_stage_sha256") == digest(rows[0][0].read_bytes()),
+            "stage_history_chain_invalid",
+        )
+    return rows
+
+
+def next_stage_revision(prior: dict[str, Any] | None) -> int:
+    if prior is None:
+        return 1
+    require(prior.get("revision") == 1, "correction_limit_reached")
+    return 2
+
+
+def stage_replay_state(
+    history: list[tuple[Path, dict[str, Any]]], run_id: str
+) -> tuple[tuple[Path, dict[str, Any]] | None, tuple[Path, dict[str, Any]] | None]:
+    current = next((row for row in history if row[1]["developer_run_id"] == run_id), None)
+    if current is None:
+        return None, history[-1] if history else None
+    position = history.index(current)
+    return current, history[position - 1] if position > 0 else None
+
+
+def replace_known(path: Path, data: bytes, old_sha256: str | None) -> None:
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        require(old_sha256 is None, "correction_target_missing")
+        write_once(path, data, 0o444)
+        return
+    require(
+        not stat.S_ISLNK(info.st_mode) and stat.S_ISREG(info.st_mode),
+        "correction_target_not_regular",
+    )
+    current = path.read_bytes()
+    if digest(current) == digest(data):
+        return
+    require(old_sha256 is not None and digest(current) == old_sha256, "correction_target_changed")
+    fd, name = tempfile.mkstemp(prefix=".native-correction-", dir=path.parent)
+    tmp = Path(name)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(tmp, 0o444)
+        require(
+            digest(path.read_bytes()) == old_sha256 and not path.is_symlink(),
+            "correction_target_changed",
+        )
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def save_record(path: Path, value: dict[str, Any]) -> None:
     data = json_bytes(value)
     if path.exists() or path.is_symlink():
@@ -486,10 +587,85 @@ def save_record(path: Path, value: dict[str, Any]) -> None:
     write_once(path, data, 0o400)
 
 
+def notify_manager(
+    api: Paperclip,
+    manifest: dict[str, Any],
+    action: str,
+    task_id: str,
+    marker: str,
+    body: str,
+    manifest_hash: str,
+) -> None:
+    manager_id = manifest.get("manager_task_id")
+    require(UUID.fullmatch(str(manager_id or "")), "manager_task_not_pinned")
+    custody = safe_dir(manifest["custody_dir"], "custody", private=True)
+    intent = {
+        "schema": "brain-native-manager-notification-v1",
+        "manifest_sha256": manifest_hash,
+        "manager_task_id": manager_id,
+        "created_by_agent_id": api.agent_id,
+        "body": body,
+        "marker": marker,
+    }
+    stem = f"notification-{action}-{task_id}-{digest(marker.encode())[:16]}"
+    intent_path = custody / f"{stem}.json"
+    attempt_path = custody / f"{stem}.post-attempt.json"
+    ack_path = custody / f"{stem}.ack.json"
+    save_record(intent_path, intent)
+
+    def readback() -> dict[str, Any] | None:
+        rows = api.request("GET", f"/issues/{manager_id}/comments?order=asc&limit=200")
+        rows = rows.get("comments") if type(rows) is dict else rows
+        require(
+            type(rows) is list and all(type(row) is dict for row in rows),
+            "manager_comments_invalid",
+        )
+        matches = [
+            row
+            for row in rows
+            if row.get("authorAgentId") == api.agent_id and row.get("body") == body
+        ]
+        require(len(matches) <= 1, "manager_notification_ambiguous")
+        return matches[0] if matches else None
+
+    found = readback()
+    if found is not None:
+        ack = {
+            "schema": intent["schema"],
+            "intent_sha256": digest(json_bytes(intent)),
+            "comment_id": found.get("id"),
+        }
+        save_record(ack_path, ack)
+        return
+    require(not ack_path.exists(), "manager_notification_readback_lost")
+    require(not attempt_path.exists(), "manager_notification_outcome_unknown")
+    save_record(
+        attempt_path,
+        {"schema": intent["schema"], "intent_sha256": digest(json_bytes(intent))},
+    )
+    try:
+        api.request("POST", f"/issues/{manager_id}/comments", {"body": body, "resume": True})
+    except DeliveryError:
+        found = readback()
+        if found is None:
+            raise DeliveryError("manager_notification_outcome_unknown") from None
+    else:
+        found = readback()
+        require(found is not None, "manager_notification_readback_missing")
+    ack = {
+        "schema": intent["schema"],
+        "intent_sha256": digest(json_bytes(intent)),
+        "comment_id": found.get("id"),
+    }
+    save_record(ack_path, ack)
+
+
 def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     api = Paperclip(m)
     own_task = api.current("stage")
-    developer = m["developer"]
+    require(own_task == m["stage"]["task_id"], "task_not_pinned")
+    slot = m
+    developer, qa = slot["developer"], slot["qa"]
     source_run = latest_successful(api, developer)
     patch_meta, patch = api.artifact(developer, source_run, "candidate.patch", 4 * 1024 * 1024)
     demo_meta, demo = api.artifact(developer, source_run, "demonstration.json", 1024 * 1024)
@@ -499,9 +675,10 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         raise DeliveryError("demonstration_invalid_json") from exc
     if type(example) is not dict or not {"module", "input", "output"} <= set(example):
         raise DeliveryError("demonstration_contract_invalid")
-    paths = m["source"]["paths"]
-    files = normalize_patch(patch, Path(m["source"]["seed_repo"]), m["source"]["base_sha"], paths)
-    root = safe_dir(m["qa_workspace"], "qa_workspace")
+    source = slot["source"]
+    paths = source["paths"]
+    files = normalize_patch(patch, Path(source["seed_repo"]), source["base_sha"], paths)
+    root = safe_dir(slot["qa_workspace"], "qa_workspace")
     custody = safe_dir(m["custody_dir"], "custody", private=True)
     handoff = root / ".native-delivery"
     try:
@@ -509,41 +686,106 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     except FileExistsError:
         if stat.S_ISLNK(handoff.lstat().st_mode) or not handoff.is_dir():
             raise DeliveryError("qa_handoff_directory_invalid") from None
-    native = custody / f"native-handoff-{developer['task_id']}"
+    native = custody / f"native-handoff-{developer['task_id']}-{source_run['runId']}"
     try:
         native.mkdir(mode=0o700)
     except FileExistsError:
         if stat.S_ISLNK(native.lstat().st_mode) or not native.is_dir():
             raise DeliveryError("custody_directory_invalid") from None
-    record = {
-        "schema": STAGE_SCHEMA,
-        "manifest_sha256": manifest_hash,
-        "developer_task_id": developer["task_id"],
-        "developer_agent_id": developer["agent_id"],
-        "developer_run_id": source_run["runId"],
-        "source_base_sha": m["source"]["base_sha"],
-        "paths": paths,
-        "patch": {"attachment_id": patch_meta["id"], "sha256": digest(patch), "size": len(patch)},
-        "demonstration": {
-            "attachment_id": demo_meta["id"],
-            "sha256": digest(demo),
-            "size": len(demo),
-        },
-        "files": {p: {"sha256": digest(files[p]), "size": len(files[p])} for p in paths},
-    }
-    record_path = custody / f"stage-{developer['task_id']}.json"
-    if not record_path.exists():
-        for p in paths:
-            if target(root, p).exists():
-                raise DeliveryError("qa_source_target_collision")
-        for name in ("candidate.patch", "demonstration.json", "native-delivery.json"):
-            if (handoff / name).exists() or (handoff / name).is_symlink():
-                raise DeliveryError("qa_artifact_target_collision")
+    history = stage_history(custody, developer["task_id"], manifest_hash)
+    current_stage, previous_stage = stage_replay_state(history, source_run["runId"])
+    current_record = current_stage[1] if current_stage else None
+    prior_path, prior = previous_stage if previous_stage else (None, None)
+    record_path = stage_path(custody, developer["task_id"], source_run["runId"])
+    if current_record is not None:
+        require(
+            current_record.get("patch", {}).get("sha256") == digest(patch),
+            "stage_run_candidate_changed",
+        )
+        record = current_record
+        revision = int(current_record.get("revision", 1))
+    else:
+        revision = next_stage_revision(prior)
+        if revision == 2:
+            require(m.get("manager_task_id"), "manager_task_not_pinned")
+        if prior is not None:
+            prior_qa_run = latest_successful(api, qa)
+            prior_meta, prior_result = api.artifact(qa, prior_qa_run, "QA-RESULT.json", 256 * 1024)
+            verdict = validate_qa(
+                prior_result,
+                developer["task_id"],
+                prior["patch"]["sha256"],
+                prior["files"],
+                prior["paths"],
+                allow_reject=True,
+            )
+            require(
+                verdict == "reject" and prior_qa_run["runId"] != source_run["runId"],
+                "correction_requires_latest_qa_reject",
+            )
+            require(digest(patch) != prior["patch"]["sha256"], "correction_candidate_unchanged")
+            prior_result_value = json.loads(prior_result)
+            require(prior_result_value["findings"], "correction_rejection_findings_missing")
+            require(
+                prior_meta.get("originatingRunId") == prior_qa_run["runId"],
+                "correction_qa_binding_invalid",
+            )
+            for path in paths:
+                target_path = target(root, path)
+                require(
+                    target_path.is_file() and not target_path.is_symlink(),
+                    "correction_target_missing",
+                )
+                require(
+                    digest(target_path.read_bytes()) == prior["files"][path]["sha256"],
+                    "correction_target_changed",
+                )
+            prior_handoff = root / ".native-delivery"
+            for name, key in (
+                ("candidate.patch", "patch"),
+                ("demonstration.json", "demonstration"),
+            ):
+                old_path = prior_handoff / name
+                require(
+                    old_path.is_file()
+                    and not old_path.is_symlink()
+                    and digest(old_path.read_bytes()) == prior[key]["sha256"],
+                    "correction_artifact_changed",
+                )
+        record = {
+            "schema": STAGE_SCHEMA,
+            "manifest_sha256": manifest_hash,
+            "developer_task_id": developer["task_id"],
+            "developer_agent_id": developer["agent_id"],
+            "developer_run_id": source_run["runId"],
+            "source_base_sha": source["base_sha"],
+            "revision": revision,
+            "previous_stage_sha256": None
+            if prior_path is None
+            else digest(prior_path.read_bytes()),
+            "paths": paths,
+            "patch": {
+                "attachment_id": patch_meta["id"],
+                "sha256": digest(patch),
+                "size": len(patch),
+            },
+            "demonstration": {
+                "attachment_id": demo_meta["id"],
+                "sha256": digest(demo),
+                "size": len(demo),
+            },
+            "files": {p: {"sha256": digest(files[p]), "size": len(files[p])} for p in paths},
+        }
+    prior_files = {} if prior is None else prior["files"]
     save_record(record_path, record)
     write_once(native / "candidate.patch", patch, 0o400)
     write_once(native / "demonstration.json", demo, 0o400)
-    write_once(handoff / "candidate.patch", patch, 0o444)
-    write_once(handoff / "demonstration.json", demo, 0o444)
+    for name, data, key in (
+        ("candidate.patch", patch, "patch"),
+        ("demonstration.json", demo, "demonstration"),
+    ):
+        old_hash = None if prior is None else prior[key]["sha256"]
+        replace_known(handoff / name, data, old_hash)
     files_root = native / "files"
     try:
         files_root.mkdir(mode=0o700)
@@ -551,20 +793,44 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         if stat.S_ISLNK(files_root.lstat().st_mode) or not files_root.is_dir():
             raise DeliveryError("custody_files_directory_invalid") from None
     for p in paths:
-        write_once(target(root, p), files[p], 0o444)
+        old_hash = None if prior is None else prior_files[p]["sha256"]
+        replace_known(target(root, p), files[p], old_hash)
         write_once(target(files_root, p, create=True), files[p], 0o400)
-    write_once(handoff / "native-delivery.json", json_bytes(record), 0o444)
+    old_record_hash = None if prior is None else digest(json_bytes(prior))
+    replace_known(handoff / "native-delivery.json", json_bytes(record), old_record_hash)
+    if revision == 2:
+        marker = (
+            f"correction:{developer['task_id']}:{source_run['runId']}:{record['patch']['sha256']}"
+        )
+        notify_manager(
+            api,
+            m,
+            "correction",
+            developer["task_id"],
+            marker,
+            (
+                f"Corrected candidate {developer['task_id']} is durably staged; "
+                f"reopen QA after stage completion. Patch {record['patch']['sha256']}."
+            ),
+            manifest_hash,
+        )
     api.complete(own_task)
     return {
         "status": "staged",
         "source_task_id": developer["task_id"],
-        "qa_task_id": m["qa"]["task_id"],
+        "qa_task_id": qa["task_id"],
     }
 
 
 def validate_qa(
-    data: bytes, source_id: str, patch_hash: str, files: dict[str, Any], paths: list[str]
-) -> None:
+    data: bytes,
+    source_id: str,
+    patch_hash: str,
+    files: dict[str, Any],
+    paths: list[str],
+    *,
+    allow_reject: bool = False,
+) -> str:
     if len(data) > 256 * 1024:
         raise DeliveryError("qa_result_too_large")
     try:
@@ -572,12 +838,15 @@ def validate_qa(
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise DeliveryError("qa_result_invalid_json") from exc
     expected = {p: files[p]["sha256"] for p in paths}
+    verdict = result.get("verdict") if type(result) is dict else None
+    keys = {"schema", "verdict", "source_task_id", "source_patch_sha256", "files", "checks"}
+    if verdict == "reject" and allow_reject:
+        keys.add("findings")
     if (
         type(result) is not dict
-        or set(result)
-        != {"schema", "verdict", "source_task_id", "source_patch_sha256", "files", "checks"}
+        or set(result) != keys
         or result.get("schema") != QA_SCHEMA
-        or result.get("verdict") != "accept"
+        or verdict not in ({"accept", "reject"} if allow_reject else {"accept"})
         or result.get("source_task_id") != source_id
         or result.get("source_patch_sha256") != patch_hash
         or result.get("files") != expected
@@ -591,11 +860,27 @@ def validate_qa(
             type(x) is not dict
             or set(x) != {"name", "result"}
             or not str(x["name"]).strip()
-            or x["result"] != "passed"
+            or x["result"] not in ({"passed", "failed"} if verdict == "reject" else {"passed"})
             for x in checks
         )
     ):
         raise DeliveryError("qa_result_checks_invalid")
+    if verdict == "reject":
+        findings = result["findings"]
+        if (
+            type(findings) is not list
+            or not findings
+            or any(
+                type(item) is not dict
+                or set(item) != {"check", "evidence"}
+                or not str(item["check"]).strip()
+                or not str(item["evidence"]).strip()
+                or item["check"] not in {check["name"] for check in checks}
+                for item in findings
+            )
+        ):
+            raise DeliveryError("qa_result_findings_invalid")
+    return verdict
 
 
 def remote_git(repo: Path, *args: str, github_auth: bool = False) -> bytes:
@@ -648,6 +933,16 @@ def remote_refs(m: dict[str, Any]) -> dict[str, str]:
     return refs
 
 
+def check_publication_head(
+    repo: Path, ref: str, expected: str, receipt: dict[str, Any], durable_receipt: bool
+) -> None:
+    head = git(repo, "rev-parse", ref).decode().strip()
+    require(
+        head == expected or (durable_receipt and head == receipt.get("candidate")),
+        "canonical_expected_tip_changed",
+    )
+
+
 def push_ref(m: dict[str, Any], source: str, target_ref: str) -> None:
     c = m["canonical"]
     repo = Path(c["repo"])
@@ -661,12 +956,15 @@ def push_ref(m: dict[str, Any], source: str, target_ref: str) -> None:
 def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     api = Paperclip(m)
     own_task = api.current("publish")
-    dev, qa = m["developer"], m["qa"]
+    require(own_task == m["publish"]["task_id"], "task_not_pinned")
+    require(m.get("manager_task_id"), "manager_task_not_pinned")
+    slot = m
+    dev, qa = slot["developer"], slot["qa"]
     source_run = latest_successful(api, dev)
     qa_run = latest_successful(api, qa)
     if source_run["agentId"] == qa_run["agentId"]:
         raise DeliveryError("qa_not_independent")
-    record_path = Path(m["custody_dir"]) / f"stage-{dev['task_id']}.json"
+    record_path = stage_path(Path(m["custody_dir"]), dev["task_id"], source_run["runId"])
     record = json.loads(record_path.read_bytes())
     if (
         record.get("schema") != STAGE_SCHEMA
@@ -678,15 +976,13 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     validate_qa(
         qa_data, dev["task_id"], record["patch"]["sha256"], record["files"], record["paths"]
     )
-    native = Path(m["custody_dir"]) / f"native-handoff-{dev['task_id']}"
+    native = Path(m["custody_dir"]) / f"native-handoff-{dev['task_id']}-{source_run['runId']}"
     files = {p: target(native / "files", p).read_bytes() for p in record["paths"]}
     if any(digest(files[p]) != record["files"][p]["sha256"] for p in record["paths"]):
         raise DeliveryError("custodied_file_hash_mismatch")
-    c = m["canonical"]
+    c = slot["canonical"]
     repo = Path(c["repo"])
     expected = c["expected_tip"]
-    if git(repo, "rev-parse", c["ref"]).decode().strip() != expected:
-        raise DeliveryError("canonical_expected_tip_changed")
     old = {p: None for p in record["paths"]}
     new = {
         p: publisher._git(repo, "hash-object", "--stdin", data=files[p]).decode().strip()
@@ -714,9 +1010,8 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         base = {
             k: v for k, v in saved.items() if k not in {"canonical_receipt", "publication_digest"}
         }
-        if base != op or saved.get("publication_digest") != digest(
-            json_bytes({**base, "canonical_receipt": receipt})
-        ):
+        unsigned_saved = {k: v for k, v in saved.items() if k != "publication_digest"}
+        if base != op or saved.get("publication_digest") != digest(json_bytes(unsigned_saved)):
             raise DeliveryError("publication_receipt_conflict")
     else:
         receipt = publisher.prepare(
@@ -725,6 +1020,8 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         saved = {**op, "canonical_receipt": receipt}
         saved["publication_digest"] = digest(json_bytes(saved))
         save_record(receipt_file, saved)
+    require(type(receipt) is dict, "publication_receipt_invalid")
+    check_publication_head(repo, c["ref"], expected, receipt, receipt_file.exists())
     refs = remote_refs(m)
     candidate = receipt["candidate"]
     if refs.get(c["ref"]) not in {expected, candidate} or refs.get(c["candidate_ref"]) not in {
@@ -748,6 +1045,16 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     refs = remote_refs(m)
     if refs.get(c["candidate_ref"]) != candidate or refs.get(c["ref"]) != candidate:
         raise DeliveryError("publication_remote_readback_failed")
+    marker = f"published:{dev['task_id']}:{candidate}:{receipt['receipt_digest']}"
+    notify_manager(
+        api,
+        m,
+        "publish",
+        dev["task_id"],
+        marker,
+        f"Native publication passed remote readback for {dev['task_id']}: candidate {candidate}.",
+        manifest_hash,
+    )
     api.complete(own_task)
     return {"status": "published", "candidate_sha": candidate, "receipt": str(receipt_file)}
 

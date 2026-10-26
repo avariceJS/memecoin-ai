@@ -136,6 +136,247 @@ class NativeDeliveryTests(unittest.TestCase):
                         self.paths,
                     )
 
+    def test_qa_rejection_binds_exact_candidate_and_requires_findings(self) -> None:
+        files = delivery.normalize_patch(self.patch, self.seed, self.base, self.paths)
+        hashes = {p: hashlib.sha256(files[p]).hexdigest() for p in self.paths}
+        patch_hash = hashlib.sha256(self.patch).hexdigest()
+        rejected = {
+            "schema": delivery.QA_SCHEMA,
+            "verdict": "reject",
+            "source_task_id": "source-task",
+            "source_patch_sha256": patch_hash,
+            "files": hashes,
+            "checks": [{"name": "focused checks", "result": "failed"}],
+            "findings": [{"check": "focused checks", "evidence": "assertion failed at line 1"}],
+        }
+        bound = {p: {"sha256": h} for p, h in hashes.items()}
+        self.assertEqual(
+            delivery.validate_qa(
+                json.dumps(rejected).encode(),
+                "source-task",
+                patch_hash,
+                bound,
+                self.paths,
+                allow_reject=True,
+            ),
+            "reject",
+        )
+        for altered in (
+            {**rejected, "source_patch_sha256": "0" * 64},
+            {**rejected, "files": {**hashes, self.paths[0]: "0" * 64}},
+            {**rejected, "findings": []},
+            {**rejected, "findings": [{"check": "other", "evidence": "not bound"}]},
+        ):
+            with self.subTest(altered=altered):
+                with self.assertRaises(delivery.DeliveryError):
+                    delivery.validate_qa(
+                        json.dumps(altered).encode(),
+                        "source-task",
+                        patch_hash,
+                        bound,
+                        self.paths,
+                        allow_reject=True,
+                    )
+
+    def test_single_correction_replaces_only_unchanged_staged_bytes(self) -> None:
+        target = self.root / "qa-file.py"
+        target.write_bytes(b"first candidate\n")
+        old_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+        delivery.replace_known(target, b"corrected candidate\n", old_hash)
+        self.assertEqual(target.read_bytes(), b"corrected candidate\n")
+        target.chmod(0o644)
+        target.write_bytes(b"owner edit\n")
+        with self.assertRaisesRegex(delivery.DeliveryError, "correction_target_changed"):
+            delivery.replace_known(target, b"another candidate\n", old_hash)
+        self.assertEqual(target.read_bytes(), b"owner edit\n")
+
+    def test_candidate_attempts_are_initial_plus_one_correction(self) -> None:
+        self.assertEqual(delivery.next_stage_revision(None), 1)
+        self.assertEqual(delivery.next_stage_revision({"revision": 1}), 2)
+        with self.assertRaisesRegex(delivery.DeliveryError, "correction_limit_reached"):
+            delivery.next_stage_revision({"revision": 2})
+
+    def test_restage_replay_uses_predecessor_cas_and_rejects_unknown_bytes(self) -> None:
+        target = self.root / "qa-source.py"
+        initial_bytes, corrected_bytes = b"initial\n", b"corrected\n"
+        delivery.replace_known(target, initial_bytes, None)
+        missing_initial = self.root / "partial-initial.py"
+        delivery.replace_known(missing_initial, initial_bytes, None)
+        self.assertEqual(missing_initial.read_bytes(), initial_bytes)
+        initial_path = self.root / "stage-initial.json"
+        corrected_path = self.root / "stage-corrected.json"
+        initial = {"developer_run_id": "run-initial", "revision": 1}
+        corrected = {"developer_run_id": "run-corrected", "revision": 2}
+        initial_path.write_bytes(delivery.json_bytes(initial))
+        corrected_path.write_bytes(delivery.json_bytes(corrected))
+
+        current, predecessor = delivery.stage_replay_state(
+            [(initial_path, initial), (corrected_path, corrected)], "run-corrected"
+        )
+        self.assertEqual(current, (corrected_path, corrected))
+        self.assertEqual(predecessor, (initial_path, initial))
+        old_hash = delivery.digest(initial_bytes)
+        delivery.replace_known(target, corrected_bytes, old_hash)
+        delivery.replace_known(target, corrected_bytes, old_hash)  # interrupted-write replay
+        self.assertEqual(target.read_bytes(), corrected_bytes)
+
+        target.chmod(0o644)
+        target.write_bytes(b"unknown edit\n")
+        with self.assertRaisesRegex(delivery.DeliveryError, "correction_target_changed"):
+            delivery.replace_known(target, corrected_bytes, old_hash)
+
+    def test_notification_is_read_back_and_never_blindly_reposted(self) -> None:
+        class FakeApi:
+            agent_id = "00000000-0000-4000-8000-000000000051"
+
+            def __init__(
+                self,
+                *,
+                lose_post: bool = False,
+                post_then_error: bool = False,
+                fail_first_get: bool = False,
+            ) -> None:
+                self.rows = []
+                self.posts = 0
+                self.lose_post = lose_post
+                self.post_then_error = post_then_error
+                self.fail_first_get = fail_first_get
+                self.gets = 0
+
+            def request(self, method, route, body=None):
+                if method == "GET":
+                    self.gets += 1
+                    if self.fail_first_get and self.gets == 1:
+                        raise delivery.DeliveryError("paperclip_request_failed")
+                    return list(self.rows)
+                if method == "POST":
+                    self.posts += 1
+                    self.rows.append(
+                        {"id": "comment-1", "authorAgentId": self.agent_id, "body": body["body"]}
+                    )
+                    if self.lose_post and not self.post_then_error:
+                        self.rows.clear()
+                    if self.lose_post:
+                        raise delivery.DeliveryError("paperclip_request_failed")
+                    return {}
+                raise AssertionError((method, route, body))
+
+        custody = self.root / "notify-custody"
+        custody.mkdir(mode=0o700)
+        manifest = {
+            "custody_dir": str(custody.resolve()),
+            "manager_task_id": "00000000-0000-4000-8000-000000000052",
+        }
+        kwargs = (manifest, "publish", "task-1", "marker-1", "published", "a" * 64)
+        api = FakeApi()
+        delivery.notify_manager(api, *kwargs)
+        delivery.notify_manager(api, *kwargs)
+        self.assertEqual(api.posts, 1)
+
+        committed_but_uncertain = FakeApi(lose_post=True, post_then_error=True)
+        committed_kwargs = (
+            manifest,
+            "publish",
+            "task-3",
+            "marker-3",
+            "published after response loss",
+            "a" * 64,
+        )
+        delivery.notify_manager(committed_but_uncertain, *committed_kwargs)
+        self.assertEqual(committed_but_uncertain.posts, 1)
+
+        get_retry = FakeApi(fail_first_get=True)
+        get_retry_kwargs = (
+            manifest,
+            "correction",
+            "task-4",
+            "marker-4",
+            "corrected candidate",
+            "a" * 64,
+        )
+        with self.assertRaisesRegex(delivery.DeliveryError, "paperclip_request_failed"):
+            delivery.notify_manager(get_retry, *get_retry_kwargs)
+        delivery.notify_manager(get_retry, *get_retry_kwargs)
+        self.assertEqual(get_retry.posts, 1)
+
+        uncertain = FakeApi(lose_post=True)
+        uncertain_kwargs = (
+            manifest,
+            "correction",
+            "task-2",
+            "marker-2",
+            "correction staged",
+            "a" * 64,
+        )
+        with self.assertRaisesRegex(delivery.DeliveryError, "manager_notification_outcome_unknown"):
+            delivery.notify_manager(uncertain, *uncertain_kwargs)
+        with self.assertRaisesRegex(delivery.DeliveryError, "manager_notification_outcome_unknown"):
+            delivery.notify_manager(uncertain, *uncertain_kwargs)
+        self.assertEqual(uncertain.posts, 1)
+
+    def test_publication_replay_accepts_only_expected_or_receipted_candidate_head(self) -> None:
+        repo = Path("/tmp/canonical")
+        receipt = {"candidate": "b" * 40}
+        with patch.object(delivery, "git", return_value=("a" * 40).encode()):
+            delivery.check_publication_head(
+                repo, "refs/heads/brain/development", "a" * 40, receipt, False
+            )
+        with patch.object(delivery, "git", return_value=("b" * 40).encode()):
+            delivery.check_publication_head(
+                repo, "refs/heads/brain/development", "a" * 40, receipt, True
+            )
+        with patch.object(delivery, "git", return_value=("c" * 40).encode()):
+            with self.assertRaisesRegex(delivery.DeliveryError, "canonical_expected_tip_changed"):
+                delivery.check_publication_head(
+                    repo, "refs/heads/brain/development", "a" * 40, receipt, True
+                )
+
+    def test_manifest_pins_one_safe_candidate_ref_and_manager_task(self) -> None:
+        qa = self.root / "qa-workspace"
+        qa.mkdir()
+        custody = self.root / "custody"
+        custody.mkdir(mode=0o700)
+
+        def task(number: int) -> str:
+            return f"00000000-0000-4000-8000-{number:012d}"
+
+        manifest = {
+            "schema": delivery.MANIFEST_SCHEMA,
+            "api_origin": "http://127.0.0.1:3310",
+            "company_id": task(1),
+            "developer": {"task_id": task(2), "agent_id": task(3)},
+            "qa": {"task_id": task(4), "agent_id": task(5)},
+            "stage": {"task_id": task(6), "agent_id": task(7)},
+            "publish": {"task_id": task(8), "agent_id": task(9)},
+            "manager_task_id": task(10),
+            "source": {
+                "seed_repo": str(self.seed.resolve()),
+                "base_sha": self.base,
+                "paths": self.paths,
+            },
+            "canonical": {
+                "repo": str(self.work.resolve()),
+                "ref": delivery.PUBLISH_REF,
+                "expected_tip": init_repo(self.root / "canonical"),
+                "remote_name": "origin",
+                "remote_url": "https://github.com/example/brain.git",
+                "candidate_ref": "refs/heads/brain/native-report-mem132-20261026",
+            },
+            "qa_workspace": str(qa.resolve()),
+            "custody_dir": str(custody.resolve()),
+        }
+        path = self.root / "manifest.json"
+        path.write_bytes(delivery.json_bytes(manifest))
+        path.chmod(0o600)
+        loaded, _ = delivery.load_manifest(str(path.resolve()))
+        self.assertEqual(
+            loaded["canonical"]["candidate_ref"], manifest["canonical"]["candidate_ref"]
+        )
+        manifest["canonical"]["candidate_ref"] = "refs/heads/main"
+        path.write_bytes(delivery.json_bytes(manifest))
+        with self.assertRaisesRegex(delivery.DeliveryError, "manifest_canonical_target_invalid"):
+            delivery.load_manifest(str(path.resolve()))
+
     def test_fixed_path_safety_and_immutable_write_collision(self) -> None:
         root = self.root / "qa"
         root.mkdir()
