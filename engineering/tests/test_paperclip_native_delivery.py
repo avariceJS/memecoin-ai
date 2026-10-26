@@ -394,6 +394,193 @@ class NativeDeliveryTests(unittest.TestCase):
             delivery.write_once(collision, b"worker data", 0o400)
         self.assertEqual(collision.read_bytes(), b"owner data")
 
+    def test_pinned_predecessor_receipt_resolves_only_a_done_exact_chain(self) -> None:
+        task = lambda number: f"00000000-0000-4000-8000-{number:012d}"
+        candidate = "f" * 40
+        base = "e" * 40
+        parent_manifest = {
+            "company_id": task(1),
+            "source": {"base_sha": base, "paths": ["src/one.py", "tests/test_one.py"]},
+            "developer": {"task_id": task(2)},
+            "publish": {"task_id": task(3), "agent_id": task(4)},
+            "canonical": {
+                "repo": str(self.work.resolve()),
+                "ref": delivery.PUBLISH_REF,
+                "expected_tip": base,
+                "remote_name": "origin",
+                "remote_url": "https://github.com/example/brain.git",
+                "candidate_ref": "refs/heads/brain/first",
+            },
+        }
+        manifest_hash = "a" * 64
+        receipt_dir = self.root / "parent-custody"
+        receipt_dir.mkdir(mode=0o700)
+        receipt_path = receipt_dir / "publication.json"
+        canonical_receipt = {"candidate": candidate, "receipt_digest": "b" * 64}
+        saved = {
+            "schema": delivery.PUBLISH_SCHEMA,
+            "manifest_sha256": manifest_hash,
+            "source_task_id": task(2),
+            "expected_tip": base,
+            "canonical_ref": delivery.PUBLISH_REF,
+            "candidate_ref": "refs/heads/brain/first",
+            "files": {"src/one.py": "1" * 64, "tests/test_one.py": "2" * 64},
+            "canonical_receipt": canonical_receipt,
+        }
+        saved["publication_digest"] = delivery.digest(delivery.json_bytes(saved))
+        receipt_path.write_bytes(delivery.json_bytes(saved))
+        receipt_path.chmod(0o400)
+        child_custody = self.root / "child-custody"
+        child_custody.mkdir(mode=0o700)
+        child = {
+            "company_id": task(1),
+            "source": {"base_sha": base, "paths": ["src/two.py", "tests/test_two.py"]},
+            "developer": {"task_id": task(6)},
+            "custody_dir": str(child_custody.resolve()),
+            "canonical": {
+                **parent_manifest["canonical"],
+                "candidate_ref": "refs/heads/brain/second",
+            },
+            "predecessor": {
+                "manifest_path": str(self.root / "parent-manifest.json"),
+                "manifest_sha256": manifest_hash,
+                "source_task_id": task(2),
+                "publish_task_id": task(3),
+                "receipt_path": str(receipt_path),
+            },
+        }
+
+        class API:
+            runs_override = None
+            issue_value = {
+                "id": task(3),
+                "companyId": task(1),
+                "assigneeAgentId": task(4),
+                "status": "done",
+            }
+
+            def issue(self, _task_id):
+                return self.issue_value
+
+            def no_pending(self, _task_id):
+                return None
+
+            def request(self, _method, _route):
+                if "/runs" in _route:
+                    return self.runs_override or [
+                        {"status": "succeeded", "id": task(5), "agentId": task(4)}
+                    ]
+                return {
+                    "id": task(5),
+                    "status": "succeeded",
+                    "runtimeMode": "legacy",
+                    "agentId": task(4),
+                    "companyId": task(1),
+                    "issueId": task(3),
+                }
+
+            def latest_run(self, _task):
+                return {"status": "succeeded"}
+
+        api = API()
+        with (
+            patch.object(delivery, "load_manifest", return_value=(parent_manifest, manifest_hash)),
+            patch.object(delivery.publisher, "inspect"),
+            patch.object(delivery, "git", return_value=candidate.encode()),
+            patch.object(
+                delivery, "remote_git", return_value=f"{candidate}\t{delivery.PUBLISH_REF}\n{candidate}\trefs/heads/brain/first\n".encode()
+            ),
+        ):
+            self.assertEqual(delivery.predecessor_expected_tip(child, manifest_hash, api), candidate)
+
+            with self.subTest("durable second-slot replay after canonical advanced"):
+                child_candidate = "d" * 40
+                own_receipt = {
+                    "schema": delivery.PUBLISH_SCHEMA,
+                    "source_task_id": task(6),
+                    "manifest_sha256": manifest_hash,
+                    "expected_tip": candidate,
+                    "canonical_ref": delivery.PUBLISH_REF,
+                    "candidate_ref": child["canonical"]["candidate_ref"],
+                    "canonical_receipt": {"candidate": child_candidate, "receipt_digest": "c" * 64},
+                }
+                own_receipt["publication_digest"] = delivery.digest(
+                    delivery.json_bytes(own_receipt)
+                )
+                own_path = child_custody / f"publication-{task(6)}.json"
+                own_path.write_bytes(delivery.json_bytes(own_receipt))
+                own_path.chmod(0o400)
+                with (
+                    patch.object(delivery, "git", return_value=child_candidate.encode()),
+                    patch.object(
+                        delivery,
+                        "remote_git",
+                        return_value=(
+                            f"{child_candidate}\t{delivery.PUBLISH_REF}\n"
+                            f"{candidate}\trefs/heads/brain/first\n"
+                            f"{child_candidate}\t{child['canonical']['candidate_ref']}\n"
+                        ).encode(),
+                    ),
+                ):
+                    self.assertEqual(
+                        delivery.predecessor_expected_tip(child, manifest_hash, api), candidate
+                    )
+                own_path.unlink()
+
+            with self.subTest("missing receipt"):
+                receipt_path.unlink()
+                with self.assertRaisesRegex(delivery.DeliveryError, "receipt_missing"):
+                    delivery.predecessor_expected_tip(child, manifest_hash, api)
+                receipt_path.write_bytes(delivery.json_bytes(saved))
+                receipt_path.chmod(0o400)
+
+            with self.subTest("tampered receipt"):
+                tampered = {**saved, "candidate_ref": "refs/heads/brain/forged"}
+                receipt_path.chmod(0o600)
+                receipt_path.write_bytes(delivery.json_bytes(tampered))
+                receipt_path.chmod(0o400)
+                with self.assertRaisesRegex(delivery.DeliveryError, "receipt_invalid"):
+                    delivery.predecessor_expected_tip(child, manifest_hash, api)
+                receipt_path.chmod(0o600)
+                receipt_path.write_bytes(delivery.json_bytes(saved))
+                receipt_path.chmod(0o400)
+
+            with self.subTest("wrong target"):
+                wrong = {**child, "canonical": {**child["canonical"], "repo": str(self.seed)}}
+                with self.assertRaisesRegex(delivery.DeliveryError, "target_mismatch"):
+                    delivery.predecessor_expected_tip(wrong, manifest_hash, api)
+
+            with self.subTest("manifest identity mismatch"):
+                with patch.object(delivery, "load_manifest", return_value=(parent_manifest, "c" * 64)):
+                    with self.assertRaisesRegex(delivery.DeliveryError, "manifest_hash_mismatch"):
+                        delivery.predecessor_expected_tip(child, manifest_hash, api)
+
+            with self.subTest("publish task not done"):
+                api.issue_value = {**api.issue_value, "status": "in_progress"}
+                with self.assertRaisesRegex(delivery.DeliveryError, "not_done"):
+                    delivery.predecessor_expected_tip(child, manifest_hash, api)
+                api.issue_value = {**api.issue_value, "status": "done"}
+
+            with self.subTest("publish run still active"):
+                api.runs_override = [{"status": "running", "id": task(5), "agentId": task(4)}]
+                with self.assertRaisesRegex(delivery.DeliveryError, "run_pending"):
+                    delivery.predecessor_expected_tip(child, manifest_hash, api)
+                api.runs_override = None
+
+            with self.subTest("unexpected local head"):
+                with patch.object(delivery, "git", return_value=base.encode()):
+                    with self.assertRaisesRegex(delivery.DeliveryError, "canonical_head_unexpected"):
+                        delivery.predecessor_expected_tip(child, manifest_hash, api)
+
+            with self.subTest("unexpected remote head"):
+                with patch.object(
+                    delivery,
+                    "remote_git",
+                    return_value=f"{base}\t{delivery.PUBLISH_REF}\n{candidate}\trefs/heads/brain/first\n".encode(),
+                ):
+                    with self.assertRaisesRegex(delivery.DeliveryError, "remote_head_unexpected"):
+                        delivery.predecessor_expected_tip(child, manifest_hash, api)
+
     def test_wrong_current_actor_cannot_complete_a_pinned_task(self) -> None:
         api = delivery.Paperclip.__new__(delivery.Paperclip)
         api.m = {
