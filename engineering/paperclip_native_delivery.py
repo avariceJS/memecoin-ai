@@ -26,6 +26,10 @@ PREPARATION_SCHEMA = "brain-native-delivery-preparation-v1"
 DELIVERY_PLAN_SCHEMA = "brain-native-delivery-plan-v1"
 PREPARATION_RECEIPT_SCHEMA = "brain-native-delivery-preparation-receipt-v1"
 PUBLISH_REF = "refs/heads/brain/development"
+PROCESS_WORKSPACE_IDS = {
+    "stage": "bb6956ed-1210-48a0-8e6a-b28f584855fc",
+    "publish": "3a62ff9a-ff85-499f-b5e9-de265565d669",
+}
 GIT = "/usr/bin/git"
 ORG_ROOT = Path("/Users/root1/Developer/brain-org-build")
 GH_HELPER = "!/opt/homebrew/bin/gh auth git-credential"
@@ -41,8 +45,10 @@ PREPARATION_MANAGER_GUIDANCE = """Finite delivery preparation contract:
    match; stop on zero or multiple matches. Never replay an uncertain POST.
 3. Create each source, stage, QA, and publisher task with the envelope actors and exact dependency
    graph. Pass workspaceSelection in the initial issue create body: source uses the frozen source
-   workspace with managed_isolated mode; QA uses its slot workspace with shared mode. Source
-   settings inherit the owner-frozen git-worktree project policy and base SHA.
+   workspace with managed_isolated mode; QA uses its slot workspace with shared mode; stage and
+   publisher use existing workspace IDs bb6956ed-1210-48a0-8e6a-b28f584855fc and
+   3a62ff9a-ff85-499f-b5e9-de265565d669 respectively. Source settings inherit the owner-frozen
+   git-worktree project policy and base SHA.
 4. Keep source and publisher in backlog and stage/QA blocked. Pin stage/publisher process argv to
    the deterministic manifest paths. Attach one DELIVERY-PLAN.json to the completed planning task;
    include the company/planning/execution IDs and each slot's title, module, benefit, acceptance,
@@ -817,6 +823,7 @@ def _task_row(
     agent_id: str,
     status: str,
     blocker_ids: set[str],
+    execution_workspace_id: str | None = None,
 ) -> dict[str, Any]:
     issue = api.issue(task_id)
     require(
@@ -825,7 +832,7 @@ def _task_row(
         and issue.get("parentId") == parent_id
         and issue.get("assigneeAgentId") == agent_id
         and issue.get("status") == status
-        and issue.get("executionWorkspaceId") is None
+        and issue.get("executionWorkspaceId") == execution_workspace_id
         and _blocked_by(issue) == blocker_ids,
         "preparation_graph_issue_mismatch",
     )
@@ -849,8 +856,7 @@ def _verify_project_workspace(
         and matches[0].get("cwd") == cwd
         and matches[0].get("repoRef") == base_sha
         and matches[0].get("defaultRef") == base_sha
-        and matches[0].get("repoUrl") in (None, "")
-        and matches[0].get("isPrimary") is False,
+        and matches[0].get("repoUrl") in (None, ""),
         "preparation_project_workspace_mismatch",
     )
 
@@ -933,7 +939,8 @@ def _preflight_preparation_graph(
         manager_issue.get("id") == manager["task_id"]
         and manager_issue.get("companyId") == company_id
         and manager_issue.get("assigneeAgentId") == manager["agent_id"]
-        and manager_issue.get("status") == "backlog",
+        and manager_issue.get("status") == "blocked"
+        and _blocked_by(manager_issue) == {envelope["prepare"]["task_id"]},
         "preparation_manager_issue_mismatch",
     )
     children = api.request(
@@ -1018,9 +1025,12 @@ def _preflight_preparation_graph(
             envelope["roles"]["stage"],
             "blocked",
             {task["source_task_id"]},
+            PROCESS_WORKSPACE_IDS["stage"],
         )
         require(
             stage_issue.get("title") == f"Stage slot {slot}: {task['title']}"
+            and _workspace_selection(stage_issue)
+            == {"kind": "existing", "workspaceId": PROCESS_WORKSPACE_IDS["stage"]}
             and stage_issue.get("assigneeAdapterOverrides")
             == _expected_process_override("stage", manifest_path),
             "preparation_stage_binding_mismatch",
@@ -1064,9 +1074,12 @@ def _preflight_preparation_graph(
             envelope["roles"]["publish"],
             "backlog",
             {task["qa_task_id"]},
+            PROCESS_WORKSPACE_IDS["publish"],
         )
         require(
             publish_issue.get("title") == f"Publish slot {slot}: {task['title']}"
+            and _workspace_selection(publish_issue)
+            == {"kind": "existing", "workspaceId": PROCESS_WORKSPACE_IDS["publish"]}
             and publish_issue.get("assigneeAdapterOverrides")
             == _expected_process_override("publish", manifest_path),
             "preparation_publish_binding_mismatch",

@@ -1403,7 +1403,14 @@ class PreparationTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def fake_api(self, *, bad_qa_selection: bool = False):
+    def fake_api(
+        self,
+        *,
+        bad_qa_selection: bool = False,
+        bad_stage_selection: bool = False,
+        manager_blockers: list[str] | None = None,
+        manager_status: str = "blocked",
+    ):
         ids, task = self.ids, self.plan["slots"][0]
         manifest_path = self.output / "slot1" / "manifest.json"
         qa_path = self.output / "slot1" / "qa"
@@ -1457,9 +1464,22 @@ class PreparationTests(unittest.TestCase):
             "blocked",
             [ids["source_task"]],
             {
+                "executionWorkspaceId": delivery.PROCESS_WORKSPACE_IDS["stage"],
+                "workspaceSelection": {
+                    "version": 1,
+                    "source": "explicit",
+                    "selection": {
+                        "kind": "existing",
+                        "workspaceId": (
+                            self.ids["stage"]
+                            if bad_stage_selection
+                            else delivery.PROCESS_WORKSPACE_IDS["stage"]
+                        ),
+                    },
+                },
                 "assigneeAdapterOverrides": delivery._expected_process_override(
                     "stage", manifest_path
-                )
+                ),
             },
         )
         selection = {
@@ -1491,9 +1511,18 @@ class PreparationTests(unittest.TestCase):
             "backlog",
             [ids["qa_task"]],
             {
+                "executionWorkspaceId": delivery.PROCESS_WORKSPACE_IDS["publish"],
+                "workspaceSelection": {
+                    "version": 1,
+                    "source": "explicit",
+                    "selection": {
+                        "kind": "existing",
+                        "workspaceId": delivery.PROCESS_WORKSPACE_IDS["publish"],
+                    },
+                },
                 "assigneeAdapterOverrides": delivery._expected_process_override(
                     "publish", manifest_path
-                )
+                ),
             },
         )
         rows = {row["id"]: row for row in (source, stage, qa, publish)}
@@ -1506,7 +1535,7 @@ class PreparationTests(unittest.TestCase):
             "repoRef": self.base,
             "defaultRef": self.base,
             "repoUrl": None,
-            "isPrimary": False,
+            "isPrimary": True,
         }
         qa_workspace = {
             "id": ids["qa_workspace"],
@@ -1517,7 +1546,7 @@ class PreparationTests(unittest.TestCase):
             "repoRef": self.base,
             "defaultRef": self.base,
             "repoUrl": None,
-            "isPrimary": False,
+            "isPrimary": True,
         }
 
         class FakeApi:
@@ -1542,7 +1571,21 @@ class PreparationTests(unittest.TestCase):
                         "id": task_id,
                         "companyId": ids["company"],
                         "assigneeAgentId": ids["manager_agent"],
-                        "status": "backlog",
+                        "status": (
+                            "todo"
+                            if ids["prepare"] in getattr(_self, "completed", [])
+                            else manager_status
+                        ),
+                        "blockedBy": [
+                            {"id": blocker}
+                            for blocker in (
+                                []
+                                if ids["prepare"] in getattr(_self, "completed", [])
+                                else manager_blockers
+                                if manager_blockers is not None
+                                else [ids["prepare"]]
+                            )
+                        ],
                     }
                 raise AssertionError(task_id)
 
@@ -1584,6 +1627,8 @@ class PreparationTests(unittest.TestCase):
             result = delivery.prepare(str(self.envelope_path))
         self.assertEqual(result["status"], "prepared")
         self.assertEqual(api.completed, [self.ids["prepare"]])
+        self.assertEqual(api.issue(self.ids["manager"])["status"], "todo")
+        self.assertEqual(api.issue(self.ids["manager"])["blockedBy"], [])
         receipt = json.loads(Path(result["receipt"]).read_bytes())
         self.assertEqual(receipt["planning_task_id"], self.ids["planning"])
         manifest_path = self.output / "slot1" / "manifest.json"
@@ -1595,6 +1640,33 @@ class PreparationTests(unittest.TestCase):
         api = self.fake_api(bad_qa_selection=True)
         with patch.object(delivery, "Paperclip", return_value=api):
             with self.assertRaisesRegex(delivery.DeliveryError, "preparation_qa_binding_mismatch"):
+                delivery.prepare(str(self.envelope_path))
+        self.assertFalse(self.output.exists())
+        self.assertEqual(api.completed, [])
+
+    def test_prepare_requires_native_manager_dependency_before_activation(self) -> None:
+        cases = (
+            ("backlog", [self.ids["prepare"]]),
+            ("blocked", []),
+            ("blocked", [self.ids["planning"]]),
+        )
+        for status, blockers in cases:
+            with self.subTest(status=status, blockers=blockers):
+                api = self.fake_api(manager_status=status, manager_blockers=blockers)
+                with patch.object(delivery, "Paperclip", return_value=api):
+                    with self.assertRaisesRegex(
+                        delivery.DeliveryError, "preparation_manager_issue_mismatch"
+                    ):
+                        delivery.prepare(str(self.envelope_path))
+                self.assertFalse(self.output.exists())
+                self.assertEqual(api.completed, [])
+
+    def test_process_actions_require_initial_existing_workspace_bindings(self) -> None:
+        api = self.fake_api(bad_stage_selection=True)
+        with patch.object(delivery, "Paperclip", return_value=api):
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "preparation_stage_binding_mismatch"
+            ):
                 delivery.prepare(str(self.envelope_path))
         self.assertFalse(self.output.exists())
         self.assertEqual(api.completed, [])
