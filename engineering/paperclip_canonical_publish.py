@@ -1,4 +1,4 @@
-"""Bounded publisher for the two canonical Brain source files.
+"""Bounded publisher for owner-selected canonical Brain source and test files.
 
 The caller supplies owner-pinned canonical repository/ref identities, exact selected
 file bytes, and trusted projected blob identities. Review and durable operation
@@ -137,7 +137,7 @@ def _paths(allowed_paths: tuple[str, ...] | list[str]) -> tuple[str, ...]:
 
 
 def _validate_maps(
-    old_blobs: dict[str, str],
+    old_blobs: dict[str, str | None],
     new_blobs: dict[str, str],
     file_bytes: dict[str, bytes],
     allowed_paths: tuple[str, ...],
@@ -145,7 +145,9 @@ def _validate_maps(
     for mapping in (old_blobs, new_blobs, file_bytes):
         if type(mapping) is not dict or set(mapping) != set(allowed_paths):
             raise CanonicalPublishError("input must contain the exact owner-pinned paths")
-    if any(not _oid(value) for value in (*old_blobs.values(), *new_blobs.values())):
+    if any(value is not None and not _oid(value) for value in old_blobs.values()) or any(
+        not _oid(value) for value in new_blobs.values()
+    ):
         raise CanonicalPublishError("trusted projected blob identity is invalid")
     if any(type(value) is not bytes for value in file_bytes.values()):
         raise CanonicalPublishError("selected file contents must be bytes")
@@ -163,25 +165,34 @@ def _tree_blobs(
             if kind != "blob" or mode != "100644":
                 raise CanonicalPublishError("selected canonical path is not a regular 100644 blob")
             found[path.decode("utf-8")] = (mode, oid)
-    if set(found) != set(allowed_paths):
-        raise CanonicalPublishError("canonical base lacks the exact selected files")
     return found
 
 
-def _raw_paths(repo: Path, base: str, commit: str) -> tuple[str, ...]:
+def _raw_changes(repo: Path, base: str, commit: str) -> dict[str, tuple[str, str, str, str]]:
     raw = _git(
         repo, "diff-tree", "--no-commit-id", "--raw", "--no-renames", "-r", "-z", base, commit
     )
     fields = raw.split(b"\0")
-    paths: list[str] = []
+    changes: dict[str, tuple[str, str, str, str]] = {}
     for index in range(0, len(fields) - 1, 2):
         header = fields[index].split()
         if len(header) != 5:
             raise CanonicalPublishError("candidate raw diff is malformed")
-        if header[0] != b":100644" or header[1] != b"100644" or header[4] != b"M":
+        old_mode, new_mode, old_oid, new_oid, status = (part.decode("ascii") for part in header)
+        if not (
+            (old_mode == ":100644" and new_mode == "100644" and status == "M")
+            or (old_mode == ":000000" and new_mode == "100644" and status == "A")
+        ):
             raise CanonicalPublishError("candidate contains an unexpected mode or change type")
-        paths.append(fields[index + 1].decode("utf-8"))
-    return tuple(sorted(paths))
+        path = fields[index + 1].decode("utf-8")
+        if path in changes:
+            raise CanonicalPublishError("candidate changes a selected path more than once")
+        changes[path] = (old_mode.removeprefix(":"), new_mode, old_oid, new_oid)
+    return changes
+
+
+def _raw_paths(repo: Path, base: str, commit: str) -> tuple[str, ...]:
+    return tuple(sorted(_raw_changes(repo, base, commit)))
 
 
 def _receipt_digest(receipt: dict) -> str:
@@ -205,7 +216,7 @@ def _validate_receipt(receipt: dict, allowed_paths: tuple[str, ...]) -> None:
         or any(
             set(item) != {"path", "mode", "old", "new", "sha256"}
             or item.get("mode") != "100644"
-            or not _oid(item.get("old"))
+            or (item.get("old") is not None and not _oid(item.get("old")))
             or not _oid(item.get("new"))
             or type(item.get("sha256")) is not str
             or not re.fullmatch(r"[0-9a-f]{64}", item["sha256"])
@@ -221,7 +232,7 @@ def prepare(
     canonical_repo: Path,
     canonical_ref: str,
     expected_tip: str,
-    trusted_old_blobs: dict[str, str],
+    trusted_old_blobs: dict[str, str | None],
     trusted_new_blobs: dict[str, str],
     selected_bytes: dict[str, bytes],
     *,
@@ -237,7 +248,9 @@ def prepare(
         raise CanonicalPublishError("canonical ref is stale")
     old_tree = _tree_blobs(repo, expected_tip, allowed)
     for path in allowed:
-        if old_tree[path] != ("100644", trusted_old_blobs[path]):
+        old = trusted_old_blobs[path]
+        expected_old = ("100644", old) if old is not None else None
+        if old_tree.get(path) != expected_old:
             raise CanonicalPublishError(f"trusted projected base differs for {path}")
 
     fd, index_name = tempfile.mkstemp(prefix="canonical-publish-index-")
@@ -276,11 +289,16 @@ def prepare(
             .decode()
             .strip()
         )
-        changed = _raw_paths(repo, expected_tip, candidate)
+        changes = _raw_changes(repo, expected_tip, candidate)
+        changed = tuple(changes)
         if not changed or any(path not in allowed for path in changed):
             raise CanonicalPublishError(
                 "prepared candidate changed paths outside the owner-pinned scope"
             )
+        for path, old in trusted_old_blobs.items():
+            change = changes.get(path)
+            if change and ((old is None) != (change[0] == "000000")):
+                raise CanonicalPublishError("candidate add/modify type differs from trusted base")
         files = [
             {
                 "path": path,
@@ -351,20 +369,32 @@ def _check_candidate(repo: Path, ref: str, receipt: dict, allowed_paths: tuple[s
     candidate = _tree_blobs(repo, receipt["candidate"], allowed_paths)
     for item in receipt["files"]:
         path = item["path"]
-        if base[path] != ("100644", item["old"]) or candidate[path] != ("100644", item["new"]):
+        expected_old = ("100644", item["old"]) if item["old"] is not None else None
+        if base.get(path) != expected_old or candidate.get(path) != ("100644", item["new"]):
             raise CanonicalPublishError("receipt blob provenance differs from canonical objects")
-    changed = _raw_paths(repo, receipt["expected_tip"], receipt["candidate"])
+    changes = _raw_changes(repo, receipt["expected_tip"], receipt["candidate"])
+    changed = tuple(changes)
     if not changed or any(path not in allowed_paths for path in changed):
         raise CanonicalPublishError("candidate contains changes outside the exact allowed paths")
+    for item in receipt["files"]:
+        change = changes.get(item["path"])
+        if change and ((item["old"] is None) != (change[0] == "000000")):
+            raise CanonicalPublishError("candidate add/modify type differs from receipt")
 
 
-def _file_state(repo: Path, path: str, old: str, new: str) -> str:
+def _file_state(repo: Path, path: str, old: str | None, new: str) -> str | None:
     target = repo / path
-    for parent in target.parents:
-        if parent == repo:
-            break
+    parent_missing = False
+    cursor = repo
+    for component in PurePosixPath(path).parts[:-1]:
+        cursor = cursor / component
+        if parent_missing:
+            continue
         try:
-            info = parent.lstat()
+            info = cursor.lstat()
+        except FileNotFoundError:
+            parent_missing = True
+            continue
         except OSError as exc:
             raise CanonicalPublishError("selected worktree parent is unavailable") from exc
         if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
@@ -373,6 +403,24 @@ def _file_state(repo: Path, path: str, old: str, new: str) -> str:
             )
     try:
         info = target.lstat()
+    except FileNotFoundError:
+        if old is not None:
+            raise CanonicalPublishError("selected worktree file is unavailable") from None
+        row = _git(repo, "ls-files", "--stage", "-z", "--", path).rstrip(b"\0")
+        entries = row.split(b"\0") if row else []
+        if len(entries) > 1:
+            raise CanonicalPublishError("selected index entry is missing or unmerged") from None
+        if entries:
+            meta, indexed_path = entries[0].split(b"\t", 1)
+            mode, index_oid, stage = meta.decode("ascii").split()
+            if (
+                indexed_path.decode() != path
+                or mode != "100644"
+                or stage != "0"
+                or index_oid != new
+            ):
+                raise CanonicalPublishError("selected index entry has unknown state") from None
+        return None
     except OSError as exc:
         raise CanonicalPublishError("selected worktree file is unavailable") from exc
     if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o111:
@@ -446,12 +494,27 @@ def _reconcile_locked(repo: Path, ref: str, receipt: dict) -> dict:
     for item in receipt["files"]:
         path, old, new = item["path"], item["old"], item["new"]
         state = _file_state(repo, path, old, new)
-        _git(repo, "update-index", "--cacheinfo", f"100644,{new},{path}")
+        _git(repo, "update-index", "--add", "--cacheinfo", f"100644,{new},{path}")
         if state == old:
             if _file_state(repo, path, old, new) != old:
                 raise CanonicalPublishError("selected file changed before materialization")
             data = _git(repo, "cat-file", "blob", new)
             target = repo / path
+            cursor = repo
+            for component in PurePosixPath(path).parts[:-1]:
+                cursor = cursor / component
+                try:
+                    cursor.mkdir()
+                except FileExistsError:
+                    pass
+                try:
+                    info = cursor.lstat()
+                except OSError as exc:
+                    raise CanonicalPublishError("selected worktree parent is unavailable") from exc
+                if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+                    raise CanonicalPublishError(
+                        "selected worktree path has a symlink or non-directory parent"
+                    )
             fd, temp_name = tempfile.mkstemp(prefix=".canonical-publish-", dir=target.parent)
             try:
                 with os.fdopen(fd, "wb") as stream:

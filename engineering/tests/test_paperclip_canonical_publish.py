@@ -256,6 +256,84 @@ class CanonicalPublisherTests(unittest.TestCase):
         self.assertEqual(git(self.repo, "show", ":unrelated.txt"), "owner dirty unrelated")
         self.assertEqual(git(self.repo, "rev-parse", "HEAD"), self.receipt["candidate"])
 
+    def test_new_regular_source_and_test_files_publish_and_replay(self) -> None:
+        paths = ("src/memecoin_brain_sources/new_feature.py", "tests/brain/test_new_feature.py")
+        base = self.base
+        contents = {path: f"new:{path}\n".encode() for path in paths}
+        old = {path: None for path in paths}
+        new = {
+            path: git(self.repo, "hash-object", "-w", "--stdin", data=contents[path])
+            for path in paths
+        }
+        receipt = publisher.prepare(
+            self.repo,
+            "refs/heads/brain/development",
+            base,
+            old,
+            new,
+            contents,
+            allowed_paths=paths,
+        )
+        self.assertEqual([item["old"] for item in receipt["files"]], [None, None])
+        state = publisher.inspect(
+            self.repo, "refs/heads/brain/development", receipt, allowed_paths=paths
+        )
+        self.assertEqual(state["ref_state"], "prepared")
+        for path in paths:
+            self.assertFalse((self.repo / path).exists())
+        approved = publisher.publish(
+            self.repo,
+            "refs/heads/brain/development",
+            receipt,
+            receipt["candidate"],
+            receipt["receipt_digest"],
+            allowed_paths=paths,
+        )
+        self.assertEqual(approved["status"], "reconciled")
+        self.assertEqual({path: (self.repo / path).read_bytes() for path in paths}, contents)
+        self.assertEqual(
+            publisher.publish(
+                self.repo,
+                "refs/heads/brain/development",
+                receipt,
+                receipt["candidate"],
+                receipt["receipt_digest"],
+                allowed_paths=paths,
+            )["status"],
+            "reconciled",
+        )
+
+    def test_new_file_user_collision_is_preserved_before_cas(self) -> None:
+        paths = ("src/memecoin_brain_sources/new_feature.py", "tests/brain/test_new_feature.py")
+        base = self.base
+        contents = {path: f"new:{path}\n".encode() for path in paths}
+        new = {
+            path: git(self.repo, "hash-object", "-w", "--stdin", data=contents[path])
+            for path in paths
+        }
+        receipt = publisher.prepare(
+            self.repo,
+            "refs/heads/brain/development",
+            base,
+            {path: None for path in paths},
+            new,
+            contents,
+            allowed_paths=paths,
+        )
+        collision = b"owner file must survive\n"
+        (self.repo / paths[0]).write_bytes(collision)
+        with self.assertRaisesRegex(publisher.CanonicalPublishError, "unknown user edits"):
+            publisher.publish(
+                self.repo,
+                "refs/heads/brain/development",
+                receipt,
+                receipt["candidate"],
+                receipt["receipt_digest"],
+                allowed_paths=paths,
+            )
+        self.assertEqual(git(self.repo, "rev-parse", "refs/heads/brain/development"), base)
+        self.assertEqual((self.repo / paths[0]).read_bytes(), collision)
+
 
 if __name__ == "__main__":
     unittest.main()
