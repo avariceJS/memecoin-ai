@@ -22,13 +22,45 @@ MANIFEST_SCHEMA = "brain-native-delivery-manifest-v1"
 STAGE_SCHEMA = "brain-native-delivery-stage-v1"
 PUBLISH_SCHEMA = "brain-native-delivery-publication-v1"
 QA_SCHEMA = "brain-native-qa-result-v1"
+PREPARATION_SCHEMA = "brain-native-delivery-preparation-v1"
+DELIVERY_PLAN_SCHEMA = "brain-native-delivery-plan-v1"
+PREPARATION_RECEIPT_SCHEMA = "brain-native-delivery-preparation-receipt-v1"
 PUBLISH_REF = "refs/heads/brain/development"
 GIT = "/usr/bin/git"
+ORG_ROOT = Path("/Users/root1/Developer/brain-org-build")
 GH_HELPER = "!/opt/homebrew/bin/gh auth git-credential"
 GH_CONFIG_DIR = "/Users/root1/.config/gh"
 GH_OWNER_HOME = "/Users/root1"
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 OID = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+
+PREPARATION_MANAGER_GUIDANCE = """Finite delivery preparation contract:
+1. Use the owner-frozen envelope and only its one or two slot path/acceptance bindings.
+2. Register one clean QA project workspace per slot at the exact envelope-derived path. On an
+   uncertain POST, GET the project workspace list and accept one exact name/cwd/repoRef/defaultRef
+   match; stop on zero or multiple matches. Never replay an uncertain POST.
+3. Create each source, stage, QA, and publisher task with the envelope actors and exact dependency
+   graph. Pass workspaceSelection in the initial issue create body: source uses the frozen source
+   workspace with managed_isolated mode; QA uses its slot workspace with shared mode. Source
+   settings inherit the owner-frozen git-worktree project policy and base SHA.
+4. Keep source and publisher in backlog and stage/QA blocked. Pin stage/publisher process argv to
+   the deterministic manifest paths. Attach one DELIVERY-PLAN.json to the completed planning task;
+   include the company/planning/execution IDs and each slot's title, module, benefit, acceptance,
+   nonduplication evidence, paths, four task IDs, and QA workspace ID.
+5. Do not start source tasks. The prepare action validates the complete graph, creates safe QA
+   clones/manifests/receipt, and completes only its own process task. Manager execution admits
+   work after that receipt is read back.
+
+This is one finite owner-frozen programme input, not a general strategy-to-source admission grant.
+Each programme needs a fresh envelope binding its accepted paths, contract hashes, source base,
+canonical tip, actors/models, project workspaces and deterministic output root.
+
+DELIVERY-PLAN.json shape: {"schema":"brain-native-delivery-plan-v1","company_id":"UUID",
+"planning_task_id":"UUID","manager_task_id":"UUID","slots":[{"slot":1,
+"title":"...","module":"...","benefit":"...","acceptance":"...",
+"nonduplication_evidence":"...","paths":["src/...","tests/..."],
+"source_task_id":"UUID","stage_task_id":"UUID","qa_task_id":"UUID",
+"publish_task_id":"UUID","qa_workspace_id":"UUID"}]}."""
 
 
 class DeliveryError(RuntimeError):
@@ -491,6 +523,9 @@ class Paperclip:
         if role is None:
             raise DeliveryError("task_role_binding_invalid")
         model = validated_role_models(self.m).get(role, "gpt-6-luna")
+        return self.latest_run_for_task(task, model)
+
+    def latest_run_for_task(self, task: dict[str, str], model: str) -> dict[str, Any]:
         rows = self.request("GET", f"/issues/{task['task_id']}/runs")
         if type(rows) is not list or not rows:
             raise DeliveryError("task_runs_missing")
@@ -562,6 +597,669 @@ class Paperclip:
         if len(content) != row["byteSize"] or digest(content) != str(row.get("sha256", "")).lower():
             raise DeliveryError(f"{name}_hash_mismatch")
         return row, content
+
+
+def private_json_file(filename: str, name: str) -> tuple[dict[str, Any], str]:
+    path = Path(filename)
+    require(path.is_absolute(), f"{name}_path_invalid")
+    safe_dir(str(path.parent), f"{name}_parent", private=True)
+    info = path.lstat()
+    require(
+        stat.S_ISREG(info.st_mode)
+        and not stat.S_ISLNK(info.st_mode)
+        and info.st_uid == os.getuid()
+        and not stat.S_IMODE(info.st_mode) & 0o077,
+        f"{name}_not_owner_private",
+    )
+    raw = path.read_bytes()
+    try:
+        value = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise DeliveryError(f"{name}_invalid_json") from exc
+    require(type(value) is dict, f"{name}_object_required")
+    return value, digest(raw)
+
+
+def _uuid(value: object) -> bool:
+    return type(value) is str and UUID.fullmatch(value) is not None
+
+
+def _strict_paths(value: object, expected_count: int = 2) -> list[str]:
+    require(
+        type(value) is list
+        and len(value) == expected_count
+        and all(type(path) is str for path in value)
+        and len(set(value)) == len(value),
+        "preparation_paths_invalid",
+    )
+    paths = list(value)
+    require(
+        sum(path.startswith("src/") for path in paths) == 1
+        and sum(path.startswith("tests/") for path in paths) == 1,
+        "preparation_paths_invalid",
+    )
+    for path in paths:
+        require(
+            "\\" not in path
+            and str(PurePosixPath(path)) == path
+            and not any(part in {"", ".", ".."} for part in path.split("/"))
+            and bool(re.fullmatch(r"[A-Za-z0-9._/-]+", path)),
+            "preparation_path_unsafe",
+        )
+    return paths
+
+
+def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
+    expected = {
+        "schema",
+        "api_origin",
+        "company_id",
+        "planning",
+        "prepare",
+        "manager",
+        "roles",
+        "role_models",
+        "source",
+        "canonical",
+        "output_root",
+        "slots",
+    }
+    require(
+        set(value) == expected and value.get("schema") == PREPARATION_SCHEMA,
+        "preparation_envelope_fields_invalid",
+    )
+    require(
+        value["api_origin"] == "http://127.0.0.1:3310" and _uuid(value["company_id"]),
+        "preparation_envelope_api_invalid",
+    )
+    for name in ("planning", "prepare", "manager"):
+        row = value[name]
+        require(
+            type(row) is dict
+            and set(row) == {"task_id", "agent_id"}
+            and _uuid(row["task_id"])
+            and _uuid(row["agent_id"]),
+            f"preparation_{name}_binding_invalid",
+        )
+    roles = value["roles"]
+    require(
+        type(roles) is dict
+        and set(roles) == {"developer", "stage", "qa", "publish"}
+        and all(_uuid(agent) for agent in roles.values())
+        and len(set(roles.values())) == len(roles),
+        "preparation_roles_invalid",
+    )
+    models = value["role_models"]
+    require(
+        type(models) is dict
+        and set(models) == {"planning", "manager", "developer", "qa"}
+        and all(type(model) is str for model in models.values())
+        and models["developer"] == "gpt-6-luna"
+        and models["qa"] in {"gpt-6-luna", "gpt-6.1-sol"}
+        and models["planning"] in {"gpt-6-luna", "gpt-6.1-sol"}
+        and models["manager"] in {"gpt-6-luna", "gpt-6.1-sol"},
+        "preparation_role_models_invalid",
+    )
+    source = value["source"]
+    require(
+        type(source) is dict
+        and set(source)
+        == {"project_id", "project_workspace_id", "workspace_path", "seed_repo", "base_sha"}
+        and _uuid(source["project_id"])
+        and _uuid(source["project_workspace_id"])
+        and type(source["workspace_path"]) is str
+        and Path(source["workspace_path"]).is_absolute()
+        and source["workspace_path"] == source["seed_repo"]
+        and bool(OID.fullmatch(str(source["base_sha"]))),
+        "preparation_source_binding_invalid",
+    )
+    safe_dir(source["seed_repo"], "preparation_seed")
+    canonical = value["canonical"]
+    require(
+        type(canonical) is dict
+        and set(canonical) == {"repo", "ref", "expected_tip", "remote_name", "remote_url"}
+        and type(canonical["repo"]) is str
+        and Path(canonical["repo"]).is_absolute()
+        and canonical["ref"] == PUBLISH_REF
+        and bool(OID.fullmatch(str(canonical["expected_tip"])))
+        and type(canonical["remote_name"]) is str
+        and re.fullmatch(r"[A-Za-z0-9._-]{1,80}", canonical["remote_name"])
+        and type(canonical["remote_url"]) is str
+        and canonical["remote_url"].startswith("https://github.com/")
+        and "\n" not in canonical["remote_url"]
+        and "\r" not in canonical["remote_url"],
+        "preparation_canonical_binding_invalid",
+    )
+    safe_dir(canonical["repo"], "preparation_canonical")
+    output_root = value["output_root"]
+    output_path = Path(output_root) if type(output_root) is str else Path()
+    require(
+        type(output_root) is str
+        and output_path.is_absolute()
+        and output_path != Path(output_path.anchor),
+        "preparation_output_root_invalid",
+    )
+    safe_dir(str(output_path.parent), "preparation_output_parent", private=True)
+    require(not output_path.exists() and not output_path.is_symlink(), "preparation_output_exists")
+    slots = value["slots"]
+    require(type(slots) is list and 1 <= len(slots) <= 2, "preparation_slots_invalid")
+    all_paths: list[str] = []
+    for number, slot in enumerate(slots, 1):
+        require(
+            type(slot) is dict
+            and set(slot)
+            == {"slot", "paths", "acceptance_sha256", "qa_project_id", "candidate_ref"}
+            and type(slot["slot"]) is int
+            and slot["slot"] == number
+            and re.fullmatch(r"[0-9a-f]{64}", str(slot["acceptance_sha256"]))
+            and _uuid(slot["qa_project_id"])
+            and type(slot["candidate_ref"]) is str
+            and re.fullmatch(r"refs/heads/brain/[A-Za-z0-9._/-]{1,100}", slot["candidate_ref"])
+            and slot["candidate_ref"] != PUBLISH_REF
+            and ".." not in slot["candidate_ref"]
+            and "//" not in slot["candidate_ref"],
+            "preparation_slot_binding_invalid",
+        )
+        all_paths.extend(_strict_paths(slot["paths"]))
+    require(len(set(all_paths)) == len(all_paths), "preparation_slot_paths_overlap")
+    require(
+        len({slot["candidate_ref"] for slot in slots}) == len(slots)
+        and len({slot["qa_project_id"] for slot in slots}) == len(slots),
+        "preparation_slot_targets_overlap",
+    )
+    return value
+
+
+def _workspace_selection(issue: dict[str, Any]) -> dict[str, Any]:
+    value = issue.get("workspaceSelection")
+    require(
+        type(value) is dict
+        and value.get("version") == 1
+        and value.get("source") == "explicit"
+        and type(value.get("selection")) is dict,
+        "preparation_workspace_selection_missing",
+    )
+    return value["selection"]
+
+
+def _blocked_by(issue: dict[str, Any]) -> set[str]:
+    rows = issue.get("blockedBy")
+    require(
+        type(rows) is list and all(type(row) is dict and _uuid(row.get("id")) for row in rows),
+        "preparation_dependency_shape_invalid",
+    )
+    return {row["id"] for row in rows}
+
+
+def _expected_process_override(action: str, manifest_path: Path) -> dict[str, Any]:
+    return {
+        "adapterConfig": {
+            "cwd": str(ORG_ROOT),
+            "args": [
+                "-m",
+                "engineering.paperclip_native_delivery",
+                action,
+                "--manifest",
+                str(manifest_path),
+            ],
+            "command": str(ORG_ROOT / ".venv/bin/python"),
+            "timeoutSec": 300,
+        },
+        "useProjectWorkspace": False,
+    }
+
+
+def _task_row(
+    api: Paperclip,
+    task_id: str,
+    company_id: str,
+    parent_id: str,
+    agent_id: str,
+    status: str,
+    blocker_ids: set[str],
+) -> dict[str, Any]:
+    issue = api.issue(task_id)
+    require(
+        issue.get("id") == task_id
+        and issue.get("companyId") == company_id
+        and issue.get("parentId") == parent_id
+        and issue.get("assigneeAgentId") == agent_id
+        and issue.get("status") == status
+        and issue.get("executionWorkspaceId") is None
+        and _blocked_by(issue) == blocker_ids,
+        "preparation_graph_issue_mismatch",
+    )
+    return issue
+
+
+def _verify_project_workspace(
+    api: Paperclip, project_id: str, workspace_id: str, cwd: str, base_sha: str
+) -> None:
+    rows = api.request("GET", f"/projects/{project_id}/workspaces")
+    require(
+        type(rows) is list and all(type(row) is dict for row in rows),
+        "preparation_project_workspaces_invalid",
+    )
+    matches = [row for row in rows if row.get("id") == workspace_id]
+    require(
+        len(matches) == 1
+        and matches[0].get("companyId") == api.m["company_id"]
+        and matches[0].get("projectId") == project_id
+        and matches[0].get("sourceType") == "local_path"
+        and matches[0].get("cwd") == cwd
+        and matches[0].get("repoRef") == base_sha
+        and matches[0].get("defaultRef") == base_sha
+        and matches[0].get("repoUrl") in (None, "")
+        and matches[0].get("isPrimary") is False,
+        "preparation_project_workspace_mismatch",
+    )
+
+
+def _validate_delivery_plan(
+    value: dict[str, Any], envelope: dict[str, Any]
+) -> list[dict[str, Any]]:
+    require(
+        set(value) == {"schema", "company_id", "planning_task_id", "manager_task_id", "slots"}
+        and value.get("schema") == DELIVERY_PLAN_SCHEMA
+        and value.get("company_id") == envelope["company_id"]
+        and value.get("planning_task_id") == envelope["planning"]["task_id"]
+        and value.get("manager_task_id") == envelope["manager"]["task_id"]
+        and type(value.get("slots")) is list
+        and len(value["slots"]) == len(envelope["slots"]),
+        "preparation_delivery_plan_invalid",
+    )
+    paths_seen: set[str] = set()
+    for index, (task, approved) in enumerate(
+        zip(value["slots"], envelope["slots"], strict=True), 1
+    ):
+        require(
+            type(task) is dict
+            and set(task)
+            == {
+                "slot",
+                "title",
+                "module",
+                "benefit",
+                "acceptance",
+                "nonduplication_evidence",
+                "paths",
+                "source_task_id",
+                "stage_task_id",
+                "qa_task_id",
+                "publish_task_id",
+                "qa_workspace_id",
+            }
+            and task.get("slot") == index
+            and all(
+                type(task.get(field)) is str and task[field].strip()
+                for field in ("title", "module", "benefit", "acceptance", "nonduplication_evidence")
+            )
+            and _strict_paths(task.get("paths")) == approved["paths"]
+            and digest(task["acceptance"].encode()) == approved["acceptance_sha256"]
+            and all(
+                _uuid(task.get(field))
+                for field in (
+                    "source_task_id",
+                    "stage_task_id",
+                    "qa_task_id",
+                    "publish_task_id",
+                    "qa_workspace_id",
+                )
+            ),
+            "preparation_delivery_slot_invalid",
+        )
+        require(not (paths_seen & set(task["paths"])), "preparation_slot_paths_overlap")
+        paths_seen.update(task["paths"])
+    ids = [
+        task[field]
+        for task in value["slots"]
+        for field in ("source_task_id", "stage_task_id", "qa_task_id", "publish_task_id")
+    ]
+    require(len(set(ids)) == len(ids), "preparation_task_ids_overlap")
+    require(
+        len({task["qa_workspace_id"] for task in value["slots"]}) == len(value["slots"]),
+        "preparation_qa_workspaces_overlap",
+    )
+    return value["slots"]
+
+
+def _preflight_preparation_graph(
+    api: Paperclip, envelope: dict[str, Any], plan: dict[str, Any]
+) -> list[dict[str, Any]]:
+    company_id = envelope["company_id"]
+    manager = envelope["manager"]
+    manager_issue = api.issue(manager["task_id"])
+    require(
+        manager_issue.get("id") == manager["task_id"]
+        and manager_issue.get("companyId") == company_id
+        and manager_issue.get("assigneeAgentId") == manager["agent_id"]
+        and manager_issue.get("status") == "backlog",
+        "preparation_manager_issue_mismatch",
+    )
+    children = api.request(
+        "GET",
+        f"/companies/{company_id}/issues?parentId={manager['task_id']}&limit=100&includeBlockedBy=true",
+    )
+    require(
+        type(children) is list and all(type(row) is dict for row in children),
+        "preparation_manager_children_invalid",
+    )
+    expected_ids = {
+        task[field]
+        for task in plan
+        for field in ("source_task_id", "stage_task_id", "qa_task_id", "publish_task_id")
+    }
+    require(
+        {row.get("id") for row in children} == expected_ids, "preparation_manager_graph_not_exact"
+    )
+
+    source = envelope["source"]
+    source_project = api.request("GET", f"/projects/{source['project_id']}")
+    policy = (
+        source_project.get("executionWorkspacePolicy") if type(source_project) is dict else None
+    )
+    strategy = policy.get("workspaceStrategy") if type(policy) is dict else None
+    require(
+        type(source_project) is dict
+        and source_project.get("id") == source["project_id"]
+        and source_project.get("companyId") == company_id
+        and type(policy) is dict
+        and policy.get("enabled") is True
+        and type(strategy) is dict
+        and strategy.get("type") == "git_worktree"
+        and strategy.get("baseRef") == source["base_sha"],
+        "preparation_source_project_policy_mismatch",
+    )
+    _verify_project_workspace(
+        api,
+        source["project_id"],
+        source["project_workspace_id"],
+        source["workspace_path"],
+        source["base_sha"],
+    )
+    out = Path(envelope["output_root"])
+    rows_out: list[dict[str, Any]] = []
+    for task, approved in zip(plan, envelope["slots"], strict=True):
+        slot = task["slot"]
+        manifest_path = out / f"slot{slot}" / "manifest.json"
+        qa_path = out / f"slot{slot}" / "qa"
+        source_issue = _task_row(
+            api,
+            task["source_task_id"],
+            company_id,
+            manager["task_id"],
+            envelope["roles"]["developer"],
+            "backlog",
+            set(),
+        )
+        require(
+            source_issue.get("projectId") == source["project_id"]
+            and source_issue.get("projectWorkspaceId") == source["project_workspace_id"]
+            and _workspace_selection(source_issue)
+            == {
+                "kind": "configured_source",
+                "projectWorkspaceId": source["project_workspace_id"],
+                "mode": "managed_isolated",
+            }
+            and source_issue.get("executionWorkspaceSettings", {}).get("mode")
+            == "isolated_workspace"
+            and source_issue.get("title") == task["title"]
+            and task["acceptance"] in source_issue.get("description", "")
+            and all(path in source_issue.get("description", "") for path in task["paths"])
+            and source_issue.get("assigneeAdapterOverrides")
+            == {"adapterConfig": {"cwd": source["seed_repo"]}, "useProjectWorkspace": True},
+            "preparation_source_binding_mismatch",
+        )
+        stage_issue = _task_row(
+            api,
+            task["stage_task_id"],
+            company_id,
+            manager["task_id"],
+            envelope["roles"]["stage"],
+            "blocked",
+            {task["source_task_id"]},
+        )
+        require(
+            stage_issue.get("title") == f"Stage slot {slot}: {task['title']}"
+            and stage_issue.get("assigneeAdapterOverrides")
+            == _expected_process_override("stage", manifest_path),
+            "preparation_stage_binding_mismatch",
+        )
+        qa_issue = _task_row(
+            api,
+            task["qa_task_id"],
+            company_id,
+            manager["task_id"],
+            envelope["roles"]["qa"],
+            "blocked",
+            {task["stage_task_id"]},
+        )
+        _verify_project_workspace(
+            api,
+            approved["qa_project_id"],
+            task["qa_workspace_id"],
+            str(qa_path),
+            source["base_sha"],
+        )
+        require(
+            qa_issue.get("title") == f"Independent QA slot {slot}: {task['title']}"
+            and qa_issue.get("projectId") == approved["qa_project_id"]
+            and qa_issue.get("projectWorkspaceId") == task["qa_workspace_id"]
+            and _workspace_selection(qa_issue)
+            == {
+                "kind": "configured_source",
+                "projectWorkspaceId": task["qa_workspace_id"],
+                "mode": "shared",
+            }
+            and qa_issue.get("assigneeAdapterOverrides")
+            == {"adapterConfig": {"cwd": str(qa_path)}, "useProjectWorkspace": False}
+            and task["acceptance"] in qa_issue.get("description", ""),
+            "preparation_qa_binding_mismatch",
+        )
+        publish_issue = _task_row(
+            api,
+            task["publish_task_id"],
+            company_id,
+            manager["task_id"],
+            envelope["roles"]["publish"],
+            "backlog",
+            {task["qa_task_id"]},
+        )
+        require(
+            publish_issue.get("title") == f"Publish slot {slot}: {task['title']}"
+            and publish_issue.get("assigneeAdapterOverrides")
+            == _expected_process_override("publish", manifest_path),
+            "preparation_publish_binding_mismatch",
+        )
+        rows_out.append(
+            {
+                "plan": task,
+                "approved": approved,
+                "manifest_path": manifest_path,
+                "qa_path": qa_path,
+                "custody_path": out / f"slot{slot}" / "custody",
+            }
+        )
+    return rows_out
+
+
+def _validate_preparation_inputs(envelope: dict[str, Any]) -> None:
+    source = envelope["source"]
+    require(
+        git(Path(source["seed_repo"]), "rev-parse", "HEAD").decode().strip() == source["base_sha"]
+        and not git(Path(source["seed_repo"]), "status", "--porcelain", "--untracked-files=all")
+        and not git(Path(source["seed_repo"]), "remote", "-v"),
+        "preparation_seed_not_clean_frozen_base",
+    )
+    canonical = envelope["canonical"]
+    require(
+        git(Path(canonical["repo"]), "rev-parse", canonical["ref"]).decode().strip()
+        == canonical["expected_tip"],
+        "preparation_canonical_tip_changed",
+    )
+    for slot in envelope["slots"]:
+        for path in slot["paths"]:
+            require(
+                not git(Path(source["seed_repo"]), "ls-tree", "-r", source["base_sha"], "--", path)
+                and not git(
+                    Path(canonical["repo"]), "ls-tree", "-r", canonical["expected_tip"], "--", path
+                ),
+                "preparation_path_not_absent_from_base",
+            )
+
+
+def prepare(envelope_path: str) -> dict[str, Any]:
+    envelope_value, envelope_hash = private_json_file(envelope_path, "preparation_envelope")
+    envelope = validate_preparation_envelope(envelope_value)
+    _validate_preparation_inputs(envelope)
+    api = Paperclip(
+        {
+            "api_origin": envelope["api_origin"],
+            "company_id": envelope["company_id"],
+            "prepare": envelope["prepare"],
+        }
+    )
+    own_task = api.current("prepare")
+    require(own_task == envelope["prepare"]["task_id"], "preparation_task_not_pinned")
+    planning = envelope["planning"]
+    planning_issue = api.issue(planning["task_id"])
+    require(
+        planning_issue.get("id") == planning["task_id"]
+        and planning_issue.get("companyId") == envelope["company_id"]
+        and planning_issue.get("assigneeAgentId") == planning["agent_id"]
+        and planning_issue.get("status") == "done",
+        "preparation_planning_task_not_done",
+    )
+    api.no_pending(planning["task_id"])
+    planning_run = api.latest_run_for_task(planning, envelope["role_models"]["planning"])
+    plan_meta, plan_bytes = api.artifact(planning, planning_run, "DELIVERY-PLAN.json", 512 * 1024)
+    try:
+        plan_value = json.loads(plan_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise DeliveryError("preparation_delivery_plan_invalid_json") from exc
+    require(type(plan_value) is dict, "preparation_delivery_plan_object_required")
+    plan = _validate_delivery_plan(plan_value, envelope)
+    prepared_slots = _preflight_preparation_graph(api, envelope, plan)
+    _validate_preparation_inputs(envelope)
+
+    output_root = Path(envelope["output_root"])
+    output_root.mkdir(mode=0o700)
+    manifests: list[tuple[Path, dict[str, Any], str]] = []
+    for row in prepared_slots:
+        qa_path = row["qa_path"]
+        slot_dir = qa_path.parent
+        slot_dir.mkdir(mode=0o700)
+        row["custody_path"].mkdir(mode=0o700)
+        subprocess.run(
+            [
+                GIT,
+                "clone",
+                "--local",
+                "--no-hardlinks",
+                str(envelope["source"]["seed_repo"]),
+                str(qa_path),
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            check=True,
+            env={
+                "PATH": "/usr/bin:/bin",
+                "HOME": "/var/empty",
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_CONFIG_GLOBAL": "/dev/null",
+            },
+        )
+        os.chmod(qa_path, 0o700)
+        git(qa_path, "remote", "remove", "origin")
+        require(
+            git(qa_path, "rev-parse", "HEAD").decode().strip() == envelope["source"]["base_sha"]
+            and not git(qa_path, "remote", "-v")
+            and not git(qa_path, "status", "--porcelain", "--untracked-files=all"),
+            "preparation_qa_clone_invalid",
+        )
+        task = row["plan"]
+        manifest: dict[str, Any] = {
+            "schema": MANIFEST_SCHEMA,
+            "api_origin": envelope["api_origin"],
+            "company_id": envelope["company_id"],
+            "manager_task_id": envelope["manager"]["task_id"],
+            "developer": {
+                "task_id": task["source_task_id"],
+                "agent_id": envelope["roles"]["developer"],
+            },
+            "qa": {"task_id": task["qa_task_id"], "agent_id": envelope["roles"]["qa"]},
+            "stage": {"task_id": task["stage_task_id"], "agent_id": envelope["roles"]["stage"]},
+            "publish": {
+                "task_id": task["publish_task_id"],
+                "agent_id": envelope["roles"]["publish"],
+            },
+            "source": {
+                "seed_repo": envelope["source"]["seed_repo"],
+                "base_sha": envelope["source"]["base_sha"],
+                "paths": task["paths"],
+            },
+            "canonical": {
+                **envelope["canonical"],
+                "candidate_ref": row["approved"]["candidate_ref"],
+            },
+            "qa_workspace": str(qa_path),
+            "custody_dir": str(row["custody_path"]),
+            "role_models": {
+                "developer": envelope["role_models"]["developer"],
+                "qa": envelope["role_models"]["qa"],
+            },
+        }
+        if row["plan"]["slot"] == 2:
+            prior_path, prior_manifest, prior_hash = manifests[0]
+            manifest["predecessor"] = {
+                "manifest_path": str(prior_path),
+                "manifest_sha256": prior_hash,
+                "source_task_id": prior_manifest["developer"]["task_id"],
+                "publish_task_id": prior_manifest["publish"]["task_id"],
+                "receipt_path": str(
+                    Path(prior_manifest["custody_dir"])
+                    / f"publication-{prior_manifest['developer']['task_id']}.json"
+                ),
+            }
+        data = json_bytes(manifest)
+        write_once(row["manifest_path"], data, 0o600)
+        load_manifest(str(row["manifest_path"]))
+        manifests.append((row["manifest_path"], manifest, digest(data)))
+
+    receipt = {
+        "schema": PREPARATION_RECEIPT_SCHEMA,
+        "envelope_sha256": envelope_hash,
+        "planning_task_id": planning["task_id"],
+        "planning_agent_id": planning["agent_id"],
+        "planning_run_id": planning_run["runId"],
+        "planning_attachment_id": plan_meta["id"],
+        "planning_attachment_sha256": digest(plan_bytes),
+        "manager_task_id": envelope["manager"]["task_id"],
+        "company_id": envelope["company_id"],
+        "source_base_sha": envelope["source"]["base_sha"],
+        "canonical_ref": envelope["canonical"]["ref"],
+        "canonical_expected_tip": envelope["canonical"]["expected_tip"],
+        "slots": [
+            {
+                "slot": row["plan"]["slot"],
+                "source_task_id": row["plan"]["source_task_id"],
+                "stage_task_id": row["plan"]["stage_task_id"],
+                "qa_task_id": row["plan"]["qa_task_id"],
+                "publish_task_id": row["plan"]["publish_task_id"],
+                "qa_workspace_id": row["plan"]["qa_workspace_id"],
+                "qa_workspace": str(row["qa_path"]),
+                "manifest_path": str(manifest_path),
+                "manifest_sha256": manifest_sha,
+            }
+            for row, (manifest_path, _manifest, manifest_sha) in zip(
+                prepared_slots, manifests, strict=True
+            )
+        ],
+    }
+    save_record(output_root / "prepare-receipt.json", receipt)
+    api.complete(own_task)
+    return {"status": "prepared", "receipt": str(output_root / "prepare-receipt.json")}
 
 
 def latest_successful(api: Paperclip, task: dict[str, str]) -> dict[str, Any]:
@@ -1340,12 +2038,20 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("stage", "publish"))
-    parser.add_argument("--manifest", required=True)
+    parser.add_argument("action", choices=("prepare", "stage", "publish"))
+    parser.add_argument("--manifest")
+    parser.add_argument("--envelope")
     args = parser.parse_args(argv)
     try:
-        m, sha = load_manifest(args.manifest)
-        result = stage(m, sha) if args.action == "stage" else publish(m, sha)
+        if args.action == "prepare":
+            if args.envelope is None or args.manifest is not None:
+                raise DeliveryError("preparation_envelope_required")
+            result = prepare(args.envelope)
+        else:
+            if args.manifest is None or args.envelope is not None:
+                raise DeliveryError("manifest_required")
+            m, sha = load_manifest(args.manifest)
+            result = stage(m, sha) if args.action == "stage" else publish(m, sha)
     except (DeliveryError, OSError, ValueError) as exc:
         print(
             json.dumps({"status": "blocked", "reason": str(exc)}, sort_keys=True), file=sys.stderr
