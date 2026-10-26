@@ -1,17 +1,23 @@
-# Current state — 2026-10-26, bounded MEM-146 repair complete
+# Current state — 2026-10-27, bounded final acceptance in progress
 
-- First autonomous shift remains accepted (Brain61ed120); do not requalify it.
-- Sequential shift completed source139/143 and independentQA141/145; publisher142 published7e548993.
-  Publisher146 failed because its predecessor gate chose a later activity-linked manager run.
-- Founder authorized only repair and completion of existing146. Sourcec862e81 filters exact publisher
-  agent/task before terminal/latest checks. Independent Luna QA accepted29tests/26subtests; Ruffpassed.
-  Live GET-only reproduction failed before and resolved exact predecessor after the fix.
-- Native Retry plus supported recovery evidence (old publication not_performed) completed146 at
-  19:52:03.308Z. Brain66bbed1 confirmed on GitHub development/slot2; accepted file hashes match.
-- All other145 task states/assignees/monitors unchanged; MEM118/123canRetryfalse and126human_only
-  unchanged. Main2f8da5f. Manager paused to prevent further work; MEM138blocked; live0.
-  Company remainsactive/idle; no newshift/staff/subsystem. No automatic continuation authorized.
-- Preserve original failed run and SHIFT-RESULT. Exact private repair snapshots remain under
-  lab state/sequential-shift-20261026/publisher-repair-*.json.
+- Founder authorized one finite final organization acceptance, including useful development, TEST runs,
+  later Sol restoration and supported publication. No indefinite campaign; protected boundaries remain.
+- Org cba78f6 is reviewed and published: exact actor/task filtering for activity-linked source/QA runs;
+  optional exact manifest role_models supports later Sol QA. TEST remains Luna High for now.
+- MEM148 provider roster coverage and149 paired loss sign-flip are independently accepted/published;
+  Brain development60ffee3c26ee7c6e90c0523830e10ce8c1c50261 confirmed remotely. Main remains protected.
+- Slot1 required CEO-assisted QA casing context and two known-no-effect publisher recoveries; preserve
+  all failed runs. Slot2 admission through native git worktree, development, QA and publication needed
+  no CEO task/code/workspace mutation. Do not call the whole two-slot attempt unassisted.
+- Manager150 completed21:08:34.826Z and cleared its monitor. Native dependency invoked Astra157;
+  actual Astra Medium completed21:12:29.431Z, read the full report and created one backlog programme158:
+  paired_loss_missing_bounds, one outcome, for a later Sol-lead/Luna-developer/Sol-QA cycle.
+- Idle lifecycle pause/resume preserved task state; in-flight preservation and substantive correction
+  remain unqualified. Clerical QA resubmission is not a product correction.
+- One new engineer15 has a verified subscription binding but no useful run yet (27 profiles total).
+  A finite prepare action is under development in an isolated checkout; NOT integrated or accepted.
+- No next source programme is admitted yet. Read live API before action; do not replay old preparation
+  scripts or recovery operations. MEM118/123 holds and MEM126 human_only remain protected.
 
-Canonical: docs/engineering-organization.md; private state/HANDOFF.md.
+Canonical: docs/engineering-organization.md. Private state/HANDOFF.md and
+state/final-acceptance-20261026 hold exact native evidence and pending acceptance work.
