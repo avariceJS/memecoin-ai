@@ -1,5 +1,18 @@
 # Engineering lessons and retrieval
 
+### E13 — Retry may replace an ad-hoc working directory
+
+- **Trigger:** Resuming an interrupted native task whose source was supplied only through cwd.
+- **Finding:** At Paperclip8aa17aa0, durable Retry reconciled pre-tool failures but fresh-workspace
+  fallback created empty directories because no project source was configured. Two turns detected
+  the missing source/runtime. A next pair was admitted prematurely and stopped, leaving holds.
+- **Action:** Inspect Retry workspace strategy/source before releasing more tasks. Provision the
+  current permitted workspace, or qualify supported project-source preparation. Read back actual cwd
+  and content before claiming reuse. Do not bypass cancellation holds or send more models to rediscover
+  the same missing source. Native per-agent queues are not a subscription-wide rate limiter.
+- **Source:** [Bounded throughput result](evidence/brain-productive-backlog-20261026.json).
+- **Revalidate:** Installed retry/source preparation behavior or project workspace binding changes.
+
 ### E12 — Product capability is an admission basis; defects are a separate work class
 
 - **Scope / trigger:** Defining a Brain department programme or interpreting a thin backlog.

@@ -1,5 +1,40 @@
 # Brain Engineering Organization
 
+## Bounded throughput continuation — 2026-10-26
+
+The original five-task backlog was reused with a pragmatic limit of two admitted developers,
+not a claimed subscription ceiling. Native subscription usage was available/allowed; no new 429
+occurred. Installed native per-agent FIFO and `heartbeat.maxConcurrentRuns=1` do not establish an
+account-wide concurrency cap. Native Retry accepts an idempotency key and observed run identity,
+reconciles prior execution and preserves cooldown/lineage; it is distinct from a blind wakeup.
+
+A material route limitation was observed: Retry selected fresh isolated workspaces without a project
+source, so the existing ad-hoc cwd was not reused. Two workers finished with an environment blocker.
+The CEO prematurely admitted the next pair before interpreting that evidence, then stopped them;
+the resulting cancelled-run holds (`canRetry=false`) remain intact. No bypass or replacement tasks.
+Two verified empty current managed workspaces were provisioned from the existing safe projection
+and runtime, then normal native task comments resumed the same assignments. No controller changes.
+
+MEM-119 exposure_shift and MEM-121 attrition_funnel are independently accepted by separate Luna QA
+MEM-127 and published at Brain `7c9a601`. Four files/632 added lines, including 414 source lines;
+22 integrated tests and two CLI replays passed. Useful workers overlapped 181.691s; development wall
+201.083s, QA 80.147s, transfer wait 98.192s. Native queue delay summed 0.604s. First Retry to publication
+620.375s excludes preliminary research and checkpoint documentation. Three tasks remain blocked.
+
+Seven model runs: two productive developers, one independent QA, two environment-blocked completed
+turns and two cancelled provider starts; all Luna High. Existing manager decomposition was reused.
+Eight grouped owner-assisted phases include three corrective episodes, not eight individual API
+calls. No unattended throughput claim: artifact staging, dependency alignment and integration still
+need assistance. Register_deliverable remains the verified transport; native attachment reads are
+scoped to the current task and do not automatically materialize another task's checkout.
+
+Publication rests on exact-candidate MEM-127 QA plus current founder development authority.
+MEM-126's original human_only interaction remains pending/in_review and was not used as approval.
+All companies are paused/live0. No automatic continuation, larger cohort, Sol switch or paid fallback.
+Next simplest route is a small stable pool using native per-agent queues and provisioned workspaces;
+project-source-backed native preparation is not yet qualified for this confined Brain path.
+[Measured receipt](evidence/brain-productive-backlog-20261026.json).
+
 ## Product-led diagnostics cohort — 2026-10-26
 
 The current founder clarification supersedes the prior defect-only interpretation of department

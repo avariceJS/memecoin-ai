@@ -1,0 +1,295 @@
+{
+  "schema": "brain.productive-backlog-continuation.v1",
+  "date": "2026-10-26",
+  "paperclip_pin": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "baseline": "cc5573ba65f0df90b28a164c7fe5c9e70ced0611",
+  "accepted_head": "7c9a601cb676ce63fdf126510e50a9cda0f0b080",
+  "scope": "One bounded continuation of the original five useful tasks, TEST Luna High. No new backlog/load test/infrastructure code.",
+  "outcomes": [
+    {
+      "task": "MEM-119",
+      "module": "memecoin_population.exposure_shift",
+      "status": "accepted_and_published",
+      "role": "dev-2",
+      "branch": "brain/productive-dev-2-20261026",
+      "commit": "70c8f30cfbeb5783d0547be2cb887d9900842581",
+      "paths": [
+        "src/memecoin_population/exposure_shift.py",
+        "tests/test_research_exposure_shift.py"
+      ],
+      "file_sha256": {
+        "src/memecoin_population/exposure_shift.py": "05fb64f816b66c253e730164dd1747e53b01a63beb8564901008ab16874ec530",
+        "tests/test_research_exposure_shift.py": "5e4972bd0fb8a94758abf4a15d4c62615ff97212978b0bcfd60d72737c9748c2"
+      },
+      "patch_sha256": "937f74b2007108c8bc5da505f977519eb2acb991daead3b5663047efac1739ad",
+      "artifact_directory": "review-input/dev-2"
+    },
+    {
+      "task": "MEM-121",
+      "module": "memecoin_population.attrition_funnel",
+      "status": "accepted_and_published",
+      "role": "dev-3",
+      "branch": "brain/productive-dev-3-20261026",
+      "commit": "89237d26f7a8c31ba28ae5b3a6ee21cbeafde401",
+      "paths": [
+        "src/memecoin_population/attrition_funnel.py",
+        "tests/test_research_attrition_funnel.py"
+      ],
+      "file_sha256": {
+        "src/memecoin_population/attrition_funnel.py": "3cdb1c999e26a0fb3cf52a947e31330349cef46eb1c35a3ba6215f31eecdb5a7",
+        "tests/test_research_attrition_funnel.py": "bd35a14c6becbca6d74fb4feaf9ad91ceaf11ae332a05fb08bf1e3c51e44b1a4"
+      },
+      "patch_sha256": "ea2af035cdddf193498fb7c7963293437e8648d5da7d362690bf0220871af5fd",
+      "artifact_directory": "review-input/dev-3"
+    }
+  ],
+  "remaining": [
+    {
+      "task": "MEM-118",
+      "status": "blocked",
+      "cause": "Stopped after fresh empty workspace discovered; cancelled native continuation hold canRetry=false retained."
+    },
+    {
+      "task": "MEM-123",
+      "status": "blocked",
+      "cause": "Same explicit stop and retained cancellation reconciliation hold."
+    },
+    {
+      "task": "MEM-125",
+      "status": "blocked",
+      "cause": "Original pre-tool HTTP429 hold unchanged. Known empty-source Retry route was not launched to repeat discovery."
+    }
+  ],
+  "timing": {
+    "productive_peak": 2,
+    "productive_overlap_seconds": 181.691,
+    "productive_wall_seconds": 201.083,
+    "qa_seconds": 80.147,
+    "handoff_wait_seconds": 98.192,
+    "native_queue_seconds_sum": 0.604,
+    "first_retry_to_publication_seconds": 620.375259,
+    "measurement_scope": "Native first retry to verified source publication; preliminary research and final documentation excluded."
+  },
+  "new_http429": 0,
+  "capacity_claim": "Two is a pragmatic working concurrency, not a discovered account maximum. This short no-429 run does not establish a sustainable ceiling.",
+  "native_capabilities": {
+    "per_agent_queue": "heartbeat/queue.ts:1950-1985 counts running per agent; maxConcurrentRuns=1 already configured",
+    "task_retry": "POST /issues/:id/retry with stable idempotencyKey and observedRunId; server performs reconciliation, preserves source lineage and provider cooldown",
+    "retry_workspace": "fresh-workspace-continuation.ts:55-105 selects fresh isolated directory without preservation receipt; original tasks have no project source, so new directories are empty",
+    "attachments": "register_deliverable persists exact artifacts. runner-task-attachments.ts reads current assigned task only, content pages through model; not a cross-task checkout materializer",
+    "integration": "Continue owner-controlled exact-candidate QA and serialized development publication; no new GitGate/controller"
+  },
+  "operational_result": "Durable native Retry reconciled the two original failed executions. Its fresh-workspace fallback lacked project source and produced empty directories. Hydration restored productive work; unattended workspace preparation/artifact transfer/integration are NOT qualified.",
+  "qa": {
+    "task": "MEM-127",
+    "status": "done",
+    "verdict": "accept",
+    "independent_model": "gpt-6-luna/high",
+    "report_sha256": "98764997a2558ec63ef46085882916ad9324dc0ed049698e50099bd0c710fc07",
+    "verification": {
+      "command": ".runtime/python -m pytest -q tests/test_research_exposure_shift.py tests/test_research_attrition_funnel.py",
+      "result": "passed: 22 tests in 0.85s",
+      "independent_checks": [
+        "Verified all manifest file and patch SHA256 values.",
+        "Ran both module CLIs and compared parsed output exactly with their demonstrations; each emitted one JSON line with empty stderr.",
+        "Checked large finite exposure totals, over-range total rejection, and missing intermediate attrition stages."
+      ]
+    },
+    "publication_basis": "MEM127 independent Luna High QA report accepted exact manifest files; focused integration checks passed; current founder development publication authority. MEM126 human_only is neither used as approval nor modified."
+  },
+  "integration": {
+    "new_source_files": 2,
+    "new_source_lines": 414,
+    "new_test_files": 2,
+    "new_test_lines": 218,
+    "tests": "22 passed in 0.59s",
+    "cli_demonstrations": [
+      {
+        "module": "memecoin_population.exposure_shift",
+        "exit_code": 0,
+        "exact_demo_match": true,
+        "input_sha256": "708b7b503f262eab8698c1fea2a2dd67f08b16bbcc8ae484b6323941c1e29243"
+      },
+      {
+        "module": "memecoin_population.attrition_funnel",
+        "exit_code": 0,
+        "exact_demo_match": true,
+        "input_sha256": "0f74deed06ac4dc3c6512932563f8f2ac2e17ea05cec8d7be06ffbed08f3a9de"
+      }
+    ],
+    "branches_preserved": true,
+    "main_unchanged": "2f8da5f92da521b511e0d4fb20205981a000cab5"
+  },
+  "manual_assistance": {
+    "grouped_phases": 8,
+    "phases": [
+      "Admit existing backlog with two active developers through observed-run-bound native Retry.",
+      "Prematurely admit the next pair before interpreting empty-workspace evidence, then stop them; preserve new cancellation holds.",
+      "Populate two verified empty current managed directories from existing safe projection/runtime and resume same tasks.",
+      "Scope existing unused independent QA task to the two finished candidates.",
+      "Download native artifacts, verify sizes/hashes, preserve separate canonical branches and stage QA in one batch.",
+      "Correct QA admission: rejected resume comment and skipped wakes led to readback of obsolete dependencies; align dependencies with actual review scope.",
+      "Verify exact integrated candidate files and CLI outputs; serialize authorized development publication.",
+      "Pause profiles/company, reconcile measurements and preserve checkpoint."
+    ],
+    "corrective_episodes": 3,
+    "definition": "Workspace repair, premature second-pair admission/stop, QA admission/dependency repair. Counts are episodes/phases, not shell commands or API-call counts.",
+    "implementation_by_ceo": false,
+    "autonomy_claim": false
+  },
+  "model_runs": {
+    "total": 7,
+    "productive_development": 2,
+    "independent_qa": 1,
+    "environment_blocked_completed": 2,
+    "cancelled_after_provider_start": 2,
+    "management": 0,
+    "management_reason": "Reuse accepted existing manager decomposition; no correction required.",
+    "all_actual_models": "gpt-6-luna/high"
+  },
+  "runs": [
+    {
+      "status": "succeeded",
+      "createdAt": "2026-10-26T15:52:26.472Z",
+      "startedAt": "2026-10-26T15:52:26.495Z",
+      "finishedAt": "2026-10-26T15:53:46.642Z",
+      "errorCode": null,
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 45005,
+        "outputTokens": 5420,
+        "cachedInputTokens": 364544,
+        "accountingReceiptReady": true
+      }
+    },
+    {
+      "status": "succeeded",
+      "createdAt": "2026-10-26T15:47:27.222Z",
+      "startedAt": "2026-10-26T15:47:27.256Z",
+      "finishedAt": "2026-10-26T15:50:48.303Z",
+      "errorCode": null,
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 62607,
+        "outputTokens": 14662,
+        "cachedInputTokens": 818304,
+        "accountingReceiptReady": true
+      }
+    },
+    {
+      "status": "succeeded",
+      "createdAt": "2026-10-26T15:47:27.185Z",
+      "startedAt": "2026-10-26T15:47:27.220Z",
+      "finishedAt": "2026-10-26T15:50:28.947Z",
+      "errorCode": null,
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 46403,
+        "outputTokens": 9994,
+        "cachedInputTokens": 590592,
+        "accountingReceiptReady": true
+      }
+    },
+    {
+      "status": "cancelled",
+      "createdAt": "2026-10-26T15:45:29.561Z",
+      "startedAt": "2026-10-26T15:45:29.706Z",
+      "finishedAt": "2026-10-26T15:45:41.628Z",
+      "errorCode": "cancelled",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 18678,
+        "outputTokens": 383,
+        "cachedInputTokens": 17792,
+        "accountingReceiptReady": true
+      }
+    },
+    {
+      "status": "cancelled",
+      "createdAt": "2026-10-26T15:45:29.538Z",
+      "startedAt": "2026-10-26T15:45:29.690Z",
+      "finishedAt": "2026-10-26T15:45:41.535Z",
+      "errorCode": "cancelled",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 17965,
+        "outputTokens": 181,
+        "cachedInputTokens": 0,
+        "accountingReceiptReady": true
+      }
+    },
+    {
+      "status": "succeeded",
+      "createdAt": "2026-10-26T15:44:16.570Z",
+      "startedAt": "2026-10-26T15:44:16.675Z",
+      "finishedAt": "2026-10-26T15:44:54.234Z",
+      "errorCode": null,
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 23540,
+        "outputTokens": 1799,
+        "cachedInputTokens": 117120,
+        "accountingReceiptReady": true
+      }
+    },
+    {
+      "status": "succeeded",
+      "createdAt": "2026-10-26T15:44:16.541Z",
+      "startedAt": "2026-10-26T15:44:16.651Z",
+      "finishedAt": "2026-10-26T15:45:08.606Z",
+      "errorCode": null,
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 44391,
+        "outputTokens": 1805,
+        "cachedInputTokens": 136064,
+        "accountingReceiptReady": true
+      }
+    }
+  ],
+  "usage": {
+    "complete_receipts": 7,
+    "tokens": {
+      "inputTokens": 258589,
+      "outputTokens": 34244,
+      "cachedInputTokens": 2044416
+    },
+    "billing": "subscription_included",
+    "paid_fallback": false,
+    "ceo_session_included": false,
+    "usd": null,
+    "account_probe": {
+      "source": "native ai-connection usage endpoint / codex_wham",
+      "allowed": true,
+      "window_seconds": 604800,
+      "entry_used_percent": 22,
+      "exit_used_percent": 24,
+      "additional_credits_available": false,
+      "caveat": "Provider-reported rounded account-wide snapshots. Difference cannot be attributed solely to this cohort or converted from token totals."
+    },
+    "official_reference": "https://learn.chatgpt.com/docs/pricing"
+  },
+  "stop": {
+    "all_six_companies_paused": true,
+    "live_runs": 0,
+    "MEM126": "in_review; original explicit human_only request remains pending, no resolution or mutation",
+    "MEM127": "done",
+    "no_automatic_continuation": true
+  },
+  "next_simplest_supported_direction": "Reuse provisioned developer workspaces with per-agent FIFO/maxConcurrentRuns=1 and a small stable developer pool, plus completed-candidate QA. A project-source-backed native workspace setup is available in installed schemas but has not been qualified for this confined Brain path; do not claim current Retry preserves ad-hoc cwd. No scheduler/rate limiter/GitGate added.",
+  "private_evidence_locator": "lab state/productive-backlog-20261026",
+  "private_evidence_sha256": {
+    "final-state.json": "0512fee8aa2dbd486cb89a5bb7f20d3dcf80b363448e521c9a31400d93792561",
+    "useful-tool-evidence.json": "a6bc6be630f15b0d939773ed77eb29d0235919fb30ca1814886aa2c21ea677d2",
+    "human-only-final-interactions.json": "de36ecb18bf94274fd0436ab1f42e2d59cda23154423ee007287bd66b210b958",
+    "integrated-tests.json": "c80298f69113af6e5825d2747b3401112bb4131c037b019741346ca4ffa97ae0",
+    "publication.json": "39767fc6aef17c8cfbe7a23bf256ba01f72e65b626146eac29e50f23cfc96d1c"
+  }
+}

@@ -1,29 +1,25 @@
-# Current state — 2026-10-26, product diagnostics cohort stopped
+# Current state — 2026-10-26, productive backlog continuation stopped
 
-- Founder changed backlog admission: useful new features/scientific tools do not require a prior
-  reproduced defect. Astra selected eight independent diagnostics across six departments; Luna lead
-  created MEM-118..125 and QA126..127 under manager117. Canonical policy is now in AGENTS.md.
-- Accepted Brain `brain/development` published `cc5573ba65f0df90b28a164c7fe5c9e70ced0611`:
-  availability_profile, paired_loss_comparison and corrected abstention_frontier. Three new modules,
-  three test files,32 integrated tests and3 integrated CLI demos passed. Candidate branches preserved.
-- Useful developer concurrency2 for126.761seconds;3 productive developers.8-way target not reached:
-  five Codex pre-tool429 failures. Provider sublimit unknown. One bounded backoff; native
-  execution_reconciliation_required refusal preserved, no replacement/SQL/policy bypass.
-- Independent QA accepted2, rejected finite-mean overflow in third; manager natively dispatched
-  correction on same task/worker, then QA accepted it. Rejected candidate/report remain immutable.
-- All six companies paused/live0. Source120/122/124 and manager117 done. Source118/119/121/123/125
-  plus unusedQA127 blocked. QA126 in_review due explicit human_only confirmation from first review;
-  do not force status or misstate native closure. Corrected source acceptance is separately recorded.
-- TEST Luna High retained for lead/dev/QA, CEO unchanged.8 successful native runs (2management,
-  4development,2QA),5 failed before tools,3 cancelled before provider start; one skipped wake is not
-  a run. Complete receipts600025 uncached input/95840 output/5479424 cached input tokens. Failed
-  accounting incomplete; USD/quota fraction and interactive CEO usage unknown.
-- Native deliverables used for patches/demos/QA. Owner workspace binding, artifact staging and
-  serial integration remain. Confined Git-index denial was not relaxed; exact corrected files/hash
-  manifest used for QA. Main2f8da5f and Paperclip8aa17aa0 unchanged; historical MEM99/holds preserved.
-- No market/protected-data/config/training/AUTO/trading/paid API or production admission. No
-  automatic16/40 programme or replay. Five unfinished feature contracts remain useful native backlog.
+- Accepted/published Brain `7c9a601cb676ce63fdf126510e50a9cda0f0b080`: new exposure_shift and
+  attrition_funnel tools. Separate Luna High QA MEM-127 accepted exact candidates;22 integration
+  tests and two CLI replays passed. Five original programme features now accepted; three unfinished.
+- MEM-119/121/127 done. MEM-118/123 blocked after explicit stop with native cancellation holds and
+  canRetry=false; preserve outcomes. MEM-125 retains original429 hold; no retry this cohort.
+- Native Retry reconciled earlier failures but created empty managed directories without project
+  source. Two normal environment-blocked turns; source/runtime staged in their current empty
+  directories, then same tasks resumed. No controller change or old workspace bypass.
+- Two productive developers overlapped 181.691s; development201.083s, QA 80.147s, handoff98.192s.
+  First Retry to publication620.375s excludes preliminary research/final docs. New429=0, no ceiling claim.
+- Seven native Luna High runs: productive2/QA1/environment-blocked2/cancelled2. Complete receipts
+  258589 uncached input/34244 output/2044416 cached input; CEO excluded, USD unknown.
+  Native account weekly snapshots22%→24% are rounded/shared and cannot be attributed to this cohort.
+- All six companies paused/live0; TEST unchanged. MEM-126 in_review with original pending explicit
+  human_only request preserved. New acceptance/publication based on independent MEM-127 report.
+- Owner artifact staging/dependency alignment/integration remain. Eight grouped assisted phases,
+  three corrective episodes; no unattended throughput claim, no custom scheduler/rate limiter.
+- Main2f8da5f, Paperclip8aa17aa0, historical MEM99/holds unchanged. No market/protected-data/training/
+  AUTO/trading/production/paid API authority. No automatic continuation or16/40 campaign.
 
-Canonical product/science: docs/brain-development.md and docs/training-evaluation.md.
-Evidence: docs/evidence/brain-research-diagnostics-20261026.json.
-Private custody: lab state/research-diagnostics-20261026 and state/HANDOFF.md.
+Canonical: docs/engineering-organization.md, docs/training-evaluation.md.
+Evidence: docs/evidence/brain-productive-backlog-20261026.json.
+Private custody: lab state/productive-backlog-20261026 and state/HANDOFF.md.

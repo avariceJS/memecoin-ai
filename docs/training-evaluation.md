@@ -1,5 +1,20 @@
 # Training and Evaluation
 
+## Additional population diagnostics — 2026-10-26
+
+Brain `7c9a601` adds two stdlib caller-supplied JSON tools with the same diagnostic envelope below.
+Both provide `analyze(payload)` and `python -m <module>`; module docstrings specify complete inputs.
+
+| Module | Input | Descriptive result |
+|---|---|---|
+| `memecoin_population.exposure_shift` | Unique entities with nonnegative corpus/exposure weights or null. | Common-known shares, ratios, deltas, ranked contributors and total variation; missing support and positive unmatched mass remain visible. Totals beyond finite float range are explicitly rejected. |
+| `memecoin_population.attrition_funnel` | Ordered stages, cohort counts and optional explicit complete-cohort lists per transition. | Adjacent-stage loss/retention, largest evidenced loss and completeness-bound aggregate metrics; missing and zero denominators remain distinct. |
+
+These tools do not collect data, fit models or change sampling/runtime policy. They explain supplied
+observations and do not establish causality, predictive improvement or population completeness.
+Independent QA accepted exact native artifacts; 22 integrated tests and two exact CLI demonstration
+replays passed. [Acceptance receipt](evidence/brain-productive-backlog-20261026.json).
+
 ## Offline research diagnostics — 2026-10-26
 
 Accepted source `cc5573ba65f0df90b28a164c7fe5c9e70ced0611` adds three opt-in stdlib tools. Each exposes

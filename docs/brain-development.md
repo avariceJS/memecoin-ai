@@ -1,5 +1,17 @@
 # Brain Architecture
 
+## Research diagnostics backlog continuation — 2026-10-26
+
+Two further tools from the original eight-feature programme are accepted/published at Brain
+`7c9a601`: `memecoin_population.exposure_shift` explains corpus-versus-exposure differences on
+explicit common-known support; `memecoin_population.attrition_funnel` explains where cohorts lose
+usable observations across declared stages. Both expose analyze(payload) and JSON stdin/stdout CLI.
+Independent QA, 22 integrated tests and two demonstrations passed. Five of the original eight
+capabilities are now accepted; binary_calibration, representation_shift and research_report remain
+unfinished. No real-data/model-quality claim follows from synthetic software verification.
+[Contracts](training-evaluation.md#additional-population-diagnostics--2026-10-26) and
+[bounded continuation evidence](evidence/brain-productive-backlog-20261026.json).
+
 ## Research diagnostics programme — 2026-10-26
 
 Product work is not restricted to reproduced bugs. The CEO-selected next increment is an offline

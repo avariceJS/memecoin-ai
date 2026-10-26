@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [Productive backlog continuation](brain-productive-backlog-20261026.json): two accepted population diagnostics, native Retry workspace limitation, throughput/usage and final stop; excludes raw logs and private IDs.
+
 - [Research Diagnostics product programme](brain-research-diagnostics-20261026.json): eight useful feature contracts, three accepted tools, measured two-developer overlap, native correction/QA, provider429 limits and explicit stopped/pending lifecycle state.
 
 - [Bounded eight-worker attempt](brain-eight-worker-attempt-20261026.json): target not reached; one actual developer/accepted regression, native artifact handoff, exact model usage and task-supply limitation.
