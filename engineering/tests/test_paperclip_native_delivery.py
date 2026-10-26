@@ -265,7 +265,7 @@ class NativeDeliveryTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertIn("credential.helper=", command)
         self.assertIn(f"credential.helper={delivery.GH_HELPER}", command)
-        self.assertEqual(run.call_args.kwargs["env"]["HOME"], "/var/empty")
+        self.assertEqual(run.call_args.kwargs["env"]["HOME"], delivery.GH_OWNER_HOME)
         self.assertEqual(run.call_args.kwargs["env"]["GH_CONFIG_DIR"], delivery.GH_CONFIG_DIR)
         self.assertNotIn("PAPERCLIP_API_KEY", run.call_args.kwargs["env"])
 

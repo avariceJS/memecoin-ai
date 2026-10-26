@@ -27,6 +27,7 @@ CANDIDATE_REF = "refs/heads/brain/native-report-20261026"
 GIT = "/usr/bin/git"
 GH_HELPER = "!/opt/homebrew/bin/gh auth git-credential"
 GH_CONFIG_DIR = "/Users/root1/.config/gh"
+GH_OWNER_HOME = "/Users/root1"
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 OID = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
@@ -610,6 +611,7 @@ def remote_git(repo: Path, *args: str, github_auth: bool = False) -> bytes:
         config_dir = safe_dir(GH_CONFIG_DIR, "gh_config")
         require(config_dir.lstat().st_uid == os.getuid(), "gh_config_not_owner_owned")
         env["GH_CONFIG_DIR"] = GH_CONFIG_DIR
+        env["HOME"] = GH_OWNER_HOME
     if os.environ.get("SSH_AUTH_SOCK"):
         env["SSH_AUTH_SOCK"] = os.environ["SSH_AUTH_SOCK"]
     command = [GIT, "-c", "core.hooksPath=/dev/null", "-c", "credential.helper="]
