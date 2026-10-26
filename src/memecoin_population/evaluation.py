@@ -4,9 +4,21 @@ import json
 import os
 
 from memecoin_experience.storage import canonical, digest
+from memecoin_experience.schema import target_names
 
 from .catalog import View, manifest
 from .diversity import OBJECTIVE, add_counts, classify, counts_table, enrolled_segments, policy
+
+_TARGET_STATUSES = {
+    "observed",
+    "pending",
+    "missing_future",
+    "unsupported",
+    "censored",
+    "exact",
+    "lower_bound",
+    "masked",
+}
 
 
 def config(value):
@@ -45,6 +57,7 @@ class Cohorts:
         ):
             raise ValueError("population_evaluation_binding")
         self.binding, self.representation = binding, digest(schema)
+        self.targets = target_names(schema)
         self.view = View(stage / "population.sqlite")
         self.db = self.view.db
         try:
@@ -92,6 +105,20 @@ class Cohorts:
         )
 
     def observe(self, row, mask):
+        names = self.targets
+        statuses = row.get("target_status")
+        if (
+            not isinstance(statuses, (list, tuple))
+            or not isinstance(mask, (list, tuple))
+            or len(names) != len(statuses)
+            or len(names) != len(mask)
+            or any(
+                not isinstance(status, str) or status not in _TARGET_STATUSES
+                for status in statuses
+            )
+            or any(type(eligible) is not bool for eligible in mask)
+        ):
+            raise ValueError("population_evaluation_target_correspondence")
         name = self.binding["config"]["entity_prefix"] + row["pool"]
         at = row.get("decision_ns", row.get("origin_s", 0) * 10**9)
         if not self.db.execute(
@@ -99,18 +126,23 @@ class Cohorts:
             (name, at, at, self.binding["cutoff_ns"]),
         ).fetchone():
             raise ValueError("population_evaluation_origin_outside_enrollment")
+        facets = self.facets(name, at)
+        counts = {}
+        for axis, value in facets:
+            counts[(axis, value, "test", "rows")] = 1
+            counts[(axis, value, "test", "usable")] = int(any(mask))
+            for index, (target, status, eligible) in enumerate(
+                zip(names, statuses, mask, strict=True)
+            ):
+                target = str(target)
+                counts[(axis, value, "test", "target:" + str(index))] = int(eligible)
+                counts[(axis, value, "test", "status:" + target + ":" + status)] = 1
+                counts[(axis, value, "test", "eligible:" + target)] = int(eligible)
+                counts[(axis, value, "test", "masked:" + target)] = int(not eligible)
+        add_counts(self.db, counts)
         self.db.execute(
             "update support set rows=rows+1,usable=usable+? where entity=?", (int(any(mask)), name)
         )
-        for axis, value in self.facets(name, at):
-            add_counts(
-                self.db,
-                {(axis, value, "test", "rows"): 1, (axis, value, "test", "usable"): int(any(mask))},
-            )
-            add_counts(
-                self.db,
-                {(axis, value, "test", "target:" + str(i)): int(m) for i, m in enumerate(mask)},
-            )
 
     def keys(self, row):
         name = self.binding["config"]["entity_prefix"] + row["pool"]
