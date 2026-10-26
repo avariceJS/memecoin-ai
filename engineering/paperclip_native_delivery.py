@@ -218,7 +218,7 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
     url = canonical["remote_url"]
     require(
         type(url) is str
-        and (url.startswith("git@github.com:") or url.startswith("https://github.com/"))
+        and url.startswith("https://github.com/")
         and "\n" not in url
         and "\r" not in url,
         "manifest_remote_url_invalid",
@@ -297,7 +297,8 @@ class Paperclip:
     def __init__(self, manifest: dict[str, Any]):
         env = os.environ
         self.m = manifest
-        self.base = manifest["api_origin"] + "/api"
+        self.origin = manifest["api_origin"]
+        self.base = self.origin + "/api"
         self.token = env.get("PAPERCLIP_API_KEY", "")
         self.run_id = env.get("PAPERCLIP_RUN_ID", "")
         self.agent_id = env.get("PAPERCLIP_AGENT_ID", "")
@@ -305,14 +306,18 @@ class Paperclip:
             not self.token
             or not UUID.fullmatch(self.run_id)
             or env.get("PAPERCLIP_COMPANY_ID") != manifest["company_id"]
-            or env.get("PAPERCLIP_API_URL") != self.base
+            or env.get("PAPERCLIP_API_URL") != self.origin
         ):
             raise DeliveryError("process_adapter_identity_missing")
 
     def request(
         self, method: str, route: str, body: object | None = None, raw: bool = False
     ) -> Any:
-        headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Accept": "application/json",
+            "X-Paperclip-Run-Id": self.run_id,
+        }
         data = None if body is None else json_bytes(body)
         if data is not None:
             headers["Content-Type"] = "application/json"
@@ -347,20 +352,36 @@ class Paperclip:
             run.get("id") != self.run_id
             or run.get("agentId") != self.agent_id
             or run.get("companyId") != self.m["company_id"]
-            or run.get("runtimeMode") != "native"
+            or run.get("runtimeMode") != "legacy"
             or run.get("status") != "running"
         ):
             raise DeliveryError("current_run_invalid")
+        context = run.get("contextSnapshot")
         if (
-            run.get("issueId") != task["task_id"]
-            or run.get("nativeIssueId") not in {None, task["task_id"]}
+            type(context) is not dict
+            or context.get("issueId") != task["task_id"]
             or issue.get("id") != task["task_id"]
             or issue.get("companyId") != self.m["company_id"]
             or issue.get("assigneeAgentId") != self.agent_id
-            or issue.get("status") not in {"in_progress", "done"}
+            or issue.get("status") not in {"todo", "blocked", "in_progress"}
         ):
             raise DeliveryError("current_task_mismatch")
         self.no_pending(task["task_id"])
+        if issue.get("checkoutRunId") != self.run_id or issue.get("executionRunId") != self.run_id:
+            issue = self.request(
+                "POST",
+                f"/issues/{task['task_id']}/checkout",
+                {"agentId": self.agent_id, "expectedStatuses": ["todo", "blocked", "in_progress"]},
+            )
+        if (
+            issue.get("id") != task["task_id"]
+            or issue.get("companyId") != self.m["company_id"]
+            or issue.get("assigneeAgentId") != self.agent_id
+            or issue.get("status") != "in_progress"
+            or issue.get("checkoutRunId") != self.run_id
+            or issue.get("executionRunId") != self.run_id
+        ):
+            raise DeliveryError("current_task_checkout_invalid")
         return task["task_id"]
 
     def no_pending(self, task_id: str) -> None:
@@ -574,7 +595,7 @@ def validate_qa(
         raise DeliveryError("qa_result_checks_invalid")
 
 
-def remote_git(repo: Path, *args: str) -> bytes:
+def remote_git(repo: Path, *args: str, osxkeychain: bool = False) -> bytes:
     env = {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
         "HOME": "/var/empty",
@@ -585,8 +606,11 @@ def remote_git(repo: Path, *args: str) -> bytes:
     }
     if os.environ.get("SSH_AUTH_SOCK"):
         env["SSH_AUTH_SOCK"] = os.environ["SSH_AUTH_SOCK"]
+    command = [GIT, "-c", "core.hooksPath=/dev/null", "-c", "credential.helper="]
+    if osxkeychain:
+        command.extend(["-c", "credential.helper=osxkeychain"])
     result = subprocess.run(
-        [GIT, "-c", "core.hooksPath=/dev/null", "-c", "credential.helper=", "-C", str(repo), *args],
+        [*command, "-C", str(repo), *args],
         capture_output=True,
         env=env,
         check=False,
@@ -602,7 +626,11 @@ def remote_refs(m: dict[str, Any]) -> dict[str, str]:
     repo = Path(c["repo"])
     if git(repo, "remote", "get-url", c["remote_name"]).decode().strip() != c["remote_url"]:
         raise DeliveryError("remote_url_changed")
-    raw = remote_git(repo, "ls-remote", c["remote_name"], c["ref"], c["candidate_ref"])
+    if not c["remote_url"].startswith("https://github.com/"):
+        raise DeliveryError("remote_transport_not_approved")
+    raw = remote_git(
+        repo, "ls-remote", c["remote_name"], c["ref"], c["candidate_ref"], osxkeychain=True
+    )
     refs = {}
     for line in raw.decode("ascii").splitlines():
         oid, ref = line.split("\t")
@@ -614,7 +642,12 @@ def remote_refs(m: dict[str, Any]) -> dict[str, str]:
 
 def push_ref(m: dict[str, Any], source: str, target_ref: str) -> None:
     c = m["canonical"]
-    remote_git(Path(c["repo"]), "push", c["remote_name"], f"{source}:{target_ref}")
+    repo = Path(c["repo"])
+    if git(repo, "remote", "get-url", c["remote_name"]).decode().strip() != c[
+        "remote_url"
+    ] or not c["remote_url"].startswith("https://github.com/"):
+        raise DeliveryError("remote_url_changed")
+    remote_git(repo, "push", c["remote_name"], f"{source}:{target_ref}", osxkeychain=True)
 
 
 def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:

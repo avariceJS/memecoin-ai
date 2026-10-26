@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -170,6 +171,102 @@ class NativeDeliveryTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(delivery.DeliveryError, "current_actor_mismatch"):
                 api.current("stage")
+
+    def test_process_task_uses_legacy_context_and_run_bound_checkout(self) -> None:
+        company = "00000000-0000-4000-8000-000000000021"
+        task_id = "00000000-0000-4000-8000-000000000022"
+        agent = "00000000-0000-4000-8000-000000000023"
+        run_id = "00000000-0000-4000-8000-000000000024"
+        manifest = {"company_id": company, "stage": {"task_id": task_id, "agent_id": agent}}
+        api = delivery.Paperclip.__new__(delivery.Paperclip)
+        api.m, api.agent_id, api.run_id = manifest, agent, run_id
+        issue = {
+            "id": task_id,
+            "companyId": company,
+            "assigneeAgentId": agent,
+            "status": "todo",
+            "checkoutRunId": None,
+            "executionRunId": None,
+        }
+        calls = []
+
+        def response(method: str, route: str, body=None, raw=False):
+            calls.append((method, route, body))
+            if route == "/agents/me":
+                return {"id": agent, "companyId": company}
+            if route == f"/heartbeat-runs/{run_id}":
+                return {
+                    "id": run_id,
+                    "agentId": agent,
+                    "companyId": company,
+                    "runtimeMode": "legacy",
+                    "status": "running",
+                    "contextSnapshot": {"issueId": task_id},
+                }
+            if route == f"/issues/{task_id}" and method == "GET":
+                return dict(issue)
+            if route == f"/issues/{task_id}/interactions":
+                return []
+            if route == f"/issues/{task_id}/checkout" and method == "POST":
+                issue.update(status="in_progress", checkoutRunId=run_id, executionRunId=run_id)
+                return dict(issue)
+            raise AssertionError((method, route, body, raw))
+
+        with patch.object(api, "request", side_effect=response):
+            self.assertEqual(api.current("stage"), task_id)
+        self.assertIn(
+            (
+                "POST",
+                f"/issues/{task_id}/checkout",
+                {"agentId": agent, "expectedStatuses": ["todo", "blocked", "in_progress"]},
+            ),
+            calls,
+        )
+
+    def test_process_api_url_is_origin_and_writes_are_run_bound(self) -> None:
+        env = {
+            "PAPERCLIP_API_KEY": "synthetic",
+            "PAPERCLIP_RUN_ID": "00000000-0000-4000-8000-000000000031",
+            "PAPERCLIP_AGENT_ID": "00000000-0000-4000-8000-000000000032",
+            "PAPERCLIP_COMPANY_ID": "00000000-0000-4000-8000-000000000033",
+            "PAPERCLIP_API_URL": "http://127.0.0.1:3310",
+        }
+        manifest = {
+            "api_origin": "http://127.0.0.1:3310",
+            "company_id": env["PAPERCLIP_COMPANY_ID"],
+        }
+        with patch.dict(os.environ, env, clear=True):
+            api = delivery.Paperclip(manifest)
+        self.assertEqual(api.base, "http://127.0.0.1:3310/api")
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def read(self, _size):
+                return b"{}"
+
+        with patch(
+            "engineering.paperclip_native_delivery.urllib.request.urlopen", return_value=Response()
+        ) as opened:
+            api.request("PATCH", "/issues/example", {"status": "done"})
+        req = opened.call_args.args[0]
+        self.assertEqual(req.get_header("X-paperclip-run-id"), env["PAPERCLIP_RUN_ID"])
+
+    def test_git_uses_only_the_explicit_osxkeychain_helper(self) -> None:
+        result = subprocess.CompletedProcess([], 0, stdout=b"", stderr=b"")
+        with patch(
+            "engineering.paperclip_native_delivery.subprocess.run", return_value=result
+        ) as run:
+            delivery.remote_git(self.work, "ls-remote", "origin", osxkeychain=True)
+        command = run.call_args.args[0]
+        self.assertIn("credential.helper=", command)
+        self.assertIn("credential.helper=osxkeychain", command)
+        self.assertEqual(run.call_args.kwargs["env"]["HOME"], "/var/empty")
+        self.assertNotIn("PAPERCLIP_API_KEY", run.call_args.kwargs["env"])
 
     def test_saved_native_run_shape_uses_id_and_included_subscription_billing(self) -> None:
         company = "00000000-0000-4000-8000-000000000011"
