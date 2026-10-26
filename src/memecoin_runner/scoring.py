@@ -126,6 +126,10 @@ def score(
         raise ValueError("invalid_score_support_or_scale")
     if len({s["id"] for s in samples}) != len(samples):
         raise ValueError("duplicate_decision")
+    for sample in samples:
+        actions = [tuple(target["action"]) for target in sample["targets"]]
+        if len(set(actions)) != len(actions):
+            raise ValueError("duplicate_target_support")
     expected = {(s["id"], tuple(t["action"])) for s in samples for t in s["targets"]}
     indices = {name: _index(p) for name, p in predictions.items()}
     if not indices or any(set(i) != expected for i in indices.values()):
