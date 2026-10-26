@@ -1,5 +1,48 @@
 # Brain Engineering Organization
 
+## One unattended native handoff cycle — 2026-10-26
+
+MEM-125 now adds `memecoin_experience.research_report`, accepted by independent Luna High MEM-129
+and published at Brain `69b926d` and `brain/native-report-20261026`. The source task, deterministic
+stage MEM-128, QA and deterministic publish MEM-130 are done. After the one initial native Retry,
+CEO task/code/workspace/publication mutations were **zero** until publication completed. Native
+Paperclip dependencies dispatched both fixed processes and the separate QA worker. No custom
+scheduler, rate limiter, broker or replacement task system was introduced.
+
+Retry's empty-workspace cause was an ad-hoc cwd without a configured project source. On installed
+pin `8aa17aa0`, fresh Retry intentionally discards that cwd and otherwise creates a task directory.
+The existing source task now has a native configured_source / managed_isolated selection pointing
+to a private safe Git projection with a portable Python runtime. The actual Retry cloned that source
+into its own managed directory; source, rules and Python were present without owner hydration.
+No credentials, owner memory or owner Git history were copied. Existing model confinement remains.
+
+Native attachments do not materialize another task's working copy. The narrowly scoped
+`engineering.paperclip_native_delivery.py` supplies two one-shot process-adapter actions: stage exact
+run-bound patch/demo artifacts into the preprovisioned QA clone, then publish exact QA-approved bytes
+through the existing canonical publisher. That publisher now admits absent/new regular files while
+preserving its expected-tip checks. Owner-private manifest pins tasks, independent actors, paths,
+source and canonical base. The trusted deterministic publisher uses the existing owner GitHub CLI
+credential helper; model workers receive no publisher credentials. Independent Luna accepted adapter
+commit `6c88259`; 20 focused tests plus 4 subtests passed. Actual process and remote behavior was then
+observed in this useful cycle, not inferred from mocked tests alone.
+
+The bounded cycle took212.031s: developer135.045s, QA66.187s, stage0.901s, publish9.864s; source-finish
+to QA-start0.853s. Run terminal timestamps overlap by a few milliseconds at native finalization;
+do not add rounded phase spans as independent elapsed time. Two model runs (development1/QA1),
+two zero-model process runs, no manager model and no new429. Complete native accounting reports
+98759 uncached input,10720 output,647552 cached input tokens, subscription included. Preparation,
+collaboration implementation/review and CEO usage are outside that ledger; total session cost and
+quota fraction are unknown. Manual preparation/configuration and final stop are not zero-cost.
+
+This proves one first-review acceptance path. New task admission, fixed manifest/base/branch setup,
+and shutdown remain owner operations. Automatic correction/restaging after rejection and general
+multi-file merging are not qualified by this two-file addition. A rejection stops publication;
+do not turn that limitation into a silent acceptance or recreate a held operation. Six original
+programme features are now accepted. MEM-118/123 still have canRetry=false cancellation holds;
+MEM-126's original explicit human_only remains pending/in_review and supplies no new approval.
+All six companies are paused/live0. No automatic next cohort, Sol restoration or scale increase.
+[Exact cycle evidence](evidence/brain-native-handoff-20261026.json).
+
 ## Bounded throughput continuation — 2026-10-26
 
 The original five-task backlog was reused with a pragmatic limit of two admitted developers,

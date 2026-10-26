@@ -1,13 +1,24 @@
 # Brain Architecture
 
+## Research dossier accepted — 2026-10-26
+
+Brain `69b926d` adds `memecoin_experience.research_report`: deterministic composition of explicit
+diagnostic envelopes into a complete JSON dossier or safely fenced Markdown. It preserves full
+results, declared hashes and limitations without claiming raw-input verification or comparability.
+Independent Luna QA accepted the exact candidate with13 focused tests and additional synthetic/CLI
+checks. Six of eight programme features are now accepted; binary_calibration and representation_shift
+remain unfinished under preserved cancellation holds. No data collection, training or trading ran.
+[Contract](training-evaluation.md#research-dossier--2026-10-26) and
+[bounded native handoff](evidence/brain-native-handoff-20261026.json).
+
 ## Research diagnostics backlog continuation — 2026-10-26
 
 Two further tools from the original eight-feature programme are accepted/published at Brain
 `7c9a601`: `memecoin_population.exposure_shift` explains corpus-versus-exposure differences on
 explicit common-known support; `memecoin_population.attrition_funnel` explains where cohorts lose
 usable observations across declared stages. Both expose analyze(payload) and JSON stdin/stdout CLI.
-Independent QA, 22 integrated tests and two demonstrations passed. Five of the original eight
-capabilities are now accepted; binary_calibration, representation_shift and research_report remain
+Independent QA, 22 integrated tests and two demonstrations passed. At that earlier checkpoint, five of the original eight
+capabilities were accepted; binary_calibration, representation_shift and research_report remain
 unfinished. No real-data/model-quality claim follows from synthetic software verification.
 [Contracts](training-evaluation.md#additional-population-diagnostics--2026-10-26) and
 [bounded continuation evidence](evidence/brain-productive-backlog-20261026.json).
@@ -26,7 +37,7 @@ fixed-bin representation shift (Cortex), abstention sensitivity (Policy), and a 
 research dossier (Platform). A frozen diagnostic envelope permits independent implementation; no
 scheduler, management framework or new runtime dependency is introduced.
 
-Three are now accepted in Brain `cc5573b`: availability latency, paired-loss comparison and abstention
+The initial checkpoint accepted three in Brain `cc5573b`: availability latency, paired-loss comparison and abstention
 sensitivity. Five source tasks remain blocked by actual provider429 refusals, not lack of useful work.
 Their contracts remain in native Paperclip tasks. Usage and examples for the implemented tools belong
 to [training/evaluation](training-evaluation.md#offline-research-diagnostics--2026-10-26); organizational

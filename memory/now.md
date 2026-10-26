@@ -1,25 +1,23 @@
-# Current state — 2026-10-26, productive backlog continuation stopped
+# Current state — 2026-10-26, native handoff cycle stopped
 
-- Accepted/published Brain `7c9a601cb676ce63fdf126510e50a9cda0f0b080`: new exposure_shift and
-  attrition_funnel tools. Separate Luna High QA MEM-127 accepted exact candidates;22 integration
-  tests and two CLI replays passed. Five original programme features now accepted; three unfinished.
-- MEM-119/121/127 done. MEM-118/123 blocked after explicit stop with native cancellation holds and
-  canRetry=false; preserve outcomes. MEM-125 retains original429 hold; no retry this cohort.
-- Native Retry reconciled earlier failures but created empty managed directories without project
-  source. Two normal environment-blocked turns; source/runtime staged in their current empty
-  directories, then same tasks resumed. No controller change or old workspace bypass.
-- Two productive developers overlapped 181.691s; development201.083s, QA 80.147s, handoff98.192s.
-  First Retry to publication620.375s excludes preliminary research/final docs. New429=0, no ceiling claim.
-- Seven native Luna High runs: productive2/QA1/environment-blocked2/cancelled2. Complete receipts
-  258589 uncached input/34244 output/2044416 cached input; CEO excluded, USD unknown.
-  Native account weekly snapshots22%→24% are rounded/shared and cannot be attributed to this cohort.
-- All six companies paused/live0; TEST unchanged. MEM-126 in_review with original pending explicit
-  human_only request preserved. New acceptance/publication based on independent MEM-127 report.
-- Owner artifact staging/dependency alignment/integration remain. Eight grouped assisted phases,
-  three corrective episodes; no unattended throughput claim, no custom scheduler/rate limiter.
-- Main2f8da5f, Paperclip8aa17aa0, historical MEM99/holds unchanged. No market/protected-data/training/
-  AUTO/trading/production/paid API authority. No automatic continuation or16/40 campaign.
+- Brain `69b926d37c8dd7822d0c0a213a882166fe1574c6` published on brain/development and
+  brain/native-report-20261026. New research_report dossier;143 source/113 test lines;13 focused
+  tests plus independent Luna synthetic/CLI QA. Six of eight programme capabilities accepted.
+- MEM125 -> native stage128 -> independent QA129 -> native publish130 all done. Zero CEO mutations
+  between source Retry and publication. Configured source supplied actual fresh isolated code/runtime;
+  native dependencies dispatched the rest. No scheduler/broker or old pipeline activation.
+- Cycle212.031s; developer135.045s; QA66.187s; stage0.901s; publish9.864s; source-to-QA gap0.853s.
+  Two native Luna High model runs +two deterministic process runs;429=0. Complete native tokens
+  98759 uncached input/10720 output/647552 cached input. Preparation/CEO excluded; full cost unknown.
+- Adapter accepted/published org6c88259;20 focused tests+4subtests. Existing canonical publisher
+  extended for absent/new regular files. Fixed owner policy/custody, native attachments and checkout.
+- Preparation/new task manifest/base/branch and shutdown remain owner work. First-review acceptance
+  only: automatic correction/restaging and a general merger are not implemented/qualified.
+- All6 companies paused/live0. MEM126 original explicit human_only pending/in_review untouched.
+  MEM118/123 cancellation holds canRetry=false preserved. No unknown replay or automatic continuation.
+- Main2f8da5f, Paperclip8aa17aa0, TEST Luna High unchanged. No production/protected-data/market/
+  training/AUTO/trading/paid API activation, no16/40 campaign.
 
 Canonical: docs/engineering-organization.md, docs/training-evaluation.md.
-Evidence: docs/evidence/brain-productive-backlog-20261026.json.
-Private custody: lab state/productive-backlog-20261026 and state/HANDOFF.md.
+Evidence: docs/evidence/brain-native-handoff-20261026.json.
+Private custody: lab state/native-handoff-20261026 and state/HANDOFF.md.

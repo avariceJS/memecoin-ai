@@ -1,5 +1,22 @@
 # Training and Evaluation
 
+## Research dossier — 2026-10-26
+
+Accepted Brain `69b926d` provides `memecoin_experience.research_report.analyze({"reports": [...]})`,
+`render_markdown(bundle)` and `python -m memecoin_experience.research_report [--markdown]` using
+JSON stdin. The output schema is `brain-research-bundle.v1`. Input reports use exactly the six
+`brain-research-diagnostic.v1` envelope fields described below; all seven planned diagnostic kinds
+are recognized, which does not imply all seven producers have been implemented.
+
+The dossier sorts by kind/declared input hash, preserves complete summaries/details/limitations,
+rejects duplicate identities, malformed hashes and nonfinite JSON, and supports empty reports.
+Markdown safely fences the complete JSON, including caller HTML/backticks. Declared hashes are only
+format-checked: raw inputs were not supplied for verification. It does not recompute metrics, infer
+comparability/causality, impute missing values, or produce promotion/acceptance decisions. There is no
+implicit file discovery or model/data loading. Independent QA passed13 focused tests, all-seven-kind
+synthetic/adversarial checks and JSON/Markdown CLI checks against exact staged hashes.
+[Acceptance/publication evidence](evidence/brain-native-handoff-20261026.json).
+
 ## Additional population diagnostics — 2026-10-26
 
 Brain `7c9a601` adds two stdlib caller-supplied JSON tools with the same diagnostic envelope below.

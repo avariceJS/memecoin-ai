@@ -1,5 +1,17 @@
 # Engineering lessons and retrieval
 
+### E14 — Verify installed process interfaces before useful admission
+
+- **Trigger:** A small deterministic action bridges native developer artifacts to QA/publication.
+- **Finding:** Mocked tests missed the API origin shape, legacy process-run checkout and the actual
+  GitHub credential helper. Independent review plus read-only remote verification caught these before
+  launch. The corrected fixed actions then staged and published real accepted code without CEO mutation.
+- **Action:** Reuse native dependencies and lease APIs; validate installed run fields and the existing
+  owner authentication route. Keep model credentials separate from the deterministic publisher. Count
+  preparation/review separately from the two model runs in the productive cycle.
+- **Source:** [Native handoff cycle](evidence/brain-native-handoff-20261026.json).
+- **Revalidate:** Adapter pin, task/attachment schemas, host authentication or publication policy changes.
+
 ### E13 — Retry may replace an ad-hoc working directory
 
 - **Trigger:** Resuming an interrupted native task whose source was supplied only through cwd.
@@ -10,6 +22,9 @@
   current permitted workspace, or qualify supported project-source preparation. Read back actual cwd
   and content before claiming reuse. Do not bypass cancellation holds or send more models to rediscover
   the same missing source. Native per-agent queues are not a subscription-wide rate limiter.
+- **Qualified follow-up:** Native configured_source / managed_isolated selection with a safe committed
+  source/runtime projection supplied a real fresh Retry without manual hydration. Actual useful source
+  and independent QA/publication completed in the [handoff cycle](evidence/brain-native-handoff-20261026.json).
 - **Source:** [Bounded throughput result](evidence/brain-productive-backlog-20261026.json).
 - **Revalidate:** Installed retry/source preparation behavior or project workspace binding changes.
 
