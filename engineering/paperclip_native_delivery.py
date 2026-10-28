@@ -1381,6 +1381,128 @@ def save_record(path: Path, value: dict[str, Any]) -> None:
     write_once(path, data, 0o400)
 
 
+def preserve_qa_predecessor(
+    handoff: Path,
+    prior: dict[str, Any],
+    qa_run_id: str,
+    qa_attachment_id: str,
+    qa_result: bytes,
+) -> None:
+    """Keep the rejected predecessor inside the QA clone before a correction replaces it."""
+    paths = prior.get("paths")
+    require(
+        type(paths) is list
+        and all(type(path) is str for path in paths)
+        and len(paths) == len(set(paths))
+        and type(prior.get("files")) is dict
+        and set(prior["files"]) == set(paths),
+        "correction_history_record_invalid",
+    )
+
+    staged: dict[str, bytes] = {}
+    for name, key in (("candidate.patch", "patch"), ("demonstration.json", "demonstration")):
+        meta = prior.get(key)
+        require(
+            type(meta) is dict and type(meta.get("sha256")) is str,
+            "correction_history_record_invalid",
+        )
+        path = target(handoff, name)
+        info = path.lstat()
+        require(stat.S_ISREG(info.st_mode), "correction_artifact_changed")
+        data = path.read_bytes()
+        require(digest(data) == meta["sha256"], "correction_artifact_changed")
+        staged[name] = data
+
+    file_bytes: dict[str, bytes] = {}
+    for relative in paths:
+        entry = prior["files"][relative]
+        require(
+            type(entry) is dict and type(entry.get("sha256")) is str,
+            "correction_history_record_invalid",
+        )
+        path = target(handoff.parent, relative)
+        info = path.lstat()
+        require(
+            not stat.S_ISLNK(info.st_mode) and stat.S_ISREG(info.st_mode),
+            "correction_target_not_regular",
+        )
+        data = path.read_bytes()
+        require(digest(data) == entry["sha256"], "correction_target_changed")
+        file_bytes[relative] = data
+
+    record_path = target(handoff, "native-delivery.json")
+    record_info = record_path.lstat()
+    require(stat.S_ISREG(record_info.st_mode), "correction_artifact_changed")
+    record_bytes = record_path.read_bytes()
+    require(record_bytes == json_bytes(prior), "correction_artifact_changed")
+    staged["native-delivery.json"] = record_bytes
+    staged["QA-RESULT.json"] = qa_result
+    staged.update({f"files/{relative}": data for relative, data in file_bytes.items()})
+    snapshot_index = {
+        "schema": "brain-native-qa-predecessor-history-v1",
+        "revision": prior.get("revision"),
+        "developer_run_id": prior.get("developer_run_id"),
+        "qa_run_id": qa_run_id,
+        "qa_attachment_id": qa_attachment_id,
+        "files": {name: digest(data) for name, data in sorted(staged.items())},
+    }
+    history_root = target(handoff, "history", create=True)
+    try:
+        history_root.mkdir(mode=0o700)
+    except FileExistsError:
+        info = history_root.lstat()
+        require(
+            not stat.S_ISLNK(info.st_mode) and stat.S_ISDIR(info.st_mode),
+            "correction_history_invalid",
+        )
+    snapshot = history_root / f"revision-{prior['revision']}"
+    try:
+        snapshot.mkdir(mode=0o700)
+    except FileExistsError:
+        info = snapshot.lstat()
+        require(
+            not stat.S_ISLNK(info.st_mode) and stat.S_ISDIR(info.st_mode),
+            "correction_history_invalid",
+        )
+    file_root = snapshot / "files"
+    try:
+        file_root.mkdir(mode=0o700)
+    except FileExistsError:
+        info = file_root.lstat()
+        require(
+            not stat.S_ISLNK(info.st_mode) and stat.S_ISDIR(info.st_mode),
+            "correction_history_invalid",
+        )
+    for name, data in staged.items():
+        destination = target(snapshot, name, create=True)
+        write_once(destination, data, 0o400)
+    index_bytes = json_bytes(snapshot_index)
+    write_once(snapshot / "history.json", index_bytes, 0o400)
+    expected_files = set(staged) | {"history.json"}
+    expected_dirs = {
+        str(parent)
+        for name in expected_files
+        for parent in Path(name).parents
+        if parent != Path(".")
+    }
+    actual_files: set[str] = set()
+    actual_dirs: set[str] = set()
+    for child in snapshot.rglob("*"):
+        info = child.lstat()
+        relative = child.relative_to(snapshot).as_posix()
+        require(not stat.S_ISLNK(info.st_mode), "correction_history_invalid")
+        if stat.S_ISDIR(info.st_mode):
+            actual_dirs.add(relative)
+        elif stat.S_ISREG(info.st_mode):
+            actual_files.add(relative)
+        else:
+            raise DeliveryError("correction_history_invalid")
+    require(
+        actual_files == expected_files and actual_dirs == expected_dirs,
+        "correction_history_invalid",
+    )
+
+
 def notify_manager(
     api: Paperclip,
     manifest: dict[str, Any],
@@ -1546,6 +1668,13 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
                     and digest(old_path.read_bytes()) == prior[key]["sha256"],
                     "correction_artifact_changed",
                 )
+            preserve_qa_predecessor(
+                prior_handoff,
+                prior,
+                prior_qa_run["runId"],
+                str(prior_meta["id"]),
+                prior_result,
+            )
         record = {
             "schema": STAGE_SCHEMA,
             "manifest_sha256": manifest_hash,

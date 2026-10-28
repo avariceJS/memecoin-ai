@@ -190,6 +190,94 @@ class NativeDeliveryTests(unittest.TestCase):
             delivery.replace_known(target, b"another candidate\n", old_hash)
         self.assertEqual(target.read_bytes(), b"owner edit\n")
 
+    def test_rejected_predecessor_is_preserved_immutably_in_qa_workspace(self) -> None:
+        qa_root = self.root / "qa"
+        handoff = qa_root / ".native-delivery"
+        handoff.mkdir(parents=True)
+        file_data = {self.paths[0]: b"VALUE = 1\n", self.paths[1]: b"assert True\n"}
+        for relative, data in file_data.items():
+            path = qa_root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        patch_bytes = b"exact prior patch\n"
+        demo_bytes = b'{"module":"m","input":1,"output":1}\n'
+        (handoff / "candidate.patch").write_bytes(patch_bytes)
+        (handoff / "demonstration.json").write_bytes(demo_bytes)
+        prior = {
+            "schema": delivery.STAGE_SCHEMA,
+            "revision": 1,
+            "developer_run_id": "developer-run-1",
+            "paths": self.paths,
+            "patch": {"sha256": delivery.digest(patch_bytes)},
+            "demonstration": {"sha256": delivery.digest(demo_bytes)},
+            "files": {p: {"sha256": delivery.digest(data)} for p, data in file_data.items()},
+        }
+        record_bytes = delivery.json_bytes(prior)
+        (handoff / "native-delivery.json").write_bytes(record_bytes)
+        rejection = b'{"verdict":"reject","findings":[{"check":"test","evidence":"failed"}]}\n'
+
+        delivery.preserve_qa_predecessor(handoff, prior, "qa-run-1", "qa-attachment-1", rejection)
+
+        snapshot = handoff / "history" / "revision-1"
+        expected = {
+            "candidate.patch": patch_bytes,
+            "demonstration.json": demo_bytes,
+            "native-delivery.json": record_bytes,
+            "QA-RESULT.json": rejection,
+            **{f"files/{p}": data for p, data in file_data.items()},
+        }
+        for relative, data in expected.items():
+            path = snapshot / relative
+            self.assertEqual(path.read_bytes(), data)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o400)
+        index = json.loads((snapshot / "history.json").read_bytes())
+        self.assertEqual(index["qa_run_id"], "qa-run-1")
+        self.assertEqual(index["qa_attachment_id"], "qa-attachment-1")
+        self.assertEqual(index["files"], {p: delivery.digest(data) for p, data in expected.items()})
+
+        (handoff / "candidate.patch").write_bytes(b"corrected patch\n")
+        (qa_root / self.paths[0]).write_bytes(b"corrected source\n")
+        self.assertEqual((snapshot / "candidate.patch").read_bytes(), patch_bytes)
+        self.assertEqual(
+            (snapshot / "files" / self.paths[0]).read_bytes(), file_data[self.paths[0]]
+        )
+        (snapshot / "QA-RESULT.json").chmod(0o600)
+        (snapshot / "QA-RESULT.json").write_bytes(b"tampered\n")
+        with self.assertRaisesRegex(delivery.DeliveryError, "target_collision"):
+            delivery.write_once(snapshot / "QA-RESULT.json", rejection, 0o400)
+
+    def test_rejected_predecessor_snapshot_rejects_symlinked_candidate(self) -> None:
+        qa_root = self.root / "qa-symlink"
+        handoff = qa_root / ".native-delivery"
+        handoff.mkdir(parents=True)
+        outside = self.root / "outside.py"
+        outside.write_bytes(b"VALUE = 1\n")
+        linked = qa_root / self.paths[0]
+        linked.parent.mkdir(parents=True)
+        linked.symlink_to(outside)
+        prior = {
+            "revision": 1,
+            "developer_run_id": "developer-run-1",
+            "paths": self.paths,
+            "patch": {"sha256": delivery.digest(b"patch")},
+            "demonstration": {"sha256": delivery.digest(b"demo")},
+            "files": {
+                p: {
+                    "sha256": delivery.digest(
+                        b"VALUE = 1\n" if p == self.paths[0] else b"assert True\n"
+                    )
+                }
+                for p in self.paths
+            },
+        }
+        (handoff / "candidate.patch").write_bytes(b"patch")
+        (handoff / "demonstration.json").write_bytes(b"demo")
+        (handoff / "native-delivery.json").write_bytes(delivery.json_bytes(prior))
+        with self.assertRaisesRegex(delivery.DeliveryError, "target_not_regular"):
+            delivery.preserve_qa_predecessor(
+                handoff, prior, "qa-run-1", "qa-attachment-1", b"reject"
+            )
+
     def test_candidate_attempts_are_initial_plus_one_correction(self) -> None:
         self.assertEqual(delivery.next_stage_revision(None), 1)
         self.assertEqual(delivery.next_stage_revision({"revision": 1}), 2)
