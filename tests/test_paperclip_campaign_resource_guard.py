@@ -519,6 +519,14 @@ def test_publish_quota_failure_precedes_candidate_creation_and_all_publication_m
         def artifact(self, _task, _run, _name, _limit):
             return {"id": "80000000-0000-4000-8000-000000000017"}, b"{}"
 
+        def qa_artifact(self, _task, run, _name, _limit):
+            return {
+                "id": "80000000-0000-4000-8000-000000000017",
+                "originatingRunId": run["runId"],
+                "createdByAgentId": qa_agent,
+                "artifactType": "attachment",
+            }, b"{}"
+
     monkeypatch.setattr(delivery, "Paperclip", API)
     monkeypatch.setattr(
         delivery,
