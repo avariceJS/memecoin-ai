@@ -1214,11 +1214,22 @@ def _preflight_preparation_graph(
 
 
 def _validate_preparation_seed(envelope: dict[str, Any]) -> None:
-    source = envelope["source"]
+    seed_repo = Path(envelope["source"]["seed_repo"])
+    tracked_changes = git(seed_repo, "status", "--porcelain", "--untracked-files=no")
+    unexpected_changes = git(
+        seed_repo,
+        "status",
+        "--porcelain",
+        "--untracked-files=all",
+        "--",
+        ".",
+        ":(exclude).paperclip/worktrees",
+    )
     require(
-        git(Path(source["seed_repo"]), "rev-parse", "HEAD").decode().strip() == source["base_sha"]
-        and not git(Path(source["seed_repo"]), "status", "--porcelain", "--untracked-files=all")
-        and not git(Path(source["seed_repo"]), "remote", "-v"),
+        git(seed_repo, "rev-parse", "HEAD").decode().strip() == envelope["source"]["base_sha"]
+        and not tracked_changes
+        and not unexpected_changes
+        and not git(seed_repo, "remote", "-v"),
         "preparation_seed_not_clean_frozen_base",
     )
 
