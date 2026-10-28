@@ -15,6 +15,8 @@
   ],
   "changed_source_paths": [
     "server/src/__tests__/heartbeat-process-recovery.test.ts",
+    "server/src/services/recovery/legacy-continuation.test.ts",
+    "server/src/services/recovery/legacy-continuation.ts",
     "server/src/services/recovery/service.ts"
   ],
   "source_acceptance_receipt_sha256": "164844cd283960848962396b58dd4a7aaca1c492386b99d3208b9d7a01e6f204",
