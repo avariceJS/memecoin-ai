@@ -827,7 +827,7 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
                 and Path(binding["preparation_receipt_path"]).is_absolute()
                 and re.fullmatch(r"[0-9a-f]{64}", str(binding["preparation_envelope_sha256"]))
                 and type(binding["slot"]) is int
-                and 1 <= binding["slot"] <= 2,
+                and binding["slot"] == 1,
                 "preparation_predecessor_binding_invalid",
             )
         require(

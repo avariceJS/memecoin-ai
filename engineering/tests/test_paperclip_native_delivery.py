@@ -2043,6 +2043,7 @@ class PreparationTests(unittest.TestCase):
             [candidate, candidate],
             [candidate] * 5,
             [{**candidate, "slot": True}],
+            [{**candidate, "slot": 2}],
             [{**candidate, "extra": "dynamic policy"}],
         ):
             with self.subTest(invalid=invalid):
