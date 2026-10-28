@@ -512,22 +512,35 @@ class Paperclip:
         ):
             raise DeliveryError("current_task_mismatch")
         self.no_pending(task["task_id"])
-        if issue.get("checkoutRunId") != self.run_id or issue.get("executionRunId") != self.run_id:
-            require(checkout_if_missing, "current_task_checkout_invalid")
-            issue = self.request(
-                "POST",
-                f"/issues/{task['task_id']}/checkout",
-                {"agentId": self.agent_id, "expectedStatuses": ["todo", "blocked", "in_progress"]},
+        if checkout_if_missing:
+            if (
+                issue.get("checkoutRunId") != self.run_id
+                or issue.get("executionRunId") != self.run_id
+            ):
+                issue = self.request(
+                    "POST",
+                    f"/issues/{task['task_id']}/checkout",
+                    {
+                        "agentId": self.agent_id,
+                        "expectedStatuses": ["todo", "blocked", "in_progress"],
+                    },
+                )
+            require(
+                issue.get("id") == task["task_id"]
+                and issue.get("companyId") == self.m["company_id"]
+                and issue.get("assigneeAgentId") == self.agent_id
+                and issue.get("status") == "in_progress"
+                and issue.get("checkoutRunId") == self.run_id
+                and issue.get("executionRunId") == self.run_id,
+                "current_task_checkout_invalid",
             )
-        if (
-            issue.get("id") != task["task_id"]
-            or issue.get("companyId") != self.m["company_id"]
-            or issue.get("assigneeAgentId") != self.agent_id
-            or issue.get("status") != "in_progress"
-            or issue.get("checkoutRunId") != self.run_id
-            or issue.get("executionRunId") != self.run_id
-        ):
-            raise DeliveryError("current_task_checkout_invalid")
+        else:
+            require(
+                issue.get("status") in {"todo", "blocked", "in_progress"}
+                and issue.get("executionRunId") == self.run_id
+                and issue.get("checkoutRunId") in {None, self.run_id},
+                "current_task_execution_invalid",
+            )
         return task["task_id"]
 
     def no_pending(self, task_id: str) -> None:
