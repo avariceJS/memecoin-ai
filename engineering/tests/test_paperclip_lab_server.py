@@ -10,13 +10,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from engineering.paperclip_lab_server import (
+    PAPERCLIP_CLEANUP_ONLY_PINS,
     PAPERCLIP_PARENT_PIN,
     PAPERCLIP_PATCH_PARENT_PIN,
     PAPERCLIP_PATCH_PIN,
     PAPERCLIP_PATCH_SOURCE_CHAIN,
     PAPERCLIP_PIN,
     PAPERCLIP_SOURCE_CHAIN,
-    PAPERCLIP_CLEANUP_ONLY_PINS,
     PAPERCLIP_STOP_CUSTODY_PINS,
     PAPERCLIP_UPSTREAM_PIN,
     LabPaths,
@@ -34,13 +34,8 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(
             PAPERCLIP_SOURCE_CHAIN,
             (
-                "8d994c9f56224b65944e3fab02add1d7fe8431e6",
-                "1d9eccf898ec00f9f59ef5f536b69154c211a359",
-                "ffc6a3c844faa92dcad570f0a1184434a9a3d6d0",
-                "4f969bc74ea0aca1c2a81edde74796c92f221d1c",
-                "9667379fcc3e0247ac632659850fbedf59b99229",
-                "aa0c5b08f0e8ce09343ffd146f3441e984ede8f7",
-                "1637ad0b50c17c5896784b95c9fb97a31defbf4c",
+                "240c623f381ceb84bda190270cafee3454ae17fc",
+                "bf91730cc459792ba640378b97da6890511755e8",
                 "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
                 "2905d23263ceb188689cd68624332bfa2d56b600",
                 "15f93e91bd7a561e6b4c3460ccd619923e15165b",
@@ -48,8 +43,8 @@ class PaperclipLabServerTests(unittest.TestCase):
                 *PAPERCLIP_PATCH_SOURCE_CHAIN,
             ),
         )
-        self.assertEqual(PAPERCLIP_PIN, "8d994c9f56224b65944e3fab02add1d7fe8431e6")
-        self.assertEqual(PAPERCLIP_PARENT_PIN, "1d9eccf898ec00f9f59ef5f536b69154c211a359")
+        self.assertEqual(PAPERCLIP_PIN, "240c623f381ceb84bda190270cafee3454ae17fc")
+        self.assertEqual(PAPERCLIP_PARENT_PIN, "bf91730cc459792ba640378b97da6890511755e8")
         self.assertEqual(PAPERCLIP_UPSTREAM_PIN, "043f2514e67c50320433a0013fb228a75a51325c")
         self.assertEqual(PAPERCLIP_PATCH_PIN, "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd")
         self.assertEqual(PAPERCLIP_PATCH_PARENT_PIN, "d560a09538a255c779e4a10b14d41a3114bf10f2")
@@ -73,8 +68,35 @@ class PaperclipLabServerTests(unittest.TestCase):
                 with self.assertRaisesRegex(LabServerError, "parent_pin_mismatch"):
                     _validate_source(paths)
 
+    def test_source_pin_bundle_records_incremental_accepted_review(self):
+        engineering = Path(__file__).resolve().parents[1]
+        manifest_path = engineering / "paperclip-source-bundles" / f"{PAPERCLIP_PIN}.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        bundle_path = manifest_path.with_suffix(".bundle")
+        bundle = bundle_path.read_bytes()
+        self.assertEqual(manifest["schema"], "paperclip-managed-native-code-custody-v1")
+        self.assertEqual(manifest["native_source_commit"], PAPERCLIP_PIN)
+        self.assertEqual(manifest["native_source_tree"], "04b3fc9cd594d1c00649d4ebfe28a5aad1e78a01")
+        self.assertEqual(
+            manifest["prerequisite_commit"],
+            "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+        )
+        self.assertEqual(
+            manifest["incremental_commits"],
+            list(reversed(PAPERCLIP_SOURCE_CHAIN[:2])),
+        )
+        self.assertEqual(manifest["bundle_file"], bundle_path.name)
+        self.assertEqual(manifest["bundle_bytes"], len(bundle))
+        self.assertEqual(manifest["bundle_sha256"], hashlib.sha256(bundle).hexdigest())
+        self.assertEqual(
+            manifest["source_acceptance_receipt_sha256"],
+            "4d9f5fedce3249346e8daa586eda9b55306a1a70509b0ea2f1e538b809e3c6c4",
+        )
+        self.assertIn("Source custody only", manifest["limits"])
+
     def test_rejected_and_interim_native_descendants_cannot_launch(self):
         for old_pin in (
+            "8d994c9f56224b65944e3fab02add1d7fe8431e6",
             "1d9eccf898ec00f9f59ef5f536b69154c211a359",
             "ffc6a3c844faa92dcad570f0a1184434a9a3d6d0",
             "4f969bc74ea0aca1c2a81edde74796c92f221d1c",
