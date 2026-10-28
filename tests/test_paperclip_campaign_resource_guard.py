@@ -159,8 +159,9 @@ def test_preflight_reserves_next_model_admission_before_current_action_completes
     assert not (tmp_path / "blocked.json").exists()
 
 
-def test_policy_reference_is_hash_pinned_and_private(tmp_path: Path):
+def test_policy_reference_is_hash_pinned_and_private(tmp_path: Path, monkeypatch):
     tmp_path.chmod(0o700)
+    monkeypatch.delenv(guard.RENEWAL_ENV, raising=False)
     path = tmp_path / "policy.json"
     raw = (json.dumps(policy(), sort_keys=True, separators=(",", ":")) + "\n").encode()
     path.write_bytes(raw)
@@ -170,6 +171,202 @@ def test_policy_reference_is_hash_pinned_and_private(tmp_path: Path):
     assert loaded == policy() and sha == reference["sha256"]
     with pytest.raises(guard.ResourceGuardError, match="resource_policy_hash_mismatch"):
         guard.load_policy_reference({**reference, "sha256": "0" * 64}, COMPANY)
+
+
+def _write_private_json(path: Path, value: dict) -> bytes:
+    raw = (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    path.write_bytes(raw)
+    path.chmod(0o400)
+    return raw
+
+
+def test_explicit_private_renewal_preserves_original_binding_and_returns_effective_hash(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    original_path = tmp_path / "policy.json"
+    original_raw = _write_private_json(original_path, policy())
+    original_ref = {"path": str(original_path), "sha256": guard._sha(original_raw)}
+    renewed = policy(
+        issued_at_utc="2026-10-28T17:00:00Z",
+        deadline_utc="2026-10-28T22:00:00Z",
+        max_model_runs=60,
+    )
+    renewal_path = tmp_path / "renewal.json"
+    renewal_raw = _write_private_json(
+        renewal_path,
+        {
+            "schema": guard.RENEWAL_SCHEMA,
+            "original_policy_sha256": original_ref["sha256"],
+            "new_policy": renewed,
+        },
+    )
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+
+    loaded, effective_hash = guard.load_policy_reference(original_ref, COMPANY)
+
+    assert loaded == renewed
+    assert loaded.renewal_issued_at_utc == renewed["issued_at_utc"]
+    assert effective_hash == guard._sha(renewal_raw)
+    assert original_ref["sha256"] == guard._sha(original_raw)
+
+
+@pytest.mark.parametrize(
+    ("renewal_changes", "reason"),
+    [
+        ({"original_policy_sha256": "f" * 64}, "resource_policy_renewal_binding_invalid"),
+        (
+            {"new_policy": policy(connection_id="20000000-0000-4000-8000-000000000099")},
+            "resource_policy_renewal_scope_invalid",
+        ),
+        (
+            {
+                "new_policy": policy(
+                    task_scope_root_ids=[UNRELATED],
+                    issued_at_utc="2026-10-28T17:00:00Z",
+                    deadline_utc="2026-10-28T22:00:00Z",
+                )
+            },
+            "resource_policy_renewal_scope_invalid",
+        ),
+        (
+            {
+                "new_policy": policy(
+                    issued_at_utc="2026-10-28T17:00:00Z", deadline_utc="2026-10-28T23:01:00Z"
+                )
+            },
+            "resource_policy_renewal_lifetime_invalid",
+        ),
+        (
+            {
+                "new_policy": policy(
+                    issued_at_utc="2026-10-28T17:00:00Z",
+                    deadline_utc="2026-10-28T22:00:00Z",
+                    max_model_runs=61,
+                )
+            },
+            "resource_policy_renewal_run_cap_invalid",
+        ),
+    ],
+)
+def test_renewal_rejects_unbound_or_expanded_authority(
+    tmp_path: Path, monkeypatch, renewal_changes, reason
+):
+    tmp_path.chmod(0o700)
+    original_path = tmp_path / "policy.json"
+    original_raw = _write_private_json(original_path, policy())
+    reference = {"path": str(original_path), "sha256": guard._sha(original_raw)}
+    renewal = {
+        "schema": guard.RENEWAL_SCHEMA,
+        "original_policy_sha256": reference["sha256"],
+        "new_policy": policy(
+            issued_at_utc="2026-10-28T17:00:00Z",
+            deadline_utc="2026-10-28T22:00:00Z",
+            max_model_runs=60,
+        ),
+    }
+    renewal.update(renewal_changes)
+    renewal_path = tmp_path / "renewal.json"
+    _write_private_json(renewal_path, renewal)
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+
+    with pytest.raises(guard.ResourceGuardError, match=reason):
+        guard.load_policy_reference(reference, COMPANY)
+
+
+def test_renewed_policy_run_accounting_requires_and_uses_verified_creation_time(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    original_path = tmp_path / "policy.json"
+    original_raw = _write_private_json(original_path, policy())
+    reference = {"path": str(original_path), "sha256": guard._sha(original_raw)}
+    renewed = policy(
+        issued_at_utc="2026-10-28T17:00:00Z",
+        deadline_utc="2026-10-28T22:00:00Z",
+        max_model_runs=60,
+    )
+    renewal_path = tmp_path / "renewal.json"
+    _write_private_json(
+        renewal_path,
+        {
+            "schema": guard.RENEWAL_SCHEMA,
+            "original_policy_sha256": reference["sha256"],
+            "new_policy": renewed,
+        },
+    )
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+    effective, _ = guard.load_policy_reference(reference, COMPANY)
+    old_run = "40000000-0000-4000-8000-000000000021"
+    new_run = "40000000-0000-4000-8000-000000000022"
+
+    class API:
+        def request(self, method: str, route: str):
+            agent = "50000000-0000-4000-8000-000000000023"
+            if route.startswith("/companies/"):
+                return [{"id": ROOT, "companyId": COMPANY, "parentId": None}]
+            if route == f"/issues/{ROOT}/runs":
+                return [{"runId": old_run}, {"runId": new_run}]
+            run_id = route.rsplit("/", 1)[-1]
+            created_at = "2026-10-28T16:59:59Z" if run_id == old_run else "2026-10-28T17:00:00Z"
+            return {
+                "id": run_id,
+                "createdAt": created_at,
+                "runtimeMode": "native",
+                "companyId": COMPANY,
+                "issueId": ROOT,
+                "nativeIssueId": ROOT,
+                "agentId": agent,
+                "contextSnapshot": {"issueId": ROOT},
+                "runnerProfileJson": {"nativeExecutionInput": {"provider": {"kind": "codex"}}},
+                "usageJson": {"billingType": "subscription"},
+            }
+
+    assert guard.campaign_model_run_ids(API(), COMPANY, effective) == [new_run]
+
+
+def test_renewed_policy_refuses_run_without_verified_creation_time(tmp_path: Path, monkeypatch):
+    tmp_path.chmod(0o700)
+    original_path = tmp_path / "policy.json"
+    original_raw = _write_private_json(original_path, policy())
+    reference = {"path": str(original_path), "sha256": guard._sha(original_raw)}
+    renewal_path = tmp_path / "renewal.json"
+    _write_private_json(
+        renewal_path,
+        {
+            "schema": guard.RENEWAL_SCHEMA,
+            "original_policy_sha256": reference["sha256"],
+            "new_policy": policy(
+                issued_at_utc="2026-10-28T17:00:00Z",
+                deadline_utc="2026-10-28T22:00:00Z",
+                max_model_runs=60,
+            ),
+        },
+    )
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+    effective, _ = guard.load_policy_reference(reference, COMPANY)
+
+    class API:
+        def request(self, method: str, route: str):
+            agent = "50000000-0000-4000-8000-000000000023"
+            if route.startswith("/companies/"):
+                return [{"id": ROOT, "companyId": COMPANY, "parentId": None}]
+            if route == f"/issues/{ROOT}/runs":
+                return [{"runId": RUN}]
+            return {
+                "id": RUN,
+                "runtimeMode": "native",
+                "companyId": COMPANY,
+                "issueId": ROOT,
+                "nativeIssueId": ROOT,
+                "agentId": agent,
+                "contextSnapshot": {"issueId": ROOT},
+                "runnerProfileJson": {"nativeExecutionInput": {"provider": {"kind": "codex"}}},
+                "usageJson": {"billingType": "subscription"},
+            }
+
+    with pytest.raises(guard.ResourceGuardError, match="resource_run_created_at_invalid"):
+        guard.campaign_model_run_ids(API(), COMPANY, effective)
 
 
 def test_scope_counts_only_unique_native_codex_runs_in_root_descendants():
