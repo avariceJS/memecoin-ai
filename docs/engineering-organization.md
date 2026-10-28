@@ -14,6 +14,10 @@ single-slot programmes (maximum lineage eight), and private subscription/resourc
 prepare, stage and publication mutations. Independent combined verification passed 44 tests and 44
 subtests, scoped Ruff/format, and a three-programme synthetic prepare/stage/publish/replay flow with
 actual Git and policy checks; native API, quota and remote transport were simulated in that flow.
+Additional reviewed checkpoint `1057413` permits an absent unselected portfolio predecessor while
+requiring one verified published match, and owner-pinned budgets of up to three QA corrections
+(default one for unchanged policies). Full candidate/rejection history remains available per revision.
+Combined verification passed 50 tests and 59 subtests.
 This is source acceptance, not installed execution or functional-company acceptance. Existing two-slot
 delivery remains supported; external programme predecessors currently admit slot 1 only.
 
