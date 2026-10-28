@@ -62,6 +62,10 @@ PREPARATION_MANAGER_GUIDANCE = """Finite delivery preparation contract:
 This is one finite owner-frozen programme input, not a general strategy-to-source admission grant.
 Each programme needs a fresh envelope binding its accepted paths, contract hashes, source base,
 canonical tip, actors/models, project workspaces and deterministic output root.
+An optional predecessor_candidates list may bind at most four immutable preparation receipts by
+receipt path, source envelope hash and slot. Preparation selects exactly one candidate whose
+native publication, receipt, and local/remote canonical refs verify, then freezes that exact
+manifest/task/publication receipt binding and the resulting expected tip.
 
 DELIVERY-PLAN.json shape: {"schema":"brain-native-delivery-plan-v1","company_id":"UUID",
 "planning_task_id":"UUID","manager_task_id":"UUID","slots":[{"slot":1,
@@ -697,10 +701,12 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
         "output_root",
         "slots",
     }
-    if "resource_policy" in value:
-        expected.add("resource_policy")
+    optional_fields = {"predecessor_candidates", "resource_policy"}
+    present_optional = optional_fields & set(value)
     require(
-        set(value) == expected and value.get("schema") == PREPARATION_SCHEMA,
+        expected <= set(value)
+        and set(value) <= expected | optional_fields
+        and value.get("schema") == PREPARATION_SCHEMA,
         "preparation_envelope_fields_invalid",
     )
     require(
@@ -771,6 +777,48 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
         "preparation_canonical_binding_invalid",
     )
     safe_dir(canonical["repo"], "preparation_canonical")
+    if "resource_policy" in present_optional:
+        policy_ref = value["resource_policy"]
+        require(
+            type(policy_ref) is dict
+            and set(policy_ref) == {"path", "sha256"}
+            and type(policy_ref["path"]) is str
+            and Path(policy_ref["path"]).is_absolute()
+            and re.fullmatch(r"[0-9a-f]{64}", str(policy_ref["sha256"])),
+            "preparation_resource_policy_binding_invalid",
+        )
+    if "predecessor_candidates" in present_optional:
+        candidates = value["predecessor_candidates"]
+        require(
+            type(candidates) is list and 1 <= len(candidates) <= 4,
+            "preparation_predecessor_candidates_invalid",
+        )
+        for binding in candidates:
+            require(
+                type(binding) is dict
+                and set(binding)
+                == {"preparation_receipt_path", "preparation_envelope_sha256", "slot"}
+                and type(binding["preparation_receipt_path"]) is str
+                and Path(binding["preparation_receipt_path"]).is_absolute()
+                and re.fullmatch(r"[0-9a-f]{64}", str(binding["preparation_envelope_sha256"]))
+                and type(binding["slot"]) is int
+                and 1 <= binding["slot"] <= 2,
+                "preparation_predecessor_binding_invalid",
+            )
+        require(
+            len(
+                {
+                    (
+                        binding["preparation_receipt_path"],
+                        binding["preparation_envelope_sha256"],
+                        binding["slot"],
+                    )
+                    for binding in candidates
+                }
+            )
+            == len(candidates),
+            "preparation_predecessor_candidates_ambiguous",
+        )
     output_root = value["output_root"]
     output_path = Path(output_root) if type(output_root) is str else Path()
     require(
@@ -1130,7 +1178,7 @@ def _preflight_preparation_graph(
     return rows_out
 
 
-def _validate_preparation_inputs(envelope: dict[str, Any]) -> None:
+def _validate_preparation_seed(envelope: dict[str, Any]) -> None:
     source = envelope["source"]
     require(
         git(Path(source["seed_repo"]), "rev-parse", "HEAD").decode().strip() == source["base_sha"]
@@ -1138,6 +1186,11 @@ def _validate_preparation_inputs(envelope: dict[str, Any]) -> None:
         and not git(Path(source["seed_repo"]), "remote", "-v"),
         "preparation_seed_not_clean_frozen_base",
     )
+
+
+def _validate_preparation_inputs(envelope: dict[str, Any]) -> None:
+    source = envelope["source"]
+    _validate_preparation_seed(envelope)
     canonical = envelope["canonical"]
     require(
         git(Path(canonical["repo"]), "rev-parse", canonical["ref"]).decode().strip()
@@ -1155,10 +1208,120 @@ def _validate_preparation_inputs(envelope: dict[str, Any]) -> None:
             )
 
 
+def _resolve_preparation_predecessor(
+    api: Paperclip, envelope: dict[str, Any], plan: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Select the sole fully verified publication among owner-pinned alternatives."""
+    candidates = envelope.get("predecessor_candidates")
+    if candidates is None:
+        return None
+    first = plan[0]
+    matches: list[tuple[dict[str, Any], str]] = []
+    for candidate_binding in candidates:
+        receipt_path = Path(candidate_binding["preparation_receipt_path"])
+        try:
+            receipt_info = receipt_path.lstat()
+            receipt_parent = receipt_path.parent.lstat()
+        except OSError as exc:
+            raise DeliveryError("preparation_predecessor_receipt_missing") from exc
+        require(
+            receipt_path.is_absolute()
+            and stat.S_ISREG(receipt_info.st_mode)
+            and receipt_info.st_uid == os.getuid()
+            and not stat.S_IMODE(receipt_info.st_mode) & 0o077
+            and not stat.S_IMODE(receipt_info.st_mode) & 0o222
+            and stat.S_ISDIR(receipt_parent.st_mode)
+            and receipt_parent.st_uid == os.getuid()
+            and not stat.S_IMODE(receipt_parent.st_mode) & 0o077,
+            "preparation_predecessor_receipt_not_private",
+        )
+        try:
+            prior_receipt = json.loads(receipt_path.read_bytes())
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise DeliveryError("preparation_predecessor_receipt_invalid") from exc
+        require(
+            type(prior_receipt) is dict
+            and prior_receipt.get("schema") == PREPARATION_RECEIPT_SCHEMA
+            and prior_receipt.get("company_id") == envelope["company_id"]
+            and prior_receipt.get("canonical_ref") == envelope["canonical"]["ref"]
+            and prior_receipt.get("canonical_expected_tip") == envelope["canonical"]["expected_tip"]
+            and prior_receipt.get("envelope_sha256")
+            == candidate_binding["preparation_envelope_sha256"],
+            "preparation_predecessor_receipt_binding_mismatch",
+        )
+        rows = prior_receipt.get("slots")
+        require(
+            type(rows) is list and all(type(row) is dict for row in rows),
+            "preparation_predecessor_receipt_invalid",
+        )
+        selected_rows = [row for row in rows if row.get("slot") == candidate_binding["slot"]]
+        require(len(selected_rows) == 1, "preparation_predecessor_slot_missing")
+        prior_slot = selected_rows[0]
+        require(
+            type(prior_slot.get("manifest_path")) is str
+            and Path(prior_slot["manifest_path"]).is_absolute()
+            and re.fullmatch(r"[0-9a-f]{64}", str(prior_slot.get("manifest_sha256", "")))
+            and _uuid(prior_slot.get("source_task_id"))
+            and _uuid(prior_slot.get("publish_task_id")),
+            "preparation_predecessor_manifest_binding_mismatch",
+        )
+        parent, parent_hash = load_manifest(prior_slot["manifest_path"])
+        require(
+            parent_hash == prior_slot.get("manifest_sha256")
+            and parent["developer"]["task_id"] == prior_slot.get("source_task_id")
+            and parent["publish"]["task_id"] == prior_slot.get("publish_task_id"),
+            "preparation_predecessor_manifest_binding_mismatch",
+        )
+        binding = {
+            "manifest_path": prior_slot["manifest_path"],
+            "manifest_sha256": prior_slot["manifest_sha256"],
+            "source_task_id": prior_slot["source_task_id"],
+            "publish_task_id": prior_slot["publish_task_id"],
+            "receipt_path": str(
+                Path(parent["custody_dir"])
+                / f"publication-{prior_slot['source_task_id']}.json"
+            ),
+        }
+        probe = {
+            "company_id": envelope["company_id"],
+            "developer": {"task_id": first["source_task_id"]},
+            "source": {
+                "base_sha": envelope["source"]["base_sha"],
+                "paths": first["paths"],
+            },
+            "canonical": {
+                **envelope["canonical"],
+                "candidate_ref": envelope["slots"][0]["candidate_ref"],
+            },
+            "custody_dir": str(Path(envelope["output_root"]) / "slot1" / "custody"),
+            "predecessor": binding,
+        }
+        try:
+            candidate = predecessor_expected_tip(probe, "0" * 64, api)
+        except DeliveryError as exc:
+            # A candidate which is not the current canonical predecessor is not selected.
+            # Malformed/native-incomplete candidates cannot match; if none match, preparation
+            # fails closed below and writes no output.
+            if str(exc) in {
+                "predecessor_publish_task_not_done",
+                "predecessor_publish_run_not_terminal",
+                "predecessor_publish_run_not_succeeded",
+                "predecessor_canonical_head_unexpected",
+                "predecessor_remote_head_unexpected",
+            }:
+                continue
+            raise
+        require(candidate is not None, "preparation_predecessor_unresolved")
+        matches.append((binding, candidate))
+    require(len(matches) == 1, "preparation_predecessor_not_unique")
+    binding, candidate = matches[0]
+    return {"binding": binding, "expected_tip": candidate}
+
+
 def prepare(envelope_path: str) -> dict[str, Any]:
     envelope_value, envelope_hash = private_json_file(envelope_path, "preparation_envelope")
     envelope = validate_preparation_envelope(envelope_value)
-    _validate_preparation_inputs(envelope)
+    _validate_preparation_seed(envelope)
     api = Paperclip(
         {
             "api_origin": envelope["api_origin"],
@@ -1187,7 +1350,12 @@ def prepare(envelope_path: str) -> dict[str, Any]:
     require(type(plan_value) is dict, "preparation_delivery_plan_object_required")
     plan = _validate_delivery_plan(plan_value, envelope)
     prepared_slots = _preflight_preparation_graph(api, envelope, plan)
-    _validate_preparation_inputs(envelope)
+    predecessor = _resolve_preparation_predecessor(api, envelope, plan)
+    effective_envelope = dict(envelope)
+    effective_envelope["canonical"] = dict(envelope["canonical"])
+    if predecessor is not None:
+        effective_envelope["canonical"]["expected_tip"] = predecessor["expected_tip"]
+    _validate_preparation_inputs(effective_envelope)
     resource_receipt = _resource_preflight(
         api, envelope.get("resource_policy"), "prepare", reserve_model_runs=8
     )
@@ -1250,7 +1418,7 @@ def prepare(envelope_path: str) -> dict[str, Any]:
                 "paths": task["paths"],
             },
             "canonical": {
-                **envelope["canonical"],
+                **effective_envelope["canonical"],
                 "candidate_ref": row["approved"]["candidate_ref"],
             },
             "qa_workspace": str(qa_path),
@@ -1262,7 +1430,9 @@ def prepare(envelope_path: str) -> dict[str, Any]:
         }
         if "resource_policy" in envelope:
             manifest["resource_policy"] = envelope["resource_policy"]
-        if row["plan"]["slot"] == 2:
+        if row["plan"]["slot"] == 1 and predecessor is not None:
+            manifest["predecessor"] = predecessor["binding"]
+        elif row["plan"]["slot"] == 2:
             prior_path, prior_manifest, prior_hash = manifests[0]
             manifest["predecessor"] = {
                 "manifest_path": str(prior_path),
@@ -1291,7 +1461,8 @@ def prepare(envelope_path: str) -> dict[str, Any]:
         "company_id": envelope["company_id"],
         "source_base_sha": envelope["source"]["base_sha"],
         "canonical_ref": envelope["canonical"]["ref"],
-        "canonical_expected_tip": envelope["canonical"]["expected_tip"],
+        "canonical_expected_tip": effective_envelope["canonical"]["expected_tip"],
+        **({"predecessor": predecessor["binding"]} if predecessor is not None else {}),
         "slots": [
             {
                 "slot": row["plan"]["slot"],

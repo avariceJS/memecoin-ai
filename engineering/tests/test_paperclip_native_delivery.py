@@ -1724,6 +1724,177 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(manifest["role_models"], {"developer": "gpt-6-luna", "qa": "gpt-6.1-sol"})
         self.assertEqual(git(Path(manifest["qa_workspace"]), "remote", "-v"), b"")
 
+    def test_prepare_freezes_resolved_predecessor_in_manifest_and_receipt(self) -> None:
+        initial_tip = self.envelope["canonical"]["expected_tip"]
+        git(
+            self.canonical,
+            "-c",
+            "user.name=fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "--quiet",
+            "--allow-empty",
+            "--no-gpg-sign",
+            "-m",
+            "predecessor publication",
+        )
+        resolved_tip = git(self.canonical, "rev-parse", "HEAD").decode().strip()
+        git(self.canonical, "update-ref", delivery.PUBLISH_REF, resolved_tip)
+        binding = {
+            "manifest_path": str((self.root / "prior" / "manifest.json").resolve()),
+            "manifest_sha256": "a" * 64,
+            "source_task_id": self.ids["source_task"],
+            "publish_task_id": self.ids["publish_task"],
+            "receipt_path": str((self.root / "prior" / "publication.json").resolve()),
+        }
+        self.envelope["predecessor_candidates"] = [
+            {
+                "preparation_receipt_path": str(self.root / "prior" / "prepare-receipt.json"),
+                "preparation_envelope_sha256": "b" * 64,
+                "slot": 1,
+            }
+        ]
+        self.envelope_path.write_bytes(delivery.json_bytes(self.envelope))
+        api = self.fake_api()
+        with (
+            patch.object(delivery, "Paperclip", return_value=api),
+            patch.object(
+                delivery,
+                "_resolve_preparation_predecessor",
+                return_value={"binding": binding, "expected_tip": resolved_tip},
+            ),
+        ):
+            result = delivery.prepare(str(self.envelope_path))
+        manifest, _ = delivery.load_manifest(str(self.output / "slot1" / "manifest.json"))
+        receipt = json.loads(Path(result["receipt"]).read_bytes())
+        self.assertEqual(manifest["canonical"]["expected_tip"], resolved_tip)
+        self.assertEqual(manifest["predecessor"], binding)
+        self.assertEqual(receipt["canonical_expected_tip"], resolved_tip)
+        self.assertEqual(receipt["predecessor"], binding)
+        self.assertEqual(initial_tip, binding and self.envelope["canonical"]["expected_tip"])
+
+    def test_preparation_envelope_bounds_and_deduplicates_predecessor_candidates(self) -> None:
+        candidate = {
+            "preparation_receipt_path": str(self.root / "prior" / "prepare-receipt.json"),
+            "preparation_envelope_sha256": "b" * 64,
+            "slot": 1,
+        }
+        value = {**self.envelope, "predecessor_candidates": [candidate]}
+        self.assertEqual(
+            delivery.validate_preparation_envelope(value)["predecessor_candidates"], [candidate]
+        )
+        for invalid in (
+            [],
+            [candidate, candidate],
+            [candidate] * 5,
+            [{**candidate, "slot": True}],
+            [{**candidate, "extra": "dynamic policy"}],
+        ):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(delivery.DeliveryError):
+                    delivery.validate_preparation_envelope(
+                        {**self.envelope, "predecessor_candidates": invalid}
+                    )
+
+    def test_preparation_predecessor_selects_only_unique_current_publication(self) -> None:
+        bindings = []
+        for number in (1, 2):
+            prior_dir = self.root / f"prior-{number}"
+            prior_dir.mkdir(mode=0o700)
+            custody = prior_dir / "custody"
+            custody.mkdir(mode=0o700)
+            manifest_path = prior_dir / "manifest.json"
+            preparation_receipt_path = prior_dir / "prepare-receipt.json"
+            prior_receipt = {
+                "schema": delivery.PREPARATION_RECEIPT_SCHEMA,
+                "envelope_sha256": str(number) * 64,
+                "company_id": self.ids["company"],
+                "source_base_sha": self.base,
+                "canonical_ref": delivery.PUBLISH_REF,
+                "canonical_expected_tip": self.envelope["canonical"]["expected_tip"],
+                "slots": [
+                    {
+                        "slot": 1,
+                        "source_task_id": self.ids["source_task"],
+                        "publish_task_id": self.ids["publish_task"],
+                        "manifest_path": str(manifest_path),
+                        "manifest_sha256": str(number + 2) * 64,
+                    }
+                ],
+            }
+            delivery.save_record(preparation_receipt_path, prior_receipt)
+            bindings.append(
+                {
+                    "preparation_receipt_path": str(preparation_receipt_path),
+                    "preparation_envelope_sha256": prior_receipt["envelope_sha256"],
+                    "slot": 1,
+                }
+            )
+        parent = {
+            "custody_dir": str(self.root / "unused-custody"),
+            "canonical": {
+                "repo": self.envelope["canonical"]["repo"],
+                "ref": delivery.PUBLISH_REF,
+                "expected_tip": self.envelope["canonical"]["expected_tip"],
+                "remote_name": "origin",
+                "remote_url": "https://github.com/brain/example.git",
+                "candidate_ref": "refs/heads/brain/previous",
+            },
+            "developer": {"task_id": self.ids["source_task"]},
+            "publish": {"task_id": self.ids["publish_task"]},
+        }
+        hashes = {"1": "3" * 64, "2": "4" * 64}
+
+        def load(filename):
+            return parent, hashes[Path(filename).parent.name[-1]]
+
+        def predecessor(m, _manifest_hash, _api):
+            if m["predecessor"]["manifest_sha256"] == hashes["1"]:
+                raise delivery.DeliveryError("predecessor_remote_head_unexpected")
+            return "c" * 40
+
+        plan = [
+            {
+                "source_task_id": self.ids["source_task"],
+                "paths": self.envelope["slots"][0]["paths"],
+            }
+        ]
+        with (
+            patch.object(delivery, "load_manifest", side_effect=load),
+            patch.object(delivery, "predecessor_expected_tip", side_effect=predecessor) as verify,
+        ):
+            selected = delivery._resolve_preparation_predecessor(
+                self.fake_api(), {**self.envelope, "predecessor_candidates": bindings}, plan
+            )
+        self.assertEqual(selected["expected_tip"], "c" * 40)
+        self.assertEqual(selected["binding"]["manifest_sha256"], hashes["2"])
+        self.assertEqual(verify.call_count, 2)
+        with (
+            patch.object(delivery, "load_manifest", side_effect=load),
+            patch.object(
+                delivery,
+                "predecessor_expected_tip",
+                side_effect=delivery.DeliveryError("predecessor_remote_head_unexpected"),
+            ),
+        ):
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "preparation_predecessor_not_unique"
+            ):
+                delivery._resolve_preparation_predecessor(
+                    self.fake_api(), {**self.envelope, "predecessor_candidates": bindings}, plan
+                )
+        with (
+            patch.object(delivery, "load_manifest", side_effect=load),
+            patch.object(delivery, "predecessor_expected_tip", return_value="c" * 40),
+        ):
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "preparation_predecessor_not_unique"
+            ):
+                delivery._resolve_preparation_predecessor(
+                    self.fake_api(), {**self.envelope, "predecessor_candidates": bindings}, plan
+                )
+
     def test_prepare_graph_binding_mismatch_fails_before_output_writes(self) -> None:
         api = self.fake_api(bad_qa_selection=True)
         with patch.object(delivery, "Paperclip", return_value=api):
