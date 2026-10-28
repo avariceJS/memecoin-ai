@@ -58,6 +58,21 @@ and the stop receipt under `state/unified-final-20261028`. Their absence means a
 The finalizer does not overwrite this public desk. Post-session functional acceptance remains unproven
 until the actual root-final boundary and native evidence are evaluated together.
 
+### Assisted recovery of MEM-193
+
+On 2026-10-28 the founder requested a narrow correction after MEM-193 blocked. Installed Paperclip
+`projects.ts:1138` makes the first workspace primary; its update path also restores a primary when
+none remains. Our eight separate QA-project templates incorrectly required `isPrimary=false`.
+Only that field was changed to true, including the private preparation generator. The existing
+Senses QA workspace matched its dedicated project, exact QA path and source ref; the other seven
+QA projects were empty and their templates received the same correction. Source/QA project and
+path separation remains unchanged. No Paperclip code, envelope or acceptance gate changed.
+The existing task is resumed from saved state, preserving its rejection/blocker evidence.
+This is an interactive intervention after the original root-final boundary: the campaign is assisted.
+Final Sol QA and Astra task instructions explicitly require reporting it. Private exact before/after
+hashes and API readback: `state/unified-final-20261028/primary-workspace-correction/receipt.json`.
+Actual QA execution remains for native evidence to establish; configuration alone is not execution.
+
 ## Final functional acceptance — 2026-10-27
 
 **Qualified delivery; full unassisted organization acceptance remains incomplete.** The finite founder

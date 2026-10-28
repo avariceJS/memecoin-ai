@@ -14,3 +14,7 @@
 - Private authoritative admission/readback and future conclusion:
   `/Users/root1/Developer/brain-paperclip-lab/state/unified-final-20261028`.
   See `docs/engineering-organization.md` and `engineering/OWNER-DESK.md`; do not replay setup/dispatch.
+
+- MEM-193 recovery: owner corrected only eight QA-template primary flags to match installed API.
+  Separate Senses QA project/path/ref verified; seven other projects empty. Existing task resumes.
+  Post-root-final intervention recorded in final QA/Astra instructions: campaign is assisted.
