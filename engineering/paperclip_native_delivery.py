@@ -1243,7 +1243,14 @@ def _resolve_preparation_predecessor(
         receipt_path = Path(candidate_binding["preparation_receipt_path"])
         try:
             receipt_info = receipt_path.lstat()
-            receipt_parent = receipt_path.parent.lstat()
+            receipt_parent = safe_dir(
+                str(receipt_path.parent), "preparation_predecessor_receipt_parent", private=True
+            )
+            receipt_parent_info = receipt_parent.lstat()
+        except FileNotFoundError:
+            # An unselected programme may not have been prepared. Missing options are not
+            # publication evidence; selection below still requires one exact verified match.
+            continue
         except OSError as exc:
             raise DeliveryError("preparation_predecessor_receipt_missing") from exc
         require(
@@ -1252,9 +1259,9 @@ def _resolve_preparation_predecessor(
             and receipt_info.st_uid == os.getuid()
             and not stat.S_IMODE(receipt_info.st_mode) & 0o077
             and not stat.S_IMODE(receipt_info.st_mode) & 0o222
-            and stat.S_ISDIR(receipt_parent.st_mode)
-            and receipt_parent.st_uid == os.getuid()
-            and not stat.S_IMODE(receipt_parent.st_mode) & 0o077,
+            and stat.S_ISDIR(receipt_parent_info.st_mode)
+            and receipt_parent_info.st_uid == os.getuid()
+            and not stat.S_IMODE(receipt_parent_info.st_mode) & 0o077,
             "preparation_predecessor_receipt_not_private",
         )
         try:
