@@ -274,7 +274,7 @@ def test_renewal_rejects_unbound_or_expanded_authority(
         guard.load_policy_reference(reference, COMPANY)
 
 
-def test_renewed_policy_run_accounting_requires_and_uses_verified_creation_time(
+def test_renewed_policy_run_accounting_excludes_only_verified_pre_renewal_completion(
     tmp_path: Path, monkeypatch
 ):
     tmp_path.chmod(0o700)
@@ -299,6 +299,9 @@ def test_renewed_policy_run_accounting_requires_and_uses_verified_creation_time(
     effective, _ = guard.load_policy_reference(reference, COMPANY)
     old_run = "40000000-0000-4000-8000-000000000021"
     new_run = "40000000-0000-4000-8000-000000000022"
+    overlapping_run = "40000000-0000-4000-8000-000000000024"
+    unknown_status_run = "40000000-0000-4000-8000-000000000025"
+    missing_end_run = "40000000-0000-4000-8000-000000000026"
 
     class API:
         def request(self, method: str, route: str):
@@ -306,13 +309,31 @@ def test_renewed_policy_run_accounting_requires_and_uses_verified_creation_time(
             if route.startswith("/companies/"):
                 return [{"id": ROOT, "companyId": COMPANY, "parentId": None}]
             if route == f"/issues/{ROOT}/runs":
-                return [{"runId": old_run}, {"runId": new_run}]
+                return [
+                    {"runId": old_run},
+                    {"runId": new_run},
+                    {"runId": overlapping_run},
+                    {"runId": unknown_status_run},
+                    {"runId": missing_end_run},
+                ]
             run_id = route.rsplit("/", 1)[-1]
-            created_at = "2026-10-28T16:59:59Z" if run_id == old_run else "2026-10-28T17:00:00Z"
-            return {
+            finished_at = {
+                old_run: "2026-10-28T16:59:59Z",
+                new_run: "2026-10-28T17:00:00Z",
+                unknown_status_run: "2026-10-28T16:59:59Z",
+            }.get(run_id)
+            status = {
+                old_run: "failed",
+                new_run: "failed",
+                overlapping_run: "running",
+                unknown_status_run: "unrecognized",
+                missing_end_run: "failed",
+            }[run_id]
+            native = {
                 "id": run_id,
-                "createdAt": created_at,
+                "createdAt": "2026-10-28T16:00:00Z",
                 "runtimeMode": "native",
+                "status": status,
                 "companyId": COMPANY,
                 "issueId": ROOT,
                 "nativeIssueId": ROOT,
@@ -321,8 +342,16 @@ def test_renewed_policy_run_accounting_requires_and_uses_verified_creation_time(
                 "runnerProfileJson": {"nativeExecutionInput": {"provider": {"kind": "codex"}}},
                 "usageJson": {"billingType": "subscription"},
             }
+            if finished_at is not None:
+                native["finishedAt"] = finished_at
+            return native
 
-    assert guard.campaign_model_run_ids(API(), COMPANY, effective) == [new_run]
+    assert guard.campaign_model_run_ids(API(), COMPANY, effective) == [
+        new_run,
+        overlapping_run,
+        unknown_status_run,
+        missing_end_run,
+    ]
 
 
 def test_renewed_policy_refuses_run_without_verified_creation_time(tmp_path: Path, monkeypatch):
@@ -365,8 +394,7 @@ def test_renewed_policy_refuses_run_without_verified_creation_time(tmp_path: Pat
                 "usageJson": {"billingType": "subscription"},
             }
 
-    with pytest.raises(guard.ResourceGuardError, match="resource_run_created_at_invalid"):
-        guard.campaign_model_run_ids(API(), COMPANY, effective)
+    assert guard.campaign_model_run_ids(API(), COMPANY, effective) == [RUN]
 
 
 def test_scope_counts_only_unique_native_codex_runs_in_root_descendants():
