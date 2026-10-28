@@ -18,3 +18,10 @@
 - MEM-193 recovery: owner corrected only eight QA-template primary flags to match installed API.
   Separate Senses QA project/path/ref verified; seven other projects empty. Existing task resumes.
   Post-root-final intervention recorded in final QA/Astra instructions: campaign is assisted.
+
+- Founder expanded ordinary development maintenance authority. MEM197 seed bug fixed9cc4866; original
+  no-effect failure reconciled, same native task DONE; Experience/Luna MEM225 resumed.
+- Prepare failure handoff8814696 independently accepted;42tests/59subtests.
+- Six leads/Astra managed authority updated; nativePlatform MEM229 owns real Luna/QA/process rollout
+  of task-specific maintenance routes. Final evidence depends on it. Company remains active, bounded.
+  Actual full self-maintenance remains pending native evidence; owner interventions stay assisted.

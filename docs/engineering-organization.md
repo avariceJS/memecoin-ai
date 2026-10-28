@@ -73,6 +73,51 @@ Final Sol QA and Astra task instructions explicitly require reporting it. Privat
 hashes and API readback: `state/unified-final-20261028/primary-workspace-correction/receipt.json`.
 Actual QA execution remains for native evidence to establish; configuration alone is not execution.
 
+### Founder-authorized engineering maintenance — 2026-10-28
+
+The founder expanded ordinary development authority to maintaining the engineering organization itself.
+Department leads and episodic Astra may create and delegate native maintenance tasks; Platform owns
+repair through independent acceptance and return to the original task. Luna implements in an isolated
+organization-source workspace. Ordinary script/template/instruction/configuration/workflow repairs
+need no new founder decision. Independent admitted work continues while one path is blocked.
+This supersedes the earlier frozen-portfolio no-maintenance/mandatory-stop instructions within this
+scope, not the finite campaign deadline/budget or protected boundaries.
+
+Use existing native tasks, dependencies, comments, agent-owned unblock descriptors and bounded monitors.
+No scheduler or self-healing daemon is introduced. An unchanged failing hypothesis gets at most two
+attempts; repeated failure requires new evidence or an architectural alternative from Platform/Astra.
+Preserve unknown effects and genuine human-only holds. Main, production, protected data, model training,
+AUTO, trading, paid APIs and provider/security/permission boundary changes remain excluded.
+
+Implementation and application are separate. Independent Sol reviews exact candidate bytes and the
+one-shot application script, base, allowed paths, intended API mutations and rollback evidence. The
+existing process employee executes only that accepted invocation, verifies attestation/hashes/current
+state, and uses `paperclip_canonical_publish.prepare/inspect/reconcile` for scoped org/development
+changes. Explicit process `agents:configure` grants support reviewed managed-instruction deployment;
+legacy boolean permission fields alone do not describe effective grants. Models receive no Board key.
+Native Retry is Board-only in installed Paperclip; exact known-effect reconciliation may use the
+reviewed trusted process, never a generic model-accessible Board relay. Existing holds are not bypassed.
+
+MEM-197 failed before API construction or writes because the frozen seed contained Paperclip's
+untracked `.paperclip/worktrees/MEM-221...` runtime worktree. Source `9cc4866` preserves pinned HEAD,
+clean tracked files, no remotes and rejection of all other untracked files. Independent Sol accepted
+it; owner recorded `not_performed` for the original failed run and restored the same task through
+native recovery. MEM-197 then completed and the Experience lead admitted MEM-225. No task was replaced.
+Source `8814696` additionally sends an idempotent prepare-DeliveryError notification to the pinned
+planning lead after validating the exact active run, including the pre-checkout window. Invalid
+bindings cannot emit a wake. A resumed completed planner must repair/reuse its graph, not recreate it.
+Focused checks passed 42 tests/59 subtests; original review rejection and corrected review are retained.
+Raw filesystem exceptions are not covered by that notification; stage/publish supervision remains with
+existing manager monitors. No arbitrary-crash or multiweek resilience claim follows from these checks.
+
+Native MEM-229 owns the actual instruction/task rollout through Platform, Luna, independent Sol and
+trusted process in a dedicated maintenance project. Its parent is inside campaign accounting, and final
+evidence waits for its completion. Initial managed maintenance authority is installed for six leads
+and Astra. Configured authority is not full observed self-maintenance: actual native task/run/QA/apply
+records determine that conclusion. This owner intervention and earlier repairs remain assisted in
+final Sol QA and Astra instructions. Private receipts: `state/unified-final-20261028/mem197-repair.json`,
+`mem197-independent-review.json`, and `maintenance/setup.json`.
+
 ## Final functional acceptance — 2026-10-27
 
 **Qualified delivery; full unassisted organization acceptance remains incomplete.** The finite founder
