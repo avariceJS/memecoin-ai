@@ -1,13 +1,16 @@
-# Current state — 2026-10-28, unified programme preparation
+# Current state — 2026-10-28, unified programme handoff
 
-- Founder explicitly authorized one finite unified productive campaign in `prompt/prompt.md`.
-- Native company remains Board-paused; no new employee runs launched. Historical holds preserved.
-- Brain `54fb180`, main `2f8da5f` unchanged and verified locally/remotely at entry.
-- Org source `1057413` independently accepted: rejected QA history, bounded predecessor chaining,
-  resource checkpoints, absent-branch selection and up to three owner-pinned QA corrections. Combined 50 tests/59 subtests and scoped Ruff/format passed; synthetic
-  three-programme delivery verified. Native installed behavior and company completion remain unproven.
-- Proposed six-department portfolio: eight candidates, at most six deliveries; native Astra chooses
-  the middle programme. One-time setup and final evidence/stop helper remain under review, not applied.
-- Private state: `/Users/root1/Developer/brain-paperclip-lab/state/unified-final-20261028`.
-  Canonical source: `docs/engineering-organization.md` latest section. Existing private HANDOFF retains
-  historical accepted publications, pauses and unknown outcomes. No blanket replay or new Goal.
+- Founder authorized one finite productive campaign in `prompt/prompt.md`; protected boundaries remain.
+- Org source `1057413` independently accepted: QA history, exact predecessor chaining, resource checkpoints,
+  absent-branch selection and up to three corrections. Combined 50 tests/59 subtests; scoped Ruff passed.
+- One-time setup independently accepted and applied: six Sol High department leads, forty preserved Luna
+  developer profiles, 37 inert native tasks, 14 projects, exact subscription bindings and healthy chains.
+- Company resumed for handoff; selected QA operational pause removed, historical issue holds preserved.
+  MEM-193 is ready for the single initial admission. No employee run observed at readiness readback.
+- Finite bounds: at most six outcomes, 80 model runs, eight reserved closing runs, deadline 19:35:59Z.
+  Process checkpoints require 15% quota remaining; whole-account latest 73%, not campaign attribution.
+- Root exits after initial dispatch; native leads/Astra/final QA/stop own continuation. No root observer.
+  Functional acceptance pending. Brain `54fb180` and main `2f8da5f` remotely verified before admission.
+- Private authoritative admission/readback and future conclusion:
+  `/Users/root1/Developer/brain-paperclip-lab/state/unified-final-20261028`.
+  See `docs/engineering-organization.md` and `engineering/OWNER-DESK.md`; do not replay setup/dispatch.

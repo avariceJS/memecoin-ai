@@ -6,7 +6,8 @@ The founder directive in `prompt/prompt.md` explicitly authorizes one finite pro
 ordinary engineering preparation, native execution, independent QA and controlled development
 publication. It does not authorize main, production, protected data, market collection, training,
 AUTO, trading or paid APIs. The historical completed-programme stop below is superseded only within
-this new scope. Native admission is still being prepared; no employee run has been launched.
+this new scope. Setup is applied and independently reviewed. The company is active for the finite handoff; the initial
+Senses planning task MEM-193 is ready for its single admission. No employee run has yet been launched.
 
 Source checkpoint `88156c8` combines three reviewed changes in the existing delivery path: QA-local
 full rejected-candidate history before correction, exact published-predecessor binding for sequential
@@ -23,7 +24,8 @@ delivery remains supported; external programme predecessors currently admit slot
 
 The prepared product proposal covers Senses, Experience, Cortex, Evaluation, Policy and Platform:
 eight candidate outcomes, six delivered at most, with episodic native Astra choosing one of two middle
-programmes. A one-time setup script is still undergoing validation. No new scheduler, controller,
+programmes. The reviewed one-time setup created six Sol High department leads, retained all forty Luna developer
+profiles, bound six reporting lines, and created 37 backlog/blocked issues across 14 planned projects. No new scheduler, controller,
 background observer or replacement task system is admitted. Historical holds and all forty developer
 profiles remain intact. The proposed 80-run/eight-hour envelope includes eight reserved closing runs;
 15% subscription headroom is checked at process boundaries. These are checkpoint observations, not
@@ -34,6 +36,27 @@ Private evidence: `brain-paperclip-lab/state/unified-final-20261028/combined-rev
 Original source rejections and corrected reviews remain preserved beside it. The final campaign
 acceptance must use primary native events, exact QA/publication records and the actual root-session
 final boundary; queued work or source tests cannot substitute for post-session execution.
+
+Setup and finalizer reviews are private `setup-continuation-review.json` and `finalizer-review.json`.
+Setup readback preserved historical issue holds and observed zero live runs before initial admission.
+Native lifecycle completed normally after company resume; only the selected second QA profile had its
+operational manual pause removed. Other historical manual pauses remain. The exact admission receipt
+is private `admission-journal.json`; it is authoritative for the initial dispatch result.
+
+Two setup failures were reconciled before continuing: permission readback included a derived grant
+timestamp, and agent GET redacted empty authentication env values. Read projections are not write
+payloads. New leads omit the two API-key env entries and retain the explicit delegated subscription
+binding; installed Paperclip clears inherited auth before supplying that binding. Existing credentials
+were not read or changed. The acknowledged setup prefix was verified and not replayed.
+
+After initial admission the interactive CEO exits. Native task dependencies, lead monitors and Astra
+selection own continuation; no root observer remains. Final evidence feeds independent Sol QA, then
+native Astra writes the Russian conclusion. The one-shot stop saves that conclusion and checkpoint
+before requesting Board pause; its own terminal/zero-live outcome cannot be claimed from inside the
+stopping process. Durable private outputs are `campaign/final-evidence/`, `FOUNDER-CONCLUSION.md`
+and the stop receipt under `state/unified-final-20261028`. Their absence means acceptance is pending.
+The finalizer does not overwrite this public desk. Post-session functional acceptance remains unproven
+until the actual root-final boundary and native evidence are evaluated together.
 
 ## Final functional acceptance — 2026-10-27
 
