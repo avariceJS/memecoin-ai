@@ -16,6 +16,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import quote
 
 from engineering import paperclip_campaign_resource_guard as resource_guard
 from engineering import paperclip_canonical_publish as publisher
@@ -649,6 +650,118 @@ class Paperclip:
         if len(content) != row["byteSize"] or digest(content) != str(row.get("sha256", "")).lower():
             raise DeliveryError(f"{name}_hash_mismatch")
         return row, content
+
+    def qa_artifact(
+        self, task: dict[str, str], run: dict[str, Any], name: str, limit: int
+    ) -> tuple[dict[str, Any], bytes]:
+        """Read a QA report from its exact run-owned attachment or document revision."""
+        try:
+            meta, content = self.artifact(task, run, name, limit)
+        except DeliveryError as exc:
+            if str(exc) != f"{name}_missing":
+                raise
+        else:
+            return {**meta, "artifactType": "attachment"}, content
+
+        rows = self.request(
+            "GET", f"/issues/{task['task_id']}/documents?includeSystem=true"
+        )
+        if type(rows) is not list or any(type(row) is not dict for row in rows):
+            raise DeliveryError("qa_documents_response_invalid")
+        key_names = {name.lower(), Path(name).stem.lower()}
+        candidates: list[tuple[dict[str, Any], dict[str, Any]]] = []
+        for document in rows:
+            key = document.get("key")
+            title = document.get("title")
+            normalized_key = key.lower().replace("_", "-") if type(key) is str else ""
+            named_result = normalized_key in key_names or title == name
+            document_id = document.get("id")
+            if (
+                not UUID.fullmatch(str(document_id or ""))
+                or type(key) is not str
+                or document.get("companyId") != self.m["company_id"]
+                or document.get("issueId") != task["task_id"]
+            ):
+                raise DeliveryError("qa_document_metadata_invalid")
+            revisions = self.request(
+                "GET",
+                f"/issues/{task['task_id']}/documents/{quote(str(key), safe='')}/revisions",
+            )
+            if type(revisions) is not list or any(type(row) is not dict for row in revisions):
+                raise DeliveryError("qa_document_revisions_invalid")
+            matching = [
+                revision
+                for revision in revisions
+                if revision.get("documentId") == document_id
+                and revision.get("companyId") == self.m["company_id"]
+                and revision.get("issueId") == task["task_id"]
+                and revision.get("createdByAgentId") == task["agent_id"]
+                and revision.get("createdByRunId") == run["runId"]
+            ]
+            if matching:
+                if any(
+                    type(revision.get("revisionNumber")) is not int
+                    or revision["revisionNumber"] < 1
+                    or not UUID.fullmatch(str(revision.get("id") or ""))
+                    for revision in matching
+                ):
+                    raise DeliveryError("qa_document_revision_metadata_invalid")
+                latest_revision_number = max(
+                    revision.get("revisionNumber", -1) for revision in matching
+                )
+                latest = [
+                    revision
+                    for revision in matching
+                    if revision.get("revisionNumber") == latest_revision_number
+                ]
+                if len(latest) != 1:
+                    raise DeliveryError("qa_document_revision_ambiguous")
+                body = latest[0].get("body")
+                if type(body) is not str:
+                    if named_result:
+                        raise DeliveryError("qa_document_revision_metadata_invalid")
+                    continue
+                try:
+                    content = body.encode("utf-8")
+                except UnicodeEncodeError as exc:
+                    if named_result:
+                        raise DeliveryError("qa_document_body_invalid_utf8") from exc
+                    continue
+                try:
+                    report = json.loads(content)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    report = None
+                if named_result or (type(report) is dict and report.get("schema") == QA_SCHEMA):
+                    candidates.append((document, latest[0]))
+
+        if len(candidates) != 1:
+            raise DeliveryError(f"{name}_missing" if not candidates else f"{name}_ambiguous")
+        document, revision = candidates[0]
+        body = revision.get("body")
+        revision_id = revision.get("id")
+        if (
+            type(body) is not str
+            or not UUID.fullmatch(str(revision_id or ""))
+            or type(revision.get("revisionNumber")) is not int
+            or revision.get("revisionNumber") < 1
+        ):
+            raise DeliveryError("qa_document_revision_metadata_invalid")
+        try:
+            content = body.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise DeliveryError("qa_document_body_invalid_utf8") from exc
+        if not 0 < len(content) <= limit:
+            raise DeliveryError(f"{name}_metadata_invalid")
+        return {
+            "id": document["id"],
+            "revisionId": revision_id,
+            "revisionNumber": revision["revisionNumber"],
+            "createdByAgentId": task["agent_id"],
+            "originatingRunId": run["runId"],
+            "byteSize": len(content),
+            "sha256": digest(content),
+            "artifactType": "document_revision",
+        }, content
 
 
 def private_json_file(filename: str, name: str) -> tuple[dict[str, Any], str]:
@@ -1702,7 +1815,7 @@ def preserve_qa_predecessor(
     handoff: Path,
     prior: dict[str, Any],
     qa_run_id: str,
-    qa_attachment_id: str,
+    qa_artifact: dict[str, Any],
     qa_result: bytes,
 ) -> None:
     """Keep the rejected predecessor inside the QA clone before a correction replaces it."""
@@ -1759,8 +1872,15 @@ def preserve_qa_predecessor(
         "schema": "brain-native-qa-predecessor-history-v1",
         "revision": prior.get("revision"),
         "developer_run_id": prior.get("developer_run_id"),
+        "candidate_patch_sha256": prior.get("patch", {}).get("sha256"),
         "qa_run_id": qa_run_id,
-        "qa_attachment_id": qa_attachment_id,
+        "qa_artifact": {
+            "type": qa_artifact.get("artifactType", "attachment"),
+            "id": qa_artifact.get("id"),
+            "revision_id": qa_artifact.get("revisionId"),
+            "sha256": digest(qa_result),
+            "verdict": json.loads(qa_result).get("verdict"),
+        },
         "files": {name: digest(data) for name, data in sorted(staged.items())},
     }
     history_root = target(handoff, "history", create=True)
@@ -1998,7 +2118,9 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
             require(m.get("manager_task_id"), "manager_task_not_pinned")
         if prior is not None:
             prior_qa_run = latest_successful(api, qa)
-            prior_meta, prior_result = api.artifact(qa, prior_qa_run, "QA-RESULT.json", 256 * 1024)
+            prior_meta, prior_result = api.qa_artifact(
+                qa, prior_qa_run, "QA-RESULT.json", 256 * 1024
+            )
             verdict = validate_qa(
                 prior_result,
                 developer["task_id"],
@@ -2015,7 +2137,8 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
             prior_result_value = json.loads(prior_result)
             require(prior_result_value["findings"], "correction_rejection_findings_missing")
             require(
-                prior_meta.get("originatingRunId") == prior_qa_run["runId"],
+                prior_meta.get("originatingRunId") == prior_qa_run["runId"]
+                and prior_meta.get("createdByAgentId") == qa["agent_id"],
                 "correction_qa_binding_invalid",
             )
             for path in paths:
@@ -2044,7 +2167,7 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
                 prior_handoff,
                 prior,
                 prior_qa_run["runId"],
-                str(prior_meta["id"]),
+                prior_meta,
                 prior_result,
             )
         record = {
@@ -2475,7 +2598,12 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         or record.get("developer_run_id") != source_run["runId"]
     ):
         raise DeliveryError("stage_receipt_missing_or_stale")
-    qa_meta, qa_data = api.artifact(qa, qa_run, "QA-RESULT.json", 256 * 1024)
+    qa_meta, qa_data = api.qa_artifact(qa, qa_run, "QA-RESULT.json", 256 * 1024)
+    require(
+        qa_meta.get("originatingRunId") == qa_run["runId"]
+        and qa_meta.get("createdByAgentId") == qa["agent_id"],
+        "qa_artifact_binding_invalid",
+    )
     validate_qa(
         qa_data, dev["task_id"], record["patch"]["sha256"], record["files"], record["paths"]
     )
@@ -2500,7 +2628,6 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         "source_run_id": source_run["runId"],
         "qa_task_id": qa["task_id"],
         "qa_run_id": qa_run["runId"],
-        "qa_attachment_id": qa_meta["id"],
         "qa_sha256": digest(qa_data),
         "source_patch_sha256": record["patch"]["sha256"],
         "files": {p: record["files"][p]["sha256"] for p in record["paths"]},
@@ -2508,6 +2635,11 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         "canonical_ref": c["ref"],
         "candidate_ref": c["candidate_ref"],
     }
+    if qa_meta.get("artifactType") == "document_revision":
+        op["qa_document_id"] = qa_meta["id"]
+        op["qa_document_revision_id"] = qa_meta["revisionId"]
+    else:
+        op["qa_attachment_id"] = qa_meta["id"]
     # Quota is checked before publisher.prepare writes Git objects, reconcile advances the local
     # canonical ref, or either remote ref is pushed. Each attempt gets a distinct immutable receipt.
     resource_receipt = _resource_preflight(
