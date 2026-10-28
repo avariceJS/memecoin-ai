@@ -11,6 +11,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path, PurePosixPath
@@ -637,7 +638,7 @@ def _resource_preflight(
         if receipt_directory is None:
             receipt_directory = Path(reference["path"]).parent
         safe_dir(str(receipt_directory), "resource_receipt_directory", private=True)
-        receipt_path = receipt_directory / f"resource-{phase}-{api.run_id}.json"
+        receipt_path = receipt_directory / f"resource-{phase}-{api.run_id}-{time.time_ns()}.json"
         resource_guard.preflight(policy, api.m["company_id"], phase, runs, receipt_path)
         return receipt_path
     except resource_guard.ResourceGuardError as exc:
@@ -2156,6 +2157,11 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         "canonical_ref": c["ref"],
         "candidate_ref": c["candidate_ref"],
     }
+    # Quota is checked before publisher.prepare writes Git objects, reconcile advances the local
+    # canonical ref, or either remote ref is pushed. Each attempt gets a distinct immutable receipt.
+    resource_receipt = _resource_preflight(
+        api, m.get("resource_policy"), "publish", Path(m["custody_dir"])
+    )
     receipt_file = Path(m["custody_dir"]) / f"publication-{dev['task_id']}.json"
     if receipt_file.exists():
         saved = json.loads(receipt_file.read_bytes())
@@ -2193,9 +2199,6 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     refs = remote_refs(m)
     if refs.get(c["candidate_ref"]) != candidate or refs.get(c["ref"]) not in {expected, candidate}:
         raise DeliveryError("candidate_remote_readback_failed")
-    resource_receipt = _resource_preflight(
-        api, m.get("resource_policy"), "publish", Path(m["custody_dir"])
-    )
     if refs.get(c["ref"]) == expected:
         push_ref(m, candidate, c["ref"])
     refs = remote_refs(m)

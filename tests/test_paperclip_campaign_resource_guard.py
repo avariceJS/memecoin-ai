@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from engineering import paperclip_campaign_resource_guard as guard
+from engineering import paperclip_native_delivery as delivery
 
 COMPANY = "10000000-0000-4000-8000-000000000001"
 CONNECTION = "20000000-0000-4000-8000-000000000002"
@@ -203,3 +204,92 @@ def test_board_usage_request_has_no_bearer_credential(monkeypatch):
     assert captured["timeout"] == 5
     assert captured["request"].full_url.startswith(guard.BOARD_ORIGIN)
     assert captured["request"].get_header("Authorization") is None
+
+
+def test_publish_quota_failure_precedes_candidate_creation_and_all_publication_mutations(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    custody = tmp_path / "custody"
+    custody.mkdir(mode=0o700)
+    source_id = "60000000-0000-4000-8000-000000000009"
+    qa_id = "60000000-0000-4000-8000-000000000010"
+    publish_id = "60000000-0000-4000-8000-000000000011"
+    source_agent = "50000000-0000-4000-8000-000000000012"
+    qa_agent = "50000000-0000-4000-8000-000000000013"
+    source_run = {"runId": "70000000-0000-4000-8000-000000000014", "agentId": source_agent}
+    qa_run = {"runId": "70000000-0000-4000-8000-000000000015", "agentId": qa_agent}
+    stage = custody / "stage.json"
+    stage.write_text(
+        json.dumps(
+            {
+                "schema": delivery.STAGE_SCHEMA,
+                "manifest_sha256": "a" * 64,
+                "developer_run_id": source_run["runId"],
+                "patch": {"sha256": "b" * 64},
+                "files": {"src/out.py": {"sha256": guard._sha(b"candidate")}},
+                "paths": ["src/out.py"],
+            }
+        )
+    )
+    native_files = custody / f"native-handoff-{source_id}-{source_run['runId']}" / "files"
+    native_files.mkdir(parents=True, mode=0o700)
+    (native_files / "src").mkdir(mode=0o700)
+    (native_files / "src" / "out.py").write_bytes(b"candidate")
+    m = {
+        "company_id": COMPANY,
+        "api_origin": "http://127.0.0.1:3310",
+        "manager_task_id": ROOT,
+        "resource_policy": {"path": str(tmp_path / "policy.json"), "sha256": "d" * 64},
+        "developer": {"task_id": source_id, "agent_id": source_agent},
+        "qa": {"task_id": qa_id, "agent_id": qa_agent},
+        "publish": {"task_id": publish_id, "agent_id": "50000000-0000-4000-8000-000000000016"},
+        "custody_dir": str(custody),
+        "canonical": {
+            "repo": str(tmp_path / "repo"),
+            "ref": "refs/heads/brain/development",
+            "expected_tip": "e" * 40,
+            "candidate_ref": "refs/heads/candidate",
+        },
+    }
+
+    class API:
+        def __init__(self, _manifest):
+            self.m = m
+
+        def current(self, action):
+            assert action == "publish"
+            return publish_id
+
+        def artifact(self, _task, _run, _name, _limit):
+            return {"id": "80000000-0000-4000-8000-000000000017"}, b"{}"
+
+    monkeypatch.setattr(delivery, "Paperclip", API)
+    monkeypatch.setattr(
+        delivery,
+        "latest_successful",
+        lambda _api, task: source_run if task["task_id"] == source_id else qa_run,
+    )
+    monkeypatch.setattr(delivery, "stage_path", lambda *_args: stage)
+    monkeypatch.setattr(delivery, "target", lambda root, name: Path(root) / name)
+    monkeypatch.setattr(delivery, "validate_qa", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(delivery, "predecessor_expected_tip", lambda *_args: None)
+    monkeypatch.setattr(delivery.publisher, "_git", lambda *_args, **_kwargs: b"f" * 40)
+    mutations = []
+    monkeypatch.setattr(
+        delivery.publisher, "prepare", lambda *_args, **_kwargs: mutations.append("prepare")
+    )
+    monkeypatch.setattr(
+        delivery.publisher, "reconcile", lambda *_args, **_kwargs: mutations.append("reconcile")
+    )
+    monkeypatch.setattr(delivery, "push_ref", lambda *_args, **_kwargs: mutations.append("push"))
+
+    def fail_gate(*_args, **_kwargs):
+        mutations.append("quota")
+        raise delivery.DeliveryError("resource_headroom_insufficient")
+
+    monkeypatch.setattr(delivery, "_resource_preflight", fail_gate)
+    with pytest.raises(delivery.DeliveryError, match="resource_headroom_insufficient"):
+        delivery.publish(m, "a" * 64)
+    assert mutations == ["quota"]
+    assert not list(custody.glob("publication-*.json"))
