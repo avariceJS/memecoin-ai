@@ -2079,6 +2079,15 @@ class PreparationTests(unittest.TestCase):
                     "slot": 1,
                 }
             )
+        bindings.append(
+            {
+                "preparation_receipt_path": str(
+                    self.root / "not-yet-prepared" / "prepare-receipt.json"
+                ),
+                "preparation_envelope_sha256": "5" * 64,
+                "slot": 1,
+            }
+        )
         parent = {
             "custody_dir": str(self.root / "unused-custody"),
             "canonical": {
@@ -2143,6 +2152,82 @@ class PreparationTests(unittest.TestCase):
                 delivery._resolve_preparation_predecessor(
                     self.fake_api(), {**self.envelope, "predecessor_candidates": bindings}, plan
                 )
+
+    def test_preparation_predecessor_missing_options_are_skipped_but_not_selected(self) -> None:
+        binding = {
+            "preparation_receipt_path": str(self.root / "not-prepared" / "prepare-receipt.json"),
+            "preparation_envelope_sha256": "6" * 64,
+            "slot": 1,
+        }
+        envelope = {**self.envelope, "predecessor_candidates": [binding]}
+        plan = [
+            {
+                "source_task_id": self.ids["source_task"],
+                "paths": self.envelope["slots"][0]["paths"],
+            }
+        ]
+        with self.assertRaisesRegex(delivery.DeliveryError, "preparation_predecessor_not_unique"):
+            delivery._resolve_preparation_predecessor(self.fake_api(), envelope, plan)
+
+    def test_preparation_predecessor_corrupt_or_symlink_receipt_fails_closed(self) -> None:
+        prior = self.root / "bad-prior"
+        prior.mkdir(mode=0o700)
+        corrupt_path = prior / "corrupt.json"
+        corrupt_path.write_bytes(b"not-json\n")
+        corrupt_path.chmod(0o400)
+        link_path = prior / "linked.json"
+        link_path.symlink_to(corrupt_path)
+        plan = [
+            {
+                "source_task_id": self.ids["source_task"],
+                "paths": self.envelope["slots"][0]["paths"],
+            }
+        ]
+        for filename, reason in (
+            (corrupt_path, "preparation_predecessor_receipt_invalid"),
+            (link_path, "preparation_predecessor_receipt_not_private"),
+        ):
+            envelope = {
+                **self.envelope,
+                "predecessor_candidates": [
+                    {
+                        "preparation_receipt_path": str(filename),
+                        "preparation_envelope_sha256": "7" * 64,
+                        "slot": 1,
+                    }
+                ],
+            }
+            with (
+                self.subTest(path=filename),
+                self.assertRaisesRegex(delivery.DeliveryError, reason),
+            ):
+                delivery._resolve_preparation_predecessor(self.fake_api(), envelope, plan)
+        denied_path = prior / "denied.json"
+        delivery.save_record(denied_path, {"placeholder": "must not be read"})
+        denied_envelope = {
+            **self.envelope,
+            "predecessor_candidates": [
+                {
+                    "preparation_receipt_path": str(denied_path),
+                    "preparation_envelope_sha256": "8" * 64,
+                    "slot": 1,
+                }
+            ],
+        }
+        original_lstat = Path.lstat
+
+        def permission_denied(path):
+            if path == denied_path:
+                raise PermissionError("read denied")
+            return original_lstat(path)
+
+        with (
+            patch.object(Path, "lstat", permission_denied),
+            self.assertRaisesRegex(
+                delivery.DeliveryError, "preparation_predecessor_receipt_missing"
+            ),
+        ):
+            delivery._resolve_preparation_predecessor(self.fake_api(), denied_envelope, plan)
 
     def test_prepare_graph_binding_mismatch_fails_before_output_writes(self) -> None:
         api = self.fake_api(bad_qa_selection=True)
