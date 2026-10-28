@@ -1988,6 +1988,62 @@ class PreparationTests(unittest.TestCase):
 
         return FakeApi()
 
+    def test_read_only_current_accepts_heartbeat_binding_without_checkout_and_rejects_foreign(self):
+        company_id = self.ids["company"]
+        task_id = self.ids["prepare"]
+        agent_id = self.ids["prepare_agent"]
+        run_id = self.ids["run"]
+
+        def make_api(checkout_run_id: str | None):
+            api = delivery.Paperclip.__new__(delivery.Paperclip)
+            api.m = {
+                "company_id": company_id,
+                "prepare": {"task_id": task_id, "agent_id": agent_id},
+            }
+            api.agent_id = agent_id
+            api.run_id = run_id
+            requests = []
+
+            def request(method: str, route: str, body: Any = None) -> Any:
+                requests.append((method, route, body))
+                if method != "GET":
+                    raise AssertionError((method, route, body))
+                if route == "/agents/me":
+                    return {"id": agent_id, "companyId": company_id}
+                if route == f"/heartbeat-runs/{run_id}":
+                    return {
+                        "id": run_id,
+                        "agentId": agent_id,
+                        "companyId": company_id,
+                        "runtimeMode": "legacy",
+                        "status": "running",
+                        "contextSnapshot": {"issueId": task_id},
+                    }
+                if route == f"/issues/{task_id}":
+                    return {
+                        "id": task_id,
+                        "companyId": company_id,
+                        "assigneeAgentId": agent_id,
+                        "status": "todo",
+                        "executionRunId": run_id,
+                        "checkoutRunId": checkout_run_id,
+                    }
+                if route == f"/issues/{task_id}/interactions":
+                    return []
+                raise AssertionError(route)
+
+            return api, requests, request
+
+        api, requests, request = make_api(None)
+        with patch.object(api, "request", side_effect=request):
+            self.assertEqual(api.current("prepare", checkout_if_missing=False), task_id)
+        self.assertTrue(all(method == "GET" for method, _route, _body in requests))
+
+        foreign_api, _requests, foreign_request = make_api("00000000-0000-4000-8000-000000009999")
+        with patch.object(foreign_api, "request", side_effect=foreign_request):
+            with self.assertRaisesRegex(delivery.DeliveryError, "current_task_execution_invalid"):
+                foreign_api.current("prepare", checkout_if_missing=False)
+
     def test_prepare_clones_qa_and_writes_bound_manifest_and_receipt(self) -> None:
         api = self.fake_api()
         with patch.object(delivery, "Paperclip", return_value=api):
