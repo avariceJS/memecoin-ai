@@ -433,6 +433,58 @@ def test_scope_counts_only_unique_native_codex_runs_in_root_descendants():
     assert guard.campaign_model_run_ids(API(), COMPANY, policy()) == [RUN]
 
 
+def test_unknown_native_run_billing_is_conservatively_reserved():
+    company_id = "be0053ed-cb7c-4320-b9db-cef012a91d62"
+    issue_id = "c9a3e4b0-b83e-4e87-bc75-f5b23bace17e"
+    run_id = "b61e0f27-cfa8-49c1-b0d8-925bbff176c3"
+    agent_id = "2713ebb5-ba60-4720-8085-02b465094abf"
+    native = {
+        "id": run_id,
+        "runtimeMode": "native",
+        "status": "running",
+        "companyId": company_id,
+        "issueId": issue_id,
+        "nativeIssueId": issue_id,
+        "agentId": agent_id,
+        "contextSnapshot": {"issueId": issue_id},
+        "runnerProfileJson": {
+            "nativeExecutionInput": {"provider": {"kind": "codex"}}
+        },
+        "usageJson": None,
+    }
+
+    class API:
+        def request(self, _method: str, route: str):
+            if route.startswith(f"/companies/{company_id}/issues?"):
+                return [{"id": issue_id, "companyId": company_id, "parentId": None}]
+            if route == f"/issues/{issue_id}/runs":
+                return [{"runId": run_id, "agentId": agent_id, "contextIssueId": issue_id}]
+            if route == f"/heartbeat-runs/{run_id}":
+                return native
+            raise AssertionError(route)
+
+    scoped_policy = policy(company_id=company_id, task_scope_root_ids=[issue_id])
+    assert guard.campaign_model_run_ids(API(), company_id, scoped_policy) == [run_id]
+
+    native["status"] = "queued"
+    native.pop("usageJson")
+    assert guard.campaign_model_run_ids(API(), company_id, scoped_policy) == [run_id]
+
+    native["status"] = "failed"
+    native["usageJson"] = None
+    assert guard.campaign_model_run_ids(API(), company_id, scoped_policy) == [run_id]
+
+    native["usageJson"] = {"billingType": "unknown"}
+    assert guard.campaign_model_run_ids(API(), company_id, scoped_policy) == [run_id]
+
+    native["usageJson"] = {"billingType": "metered_api"}
+    with pytest.raises(
+        guard.ResourceGuardError,
+        match="resource_native_run_subscription_invalid",
+    ):
+        guard.campaign_model_run_ids(API(), company_id, scoped_policy)
+
+
 def test_board_usage_request_has_no_bearer_credential(monkeypatch):
     captured = {}
 
