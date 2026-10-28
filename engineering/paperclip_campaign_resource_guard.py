@@ -24,6 +24,7 @@ BOARD_ORIGIN = "http://127.0.0.1:3310"
 MAX_SCOPES = 32
 MAX_ISSUES = 1000
 MAX_RUNS = 80
+MAX_RESERVED_RUNS = 8
 MAX_AGE = timedelta(seconds=60)
 MAX_POLICY_LIFETIME = timedelta(hours=8)
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
@@ -256,7 +257,7 @@ def preflight(
         "resource_run_ids_invalid",
     )
     _require(
-        type(reserve_model_runs) is int and 0 <= reserve_model_runs <= 1,
+        type(reserve_model_runs) is int and 0 <= reserve_model_runs <= MAX_RESERVED_RUNS,
         "resource_run_reserve_invalid",
     )
     _require(

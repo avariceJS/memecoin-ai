@@ -1189,7 +1189,7 @@ def prepare(envelope_path: str) -> dict[str, Any]:
     prepared_slots = _preflight_preparation_graph(api, envelope, plan)
     _validate_preparation_inputs(envelope)
     resource_receipt = _resource_preflight(
-        api, envelope.get("resource_policy"), "prepare", reserve_model_runs=1
+        api, envelope.get("resource_policy"), "prepare", reserve_model_runs=8
     )
 
     output_root = Path(envelope["output_root"])
@@ -1626,7 +1626,7 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         m.get("resource_policy"),
         "stage",
         Path(m["custody_dir"]),
-        reserve_model_runs=1,
+        reserve_model_runs=8,
     )
     slot = m
     developer, qa = slot["developer"], slot["qa"]
@@ -2178,7 +2178,7 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         m.get("resource_policy"),
         "publish",
         Path(m["custody_dir"]),
-        reserve_model_runs=1,
+        reserve_model_runs=8,
     )
     receipt_file = Path(m["custody_dir"]) / f"publication-{dev['task_id']}.json"
     if receipt_file.exists():

@@ -134,17 +134,29 @@ def test_preflight_reserves_next_model_admission_before_current_action_completes
 ):
     tmp_path.chmod(0o700)
     monkeypatch.setattr(guard, "read_board_usage", lambda *_args, **_kwargs: usage())
+    observed = [f"{index:08x}-0000-4000-8000-{index:012x}" for index in range(72)]
+    receipt = guard.preflight(
+        policy(),
+        COMPANY,
+        "prepare",
+        observed,
+        tmp_path / "allowed.json",
+        reserve_model_runs=8,
+        now=NOW,
+    )
+    assert receipt["observed_model_run_count"] == 72
+    assert receipt["reserved_model_runs"] == 8
     with pytest.raises(guard.ResourceGuardError, match="resource_run_cap_exceeded"):
         guard.preflight(
-            policy(max_model_runs=1),
+            policy(),
             COMPANY,
             "prepare",
-            [RUN],
-            tmp_path / "receipt.json",
-            reserve_model_runs=1,
+            observed + ["40000000-0000-4000-8000-000000000007"],
+            tmp_path / "blocked.json",
+            reserve_model_runs=8,
             now=NOW,
         )
-    assert not (tmp_path / "receipt.json").exists()
+    assert not (tmp_path / "blocked.json").exists()
 
 
 def test_policy_reference_is_hash_pinned_and_private(tmp_path: Path):

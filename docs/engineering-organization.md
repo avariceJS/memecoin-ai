@@ -19,6 +19,14 @@ independent QA (25 tests, 38 subtests and Ruff). Native dependencies own dispatc
 controller was introduced. Initial safe source/base and owner-private envelope remain admission work.
 The qualified route admits two new regular files per result, not arbitrary multi-file development.
 
+An optional owner-private resource policy can bind the existing prepare/stage/publish actions to a
+Codex subscription connection, an eight-hour deadline, at most 80 scoped native model runs, and at
+least 15% observed remaining quota. Each action records a private quota snapshot and reserves eight
+model runs for its bounded downstream work. These checks are observations at process checkpoints,
+not atomic Paperclip dispatch limits: the existing task graph and prompts still own admission, and
+concurrent or external account use can change quota between reads. They do not guarantee an exact
+5% retained balance or authorize paid overage, nor add a scheduler, watcher, or controller.
+
 Normal roles are restored through reversible model-only configuration: eight lead/QA profiles use Sol
 High, developers Luna High, Astra unchanged. Actual useful Sol management, Luna implementation and
 separate Sol QA runs published accepted results. TEST was retained until the basic path was demonstrated.
