@@ -447,9 +447,7 @@ def test_unknown_native_run_billing_is_conservatively_reserved():
         "nativeIssueId": issue_id,
         "agentId": agent_id,
         "contextSnapshot": {"issueId": issue_id},
-        "runnerProfileJson": {
-            "nativeExecutionInput": {"provider": {"kind": "codex"}}
-        },
+        "runnerProfileJson": {"nativeExecutionInput": {"provider": {"kind": "codex"}}},
         "usageJson": None,
     }
 
@@ -477,12 +475,17 @@ def test_unknown_native_run_billing_is_conservatively_reserved():
     native["usageJson"] = {"billingType": "unknown"}
     assert guard.campaign_model_run_ids(API(), company_id, scoped_policy) == [run_id]
 
-    native["usageJson"] = {"billingType": "metered_api"}
-    with pytest.raises(
-        guard.ResourceGuardError,
-        match="resource_native_run_subscription_invalid",
+    for usage in (
+        {"billingType": "metered_api"},
+        {"billingType": None, "billing_type": "metered_api"},
+        {"billingType": "unknown", "billing_type": "api"},
     ):
-        guard.campaign_model_run_ids(API(), company_id, scoped_policy)
+        native["usageJson"] = usage
+        with pytest.raises(
+            guard.ResourceGuardError,
+            match="resource_native_run_subscription_invalid",
+        ):
+            guard.campaign_model_run_ids(API(), company_id, scoped_policy)
 
 
 def test_board_usage_request_has_no_bearer_credential(monkeypatch):
