@@ -428,9 +428,21 @@ def campaign_model_run_ids(api: Any, company_id: str, policy: dict[str, Any]) ->
             provider = execution.get("provider", {}) if type(execution) is dict else {}
             usage = native.get("usageJson", {}) if type(native) is dict else {}
             billing_type = (
-                usage.get("billingType", usage.get("billing_type"))
+                usage.get("billingType", usage.get("billing_type")) if type(usage) is dict else None
+            )
+            billing_values = (
+                [
+                    usage[key]
+                    for key in ("billingType", "billing_type")
+                    if usage.get(key) is not None
+                ]
                 if type(usage) is dict
-                else None
+                else []
+            )
+            known_non_subscription_billing = any(
+                type(value) is not str
+                or (value not in SUBSCRIPTION_BILLING_TYPES and value != "unknown")
+                for value in billing_values
             )
             subscription_billing = (
                 type(billing_type) is str and billing_type in SUBSCRIPTION_BILLING_TYPES
@@ -440,6 +452,7 @@ def campaign_model_run_ids(api: Any, company_id: str, policy: dict[str, Any]) ->
             # attribution. Known non-subscription billing remains a hard rejection.
             unknown_billing = (
                 (usage is None or type(usage) is dict)
+                and not known_non_subscription_billing
                 and (billing_type is None or billing_type == "unknown")
             )
             _require(type(native) is dict and native.get("id") == run_id, "resource_run_missing")
@@ -460,6 +473,7 @@ def campaign_model_run_ids(api: Any, company_id: str, policy: dict[str, Any]) ->
                 and UUID.fullmatch(str(native.get("agentId", ""))) is not None
                 and (row.get("agentId") is None or row.get("agentId") == native.get("agentId"))
                 and provider.get("kind") == "codex"
+                and not known_non_subscription_billing
                 and (subscription_billing or unknown_billing),
                 "resource_native_run_subscription_invalid",
             )
