@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 POLICY_SCHEMA = "brain-campaign-resource-policy-v1"
+RENEWAL_SCHEMA = "brain-campaign-resource-renewal-v1"
 RECEIPT_SCHEMA = "brain-campaign-resource-receipt-v1"
 BOARD_ORIGIN = "http://127.0.0.1:3310"
 MAX_SCOPES = 32
@@ -27,12 +28,23 @@ MAX_RUNS = 80
 MAX_RESERVED_RUNS = 8
 MAX_AGE = timedelta(seconds=60)
 MAX_POLICY_LIFETIME = timedelta(hours=8)
+MAX_RENEWAL_LIFETIME = timedelta(hours=6)
+MAX_RENEWAL_RUNS = 60
+RENEWAL_ENV = "BRAIN_CAMPAIGN_RESOURCE_RENEWAL"
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 class ResourceGuardError(RuntimeError):
     pass
+
+
+class _RenewedPolicy(dict[str, Any]):
+    """Effective policy carrying the verified renewal boundary for run accounting."""
+
+    def __init__(self, value: dict[str, Any], issued_at_utc: str) -> None:
+        super().__init__(value)
+        self.renewal_issued_at_utc = issued_at_utc
 
 
 def _require(condition: bool, reason: str) -> None:
@@ -94,7 +106,10 @@ def validate_policy(value: object, company_id: str) -> dict[str, Any]:
         "min_remaining_percent",
         "task_scope_root_ids",
     }
-    _require(type(value) is dict and set(value) == fields, "resource_policy_fields_invalid")
+    _require(
+        type(value) in {dict, _RenewedPolicy} and set(value) == fields,
+        "resource_policy_fields_invalid",
+    )
     _require(
         value["schema"] == POLICY_SCHEMA
         and value["company_id"] == company_id
@@ -136,7 +151,36 @@ def load_policy_reference(reference: object, company_id: str) -> tuple[dict[str,
     )
     value, raw = _private_json(reference["path"], "resource_policy")
     _require(_sha(raw) == reference["sha256"], "resource_policy_hash_mismatch")
-    return validate_policy(value, company_id), reference["sha256"]
+    original = validate_policy(value, company_id)
+    renewal_path = os.environ.get(RENEWAL_ENV)
+    if renewal_path is None:
+        return original, reference["sha256"]
+
+    renewal, renewal_raw = _private_json(renewal_path, "resource_policy_renewal")
+    _require(
+        set(renewal) == {"schema", "original_policy_sha256", "new_policy"}
+        and renewal.get("schema") == RENEWAL_SCHEMA
+        and renewal.get("original_policy_sha256") == reference["sha256"],
+        "resource_policy_renewal_binding_invalid",
+    )
+    effective = validate_policy(renewal["new_policy"], company_id)
+    issued = _utc(effective["issued_at_utc"], "resource_policy_renewal_issued_at_invalid")
+    old_deadline = _utc(original["deadline_utc"], "resource_policy_deadline_invalid")
+    new_deadline = _utc(effective["deadline_utc"], "resource_policy_deadline_invalid")
+    _require(
+        effective["connection_id"] == original["connection_id"]
+        and effective["task_scope_root_ids"] == original["task_scope_root_ids"],
+        "resource_policy_renewal_scope_invalid",
+    )
+    _require(
+        old_deadline <= issued < new_deadline <= issued + MAX_RENEWAL_LIFETIME,
+        "resource_policy_renewal_lifetime_invalid",
+    )
+    _require(
+        effective["max_model_runs"] <= MAX_RENEWAL_RUNS,
+        "resource_policy_renewal_run_cap_invalid",
+    )
+    return _RenewedPolicy(effective, effective["issued_at_utc"]), _sha(renewal_raw)
 
 
 def read_board_usage(
@@ -344,6 +388,12 @@ def campaign_model_run_ids(api: Any, company_id: str, policy: dict[str, Any]) ->
         offset += 100
 
     roots = policy["task_scope_root_ids"]
+    renewed_since = getattr(policy, "renewal_issued_at_utc", None)
+    renewed_since_dt = (
+        _utc(renewed_since, "resource_policy_renewal_issued_at_invalid")
+        if renewed_since is not None
+        else None
+    )
     _require(all(root_id in issues for root_id in roots), "resource_scope_root_missing")
     scope = set(roots)
     while True:
@@ -397,6 +447,10 @@ def campaign_model_run_ids(api: Any, company_id: str, policy: dict[str, Any]) ->
                 in {"subscription", "subscription_included"},
                 "resource_native_run_subscription_invalid",
             )
+            if renewed_since_dt is not None:
+                created_at = _utc(native.get("createdAt"), "resource_run_created_at_invalid")
+                if created_at < renewed_since_dt:
+                    continue
             run_ids.add(run_id)
             _require(len(run_ids) <= MAX_RUNS, "resource_run_cap_exceeded")
     return sorted(run_ids)
