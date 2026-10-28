@@ -1137,9 +1137,7 @@ class NativeDeliveryTests(unittest.TestCase):
                     "manifest_sha256": child_hash,
                     "source_task_id": task(6),
                     "publish_task_id": task(8),
-                    "receipt_path": str(
-                        (child_custody / f"publication-{task(6)}.json").resolve()
-                    ),
+                    "receipt_path": str((child_custody / f"publication-{task(6)}.json").resolve()),
                 },
             }
             self.assertEqual(
@@ -1148,9 +1146,7 @@ class NativeDeliveryTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 delivery.DeliveryError, "predecessor_lineage_depth_invalid"
             ):
-                delivery.predecessor_expected_tip(
-                    {**grandchild, "lineage_depth": 9}, "c" * 64, api
-                )
+                delivery.predecessor_expected_tip({**grandchild, "lineage_depth": 9}, "c" * 64, api)
 
     def test_wrong_current_actor_cannot_complete_a_pinned_task(self) -> None:
         api = delivery.Paperclip.__new__(delivery.Paperclip)
@@ -1834,9 +1830,9 @@ class PreparationTests(unittest.TestCase):
             "tests/test_prior.py": b"assert PRIOR == 1\n",
         }
         prior_hashes = {
-            path: delivery.publisher._git(
-                self.canonical, "hash-object", "-w", "--stdin", data=data
-            ).decode().strip()
+            path: delivery.publisher._git(self.canonical, "hash-object", "-w", "--stdin", data=data)
+            .decode()
+            .strip()
             for path, data in prior_files.items()
         }
         prior_candidate_receipt = delivery.publisher.prepare(
@@ -1976,8 +1972,7 @@ class PreparationTests(unittest.TestCase):
 
         def remote_refs(_repo, *_args, **_kwargs):
             return (
-                f"{resolved_tip}\t{delivery.PUBLISH_REF}\n"
-                f"{resolved_tip}\t{prior_candidate_ref}\n"
+                f"{resolved_tip}\t{delivery.PUBLISH_REF}\n{resolved_tip}\t{prior_candidate_ref}\n"
             ).encode()
 
         with (
@@ -2023,9 +2018,7 @@ class PreparationTests(unittest.TestCase):
             "lineage_depth": 1,
         }
         with patch.object(delivery, "predecessor_expected_tip", return_value="d" * 40):
-            with self.assertRaisesRegex(
-                delivery.DeliveryError, "predecessor_expected_tip_changed"
-            ):
+            with self.assertRaisesRegex(delivery.DeliveryError, "predecessor_expected_tip_changed"):
                 delivery.publication_expected_tip(external_slot, "a" * 64, api)
 
     def test_preparation_envelope_bounds_and_deduplicates_predecessor_candidates(self) -> None:
