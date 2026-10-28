@@ -31,6 +31,7 @@ MAX_POLICY_LIFETIME = timedelta(hours=8)
 MAX_RENEWAL_LIFETIME = timedelta(hours=6)
 MAX_RENEWAL_RUNS = 60
 RENEWAL_ENV = "BRAIN_CAMPAIGN_RESOURCE_RENEWAL"
+TERMINAL_RUN_STATUSES = {"succeeded", "failed", "cancelled", "timed_out", "interrupted"}
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -448,9 +449,14 @@ def campaign_model_run_ids(api: Any, company_id: str, policy: dict[str, Any]) ->
                 "resource_native_run_subscription_invalid",
             )
             if renewed_since_dt is not None:
-                created_at = _utc(native.get("createdAt"), "resource_run_created_at_invalid")
-                if created_at < renewed_since_dt:
-                    continue
+                finished_at_value = native.get("finishedAt")
+                if native.get("status") in TERMINAL_RUN_STATUSES and type(finished_at_value) is str:
+                    try:
+                        finished_at = _utc(finished_at_value, "resource_run_finished_at_invalid")
+                    except ResourceGuardError:
+                        finished_at = None
+                    if finished_at is not None and finished_at < renewed_since_dt:
+                        continue
             run_ids.add(run_id)
             _require(len(run_ids) <= MAX_RUNS, "resource_run_cap_exceeded")
     return sorted(run_ids)
