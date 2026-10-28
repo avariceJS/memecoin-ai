@@ -235,6 +235,7 @@ def preflight(
     observed_run_ids: list[str],
     receipt_path: str | Path,
     *,
+    reserve_model_runs: int = 0,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Fail closed on time, run-cap, and quota; persist only a small nonsecret observation."""
@@ -254,7 +255,14 @@ def preflight(
         and len(set(observed_run_ids)) == len(observed_run_ids),
         "resource_run_ids_invalid",
     )
-    _require(len(observed_run_ids) <= policy["max_model_runs"], "resource_run_cap_exceeded")
+    _require(
+        type(reserve_model_runs) is int and 0 <= reserve_model_runs <= 1,
+        "resource_run_reserve_invalid",
+    )
+    _require(
+        len(observed_run_ids) + reserve_model_runs <= policy["max_model_runs"],
+        "resource_run_cap_exceeded",
+    )
     observation = read_board_usage(company_id, policy["connection_id"], now=current)
     normalized = validate_usage(observation, policy["connection_id"], now=current)
     receipt = {
@@ -266,6 +274,7 @@ def preflight(
         "deadline_utc": policy["deadline_utc"],
         "policy_max_model_runs": policy["max_model_runs"],
         "observed_model_run_count": len(observed_run_ids),
+        "reserved_model_runs": reserve_model_runs,
         "observed_model_run_ids": observed_run_ids,
         **normalized,
     }

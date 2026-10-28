@@ -129,6 +129,24 @@ def test_preflight_fails_closed_on_bad_policy_or_telemetry(
     assert not (tmp_path / "receipt.json").exists()
 
 
+def test_preflight_reserves_next_model_admission_before_current_action_completes(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(guard, "read_board_usage", lambda *_args, **_kwargs: usage())
+    with pytest.raises(guard.ResourceGuardError, match="resource_run_cap_exceeded"):
+        guard.preflight(
+            policy(max_model_runs=1),
+            COMPANY,
+            "prepare",
+            [RUN],
+            tmp_path / "receipt.json",
+            reserve_model_runs=1,
+            now=NOW,
+        )
+    assert not (tmp_path / "receipt.json").exists()
+
+
 def test_policy_reference_is_hash_pinned_and_private(tmp_path: Path):
     tmp_path.chmod(0o700)
     path = tmp_path / "policy.json"

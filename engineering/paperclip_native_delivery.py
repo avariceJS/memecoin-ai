@@ -629,6 +629,7 @@ def _resource_preflight(
     reference: object,
     phase: str,
     receipt_directory: Path | None = None,
+    reserve_model_runs: int = 0,
 ) -> Path | None:
     if reference is None:
         return None
@@ -639,7 +640,14 @@ def _resource_preflight(
             receipt_directory = Path(reference["path"]).parent
         safe_dir(str(receipt_directory), "resource_receipt_directory", private=True)
         receipt_path = receipt_directory / f"resource-{phase}-{api.run_id}-{time.time_ns()}.json"
-        resource_guard.preflight(policy, api.m["company_id"], phase, runs, receipt_path)
+        resource_guard.preflight(
+            policy,
+            api.m["company_id"],
+            phase,
+            runs,
+            receipt_path,
+            reserve_model_runs=reserve_model_runs,
+        )
         return receipt_path
     except resource_guard.ResourceGuardError as exc:
         raise DeliveryError(str(exc)) from exc
@@ -1180,7 +1188,9 @@ def prepare(envelope_path: str) -> dict[str, Any]:
     plan = _validate_delivery_plan(plan_value, envelope)
     prepared_slots = _preflight_preparation_graph(api, envelope, plan)
     _validate_preparation_inputs(envelope)
-    resource_receipt = _resource_preflight(api, envelope.get("resource_policy"), "prepare")
+    resource_receipt = _resource_preflight(
+        api, envelope.get("resource_policy"), "prepare", reserve_model_runs=1
+    )
 
     output_root = Path(envelope["output_root"])
     output_root.mkdir(mode=0o700)
@@ -1612,7 +1622,11 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     own_task = api.current("stage")
     require(own_task == m["stage"]["task_id"], "task_not_pinned")
     resource_receipt = _resource_preflight(
-        api, m.get("resource_policy"), "stage", Path(m["custody_dir"])
+        api,
+        m.get("resource_policy"),
+        "stage",
+        Path(m["custody_dir"]),
+        reserve_model_runs=1,
     )
     slot = m
     developer, qa = slot["developer"], slot["qa"]
@@ -2160,7 +2174,11 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     # Quota is checked before publisher.prepare writes Git objects, reconcile advances the local
     # canonical ref, or either remote ref is pushed. Each attempt gets a distinct immutable receipt.
     resource_receipt = _resource_preflight(
-        api, m.get("resource_policy"), "publish", Path(m["custody_dir"])
+        api,
+        m.get("resource_policy"),
+        "publish",
+        Path(m["custody_dir"]),
+        reserve_model_runs=1,
     )
     receipt_file = Path(m["custody_dir"]) / f"publication-{dev['task_id']}.json"
     if receipt_file.exists():
