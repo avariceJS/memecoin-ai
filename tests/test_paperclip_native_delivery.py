@@ -237,6 +237,7 @@ def test_rejected_qa_document_is_preserved_with_candidate_and_run_binding(
     snapshot = handoff / "history" / "revision-1"
     saved_index = json.loads((snapshot / "history.json").read_bytes())
     assert (snapshot / "QA-RESULT.json").read_bytes() == qa_result
+    assert saved_index["schema"] == "brain-native-qa-predecessor-history-v2"
     assert saved_index["developer_run_id"] == "developer-run"
     assert saved_index["candidate_patch_sha256"] == delivery.digest(patch)
     assert saved_index["qa_run_id"] == "qa-run"

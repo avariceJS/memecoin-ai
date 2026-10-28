@@ -1815,7 +1815,7 @@ def preserve_qa_predecessor(
     handoff: Path,
     prior: dict[str, Any],
     qa_run_id: str,
-    qa_artifact: dict[str, Any],
+    qa_artifact: str | dict[str, Any],
     qa_result: bytes,
 ) -> None:
     """Keep the rejected predecessor inside the QA clone before a correction replaces it."""
@@ -1868,21 +1868,32 @@ def preserve_qa_predecessor(
     staged["native-delivery.json"] = record_bytes
     staged["QA-RESULT.json"] = qa_result
     staged.update({f"files/{relative}": data for relative, data in file_bytes.items()})
-    snapshot_index = {
-        "schema": "brain-native-qa-predecessor-history-v1",
-        "revision": prior.get("revision"),
-        "developer_run_id": prior.get("developer_run_id"),
-        "candidate_patch_sha256": prior.get("patch", {}).get("sha256"),
-        "qa_run_id": qa_run_id,
-        "qa_artifact": {
-            "type": qa_artifact.get("artifactType", "attachment"),
-            "id": qa_artifact.get("id"),
-            "revision_id": qa_artifact.get("revisionId"),
-            "sha256": digest(qa_result),
-            "verdict": json.loads(qa_result).get("verdict"),
-        },
-        "files": {name: digest(data) for name, data in sorted(staged.items())},
-    }
+    if type(qa_artifact) is str:
+        # Keep the immutable v1 attachment archive byte-identical on replay.
+        snapshot_index = {
+            "schema": "brain-native-qa-predecessor-history-v1",
+            "revision": prior.get("revision"),
+            "developer_run_id": prior.get("developer_run_id"),
+            "qa_run_id": qa_run_id,
+            "qa_attachment_id": qa_artifact,
+            "files": {name: digest(data) for name, data in sorted(staged.items())},
+        }
+    else:
+        snapshot_index = {
+            "schema": "brain-native-qa-predecessor-history-v2",
+            "revision": prior.get("revision"),
+            "developer_run_id": prior.get("developer_run_id"),
+            "candidate_patch_sha256": prior.get("patch", {}).get("sha256"),
+            "qa_run_id": qa_run_id,
+            "qa_artifact": {
+                "type": qa_artifact.get("artifactType"),
+                "id": qa_artifact.get("id"),
+                "revision_id": qa_artifact.get("revisionId"),
+                "sha256": digest(qa_result),
+                "verdict": json.loads(qa_result).get("verdict"),
+            },
+            "files": {name: digest(data) for name, data in sorted(staged.items())},
+        }
     history_root = target(handoff, "history", create=True)
     try:
         history_root.mkdir(mode=0o700)
@@ -2167,7 +2178,9 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
                 prior_handoff,
                 prior,
                 prior_qa_run["runId"],
-                prior_meta,
+                prior_meta["id"]
+                if prior_meta.get("artifactType") == "attachment"
+                else prior_meta,
                 prior_result,
             )
         record = {

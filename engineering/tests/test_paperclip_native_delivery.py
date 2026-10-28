@@ -237,6 +237,19 @@ class NativeDeliveryTests(unittest.TestCase):
         self.assertEqual(index["qa_run_id"], "qa-run-1")
         self.assertEqual(index["qa_attachment_id"], "qa-attachment-1")
         self.assertEqual(index["files"], {p: delivery.digest(data) for p, data in expected.items()})
+        self.assertEqual(
+            (snapshot / "history.json").read_bytes(),
+            delivery.json_bytes(
+                {
+                    "schema": "brain-native-qa-predecessor-history-v1",
+                    "revision": 1,
+                    "developer_run_id": "developer-run-1",
+                    "qa_run_id": "qa-run-1",
+                    "qa_attachment_id": "qa-attachment-1",
+                    "files": {p: delivery.digest(data) for p, data in sorted(expected.items())},
+                }
+            ),
+        )
 
         (handoff / "candidate.patch").write_bytes(b"corrected patch\n")
         (qa_root / self.paths[0]).write_bytes(b"corrected source\n")
@@ -348,7 +361,21 @@ class NativeDeliveryTests(unittest.TestCase):
                         else demo_by_run[run["runId"]]
                     )
                     return {"id": f"{run['runId']}-{name}"}, data
-                return {"id": "qa-rejection", "originatingRunId": run["runId"]}, qa_result
+                return {
+                    "id": "qa-rejection",
+                    "originatingRunId": run["runId"],
+                    "createdByAgentId": qa["agent_id"],
+                }, qa_result
+
+            def qa_artifact(self, task, run, name, limit):
+                meta, data = self.artifact(task, run, name, limit)
+                if (
+                    task != qa
+                    or meta.get("originatingRunId") != run["runId"]
+                    or meta.get("createdByAgentId") != qa["agent_id"]
+                ):
+                    raise delivery.DeliveryError("qa_artifact_binding_invalid")
+                return {**meta, "artifactType": "attachment"}, data
 
             def complete(self, _task_id):
                 return None
