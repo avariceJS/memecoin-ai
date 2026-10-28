@@ -87,6 +87,15 @@ class PaperclipLabServerTests(unittest.TestCase):
             manifest["incremental_commits"],
             list(reversed(PAPERCLIP_SOURCE_CHAIN[:2])),
         )
+        self.assertEqual(
+            manifest["changed_source_paths"],
+            [
+                "server/src/__tests__/heartbeat-process-recovery.test.ts",
+                "server/src/services/recovery/legacy-continuation.test.ts",
+                "server/src/services/recovery/legacy-continuation.ts",
+                "server/src/services/recovery/service.ts",
+            ],
+        )
         self.assertEqual(manifest["bundle_file"], bundle_path.name)
         self.assertEqual(manifest["bundle_bytes"], len(bundle))
         self.assertEqual(manifest["bundle_sha256"], hashlib.sha256(bundle).hexdigest())
