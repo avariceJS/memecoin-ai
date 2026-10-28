@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from engineering import paperclip_native_delivery as delivery
@@ -278,11 +279,198 @@ class NativeDeliveryTests(unittest.TestCase):
                 handoff, prior, "qa-run-1", "qa-attachment-1", b"reject"
             )
 
-    def test_candidate_attempts_are_initial_plus_one_correction(self) -> None:
+    def test_candidate_attempts_respect_configured_correction_limit(self) -> None:
         self.assertEqual(delivery.next_stage_revision(None), 1)
         self.assertEqual(delivery.next_stage_revision({"revision": 1}), 2)
         with self.assertRaisesRegex(delivery.DeliveryError, "correction_limit_reached"):
             delivery.next_stage_revision({"revision": 2})
+        self.assertEqual(delivery.next_stage_revision({"revision": 3}, 3), 4)
+        with self.assertRaisesRegex(delivery.DeliveryError, "correction_limit_reached"):
+            delivery.next_stage_revision({"revision": 4}, 3)
+        for invalid in (True, 0, 4):
+            with self.subTest(max_corrections=invalid):
+                with self.assertRaisesRegex(delivery.DeliveryError, "max_corrections_invalid"):
+                    delivery.next_stage_revision(None, invalid)
+
+    def _exercise_stage_corrections(self, max_corrections: int | None, attempt_count: int) -> None:
+        resolved_root = self.root.resolve()
+        qa_root = resolved_root / f"qa-chain-{max_corrections or 'legacy'}"
+        custody = resolved_root / f"custody-chain-{max_corrections or 'legacy'}"
+        qa_root.mkdir()
+        custody.mkdir(mode=0o700)
+        for relative in self.paths:
+            (qa_root / relative).parent.mkdir(parents=True, exist_ok=True)
+        developer = {"task_id": "source-task", "agent_id": "developer-agent"}
+        qa = {"task_id": "qa-task", "agent_id": "qa-agent"}
+        manifest: dict[str, Any] = {
+            "api_origin": "http://127.0.0.1:3310",
+            "company_id": "company-id",
+            "manager_task_id": "00000000-0000-4000-8000-000000000051",
+            "developer": developer,
+            "qa": qa,
+            "stage": {"task_id": "stage-task", "agent_id": "stage-agent"},
+            "publish": {"task_id": "publish-task", "agent_id": "publish-agent"},
+            "source": {"seed_repo": str(self.seed), "base_sha": self.base, "paths": self.paths},
+            "canonical": {"expected_tip": "a" * 40},
+            "qa_workspace": str(qa_root),
+            "custody_dir": str(custody),
+        }
+        if max_corrections is not None:
+            manifest["max_corrections"] = max_corrections
+        manifest_hash = delivery.digest(delivery.json_bytes(manifest))
+        patch_by_run: dict[str, bytes] = {}
+        demo_by_run: dict[str, bytes] = {}
+        qa_result = b""
+        qa_run = {"runId": "qa-run-0"}
+        source_run = {"runId": "developer-run-1"}
+
+        class FakeApi:
+            def current(self, _role):
+                return "stage-task"
+
+            def issue(self, task_id):
+                agent = developer["agent_id"] if task_id == developer["task_id"] else qa["agent_id"]
+                return {"status": "done", "assigneeAgentId": agent}
+
+            def no_pending(self, _task_id):
+                return None
+
+            def latest_run(self, task):
+                return source_run if task == developer else qa_run
+
+            def artifact(self, task, run, name, _limit):
+                if task == developer:
+                    data = (
+                        patch_by_run[run["runId"]]
+                        if name == "candidate.patch"
+                        else demo_by_run[run["runId"]]
+                    )
+                    return {"id": f"{run['runId']}-{name}"}, data
+                return {"id": "qa-rejection", "originatingRunId": run["runId"]}, qa_result
+
+            def complete(self, _task_id):
+                return None
+
+        api = FakeApi()
+        records: list[dict[str, Any]] = []
+        patches: list[bytes] = []
+        results: list[bytes] = []
+        notifications: list[tuple[Any, ...]] = []
+        for revision in range(1, attempt_count + 1):
+            git(self.work, "reset", "--hard")
+            git(self.work, "clean", "-fd")
+            values = {
+                self.paths[0]: f"VALUE = {revision}\n".encode(),
+                self.paths[1]: f"assert VALUE == {revision}\n".encode(),
+            }
+            for relative, data in values.items():
+                path = self.work / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+            git(self.work, "add", "--", *self.paths)
+            patch_bytes = git(self.work, "diff", "--cached", "--binary")
+            run_id = f"developer-run-{revision}"
+            source_run = {"runId": run_id}
+            patch_by_run[run_id] = patch_bytes
+            demo_by_run[run_id] = json.dumps(
+                {"module": "fixture", "input": revision, "output": revision}
+            ).encode()
+            if revision > 1:
+                previous = records[-1]
+                qa_run = {"runId": f"qa-run-{revision - 1}"}
+                qa_result = delivery.json_bytes(
+                    {
+                        "schema": delivery.QA_SCHEMA,
+                        "verdict": "reject",
+                        "source_task_id": developer["task_id"],
+                        "source_patch_sha256": previous["patch"]["sha256"],
+                        "files": {p: previous["files"][p]["sha256"] for p in self.paths},
+                        "checks": [{"name": "focused check", "result": "failed"}],
+                        "findings": [
+                            {
+                                "check": "focused check",
+                                "evidence": f"revision {revision - 1} failed",
+                            }
+                        ],
+                    }
+                )
+            with (
+                patch.object(delivery, "Paperclip", return_value=api),
+                patch.object(
+                    delivery,
+                    "notify_manager",
+                    side_effect=lambda *args: notifications.append(args),
+                ),
+            ):
+                delivery.stage(manifest, manifest_hash)
+            record_path = delivery.stage_path(custody, developer["task_id"], run_id)
+            record = json.loads(record_path.read_bytes())
+            records.append(record)
+            patches.append(patch_bytes)
+            results.append(qa_result)
+
+        self.assertEqual([row["revision"] for row in records], list(range(1, attempt_count + 1)))
+        self.assertEqual(len(notifications), attempt_count - 1)
+        for revision in range(1, attempt_count):
+            snapshot = qa_root / ".native-delivery" / "history" / f"revision-{revision}"
+            previous = records[revision - 1]
+            self.assertEqual((snapshot / "candidate.patch").read_bytes(), patches[revision - 1])
+            self.assertEqual(
+                (snapshot / "demonstration.json").read_bytes(),
+                demo_by_run[previous["developer_run_id"]],
+            )
+            self.assertEqual(
+                (snapshot / "native-delivery.json").read_bytes(), delivery.json_bytes(previous)
+            )
+            self.assertEqual((snapshot / "QA-RESULT.json").read_bytes(), results[revision])
+            index = json.loads((snapshot / "history.json").read_bytes())
+            self.assertEqual(index["revision"], revision)
+            self.assertEqual(index["qa_run_id"], f"qa-run-{revision}")
+            self.assertEqual(index["qa_attachment_id"], "qa-rejection")
+            for relative in self.paths:
+                self.assertEqual(
+                    (snapshot / "files" / relative).read_bytes(),
+                    f"VALUE = {revision}\n".encode()
+                    if relative == self.paths[0]
+                    else f"assert VALUE == {revision}\n".encode(),
+                )
+        if max_corrections is not None:
+            next_revision = attempt_count + 1
+            git(self.work, "reset", "--hard")
+            git(self.work, "clean", "-fd")
+            for relative, data in {
+                self.paths[0]: f"VALUE = {next_revision}\n".encode(),
+                self.paths[1]: f"assert VALUE == {next_revision}\n".encode(),
+            }.items():
+                path = self.work / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+            git(self.work, "add", "--", *self.paths)
+            run_id = f"developer-run-{next_revision}"
+            source_run = {"runId": run_id}
+            patch_by_run[run_id] = git(self.work, "diff", "--cached", "--binary")
+            demo_by_run[run_id] = json.dumps(
+                {"module": "fixture", "input": next_revision, "output": next_revision}
+            ).encode()
+            previous = records[-1]
+            qa_run = {"runId": f"qa-run-{attempt_count}"}
+            qa_result = results[-1]
+            before = (qa_root / ".native-delivery" / "candidate.patch").read_bytes()
+            with (
+                patch.object(delivery, "Paperclip", return_value=api),
+                patch.object(delivery, "notify_manager"),
+                self.assertRaisesRegex(delivery.DeliveryError, "correction_limit_reached"),
+            ):
+                delivery.stage(manifest, manifest_hash)
+            self.assertEqual(
+                (qa_root / ".native-delivery" / "candidate.patch").read_bytes(), before
+            )
+
+    def test_stage_allows_three_bound_corrections_and_archives_each_rejection(self) -> None:
+        self._exercise_stage_corrections(max_corrections=3, attempt_count=4)
+
+    def test_stage_legacy_default_stops_after_one_correction(self) -> None:
+        self._exercise_stage_corrections(max_corrections=None, attempt_count=2)
 
     def test_restage_replay_uses_predecessor_cas_and_rejects_unknown_bytes(self) -> None:
         target = self.root / "qa-source.py"
@@ -1811,7 +1999,31 @@ class PreparationTests(unittest.TestCase):
         manifest_path = self.output / "slot1" / "manifest.json"
         manifest, _ = delivery.load_manifest(str(manifest_path))
         self.assertEqual(manifest["role_models"], {"developer": "gpt-6-luna", "qa": "gpt-6.1-sol"})
+        self.assertNotIn("max_corrections", manifest)
         self.assertEqual(git(Path(manifest["qa_workspace"]), "remote", "-v"), b"")
+
+    def test_prepare_pins_owner_configured_correction_limit(self) -> None:
+        self.envelope["max_corrections"] = 3
+        self.envelope_path.write_bytes(delivery.json_bytes(self.envelope))
+        api = self.fake_api()
+        with patch.object(delivery, "Paperclip", return_value=api):
+            delivery.prepare(str(self.envelope_path))
+        manifest_path = self.output / "slot1" / "manifest.json"
+        manifest, _ = delivery.load_manifest(str(manifest_path))
+        self.assertEqual(manifest["max_corrections"], 3)
+        original = manifest_path.read_bytes()
+        for invalid in (True, 0, 4):
+            with self.subTest(manifest_max_corrections=invalid):
+                manifest_path.chmod(0o600)
+                manifest_path.write_bytes(
+                    delivery.json_bytes({**manifest, "max_corrections": invalid})
+                )
+                with self.assertRaisesRegex(
+                    delivery.DeliveryError, "manifest_max_corrections_invalid"
+                ):
+                    delivery.load_manifest(str(manifest_path))
+        manifest_path.write_bytes(original)
+        manifest_path.chmod(0o600)
 
     def test_prepare_freezes_resolved_predecessor_in_manifest_and_receipt(self) -> None:
         initial_tip = self.envelope["canonical"]["expected_tip"]
@@ -2044,6 +2256,34 @@ class PreparationTests(unittest.TestCase):
                     delivery.validate_preparation_envelope(
                         {**self.envelope, "predecessor_candidates": invalid}
                     )
+
+    def test_preparation_correction_limit_is_optional_and_strictly_bounded(self) -> None:
+        self.assertNotIn("max_corrections", delivery.validate_preparation_envelope(self.envelope))
+        for value in (True, False, 0, -1, 4, "2"):
+            with self.subTest(max_corrections=value):
+                with self.assertRaisesRegex(
+                    delivery.DeliveryError, "preparation_max_corrections_invalid"
+                ):
+                    delivery.validate_preparation_envelope(
+                        {**self.envelope, "max_corrections": value}
+                    )
+        self.assertEqual(
+            delivery.validate_preparation_envelope({**self.envelope, "max_corrections": 3})[
+                "max_corrections"
+            ],
+            3,
+        )
+        second_slot = {
+            "slot": 2,
+            "paths": ["src/second.py", "tests/test_second.py"],
+            "acceptance_sha256": "d" * 64,
+            "qa_project_id": "00000000-0000-4000-8000-000000000901",
+            "candidate_ref": "refs/heads/brain/candidate-slot-2",
+        }
+        two_slot = delivery.validate_preparation_envelope(
+            {**self.envelope, "max_corrections": 3, "slots": [*self.envelope["slots"], second_slot]}
+        )
+        self.assertEqual(len(two_slot["slots"]), 2)
 
     def test_preparation_predecessor_selects_only_unique_current_publication(self) -> None:
         bindings = []

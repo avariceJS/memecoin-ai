@@ -62,6 +62,8 @@ PREPARATION_MANAGER_GUIDANCE = """Finite delivery preparation contract:
 This is one finite owner-frozen programme input, not a general strategy-to-source admission grant.
 Each programme needs a fresh envelope binding its accepted paths, contract hashes, source base,
 canonical tip, actors/models, project workspaces and deterministic output root.
+An optional max_corrections value on that owner-frozen envelope permits one to three corrections;
+omitting it preserves the legacy one-correction limit.
 An optional predecessor_candidates list may bind at most four immutable preparation receipts by
 receipt path, source envelope hash and slot. Preparation selects exactly one candidate whose
 native publication, receipt, and local/remote canonical refs verify, then freezes that exact
@@ -223,6 +225,7 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
         "lineage_depth",
         "predecessor_base_tip",
         "resource_policy",
+        "max_corrections",
     }
     require(
         base_fields <= manifest_fields
@@ -236,6 +239,11 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
             resource_guard.load_policy_reference(m["resource_policy"], m["company_id"])
         except resource_guard.ResourceGuardError as exc:
             raise DeliveryError(str(exc)) from exc
+    if "max_corrections" in m:
+        require(
+            type(m["max_corrections"]) is int and 1 <= m["max_corrections"] <= 3,
+            "manifest_max_corrections_invalid",
+        )
     if "role_models" in m:
         validated_role_models(m)
     if "manager_task_id" in m:
@@ -723,7 +731,7 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
         "output_root",
         "slots",
     }
-    optional_fields = {"predecessor_candidates", "resource_policy"}
+    optional_fields = {"predecessor_candidates", "resource_policy", "max_corrections"}
     present_optional = optional_fields & set(value)
     require(
         expected <= set(value)
@@ -808,6 +816,11 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
             and Path(policy_ref["path"]).is_absolute()
             and re.fullmatch(r"[0-9a-f]{64}", str(policy_ref["sha256"])),
             "preparation_resource_policy_binding_invalid",
+        )
+    if "max_corrections" in present_optional:
+        require(
+            type(value["max_corrections"]) is int and 1 <= value["max_corrections"] <= 3,
+            "preparation_max_corrections_invalid",
         )
     if "predecessor_candidates" in present_optional:
         candidates = value["predecessor_candidates"]
@@ -1477,6 +1490,8 @@ def prepare(envelope_path: str) -> dict[str, Any]:
                 "qa": envelope["role_models"]["qa"],
             },
         }
+        if "max_corrections" in envelope:
+            manifest["max_corrections"] = envelope["max_corrections"]
         if "resource_policy" in envelope:
             manifest["resource_policy"] = envelope["resource_policy"]
         if row["plan"]["slot"] == 1 and predecessor is not None:
@@ -1552,8 +1567,12 @@ def stage_path(custody: Path, developer_id: str, run_id: str) -> Path:
 
 
 def stage_history(
-    custody: Path, developer_id: str, manifest_hash: str
+    custody: Path, developer_id: str, manifest_hash: str, max_corrections: int = 1
 ) -> list[tuple[Path, dict[str, Any]]]:
+    require(
+        type(max_corrections) is int and 1 <= max_corrections <= 3,
+        "max_corrections_invalid",
+    )
     rows = []
     for path in custody.glob(f"stage-{developer_id}-*.json"):
         info = path.lstat()
@@ -1564,29 +1583,38 @@ def stage_history(
             and value.get("manifest_sha256") == manifest_hash
             and value.get("developer_task_id") == developer_id
             and value.get("developer_run_id") == path.stem.removeprefix(f"stage-{developer_id}-")
-            and value.get("revision") in {1, 2},
+            and type(value.get("revision")) is int
+            and 1 <= value.get("revision") <= 1 + max_corrections,
             "stage_history_identity_invalid",
         )
         rows.append((path, value))
     rows.sort(key=lambda item: int(item[1]["revision"]))
     require(
-        len(rows) <= 2 and len({row[1]["revision"] for row in rows}) == len(rows),
+        len(rows) <= 1 + max_corrections
+        and [row[1]["revision"] for row in rows] == list(range(1, len(rows) + 1)),
         "correction_limit_reached",
     )
-    require(not rows or rows[0][1]["revision"] == 1, "stage_history_chain_invalid")
-    if len(rows) == 2:
+    for index in range(1, len(rows)):
         require(
-            rows[1][1].get("previous_stage_sha256") == digest(rows[0][0].read_bytes()),
+            rows[index][1].get("previous_stage_sha256") == digest(rows[index - 1][0].read_bytes()),
             "stage_history_chain_invalid",
         )
     return rows
 
 
-def next_stage_revision(prior: dict[str, Any] | None) -> int:
+def next_stage_revision(prior: dict[str, Any] | None, max_corrections: int = 1) -> int:
+    require(
+        type(max_corrections) is int and 1 <= max_corrections <= 3,
+        "max_corrections_invalid",
+    )
     if prior is None:
         return 1
-    require(prior.get("revision") == 1, "correction_limit_reached")
-    return 2
+    revision = prior.get("revision")
+    require(
+        type(revision) is int and 1 <= revision <= max_corrections,
+        "correction_limit_reached",
+    )
+    return revision + 1
 
 
 def stage_replay_state(
@@ -1879,7 +1907,8 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     except FileExistsError:
         if stat.S_ISLNK(native.lstat().st_mode) or not native.is_dir():
             raise DeliveryError("custody_directory_invalid") from None
-    history = stage_history(custody, developer["task_id"], manifest_hash)
+    max_corrections = m.get("max_corrections", 1)
+    history = stage_history(custody, developer["task_id"], manifest_hash, max_corrections)
     current_stage, previous_stage = stage_replay_state(history, source_run["runId"])
     current_record = current_stage[1] if current_stage else None
     prior_path, prior = previous_stage if previous_stage else (None, None)
@@ -1892,8 +1921,8 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         record = current_record
         revision = int(current_record.get("revision", 1))
     else:
-        revision = next_stage_revision(prior)
-        if revision == 2:
+        revision = next_stage_revision(prior, max_corrections)
+        if revision > 1:
             require(m.get("manager_task_id"), "manager_task_not_pinned")
         if prior is not None:
             prior_qa_run = latest_successful(api, qa)
@@ -1992,7 +2021,7 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         write_once(target(files_root, p, create=True), files[p], 0o400)
     old_record_hash = None if prior is None else digest(json_bytes(prior))
     replace_known(handoff / "native-delivery.json", json_bytes(record), old_record_hash)
-    if revision == 2:
+    if revision > 1:
         marker = (
             f"correction:{developer['task_id']}:{source_run['runId']}:{record['patch']['sha256']}"
         )
