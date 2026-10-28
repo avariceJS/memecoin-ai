@@ -2177,6 +2177,9 @@ class PreparationTests(unittest.TestCase):
         corrupt_path.chmod(0o400)
         link_path = prior / "linked.json"
         link_path.symlink_to(corrupt_path)
+        linked_parent = self.root / "linked-parent"
+        linked_parent.symlink_to(prior, target_is_directory=True)
+        missing_under_link = linked_parent / "missing.json"
         plan = [
             {
                 "source_task_id": self.ids["source_task"],
@@ -2186,6 +2189,7 @@ class PreparationTests(unittest.TestCase):
         for filename, reason in (
             (corrupt_path, "preparation_predecessor_receipt_invalid"),
             (link_path, "preparation_predecessor_receipt_not_private"),
+            (missing_under_link, "preparation_predecessor_receipt_parent_symlink"),
         ):
             envelope = {
                 **self.envelope,
