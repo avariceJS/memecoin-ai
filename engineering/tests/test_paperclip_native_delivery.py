@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import subprocess
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -2024,6 +2026,123 @@ class PreparationTests(unittest.TestCase):
                     delivery.load_manifest(str(manifest_path))
         manifest_path.write_bytes(original)
         manifest_path.chmod(0o600)
+
+    def test_prepare_delivery_error_wakes_only_pinned_planning_task_idempotently(self) -> None:
+        ids = self.ids
+
+        class FailureApi:
+            agent_id = ids["prepare_agent"]
+            run_id = ids["run"]
+            m = {"company_id": ids["company"]}
+
+            def __init__(self) -> None:
+                self.comments: list[dict[str, str]] = []
+                self.posts: list[tuple[str, dict[str, Any]]] = []
+                self.current_calls: list[tuple[str, bool]] = []
+
+            def current(self, action: str, *, checkout_if_missing: bool = True) -> str:
+                self.current_calls.append((action, checkout_if_missing))
+                return ids["prepare"]
+
+            def issue(self, task_id: str) -> dict[str, Any]:
+                if task_id == ids["planning"]:
+                    return {
+                        "id": task_id,
+                        "companyId": ids["company"],
+                        "assigneeAgentId": ids["planning_agent"],
+                        "status": "done",
+                    }
+                raise AssertionError(task_id)
+
+            def no_pending(self, _task_id: str) -> None:
+                return None
+
+            def request(
+                self, method: str, route: str, body: dict[str, Any] | None = None
+            ) -> Any:
+                if method == "GET" and route.startswith(f"/issues/{ids['planning']}/comments?"):
+                    return list(self.comments)
+                if method == "POST" and route == f"/issues/{ids['planning']}/comments":
+                    self.posts.append((route, body or {}))
+                    self.comments.append(
+                        {
+                            "id": f"comment-{len(self.comments) + 1}",
+                            "authorAgentId": self.agent_id,
+                            "body": (body or {})["body"],
+                        }
+                    )
+                    return {}
+                raise AssertionError((method, route, body))
+
+        api = FailureApi()
+        error_output = io.StringIO()
+        with (
+            patch.object(
+                delivery,
+                "prepare",
+                side_effect=delivery.DeliveryError("preparation_seed_not_clean_frozen_base"),
+            ),
+            patch.object(delivery, "Paperclip", return_value=api),
+            redirect_stderr(error_output),
+        ):
+            self.assertEqual(delivery.main(["prepare", "--envelope", str(self.envelope_path)]), 2)
+            self.assertEqual(delivery.main(["prepare", "--envelope", str(self.envelope_path)]), 2)
+
+        self.assertEqual(api.current_calls, [("prepare", False), ("prepare", False)])
+        self.assertEqual(len(api.posts), 1)
+        route, body = api.posts[0]
+        self.assertEqual(route, f"/issues/{ids['planning']}/comments")
+        self.assertTrue(body["resume"])
+        self.assertIn("preparation_seed_not_clean_frozen_base", body["body"])
+        self.assertIn(self.envelope["prepare"]["task_id"], body["body"])
+        self.assertEqual(error_output.getvalue().count("preparation_seed_not_clean_frozen_base"), 2)
+
+    def test_prepare_failure_notification_rejects_wrong_run_and_preserves_original_error(
+        self,
+    ) -> None:
+        ids = self.ids
+
+        class WrongRunApi:
+            def __init__(self) -> None:
+                self.m = {"company_id": ids["company"]}
+                self.agent_id = ids["prepare_agent"]
+                self.run_id = ids["run"]
+                self.posts = 0
+
+            def current(self, action: str, *, checkout_if_missing: bool = True) -> str:
+                return "00000000-0000-4000-8000-000000009999"
+
+        api = WrongRunApi()
+        error_output = io.StringIO()
+        with (
+            patch.object(
+                delivery,
+                "prepare",
+                side_effect=delivery.DeliveryError("preparation_seed_not_clean_frozen_base"),
+            ),
+            patch.object(delivery, "Paperclip", return_value=api),
+            redirect_stderr(error_output),
+        ):
+            self.assertEqual(delivery.main(["prepare", "--envelope", str(self.envelope_path)]), 2)
+
+        self.assertEqual(api.posts, 0)
+        self.assertIn('"reason": "preparation_seed_not_clean_frozen_base"', error_output.getvalue())
+
+    def test_prepare_failure_notification_ignores_invalid_envelope(self) -> None:
+        self.envelope_path.write_text("{}\n")
+        error_output = io.StringIO()
+        with (
+            patch.object(
+                delivery,
+                "prepare",
+                side_effect=delivery.DeliveryError("preparation_seed_not_clean_frozen_base"),
+            ),
+            patch.object(delivery, "Paperclip", side_effect=AssertionError("must not construct")),
+            redirect_stderr(error_output),
+        ):
+            self.assertEqual(delivery.main(["prepare", "--envelope", str(self.envelope_path)]), 2)
+
+        self.assertIn('"reason": "preparation_seed_not_clean_frozen_base"', error_output.getvalue())
 
     def test_prepare_freezes_resolved_predecessor_in_manifest_and_receipt(self) -> None:
         initial_tip = self.envelope["canonical"]["expected_tip"]

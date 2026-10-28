@@ -482,7 +482,7 @@ class Paperclip:
         value = self.request("GET", f"/issues/{task_id}")
         return value.get("issue", value) if type(value) is dict else {}
 
-    def current(self, action: str) -> str:
+    def current(self, action: str, *, checkout_if_missing: bool = True) -> str:
         task = task_binding(self.m, action, self.agent_id)
         me = self.request("GET", "/agents/me")
         run = self.request("GET", f"/heartbeat-runs/{self.run_id}")
@@ -513,6 +513,7 @@ class Paperclip:
             raise DeliveryError("current_task_mismatch")
         self.no_pending(task["task_id"])
         if issue.get("checkoutRunId") != self.run_id or issue.get("executionRunId") != self.run_id:
+            require(checkout_if_missing, "current_task_checkout_invalid")
             issue = self.request(
                 "POST",
                 f"/issues/{task['task_id']}/checkout",
@@ -1879,6 +1880,53 @@ def notify_manager(
     save_record(ack_path, ack)
 
 
+def notify_preparation_failure(envelope_path: str, error: DeliveryError) -> None:
+    """Wake the pinned planning lead after a validated prepare run fails."""
+    value, envelope_hash = private_json_file(envelope_path, "preparation_envelope")
+    envelope = validate_preparation_envelope(value)
+    api = Paperclip(
+        {
+            "api_origin": envelope["api_origin"],
+            "company_id": envelope["company_id"],
+            "prepare": envelope["prepare"],
+        }
+    )
+    require(
+        api.current("prepare", checkout_if_missing=False) == envelope["prepare"]["task_id"],
+        "preparation_failure_run_not_pinned",
+    )
+    planning = envelope["planning"]
+    planning_issue = api.issue(planning["task_id"])
+    require(
+        planning_issue.get("id") == planning["task_id"]
+        and planning_issue.get("companyId") == envelope["company_id"]
+        and planning_issue.get("assigneeAgentId") == planning["agent_id"]
+        and planning_issue.get("status") == "done",
+        "preparation_failure_planning_task_not_routable",
+    )
+    api.no_pending(planning["task_id"])
+    reason = str(error).replace("\r", " ").replace("\n", " ")[:500]
+    marker = f"prepare-failure:{envelope_hash}:{reason}"
+    body = (
+        f"Native preparation failed for envelope {envelope_hash}: {reason}. "
+        f"Review the preparation inputs and instructions, then continue through this existing "
+        f"planning task for prepare task {envelope['prepare']['task_id']}. Do not replay any "
+        f"acknowledged setup effects."
+    )
+    notify_manager(
+        api,
+        {
+            "manager_task_id": planning["task_id"],
+            "custody_dir": str(Path(envelope_path).parent),
+        },
+        "prepare_failure",
+        envelope["prepare"]["task_id"],
+        marker,
+        body,
+        envelope_hash,
+    )
+
+
 def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     api = Paperclip(m)
     own_task = api.current("stage")
@@ -2545,6 +2593,15 @@ def main(argv: list[str] | None = None) -> int:
             m, sha = load_manifest(args.manifest)
             result = stage(m, sha) if args.action == "stage" else publish(m, sha)
     except (DeliveryError, OSError, ValueError) as exc:
+        if (
+            args.action == "prepare"
+            and args.envelope is not None
+            and isinstance(exc, DeliveryError)
+        ):
+            try:
+                notify_preparation_failure(args.envelope, exc)
+            except Exception:
+                pass
         print(
             json.dumps({"status": "blocked", "reason": str(exc)}, sort_keys=True), file=sys.stderr
         )
