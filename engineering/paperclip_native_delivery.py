@@ -16,6 +16,7 @@ import urllib.request
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from engineering import paperclip_campaign_resource_guard as resource_guard
 from engineering import paperclip_canonical_publish as publisher
 
 MANIFEST_SCHEMA = "brain-native-delivery-manifest-v1"
@@ -210,20 +211,16 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
         "custody_dir",
     }
     manifest_fields = frozenset(m)
+    optional_fields = {"manager_task_id", "predecessor", "role_models", "resource_policy"}
     require(
-        manifest_fields
-        in {
-            frozenset(base_fields),
-            frozenset(base_fields | {"manager_task_id"}),
-            frozenset(base_fields | {"predecessor"}),
-            frozenset(base_fields | {"manager_task_id", "predecessor"}),
-            frozenset(base_fields | {"role_models"}),
-            frozenset(base_fields | {"manager_task_id", "role_models"}),
-            frozenset(base_fields | {"predecessor", "role_models"}),
-            frozenset(base_fields | {"manager_task_id", "predecessor", "role_models"}),
-        },
+        base_fields <= manifest_fields and manifest_fields - base_fields <= optional_fields,
         "manifest_fields_invalid",
     )
+    if "resource_policy" in m:
+        try:
+            resource_guard.load_policy_reference(m["resource_policy"], m["company_id"])
+        except resource_guard.ResourceGuardError as exc:
+            raise DeliveryError(str(exc)) from exc
     if "role_models" in m:
         validated_role_models(m)
     if "manager_task_id" in m:
@@ -626,6 +623,27 @@ def private_json_file(filename: str, name: str) -> tuple[dict[str, Any], str]:
     return value, digest(raw)
 
 
+def _resource_preflight(
+    api: Paperclip,
+    reference: object,
+    phase: str,
+    receipt_directory: Path | None = None,
+) -> Path | None:
+    if reference is None:
+        return None
+    try:
+        policy, _policy_hash = resource_guard.load_policy_reference(reference, api.m["company_id"])
+        runs = resource_guard.campaign_model_run_ids(api, api.m["company_id"], policy)
+        if receipt_directory is None:
+            receipt_directory = Path(reference["path"]).parent
+        safe_dir(str(receipt_directory), "resource_receipt_directory", private=True)
+        receipt_path = receipt_directory / f"resource-{phase}-{api.run_id}.json"
+        resource_guard.preflight(policy, api.m["company_id"], phase, runs, receipt_path)
+        return receipt_path
+    except resource_guard.ResourceGuardError as exc:
+        raise DeliveryError(str(exc)) from exc
+
+
 def _uuid(value: object) -> bool:
     return type(value) is str and UUID.fullmatch(value) is not None
 
@@ -670,6 +688,8 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
         "output_root",
         "slots",
     }
+    if "resource_policy" in value:
+        expected.add("resource_policy")
     require(
         set(value) == expected and value.get("schema") == PREPARATION_SCHEMA,
         "preparation_envelope_fields_invalid",
@@ -678,6 +698,11 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
         value["api_origin"] == "http://127.0.0.1:3310" and _uuid(value["company_id"]),
         "preparation_envelope_api_invalid",
     )
+    if "resource_policy" in value:
+        try:
+            resource_guard.load_policy_reference(value["resource_policy"], value["company_id"])
+        except resource_guard.ResourceGuardError as exc:
+            raise DeliveryError(str(exc)) from exc
     for name in ("planning", "prepare", "manager"):
         row = value[name]
         require(
@@ -1154,6 +1179,7 @@ def prepare(envelope_path: str) -> dict[str, Any]:
     plan = _validate_delivery_plan(plan_value, envelope)
     prepared_slots = _preflight_preparation_graph(api, envelope, plan)
     _validate_preparation_inputs(envelope)
+    resource_receipt = _resource_preflight(api, envelope.get("resource_policy"), "prepare")
 
     output_root = Path(envelope["output_root"])
     output_root.mkdir(mode=0o700)
@@ -1223,6 +1249,8 @@ def prepare(envelope_path: str) -> dict[str, Any]:
                 "qa": envelope["role_models"]["qa"],
             },
         }
+        if "resource_policy" in envelope:
+            manifest["resource_policy"] = envelope["resource_policy"]
         if row["plan"]["slot"] == 2:
             prior_path, prior_manifest, prior_hash = manifests[0]
             manifest["predecessor"] = {
@@ -1270,6 +1298,8 @@ def prepare(envelope_path: str) -> dict[str, Any]:
             )
         ],
     }
+    if resource_receipt is not None:
+        receipt["resource_receipt"] = str(resource_receipt)
     save_record(output_root / "prepare-receipt.json", receipt)
     api.complete(own_task)
     return {"status": "prepared", "receipt": str(output_root / "prepare-receipt.json")}
@@ -1580,6 +1610,9 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     api = Paperclip(m)
     own_task = api.current("stage")
     require(own_task == m["stage"]["task_id"], "task_not_pinned")
+    resource_receipt = _resource_preflight(
+        api, m.get("resource_policy"), "stage", Path(m["custody_dir"])
+    )
     slot = m
     developer, qa = slot["developer"], slot["qa"]
     source_run = latest_successful(api, developer)
@@ -1742,6 +1775,7 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         "status": "staged",
         "source_task_id": developer["task_id"],
         "qa_task_id": qa["task_id"],
+        **({} if resource_receipt is None else {"resource_receipt": str(resource_receipt)}),
     }
 
 
@@ -2159,6 +2193,9 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
     refs = remote_refs(m)
     if refs.get(c["candidate_ref"]) != candidate or refs.get(c["ref"]) not in {expected, candidate}:
         raise DeliveryError("candidate_remote_readback_failed")
+    resource_receipt = _resource_preflight(
+        api, m.get("resource_policy"), "publish", Path(m["custody_dir"])
+    )
     if refs.get(c["ref"]) == expected:
         push_ref(m, candidate, c["ref"])
     refs = remote_refs(m)
@@ -2171,11 +2208,17 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         "publish",
         dev["task_id"],
         marker,
-        f"Native publication passed remote readback for {dev['task_id']}: candidate {candidate}.",
+        f"Native publication passed remote readback for {dev['task_id']}: candidate {candidate}."
+        + ("" if resource_receipt is None else f" Resource receipt: {resource_receipt}."),
         manifest_hash,
     )
     api.complete(own_task)
-    return {"status": "published", "candidate_sha": candidate, "receipt": str(receipt_file)}
+    return {
+        "status": "published",
+        "candidate_sha": candidate,
+        "receipt": str(receipt_file),
+        **({} if resource_receipt is None else {"resource_receipt": str(resource_receipt)}),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
