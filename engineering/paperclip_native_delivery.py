@@ -1242,11 +1242,11 @@ def _resolve_preparation_predecessor(
     for candidate_binding in candidates:
         receipt_path = Path(candidate_binding["preparation_receipt_path"])
         try:
-            receipt_info = receipt_path.lstat()
             receipt_parent = safe_dir(
                 str(receipt_path.parent), "preparation_predecessor_receipt_parent", private=True
             )
             receipt_parent_info = receipt_parent.lstat()
+            receipt_info = receipt_path.lstat()
         except FileNotFoundError:
             # An unselected programme may not have been prepared. Missing options are not
             # publication evidence; selection below still requires one exact verified match.
