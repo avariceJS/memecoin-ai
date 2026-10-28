@@ -32,6 +32,7 @@ MAX_RENEWAL_LIFETIME = timedelta(hours=6)
 MAX_RENEWAL_RUNS = 60
 RENEWAL_ENV = "BRAIN_CAMPAIGN_RESOURCE_RENEWAL"
 TERMINAL_RUN_STATUSES = {"succeeded", "failed", "cancelled", "timed_out", "interrupted"}
+SUBSCRIPTION_BILLING_TYPES = {"subscription", "subscription_included"}
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -426,6 +427,21 @@ def campaign_model_run_ids(api: Any, company_id: str, policy: dict[str, Any]) ->
             execution = profile.get("nativeExecutionInput", {}) if type(profile) is dict else {}
             provider = execution.get("provider", {}) if type(execution) is dict else {}
             usage = native.get("usageJson", {}) if type(native) is dict else {}
+            billing_type = (
+                usage.get("billingType", usage.get("billing_type"))
+                if type(usage) is dict
+                else None
+            )
+            subscription_billing = (
+                type(billing_type) is str and billing_type in SUBSCRIPTION_BILLING_TYPES
+            )
+            # Native execution persists its run before usage is settled. Reserve every scoped
+            # run whose billing is absent or explicitly unknown; this is not subscription
+            # attribution. Known non-subscription billing remains a hard rejection.
+            unknown_billing = (
+                (usage is None or type(usage) is dict)
+                and (billing_type is None or billing_type == "unknown")
+            )
             _require(type(native) is dict and native.get("id") == run_id, "resource_run_missing")
             if native.get("runtimeMode") == "legacy":
                 continue
@@ -444,8 +460,7 @@ def campaign_model_run_ids(api: Any, company_id: str, policy: dict[str, Any]) ->
                 and UUID.fullmatch(str(native.get("agentId", ""))) is not None
                 and (row.get("agentId") is None or row.get("agentId") == native.get("agentId"))
                 and provider.get("kind") == "codex"
-                and usage.get("billingType", usage.get("billing_type"))
-                in {"subscription", "subscription_included"},
+                and (subscription_billing or unknown_billing),
                 "resource_native_run_subscription_invalid",
             )
             if renewed_since_dt is not None:
