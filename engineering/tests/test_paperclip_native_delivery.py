@@ -961,8 +961,11 @@ class NativeDeliveryTests(unittest.TestCase):
             "custody_dir": str(child_custody.resolve()),
             "canonical": {
                 **parent_manifest["canonical"],
+                "expected_tip": parent_candidate,
                 "candidate_ref": "refs/heads/brain/chain-two",
             },
+            "predecessor_base_tip": base,
+            "lineage_depth": 1,
             "predecessor": {
                 "manifest_path": str(self.root / "parent-manifest.json"),
                 "manifest_sha256": parent_hash,
@@ -973,9 +976,31 @@ class NativeDeliveryTests(unittest.TestCase):
         }
         child_candidate_receipt = publish_objects(parent_candidate, child_files, child_paths)
         child_candidate = child_candidate_receipt["candidate"]
+        child_manifest_path = self.root / "child-manifest.json"
+        child_manifest_bytes = delivery.json_bytes(
+            {
+                "schema": delivery.MANIFEST_SCHEMA,
+                "api_origin": "http://127.0.0.1:3310",
+                "company_id": company,
+                "developer": {"task_id": task(6), "agent_id": task(9)},
+                "qa": {"task_id": task(7), "agent_id": task(10)},
+                "stage": {"task_id": task(11), "agent_id": task(12)},
+                "publish": {"task_id": task(8), "agent_id": task(13)},
+                "source": {"seed_repo": str(repo), "base_sha": base, "paths": child_paths},
+                "canonical": child["canonical"],
+                "qa_workspace": str(repo),
+                "custody_dir": str(child_custody),
+                "predecessor": child["predecessor"],
+                "predecessor_base_tip": base,
+                "lineage_depth": 1,
+            }
+        )
+        child_manifest_path.write_bytes(child_manifest_bytes)
+        child_manifest_path.chmod(0o600)
+        child_hash = delivery.digest(child_manifest_bytes)
         child_op = {
             "schema": delivery.PUBLISH_SCHEMA,
-            "manifest_sha256": "b" * 64,
+            "manifest_sha256": child_hash,
             "source_task_id": task(6),
             "expected_tip": parent_candidate,
             "canonical_ref": ref,
@@ -989,11 +1014,17 @@ class NativeDeliveryTests(unittest.TestCase):
         delivery.save_record(child_custody / f"publication-{task(6)}.json", child_saved)
 
         class API:
-            def issue(self, _task_id):
+            def issue(self, task_id):
+                if task_id == task(3):
+                    publisher_task, publisher_agent = task(3), task(4)
+                elif task_id == task(8):
+                    publisher_task, publisher_agent = task(8), task(13)
+                else:
+                    raise AssertionError(task_id)
                 return {
-                    "id": task(3),
+                    "id": publisher_task,
                     "companyId": company,
-                    "assigneeAgentId": task(4),
+                    "assigneeAgentId": publisher_agent,
                     "status": "done",
                 }
 
@@ -1004,7 +1035,7 @@ class NativeDeliveryTests(unittest.TestCase):
                 return None
 
             def request(self, _method, route):
-                if "/runs" in route:
+                if f"/issues/{task(3)}/runs" == route:
                     return [
                         {
                             "status": "succeeded",
@@ -1013,6 +1044,24 @@ class NativeDeliveryTests(unittest.TestCase):
                             "contextIssueId": task(3),
                         }
                     ]
+                if f"/issues/{task(8)}/runs" == route:
+                    return [
+                        {
+                            "status": "succeeded",
+                            "id": task(14),
+                            "agentId": task(13),
+                            "contextIssueId": task(8),
+                        }
+                    ]
+                if f"/heartbeat-runs/{task(14)}" == route:
+                    return {
+                        "id": task(14),
+                        "status": "succeeded",
+                        "runtimeMode": "legacy",
+                        "agentId": task(13),
+                        "companyId": company,
+                        "issueId": task(8),
+                    }
                 return {
                     "id": task(5),
                     "status": "succeeded",
@@ -1031,15 +1080,25 @@ class NativeDeliveryTests(unittest.TestCase):
                 rows.append(f"{remote_child_candidate}\trefs/heads/brain/chain-two")
             return ("\n".join(rows) + "\n").encode()
 
+        child_manifest = json.loads(child_manifest_bytes)
+        manifests = {
+            str((self.root / "parent-manifest.json").resolve()): (parent_manifest, parent_hash),
+            str(child_manifest_path.resolve()): (child_manifest, child_hash),
+        }
         with (
-            patch.object(delivery, "load_manifest", return_value=(parent_manifest, parent_hash)),
+            patch.object(
+                delivery,
+                "load_manifest",
+                side_effect=lambda p: manifests[str(Path(p).resolve())],
+            ),
             patch.object(delivery, "remote_git", side_effect=remote_refs),
         ):
             api = API()
             # Receipt saved, but canonical reconcile has not happened yet.
             self.assertEqual(
-                delivery.predecessor_expected_tip(child, "b" * 64, api), parent_candidate
+                delivery.predecessor_expected_tip(child, child_hash, api), parent_candidate
             )
+
             # Reconcile child locally and remotely, while its remote candidate ref is still absent.
             delivery.publisher.reconcile(
                 repo,
@@ -1051,13 +1110,47 @@ class NativeDeliveryTests(unittest.TestCase):
             )
             remote_canonical = child_candidate
             self.assertEqual(
-                delivery.predecessor_expected_tip(child, "b" * 64, api), parent_candidate
+                delivery.predecessor_expected_tip(child, child_hash, api), parent_candidate
             )
             # Once the candidate ref has been pushed, completed publication replay stays valid.
             remote_child_candidate = child_candidate
             self.assertEqual(
-                delivery.predecessor_expected_tip(child, "b" * 64, api), parent_candidate
+                delivery.predecessor_expected_tip(child, child_hash, api), parent_candidate
             )
+            grandchild = {
+                "company_id": company,
+                "source": {
+                    "base_sha": base,
+                    "paths": ["src/chain_three.py", "tests/test_chain_three.py"],
+                },
+                "developer": {"task_id": task(15)},
+                "custody_dir": str((self.root / "real-grandchild-custody").resolve()),
+                "canonical": {
+                    **parent_manifest["canonical"],
+                    "expected_tip": child_candidate,
+                    "candidate_ref": "refs/heads/brain/chain-three",
+                },
+                "predecessor_base_tip": parent_candidate,
+                "lineage_depth": 2,
+                "predecessor": {
+                    "manifest_path": str(child_manifest_path.resolve()),
+                    "manifest_sha256": child_hash,
+                    "source_task_id": task(6),
+                    "publish_task_id": task(8),
+                    "receipt_path": str(
+                        (child_custody / f"publication-{task(6)}.json").resolve()
+                    ),
+                },
+            }
+            self.assertEqual(
+                delivery.predecessor_expected_tip(grandchild, "c" * 64, api), child_candidate
+            )
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "predecessor_lineage_depth_invalid"
+            ):
+                delivery.predecessor_expected_tip(
+                    {**grandchild, "lineage_depth": 9}, "c" * 64, api
+                )
 
     def test_wrong_current_actor_cannot_complete_a_pinned_task(self) -> None:
         api = delivery.Paperclip.__new__(delivery.Paperclip)
@@ -1726,53 +1819,214 @@ class PreparationTests(unittest.TestCase):
 
     def test_prepare_freezes_resolved_predecessor_in_manifest_and_receipt(self) -> None:
         initial_tip = self.envelope["canonical"]["expected_tip"]
-        git(
-            self.canonical,
-            "-c",
-            "user.name=fixture",
-            "-c",
-            "user.email=fixture@example.invalid",
-            "commit",
-            "--quiet",
-            "--allow-empty",
-            "--no-gpg-sign",
-            "-m",
-            "predecessor publication",
-        )
-        resolved_tip = git(self.canonical, "rev-parse", "HEAD").decode().strip()
-        git(self.canonical, "update-ref", delivery.PUBLISH_REF, resolved_tip)
-        binding = {
-            "manifest_path": str((self.root / "prior" / "manifest.json").resolve()),
-            "manifest_sha256": "a" * 64,
-            "source_task_id": self.ids["source_task"],
-            "publish_task_id": self.ids["publish_task"],
-            "receipt_path": str((self.root / "prior" / "publication.json").resolve()),
+        prior_dir = self.root / "prior"
+        prior_dir.mkdir(mode=0o700)
+        prior_custody = prior_dir / "custody"
+        prior_custody.mkdir(mode=0o700)
+        prior_qa = prior_dir / "qa"
+        prior_qa.mkdir(mode=0o700)
+        prior_source_task = "00000000-0000-4000-8000-000000000201"
+        prior_publish_task = "00000000-0000-4000-8000-000000000202"
+        prior_publish_agent = "00000000-0000-4000-8000-000000000203"
+        prior_run = "00000000-0000-4000-8000-000000000204"
+        prior_files = {
+            "src/prior.py": b"PRIOR = 1\n",
+            "tests/test_prior.py": b"assert PRIOR == 1\n",
         }
+        prior_hashes = {
+            path: delivery.publisher._git(
+                self.canonical, "hash-object", "-w", "--stdin", data=data
+            ).decode().strip()
+            for path, data in prior_files.items()
+        }
+        prior_candidate_receipt = delivery.publisher.prepare(
+            self.canonical,
+            delivery.PUBLISH_REF,
+            initial_tip,
+            {path: None for path in prior_files},
+            prior_hashes,
+            prior_files,
+            allowed_paths=list(prior_files),
+        )
+        resolved_tip = prior_candidate_receipt["candidate"]
+        git(self.canonical, "symbolic-ref", "HEAD", delivery.PUBLISH_REF)
+        delivery.publisher.reconcile(
+            self.canonical,
+            delivery.PUBLISH_REF,
+            prior_candidate_receipt,
+            resolved_tip,
+            prior_candidate_receipt["receipt_digest"],
+            allowed_paths=list(prior_files),
+        )
+        prior_candidate_ref = "refs/heads/brain/previous-slot"
+        prior_manifest = {
+            "schema": delivery.MANIFEST_SCHEMA,
+            "api_origin": "http://127.0.0.1:3310",
+            "company_id": self.ids["company"],
+            "developer": {
+                "task_id": prior_source_task,
+                "agent_id": "00000000-0000-4000-8000-000000000205",
+            },
+            "qa": {
+                "task_id": "00000000-0000-4000-8000-000000000206",
+                "agent_id": "00000000-0000-4000-8000-000000000207",
+            },
+            "stage": {
+                "task_id": "00000000-0000-4000-8000-000000000208",
+                "agent_id": "00000000-0000-4000-8000-000000000209",
+            },
+            "publish": {"task_id": prior_publish_task, "agent_id": prior_publish_agent},
+            "source": {
+                "seed_repo": str(self.seed),
+                "base_sha": self.base,
+                "paths": list(prior_files),
+            },
+            "canonical": {
+                **self.envelope["canonical"],
+                "expected_tip": initial_tip,
+                "candidate_ref": prior_candidate_ref,
+            },
+            "qa_workspace": str(prior_qa),
+            "custody_dir": str(prior_custody),
+        }
+        prior_manifest_path = prior_dir / "manifest.json"
+        delivery.write_once(prior_manifest_path, delivery.json_bytes(prior_manifest), 0o600)
+        prior_manifest_hash = delivery.digest(prior_manifest_path.read_bytes())
+        prior_publication = {
+            "schema": delivery.PUBLISH_SCHEMA,
+            "manifest_sha256": prior_manifest_hash,
+            "source_task_id": prior_source_task,
+            "expected_tip": initial_tip,
+            "canonical_ref": delivery.PUBLISH_REF,
+            "candidate_ref": prior_candidate_ref,
+            "files": {path: hashlib.sha256(data).hexdigest() for path, data in prior_files.items()},
+            "canonical_receipt": prior_candidate_receipt,
+        }
+        prior_publication["publication_digest"] = delivery.digest(
+            delivery.json_bytes(prior_publication)
+        )
+        prior_publication_path = prior_custody / f"publication-{prior_source_task}.json"
+        delivery.save_record(prior_publication_path, prior_publication)
+        prior_prepare_receipt_path = prior_dir / "prepare-receipt.json"
+        delivery.save_record(
+            prior_prepare_receipt_path,
+            {
+                "schema": delivery.PREPARATION_RECEIPT_SCHEMA,
+                "envelope_sha256": "b" * 64,
+                "company_id": self.ids["company"],
+                "canonical_ref": delivery.PUBLISH_REF,
+                "canonical_expected_tip": initial_tip,
+                "canonical_base_tip": initial_tip,
+                "slots": [
+                    {
+                        "slot": 1,
+                        "source_task_id": prior_source_task,
+                        "publish_task_id": prior_publish_task,
+                        "manifest_path": str(prior_manifest_path),
+                        "manifest_sha256": prior_manifest_hash,
+                    }
+                ],
+            },
+        )
         self.envelope["predecessor_candidates"] = [
             {
-                "preparation_receipt_path": str(self.root / "prior" / "prepare-receipt.json"),
+                "preparation_receipt_path": str(prior_prepare_receipt_path),
                 "preparation_envelope_sha256": "b" * 64,
                 "slot": 1,
             }
         ]
         self.envelope_path.write_bytes(delivery.json_bytes(self.envelope))
         api = self.fake_api()
+        original_issue = api.issue
+        api.issue = lambda task_id: (
+            {
+                "id": prior_publish_task,
+                "companyId": self.ids["company"],
+                "assigneeAgentId": prior_publish_agent,
+                "status": "done",
+            }
+            if task_id == prior_publish_task
+            else original_issue(task_id)
+        )
+        api.no_pending_terminal = lambda _task_id: None
+        original_request = api.request
+
+        def request(method, route):
+            if route == f"/issues/{prior_publish_task}/runs":
+                return [
+                    {
+                        "status": "succeeded",
+                        "runId": prior_run,
+                        "agentId": prior_publish_agent,
+                        "contextIssueId": prior_publish_task,
+                    }
+                ]
+            if route == f"/heartbeat-runs/{prior_run}":
+                return {
+                    "id": prior_run,
+                    "status": "succeeded",
+                    "runtimeMode": "legacy",
+                    "agentId": prior_publish_agent,
+                    "companyId": self.ids["company"],
+                    "issueId": prior_publish_task,
+                }
+            return original_request(method, route)
+
+        api.request = request
+
+        def remote_refs(_repo, *_args, **_kwargs):
+            return (
+                f"{resolved_tip}\t{delivery.PUBLISH_REF}\n"
+                f"{resolved_tip}\t{prior_candidate_ref}\n"
+            ).encode()
+
         with (
             patch.object(delivery, "Paperclip", return_value=api),
-            patch.object(
-                delivery,
-                "_resolve_preparation_predecessor",
-                return_value={"binding": binding, "expected_tip": resolved_tip},
-            ),
+            patch.object(delivery, "remote_git", side_effect=remote_refs),
         ):
             result = delivery.prepare(str(self.envelope_path))
         manifest, _ = delivery.load_manifest(str(self.output / "slot1" / "manifest.json"))
+        manifest_hash = delivery.digest((self.output / "slot1" / "manifest.json").read_bytes())
         receipt = json.loads(Path(result["receipt"]).read_bytes())
         self.assertEqual(manifest["canonical"]["expected_tip"], resolved_tip)
-        self.assertEqual(manifest["predecessor"], binding)
+        self.assertEqual(manifest["predecessor_base_tip"], initial_tip)
+        self.assertEqual(manifest["lineage_depth"], 1)
+        self.assertEqual(manifest["predecessor"]["manifest_sha256"], prior_manifest_hash)
         self.assertEqual(receipt["canonical_expected_tip"], resolved_tip)
-        self.assertEqual(receipt["predecessor"], binding)
-        self.assertEqual(initial_tip, binding and self.envelope["canonical"]["expected_tip"])
+        self.assertEqual(receipt["canonical_base_tip"], initial_tip)
+        self.assertEqual(receipt["slots"][0]["lineage_depth"], 1)
+        self.assertEqual(receipt["predecessor"], manifest["predecessor"])
+        with patch.object(delivery, "remote_git", side_effect=remote_refs):
+            self.assertEqual(
+                delivery.predecessor_expected_tip(manifest, manifest_hash, api), resolved_tip
+            )
+            self.assertEqual(
+                delivery.publication_expected_tip(manifest, manifest_hash, api), resolved_tip
+            )
+
+    def test_internal_slot_publish_base_keeps_legacy_expected_tip_behavior(self) -> None:
+        api = object()
+        internal_slot = {
+            "canonical": {"expected_tip": "e" * 40},
+            "predecessor": {},
+            "lineage_depth": 1,
+        }
+        with patch.object(delivery, "predecessor_expected_tip", return_value="c" * 40):
+            self.assertEqual(
+                delivery.publication_expected_tip(internal_slot, "a" * 64, api), "c" * 40
+            )
+
+        external_slot = {
+            "canonical": {"expected_tip": "c" * 40},
+            "predecessor": {},
+            "predecessor_base_tip": "e" * 40,
+            "lineage_depth": 1,
+        }
+        with patch.object(delivery, "predecessor_expected_tip", return_value="d" * 40):
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "predecessor_expected_tip_changed"
+            ):
+                delivery.publication_expected_tip(external_slot, "a" * 64, api)
 
     def test_preparation_envelope_bounds_and_deduplicates_predecessor_candidates(self) -> None:
         candidate = {
@@ -1869,6 +2123,7 @@ class PreparationTests(unittest.TestCase):
             )
         self.assertEqual(selected["expected_tip"], "c" * 40)
         self.assertEqual(selected["binding"]["manifest_sha256"], hashes["2"])
+        self.assertEqual(selected["base_tip"], self.envelope["canonical"]["expected_tip"])
         self.assertEqual(verify.call_count, 2)
         with (
             patch.object(delivery, "load_manifest", side_effect=load),

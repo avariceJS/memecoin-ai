@@ -215,10 +215,23 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
         "qa_workspace",
         "custody_dir",
     }
-    manifest_fields = frozenset(m)
-    optional_fields = {"manager_task_id", "predecessor", "role_models", "resource_policy"}
+    manifest_fields = set(m)
+    optional_manifest_fields = {
+        "manager_task_id",
+        "predecessor",
+        "role_models",
+        "lineage_depth",
+        "predecessor_base_tip",
+        "resource_policy",
+    }
     require(
-        base_fields <= manifest_fields and manifest_fields - base_fields <= optional_fields,
+        base_fields <= manifest_fields
+        and manifest_fields - base_fields <= optional_manifest_fields
+        and ("predecessor_base_tip" not in manifest_fields or "predecessor" in manifest_fields)
+        and (
+            "predecessor_base_tip" not in manifest_fields
+            or "lineage_depth" in manifest_fields
+        ),
         "manifest_fields_invalid",
     )
     if "resource_policy" in m:
@@ -230,6 +243,18 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
         validated_role_models(m)
     if "manager_task_id" in m:
         require(UUID.fullmatch(str(m["manager_task_id"])), "manifest_manager_task_invalid")
+    if "lineage_depth" in m:
+        require(
+            type(m["lineage_depth"]) is int
+            and 0 <= m["lineage_depth"] <= 8
+            and ((m["lineage_depth"] == 0) == ("predecessor" not in m)),
+            "manifest_lineage_depth_invalid",
+        )
+    if "predecessor_base_tip" in m:
+        require(
+            OID.fullmatch(str(m["predecessor_base_tip"])) is not None,
+            "manifest_predecessor_base_tip_invalid",
+        )
     require(
         m.get("api_origin") == "http://127.0.0.1:3310"
         and UUID.fullmatch(str(m.get("company_id", ""))),
@@ -1216,7 +1241,7 @@ def _resolve_preparation_predecessor(
     if candidates is None:
         return None
     first = plan[0]
-    matches: list[tuple[dict[str, Any], str]] = []
+    matches: list[tuple[dict[str, Any], str, int, str]] = []
     for candidate_binding in candidates:
         receipt_path = Path(candidate_binding["preparation_receipt_path"])
         try:
@@ -1244,7 +1269,8 @@ def _resolve_preparation_predecessor(
             and prior_receipt.get("schema") == PREPARATION_RECEIPT_SCHEMA
             and prior_receipt.get("company_id") == envelope["company_id"]
             and prior_receipt.get("canonical_ref") == envelope["canonical"]["ref"]
-            and prior_receipt.get("canonical_expected_tip") == envelope["canonical"]["expected_tip"]
+            and prior_receipt.get("canonical_base_tip", prior_receipt.get("canonical_expected_tip"))
+            == envelope["canonical"]["expected_tip"]
             and prior_receipt.get("envelope_sha256")
             == candidate_binding["preparation_envelope_sha256"],
             "preparation_predecessor_receipt_binding_mismatch",
@@ -1272,6 +1298,13 @@ def _resolve_preparation_predecessor(
             and parent["publish"]["task_id"] == prior_slot.get("publish_task_id"),
             "preparation_predecessor_manifest_binding_mismatch",
         )
+        parent_depth = parent.get("lineage_depth", 0)
+        require(
+            type(parent_depth) is int
+            and 0 <= parent_depth < 8
+            and ("predecessor" not in parent or "lineage_depth" in parent),
+            "preparation_predecessor_lineage_invalid",
+        )
         binding = {
             "manifest_path": prior_slot["manifest_path"],
             "manifest_sha256": prior_slot["manifest_sha256"],
@@ -1293,6 +1326,8 @@ def _resolve_preparation_predecessor(
                 **envelope["canonical"],
                 "candidate_ref": envelope["slots"][0]["candidate_ref"],
             },
+            "predecessor_base_tip": parent["canonical"]["expected_tip"],
+            "lineage_depth": parent_depth + 1,
             "custody_dir": str(Path(envelope["output_root"]) / "slot1" / "custody"),
             "predecessor": binding,
         }
@@ -1312,10 +1347,17 @@ def _resolve_preparation_predecessor(
                 continue
             raise
         require(candidate is not None, "preparation_predecessor_unresolved")
-        matches.append((binding, candidate))
+        matches.append(
+            (binding, candidate, parent_depth + 1, parent["canonical"]["expected_tip"])
+        )
     require(len(matches) == 1, "preparation_predecessor_not_unique")
-    binding, candidate = matches[0]
-    return {"binding": binding, "expected_tip": candidate}
+    binding, candidate, lineage_depth, base_tip = matches[0]
+    return {
+        "binding": binding,
+        "expected_tip": candidate,
+        "lineage_depth": lineage_depth,
+        "base_tip": base_tip,
+    }
 
 
 def prepare(envelope_path: str) -> dict[str, Any]:
@@ -1355,6 +1397,11 @@ def prepare(envelope_path: str) -> dict[str, Any]:
     effective_envelope["canonical"] = dict(envelope["canonical"])
     if predecessor is not None:
         effective_envelope["canonical"]["expected_tip"] = predecessor["expected_tip"]
+    first_lineage_depth = predecessor["lineage_depth"] if predecessor is not None else 0
+    require(
+        first_lineage_depth + len(prepared_slots) - 1 <= 8,
+        "preparation_lineage_depth_exceeded",
+    )
     _validate_preparation_inputs(effective_envelope)
     resource_receipt = _resource_preflight(
         api, envelope.get("resource_policy"), "prepare", reserve_model_runs=8
@@ -1421,6 +1468,7 @@ def prepare(envelope_path: str) -> dict[str, Any]:
                 **effective_envelope["canonical"],
                 "candidate_ref": row["approved"]["candidate_ref"],
             },
+            "lineage_depth": first_lineage_depth + row["plan"]["slot"] - 1,
             "qa_workspace": str(qa_path),
             "custody_dir": str(row["custody_path"]),
             "role_models": {
@@ -1432,6 +1480,7 @@ def prepare(envelope_path: str) -> dict[str, Any]:
             manifest["resource_policy"] = envelope["resource_policy"]
         if row["plan"]["slot"] == 1 and predecessor is not None:
             manifest["predecessor"] = predecessor["binding"]
+            manifest["predecessor_base_tip"] = predecessor["base_tip"]
         elif row["plan"]["slot"] == 2:
             prior_path, prior_manifest, prior_hash = manifests[0]
             manifest["predecessor"] = {
@@ -1462,6 +1511,7 @@ def prepare(envelope_path: str) -> dict[str, Any]:
         "source_base_sha": envelope["source"]["base_sha"],
         "canonical_ref": envelope["canonical"]["ref"],
         "canonical_expected_tip": effective_envelope["canonical"]["expected_tip"],
+        "canonical_base_tip": envelope["canonical"]["expected_tip"],
         **({"predecessor": predecessor["binding"]} if predecessor is not None else {}),
         "slots": [
             {
@@ -1470,12 +1520,13 @@ def prepare(envelope_path: str) -> dict[str, Any]:
                 "stage_task_id": row["plan"]["stage_task_id"],
                 "qa_task_id": row["plan"]["qa_task_id"],
                 "publish_task_id": row["plan"]["publish_task_id"],
+                "lineage_depth": manifest["lineage_depth"],
                 "qa_workspace_id": row["plan"]["qa_workspace_id"],
                 "qa_workspace": str(row["qa_path"]),
                 "manifest_path": str(manifest_path),
                 "manifest_sha256": manifest_sha,
             }
-            for row, (manifest_path, _manifest, manifest_sha) in zip(
+            for row, (manifest_path, manifest, manifest_sha) in zip(
                 prepared_slots, manifests, strict=True
             )
         ],
@@ -2103,7 +2154,17 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
         return None
     parent, parent_hash = load_manifest(binding["manifest_path"])
     require(parent_hash == binding["manifest_sha256"], "predecessor_manifest_hash_mismatch")
-    require("predecessor" not in parent, "predecessor_chain_depth_invalid")
+    parent_depth = parent.get("lineage_depth", 0)
+    if "lineage_depth" in m or "lineage_depth" in parent or "predecessor" in parent:
+        require(
+            type(parent_depth) is int
+            and 0 <= parent_depth <= 8
+            and ("predecessor" not in parent or parent_depth > 0)
+            and type(m.get("lineage_depth")) is int
+            and m["lineage_depth"] == parent_depth + 1
+            and m["lineage_depth"] <= 8,
+            "predecessor_lineage_depth_invalid",
+        )
     require(
         parent["company_id"] == m["company_id"]
         and parent["source"]["base_sha"] == m["source"]["base_sha"]
@@ -2111,7 +2172,8 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
         and parent["canonical"]["ref"] == m["canonical"]["ref"]
         and parent["canonical"]["remote_name"] == m["canonical"]["remote_name"]
         and parent["canonical"]["remote_url"] == m["canonical"]["remote_url"]
-        and parent["canonical"]["expected_tip"] == m["canonical"]["expected_tip"],
+        and parent["canonical"]["expected_tip"]
+        == m.get("predecessor_base_tip", m["canonical"]["expected_tip"]),
         "predecessor_target_mismatch",
     )
     require(
@@ -2321,7 +2383,9 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         raise DeliveryError("custodied_file_hash_mismatch")
     c = slot["canonical"]
     repo = Path(c["repo"])
-    expected = predecessor_expected_tip(m, manifest_hash, api) or c["expected_tip"]
+    expected = publication_expected_tip(m, manifest_hash, api)
+    if "predecessor_base_tip" in m:
+        require(expected == c["expected_tip"], "predecessor_expected_tip_changed")
     old = {p: None for p in record["paths"]}
     new = {
         p: publisher._git(repo, "hash-object", "--stdin", data=files[p]).decode().strip()
@@ -2411,6 +2475,16 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         "receipt": str(receipt_file),
         **({} if resource_receipt is None else {"resource_receipt": str(resource_receipt)}),
     }
+
+
+def publication_expected_tip(m: dict[str, Any], manifest_hash: str, api: Paperclip) -> str:
+    """Resolve the publish base while preserving legacy in-campaign slot chaining."""
+    expected = predecessor_expected_tip(m, manifest_hash, api)
+    if expected is not None:
+        if "predecessor_base_tip" in m:
+            require(expected == m["canonical"]["expected_tip"], "predecessor_expected_tip_changed")
+        return expected
+    return m["canonical"]["expected_tip"]
 
 
 def main(argv: list[str] | None = None) -> int:
