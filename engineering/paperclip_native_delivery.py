@@ -225,10 +225,7 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
         base_fields <= manifest_fields
         and manifest_fields - base_fields <= optional_manifest_fields
         and ("predecessor_base_tip" not in manifest_fields or "predecessor" in manifest_fields)
-        and (
-            "predecessor_base_tip" not in manifest_fields
-            or "lineage_depth" in manifest_fields
-        ),
+        and ("predecessor_base_tip" not in manifest_fields or "lineage_depth" in manifest_fields),
         "manifest_fields_invalid",
     )
     if "role_models" in m:
@@ -1269,8 +1266,7 @@ def _resolve_preparation_predecessor(
             "source_task_id": prior_slot["source_task_id"],
             "publish_task_id": prior_slot["publish_task_id"],
             "receipt_path": str(
-                Path(parent["custody_dir"])
-                / f"publication-{prior_slot['source_task_id']}.json"
+                Path(parent["custody_dir"]) / f"publication-{prior_slot['source_task_id']}.json"
             ),
         }
         probe = {
@@ -1305,9 +1301,7 @@ def _resolve_preparation_predecessor(
                 continue
             raise
         require(candidate is not None, "preparation_predecessor_unresolved")
-        matches.append(
-            (binding, candidate, parent_depth + 1, parent["canonical"]["expected_tip"])
-        )
+        matches.append((binding, candidate, parent_depth + 1, parent["canonical"]["expected_tip"]))
     require(len(matches) == 1, "preparation_predecessor_not_unique")
     binding, candidate, lineage_depth, base_tip = matches[0]
     return {
