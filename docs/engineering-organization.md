@@ -1,5 +1,36 @@
 # Brain Engineering Organization
 
+## Unified functional programme — 2026-10-28 preparation
+
+The founder directive in `prompt/prompt.md` explicitly authorizes one finite productive campaign,
+ordinary engineering preparation, native execution, independent QA and controlled development
+publication. It does not authorize main, production, protected data, market collection, training,
+AUTO, trading or paid APIs. The historical completed-programme stop below is superseded only within
+this new scope. Native admission is still being prepared; no employee run has been launched.
+
+Source checkpoint `88156c8` combines three reviewed changes in the existing delivery path: QA-local
+full rejected-candidate history before correction, exact published-predecessor binding for sequential
+single-slot programmes (maximum lineage eight), and private subscription/resource checks before
+prepare, stage and publication mutations. Independent combined verification passed 44 tests and 44
+subtests, scoped Ruff/format, and a three-programme synthetic prepare/stage/publish/replay flow with
+actual Git and policy checks; native API, quota and remote transport were simulated in that flow.
+This is source acceptance, not installed execution or functional-company acceptance. Existing two-slot
+delivery remains supported; external programme predecessors currently admit slot 1 only.
+
+The prepared product proposal covers Senses, Experience, Cortex, Evaluation, Policy and Platform:
+eight candidate outcomes, six delivered at most, with episodic native Astra choosing one of two middle
+programmes. A one-time setup script is still undergoing validation. No new scheduler, controller,
+background observer or replacement task system is admitted. Historical holds and all forty developer
+profiles remain intact. The proposed 80-run/eight-hour envelope includes eight reserved closing runs;
+15% subscription headroom is checked at process boundaries. These are checkpoint observations, not
+atomic enforcement of every model wake or a guarantee against unrelated account consumption.
+
+Private evidence: `brain-paperclip-lab/state/unified-final-20261028/combined-review.json`
+(SHA-256 `2b4d0507a59a8b74bb870b6b8e1b7a087767ed3a305b40b1e62a3d6bbc3a28fa`).
+Original source rejections and corrected reviews remain preserved beside it. The final campaign
+acceptance must use primary native events, exact QA/publication records and the actual root-session
+final boundary; queued work or source tests cannot substitute for post-session execution.
+
 ## Final functional acceptance — 2026-10-27
 
 **Qualified delivery; full unassisted organization acceptance remains incomplete.** The finite founder
