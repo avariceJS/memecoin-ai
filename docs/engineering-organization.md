@@ -1,6 +1,6 @@
 # Brain Engineering Organization
 
-## Productive launch — 2026-10-30, in progress
+## Productive launch — 2026-10-30, finite cycle paused
 
 The founder explicitly resumed development after STOP: finish saved repairs, publish Experience,
 then continue useful Brain work. Main, production, protected data, market collection, training,
@@ -53,6 +53,24 @@ Historical whole-company acceptance218/219/220 remains backlog-only. Existing217
 and independent242 own the finite stop. Private current custody is
 brain-paperclip-lab/state/productive-20261030; original recovery-20261029 checkpoint remains intact.
 Local blockers do not revoke unrelated authorized development; reconcile uncertain effects before retry.
+
+### Finite stop and remaining limits
+
+Existing control242 observed55 new native model runs and applied company pause at23:27UTC for the
+closing reserve threshold (cap60/eight reserved); the last whole-account observation was57% remaining,
+not exhausted quota or programme attribution. Owner readback at23:29UTC confirms paused and zero
+queued/running runs. Native stop run07116f04 failed on workspace_operations insertion during
+workspace_finalize after pause. Preserve its immutable STOP_PENDING intent/checkpoint; do not label
+native finalization successful. The separate owner readback records the applied stopped state.
+
+Sol201 admitted Luna253, but control cancelled rundb896105 before candidate edits. Its worktree is
+clean at8dbb9cf; Cortex implementation is not delivered. Experience manager198 final bookkeeping
+run65602ad7 was also cancelled after actual successful publication. Reconcile its settled effects
+before continuation; do not repeat QA, staging or publication. The company directive remains partial:
+Experience publication and native next-program selection/admission are observed, while sustained
+productive autonomy, recovery across Board403 and clean native stop finalization remain unresolved.
+No company/model restart is part of this closing checkpoint. Current exact custody is current.json
+and finite-stop-owner-readback.json under productive-20261030; no budget/deadline count was reset.
 
 ## Founder stop — 2026-10-29 recovery checkpoint
 
