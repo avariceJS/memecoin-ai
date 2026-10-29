@@ -287,7 +287,8 @@
     "519c892646ec7b06996e990e9e728f794e1a689e",
     "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
     "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
-    "ccbe6e7183b4bae56ba857c17a190ecc92c51910"
+    "ccbe6e7183b4bae56ba857c17a190ecc92c51910",
+    "5b5540f5418977ab2d861f7da3ee3dc7554d0601"
   ],
   "runtime_acceptance": "pending",
   "launcher_scope": "managed Codex startup; preconfigured home excluded from lab qualification",

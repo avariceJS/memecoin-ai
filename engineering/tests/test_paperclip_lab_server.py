@@ -34,6 +34,7 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(
             PAPERCLIP_SOURCE_CHAIN,
             (
+                "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7",
                 "5b5540f5418977ab2d861f7da3ee3dc7554d0601",
                 "ccbe6e7183b4bae56ba857c17a190ecc92c51910",
                 "6dec1acae77171a4a25c2620858edb043f119373",
@@ -46,8 +47,8 @@ class PaperclipLabServerTests(unittest.TestCase):
                 *PAPERCLIP_PATCH_SOURCE_CHAIN,
             ),
         )
-        self.assertEqual(PAPERCLIP_PIN, "5b5540f5418977ab2d861f7da3ee3dc7554d0601")
-        self.assertEqual(PAPERCLIP_PARENT_PIN, "ccbe6e7183b4bae56ba857c17a190ecc92c51910")
+        self.assertEqual(PAPERCLIP_PIN, "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7")
+        self.assertEqual(PAPERCLIP_PARENT_PIN, "5b5540f5418977ab2d861f7da3ee3dc7554d0601")
         self.assertEqual(PAPERCLIP_UPSTREAM_PIN, "043f2514e67c50320433a0013fb228a75a51325c")
         self.assertEqual(PAPERCLIP_PATCH_PIN, "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd")
         self.assertEqual(PAPERCLIP_PATCH_PARENT_PIN, "d560a09538a255c779e4a10b14d41a3114bf10f2")
@@ -166,17 +167,41 @@ class PaperclipLabServerTests(unittest.TestCase):
 
     def test_accepted_process_rights_candidate_has_custody_without_runtime_admission(self):
         engineering = Path(__file__).resolve().parents[1]
+        manifest_path = engineering / "paperclip-source-bundles" / "5b5540f5418977ab2d861f7da3ee3dc7554d0601.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        bundle = manifest_path.with_suffix(".bundle").read_bytes()
+        self.assertEqual(manifest["state"], "accepted-source-custody-not-runtime-admission")
+        self.assertEqual(manifest["native_source_commit"], "5b5540f5418977ab2d861f7da3ee3dc7554d0601")
+        self.assertEqual(manifest["prerequisite_commit"], "ccbe6e7183b4bae56ba857c17a190ecc92c51910")
+        self.assertEqual(manifest["bundle_bytes"], len(bundle))
+        self.assertEqual(manifest["bundle_sha256"], hashlib.sha256(bundle).hexdigest())
+        self.assertEqual(manifest["source_acceptance_receipt_sha256"], "22ba69c67ee6edc444244915591903274f6135e5fd9408ec65c8cd028f0d0726")
+        self.assertIn("no runtime admission", manifest["limits"])
+        self.assertIn("ccbe6e7183b4bae56ba857c17a190ecc92c51910", PAPERCLIP_STOP_CUSTODY_PINS)
+
+    def test_accepted_recovery_transaction_candidate_has_custody_without_runtime_admission(self):
+        engineering = Path(__file__).resolve().parents[1]
         manifest_path = engineering / "paperclip-source-bundles" / f"{PAPERCLIP_PIN}.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         bundle = manifest_path.with_suffix(".bundle").read_bytes()
         self.assertEqual(manifest["state"], "accepted-source-custody-not-runtime-admission")
         self.assertEqual(manifest["native_source_commit"], PAPERCLIP_PIN)
         self.assertEqual(manifest["prerequisite_commit"], PAPERCLIP_PARENT_PIN)
+        self.assertEqual(manifest["incremental_commits"], [PAPERCLIP_PIN])
         self.assertEqual(manifest["bundle_bytes"], len(bundle))
         self.assertEqual(manifest["bundle_sha256"], hashlib.sha256(bundle).hexdigest())
-        self.assertEqual(manifest["source_acceptance_receipt_sha256"], "22ba69c67ee6edc444244915591903274f6135e5fd9408ec65c8cd028f0d0726")
+        self.assertEqual(
+            manifest["source_acceptance_receipt"],
+            "state/productive-20261030/recovery-transaction-review.json",
+        )
+        self.assertEqual(
+            manifest["source_acceptance_receipt_sha256"],
+            "f602905a085c6110b7d8f52dce52c4b943d06510603971898617a9c6648080d2",
+        )
         self.assertIn("no runtime admission", manifest["limits"])
-        self.assertIn("ccbe6e7183b4bae56ba857c17a190ecc92c51910", PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertNotIn(PAPERCLIP_PIN, PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertIn(PAPERCLIP_PARENT_PIN, PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertIn(PAPERCLIP_PARENT_PIN, PAPERCLIP_CLEANUP_ONLY_PINS)
 
     def test_source_pin_metadata_binds_cumulative_patch_and_source_only_review(self):
         engineering = Path(__file__).resolve().parents[1]
