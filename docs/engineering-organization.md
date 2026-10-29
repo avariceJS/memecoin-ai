@@ -2,51 +2,49 @@
 
 ## Productive launch — 2026-10-30, in progress
 
-The founder explicitly resumed development after STOP and directed completion of saved repairs,
-Experience publication, and further useful Brain work. This is development authority, not company
-acceptance. Main, production, protected data, market collection, training, AUTO, trading and paid APIs
-remain excluded. Historical STOP records and candidates are preserved.
+The founder explicitly resumed development after STOP: finish saved repairs, publish Experience,
+then continue useful Brain work. Main, production, protected data, market collection, training,
+AUTO, trading and paid APIs remain excluded. Historical STOP records and candidates are preserved.
 
-MEM-235 is DONE after current receipt/journal and all 24 accepted target hashes were verified; no
-target was reapplied. The terminal status was completed by an assisted Board operation; the failed
-duplicate run and its historical recovery notice remain intact. Accepted source `c9c96f3` is integrated
-as `36e0476`: unsettled usage reserves a run without inventing subscription/token attribution.
-Independent Sol accepted saved backend `5b5540f` and launcher packaging. Its process grant is limited
-to that same process actor's tasks. Accepted notification source MEM-243 was applied through the
-existing canonical publisher at `4ee00f4`, with exact native Sol MEM-246 acceptance reused and both
-remote blobs verified. No replacement source implementation or operation-script programme was needed.
+MEM-235 is DONE after receipt/journal and all 24 target hashes were verified; no target was reapplied.
+Accepted usage source c9c96f3 is integrated as36e0476: unsettled usage reserves a run without invented
+subscription/token attribution. Independently accepted backend b31d659 is deployed: scoped process
+recovery rights and shared recovery/accounting transactions. Accepted notification source MEM-243
+was applied through the existing canonical publisher4ee00f4, reusing exact native Sol246 acceptance
+and verifying both remote blobs. Source org/development is2725e7d before this documentation update.
 
-The fresh existing-control admission is finite: deadline 2026-10-30T01:10:36Z, at most 60 new native
-model runs, eight closing reserves, 15% whole-account quota floor. Fresh telemetry showed 63%, then
-62% remaining, not the founder's reported 100%; these are account observations, not programme use.
-Accepted control source differs from v5 only in three fresh authorization pins. Native control run
-`42db53cc-115f-4cdd-907f-ba4ea3fb13c7` succeeded and scheduled its next tick; its fresh quota receipt
-showed 61% remaining. Only the 39 temporary isolation holds added during this launch were removed;
-pre-existing manual holds and MEM-118/123/126 history remain protected.
+The finite launch deadline is2026-10-30T01:10:36Z, at most60 new native model runs, eight closing
+reserves and15% whole-account quota floor. Fresh account observations were below the reported100%;
+these are account observations, not programme attribution. Existing control242 remains armed.
+A false quota-readback pause exposed a reproduced completion-clock defect, fixed in2725e7d after
+independent review and two focused checks. The exact historical exception was not retained; do not
+claim its cause proven. New control pins/evidence preserve the same authority, deadline and counts,
+not a reset. Original false-stop records remain immutable. Only temporary launch isolation holds
+were removed; historical manual holds and MEM-118/123/126 remain protected.
 
-Arming exposed a real recovery transaction blockage: after execution reconciliation writes, the
-safe-handback gate calls the root budget service from inside the recovery transaction. PostgreSQL
-showed the nested budget transaction waiting on the outer transaction's locks. The owned backend was
-stopped with zero live model runs to abort uncommitted requests. Independently accepted `b31d659`
-now acquires the accounting lock before the issue lock and shares the existing transaction/publication
-buffer. Two focused real-handler cases cover handback and rejection rollback. That backend is deployed;
-the previously hanging control reconciliation completed through the supported route.
+Experience revision2 and its prior rejection are preserved. Stage226 is DONE from its durable receipt
+and a distinct owner-assisted notice; no restaging. Original233 completed natively after mixed-effect
+reconciliation. QA227 then found a genuine v1-only instruction incompatibility with legitimate native
+history-v2. Experience lead independently created Platform250; Luna252 implemented, Sol rejected
+real defects. Rather than deploy the rejected custom helper, Sol258 separately accepted its exact
+instruction-only component. Owner applied that text through the existing versioned CAS API:
+454f9bd6 -> b8669d18, exact native readback; rejected helper never executed.250DONE,252withdrawn.
+Manager198's settled mixed cancellation was reconciled through the supported native route and the
+same Sol manager is running again toward the original QA227/publisher228. Correction remains1/3.
+Brain remainsed3e6a5; no new Brain publication is claimed yet. Bootstrap application was assisted.
 
-Experience revision2 and its prior rejection are preserved. MEM-226 is DONE from its staged receipt
-and a separate acknowledged owner-assisted notice, without restaging or rewriting the failed run.
-MEM-249 is cancelled as unnecessary scripting. MEM-233's cancelled native run had mixed settled
-effects; its old cancellation and a newer stranded notice were reconciled separately before supported
-native handback. The same Sol lead is finishing that original task before Experience MEM-198 resumes
-its unchanged QA-227/publisher-228 graph. These bootstrap actions are assisted, not native self-repair
-proof. Brain remains `ed3e6a5`; no new Brain publication is claimed at this checkpoint.
+Native Astra selected P2A and completed its decision/attachment/planning route. It applied its own
+independently accepted search_api-only permission delta through the existing CEO API. A reused task
+session initially retained old tools; after a targeted session reset, native run9b144310 executed
+search_api successfully without replaying decision or activation. Platform251DONE. Cortex plan199
+DONE and its original source/stage/QA/publication graph exists. Prepare200's existing predecessor
+guard correctly waits for actual Experience228 publication; it failed before output and requires
+reconciliation before one supported retry. No predecessor/CAS envelope was weakened.
 
-Historical global acceptance tasks MEM-218/219/220 are backlog-only and not admitted. Existing
-completion task MEM-217 now invokes the already accepted `control-finish` action: selected native
-outcome/strategy signals can checkpoint and stop early; MEM-242 remains independent of those blockers.
-
-Private current custody: `brain-paperclip-lab/state/productive-20261030`; original custody remains
-`state/recovery-20261029/founder-stop-checkpoint`. Ordinary recovery must reconcile uncertain native
-effects before retry; local blockers do not revoke unrelated authorized product work.
+Historical whole-company acceptance218/219/220 remains backlog-only. Existing217 control-finish
+and independent242 own the finite stop. Private current custody is
+brain-paperclip-lab/state/productive-20261030; original recovery-20261029 checkpoint remains intact.
+Local blockers do not revoke unrelated authorized development; reconcile uncertain effects before retry.
 
 ## Founder stop — 2026-10-29 recovery checkpoint
 
