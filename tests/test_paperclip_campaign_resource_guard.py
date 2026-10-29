@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -63,6 +63,37 @@ def usage(**overrides):
     return value
 
 
+def install_board_usage_http(monkeypatch, checked_at: datetime):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self, _limit):
+            return json.dumps(
+                usage(checkedAt=checked_at.isoformat().replace("+00:00", "Z"))
+            ).encode()
+
+    monkeypatch.setattr(
+        guard.urllib.request, "urlopen", lambda _request, timeout: Response()
+    )
+
+
+def install_clock(monkeypatch, *values: datetime):
+    class Clock(datetime):
+        reads = iter(values)
+        last = values[-1]
+
+        @classmethod
+        def now(cls, tz=None):
+            cls.last = next(cls.reads, cls.last)
+            return cls.last
+
+    monkeypatch.setattr(guard, "datetime", Clock)
+
+
 def test_preflight_saves_only_small_private_nonsecret_observation(tmp_path: Path, monkeypatch):
     tmp_path.chmod(0o700)
     monkeypatch.setattr(guard, "read_board_usage", lambda *_args, **_kwargs: usage())
@@ -74,6 +105,40 @@ def test_preflight_saves_only_small_private_nonsecret_observation(tmp_path: Path
     assert "grantId" not in saved and "token" not in saved
     assert saved["remaining_percent"] == 80
     assert saved["observed_model_run_count"] == 0
+
+
+def test_preflight_accepts_fresh_board_usage_after_slow_response(tmp_path: Path, monkeypatch):
+    tmp_path.chmod(0o700)
+    start = NOW
+    completion = start + timedelta(seconds=6)
+    install_clock(monkeypatch, start, completion, completion)
+    install_board_usage_http(monkeypatch, completion)
+
+    receipt = guard.preflight(policy(), COMPANY, "prepare", [], tmp_path / "slow.json")
+
+    assert receipt["observed_at"] == completion.isoformat().replace("+00:00", "Z")
+    assert receipt["checked_at"] == completion.isoformat().replace("+00:00", "Z")
+    assert receipt["remaining_percent"] == 80
+
+
+def test_preflight_rechecks_deadline_after_board_usage_response(tmp_path: Path, monkeypatch):
+    tmp_path.chmod(0o700)
+    start = NOW
+    deadline = start + timedelta(seconds=5)
+    completion = deadline + timedelta(seconds=1)
+    install_clock(monkeypatch, start, completion, completion)
+    install_board_usage_http(monkeypatch, start + timedelta(seconds=4))
+
+    with pytest.raises(guard.ResourceGuardError, match="resource_policy_deadline_expired"):
+        guard.preflight(
+            policy(deadline_utc=deadline.isoformat().replace("+00:00", "Z")),
+            COMPANY,
+            "prepare",
+            [],
+            tmp_path / "expired.json",
+        )
+
+    assert not (tmp_path / "expired.json").exists()
 
 
 @pytest.mark.parametrize(

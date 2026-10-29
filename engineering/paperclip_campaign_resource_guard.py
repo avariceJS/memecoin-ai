@@ -310,7 +310,15 @@ def preflight(
         len(observed_run_ids) + reserve_model_runs <= policy["max_model_runs"],
         "resource_run_cap_exceeded",
     )
-    observation = read_board_usage(company_id, policy["connection_id"], now=current)
+    # Keep explicit test clocks frozen, but let production validate the Board
+    # timestamp against the clock after the HTTP response has arrived.
+    observation = read_board_usage(company_id, policy["connection_id"], now=now)
+    current = now or datetime.now(UTC)
+    _require(
+        current.tzinfo is not None and current.utcoffset() == timedelta(0), "resource_clock_invalid"
+    )
+    _require(issued <= current, "resource_policy_not_yet_active")
+    _require(current < deadline, "resource_policy_deadline_expired")
     normalized = validate_usage(observation, policy["connection_id"], now=current)
     receipt = {
         "schema": RECEIPT_SCHEMA,
