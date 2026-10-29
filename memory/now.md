@@ -15,7 +15,12 @@
 - Native Astra190 selectedP2A/decision attachment, plan199DONE. Self-applied reviewed search_api
   delta; actual fresh native9b144310 executed tool after targeted session reset.251DONE.
   Cortex original graph253..256 exists; prepare200 waits actual228publication, no gate bypass.
-- Brain still ed3e6a5; no new Brain publication yet. Root source2725e7d before current docs.
+- Experience published cb5c8e2: native publisher3c08bf88 succeeded, local/remote development+
+  candidate refs verified. Product QA02a9 accepted; final exact6-key own export146175ce/d53ea6db,
+  no product retests. Native Platform259 repaired report shape, withdrew helper260, but recovery403
+  required assisted Board handback. Old failure/revisions/reject preserved.200 original no-output
+  failure now reconciled after actual predecessor publication; SAME graph253..256 ready to continue.
+  Root source57a7836 before current docs.
   Bootstrap application assisted; native repair initiation/strategy/tool execution observed.
 - Existing217control-finish/242stop; whole-company218/219/220not admitted.
 - Current receipts: /Users/root1/Developer/brain-paperclip-lab/state/productive-20261030.

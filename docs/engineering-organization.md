@@ -31,15 +31,23 @@ instruction-only component. Owner applied that text through the existing version
 454f9bd6 -> b8669d18, exact native readback; rejected helper never executed.250DONE,252withdrawn.
 Manager198's settled mixed cancellation was reconciled through the supported native route and the
 same Sol manager is running again toward the original QA227/publisher228. Correction remains1/3.
-Brain remainsed3e6a5; no new Brain publication is claimed yet. Bootstrap application was assisted.
+Experience is now independently accepted and published atcb5c8e2c73016fbea161a38f2ce5e30e062d51ef.
+Own product QA02a9 succeeded; a strict report-shape failure required SAME QA author to export the
+unchanged accept/checks in final own run146175ce/revisiond53ea6db, without repeated product tests.
+Native publisher3c08bf88 succeeded, receipt publication_digestcf456781/canonicalc0254447; local and
+remote development/candidate refs match. Sol259 owned the repair, withdrew unnecessary inspection260
+and reviewed exact source/effects, but its recovery request received403 Board access required. Owner
+performed supported not_performed/TODO handback once. This boundary remains assisted, not autonomous
+recovery proof. Original failure, report revisions and prior rejection remain intact.
 
 Native Astra selected P2A and completed its decision/attachment/planning route. It applied its own
 independently accepted search_api-only permission delta through the existing CEO API. A reused task
 session initially retained old tools; after a targeted session reset, native run9b144310 executed
 search_api successfully without replaying decision or activation. Platform251DONE. Cortex plan199
-DONE and its original source/stage/QA/publication graph exists. Prepare200's existing predecessor
-guard correctly waits for actual Experience228 publication; it failed before output and requires
-reconciliation before one supported retry. No predecessor/CAS envelope was weakened.
+DONE and its original source/stage/QA/publication graph exists. Prepare200's predecessor guard correctly held before actual Experience publication. Owner verified
+its old failure before output/resource writes and absent output root, then reconciled not_performed
+and handed back the SAME200 once after publication. Original253..256 graph remains; no predecessor/
+CAS envelope was weakened. Native next product execution is being observed.
 
 Historical whole-company acceptance218/219/220 remains backlog-only. Existing217 control-finish
 and independent242 own the finite stop. Private current custody is
