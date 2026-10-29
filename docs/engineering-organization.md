@@ -1,5 +1,69 @@
 # Brain Engineering Organization
 
+## Productive launch — 2026-10-30, in progress
+
+The founder explicitly resumed development after STOP and directed completion of saved repairs,
+Experience publication, and further useful Brain work. This is development authority, not company
+acceptance. Main, production, protected data, market collection, training, AUTO, trading and paid APIs
+remain excluded. Historical STOP records and candidates are preserved.
+
+MEM-235 is DONE after current receipt/journal and all 24 accepted target hashes were verified; no
+target was reapplied. The terminal status was completed by an assisted Board operation; the failed
+duplicate run and its historical recovery notice remain intact. Accepted source `c9c96f3` is integrated
+as `36e0476`: unsettled usage reserves a run without inventing subscription/token attribution.
+Independent Sol accepted saved backend `5b5540f` and launcher packaging; installed health confirmed
+that backend. Its process grant is limited to that same process actor's tasks.
+
+The fresh existing-control admission is finite: deadline 2026-10-30T01:10:36Z, at most 60 new native
+model runs, eight closing reserves, 15% whole-account quota floor. Fresh telemetry showed 63%, then
+62% remaining, not the founder's reported 100%; these are account observations, not programme use.
+Accepted control source differs from v5 only in three fresh authorization pins. Productive models
+remain manually held until a successful native control tick and future monitor are observed.
+
+Arming exposed a real recovery transaction blockage: after execution reconciliation writes, the
+safe-handback gate calls the root budget service from inside the recovery transaction. PostgreSQL
+showed the nested budget transaction waiting on the outer transaction's locks. The owned backend was
+stopped with zero live model runs to abort uncommitted requests. A narrow candidate uses the existing
+transactional budget service; this is still under development/review, not deployed or accepted here.
+Experience revision2 and its prior rejection are preserved; MEM-249 has the current two-operation
+assignment and remains unlaunched. Brain remains `ed3e6a5`; no new Brain publication is claimed.
+
+Private current custody: `brain-paperclip-lab/state/productive-20261030`; original custody remains
+`state/recovery-20261029/founder-stop-checkpoint`. Ordinary recovery must reconcile uncertain native
+effects before retry; local blockers do not revoke unrelated authorized product work.
+
+## Founder stop — 2026-10-29 recovery checkpoint
+
+The founder explicitly stopped this session to preserve quota. This supersedes the earlier bounded
+recovery admission; do not resume from a timer, quota reset, old deadline or this historical record.
+At2026-10-28T23:10:10Z, Paperclip companybe0053ed-cb7c-4320-b9db-cef012a91d62 was paused with zero live runs.
+Local delegated agents were interrupted. No further development or verification was commissioned.
+
+Org source remainsa7791d2 and installed Paperclip240c623. Native-document QA transport and resource
+renewal are applied. Native MEM-241 verified the portable maintenance runtime. MEM-235's24-target
+rollout completed in82b7e833; its later automatic process-disposition replay failed before mutation.
+Preserve both runs and complete the task without reapplying targets. Corrected Experience staging
+already happened; its notification failed. Brain remainsed3e6a5, with no new Brain publication this session.
+
+Native MEM-243 source was accepted by independent Sol MEM-246 (11 focused tests); application/continuation
+is still not_ready and MEM-249 remains backlog. Backendccbe6e7 and packaginge48a6f4 are independently
+accepted but not deployed. Candidate5b5540f adds narrowly scoped process recovery authority; candidate
+c9c96f3 fixes conservative counting when native usage is not settled. Final independent reviews of both
+were interrupted by Founder STOP, so neither is accepted for deployment by this checkpoint.
+
+The native control monitor ran repeatedly and checkpointed/paused despite outstanding blockers at22:57Z.
+The trigger was the nullable-usage counter failure, not a demonstrated quota/deadline limit. Latest
+whole-account usage snapshot23:07:41Z retained31%; it is not programme attribution. Historical failing
+HTTP bytes were not retained; the null-usage failure was causally reconstructed from valid executor state.
+
+Private custody:state/recovery-20261029/FOUNDER-STOP.json and founder-stop-checkpoint/ beneath the lab root.
+That directory contains state/task snapshots, candidate Git bundles, dirty patches and untracked files;
+all original worktrees, native documents and receipts remain. This documentation checkpoint deliberately
+does not move the source tip expected by the pending native application. A new founder launch must first
+reconcile partial/cancelled runs and fresh resources. Preserve the existing STOP evidence; any future
+control rearm needs fresh authority and a distinct evidence directory under the configured campaign root.
+Only then finish scoped permissions/application and the original Experience QA/publication path.
+
 ## Unified functional programme — 2026-10-28 preparation
 
 The founder directive in `prompt/prompt.md` explicitly authorizes one finite productive campaign,

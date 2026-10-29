@@ -1,27 +1,19 @@
-# Current state — 2026-10-28, unified programme handoff
+# Current state — 2026-10-30, fresh productive launch in progress
 
-- Founder authorized one finite productive campaign in `prompt/prompt.md`; protected boundaries remain.
-- Org source `1057413` independently accepted: QA history, exact predecessor chaining, resource checkpoints,
-  absent-branch selection and up to three corrections. Combined 50 tests/59 subtests; scoped Ruff passed.
-- One-time setup independently accepted and applied: six Sol High department leads, forty preserved Luna
-  developer profiles, 37 inert native tasks, 14 projects, exact subscription bindings and healthy chains.
-- Company resumed for handoff; selected QA operational pause removed, historical issue holds preserved.
-  MEM-193 is ready for the single initial admission. No employee run observed at readiness readback.
-- Finite bounds: at most six outcomes, 80 model runs, eight reserved closing runs, deadline 19:35:59Z.
-  Process checkpoints require 15% quota remaining; whole-account latest 73%, not campaign attribution.
-- Root exits after initial dispatch; native leads/Astra/final QA/stop own continuation. No root observer.
-  Functional acceptance pending. Brain `54fb180` and main `2f8da5f` remotely verified before admission.
-- Private authoritative admission/readback and future conclusion:
-  `/Users/root1/Developer/brain-paperclip-lab/state/unified-final-20261028`.
-  See `docs/engineering-organization.md` and `engineering/OWNER-DESK.md`; do not replay setup/dispatch.
-
-- MEM-193 recovery: owner corrected only eight QA-template primary flags to match installed API.
-  Separate Senses QA project/path/ref verified; seven other projects empty. Existing task resumes.
-  Post-root-final intervention recorded in final QA/Astra instructions: campaign is assisted.
-
-- Founder expanded ordinary development maintenance authority. MEM197 seed bug fixed9cc4866; original
-  no-effect failure reconciled, same native task DONE; Experience/Luna MEM225 resumed.
-- Prepare failure handoff8814696 independently accepted;42tests/59subtests.
-- Six leads/Astra managed authority updated; nativePlatform MEM229 owns real Luna/QA/process rollout
-  of task-specific maintenance routes. Final evidence depends on it. Company remains active, bounded.
-  Actual full self-maintenance remains pending native evidence; owner interventions stay assisted.
+- Founder explicitly resumed development after STOP: finish saved repairs, publish Experience, then
+  continue useful Brain work. Main/production/protected data/market/training/AUTO/trading/paid APIs excluded.
+- MEM-235 DONE via assisted completion bookkeeping after receipt/journal +24/24 current hashes;
+  no reapplication. Original successful and failed duplicate runs/recovery history preserved.
+- Accepted usage candidate c9c96f3 integrated as36e0476. Backend5b5540f and packaging independently
+  accepted; health read back5b5540f. Process recovery grant is scoped to own actor/tasks.
+- Fresh finite authority: deadline2026-10-30T01:10:36Z,60 new native model runs/8 closing reserves/15%
+  whole-account floor. Live account observations63% then62% remaining; not programme usage.
+- Existing control MEM242 not armed yet; all productive actors manually held. Its supported recovery
+  exposed nested budget/root-DB lock inside recovery transaction. Zero live model runs; owned backend
+  stopped to abort uncommitted requests. Narrow Luna repair + independent Sol review underway.
+- MEM249 current assignment and configured source set, still backlog/unlaunched. MEM233 cancelled-run
+  effects reconciled read-only as mixed (existing249 setup/documents completed); request not submitted.
+  Experience revision2 staging verified; do not restage. Same227 QA and228 publisher remain pending.
+- Brain remainsed3e6a5; org source checkpoint90df60e before current docs. No new Brain publication.
+- Current private custody: /Users/root1/Developer/brain-paperclip-lab/state/productive-20261030.
+  Prior immutable STOP/candidates remain in state/recovery-20261029/founder-stop-checkpoint.
