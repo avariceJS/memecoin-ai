@@ -1,27 +1,9 @@
-# Current state — 2026-10-30, finite cycle paused
+# Current state — 2026-10-30 12:55 UTC, scaling campaign ACTIVE
 
-- Founder30Oct explicitly resumed development; main/production/protected data/market/training/
-  AUTO/trading/paid APIs remain excluded. Original STOP/receipts/candidates/holds preserved.
-- MEM235 DONE by original receipt/journal +24/24 hashes, never reapplied. Accepted usage36e0476,
-  notification4ee00f4 and clock2725e7d integrated. Paperclip backendb31d659 deployed.
-- Experience source225/stage226 revision2 retained, correction1/3. Independent product QA02a9
-  accepted; final exact-format own QA146175ce/revisiond53ea6db reused checks without retests.
-  Native publisher228/run3c08bf88 succeeded: Brain cb5c8e2, exact local/remote development and
-  candidate refs verified. Publication complete; do not republish/re-QA/restage.
-- Native Platform250/259 repairs DONE; rejected helpers252/260 withdrawn/unused. Instruction
-  b8669d18 applied with existing CAS. Platform recovery403 required assisted Board handbacks.
-  Native self-recovery across these boundaries is not proven. Historical118/123/human126 preserved.
-- Native Astra190 selectedP2A, decision+attachment and Cortex199 plan DONE. Self-applied reviewed
-  search_api-only delta; fresh9b144310 executed tool after targeted session reset.251DONE.
-  Prepare200 retried once after predecessor publication, DONE. Sol201 admitted Luna253.
-- Existing control242 paused at23:27UTC:55 new native model runs vs60cap/8closing reserve;
-  last whole-account observation57% at23:22UTC, not programme usage. No cap/deadline reset.
-  Company PAUSED, zero queued/running at23:29UTC. Native stop process07116f04 failed during
-  workspace_operations/workspace_finalize AFTER pause; immutable STOP_PENDING preserved.
-  Owner readback confirms applied stop, not successful native finalization.
-- Luna253/db896105 cancelled before candidate edits; clean worktree8dbb9cf. Cortex not delivered.
-  Experience198 final bookkeeping65602ad7 cancelled after publication; reconcile before resuming.
-- Full directive remains incomplete: accepted Experience publication achieved; sustained company
-  autonomy, following Cortex result and clean native stop finalization remain unresolved.
-- Org source346a1d0 before current docs; current private pointer and exact restart custody:
-  /Users/root1/Developer/brain-paperclip-lab/state/productive-20261030/current.json.
+- Authority: `prompt/prompt.md` (read in full), launch 06:09:53Z, deadline 18:09:53Z. No artificial run cap. Stop heavy admission near 8% weekly remaining to protect a 5% floor; then Board pause, zero live runs, final checkpoint and reports. Main, production, protected holds/data, market collection, training, AUTO, trading and paid APIs excluded. Old STOP/receipts/candidates preserved.
+- Source checkpoint: `/Users/root1/Developer/brain-paperclip-lab/state/productive-20261030/current.json`; current private pointer: `/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/current.json`. Prior Experience publication `cb5c8e2` and MEM-235 24 applied changes never repeated.
+- Organization `org/development` `087ccd7` pushed; local Paperclip backend `69cefa8` independently Sol accepted, deployed at zero live and health read back. Normal company active. Native Platform signed recovery actions for original Cortex MEM-253, Experience MEM-198 and related staging; MEM-198 bookkeeping DONE without publication replay. Backend recovery authority works in those actual runs. Shutdown path not yet proven in this campaign.
+- Brain `brain/development` local and origin `5427aae`: native independently accepted publications Experience `purged_temporal_split` `a594aa9` and Senses `observation_gap_intervals` `5427aae`; receipts in scaling state delivery scaffolds. Original Cortex MEM-253 `masked_lag_encoding` revision2 accepted by Sol-QA, staged, but original publisher MEM-256 blocked on frozen predecessor `cb5c8e2` after sibling publications; no Cortex publication effect. Astra approved bounded compatible descendant route; native repair ongoing, candidate preserved.
+- Evaluation and Policy: native Sol plans and four-task graphs created. Luna MEM-304 `quantile_cohort_coverage` and MEM-300 `research_evidence_gate` source DONE. Evaluation stage MEM-305 blocked on `resource_subscription_mismatch`; Platform MEM-311 inspecting original effects and binding. Policy stage MEM-301 blocked on `demonstration_contract_invalid` (demo missing `module` key); Platform MEM-314 owns same-task repair. QA and publication remain gated. Source completion is not acceptance.
+- Scaling baseline through 11:33Z: 83 model runs, peak 6 concurrent total and peak 2 Luna; Senses/Experience Luna source runs overlap about 165 s. No verified 4/8 Luna cohort. Baseline telemetry `/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/telemetry-baseline-1133.json`. Astra was given latest product-concurrency priority on MEM-242. Whole-account quota latest observed 35% at 12:48Z (control receipt); no per-model quota attribution.
+- Founder Desk: `engineering/OWNER-DESK.md`; final detailed technical report pending. Preserve distinctions between source, QA, publication, native operation and autonomous proof.
