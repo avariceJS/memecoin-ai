@@ -656,6 +656,153 @@ class NativeDeliveryTests(unittest.TestCase):
                     repo, "refs/heads/brain/development", "a" * 40, receipt, True
                 )
 
+    def test_independent_additions_publish_sequentially_on_latest_descendant(self) -> None:
+        repo = self.root / "independent-canonical"
+        base = init_repo(repo)
+        ref = delivery.PUBLISH_REF
+        git(repo, "update-ref", ref, base)
+        git(repo, "symbolic-ref", "HEAD", ref)
+        manifest = {
+            "publication_mode": "independent_additive",
+            "source": {"paths": ["src/first.py", "tests/test_first.py"]},
+            "canonical": {"repo": str(repo), "ref": ref, "expected_tip": base},
+        }
+
+        def refs(_manifest: dict[str, Any]) -> dict[str, str]:
+            return {ref: git(repo, "rev-parse", ref).decode().strip()}
+
+        published: list[str] = []
+        with patch.object(delivery, "remote_refs", side_effect=refs):
+            for paths, payloads in (
+                (["src/first.py", "tests/test_first.py"], [b"FIRST = 1\n", b"assert FIRST\n"]),
+                (["src/second.py", "tests/test_second.py"], [b"SECOND = 2\n", b"assert SECOND\n"]),
+            ):
+                manifest["source"]["paths"] = paths
+                expected = delivery.independent_additive_expected_tip(manifest)
+                self.assertEqual(expected, published[-1] if published else base)
+                files = dict(zip(paths, payloads, strict=True))
+                blobs = {
+                    path: delivery.publisher._git(repo, "hash-object", "--stdin", data=data)
+                    .decode()
+                    .strip()
+                    for path, data in files.items()
+                }
+                receipt = delivery.publisher.prepare(
+                    repo,
+                    ref,
+                    expected,
+                    {path: None for path in paths},
+                    blobs,
+                    files,
+                    allowed_paths=paths,
+                )
+                result = delivery.publisher.reconcile(
+                    repo,
+                    ref,
+                    receipt,
+                    receipt["candidate"],
+                    receipt["receipt_digest"],
+                    allowed_paths=paths,
+                )
+                self.assertEqual(result["status"], "reconciled")
+                published.append(receipt["candidate"])
+        self.assertEqual(git(repo, "rev-parse", f"{published[1]}^").decode().strip(), published[0])
+        self.assertEqual((repo / "src/first.py").read_bytes(), b"FIRST = 1\n")
+        self.assertEqual((repo / "src/second.py").read_bytes(), b"SECOND = 2\n")
+
+    def test_independent_additive_rejects_existing_path_without_writes(self) -> None:
+        repo = self.root / "collision-canonical"
+        base = init_repo(repo)
+        ref = delivery.PUBLISH_REF
+        git(repo, "update-ref", ref, base)
+        git(repo, "symbolic-ref", "HEAD", ref)
+        collision = repo / "src/collision.py"
+        collision.parent.mkdir()
+        collision.write_bytes(b"occupied\n")
+        git(repo, "add", "src/collision.py")
+        git(
+            repo,
+            "-c",
+            "user.name=fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "collision",
+        )
+        current = git(repo, "rev-parse", ref).decode().strip()
+        manifest = {
+            "publication_mode": "independent_additive",
+            "source": {"paths": ["src/collision.py", "tests/test_collision.py"]},
+            "canonical": {"repo": str(repo), "ref": ref, "expected_tip": base},
+        }
+        with patch.object(delivery, "remote_refs", return_value={ref: current}):
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "independent_additive_path_not_new"
+            ):
+                delivery.independent_additive_expected_tip(manifest)
+        self.assertEqual(git(repo, "rev-parse", ref).decode().strip(), current)
+        self.assertFalse((repo / "tests/test_collision.py").exists())
+
+    def test_legacy_manifest_keeps_frozen_publication_tip(self) -> None:
+        api = object()
+        manifest = {"canonical": {"expected_tip": "a" * 40}}
+        with patch.object(delivery, "predecessor_expected_tip", return_value=None):
+            self.assertEqual(delivery.publication_expected_tip(manifest, "b" * 64, api), "a" * 40)
+
+    def test_saved_publication_receipt_rejects_an_unknown_third_tip(self) -> None:
+        repo = self.root / "receipt-canonical"
+        base = init_repo(repo)
+        ref = delivery.PUBLISH_REF
+        git(repo, "update-ref", ref, base)
+        git(repo, "symbolic-ref", "HEAD", ref)
+        paths = ["src/receipt.py", "tests/test_receipt.py"]
+        files = {paths[0]: b"RECEIPT = True\n", paths[1]: b"assert RECEIPT\n"}
+        blobs = {
+            path: delivery.publisher._git(repo, "hash-object", "--stdin", data=data)
+            .decode()
+            .strip()
+            for path, data in files.items()
+        }
+        receipt = delivery.publisher.prepare(
+            repo,
+            ref,
+            base,
+            {path: None for path in paths},
+            blobs,
+            files,
+            allowed_paths=paths,
+        )
+        other = repo / "docs/other.txt"
+        other.parent.mkdir()
+        other.write_bytes(b"third tip\n")
+        git(repo, "add", "docs/other.txt")
+        git(
+            repo,
+            "-c",
+            "user.name=fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "unrelated concurrent publication",
+        )
+        third_tip = git(repo, "rev-parse", ref).decode().strip()
+        with self.assertRaisesRegex(
+            delivery.publisher.CanonicalPublishError, "unknown third tip"
+        ):
+            delivery.publisher.reconcile(
+                repo,
+                ref,
+                receipt,
+                receipt["candidate"],
+                receipt["receipt_digest"],
+                allowed_paths=paths,
+            )
+        self.assertEqual(git(repo, "rev-parse", ref).decode().strip(), third_tip)
+
     def test_manifest_pins_one_safe_candidate_ref_and_manager_task(self) -> None:
         qa = self.root / "qa-workspace"
         qa.mkdir()
@@ -2106,6 +2253,23 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(manifest["role_models"], {"developer": "gpt-6-luna", "qa": "gpt-6.1-sol"})
         self.assertNotIn("max_corrections", manifest)
         self.assertEqual(git(Path(manifest["qa_workspace"]), "remote", "-v"), b"")
+
+    def test_prepare_propagates_only_owner_frozen_independent_additive_mode(self) -> None:
+        for invalid in ("rebase", "independent", True, None):
+            with self.subTest(publication_mode=invalid):
+                with self.assertRaisesRegex(
+                    delivery.DeliveryError, "preparation_publication_mode_invalid"
+                ):
+                    delivery.validate_preparation_envelope(
+                        {**self.envelope, "publication_mode": invalid}
+                    )
+        self.envelope["publication_mode"] = "independent_additive"
+        self.envelope_path.write_bytes(delivery.json_bytes(self.envelope))
+        api = self.fake_api()
+        with patch.object(delivery, "Paperclip", return_value=api):
+            delivery.prepare(str(self.envelope_path))
+        manifest, _ = delivery.load_manifest(str(self.output / "slot1" / "manifest.json"))
+        self.assertEqual(manifest["publication_mode"], "independent_additive")
 
     def test_prepare_pins_owner_configured_correction_limit(self) -> None:
         self.envelope["max_corrections"] = 3
