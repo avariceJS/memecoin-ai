@@ -164,7 +164,9 @@ def validate_policy(value: object, company_id: str) -> dict[str, Any]:
     return value
 
 
-def load_policy_reference(reference: object, company_id: str) -> tuple[dict[str, Any], str]:
+def load_policy_reference(
+    reference: object, company_id: str, *, allow_v1_to_v2: bool = False
+) -> tuple[dict[str, Any], str]:
     _require(
         type(reference) is dict
         and set(reference) == {"path", "sha256"}
@@ -181,13 +183,32 @@ def load_policy_reference(reference: object, company_id: str) -> tuple[dict[str,
 
     renewal, renewal_raw = _private_json(renewal_path, "resource_policy_renewal")
     _require(
-        set(renewal) == {"schema", "original_policy_sha256", "new_policy"}
-        and renewal.get("schema") == (RENEWAL_SCHEMA_V2 if original["schema"] == POLICY_SCHEMA_V2 else RENEWAL_SCHEMA)
+        type(renewal) is dict
+        and set(renewal) == {"schema", "original_policy_sha256", "new_policy"}
         and renewal.get("original_policy_sha256") == reference["sha256"],
         "resource_policy_renewal_binding_invalid",
     )
     effective = validate_policy(renewal["new_policy"], company_id)
-    _require(effective["schema"] == original["schema"], "resource_policy_renewal_schema_mismatch")
+    legacy_renewal = (
+        original["schema"] == POLICY_SCHEMA
+        and effective["schema"] == POLICY_SCHEMA
+        and renewal.get("schema") == RENEWAL_SCHEMA
+    )
+    versioned_upgrade = (
+        allow_v1_to_v2
+        and original["schema"] == POLICY_SCHEMA
+        and effective["schema"] == POLICY_SCHEMA_V2
+        and renewal.get("schema") == RENEWAL_SCHEMA_V2
+    )
+    versioned_renewal = (
+        original["schema"] == POLICY_SCHEMA_V2
+        and effective["schema"] == POLICY_SCHEMA_V2
+        and renewal.get("schema") == RENEWAL_SCHEMA_V2
+    )
+    _require(
+        legacy_renewal or versioned_upgrade or versioned_renewal,
+        "resource_policy_renewal_schema_mismatch",
+    )
     issued = _utc(effective["issued_at_utc"], "resource_policy_renewal_issued_at_invalid")
     old_deadline = _utc(original["deadline_utc"], "resource_policy_deadline_invalid")
     new_deadline = _utc(effective["deadline_utc"], "resource_policy_deadline_invalid")
