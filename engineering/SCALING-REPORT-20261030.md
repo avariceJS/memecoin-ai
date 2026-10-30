@@ -68,3 +68,21 @@ Cortex338 corrected only test fixtures after independent QA found four wrong exp
 Native Astra365 selected four distinct contracts368–371. Native Platform372 and Luna373 prepare ordinary registrations and exact configuration artifacts; independent Sol375 must review final actual-ID envelopes/writer before trusted file apply. A stale native completion-review card referenced a prior status-decision and returned409 to the manager. The external integrator resolved that card administratively as PHASE-1 DRAFT HANDOFF ONLY; final byte review remains mandatory. No four-worker source admission or overlap is yet proven. This is an assisted limitation, not native repair autonomy.
 
 Final telemetry must distinguish native model-associated attempts from confirmed provider work: known bootstrap failures with providerWorkStarted=false are not actual model execution. Missing usage is unknown, not zero. The 14:42 table above is historical, not the current run count.
+
+### Later native telemetry snapshot
+
+Private `telemetry-interim-1719.json` (source `telemetry-1719-private.json`, collected around17:16UTC) deduplicates615 native records since launch, including460 model-associated attempts.442 attempts carry runtime model and complete token fields. Known attachment-staging bootstrap failures are attempts, not confirmed provider calls. Observed completed intervals with runtime model/token evidence yield a lower-bound peak of eight models total and three Luna. This is later than the historical14:42 table.
+
+| Model | Native attempts | Runtime model/token rows | Summed completed interval seconds | Reported input | Reported cached input | Reported output |
+|---|---:|---:|---:|---:|---:|---:|
+| gpt-6.1-sol |313|299|38,961.612|50,024,069|1,476,029,056|5,640,480|
+| gpt-6-astra |103|102|10,557.901|122,812,210|1,089,354,240|2,482,295|
+| gpt-6-luna |44|41|7,535.159|6,081,801|120,869,248|1,321,863|
+
+The native publisher completed the two-worker cohort's deliveries at11:32:56Z and11:35:37Z. In the later three-worker cohort, Senses completed publication15:52:51Z and Experience16:24:18Z; Cortex remains pending. Both cohorts contain distinct tasks and coordination/recovery delays; these timings cannot establish a causal scaling speedup. Provider capacity is not the demonstrated bottleneck: metadata/configuration preparation, stale completion-review authority, lifecycle races and report/history instruction mismatches consumed the available window. A comprehensive count of transient provider429 responses is unavailable; no claim of zero429 or a measured provider ceiling is made.
+
+### Seventh publication at 17:28 UTC
+
+Cortex available_window_summary is now independently accepted and natively published as `96e9848c655dc0c4e3347696eb2db56c04c3f1ea`. Local `brain/development`, remote same branch and remote candidate ref match. Exact publication receipt lives at `delivery-scaffolds/cortex-available-window-summary/prepared/slot1/custody/publication-77822b6a-46e3-4597-8936-204882f784d9.json`; private `cortex-seventh-publication-readback.json` records the readback. QA342 own accepted report revision9a8999e5/runccae9533 follows preserved negative history. All three cohort outputs are accepted publications. Old original Cortex253 remains a distinct preserved unpublished candidate.
+
+Platform372 natively registered all four successor graphs376–403, with sources379/386/393/400 still BACKLOG. Same373 final actual-ID artifact followup is active;375 remains mandatory before trusted file apply. This proves native metadata registration, not four-worker execution. Latest verified whole-account quota11% at17:25:53Z; all resource/deadline limits unchanged.
