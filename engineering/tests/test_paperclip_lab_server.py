@@ -34,6 +34,10 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(
             PAPERCLIP_SOURCE_CHAIN,
             (
+                "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+                "e7075c6660859eed0990f352d525b40356411e6a",
+                "920d2a32fffbe711bc3cb078b9091d6604e55acc",
+                "645bf29bf8deb41f857a970199d58909927635d2",
                 "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7",
                 "5b5540f5418977ab2d861f7da3ee3dc7554d0601",
                 "ccbe6e7183b4bae56ba857c17a190ecc92c51910",
@@ -47,8 +51,8 @@ class PaperclipLabServerTests(unittest.TestCase):
                 *PAPERCLIP_PATCH_SOURCE_CHAIN,
             ),
         )
-        self.assertEqual(PAPERCLIP_PIN, "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7")
-        self.assertEqual(PAPERCLIP_PARENT_PIN, "5b5540f5418977ab2d861f7da3ee3dc7554d0601")
+        self.assertEqual(PAPERCLIP_PIN, "15aee8eb62c13d90f8e8e462db6c3b83b33f858b")
+        self.assertEqual(PAPERCLIP_PARENT_PIN, "e7075c6660859eed0990f352d525b40356411e6a")
         self.assertEqual(PAPERCLIP_UPSTREAM_PIN, "043f2514e67c50320433a0013fb228a75a51325c")
         self.assertEqual(PAPERCLIP_PATCH_PIN, "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd")
         self.assertEqual(PAPERCLIP_PATCH_PARENT_PIN, "d560a09538a255c779e4a10b14d41a3114bf10f2")
@@ -181,13 +185,13 @@ class PaperclipLabServerTests(unittest.TestCase):
 
     def test_accepted_recovery_transaction_candidate_has_custody_without_runtime_admission(self):
         engineering = Path(__file__).resolve().parents[1]
-        manifest_path = engineering / "paperclip-source-bundles" / f"{PAPERCLIP_PIN}.json"
+        manifest_path = engineering / "paperclip-source-bundles" / "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         bundle = manifest_path.with_suffix(".bundle").read_bytes()
         self.assertEqual(manifest["state"], "accepted-source-custody-not-runtime-admission")
-        self.assertEqual(manifest["native_source_commit"], PAPERCLIP_PIN)
-        self.assertEqual(manifest["prerequisite_commit"], PAPERCLIP_PARENT_PIN)
-        self.assertEqual(manifest["incremental_commits"], [PAPERCLIP_PIN])
+        self.assertEqual(manifest["native_source_commit"], "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7")
+        self.assertEqual(manifest["prerequisite_commit"], "5b5540f5418977ab2d861f7da3ee3dc7554d0601")
+        self.assertEqual(manifest["incremental_commits"], ["b31d6598dd93d4e597874b5e4b12c2e3e0127eb7"])
         self.assertEqual(manifest["bundle_bytes"], len(bundle))
         self.assertEqual(manifest["bundle_sha256"], hashlib.sha256(bundle).hexdigest())
         self.assertEqual(
@@ -199,9 +203,44 @@ class PaperclipLabServerTests(unittest.TestCase):
             "f602905a085c6110b7d8f52dce52c4b943d06510603971898617a9c6648080d2",
         )
         self.assertIn("no runtime admission", manifest["limits"])
-        self.assertNotIn(PAPERCLIP_PIN, PAPERCLIP_STOP_CUSTODY_PINS)
-        self.assertIn(PAPERCLIP_PARENT_PIN, PAPERCLIP_STOP_CUSTODY_PINS)
-        self.assertIn(PAPERCLIP_PARENT_PIN, PAPERCLIP_CLEANUP_ONLY_PINS)
+        self.assertNotIn("b31d6598dd93d4e597874b5e4b12c2e3e0127eb7", PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertIn("5b5540f5418977ab2d861f7da3ee3dc7554d0601", PAPERCLIP_STOP_CUSTODY_PINS)
+        self.assertIn("5b5540f5418977ab2d861f7da3ee3dc7554d0601", PAPERCLIP_CLEANUP_ONLY_PINS)
+
+    def test_accepted_scoped_recovery_permissions_candidate_has_incremental_custody(self):
+        engineering = Path(__file__).resolve().parents[1]
+        commit = "15aee8eb62c13d90f8e8e462db6c3b83b33f858b"
+        manifest_path = engineering / "paperclip-source-bundles" / f"{commit}.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        bundle = manifest_path.with_suffix(".bundle").read_bytes()
+        self.assertEqual(manifest["state"], "accepted-source-custody-not-runtime-admission")
+        self.assertEqual(manifest["native_source_commit"], commit)
+        self.assertEqual(manifest["native_source_tree"], "545a1e0a3a3e5a64f1d0588e795afbabe1599280")
+        self.assertEqual(manifest["prerequisite_commit"], "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7")
+        self.assertEqual(manifest["incremental_commits"], [
+            "645bf29bf8deb41f857a970199d58909927635d2",
+            "920d2a32fffbe711bc3cb078b9091d6604e55acc",
+            "e7075c6660859eed0990f352d525b40356411e6a",
+            commit,
+        ])
+        self.assertEqual(manifest["bundle_bytes"], len(bundle))
+        self.assertEqual(manifest["bundle_sha256"], hashlib.sha256(bundle).hexdigest())
+        self.assertEqual(manifest["source_acceptance_receipt_sha256"], "7113f1eb0eb3f72b9ac33e4606fba9102cc182a075b16cbe537b8a7a32950132")
+        self.assertEqual(manifest["changed_source_paths"], [
+            "packages/shared/src/validators/agent.ts",
+            "server/src/__tests__/agent-permissions-routes.test.ts",
+            "server/src/__tests__/issue-recovery-actions.test.ts",
+            "server/src/routes/agents.ts",
+            "server/src/routes/issues.ts",
+        ])
+        self.assertIn("no runtime admission", manifest["limits"])
+        pin = json.loads((engineering / "paperclip" / "source-pin.json").read_text(encoding="utf-8"))
+        self.assertEqual(pin["managed_source"]["commit"], commit)
+        self.assertEqual(pin["managed_source"]["tree"], manifest["native_source_tree"])
+        self.assertEqual(pin["managed_source"]["ancestry"], [commit, "e7075c6660859eed0990f352d525b40356411e6a",
+            "920d2a32fffbe711bc3cb078b9091d6604e55acc", "645bf29bf8deb41f857a970199d58909927635d2",
+            "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7"])
+        self.assertEqual(PAPERCLIP_PIN, commit)
 
     def test_source_pin_metadata_binds_cumulative_patch_and_source_only_review(self):
         engineering = Path(__file__).resolve().parents[1]

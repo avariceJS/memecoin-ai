@@ -374,5 +374,23 @@
       "synthetic embedded PostgreSQL and mocked adapter only; no live provider, native queue mutation or deployment",
       "actual paused startup then company resume of the pending MEM13 wake remains an operational acceptance step"
     ]
+  },
+  "managed_source": {
+    "schema": "paperclip-managed-source-pin-v1",
+    "commit": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+    "tree": "545a1e0a3a3e5a64f1d0588e795afbabe1599280",
+    "parent": "e7075c6660859eed0990f352d525b40356411e6a",
+    "ancestry": [
+      "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+      "e7075c6660859eed0990f352d525b40356411e6a",
+      "920d2a32fffbe711bc3cb078b9091d6604e55acc",
+      "645bf29bf8deb41f857a970199d58909927635d2",
+      "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7"
+    ],
+    "bundle_manifest": "engineering/paperclip-source-bundles/15aee8eb62c13d90f8e8e462db6c3b83b33f858b.json",
+    "bundle_sha256": "8f59bf3f31cf50e1e29177653f3b79811082813a448a69a3255e7cd1c00e2baa",
+    "source_acceptance_receipt": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/recovery-review-final.json",
+    "source_acceptance_receipt_sha256": "7113f1eb0eb3f72b9ac33e4606fba9102cc182a075b16cbe537b8a7a32950132",
+    "runtime_acceptance": "pending"
   }
 }
