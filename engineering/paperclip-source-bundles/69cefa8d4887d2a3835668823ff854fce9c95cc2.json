@@ -13,14 +13,8 @@
     "69cefa8d4887d2a3835668823ff854fce9c95cc2"
   ],
   "changed_source_paths": [
-    "packages/shared/src/validators/agent.ts",
-    "server/src/__tests__/agent-permissions-routes.test.ts",
     "server/src/__tests__/issue-recovery-actions.test.ts",
-    "server/src/__tests__/workspace-operations-reconciliation.test.ts",
-    "server/src/routes/agents.ts",
-    "server/src/routes/issues.ts",
-    "server/src/services/authorization.ts",
-    "server/src/services/workspace-operations.ts"
+    "server/src/services/authorization.ts"
   ],
   "integrated_change": {
     "original_accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
