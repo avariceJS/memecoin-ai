@@ -19,16 +19,22 @@ from pathlib import Path
 from typing import Any
 
 POLICY_SCHEMA = "brain-campaign-resource-policy-v1"
+POLICY_SCHEMA_V2 = "brain-campaign-resource-policy-v2"
 RENEWAL_SCHEMA = "brain-campaign-resource-renewal-v1"
+RENEWAL_SCHEMA_V2 = "brain-campaign-resource-renewal-v2"
 RECEIPT_SCHEMA = "brain-campaign-resource-receipt-v1"
+RECEIPT_SCHEMA_V2 = "brain-campaign-resource-receipt-v2"
 BOARD_ORIGIN = "http://127.0.0.1:3310"
 MAX_SCOPES = 32
 MAX_ISSUES = 1000
 MAX_RUNS = 80
+MAX_SCOPED_RUN_IDS = 100_000
 MAX_RESERVED_RUNS = 8
 MAX_AGE = timedelta(seconds=60)
 MAX_POLICY_LIFETIME = timedelta(hours=8)
+MAX_POLICY_LIFETIME_V2 = timedelta(hours=12)
 MAX_RENEWAL_LIFETIME = timedelta(hours=6)
+MAX_RENEWAL_LIFETIME_V2 = timedelta(hours=12)
 MAX_RENEWAL_RUNS = 60
 RENEWAL_ENV = "BRAIN_CAMPAIGN_RESOURCE_RENEWAL"
 TERMINAL_RUN_STATUSES = {"succeeded", "failed", "cancelled", "timed_out", "interrupted"}
@@ -112,8 +118,9 @@ def validate_policy(value: object, company_id: str) -> dict[str, Any]:
         type(value) in {dict, _RenewedPolicy} and set(value) == fields,
         "resource_policy_fields_invalid",
     )
+    schema = value.get("schema")
     _require(
-        value["schema"] == POLICY_SCHEMA
+        schema in {POLICY_SCHEMA, POLICY_SCHEMA_V2}
         and value["company_id"] == company_id
         and type(value["connection_id"]) is str
         and UUID.fullmatch(value["connection_id"]) is not None,
@@ -121,17 +128,31 @@ def validate_policy(value: object, company_id: str) -> dict[str, Any]:
     )
     issued = _utc(value["issued_at_utc"], "resource_policy_issued_at_invalid")
     deadline = _utc(value["deadline_utc"], "resource_policy_deadline_invalid")
-    _require(issued < deadline <= issued + MAX_POLICY_LIFETIME, "resource_policy_lifetime_invalid")
-    _require(
-        type(value["max_model_runs"]) is int and 1 <= value["max_model_runs"] <= MAX_RUNS,
-        "resource_policy_run_cap_invalid",
-    )
-    _require(
-        type(value["min_remaining_percent"]) in {int, float}
-        and math.isfinite(value["min_remaining_percent"])
-        and value["min_remaining_percent"] == 15,
-        "resource_policy_headroom_invalid",
-    )
+    if schema == POLICY_SCHEMA:
+        _require(issued < deadline <= issued + MAX_POLICY_LIFETIME, "resource_policy_lifetime_invalid")
+        _require(
+            type(value["max_model_runs"]) is int and 1 <= value["max_model_runs"] <= MAX_RUNS,
+            "resource_policy_run_cap_invalid",
+        )
+        _require(
+            type(value["min_remaining_percent"]) in {int, float}
+            and math.isfinite(value["min_remaining_percent"])
+            and value["min_remaining_percent"] == 15,
+            "resource_policy_headroom_invalid",
+        )
+    else:
+        _require(issued < deadline <= issued + MAX_POLICY_LIFETIME_V2, "resource_policy_lifetime_invalid")
+        _require(
+            value["max_model_runs"] is None
+            or (type(value["max_model_runs"]) is int and 1 <= value["max_model_runs"] <= MAX_SCOPED_RUN_IDS),
+            "resource_policy_run_cap_invalid",
+        )
+        _require(
+            type(value["min_remaining_percent"]) in {int, float}
+            and math.isfinite(value["min_remaining_percent"])
+            and 5 <= value["min_remaining_percent"] <= 100,
+            "resource_policy_headroom_invalid",
+        )
     scopes = value["task_scope_root_ids"]
     _require(
         type(scopes) is list
@@ -161,11 +182,12 @@ def load_policy_reference(reference: object, company_id: str) -> tuple[dict[str,
     renewal, renewal_raw = _private_json(renewal_path, "resource_policy_renewal")
     _require(
         set(renewal) == {"schema", "original_policy_sha256", "new_policy"}
-        and renewal.get("schema") == RENEWAL_SCHEMA
+        and renewal.get("schema") == (RENEWAL_SCHEMA_V2 if original["schema"] == POLICY_SCHEMA_V2 else RENEWAL_SCHEMA)
         and renewal.get("original_policy_sha256") == reference["sha256"],
         "resource_policy_renewal_binding_invalid",
     )
     effective = validate_policy(renewal["new_policy"], company_id)
+    _require(effective["schema"] == original["schema"], "resource_policy_renewal_schema_mismatch")
     issued = _utc(effective["issued_at_utc"], "resource_policy_renewal_issued_at_invalid")
     old_deadline = _utc(original["deadline_utc"], "resource_policy_deadline_invalid")
     new_deadline = _utc(effective["deadline_utc"], "resource_policy_deadline_invalid")
@@ -174,19 +196,19 @@ def load_policy_reference(reference: object, company_id: str) -> tuple[dict[str,
         and effective["task_scope_root_ids"] == original["task_scope_root_ids"],
         "resource_policy_renewal_scope_invalid",
     )
+    renewal_lifetime = MAX_RENEWAL_LIFETIME_V2 if effective["schema"] == POLICY_SCHEMA_V2 else MAX_RENEWAL_LIFETIME
     _require(
-        old_deadline <= issued < new_deadline <= issued + MAX_RENEWAL_LIFETIME,
+        old_deadline <= issued < new_deadline <= issued + renewal_lifetime,
         "resource_policy_renewal_lifetime_invalid",
     )
-    _require(
-        effective["max_model_runs"] <= MAX_RENEWAL_RUNS,
-        "resource_policy_renewal_run_cap_invalid",
-    )
+    if effective["schema"] == POLICY_SCHEMA:
+        _require(effective["max_model_runs"] <= MAX_RENEWAL_RUNS, "resource_policy_renewal_run_cap_invalid")
     return _RenewedPolicy(effective, effective["issued_at_utc"]), _sha(renewal_raw)
 
 
 def read_board_usage(
-    company_id: str, connection_id: str, *, now: datetime | None = None
+    company_id: str, connection_id: str, *, now: datetime | None = None,
+    minimum_remaining_percent: float = 15,
 ) -> dict[str, Any]:
     """Read quota through the local Board's trusted-local route, with no credentials."""
     _require(UUID.fullmatch(company_id) is not None, "resource_company_invalid")
@@ -204,12 +226,13 @@ def read_board_usage(
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ResourceGuardError("resource_usage_invalid_json") from exc
     _require(type(value) is dict, "resource_usage_invalid")
-    validate_usage(value, connection_id, now=now)
+    validate_usage(value, connection_id, now=now, minimum_remaining_percent=minimum_remaining_percent)
     return value
 
 
 def validate_usage(
-    value: object, connection_id: str, *, now: datetime | None = None
+    value: object, connection_id: str, *, now: datetime | None = None,
+    minimum_remaining_percent: float = 15,
 ) -> dict[str, Any]:
     _require(type(value) is dict, "resource_usage_invalid")
     usage = value
@@ -250,7 +273,13 @@ def validate_usage(
         and abs(float(used) + float(remaining) - 100) <= 1.0,
         "resource_limits_invalid",
     )
-    _require(float(remaining) >= 15, "resource_headroom_insufficient")
+    _require(
+        type(minimum_remaining_percent) in {int, float}
+        and math.isfinite(minimum_remaining_percent)
+        and 5 <= minimum_remaining_percent <= 100,
+        "resource_headroom_policy_invalid",
+    )
+    _require(float(remaining) >= minimum_remaining_percent, "resource_headroom_insufficient")
     overage = usage.get("overage")
     _require(
         type(overage) is dict
@@ -306,22 +335,29 @@ def preflight(
         type(reserve_model_runs) is int and 0 <= reserve_model_runs <= MAX_RESERVED_RUNS,
         "resource_run_reserve_invalid",
     )
-    _require(
-        len(observed_run_ids) + reserve_model_runs <= policy["max_model_runs"],
-        "resource_run_cap_exceeded",
-    )
+    if policy["max_model_runs"] is not None:
+        _require(
+            len(observed_run_ids) + reserve_model_runs <= policy["max_model_runs"],
+            "resource_run_cap_exceeded",
+        )
     # Keep explicit test clocks frozen, but let production validate the Board
     # timestamp against the clock after the HTTP response has arrived.
-    observation = read_board_usage(company_id, policy["connection_id"], now=now)
+    observation = read_board_usage(
+        company_id, policy["connection_id"], now=now,
+        minimum_remaining_percent=policy["min_remaining_percent"],
+    )
     current = now or datetime.now(UTC)
     _require(
         current.tzinfo is not None and current.utcoffset() == timedelta(0), "resource_clock_invalid"
     )
     _require(issued <= current, "resource_policy_not_yet_active")
     _require(current < deadline, "resource_policy_deadline_expired")
-    normalized = validate_usage(observation, policy["connection_id"], now=current)
+    normalized = validate_usage(
+        observation, policy["connection_id"], now=current,
+        minimum_remaining_percent=policy["min_remaining_percent"],
+    )
     receipt = {
-        "schema": RECEIPT_SCHEMA,
+        "schema": RECEIPT_SCHEMA_V2 if policy["schema"] == POLICY_SCHEMA_V2 else RECEIPT_SCHEMA,
         "company_id": company_id,
         "connection_id": policy["connection_id"],
         "phase": phase,
@@ -495,5 +531,10 @@ def campaign_model_run_ids(api: Any, company_id: str, policy: dict[str, Any]) ->
                     if finished_at is not None and finished_at < renewed_since_dt:
                         continue
             run_ids.add(run_id)
-            _require(len(run_ids) <= MAX_RUNS, "resource_run_cap_exceeded")
+            run_limit = (
+                policy["max_model_runs"]
+                if policy["max_model_runs"] is not None
+                else MAX_SCOPED_RUN_IDS
+            )
+            _require(len(run_ids) <= run_limit, "resource_run_cap_exceeded")
     return sorted(run_ids)
