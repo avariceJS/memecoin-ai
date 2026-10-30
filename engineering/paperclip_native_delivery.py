@@ -813,7 +813,10 @@ def _resource_preflight(
         policy, _policy_hash = resource_guard.load_policy_reference(
             reference, api.m["company_id"], allow_v1_to_v2=True
         )
-        runs = resource_guard.campaign_model_run_ids(api, api.m["company_id"], policy)
+        if policy["schema"] == resource_guard.POLICY_SCHEMA_V2 and policy["max_model_runs"] is None:
+            runs = None
+        else:
+            runs = resource_guard.campaign_model_run_ids(api, api.m["company_id"], policy)
         if receipt_directory is None:
             receipt_directory = Path(reference["path"]).parent
         safe_dir(str(receipt_directory), "resource_receipt_directory", private=True)
