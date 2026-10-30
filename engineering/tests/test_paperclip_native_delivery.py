@@ -803,6 +803,152 @@ class NativeDeliveryTests(unittest.TestCase):
             )
         self.assertEqual(git(repo, "rev-parse", ref).decode().strip(), third_tip)
 
+    def test_legacy_saved_receipt_replay_keeps_failed_predecessor_gate(self) -> None:
+        repo = self.root / "legacy-predecessor-canonical"
+        base = init_repo(repo)
+        ref = delivery.PUBLISH_REF
+        git(repo, "update-ref", ref, base)
+        git(repo, "symbolic-ref", "HEAD", ref)
+        remote = self.root / "legacy-predecessor-remote.git"
+        subprocess.run(["/usr/bin/git", "init", "--bare", "--quiet", str(remote)], check=True)
+        git(repo, "remote", "add", "fixture", str(remote))
+        git(repo, "push", "--quiet", "fixture", f"{base}:{ref}")
+
+        paths = ["src/legacy.py", "tests/test_legacy.py"]
+        files = {paths[0]: b"LEGACY = True\n", paths[1]: b"assert LEGACY\n"}
+        custody = self.root / "legacy-predecessor-custody"
+        custody.mkdir(mode=0o700)
+        developer = {"task_id": "dev-legacy", "agent_id": "luna"}
+        qa = {"task_id": "qa-legacy", "agent_id": "sol"}
+        publish = {"task_id": "publish-legacy", "agent_id": "publisher"}
+        source_run = {"runId": "source-run-legacy", "agentId": developer["agent_id"]}
+        qa_run = {"runId": "qa-run-legacy", "agentId": qa["agent_id"]}
+        manifest = {
+            "schema": delivery.MANIFEST_SCHEMA,
+            "api_origin": "http://127.0.0.1:3310",
+            "company_id": "company-legacy",
+            "manager_task_id": "manager-legacy",
+            "developer": developer,
+            "qa": qa,
+            "stage": {"task_id": "stage-legacy", "agent_id": "stager"},
+            "publish": publish,
+            "predecessor": {"receipt_path": "pinned-predecessor-receipt"},
+            "predecessor_base_tip": base,
+            "lineage_depth": 1,
+            "source": {"paths": paths},
+            "canonical": {
+                "repo": str(repo),
+                "ref": ref,
+                "expected_tip": base,
+                "remote_name": "fixture",
+                "remote_url": "https://github.com/example/brain.git",
+                "candidate_ref": "refs/heads/brain/legacy-receipt",
+            },
+            "custody_dir": str(custody),
+        }
+        manifest_hash = delivery.digest(delivery.json_bytes(manifest))
+        file_hashes = {path: delivery.digest(data) for path, data in files.items()}
+        patch_hash = delivery.digest(b"accepted legacy patch")
+        record = {
+            "schema": delivery.STAGE_SCHEMA,
+            "manifest_sha256": manifest_hash,
+            "developer_run_id": source_run["runId"],
+            "paths": paths,
+            "files": {path: {"sha256": value} for path, value in file_hashes.items()},
+            "patch": {"sha256": patch_hash},
+        }
+        delivery.save_record(
+            delivery.stage_path(custody, developer["task_id"], source_run["runId"]), record
+        )
+        for path, data in files.items():
+            target = (
+                custody
+                / f"native-handoff-{developer['task_id']}-{source_run['runId']}"
+                / "files"
+                / path
+            )
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+        qa_data = delivery.json_bytes(
+            {
+                "schema": delivery.QA_SCHEMA,
+                "verdict": "accept",
+                "source_task_id": developer["task_id"],
+                "source_patch_sha256": patch_hash,
+                "files": file_hashes,
+                "checks": [{"name": "focused check", "result": "passed"}],
+            }
+        )
+        qa_meta = {
+            "originatingRunId": qa_run["runId"],
+            "createdByAgentId": qa["agent_id"],
+            "id": "qa-attachment-legacy",
+        }
+
+        class Api:
+            def current(self, action: str) -> str:
+                return publish["task_id"]
+
+            def issue(self, task_id: str) -> dict[str, str]:
+                role = developer if task_id == developer["task_id"] else qa
+                return {"status": "done", "assigneeAgentId": role["agent_id"]}
+
+            def no_pending(self, _task_id: str) -> None:
+                return None
+
+            def latest_run(self, task: dict[str, str]) -> dict[str, str]:
+                return source_run if task == developer else qa_run
+
+            def qa_artifact(self, *_args: Any) -> tuple[dict[str, str], bytes]:
+                return qa_meta, qa_data
+
+        old_blobs = {path: None for path in paths}
+        new_blobs = {
+            path: delivery.publisher._git(repo, "hash-object", "--stdin", data=data)
+            .decode()
+            .strip()
+            for path, data in files.items()
+        }
+        canonical_receipt = delivery.publisher.prepare(
+            repo, ref, base, old_blobs, new_blobs, files, allowed_paths=paths
+        )
+        saved = {
+            "schema": delivery.PUBLISH_SCHEMA,
+            "manifest_sha256": manifest_hash,
+            "source_task_id": developer["task_id"],
+            "source_run_id": source_run["runId"],
+            "qa_task_id": qa["task_id"],
+            "qa_run_id": qa_run["runId"],
+            "qa_sha256": delivery.digest(qa_data),
+            "source_patch_sha256": patch_hash,
+            "files": file_hashes,
+            "expected_tip": base,
+            "canonical_ref": ref,
+            "candidate_ref": manifest["canonical"]["candidate_ref"],
+            "qa_attachment_id": qa_meta["id"],
+            "canonical_receipt": canonical_receipt,
+        }
+        saved["publication_digest"] = delivery.digest(delivery.json_bytes(saved))
+        receipt_path = custody / f"publication-{developer['task_id']}.json"
+        delivery.save_record(receipt_path, saved)
+
+        with (
+            patch.object(delivery, "Paperclip", return_value=Api()),
+            patch.object(delivery, "_resource_preflight", return_value=None),
+            patch.object(
+                delivery,
+                "predecessor_expected_tip",
+                side_effect=delivery.DeliveryError("predecessor_publish_run_not_succeeded"),
+            ) as predecessor_gate,
+        ):
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "predecessor_publish_run_not_succeeded"
+            ):
+                delivery.publish(manifest, manifest_hash)
+        predecessor_gate.assert_called_once_with(manifest, manifest_hash, unittest.mock.ANY)
+        self.assertEqual(git(repo, "rev-parse", ref).decode().strip(), base)
+        self.assertEqual(git(repo, "ls-remote", "fixture", ref).decode().split()[0], base)
+
     def test_manifest_pins_one_safe_candidate_ref_and_manager_task(self) -> None:
         qa = self.root / "qa-workspace"
         qa.mkdir()

@@ -2703,10 +2703,14 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
             "publication_receipt_invalid",
         )
         prior_saved = prior_saved_value
-        expected = prior_saved["expected_tip"]
-    elif m.get("publication_mode") == "independent_additive":
-        expected = independent_additive_expected_tip(m)
+    if m.get("publication_mode") == "independent_additive":
+        if prior_saved is not None:
+            expected = prior_saved["expected_tip"]
+        else:
+            expected = independent_additive_expected_tip(m)
     else:
+        # Legacy manifests must continue to validate their pinned predecessor on replay.
+        # The saved operation is compared with this result below before any publish effects.
         expected = publication_expected_tip(m, manifest_hash, api)
     if "predecessor_base_tip" in m:
         require(expected == c["expected_tip"], "predecessor_expected_tip_changed")
