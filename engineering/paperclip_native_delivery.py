@@ -65,6 +65,10 @@ Each programme needs a fresh envelope binding its accepted paths, contract hashe
 canonical tip, actors/models, project workspaces and deterministic output root.
 An optional max_corrections value on that owner-frozen envelope permits one to three corrections;
 omitting it preserves the legacy one-correction limit.
+An optional publication_mode may be exactly "independent_additive" for a single slot of genuinely
+new paths, without predecessor_candidates. In that mode, publication uses the current canonical tip
+only when it is the remote tip, a descendant of the frozen tip, and the selected paths remain
+absent; an existing publication receipt always replays against its saved expected tip.
 An optional predecessor_candidates list may bind at most four immutable preparation receipts by
 receipt path, source envelope hash and slot. Preparation selects exactly one candidate whose
 native publication, receipt, and local/remote canonical refs verify, then freezes that exact
@@ -227,6 +231,7 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
         "predecessor_base_tip",
         "resource_policy",
         "max_corrections",
+        "publication_mode",
     }
     require(
         base_fields <= manifest_fields
@@ -246,6 +251,14 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
         require(
             type(m["max_corrections"]) is int and 1 <= m["max_corrections"] <= 3,
             "manifest_max_corrections_invalid",
+        )
+    if "publication_mode" in m:
+        require(
+            m["publication_mode"] == "independent_additive"
+            and "predecessor" not in m
+            and "predecessor_base_tip" not in m
+            and m.get("lineage_depth", 0) == 0,
+            "manifest_publication_mode_invalid",
         )
     if "role_models" in m:
         validated_role_models(m)
@@ -862,7 +875,12 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
         "output_root",
         "slots",
     }
-    optional_fields = {"predecessor_candidates", "resource_policy", "max_corrections"}
+    optional_fields = {
+        "predecessor_candidates",
+        "resource_policy",
+        "max_corrections",
+        "publication_mode",
+    }
     present_optional = optional_fields & set(value)
     require(
         expected <= set(value)
@@ -1018,6 +1036,13 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
         )
         all_paths.extend(_strict_paths(slot["paths"]))
     require(len(set(all_paths)) == len(all_paths), "preparation_slot_paths_overlap")
+    if "publication_mode" in present_optional:
+        require(
+            value["publication_mode"] == "independent_additive"
+            and len(slots) == 1
+            and "predecessor_candidates" not in value,
+            "preparation_publication_mode_invalid",
+        )
     require(
         len({slot["candidate_ref"] for slot in slots}) == len(slots)
         and len({slot["qa_project_id"] for slot in slots}) == len(slots),
@@ -1636,6 +1661,8 @@ def prepare(envelope_path: str) -> dict[str, Any]:
         }
         if "max_corrections" in envelope:
             manifest["max_corrections"] = envelope["max_corrections"]
+        if "publication_mode" in envelope:
+            manifest["publication_mode"] = envelope["publication_mode"]
         if "resource_policy" in envelope:
             manifest["resource_policy"] = envelope["resource_policy"]
         if row["plan"]["slot"] == 1 and predecessor is not None:
@@ -2377,6 +2404,28 @@ def remote_refs(m: dict[str, Any]) -> dict[str, str]:
     return refs
 
 
+def independent_additive_expected_tip(m: dict[str, Any]) -> str:
+    """Bind a receipt-less additive publication to the verified latest canonical tip."""
+    require(m.get("publication_mode") == "independent_additive", "publication_mode_not_enabled")
+    canonical = m["canonical"]
+    repo = Path(canonical["repo"])
+    frozen = canonical["expected_tip"]
+    current = git(repo, "rev-parse", canonical["ref"]).decode().strip()
+    refs = remote_refs(m)
+    require(refs.get(canonical["ref"]) == current, "independent_additive_remote_tip_mismatch")
+    try:
+        publisher._git(repo, "merge-base", "--is-ancestor", frozen, current)
+    except publisher.CanonicalPublishError as exc:
+        raise DeliveryError("independent_additive_tip_not_descendant") from exc
+    for path in m["source"]["paths"]:
+        require(
+            not git(repo, "ls-tree", "-r", frozen, "--", path)
+            and not git(repo, "ls-tree", "-r", current, "--", path),
+            "independent_additive_path_not_new",
+        )
+    return current
+
+
 def check_publication_head(
     repo: Path, ref: str, expected: str, receipt: dict[str, Any], durable_receipt: bool
 ) -> None:
@@ -2638,7 +2687,33 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         raise DeliveryError("custodied_file_hash_mismatch")
     c = slot["canonical"]
     repo = Path(c["repo"])
-    expected = publication_expected_tip(m, manifest_hash, api)
+    receipt_file = Path(m["custody_dir"]) / f"publication-{dev['task_id']}.json"
+    prior_saved: dict[str, Any] | None = None
+    if receipt_file.exists() or receipt_file.is_symlink():
+        info = receipt_file.lstat()
+        require(
+            stat.S_ISREG(info.st_mode)
+            and info.st_uid == os.getuid()
+            and not stat.S_IMODE(info.st_mode) & 0o077
+            and not stat.S_IMODE(info.st_mode) & 0o222,
+            "publication_receipt_not_private",
+        )
+        try:
+            prior_saved_value = json.loads(receipt_file.read_bytes())
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise DeliveryError("publication_receipt_invalid") from exc
+        require(
+            type(prior_saved_value) is dict
+            and type(prior_saved_value.get("expected_tip")) is str
+            and OID.fullmatch(prior_saved_value["expected_tip"]) is not None,
+            "publication_receipt_invalid",
+        )
+        prior_saved = prior_saved_value
+        expected = prior_saved["expected_tip"]
+    elif m.get("publication_mode") == "independent_additive":
+        expected = independent_additive_expected_tip(m)
+    else:
+        expected = publication_expected_tip(m, manifest_hash, api)
     if "predecessor_base_tip" in m:
         require(expected == c["expected_tip"], "predecessor_expected_tip_changed")
     old = {p: None for p in record["paths"]}
@@ -2674,9 +2749,8 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
         Path(m["custody_dir"]),
         reserve_model_runs=8,
     )
-    receipt_file = Path(m["custody_dir"]) / f"publication-{dev['task_id']}.json"
-    if receipt_file.exists():
-        saved = json.loads(receipt_file.read_bytes())
+    if prior_saved is not None:
+        saved = prior_saved
         receipt = saved.get("canonical_receipt")
         base = {
             k: v for k, v in saved.items() if k not in {"canonical_receipt", "publication_digest"}
