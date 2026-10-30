@@ -377,10 +377,11 @@
   },
   "managed_source": {
     "schema": "paperclip-managed-source-pin-v3",
-    "commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
-    "tree": "dbbd26813d2b5f5c0bbfd011aa72fa865dcc17a8",
-    "parent": "e169417665e2ef61df18103eecab33701e1b06f5",
+    "commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+    "tree": "751c43d00dda1c40b95ac88e5348f34e7f4d77be",
+    "parent": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
     "ancestry": [
+      "69cefa8d4887d2a3835668823ff854fce9c95cc2",
       "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
       "e169417665e2ef61df18103eecab33701e1b06f5",
       "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
@@ -389,8 +390,8 @@
       "645bf29bf8deb41f857a970199d58909927635d2",
       "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7"
     ],
-    "bundle_manifest": "engineering/paperclip-source-bundles/1e7d18239e6dac28254e5b44a3959eea63cf0f3b.json",
-    "bundle_sha256": "58f800f0f79ed6d181af3fb893ba316532b54d60963f20cab358afc9ab8f4889",
+    "bundle_manifest": "engineering/paperclip-source-bundles/69cefa8d4887d2a3835668823ff854fce9c95cc2.json",
+    "bundle_sha256": "a8fc52c5440eccb65ffc5b0d94ba93be5207eb8430daf8b9738a67fee9f3ed6f",
     "accepted_source_reviews": [
       {
         "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/recovery-review-final.json",
@@ -410,6 +411,12 @@
         "sha256": "70639c092646bd1d0b0e85669289b807c416ce6f2102b6f6c8a54c76867f5af5",
         "accepted_commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
         "status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
+      },
+      {
+        "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/responsible-intersection-review.json",
+        "sha256": "83722a44f3187f6d6adc002a6831f5c739758f39cfce54af33e6d18fca9245c8",
+        "accepted_commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+        "status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
       }
     ],
     "integrated_change": {
@@ -424,6 +431,18 @@
       "path": "server/src/routes/issues.ts",
       "change": "Pass scope:{targetAgentId:assigneeAgentId} to the existing tasks:manage_active_checkouts authorization decision in hasActiveCheckoutManagementOverride."
     },
-    "runtime_acceptance": "pending"
+    "runtime_acceptance": "pending",
+    "final_follow_up_source_fix": {
+      "commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+      "parent": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+      "paths": [
+        "server/src/services/authorization.ts",
+        "server/src/__tests__/issue-recovery-actions.test.ts"
+      ],
+      "change": "Honor an exact target-scoped explicit agent checkout grant through responsible-user intersection only for an active non-viewer user and a current running issue-bound JWT run; retain existing responsible-user authorization elsewhere.",
+      "review_receipt": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/responsible-intersection-review.json",
+      "review_sha256": "83722a44f3187f6d6adc002a6831f5c739758f39cfce54af33e6d18fca9245c8",
+      "review_status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
+    }
   }
 }

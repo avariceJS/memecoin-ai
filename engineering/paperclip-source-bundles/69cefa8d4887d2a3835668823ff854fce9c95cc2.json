@@ -1,0 +1,78 @@
+{
+  "schema": "paperclip-managed-native-code-custody-v1",
+  "state": "accepted-source-custody-not-runtime-admission",
+  "native_source_commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+  "native_source_tree": "751c43d00dda1c40b95ac88e5348f34e7f4d77be",
+  "prerequisite_commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+  "prerequisite_note": "Incremental descendant bundle begins at the previously pinned and reviewed 1e7d182 source. Restore that exact pin first; its bundle preserves the accepted ancestry back to b31d659. This bundle adds only the independently reviewed responsible-user intersection fix.",
+  "exported_ref": "refs/heads/fix/scaling-responsible-user-checkout-grants",
+  "bundle_file": "69cefa8d4887d2a3835668823ff854fce9c95cc2.bundle",
+  "bundle_bytes": 2919,
+  "bundle_sha256": "a8fc52c5440eccb65ffc5b0d94ba93be5207eb8430daf8b9738a67fee9f3ed6f",
+  "incremental_commits": [
+    "69cefa8d4887d2a3835668823ff854fce9c95cc2"
+  ],
+  "changed_source_paths": [
+    "packages/shared/src/validators/agent.ts",
+    "server/src/__tests__/agent-permissions-routes.test.ts",
+    "server/src/__tests__/issue-recovery-actions.test.ts",
+    "server/src/__tests__/workspace-operations-reconciliation.test.ts",
+    "server/src/routes/agents.ts",
+    "server/src/routes/issues.ts",
+    "server/src/services/authorization.ts",
+    "server/src/services/workspace-operations.ts"
+  ],
+  "integrated_change": {
+    "original_accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
+    "integrated_commit": "e169417665e2ef61df18103eecab33701e1b06f5",
+    "integrated_parent": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+    "subject": "Retry workspace operation insert deadlocks"
+  },
+  "follow_up_source_fix": {
+    "commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+    "parent": "e169417665e2ef61df18103eecab33701e1b06f5",
+    "path": "server/src/routes/issues.ts",
+    "change": "Pass scope:{targetAgentId:assigneeAgentId} to the existing tasks:manage_active_checkouts authorization decision in hasActiveCheckoutManagementOverride."
+  },
+  "final_follow_up_source_fix": {
+    "commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+    "parent": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+    "paths": [
+      "server/src/services/authorization.ts",
+      "server/src/__tests__/issue-recovery-actions.test.ts"
+    ],
+    "change": "Honor an exact target-scoped explicit agent checkout grant through responsible-user intersection only for an active non-viewer user and a current running issue-bound JWT run; retain existing responsible-user authorization elsewhere.",
+    "review_receipt": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/responsible-intersection-review.json",
+    "review_sha256": "83722a44f3187f6d6adc002a6831f5c739758f39cfce54af33e6d18fca9245c8",
+    "review_status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
+  },
+  "independent_review_receipts": [
+    {
+      "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/recovery-review-final.json",
+      "sha256": "7113f1eb0eb3f72b9ac33e4606fba9102cc182a075b16cbe537b8a7a32950132",
+      "accepted_commit": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+      "status": "accepted_source_only"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/shutdown-review-final.json",
+      "sha256": "fa8d56a8f121cc86f3fa3f95fcce9adfa7e8fa024d7b16ed2f6248bbc89a8626",
+      "accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
+      "status": "accept",
+      "integrated_as": "e169417665e2ef61df18103eecab33701e1b06f5"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/owner-scope-review.json",
+      "sha256": "70639c092646bd1d0b0e85669289b807c416ce6f2102b6f6c8a54c76867f5af5",
+      "accepted_commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+      "status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/responsible-intersection-review.json",
+      "sha256": "83722a44f3187f6d6adc002a6831f5c739758f39cfce54af33e6d18fca9245c8",
+      "accepted_commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+      "status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
+    }
+  ],
+  "restore_qualification": "Fetch the existing pinned source and verify its exact commit/tree/ancestry first, then fetch this descendant bundle. Verify 69cefa8 and its exact parent 1e7d182, full first-parent ancestry through b31d659, tree and clean status before any source use.",
+  "limits": "Accepted source custody only. Candidate pin is isolated; no runtime admission, deployment, server restart, or runtime readback is authorized."
+}
