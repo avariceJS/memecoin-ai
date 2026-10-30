@@ -237,7 +237,9 @@ def load_manifest(filename: str) -> tuple[dict[str, Any], str]:
     )
     if "resource_policy" in m:
         try:
-            resource_guard.load_policy_reference(m["resource_policy"], m["company_id"])
+            resource_guard.load_policy_reference(
+                m["resource_policy"], m["company_id"], allow_v1_to_v2=True
+            )
         except resource_guard.ResourceGuardError as exc:
             raise DeliveryError(str(exc)) from exc
     if "max_corrections" in m:
@@ -795,7 +797,9 @@ def _resource_preflight(
     if reference is None:
         return None
     try:
-        policy, _policy_hash = resource_guard.load_policy_reference(reference, api.m["company_id"])
+        policy, _policy_hash = resource_guard.load_policy_reference(
+            reference, api.m["company_id"], allow_v1_to_v2=True
+        )
         runs = resource_guard.campaign_model_run_ids(api, api.m["company_id"], policy)
         if receipt_directory is None:
             receipt_directory = Path(reference["path"]).parent
@@ -872,7 +876,9 @@ def validate_preparation_envelope(value: dict[str, Any]) -> dict[str, Any]:
     )
     if "resource_policy" in value:
         try:
-            resource_guard.load_policy_reference(value["resource_policy"], value["company_id"])
+            resource_guard.load_policy_reference(
+                value["resource_policy"], value["company_id"], allow_v1_to_v2=True
+            )
         except resource_guard.ResourceGuardError as exc:
             raise DeliveryError(str(exc)) from exc
     for name in ("planning", "prepare", "manager"):

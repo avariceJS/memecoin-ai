@@ -10,11 +10,50 @@ import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stderr
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 from engineering import paperclip_native_delivery as delivery
+
+
+def write_v1_policy_v2_renewal(root: Path, company_id: str) -> tuple[dict[str, str], Path]:
+    resource_root = root / "resource-policy"
+    resource_root.mkdir(mode=0o700)
+    now = datetime.now(UTC)
+    original = {
+        "schema": delivery.resource_guard.POLICY_SCHEMA,
+        "company_id": company_id,
+        "connection_id": "00000000-0000-4000-8000-000000009001",
+        "issued_at_utc": (now - timedelta(hours=12)).isoformat().replace("+00:00", "Z"),
+        "deadline_utc": (now - timedelta(hours=4)).isoformat().replace("+00:00", "Z"),
+        "max_model_runs": 80,
+        "min_remaining_percent": 15,
+        "task_scope_root_ids": ["00000000-0000-4000-8000-000000009002"],
+    }
+    new_policy = {
+        **original,
+        "schema": delivery.resource_guard.POLICY_SCHEMA_V2,
+        "issued_at_utc": original["deadline_utc"],
+        "deadline_utc": (now + timedelta(hours=8)).isoformat().replace("+00:00", "Z"),
+        "max_model_runs": None,
+        "min_remaining_percent": 8,
+    }
+    policy_path = resource_root / "original-v1.json"
+    policy_raw = delivery.json_bytes(original)
+    policy_path.write_bytes(policy_raw)
+    policy_path.chmod(0o400)
+    reference = {"path": str(policy_path), "sha256": delivery.digest(policy_raw)}
+    renewal = {
+        "schema": delivery.resource_guard.RENEWAL_SCHEMA_V2,
+        "original_policy_sha256": reference["sha256"],
+        "new_policy": new_policy,
+    }
+    renewal_path = resource_root / "renewal-v2.json"
+    renewal_path.write_bytes(delivery.json_bytes(renewal))
+    renewal_path.chmod(0o400)
+    return reference, renewal_path
 
 
 def git(repo: Path, *args: str, data: bytes | None = None) -> bytes:
@@ -721,6 +760,47 @@ class NativeDeliveryTests(unittest.TestCase):
         path.write_bytes(delivery.json_bytes(manifest))
         with self.assertRaisesRegex(delivery.DeliveryError, "manifest_canonical_target_invalid"):
             delivery.load_manifest(str(path.resolve()))
+
+    def test_manifest_loader_accepts_hash_bound_v2_renewal_for_v1_reference(self) -> None:
+        qa = self.root / "qa-resource"
+        qa.mkdir()
+        custody = self.root / "custody-resource"
+        custody.mkdir(mode=0o700)
+        company = "00000000-0000-4000-8000-000000009100"
+        reference, renewal_path = write_v1_policy_v2_renewal(self.root, company)
+        task = lambda number: f"00000000-0000-4000-8000-{number:012d}"
+        canonical = init_repo(self.root / "canonical-resource")
+        manifest = {
+            "schema": delivery.MANIFEST_SCHEMA,
+            "api_origin": "http://127.0.0.1:3310",
+            "company_id": company,
+            "developer": {"task_id": task(1), "agent_id": task(2)},
+            "qa": {"task_id": task(3), "agent_id": task(4)},
+            "stage": {"task_id": task(5), "agent_id": task(6)},
+            "publish": {"task_id": task(7), "agent_id": task(8)},
+            "source": {
+                "seed_repo": str(self.seed.resolve()),
+                "base_sha": self.base,
+                "paths": ["src/new.py", "tests/test_new.py"],
+            },
+            "canonical": {
+                "repo": str((self.root / "canonical-resource").resolve()),
+                "ref": delivery.PUBLISH_REF,
+                "expected_tip": canonical,
+                "remote_name": "origin",
+                "remote_url": "https://github.com/example/brain.git",
+                "candidate_ref": "refs/heads/brain/resource-v2",
+            },
+            "qa_workspace": str(qa.resolve()),
+            "custody_dir": str(custody.resolve()),
+            "resource_policy": reference,
+        }
+        path = self.root / "manifest-resource.json"
+        path.write_bytes(delivery.json_bytes(manifest))
+        path.chmod(0o600)
+        with patch.dict(os.environ, {delivery.resource_guard.RENEWAL_ENV: str(renewal_path)}):
+            loaded, _ = delivery.load_manifest(str(path.resolve()))
+        self.assertEqual(loaded["resource_policy"], reference)
 
     def test_fixed_path_safety_and_immutable_write_collision(self) -> None:
         root = self.root / "qa"
@@ -1707,6 +1787,80 @@ class NativeDeliveryTests(unittest.TestCase):
                 api.latest_run(qa)
 
 
+class ResourceUpgradePreflightTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory(prefix="native-resource-preflight-")
+        self.root = Path(self.temp.name).resolve()
+        self.company = "00000000-0000-4000-8000-000000009110"
+        self.reference, self.renewal_path = write_v1_policy_v2_renewal(self.root, self.company)
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def test_prepare_stage_and_publish_preflight_accept_v2_renewal(self) -> None:
+        now = datetime.now(UTC)
+        connection = "00000000-0000-4000-8000-000000009001"
+        usage = {
+            "connectionId": connection,
+            "source": "codex_wham",
+            "provider": "openai",
+            "method": "subscription",
+            "status": "ok",
+            "checkedAt": now.isoformat().replace("+00:00", "Z"),
+            "limits": [
+                {
+                    "id": "codex.primary_window",
+                    "allowed": True,
+                    "remainingPercent": 80,
+                    "usedPercent": 20,
+                }
+            ],
+            "overage": {
+                "available": False,
+                "unlimited": False,
+                "enabled": False,
+                "used": 0,
+                "balance": 0,
+            },
+        }
+
+        class ReadOnlyFakeAPI:
+            m = {"company_id": self.company}
+            run_id = "00000000-0000-4000-8000-000000009111"
+
+            def request(_self, method: str, route: str):
+                if method == "GET" and route == (
+                    f"/companies/{self.company}/issues?limit=100&offset=0"
+                ):
+                    return [
+                        {
+                            "id": "00000000-0000-4000-8000-000000009002",
+                            "companyId": self.company,
+                            "parentId": None,
+                        }
+                    ]
+                if method == "GET" and route == "/issues/00000000-0000-4000-8000-000000009002/runs":
+                    return []
+                raise AssertionError(f"unexpected fake API call: {method} {route}")
+
+        with (
+            patch.dict(os.environ, {delivery.resource_guard.RENEWAL_ENV: str(self.renewal_path)}),
+            patch.object(delivery.resource_guard, "read_board_usage", return_value=usage),
+        ):
+            for phase in ("prepare", "stage", "publish"):
+                receipt_path = delivery._resource_preflight(
+                    ReadOnlyFakeAPI(),
+                    self.reference,
+                    phase,
+                    self.root / "resource-policy",
+                    reserve_model_runs=8 if phase == "prepare" else 0,
+                )
+                self.assertIsNotNone(receipt_path)
+                receipt = json.loads(receipt_path.read_bytes())
+                self.assertEqual(receipt["schema"], delivery.resource_guard.RECEIPT_SCHEMA_V2)
+                self.assertEqual(receipt["phase"], phase)
+
+
 class PreparationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="native-preparation-")
@@ -2478,6 +2632,15 @@ class PreparationTests(unittest.TestCase):
                     delivery.validate_preparation_envelope(
                         {**self.envelope, "predecessor_candidates": invalid}
                     )
+
+    def test_preparation_envelope_accepts_hash_bound_v2_renewal_for_v1_reference(self) -> None:
+        reference, renewal_path = write_v1_policy_v2_renewal(
+            self.root, self.ids["company"]
+        )
+        envelope = {**self.envelope, "resource_policy": reference}
+        with patch.dict(os.environ, {delivery.resource_guard.RENEWAL_ENV: str(renewal_path)}):
+            validated = delivery.validate_preparation_envelope(envelope)
+        self.assertEqual(validated["resource_policy"], reference)
 
     def test_preparation_correction_limit_is_optional_and_strictly_bounded(self) -> None:
         self.assertNotIn("max_corrections", delivery.validate_preparation_envelope(self.envelope))
