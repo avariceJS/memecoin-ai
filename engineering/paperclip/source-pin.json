@@ -376,21 +376,41 @@
     ]
   },
   "managed_source": {
-    "schema": "paperclip-managed-source-pin-v1",
-    "commit": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
-    "tree": "545a1e0a3a3e5a64f1d0588e795afbabe1599280",
-    "parent": "e7075c6660859eed0990f352d525b40356411e6a",
+    "schema": "paperclip-managed-source-pin-v2",
+    "commit": "e169417665e2ef61df18103eecab33701e1b06f5",
+    "tree": "9d1250b7a30a1bfbb8f519f73029bd379ed97316",
+    "parent": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
     "ancestry": [
+      "e169417665e2ef61df18103eecab33701e1b06f5",
       "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
       "e7075c6660859eed0990f352d525b40356411e6a",
       "920d2a32fffbe711bc3cb078b9091d6604e55acc",
       "645bf29bf8deb41f857a970199d58909927635d2",
       "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7"
     ],
-    "bundle_manifest": "engineering/paperclip-source-bundles/15aee8eb62c13d90f8e8e462db6c3b83b33f858b.json",
-    "bundle_sha256": "8f59bf3f31cf50e1e29177653f3b79811082813a448a69a3255e7cd1c00e2baa",
-    "source_acceptance_receipt": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/recovery-review-final.json",
-    "source_acceptance_receipt_sha256": "7113f1eb0eb3f72b9ac33e4606fba9102cc182a075b16cbe537b8a7a32950132",
+    "bundle_manifest": "engineering/paperclip-source-bundles/e169417665e2ef61df18103eecab33701e1b06f5.json",
+    "bundle_sha256": "6f038a744395c9cccc8e0cab3a28c561cadea17b1e82ef5804bb37d89c1a0e3e",
+    "accepted_source_reviews": [
+      {
+        "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/recovery-review-final.json",
+        "sha256": "7113f1eb0eb3f72b9ac33e4606fba9102cc182a075b16cbe537b8a7a32950132",
+        "accepted_commit": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+        "status": "accepted_source_only"
+      },
+      {
+        "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/shutdown-review-final.json",
+        "sha256": "fa8d56a8f121cc86f3fa3f95fcce9adfa7e8fa024d7b16ed2f6248bbc89a8626",
+        "accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
+        "integrated_as": "e169417665e2ef61df18103eecab33701e1b06f5",
+        "status": "accept"
+      }
+    ],
+    "integrated_change": {
+      "original_accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
+      "integrated_commit": "e169417665e2ef61df18103eecab33701e1b06f5",
+      "integrated_parent": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+      "subject": "Retry workspace operation insert deadlocks"
+    },
     "runtime_acceptance": "pending"
   }
 }
