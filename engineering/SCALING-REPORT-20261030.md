@@ -1,6 +1,6 @@
 # Brain engineering campaign — 30 October 2026
 
-Status: INTERIM, campaign active. This report owns the finite campaign's cross-department and scaling results; canonical operating rules remain in `docs/engineering-organization.md`. Final stop and final telemetry are pending.
+Status: INTERIM at 17:16 UTC, campaign active. This report owns the finite campaign's cross-department and scaling results; canonical operating rules remain in `docs/engineering-organization.md`. Final stop and final telemetry are pending.
 
 ## Authority and custody
 
@@ -31,7 +31,7 @@ Native Astra selected the next programs through MEM-316. MEM-320 was vetoed as a
 
 ## Interim scaling and resources
 
-The private `telemetry-interim-1442.json` summarizes native Paperclip records from launch through the second safety pause: 253 model runs, peak seven concurrent model intervals, peak two Luna intervals. The two Luna source runs for Senses and Experience overlapped about 165 seconds. Three/four/eight Luna scaling is not yet proven. Assignments and configured profiles are not counted as concurrency.
+The private `telemetry-interim-1442.json` summarizes native Paperclip records from launch through the second safety pause: 253 model runs, peak seven concurrent model intervals, peak two Luna intervals. The two Luna source runs for Senses and Experience overlapped about 165 seconds. The later three-Luna cohort is recorded below; four/eight/sixteen Luna scaling is not yet proven. Assignments and configured profiles are not counted as concurrency.
 
 | Native model | Runs | Completed interval seconds | Reported input tokens | Reported cached input | Reported output | Rows missing token fields |
 |---|---:|---:|---:|---:|---:|---:|
@@ -39,10 +39,32 @@ The private `telemetry-interim-1442.json` summarizes native Paperclip records fr
 | gpt-6-astra | 58 | 6,648.817 | 70,117,074 | 665,436,160 | 1,472,093 | 0 |
 | gpt-6-luna | 18 | 3,503.615 | 1,495,358 | 32,340,736 | 368,447 | 0 |
 
-Runtime usage identifies the model in 244 rows and matches the configured roster. Nine rows lack runtime model identity and are explicitly grouped by the unchanged current adapter model as a fallback. These are reported native token fields, with cached input shown separately, and overlapping durations summed by run. Missing values are not proven zero. External integrator and external review-agent work is excluded from these native counts. Whole-account subscription snapshots include broader activity and cannot be attributed exactly to a model or department. Initial measured remaining quota was 56%; latest actual native control observation is 23% near 15:34Z. Coordination and repair dominate the measured model composition; this is not evidence of efficient scaling.
+Runtime usage identifies the model in 244 rows and matches the configured roster. Nine rows lack runtime model identity and are explicitly grouped by the unchanged current adapter model as a fallback. These are reported native token fields, with cached input shown separately, and overlapping durations summed by run. Missing values are not proven zero. External integrator and external review-agent work is excluded from these native counts. Whole-account subscription snapshots include broader activity and cannot be attributed exactly to a model or department. Initial measured remaining quota was 56%; latest actual native control observation is 12% at 17:10:44Z. Coordination and repair dominate the measured model composition; this is not evidence of efficient scaling.
 
 ## Finalization still required
 
 Finish feasible preserved deliveries, measure any higher useful concurrency actually reached, collect final run/failure/queue/429 and quota telemetry, and reconcile local/remote publication effects. Then Board pause the company independently of product success, verify zero queued/running jobs, preserve a final checkpoint and update this report and the Russian Founder Desk. Do not describe this interim state as full acceptance.
 
 Later live milestone: three distinct native Luna source runs overlapped at 15:35:44Z across Senses, Experience and Cortex (`cohort3-live-observation.json`). Final durations and acceptance throughput remain pending. Control candidate4 SHA66cbf56c projects the validated resource receipt through ordinary native stdout; actual run4a5aad45 output was read back.
+
+### Three-developer source cohort
+
+All three source runs succeeded. Their common overlap is 170.302 seconds; the earliest start to latest finish spans 356.505 seconds, with 753.902 summed model seconds. These are candidate-generation intervals, not accepted delivery throughput. Contracts differ in complexity, so this is not a controlled speedup estimate against the earlier two-worker cohort.
+
+| Source | Native run | UTC interval | Seconds | Reported input | Cached input | Output |
+|---|---|---|---:|---:|---:|---:|
+| Senses MEM-345 | 39621de8-8160-4d0d-9563-e28041d291b5 | 15:34:30.199–15:37:55.913 | 205.714 | 79,073 | 1,379,968 | 19,087 |
+| Cortex MEM-338 | 73006498-5cf2-4570-a201-efe1bd53c8be | 15:34:08.818–15:39:20.313 | 311.495 | 97,348 | 1,577,600 | 27,391 |
+| Experience MEM-337 | 818cac50-b40b-4bcb-b831-a29e03970bcc | 15:33:23.808–15:37:20.501 | 236.693 | 102,123 | 1,973,888 | 21,114 |
+
+Primary private receipt: `cohort3-completed-intervals.json`; model identities and tokens come from native run-detail `usageJson`. The installed standard stager owns rejected-predecessor preservation in the QA clone; requiring the source worker to copy that private history was an unnecessary additional process condition. Likewise, native document storage exposes markdown format metadata; an exact JSON QA body remains consumable by the deployed publisher. Neither correction permits changing a verdict, contract or hash.
+
+### Delivery and autonomy update at 17:16 UTC
+
+Six new independently accepted native Brain publications are verified, with local/origin tip `05174c32a6826334b898227caaf30685aa0a4db1`: Experience purged_temporal_split `a594aa9e025224abbcb73cb8280370535d011f7b`, Senses observation_gap_intervals `5427aae6b2866931f9a4ec16e810f5628556779b`, Policy research_evidence_gate `b1aa99744674788babe89daa263e63cf6b0a83ff`, Senses timestamp_order_audit `63023adf924cdc75e762aa8520d04003d19e1a30`, Experience weight_concentration `b22f4f37072e58cc5a56aafc2bb05ccd32274ab8`, and Evaluation quantile_cohort_coverage `05174c32a6826334b898227caaf30685aa0a4db1`. Evaluation's real QA rejection was corrected in the original source task and independently reaccepted. The three-Luna cohort has two accepted publications; Cortex remains unpublished.
+
+Cortex338 corrected only test fixtures after independent QA found four wrong expectations; implementation hash remains `01c168504232c0c7d3596ad8e61ad16da5bb0d32a8ca8ac058adbb187725cd7f`. QA342's original negative report used invalid findings keys. Its own independent author repaired only the JSON schema, retaining REJECT, hashes and findings; task DONE denotes completed review execution, never acceptance. Same340 restaged the corrected candidate. A fresh342 review is required before343 publication.
+
+Native Astra365 selected four distinct contracts368–371. Native Platform372 and Luna373 prepare ordinary registrations and exact configuration artifacts; independent Sol375 must review final actual-ID envelopes/writer before trusted file apply. A stale native completion-review card referenced a prior status-decision and returned409 to the manager. The external integrator resolved that card administratively as PHASE-1 DRAFT HANDOFF ONLY; final byte review remains mandatory. No four-worker source admission or overlap is yet proven. This is an assisted limitation, not native repair autonomy.
+
+Final telemetry must distinguish native model-associated attempts from confirmed provider work: known bootstrap failures with providerWorkStarted=false are not actual model execution. Missing usage is unknown, not zero. The 14:42 table above is historical, not the current run count.
