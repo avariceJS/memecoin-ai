@@ -224,6 +224,47 @@ def test_preflight_reserves_next_model_admission_before_current_action_completes
     assert not (tmp_path / "blocked.json").exists()
 
 
+def test_v2_uncapped_preflight_records_unknown_run_count_and_ids_as_null(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(guard, "read_board_usage", lambda *_args, **_kwargs: usage())
+    uncapped = policy(
+        schema=guard.POLICY_SCHEMA_V2,
+        issued_at_utc="2026-10-28T09:00:00Z",
+        deadline_utc="2026-10-28T20:00:00Z",
+        max_model_runs=None,
+    )
+
+    receipt = guard.preflight(
+        uncapped, COMPANY, "prepare", None, tmp_path / "uncapped.json", now=NOW
+    )
+
+    assert receipt["schema"] == guard.RECEIPT_SCHEMA_V2
+    assert receipt["policy_max_model_runs"] is None
+    assert receipt["observed_model_run_count"] is None
+    assert receipt["observed_model_run_ids"] is None
+    assert receipt["remaining_percent"] == 80
+
+
+@pytest.mark.parametrize(
+    "bounded_policy",
+    [policy(), policy(schema=guard.POLICY_SCHEMA_V2, max_model_runs=80)],
+)
+def test_preflight_rejects_unknown_run_ids_when_policy_is_capped(
+    tmp_path: Path, monkeypatch, bounded_policy
+):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(guard, "read_board_usage", lambda *_args, **_kwargs: usage())
+
+    with pytest.raises(guard.ResourceGuardError, match="resource_run_ids_invalid"):
+        guard.preflight(
+            bounded_policy, COMPANY, "prepare", None, tmp_path / "bounded.json", now=NOW
+        )
+
+    assert not (tmp_path / "bounded.json").exists()
+
+
 def test_policy_reference_is_hash_pinned_and_private(tmp_path: Path, monkeypatch):
     tmp_path.chmod(0o700)
     monkeypatch.delenv(guard.RENEWAL_ENV, raising=False)

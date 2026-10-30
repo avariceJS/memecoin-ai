@@ -329,7 +329,7 @@ def preflight(
     policy: dict[str, Any],
     company_id: str,
     phase: str,
-    observed_run_ids: list[str],
+    observed_run_ids: list[str] | None,
     receipt_path: str | Path,
     *,
     reserve_model_runs: int = 0,
@@ -346,17 +346,24 @@ def preflight(
     )
     _require(issued <= current, "resource_policy_not_yet_active")
     _require(current < deadline, "resource_policy_deadline_expired")
-    _require(
-        type(observed_run_ids) is list
-        and all(type(run_id) is str and UUID.fullmatch(run_id) for run_id in observed_run_ids)
-        and len(set(observed_run_ids)) == len(observed_run_ids),
-        "resource_run_ids_invalid",
-    )
+    if observed_run_ids is None:
+        _require(
+            policy["schema"] == POLICY_SCHEMA_V2 and policy["max_model_runs"] is None,
+            "resource_run_ids_invalid",
+        )
+    else:
+        _require(
+            type(observed_run_ids) is list
+            and all(type(run_id) is str and UUID.fullmatch(run_id) for run_id in observed_run_ids)
+            and len(set(observed_run_ids)) == len(observed_run_ids),
+            "resource_run_ids_invalid",
+        )
     _require(
         type(reserve_model_runs) is int and 0 <= reserve_model_runs <= MAX_RESERVED_RUNS,
         "resource_run_reserve_invalid",
     )
     if policy["max_model_runs"] is not None:
+        _require(observed_run_ids is not None, "resource_run_ids_invalid")
         _require(
             len(observed_run_ids) + reserve_model_runs <= policy["max_model_runs"],
             "resource_run_cap_exceeded",
@@ -385,7 +392,7 @@ def preflight(
         "observed_at": current.isoformat().replace("+00:00", "Z"),
         "deadline_utc": policy["deadline_utc"],
         "policy_max_model_runs": policy["max_model_runs"],
-        "observed_model_run_count": len(observed_run_ids),
+        "observed_model_run_count": len(observed_run_ids) if observed_run_ids is not None else None,
         "reserved_model_runs": reserve_model_runs,
         "observed_model_run_ids": observed_run_ids,
         **normalized,
