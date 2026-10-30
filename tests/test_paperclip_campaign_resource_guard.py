@@ -265,6 +265,65 @@ def test_preflight_rejects_unknown_run_ids_when_policy_is_capped(
     assert not (tmp_path / "bounded.json").exists()
 
 
+def test_delivery_preflight_skips_enumeration_only_for_validated_v2_uncapped_policy(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    now = datetime.now(UTC).replace(microsecond=0)
+    issued_at = (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+    deadline = (now + timedelta(hours=10)).isoformat().replace("+00:00", "Z")
+    uncapped = policy(
+        schema=guard.POLICY_SCHEMA_V2,
+        issued_at_utc=issued_at,
+        deadline_utc=deadline,
+        max_model_runs=None,
+    )
+    capped = {**uncapped, "max_model_runs": 80}
+    policies = {"uncapped": uncapped, "capped": capped}
+    enumerated: list[str] = []
+
+    def load_policy(reference, company_id, *, allow_v1_to_v2=False):
+        return guard.validate_policy(policies[reference["mode"]], company_id), "f" * 64
+
+    def enumerate_runs(_api, _company_id, _policy):
+        enumerated.append("called")
+        return [RUN]
+
+    monkeypatch.setattr(guard, "load_policy_reference", load_policy)
+    monkeypatch.setattr(guard, "campaign_model_run_ids", enumerate_runs)
+    monkeypatch.setattr(
+        guard,
+        "read_board_usage",
+        lambda *_args, **_kwargs: usage(
+            checkedAt=now.isoformat().replace("+00:00", "Z")
+        ),
+    )
+
+    class API:
+        m = {"company_id": COMPANY}
+        run_id = "50000000-0000-4000-8000-000000000001"
+
+    uncapped_receipt = delivery._resource_preflight(
+        API(), {"mode": "uncapped", "path": str(tmp_path / "policy.json")},
+        "prepare", tmp_path,
+    )
+    assert uncapped_receipt is not None
+    uncapped_data = json.loads(uncapped_receipt.read_text())
+    assert uncapped_data["observed_model_run_count"] is None
+    assert uncapped_data["observed_model_run_ids"] is None
+    assert enumerated == []
+
+    capped_receipt = delivery._resource_preflight(
+        API(), {"mode": "capped", "path": str(tmp_path / "policy.json")},
+        "prepare", tmp_path,
+    )
+    assert capped_receipt is not None
+    capped_data = json.loads(capped_receipt.read_text())
+    assert capped_data["observed_model_run_count"] == 1
+    assert capped_data["observed_model_run_ids"] == [RUN]
+    assert enumerated == ["called"]
+
+
 def test_policy_reference_is_hash_pinned_and_private(tmp_path: Path, monkeypatch):
     tmp_path.chmod(0o700)
     monkeypatch.delenv(guard.RENEWAL_ENV, raising=False)
