@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import importlib.util
+import json
+import sys
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -13,6 +17,18 @@ COMPANY = "00000000-0000-4000-8000-000000000001"
 CONNECTION = "00000000-0000-4000-8000-000000000002"
 ROOT = "00000000-0000-4000-8000-000000000003"
 AGENT = "00000000-0000-4000-8000-000000000004"
+CONTROL_SCRIPT = Path(
+    "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/control-candidate/finalize-campaign.py"
+)
+
+
+def private_control_module():
+    spec = importlib.util.spec_from_file_location("scaling_campaign_control_v2", CONTROL_SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def policy_v1(now: datetime) -> dict:
@@ -89,6 +105,73 @@ def test_v2_allows_twelve_hours_null_cap_and_eight_percent_floor(tmp_path, monke
     assert receipt["schema"] == guard.RECEIPT_SCHEMA_V2
     assert receipt["policy_max_model_runs"] is None
     assert receipt["observed_model_run_count"] == 120
+
+
+def test_hash_bound_control_can_upgrade_existing_v1_manifest_to_v2(tmp_path, monkeypatch):
+    now = datetime(2026, 10, 30, 8, tzinfo=UTC)
+    original = policy_v1(now)
+    upgraded = policy_v2(now + timedelta(hours=8))
+    upgraded["deadline_utc"] = (now + timedelta(hours=12)).isoformat().replace("+00:00", "Z")
+    policy_path = tmp_path / "original-policy.json"
+    policy_raw = json.dumps(original, sort_keys=True, separators=(",", ":")).encode()
+    policy_path.write_bytes(policy_raw)
+    policy_path.chmod(0o400)
+    ref = {"path": str(policy_path), "sha256": hashlib.sha256(policy_raw).hexdigest()}
+
+    renewal = {
+        "schema": guard.RENEWAL_SCHEMA_V2,
+        "original_policy_sha256": ref["sha256"],
+        "new_policy": upgraded,
+    }
+    renewal_path = tmp_path / "renewal.json"
+    renewal_raw = json.dumps(renewal, sort_keys=True, separators=(",", ":")).encode()
+    renewal_path.write_bytes(renewal_raw)
+    renewal_path.chmod(0o400)
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+
+    with pytest.raises(guard.ResourceGuardError, match="resource_policy_renewal_schema_mismatch"):
+        guard.load_policy_reference(ref, COMPANY)
+    effective, renewal_sha = guard.load_policy_reference(
+        ref, COMPANY, allow_v1_to_v2=True
+    )
+    assert effective["schema"] == guard.POLICY_SCHEMA_V2
+    assert effective["company_id"] == original["company_id"]
+    assert effective["connection_id"] == original["connection_id"]
+    assert effective["task_scope_root_ids"] == original["task_scope_root_ids"]
+    assert renewal_sha == hashlib.sha256(renewal_raw).hexdigest()
+
+
+def test_v1_to_v1_renewal_keeps_legacy_run_limit(tmp_path, monkeypatch):
+    now = datetime(2026, 10, 30, 8, tzinfo=UTC)
+    original = policy_v1(now)
+    renewed = policy_v1(now + timedelta(hours=8))
+    renewed["deadline_utc"] = (now + timedelta(hours=14)).isoformat().replace("+00:00", "Z")
+    renewed["max_model_runs"] = 61
+    policy_path = tmp_path / "original-policy.json"
+    policy_raw = json.dumps(original, sort_keys=True, separators=(",", ":")).encode()
+    policy_path.write_bytes(policy_raw)
+    policy_path.chmod(0o400)
+    ref = {"path": str(policy_path), "sha256": hashlib.sha256(policy_raw).hexdigest()}
+    renewal = {
+        "schema": guard.RENEWAL_SCHEMA,
+        "original_policy_sha256": ref["sha256"],
+        "new_policy": renewed,
+    }
+    renewal_path = tmp_path / "renewal.json"
+    renewal_path.write_text(json.dumps(renewal, sort_keys=True, separators=(",", ":")))
+    renewal_path.chmod(0o400)
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+    with pytest.raises(guard.ResourceGuardError, match="resource_policy_renewal_run_cap_invalid"):
+        guard.load_policy_reference(ref, COMPANY)
+
+
+def test_control_rejects_directive_hash_mismatch_and_accepts_current_bytes():
+    control = private_control_module()
+    directive = control.SOURCE_DIRECTIVE_PATH
+    actual = hashlib.sha256(directive.read_bytes()).hexdigest()
+    assert control.verify_founder_directive(directive, actual)
+    with pytest.raises(control.FinalizeError, match="founder_directive_hash_mismatch"):
+        control.verify_founder_directive(directive, "0" * 64)
 
 
 def test_v2_quota_floor_accepts_eight_and_denies_seven():
