@@ -237,7 +237,7 @@ def read_board_usage(
     url = f"{BOARD_ORIGIN}/api/companies/{company_id}/ai-connections/{connection_id}/usage"
     request = urllib.request.Request(url, headers={"Accept": "application/json"}, method="GET")
     try:
-        with urllib.request.urlopen(request, timeout=5) as response:
+        with urllib.request.urlopen(request, timeout=15) as response:
             raw = response.read(64 * 1024 + 1)
     except (urllib.error.URLError, TimeoutError) as exc:
         raise ResourceGuardError("resource_usage_unavailable") from exc

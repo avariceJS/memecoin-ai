@@ -576,9 +576,45 @@ def test_board_usage_request_has_no_bearer_credential(monkeypatch):
         guard.read_board_usage(COMPANY, CONNECTION, now=NOW), CONNECTION, now=NOW
     )
     assert result["remaining_percent"] == 80
-    assert captured["timeout"] == 5
+    assert captured["timeout"] == 15
     assert captured["request"].full_url.startswith(guard.BOARD_ORIGIN)
     assert captured["request"].get_header("Authorization") is None
+
+
+def test_board_usage_timeout_fails_closed_and_later_read_uses_fresh_response(monkeypatch):
+    calls = 0
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self, _size):
+            return json.dumps(usage(checkedAt="2026-10-28T10:00:01Z")).encode()
+
+    def fake_urlopen(_request, timeout):
+        nonlocal calls
+        assert timeout == 15
+        calls += 1
+        if calls == 1:
+            raise TimeoutError("mock delayed response")
+        return Response()
+
+    monkeypatch.setattr(guard.urllib.request, "urlopen", fake_urlopen)
+
+    with pytest.raises(guard.ResourceGuardError, match="resource_usage_unavailable"):
+        guard.read_board_usage(COMPANY, CONNECTION, now=NOW)
+
+    result = guard.validate_usage(
+        guard.read_board_usage(COMPANY, CONNECTION, now=NOW + timedelta(seconds=1)),
+        CONNECTION,
+        now=NOW + timedelta(seconds=1),
+    )
+    assert calls == 2
+    assert result["checked_at"] == "2026-10-28T10:00:01Z"
+    assert result["remaining_percent"] == 80
 
 
 def test_publish_quota_failure_precedes_candidate_creation_and_all_publication_mutations(
