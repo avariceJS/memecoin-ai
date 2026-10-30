@@ -49,7 +49,7 @@ session received it. The interactive Codex profile does not establish Paperclip 
 | Control Center, AUTO, virtual paper, Watch Market, two Macs, releases and Git recovery registry | [`operator-runtime.md`](operator-runtime.md) |
 | Mac1 reset/restore from Kingston + GitHub, inventory and erase readiness | [`portability-disaster-recovery.md`](portability-disaster-recovery.md) |
 | Deferred hardened portability / DR v2 handoff | [`portability-disaster-recovery-v2-roadmap.md`](portability-disaster-recovery-v2-roadmap.md) |
-| Engineering organization, executive authority, confinement and integration | [`engineering-organization.md`](engineering-organization.md), [Sol mandate](../engineering/SOL-MANDATE.md), [Russian Founder Desk](../engineering/OWNER-DESK.md) |
+| Engineering organization, executive authority, confinement and integration | [`engineering-organization.md`](engineering-organization.md), [Sol mandate](../engineering/SOL-MANDATE.md), [Russian Founder Desk](../engineering/OWNER-DESK.md), [30 October finite campaign and scaling report](../engineering/SCALING-REPORT-20261030.md) |
 | Private Paperclip instance shutdown / resume custody | `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md` — current English operational handoff; private instance IDs, WIP and backup custody cannot live in public architecture documentation |
 | Cross-cutting engineering and research invariants | [`contracts.md`](contracts.md) |
 | Concise experiment timeline and key failures | [`research-history.md`](research-history.md) |
