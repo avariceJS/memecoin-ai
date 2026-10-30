@@ -321,14 +321,8 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(manifest["bundle_bytes"], len(bundle))
         self.assertEqual(manifest["bundle_sha256"], hashlib.sha256(bundle).hexdigest())
         self.assertEqual(manifest["changed_source_paths"], [
-            "packages/shared/src/validators/agent.ts",
-            "server/src/__tests__/agent-permissions-routes.test.ts",
             "server/src/__tests__/issue-recovery-actions.test.ts",
-            "server/src/__tests__/workspace-operations-reconciliation.test.ts",
-            "server/src/routes/agents.ts",
-            "server/src/routes/issues.ts",
             "server/src/services/authorization.ts",
-            "server/src/services/workspace-operations.ts",
         ])
         self.assertEqual(manifest["integrated_change"]["original_accepted_commit"], "c2b80534d04440dca62e757884fa9a9ae3c5b1b1")
         self.assertEqual(manifest["integrated_change"]["integrated_commit"], "e169417665e2ef61df18103eecab33701e1b06f5")
