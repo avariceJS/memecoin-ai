@@ -34,6 +34,7 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(
             PAPERCLIP_SOURCE_CHAIN,
             (
+                "e169417665e2ef61df18103eecab33701e1b06f5",
                 "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
                 "e7075c6660859eed0990f352d525b40356411e6a",
                 "920d2a32fffbe711bc3cb078b9091d6604e55acc",
@@ -51,8 +52,8 @@ class PaperclipLabServerTests(unittest.TestCase):
                 *PAPERCLIP_PATCH_SOURCE_CHAIN,
             ),
         )
-        self.assertEqual(PAPERCLIP_PIN, "15aee8eb62c13d90f8e8e462db6c3b83b33f858b")
-        self.assertEqual(PAPERCLIP_PARENT_PIN, "e7075c6660859eed0990f352d525b40356411e6a")
+        self.assertEqual(PAPERCLIP_PIN, "e169417665e2ef61df18103eecab33701e1b06f5")
+        self.assertEqual(PAPERCLIP_PARENT_PIN, "15aee8eb62c13d90f8e8e462db6c3b83b33f858b")
         self.assertEqual(PAPERCLIP_UPSTREAM_PIN, "043f2514e67c50320433a0013fb228a75a51325c")
         self.assertEqual(PAPERCLIP_PATCH_PIN, "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd")
         self.assertEqual(PAPERCLIP_PATCH_PARENT_PIN, "d560a09538a255c779e4a10b14d41a3114bf10f2")
@@ -234,12 +235,54 @@ class PaperclipLabServerTests(unittest.TestCase):
             "server/src/routes/issues.ts",
         ])
         self.assertIn("no runtime admission", manifest["limits"])
+
+    def test_combined_recovery_and_shutdown_source_pin_binds_both_reviews(self):
+        engineering = Path(__file__).resolve().parents[1]
+        commit = "e169417665e2ef61df18103eecab33701e1b06f5"
+        manifest_path = engineering / "paperclip-source-bundles" / f"{commit}.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        bundle = manifest_path.with_suffix(".bundle").read_bytes()
+        self.assertEqual(manifest["state"], "accepted-source-custody-not-runtime-admission")
+        self.assertEqual(manifest["native_source_commit"], commit)
+        self.assertEqual(manifest["native_source_tree"], "9d1250b7a30a1bfbb8f519f73029bd379ed97316")
+        self.assertEqual(manifest["prerequisite_commit"], "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7")
+        self.assertEqual(manifest["incremental_commits"], [
+            "645bf29bf8deb41f857a970199d58909927635d2",
+            "920d2a32fffbe711bc3cb078b9091d6604e55acc",
+            "e7075c6660859eed0990f352d525b40356411e6a",
+            "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+            commit,
+        ])
+        self.assertEqual(manifest["integrated_change"]["original_accepted_commit"], "c2b80534d04440dca62e757884fa9a9ae3c5b1b1")
+        self.assertEqual(manifest["integrated_change"]["integrated_commit"], commit)
+        self.assertEqual(manifest["bundle_bytes"], len(bundle))
+        self.assertEqual(manifest["bundle_sha256"], hashlib.sha256(bundle).hexdigest())
+        self.assertEqual([r["sha256"] for r in manifest["independent_review_receipts"]], [
+            "7113f1eb0eb3f72b9ac33e4606fba9102cc182a075b16cbe537b8a7a32950132",
+            "fa8d56a8f121cc86f3fa3f95fcce9adfa7e8fa024d7b16ed2f6248bbc89a8626",
+        ])
+        self.assertEqual(manifest["changed_source_paths"], [
+            "packages/shared/src/validators/agent.ts",
+            "server/src/__tests__/agent-permissions-routes.test.ts",
+            "server/src/__tests__/issue-recovery-actions.test.ts",
+            "server/src/__tests__/workspace-operations-reconciliation.test.ts",
+            "server/src/routes/agents.ts",
+            "server/src/routes/issues.ts",
+            "server/src/services/workspace-operations.ts",
+        ])
         pin = json.loads((engineering / "paperclip" / "source-pin.json").read_text(encoding="utf-8"))
-        self.assertEqual(pin["managed_source"]["commit"], commit)
-        self.assertEqual(pin["managed_source"]["tree"], manifest["native_source_tree"])
-        self.assertEqual(pin["managed_source"]["ancestry"], [commit, "e7075c6660859eed0990f352d525b40356411e6a",
-            "920d2a32fffbe711bc3cb078b9091d6604e55acc", "645bf29bf8deb41f857a970199d58909927635d2",
-            "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7"])
+        managed = pin["managed_source"]
+        self.assertEqual(managed["schema"], "paperclip-managed-source-pin-v2")
+        self.assertEqual(managed["commit"], commit)
+        self.assertEqual(managed["tree"], manifest["native_source_tree"])
+        self.assertEqual(managed["ancestry"], [
+            commit,
+            "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+            "e7075c6660859eed0990f352d525b40356411e6a",
+            "920d2a32fffbe711bc3cb078b9091d6604e55acc",
+            "645bf29bf8deb41f857a970199d58909927635d2",
+            "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7",
+        ])
         self.assertEqual(PAPERCLIP_PIN, commit)
 
     def test_source_pin_metadata_binds_cumulative_patch_and_source_only_review(self):
