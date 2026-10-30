@@ -376,11 +376,12 @@
     ]
   },
   "managed_source": {
-    "schema": "paperclip-managed-source-pin-v2",
-    "commit": "e169417665e2ef61df18103eecab33701e1b06f5",
-    "tree": "9d1250b7a30a1bfbb8f519f73029bd379ed97316",
-    "parent": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+    "schema": "paperclip-managed-source-pin-v3",
+    "commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+    "tree": "dbbd26813d2b5f5c0bbfd011aa72fa865dcc17a8",
+    "parent": "e169417665e2ef61df18103eecab33701e1b06f5",
     "ancestry": [
+      "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
       "e169417665e2ef61df18103eecab33701e1b06f5",
       "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
       "e7075c6660859eed0990f352d525b40356411e6a",
@@ -388,8 +389,8 @@
       "645bf29bf8deb41f857a970199d58909927635d2",
       "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7"
     ],
-    "bundle_manifest": "engineering/paperclip-source-bundles/e169417665e2ef61df18103eecab33701e1b06f5.json",
-    "bundle_sha256": "6f038a744395c9cccc8e0cab3a28c561cadea17b1e82ef5804bb37d89c1a0e3e",
+    "bundle_manifest": "engineering/paperclip-source-bundles/1e7d18239e6dac28254e5b44a3959eea63cf0f3b.json",
+    "bundle_sha256": "58f800f0f79ed6d181af3fb893ba316532b54d60963f20cab358afc9ab8f4889",
     "accepted_source_reviews": [
       {
         "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/recovery-review-final.json",
@@ -401,8 +402,14 @@
         "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/shutdown-review-final.json",
         "sha256": "fa8d56a8f121cc86f3fa3f95fcce9adfa7e8fa024d7b16ed2f6248bbc89a8626",
         "accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
-        "integrated_as": "e169417665e2ef61df18103eecab33701e1b06f5",
-        "status": "accept"
+        "status": "accept",
+        "integrated_as": "e169417665e2ef61df18103eecab33701e1b06f5"
+      },
+      {
+        "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/owner-scope-review.json",
+        "sha256": "70639c092646bd1d0b0e85669289b807c416ce6f2102b6f6c8a54c76867f5af5",
+        "accepted_commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+        "status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
       }
     ],
     "integrated_change": {
@@ -410,6 +417,12 @@
       "integrated_commit": "e169417665e2ef61df18103eecab33701e1b06f5",
       "integrated_parent": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
       "subject": "Retry workspace operation insert deadlocks"
+    },
+    "follow_up_source_fix": {
+      "commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+      "parent": "e169417665e2ef61df18103eecab33701e1b06f5",
+      "path": "server/src/routes/issues.ts",
+      "change": "Pass scope:{targetAgentId:assigneeAgentId} to the existing tasks:manage_active_checkouts authorization decision in hasActiveCheckoutManagementOverride."
     },
     "runtime_acceptance": "pending"
   }

@@ -1,0 +1,64 @@
+{
+  "schema": "paperclip-managed-native-code-custody-v1",
+  "state": "accepted-source-custody-not-runtime-admission",
+  "native_source_commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+  "native_source_tree": "dbbd26813d2b5f5c0bbfd011aa72fa865dcc17a8",
+  "prerequisite_commit": "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7",
+  "prerequisite_note": "Requires the preserved recovery-budget-transaction source bundle and its declared ancestry; this bundle carries the accepted scoped-recovery-permissions chain, accepted bounded workspace-operation insert-deadlock retry, and accepted scoped owner-recovery override fix.",
+  "exported_ref": "refs/heads/fix/scaling-recovery-owner-scope",
+  "bundle_file": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b.bundle",
+  "bundle_bytes": 8977,
+  "bundle_sha256": "58f800f0f79ed6d181af3fb893ba316532b54d60963f20cab358afc9ab8f4889",
+  "incremental_commits": [
+    "645bf29bf8deb41f857a970199d58909927635d2",
+    "920d2a32fffbe711bc3cb078b9091d6604e55acc",
+    "e7075c6660859eed0990f352d525b40356411e6a",
+    "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+    "e169417665e2ef61df18103eecab33701e1b06f5",
+    "1e7d18239e6dac28254e5b44a3959eea63cf0f3b"
+  ],
+  "changed_source_paths": [
+    "packages/shared/src/validators/agent.ts",
+    "server/src/__tests__/agent-permissions-routes.test.ts",
+    "server/src/__tests__/issue-recovery-actions.test.ts",
+    "server/src/__tests__/workspace-operations-reconciliation.test.ts",
+    "server/src/routes/agents.ts",
+    "server/src/routes/issues.ts",
+    "server/src/services/workspace-operations.ts"
+  ],
+  "integrated_change": {
+    "original_accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
+    "integrated_commit": "e169417665e2ef61df18103eecab33701e1b06f5",
+    "integrated_parent": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+    "subject": "Retry workspace operation insert deadlocks"
+  },
+  "follow_up_source_fix": {
+    "commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+    "parent": "e169417665e2ef61df18103eecab33701e1b06f5",
+    "path": "server/src/routes/issues.ts",
+    "change": "Pass scope:{targetAgentId:assigneeAgentId} to the existing tasks:manage_active_checkouts authorization decision in hasActiveCheckoutManagementOverride."
+  },
+  "independent_review_receipts": [
+    {
+      "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/recovery-review-final.json",
+      "sha256": "7113f1eb0eb3f72b9ac33e4606fba9102cc182a075b16cbe537b8a7a32950132",
+      "accepted_commit": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+      "status": "accepted_source_only"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/shutdown-review-final.json",
+      "sha256": "fa8d56a8f121cc86f3fa3f95fcce9adfa7e8fa024d7b16ed2f6248bbc89a8626",
+      "accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
+      "status": "accept",
+      "integrated_as": "e169417665e2ef61df18103eecab33701e1b06f5"
+    },
+    {
+      "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/owner-scope-review.json",
+      "sha256": "70639c092646bd1d0b0e85669289b807c416ce6f2102b6f6c8a54c76867f5af5",
+      "accepted_commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+      "status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
+    }
+  ],
+  "restore_qualification": "Fetch after the existing b31d659 recovery-transaction bundle; verify exact HEAD, parent chain, tree and clean status. Includes accepted source chain through e169417, then the exact one-line owner-scope fix.",
+  "limits": "Accepted source custody only. Candidate pin is isolated; no runtime admission, deployment, server restart, or runtime readback is authorized."
+}
