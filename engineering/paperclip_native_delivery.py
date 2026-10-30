@@ -1386,24 +1386,65 @@ def _validate_preparation_seed(envelope: dict[str, Any]) -> None:
     )
 
 
+def _preparation_remote_tip(canonical: dict[str, Any]) -> str:
+    repo = Path(canonical["repo"])
+    remote_name = canonical["remote_name"]
+    remote_url = canonical["remote_url"]
+    require(
+        git(repo, "remote", "get-url", remote_name).decode().strip() == remote_url
+        and remote_url.startswith("https://github.com/"),
+        "preparation_remote_url_changed",
+    )
+    raw = remote_git(repo, "ls-remote", remote_name, canonical["ref"], github_auth=True)
+    try:
+        rows = [line.split("\t") for line in raw.decode("ascii").splitlines()]
+        require(
+            len(rows) == 1
+            and len(rows[0]) == 2
+            and rows[0][1] == canonical["ref"]
+            and bool(OID.fullmatch(rows[0][0])),
+            "preparation_remote_ref_invalid",
+        )
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise DeliveryError("preparation_remote_ref_invalid") from exc
+    return rows[0][0]
+
+
 def _validate_preparation_inputs(envelope: dict[str, Any]) -> None:
     source = envelope["source"]
     _validate_preparation_seed(envelope)
     canonical = envelope["canonical"]
-    require(
-        git(Path(canonical["repo"]), "rev-parse", canonical["ref"]).decode().strip()
-        == canonical["expected_tip"],
-        "preparation_canonical_tip_changed",
-    )
+    repo = Path(canonical["repo"])
+    current = git(repo, "rev-parse", canonical["ref"]).decode().strip()
+    additive = envelope.get("publication_mode") == "independent_additive"
+    if additive:
+        require(
+            current == _preparation_remote_tip(canonical),
+            "preparation_canonical_local_remote_mismatch",
+        )
+        try:
+            publisher._git(repo, "merge-base", "--is-ancestor", canonical["expected_tip"], current)
+        except publisher.CanonicalPublishError as exc:
+            raise DeliveryError("preparation_canonical_tip_not_descendant") from exc
+    else:
+        require(current == canonical["expected_tip"], "preparation_canonical_tip_changed")
     for slot in envelope["slots"]:
         for path in slot["paths"]:
-            require(
-                not git(Path(source["seed_repo"]), "ls-tree", "-r", source["base_sha"], "--", path)
-                and not git(
-                    Path(canonical["repo"]), "ls-tree", "-r", canonical["expected_tip"], "--", path
-                ),
-                "preparation_path_not_absent_from_base",
+            seed_absent = not git(
+                Path(source["seed_repo"]), "ls-tree", "-r", source["base_sha"], "--", path
             )
+            frozen_absent = not git(repo, "ls-tree", "-r", canonical["expected_tip"], "--", path)
+            current_absent = not git(repo, "ls-tree", "-r", current, "--", path)
+            if additive:
+                require(
+                    seed_absent and frozen_absent and current_absent,
+                    "preparation_path_not_absent_from_additive_tip",
+                )
+            else:
+                require(
+                    seed_absent and frozen_absent,
+                    "preparation_path_not_absent_from_base",
+                )
 
 
 def _resolve_preparation_predecessor(

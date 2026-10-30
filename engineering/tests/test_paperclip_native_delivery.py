@@ -2412,10 +2412,138 @@ class PreparationTests(unittest.TestCase):
         self.envelope["publication_mode"] = "independent_additive"
         self.envelope_path.write_bytes(delivery.json_bytes(self.envelope))
         api = self.fake_api()
-        with patch.object(delivery, "Paperclip", return_value=api):
+        with (
+            patch.object(delivery, "Paperclip", return_value=api),
+            patch.object(
+                delivery,
+                "_preparation_remote_tip",
+                return_value=self.envelope["canonical"]["expected_tip"],
+            ),
+        ):
             delivery.prepare(str(self.envelope_path))
         manifest, _ = delivery.load_manifest(str(self.output / "slot1" / "manifest.json"))
         self.assertEqual(manifest["publication_mode"], "independent_additive")
+
+    def test_additive_preparation_accepts_descendant_without_rebinding(self) -> None:
+        ref = delivery.PUBLISH_REF
+        git(self.canonical, "symbolic-ref", "HEAD", ref)
+        frozen = self.envelope["canonical"]["expected_tip"]
+        envelope = {**self.envelope, "publication_mode": "independent_additive"}
+
+        def current_tip(_canonical: dict[str, Any]) -> str:
+            return git(self.canonical, "rev-parse", ref).decode().strip()
+
+        with patch.object(delivery, "_preparation_remote_tip", side_effect=current_tip):
+            delivery._validate_preparation_inputs(envelope)
+            foreign_paths = ["src/accepted_other.py", "tests/test_accepted_other.py"]
+            foreign_files = {
+                foreign_paths[0]: b"ACCEPTED_OTHER = True\n",
+                foreign_paths[1]: b"assert ACCEPTED_OTHER\n",
+            }
+            new_blobs = {
+                path: delivery.publisher._git(
+                    self.canonical, "hash-object", "--stdin", data=data
+                )
+                .decode()
+                .strip()
+                for path, data in foreign_files.items()
+            }
+            foreign_receipt = delivery.publisher.prepare(
+                self.canonical,
+                ref,
+                frozen,
+                {path: None for path in foreign_paths},
+                new_blobs,
+                foreign_files,
+                allowed_paths=foreign_paths,
+            )
+            delivery.publisher.reconcile(
+                self.canonical,
+                ref,
+                foreign_receipt,
+                foreign_receipt["candidate"],
+                foreign_receipt["receipt_digest"],
+                allowed_paths=foreign_paths,
+            )
+            delivery._validate_preparation_inputs(envelope)
+        self.assertEqual(envelope["canonical"]["expected_tip"], frozen)
+
+    def test_additive_preparation_rejects_collisions_and_legacy_tip_drift(self) -> None:
+        ref = delivery.PUBLISH_REF
+        git(self.canonical, "symbolic-ref", "HEAD", ref)
+        frozen = self.envelope["canonical"]["expected_tip"]
+        paths = self.envelope["slots"][0]["paths"]
+        files = {paths[0]: b"COLLISION = True\n", paths[1]: b"assert COLLISION\n"}
+        blobs = {
+            path: delivery.publisher._git(self.canonical, "hash-object", "--stdin", data=data)
+            .decode()
+            .strip()
+            for path, data in files.items()
+        }
+        receipt = delivery.publisher.prepare(
+            self.canonical,
+            ref,
+            frozen,
+            {path: None for path in paths},
+            blobs,
+            files,
+            allowed_paths=paths,
+        )
+        delivery.publisher.reconcile(
+            self.canonical,
+            ref,
+            receipt,
+            receipt["candidate"],
+            receipt["receipt_digest"],
+            allowed_paths=paths,
+        )
+
+        def current_tip(_canonical: dict[str, Any]) -> str:
+            return git(self.canonical, "rev-parse", ref).decode().strip()
+
+        with patch.object(delivery, "_preparation_remote_tip", side_effect=current_tip):
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "preparation_path_not_absent_from_additive_tip"
+            ):
+                delivery._validate_preparation_inputs(
+                    {**self.envelope, "publication_mode": "independent_additive"}
+                )
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "preparation_canonical_tip_changed"
+            ):
+                delivery._validate_preparation_inputs(self.envelope)
+
+    def test_additive_preparation_requires_remote_tip_to_match_local(self) -> None:
+        with patch.object(
+            delivery,
+            "_preparation_remote_tip",
+            return_value="f" * 40,
+        ):
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "preparation_canonical_local_remote_mismatch"
+            ):
+                delivery._validate_preparation_inputs(
+                    {**self.envelope, "publication_mode": "independent_additive"}
+                )
+
+    def test_additive_preparation_rejects_non_descendant_tip(self) -> None:
+        ref = delivery.PUBLISH_REF
+        git(self.canonical, "symbolic-ref", "HEAD", ref)
+        frozen = self.envelope["canonical"]["expected_tip"]
+        tree = git(self.canonical, "rev-parse", f"{frozen}^{{tree}}").decode().strip()
+        orphan = delivery.publisher._git(
+            self.canonical, "commit-tree", tree, data=b"unrelated canonical history\n"
+        ).decode().strip()
+        git(self.canonical, "update-ref", ref, orphan)
+        with patch.object(
+            delivery, "_preparation_remote_tip", return_value=orphan
+        ):
+            with self.assertRaisesRegex(
+                delivery.DeliveryError, "preparation_canonical_tip_not_descendant"
+            ):
+                delivery._validate_preparation_inputs(
+                    {**self.envelope, "publication_mode": "independent_additive"}
+                )
 
     def test_prepare_pins_owner_configured_correction_limit(self) -> None:
         self.envelope["max_corrections"] = 3
