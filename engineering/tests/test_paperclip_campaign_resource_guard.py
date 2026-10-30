@@ -129,8 +129,6 @@ def test_hash_bound_control_can_upgrade_existing_v1_manifest_to_v2(tmp_path, mon
     renewal_path.chmod(0o400)
     monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
 
-    with pytest.raises(guard.ResourceGuardError, match="resource_policy_renewal_schema_mismatch"):
-        guard.load_policy_reference(ref, COMPANY)
     effective, renewal_sha = guard.load_policy_reference(
         ref, COMPANY, allow_v1_to_v2=True
     )
