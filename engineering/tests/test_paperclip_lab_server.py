@@ -583,6 +583,7 @@ class PaperclipLabServerTests(unittest.TestCase):
                 _read_manifest(manifest)
 
     def test_old_source_custody_is_opt_in_for_owned_process_cleanup(self):
+        self.assertIn(PAPERCLIP_PARENT_PIN, PAPERCLIP_CLEANUP_ONLY_PINS)
         with tempfile.TemporaryDirectory() as directory:
             paths = LabPaths.resolve(Path(directory))
             paths.pid_file.parent.mkdir(parents=True)
