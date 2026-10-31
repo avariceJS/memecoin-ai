@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [Final Luna-managed restructuring, 2026-10-31](brain-luna-managed-final-20261031.json): 6 Luna leads/40 developers, independently reviewed existing-publisher batch input, two real native publications, exact assistance/overhead/accounting limits and paused checkpoint.
+
 - [Luna-first restructuring, 2026-10-31](brain-luna-first-restructuring-20261031.json): applied native configuration, three direct Luna implementations, one Sol batch review, controlled Git publication and paused checkpoint.
 
 - [Final bounded acceptance](brain-final-acceptance-20261027.json): five accepted publications, normal roles, real correction, native strategy, lifecycle and exact accounting; strict repeated unassisted acceptance remains incomplete.

@@ -1,5 +1,20 @@
 # Organization audit and resumption handoff
 
+## Final Luna-managed authority — 2026-10-31
+
+The latest Founder directive replaces all six internal Sol department-lead assignments with Luna High.
+Astra High sets substantial objectives and evaluates genuine goal completion; Luna High leads own
+decomposition, meaningful independent batches, source assignment, batch review/integration and native
+publication. Developers and optional selective reviewers use Luna High. No routine internal Sol call or
+required external interactive publication. This file retains its historical path for existing references.
+
+Use existing Goals/projects, isolated Git-worktrees, native task/dependency completion and the existing
+trusted publisher's reviewed batch input. Do not restore24 retired administrative tasks or require QA
+for every small task. Resolve ordinary reversible development inside the responsible department.
+Historical STOPs, human/unknown-effect holds and all protected boundaries remain. The current finite
+pass demonstrates one batch, then pauses/checkpoints; read memory/now.md for actual live state.
+Earlier operating-model sections below are historical where conflicting.
+
 ## Current Luna-first mandate — 2026-10-31
 
 The new Founder directive supersedes earlier campaign operating restrictions. Sol High owns department

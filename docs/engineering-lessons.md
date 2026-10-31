@@ -1,5 +1,20 @@
 # Engineering lessons and retrieval
 
+## Fresh dependency state before declaring a wait — 2026-10-31
+
+Trigger: MEM410's publisher was DONE before the final lead wake, but the lead reused earlier
+in-progress state and self-blocked with Board ownership. The native backstop deliberately preserved
+that self-block; it was not missing authority to publish. Refresh the actual child and its native
+receipt immediately before waiting or reporting completion. Resolved blockers are not waits;
+ordinary dependency ownership belongs to the responsible agent. Preserve genuine human and
+unknown-effect holds. All six lead instruction bundles now carry this rule, but a subsequent fully
+unassisted closure cycle has not been verified. Source: [final result](evidence/brain-luna-managed-final-20261031.json).
+
+Also derive task UUIDs from actual native responses rather than manual transcription (MEM407), and
+verify actual Git ancestry as well as exact file bytes (MEM410). Both failed preflights were preserved;
+Luna performed same-task reconciliation. Do not weaken these gates or replay an already published result.
+
+
 ## Batch review: verify actual ancestry before rework — 2026-10-31
 
 Trigger: a developer narrative/patch names an older base than the actual isolated commit parent.

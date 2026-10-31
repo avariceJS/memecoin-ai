@@ -1,5 +1,26 @@
 # Training and Evaluation
 
+## Accepted Luna-managed Experience diagnostics — 2026-10-31
+
+Brainf758157 adds four pure standard-library utilities on explicit synthetic/caller-supplied inputs:
+
+| Module | Useful question | Limit |
+|---|---|---|
+| `group_split_feasibility` | Are exact declared per-stratum quotas attainable with indivisible groups? Bounded exact subset-sum with deterministic witness. | Limit-exceeded is unknown; declarations do not prove membership, representativeness or training admissibility. |
+| `group_split_allocation_audit` | Does an explicit row allocation contain duplicates, unknown/missing rows or cross-split group leakage? | Only declared rows/groups; no inferred population completeness. |
+| `population_inclusion_audit` | Which pinned snapshot rows/groups are included or explicitly excluded, with what denominator changes? | Pin/provenance are supplied claims; no data loading or scientific validation. |
+| `split_input_lineage` | Can declared split assignments be reconciled with the pinned inclusion report and experiment input? | Deterministic offline lineage audit; no evaluation/training/runtime activation. |
+
+Two Luna developers worked concurrently per batch. Luna batch review integrated accepted code and
+corrected the second pair's interface/validation mismatches. Focused direct synthetic checks were used;
+pytest was unavailable for the second developer/lead environment, so no native pytest-suite pass is
+claimed. Eight exact published file hashes and two native process receipts were independently read
+back. First publication required an external metadata diagnosis; second publication/recovery was native,
+while final parent closure needed a stale-status correction. These are source utility results, not
+real-market edge, calibration, model quality or autonomous research competence. See the unique
+[final receipt](evidence/brain-luna-managed-final-20261031.json).
+
+
 ## Accepted Luna-first research utilities — 2026-10-31
 
 Brain development 5173068 integrates three standalone, standard-library synthetic-input tools:

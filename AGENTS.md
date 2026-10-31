@@ -1,5 +1,22 @@
 # Project Agent Rules
 
+## Final Founder operating model — Luna-managed, 2026-10-31
+
+The latest Founder directive supersedes the preceding Sol-led Luna-first model. Astra High remains
+strategic CEO; all six department leads, existing40 developers and optional reviewers use Luna High.
+No routine internal Sol call or permanent external integrator. Luna leads own meaningful direct
+batches, assignment, independent batch-level judgment, integration and publication through the
+existing native publisher. Developers implement/debug/check/commit autonomously in isolated
+worktrees; independent Luna review is selective, never mandatory per small task. Astra is contacted
+on real objective completion or exceptional strategic conflict, not routine events.
+
+Preserve the existing flow, historical STOPs/holds and24 retired intermediary tasks. Do not create
+another publisher, scheduler, broker, admission/QA/recovery framework or repair unrelated incidents.
+This finite final pass demonstrates one useful end-to-end batch, then pauses the company and verifies
+zero queued/running runs. Target shutdown with1-2% account quota margin; percentage readback is not
+atomic spending control. Main/production/protected data/market/training/AUTO/trading/paid APIs remain
+excluded. Historical sections below are superseded where conflicting; current state is memory/now.md.
+
 ## Current Founder operating model — Luna-first, 2026-10-31
 
 `prompt/luna-first.md` supersedes the previous campaign's operating-model instructions below.

@@ -1,0 +1,522 @@
+{
+  "schema": "brain-luna-managed-final-20261031.v1",
+  "checkedAt": "2026-10-31T16:51:58.285935+00:00",
+  "companyId": "be0053ed-cb7c-4320-b9db-cef012a91d62",
+  "starting_checkpoint": {
+    "organization": "384f5f143b3583fabb618bb23466cf4bdb0a209a",
+    "brain": "5173068bff30277f34c0ba4be9803027ff8c5e7d",
+    "paperclip": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+    "paused_zero_runs": true
+  },
+  "result": "applied_native_configuration_and_two_native_publications; uninterrupted_closed_loop_not_qualified",
+  "configuration": {
+    "checkedAt": "2026-10-31T16:51:58.285935+00:00",
+    "checks": {
+      "paused": true,
+      "zero_live": true,
+      "zero_queued_running": true,
+      "40_original_developers": true,
+      "six_luna_high_leads": true,
+      "developers_reviewers_luna_high": true,
+      "astra_high_ceo": true,
+      "40_developer_reporting": true,
+      "six_leads_report_ceo": true,
+      "runtime_subscription_bindings_preserved": true,
+      "no_periodic_model_heartbeat": true,
+      "original_manual_holds_preserved": true,
+      "historical_sol_profiles_manual_paused": true,
+      "six_reusable_isolated_workspaces": true,
+      "six_existing_department_owners": true,
+      "protected_historical_issues_unchanged": true,
+      "24_retired_tasks_stay_cancelled": true,
+      "52_managed_instruction_exports": true
+    },
+    "all_passed": true,
+    "developer_distribution": {
+      "6c2ec5f7-e797-4901-a8af-34da48d864d6": 7,
+      "03e8f231-ff1c-40f4-8558-21dfd41b60fe": 7,
+      "7709847f-648b-4edd-9dea-00926dddbd0d": 7,
+      "bd3bf21a-d7ab-4959-9b37-8b0de61ccb0b": 7,
+      "bf7de391-5774-46c3-89b3-f79cb6486b09": 6,
+      "c4ece767-3924-4d7b-b95d-d55c69de2138": 6
+    },
+    "lead_ids": [
+      "03e8f231-ff1c-40f4-8558-21dfd41b60fe",
+      "6c2ec5f7-e797-4901-a8af-34da48d864d6",
+      "7709847f-648b-4edd-9dea-00926dddbd0d",
+      "bd3bf21a-d7ab-4959-9b37-8b0de61ccb0b",
+      "bf7de391-5774-46c3-89b3-f79cb6486b09",
+      "c4ece767-3924-4d7b-b95d-d55c69de2138"
+    ],
+    "developer_ids": [
+      "52464340-ffe5-45f9-bd8b-d48fc6882bfc",
+      "1fa6785f-2d4a-49af-a1ea-2b51a5619f25",
+      "00330f87-72da-4f3d-a352-9743fa54db42",
+      "5f057327-4510-4c1b-9a81-56d3c3fec520",
+      "f9d5d302-2cfb-40d4-8807-61f546369582",
+      "ab3781fd-6e4b-4ae2-b55d-b30702b46f51",
+      "33fbd9a1-0791-4f3d-819e-e3e4b362248b",
+      "3e6ba448-fafc-4d6f-ba9e-683bca47710d",
+      "2ff693ec-4c39-43e4-8dfe-3647229c347f",
+      "fe5020af-00b7-4912-89d4-d99c4f551c50",
+      "59e0c36d-f35d-411b-896b-cf1aa855aee9",
+      "186158a8-52f5-49d4-b52b-e01f2379ec5d",
+      "72fc9a2b-b7d8-4fb5-8055-efe7e5cbf459",
+      "eb2be989-0465-44ae-b3ac-9b5e5644e04e",
+      "9efe248e-cb6e-489a-b0f9-de3478216ddf",
+      "b84346f7-a144-4ac2-a388-dd640410185c",
+      "9b770f03-adc8-434b-b0b5-fd2a8684e62a",
+      "d2b217d3-475e-4a6c-84fc-727d5a3af53a",
+      "d9b9f852-daeb-4ac3-8d61-3f61b91680a2",
+      "5ff7df7d-607f-463e-9996-3b8144bcd746",
+      "0d2bedb3-3d74-4a4d-9006-bd1ce877f16e",
+      "c73c75db-97b2-4361-a65e-5e04c4966f2f",
+      "cb2691b2-243d-4592-8484-f980da3037ae",
+      "f071c669-262b-41ec-a465-10a1462ecf91",
+      "3badeac8-936e-4649-ac43-5ce2b56b24de",
+      "2d30300c-28d3-467c-bc2a-9364aa09ae88",
+      "3042b250-f682-4c99-bc1f-5529981cd690",
+      "3c837bbc-f67d-46ba-bf43-bcbe7102e7ec",
+      "60280c9c-8be2-441d-b616-60e6034e133a",
+      "a0633e39-738b-4715-8941-096309a888a6",
+      "34387166-3e17-480f-81ac-e1af6307c1a1",
+      "718bf90b-eff7-4612-bf42-85910e2b98d6",
+      "98900b60-3329-4292-b484-ae2fb2caa01a",
+      "9590c91c-15c9-4ad5-a02d-4668827e348a",
+      "d50dde2c-04d8-4e6e-9f2a-0b61ece8288b",
+      "7c778650-25fb-4625-acda-81216c427b40",
+      "ed401e7d-d291-47e3-830a-b4e13ed49c00",
+      "d97f3539-2e97-4e99-82b3-48875806506c",
+      "c62c65ce-e03b-4a5b-8dac-9ec90ffdc2b3",
+      "db306606-71fb-4048-b491-7788eab30f8c"
+    ],
+    "reviewer_ids": [
+      "593a415f-925e-4e92-a2d8-0c8b788f6ca6",
+      "b36b2a68-589b-4f7b-a8f9-1e874ead7217",
+      "c4ef6927-ff68-4f84-9778-c282e55ed09a",
+      "de725a64-d74c-4edd-89dc-f03a4986102c",
+      "8c4af789-389d-4cff-a412-e5680b71092f"
+    ],
+    "original_manual_holds": 19,
+    "retired_sol_ids": [
+      "fd406556-6d8d-4144-8dda-d867116b9b92",
+      "593a0eec-965d-4554-b473-03be26c4c9f7",
+      "026a6493-5736-458b-ad07-0df0c369ff4e"
+    ],
+    "publisher_policy_sha256": "2009d2c745b372601f5ab7abf4ec25a85b781d9353e5d3f810a391c3bf3afd0d"
+  },
+  "publisher_change": {
+    "accepted_code": "56219ba748ff5ba8a2509ee90ae313b707700c2b",
+    "implementation_task": "MEM-405",
+    "independent_luna_review_task": "MEM-406",
+    "first_candidate_rejected": true,
+    "exact_accepted_diff_sha256": "ba36093a9487449644ee33eba07afc7fcb999bd2832592e9d0ed3d46ab9e6aa3",
+    "focused_tests": 15,
+    "mechanical_formatting_by_external_engineer": true,
+    "reuses_existing_canonical_publisher": true,
+    "no_new_scheduler_publisher_admission_framework": true,
+    "limits": [
+      "new or modified Python src/tests files only; no deletion/rename",
+      "real interrupted-push recovery not qualified"
+    ]
+  },
+  "batches": [
+    {
+      "name": "first",
+      "task": "MEM-407",
+      "task_id": "adf3c5a6-d7d7-4a10-bc49-286750a8165d",
+      "publisher_task_id": "75dc9627-0c1b-4cd8-b10a-63e981cbbdae",
+      "publisher_run_id": "b4a0074d-6345-4895-bc22-0875933b7559",
+      "accepted_assembled_source": "9fcfc81c3567cc58f81f9a3730b4103301e8506a",
+      "published_canonical_tip": "1dbd57b28b58095a028664a86a7cbb94a9fe281f",
+      "source_task_ids": [
+        "5a29dd5d-e3f0-4349-800f-d3258d13414e",
+        "e6ceaae2-eace-469c-ab2d-8270be6b0ba4"
+      ],
+      "source_run_ids": [
+        "5130d0ab-1c1f-4d2c-830f-ec4b33cd7ebf",
+        "8c313508-7f27-4baf-8834-518899ded7d6"
+      ],
+      "native_receipt_key": "publication-receipt",
+      "native_acceptance_revision_id": "f32fcb17-126f-441f-9c68-07fbfbe49744",
+      "native_acceptance_body_sha256": "853a6503d995d2c98f0aaf5568c0ccfa03f1733d58f89504cbf784cad35f4e74",
+      "external_intervention": "external diagnostic hint before native same-task recovery"
+    },
+    {
+      "name": "second",
+      "task": "MEM-410",
+      "task_id": "ca9ae8e6-fdbd-471a-86c7-b7d93c7d8ca0",
+      "publisher_task_id": "7def6ad6-c419-4a78-8562-5816581b00d1",
+      "publisher_run_id": "4596e86e-3eaf-480f-b9c2-7a223ac59c4b",
+      "accepted_assembled_source": "93649980c45d904ab3a90b3502561443ba14598e",
+      "published_canonical_tip": "f7581570f008b9fcad3473b2fb0ba8d3776ebb31",
+      "source_task_ids": [
+        "1fcbe5d8-cb8d-40cc-8d8e-b5bfda92418c",
+        "5cc2c387-6089-46e5-927f-1d42212c4d13"
+      ],
+      "source_run_ids": [
+        "78a97599-b30f-42b4-9d09-b1db51a8e4c0",
+        "78df2cd2-f3a1-4a9d-8e6f-767a674c9e23"
+      ],
+      "native_receipt_key": "publication-receipt",
+      "native_acceptance_revision_id": "0e7532c9-a1b7-4892-908f-e125ea1c8810",
+      "native_acceptance_body_sha256": "606768f19bd629d3c1f7322d12c88f6b178294a4b9607d9c480852e0f262684a",
+      "external_intervention": "none through native publication; one external correction to close stale post-publication self-block"
+    }
+  ],
+  "git_readback": {
+    "checkedAt": "2026-10-31T16:49:19.537412+00:00",
+    "head": "f7581570f008b9fcad3473b2fb0ba8d3776ebb31",
+    "main": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+    "status": "",
+    "remote_refs": {
+      "refs/heads/brain/development": "f7581570f008b9fcad3473b2fb0ba8d3776ebb31",
+      "refs/heads/main": "2f8da5f92da521b511e0d4fb20205981a000cab5"
+    },
+    "file_hashes": {
+      "src/memecoin_experience/group_split_allocation_audit.py": "7ad0a20e366771188dac05cfed4697dc4a1288593102778c3b4c2a767639c177",
+      "src/memecoin_experience/group_split_feasibility.py": "83125330a95c201f5401fdfd91c4d058c4b46cabfb716a24b1a365e77b7f2d32",
+      "tests/test_research_group_split_allocation_audit.py": "94e4217d8f877aeafae125b0cb7f36cd87d7684ebb81ef02154aa3ded33539ea",
+      "tests/test_research_group_split_feasibility.py": "a0437e27e6a44aef9d2385f6ed1bdb30a29f16a74df512242d2f2d0db963b46a",
+      "src/memecoin_experience/population_inclusion_audit.py": "1e349f6b9025bd0d86c8f9a48e4dd018f4cf17147039e715c508980d7c6ff788",
+      "src/memecoin_experience/split_input_lineage.py": "817cc9ac8bd0f4f8c0b1acd26de7fa6dbfa300268c977be935a02d98d71b5e3d",
+      "tests/test_research_population_inclusion_audit.py": "85a09f16051a7f4fe25060f4958e9a5d12a509ed8ba4d820750cb68e31f3b51e",
+      "tests/test_research_split_input_lineage.py": "de98c2301e535111272dfc6425b3ba7702ad3a8604aa84dcf3b4c4d3b467e5a9"
+    },
+    "all_receipt_hashes_match": true,
+    "diff_stat": ".../group_split_allocation_audit.py                | 180 +++++++++++++++++++++\n src/memecoin_experience/group_split_feasibility.py | 153 ++++++++++++++++++\n .../population_inclusion_audit.py                  | 128 +++++++++++++++\n src/memecoin_experience/split_input_lineage.py     | 159 ++++++++++++++++++\n .../test_research_group_split_allocation_audit.py  | 166 +++++++++++++++++++\n tests/test_research_group_split_feasibility.py     | 106 ++++++++++++\n tests/test_research_population_inclusion_audit.py  |  79 +++++++++\n tests/test_research_split_input_lineage.py         |  95 +++++++++++\n 8 files changed, 1066 insertions(+)",
+    "paperclip_head": "69cefa8d4887d2a3835668823ff854fce9c95cc2"
+  },
+  "native_accounting": {
+    "all": {
+      "runs": 21,
+      "statuses": {
+        "succeeded": 19,
+        "failed": 2
+      },
+      "roles": {
+        "lead": {
+          "runs": 9,
+          "inputTokens": 1441764,
+          "cachedInputTokens": 38430976,
+          "outputTokens": 219304,
+          "native_wall_seconds": 1564.844,
+          "unsettled_model_runs": []
+        },
+        "developer": {
+          "runs": 4,
+          "inputTokens": 134270,
+          "cachedInputTokens": 1222272,
+          "outputTokens": 29030,
+          "native_wall_seconds": 477.247,
+          "unsettled_model_runs": []
+        },
+        "publisher-implementation": {
+          "runs": 2,
+          "inputTokens": 275314,
+          "cachedInputTokens": 7823872,
+          "outputTokens": 85990,
+          "native_wall_seconds": 876.146,
+          "unsettled_model_runs": []
+        },
+        "independent-review": {
+          "runs": 2,
+          "inputTokens": 119191,
+          "cachedInputTokens": 1019648,
+          "outputTokens": 13809,
+          "native_wall_seconds": 229.691,
+          "unsettled_model_runs": []
+        },
+        "process": {
+          "runs": 4,
+          "inputTokens": 0,
+          "cachedInputTokens": 0,
+          "outputTokens": 0,
+          "native_wall_seconds": 24.698,
+          "unsettled_model_runs": []
+        }
+      },
+      "models": {
+        "gpt-6-luna": 17,
+        "process": 4
+      },
+      "developer_overlaps": [
+        {
+          "runIds": [
+            "78a97599-b30f-42b4-9d09-b1db51a8e4c0",
+            "78df2cd2-f3a1-4a9d-8e6f-767a674c9e23"
+          ],
+          "seconds": 114.064
+        },
+        {
+          "runIds": [
+            "5130d0ab-1c1f-4d2c-830f-ec4b33cd7ebf",
+            "8c313508-7f27-4baf-8834-518899ded7d6"
+          ],
+          "seconds": 108.267
+        }
+      ],
+      "lead_wall_share_of_model_intervals": 0.497103
+    },
+    "second_batch_including_post_publication_closure_correction": {
+      "runs": 9,
+      "statuses": {
+        "succeeded": 8,
+        "failed": 1
+      },
+      "roles": {
+        "lead": {
+          "runs": 5,
+          "inputTokens": 593870,
+          "cachedInputTokens": 12675712,
+          "outputTokens": 104103,
+          "native_wall_seconds": 895.984,
+          "unsettled_model_runs": []
+        },
+        "developer": {
+          "runs": 2,
+          "inputTokens": 69841,
+          "cachedInputTokens": 766208,
+          "outputTokens": 14660,
+          "native_wall_seconds": 250.669,
+          "unsettled_model_runs": []
+        },
+        "process": {
+          "runs": 2,
+          "inputTokens": 0,
+          "cachedInputTokens": 0,
+          "outputTokens": 0,
+          "native_wall_seconds": 14.75,
+          "unsettled_model_runs": []
+        }
+      },
+      "models": {
+        "gpt-6-luna": 7,
+        "process": 2
+      },
+      "developer_overlaps": [
+        {
+          "runIds": [
+            "78a97599-b30f-42b4-9d09-b1db51a8e4c0",
+            "78df2cd2-f3a1-4a9d-8e6f-767a674c9e23"
+          ],
+          "seconds": 114.064
+        }
+      ],
+      "lead_wall_share_of_model_intervals": 0.781391
+    },
+    "all_run_ids": [
+      "66ac61f9-4c69-4e05-a543-ba5307b58aaa",
+      "e63230cf-8959-4909-8d1f-fdafde06946c",
+      "4596e86e-3eaf-480f-b9c2-7a223ac59c4b",
+      "197f9649-2451-4127-8886-a4de12ed4d5c",
+      "50b9aa58-c994-4e7f-948b-eb6c08642f4c",
+      "a605ecf3-5918-44de-8b85-23b38b9eae6c",
+      "78a97599-b30f-42b4-9d09-b1db51a8e4c0",
+      "78df2cd2-f3a1-4a9d-8e6f-767a674c9e23",
+      "38efffd4-39f8-401e-9671-239fade19c86",
+      "b4a0074d-6345-4895-bc22-0875933b7559",
+      "5ef617f8-09c2-4ab0-b338-0e86cd8fc34c",
+      "f0db4367-43c1-4b29-9df6-5431ee2829dd",
+      "01281ad2-5fcc-4c5e-afb1-869989cdc37b",
+      "cc71f1e2-1476-4634-aa3a-59142734509c",
+      "5130d0ab-1c1f-4d2c-830f-ec4b33cd7ebf",
+      "8c313508-7f27-4baf-8834-518899ded7d6",
+      "cfc5372a-974b-43a5-8617-7cdca16e2cd1",
+      "3125582c-14c7-4bb3-8564-f9bb55df7cac",
+      "c03fb6f4-70b8-4137-8396-58928c00bb7e",
+      "3f559981-1bc2-47b9-976c-35ce71827e76",
+      "f638836b-2cca-4d43-857a-af514ed214fb"
+    ],
+    "flat_native_ledger_counters": {
+      "inputTokens": 1970539,
+      "cachedInputTokens": 48496768,
+      "outputTokens": 348133
+    },
+    "counting_caveat": "Run IDs are deduplicated and all 17 model receipts are settled. Continued provider sessions appear to repeat cumulative counters despite usageSource=per_run. The flat sum is the exact native ledger sum, NOT a verified incremental token spend or billing total. No accounting repair was attempted.",
+    "diagnostic_session_maximum_reconstruction": {
+      "method": "Maximum recorded counters per distinct provider session, separately for input/cached/output; diagnostic reconstruction because resumed native records appear cumulative despite per_run label. Not a provider billing reconciliation.",
+      "totals": {
+        "inputTokens": 1067862,
+        "cachedInputTokens": 22799488,
+        "outputTokens": 188666
+      },
+      "sessions": [
+        {
+          "agent_id": "bf7de391-5774-46c3-89b3-f79cb6486b09",
+          "session_id": "01a192da-c56e-7e63-bfd7-c37f62850602",
+          "run_ids": [
+            "66ac61f9-4c69-4e05-a543-ba5307b58aaa"
+          ],
+          "max_counters": {
+            "inputTokens": 78131,
+            "cachedInputTokens": 436608,
+            "outputTokens": 4321
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "bf7de391-5774-46c3-89b3-f79cb6486b09",
+          "session_id": "01a192cb-f2c5-7ae2-aa1e-2d5f8d687d0b",
+          "run_ids": [
+            "e63230cf-8959-4909-8d1f-fdafde06946c",
+            "197f9649-2451-4127-8886-a4de12ed4d5c",
+            "a605ecf3-5918-44de-8b85-23b38b9eae6c"
+          ],
+          "max_counters": {
+            "inputTokens": 180833,
+            "cachedInputTokens": 4661504,
+            "outputTokens": 35131
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "2d30300c-28d3-467c-bc2a-9364aa09ae88",
+          "session_id": "01a192c9-e0ee-7d13-bd4c-1fc88e05fb97",
+          "run_ids": [
+            "78a97599-b30f-42b4-9d09-b1db51a8e4c0"
+          ],
+          "max_counters": {
+            "inputTokens": 35551,
+            "cachedInputTokens": 406144,
+            "outputTokens": 9218
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "9590c91c-15c9-4ad5-a02d-4668827e348a",
+          "session_id": "01a192c9-dd7c-7e01-89b9-91485ea19bab",
+          "run_ids": [
+            "78df2cd2-f3a1-4a9d-8e6f-767a674c9e23"
+          ],
+          "max_counters": {
+            "inputTokens": 34290,
+            "cachedInputTokens": 360064,
+            "outputTokens": 5442
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "bf7de391-5774-46c3-89b3-f79cb6486b09",
+          "session_id": "01a192c8-62ea-7273-8f10-88f4b338792a",
+          "run_ids": [
+            "38efffd4-39f8-401e-9671-239fade19c86"
+          ],
+          "max_counters": {
+            "inputTokens": 64430,
+            "cachedInputTokens": 424064,
+            "outputTokens": 6722
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "bf7de391-5774-46c3-89b3-f79cb6486b09",
+          "session_id": "01a192a7-29f3-7c42-9bbc-1bee29d55c45",
+          "run_ids": [
+            "5ef617f8-09c2-4ab0-b338-0e86cd8fc34c",
+            "f0db4367-43c1-4b29-9df6-5431ee2829dd",
+            "cc71f1e2-1476-4634-aa3a-59142734509c",
+            "cfc5372a-974b-43a5-8617-7cdca16e2cd1"
+          ],
+          "max_counters": {
+            "inputTokens": 294789,
+            "cachedInputTokens": 8729216,
+            "outputTokens": 40076
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "9590c91c-15c9-4ad5-a02d-4668827e348a",
+          "session_id": "01a192a8-f7b2-7ac1-a416-bf0ac1de3f86",
+          "run_ids": [
+            "5130d0ab-1c1f-4d2c-830f-ec4b33cd7ebf"
+          ],
+          "max_counters": {
+            "inputTokens": 28702,
+            "cachedInputTokens": 213632,
+            "outputTokens": 6756
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "2d30300c-28d3-467c-bc2a-9364aa09ae88",
+          "session_id": "01a192a8-f471-7381-9d1d-6d42bb83e241",
+          "run_ids": [
+            "8c313508-7f27-4baf-8834-518899ded7d6"
+          ],
+          "max_counters": {
+            "inputTokens": 35727,
+            "cachedInputTokens": 242432,
+            "outputTokens": 7614
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "b36b2a68-589b-4f7b-a8f9-1e874ead7217",
+          "session_id": "01a192a0-41ae-7682-afe7-8f6598e5ba54",
+          "run_ids": [
+            "3125582c-14c7-4bb3-8564-f9bb55df7cac"
+          ],
+          "max_counters": {
+            "inputTokens": 76764,
+            "cachedInputTokens": 750592,
+            "outputTokens": 10053
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "33fbd9a1-0791-4f3d-819e-e3e4b362248b",
+          "session_id": "01a1928a-f2ec-7621-83a8-cbbbd9f1e522",
+          "run_ids": [
+            "c03fb6f4-70b8-4137-8396-58928c00bb7e",
+            "f638836b-2cca-4d43-857a-af514ed214fb"
+          ],
+          "max_counters": {
+            "inputTokens": 196218,
+            "cachedInputTokens": 6306176,
+            "outputTokens": 59577
+          },
+          "in_baseline": false
+        },
+        {
+          "agent_id": "b36b2a68-589b-4f7b-a8f9-1e874ead7217",
+          "session_id": "01a19291-5ecb-7c43-ad7b-0cd5a8692474",
+          "run_ids": [
+            "3f559981-1bc2-47b9-976c-35ce71827e76"
+          ],
+          "max_counters": {
+            "inputTokens": 42427,
+            "cachedInputTokens": 269056,
+            "outputTokens": 3756
+          },
+          "in_baseline": false
+        }
+      ]
+    },
+    "external_interactive_session_excluded": true,
+    "product_lead_share_of_summed_model_run_intervals": 0.7662949398435231,
+    "interval_limit": "Includes preparation, tools, tests, integration and correction, not pure generation/coding time. No savings claim."
+  },
+  "quota": {
+    "checkedAt": "2026-10-31T16:52:47.886Z",
+    "status": "ok",
+    "remainingPercent": 8,
+    "scope": "whole subscription account; not programme attribution or atomic spending control"
+  },
+  "shutdown": {
+    "status": "paused",
+    "queued": 0,
+    "running": 0,
+    "live": 0,
+    "fresh_founder_launch_required": true
+  },
+  "limits": [
+    "At most two developers overlapped; no 40-way or multi-week qualification.",
+    "No genuine departmental milestone; existing Experience Goal remains active, zero Astra calls, next-strategy event not exercised.",
+    "First batch needed external read-only diagnosis of a mistyped source UUID; lead performed correction/reconciliation/publication.",
+    "Second batch routing/review/integration/ancestry repair/reconciliation/publication had no external intervention, but stale-status self-block after publication required one external closure correction. Six lead instructions now require fresh child/receipt reads before yielding; a later uninterrupted cycle has not been verified.",
+    "Publisher source was independently Luna-reviewed; product batch review was by the Luna lead, with no automatic per-task QA.",
+    "Protected boundaries and old holds preserved; no deployment, market data, training, model quality, AUTO or trading claim."
+  ],
+  "custody_root": "/Users/root1/Developer/brain-paperclip-lab/state/luna-managed-20261031"
+}

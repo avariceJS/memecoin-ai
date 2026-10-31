@@ -1,5 +1,112 @@
 # Brain Engineering Organization
 
+## Final operating authority — Luna-managed, 2026-10-31
+
+The latest Founder directive supersedes the earlier Sol-led Luna-first model. Astra High remains
+strategic CEO: substantial departmental objectives, genuine goal completion and exceptional strategic
+conflicts only. All six department leads, all40 existing developer profiles and optional reviewers use
+Luna High. No routine internal Sol call or required external interactive publication. Department Goal
+IDs and objectives remain; their owners, programme/project leads and developer reporting lines now
+match the six Luna leads. Historical STOPs, manual/human/unknown-effect holds and retired tasks remain.
+
+A Luna lead creates meaningful independent batches, assigns isolated native developer workspaces,
+yields while developers implement/debug/check/commit, then reviews combined exact candidates at the
+batch boundary. Selective independent Luna review is for substantial risk/uncertainty, not each small
+task. Ordinary reversible development problems stay with the responsible department. Use the existing
+Paperclip tasks, dependencies, all-children-terminal events, workspaces and Git; do not rebuild the
+organization or restore the24 cancelled bind/prepare/manager/stage/per-task-QA/publish tasks.
+
+### Existing publisher: native batch input
+
+The existing `engineering.paperclip_native_delivery` command now has `publish-batch`, reusing
+`paperclip_canonical_publish.prepare/inspect/reconcile` and the existing fixed GitHub transport and
+credential helper. This is an input adapter on the existing trusted process, not a new publisher,
+admission system, scheduler, broker, transport or recovery framework. Historical manifest-based
+prepare/stage/publish paths retain their old semantics.
+
+One permanent owner-deployed policy pins the company, six lead IDs, publisher actor, sanitized Git
+source, custody and canonical development target. A lead writes its native `batch-acceptance` document
+with immutable source-base/assembled commits, exact file hashes, source tasks and focused evidence,
+then assigns one native child to the existing fixed publisher. The process derives its current task
+from authenticated run context; it does not require the optional TASK_ID environment variable. It
+checks lead/source provenance, actual Luna High profiles, source completion/holds and exact Git bytes.
+It accepts bounded new/modified Python source/test files; deletion/rename/general release publication
+are outside this adapter.
+
+The existing publisher captures an immutable operation before ref effects, retains old-blob/no-loss
+and expected-tip CAS checks, reconciles/pushes only the exact candidate, verifies remote refs and
+writes the native child receipt before completion. Native completion returns control to the Luna lead.
+The lead reads the receipt and continues the same objective or sends a genuine completion report to
+Astra. Models receive no publisher policy write authority or Git credentials.
+
+Luna405 implemented this bounded change. Independent Luna406 rejected the first candidate for a
+missing installed task-context convention and insufficient whole-call coverage; the original rejection
+remains. SAME developer correction plus mechanical formatting produced exact accepted56219ba.
+The reviewer ran15 focused new tests with real disposable Git/CAS and fake API/remote, including
+success and stable receipt replay. Ruff/format passed on the exact files. Live interrupted-push
+recovery was not qualified. The code is integrated/published to org/development and the existing
+trusted process configuration is applied/read back; installed Paperclip backend69cefa8 is unchanged.
+
+The finite final pass admits a useful two-developer Experience batch and, after its metadata error
+required an external diagnostic hint, one final two-developer cycle from the lead's own next-batch
+brief. This is followed by company pause, zero queued/running readback and checkpoint. Closing
+margin is approximately1-2% observed account quota, without atomic spending claims. Real development,
+accepted integration, native publication, model quality and long-run reliability remain separate claims.
+Final live status/evidence belongs to memory/now.md and the bounded result recorded below.
+
+Earlier sections below retain historical campaign facts; their operating-model instructions are
+superseded where conflicting with this final Founder directive.
+
+### Final applied result and limits — 2026-10-31
+
+Readback verifies Astra High CEO, six Luna High leads reporting to Astra, all40 original developer IDs
+and five optional reviewer profiles on Luna High. Forty developers report to the six leads (7/7/7/7/6/6).
+All six existing Goals, programmes and projects retain their identities with matching Luna owners;
+reusable isolated-worktree defaults now use accepted source9364998. Subscription/runtime bindings and
+periodic-heartbeat-off settings are unchanged. Original manual holds remain; three legacy Sol lead
+profiles are retained manually paused outside normal routing. All24 removed intermediaries remain cancelled.
+
+Two real Experience batches delivered four offline synthetic-input utilities in eight Python files
+(1066 added lines including tests). MEM407 published Brain1dbd57b; it needed an external diagnostic
+hint for a mistyped source UUID, then the Luna lead corrected its metadata, reconciled the SAME native
+publisher task and published. MEM410 was natively assigned to two developers, reviewed and integrated
+by Luna. The first publication failed closed on non-ancestor source metadata; Luna preserved the tree,
+added the accepted base as a forward merge parent, reconciled and successfully published the SAME
+MEM413 through the fixed process. No external routing, candidate selection, review, Git apply/push or
+recovery action occurred during this second batch through publication. Brainf758157 and all eight
+accepted file hashes match local and remote Git. Main2f8da5f and installed backend69cefa8 are unchanged.
+
+After successful publication the lead used stale in-progress state and self-blocked with Board ownership,
+even though its native completion wake arrived after the child finished. The existing backstop correctly
+preserved that self-block. One external post-publication correction and updated six-lead instructions
+caused fresh receipt reads, native source-pointer advancement and MEM410 completion. Before waiting,
+leads must refresh actual child/receipt state; completed dependencies are not waits, and ordinary waits
+belong to the responsible agent. No scheduler/notification repair or protection bypass was added.
+Thus native publication is demonstrated without external publication assistance, but an entirely
+unassisted closed loop including final parent closure/continuation is NOT qualified by this pass.
+
+Actual native calls:17 Luna High,0 Sol,0 Astra, plus4 fixed-process attempts (2 failed preflight,
+2 published). Roles:9 lead,4 product developer,2 publisher-implementation and2 independent-review
+runs. Developer overlaps were108.267s and114.064s. Product leads consumed1564.844s versus477.247s
+for developers,76.63% of their summed native run intervals (including tools/checks/corrections).
+Managerial overhead remains high in this small demonstration; no savings or long-run claim follows.
+Native ledger sums are input1970539/output348133/cached-input48496768, but resumed-session records
+appear cumulative despite a per-run label. Session-max reconstruction is input1067862/output188666/
+cached-input22799488; it is diagnostic, not reconciled provider billing. Exact incremental spend is
+unconfirmed. Raw records and both methods remain distinct in the receipt; external session is excluded.
+
+Company paused with zero queued/running/live runs; last whole-account quota8%. No new batch is
+preauthorized after shutdown. The Experience Goal remains active; no strategic milestone was invented
+and the Astra next-objective path was not exercised. Selective independent Luna QA covered the publisher
+change; product review was by the Luna lead. Product pytest was unavailable in native environments;
+lead direct synthetic/semantic checks and exact candidate evidence were used, not a claimed pytest pass.
+The native publication adapter remains bounded to new/modified Python src/tests paths. No production,
+protected data, collection, training, AUTO, paper/trading or paid API effects occurred.
+
+Canonical aggregate: [final result](evidence/brain-luna-managed-final-20261031.json).
+Private configuration/instruction exports, policy, native evidence and recoverable Git bundles are under
+`/Users/root1/Developer/brain-paperclip-lab/state/luna-managed-20261031/`; final checkpoint is `checkpoint.json`.
+
 ## Current operating authority — Luna-first, 2026-10-31
 
 The Founder directive `prompt/luna-first.md` supersedes the previous campaign operating model.
