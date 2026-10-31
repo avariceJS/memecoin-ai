@@ -1,5 +1,24 @@
 # Training and Evaluation
 
+## Accepted Luna-first research utilities — 2026-10-31
+
+Brain development 5173068 integrates three standalone, standard-library synthetic-input tools:
+`revision_stability` reports exact revision deltas, direction reversals and the earliest suffix within
+a declared absolute tolerance of the final supplied revision; that reference is not truth or a future
+stability claim. `state_transition_summary` counts adjacent supplied categorical transitions with
+explicit missing/gap exclusions and episode boundaries, without inferred dynamics or prediction.
+`research_budget_frontier` enumerates nondominated integer cost/declared additive-benefit outcomes
+with deterministic subset witnesses, without executing or recommending a research programme.
+
+Three Luna developers implemented/committed independently. One Sol batch review accepted exact
+six-file hashes, 65 focused tests / 10 subtests and 70 additional contract challenges. Unchanged bytes
+were reused for controlled canonical publication; no historical/full acceptance suite was repeated.
+This establishes bounded implementation/CLI behavior on synthetic inputs, not scientific edge,
+real-market competence, calibration, training, production or runtime acceptance. Exact accepted
+commits, file hashes, native review and publication are in the unique
+[`Luna-first receipt`](evidence/brain-luna-first-restructuring-20261031.json).
+
+
 ## Roster support and paired-loss diagnostics — 2026-10-27
 
 Five independently accepted additions are published through Brain54fb180. All consume explicit

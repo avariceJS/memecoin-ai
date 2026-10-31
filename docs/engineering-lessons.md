@@ -1,5 +1,17 @@
 # Engineering lessons and retrieval
 
+## Batch review: verify actual ancestry before rework — 2026-10-31
+
+Trigger: a developer narrative/patch names an older base than the actual isolated commit parent.
+In batch404, MEM-400's older-base metadata would have mixed source-refresh files into a combined
+patch. Sol inspected actual commit ancestry and exact authorized two-path bytes, then accepted the
+unchanged implementation with the other two developers in one review. Do not manufacture a new
+QA/rework cycle for a metadata discrepancy that immutable Git/file evidence resolves. This applies
+only while the reviewed bytes and base/path evidence still match; changed code or ambiguous effects
+require fresh judgment. Source: [Luna-first receipt](evidence/brain-luna-first-restructuring-20261031.json)
+and [current organization result](engineering-organization.md#applied-result-and-bounded-real-development).
+
+
 ### E17 — Verify artifact access in the actual QA context
 
 - **Trigger:** Reassessment needs the complete prior candidate and rejection evidence.

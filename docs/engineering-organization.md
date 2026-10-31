@@ -1,5 +1,74 @@
 # Brain Engineering Organization
 
+## Current operating authority — Luna-first, 2026-10-31
+
+The Founder directive `prompt/luna-first.md` supersedes the previous campaign operating model.
+Historical STOPs, unknown-effect holds, rejected candidates and protected boundaries remain intact.
+The existing organization was reconfigured while paused; one small useful three-developer
+demonstration completed, without a broad acceptance/scaling campaign. The external engineer owns
+final pause, zero queued/running readback and checkpoint. A quota reset never resumes the company.
+
+Astra defines substantial department objectives, evaluates their completion and resolves exceptional
+strategic conflicts; it does not supervise ordinary transitions, QA, commits or operational questions.
+The six Sol High leads decompose objectives into meaningful independent Luna High tasks, generally
+10-20 per batch when useful scope supports that size. Reuse existing Goals, projects, source workspaces
+and task templates. Set dependencies only for real prerequisites. One parent batch waits for all direct
+children; the existing native all-children-terminal event supplies the review boundary. No model polling
+or progress/thanks notifications with resume/mentions. Unrelated departments proceed independently.
+
+Luna owns implementation details, refactoring, debugging, focused checks and commits on its isolated
+branch through several steps without managerial permission per action. Routine tasks have no mandatory
+independent Sol-QA, fixed staging, per-task delivery manager or intermediary administrative graph.
+An independent Luna High reviewer is optional for substantial/unusually risky work. Sol reviews combined
+progress and integrates accepted changes at a meaningful batch boundary, retaining exact candidate
+identity, focused evidence, captured-tip/no-loss checks and publication readback. Sol may take over a
+genuinely difficult task when repeated review costs more. It prepares subsequent batches within the
+same department objective; Astra receives the concise objective-completion report.
+
+Existing historical delivery manifests and receipts stay immutable and retain their original meaning;
+they do not impose their per-task workflow on new Luna-first work. Historical human/unknown-effect
+holds, including MEM-118/123/126, are not withdrawn. Production/main/data/market/training/AUTO/paper/
+trading/paid-API settings remain outside this directive. No new scheduler, orchestrator, broker,
+admission system, QA transport or recovery framework is introduced.
+
+Private applied configuration, versioned instruction receipts, source/template changes, fresh quota
+and run evidence are under `brain-paperclip-lab/state/luna-first-20261031`. The original profiles and
+instructions were saved before mutation. Normal profiles remain Astra CEO, six Sol High leads and
+Luna High developers; the primary optional reviewer is Luna High. No temporary all-Luna test profile
+is needed. Mechanical readback is separate from actual model-role quality. This finite directive permits
+a 2-3% observed weekly closing reserve, without treating a percentage read as an atomic spending limit.
+
+### Applied result and bounded real development
+
+Versioned CAS writes and exact instruction readback cover 47 profiles (39 implementers, six leads,
+Astra and the optional reviewer). 24 unstarted administrative tasks were cancelled with history
+preserved. The six permanent department programmes/projects now have their own existing Sol leads
+and reusable code workspaces, replacing the old common lead and forced repository-free/shared
+analysis defaults. Existing analytical projections, workspace IDs and Goal identities remain preserved.
+Original manual holds and subscription/runtime bindings were restored/verified after finite isolation.
+
+Existing source tasks MEM-379/393/400 ran as three concurrent Luna High implementations and committed
+independently. Their three-way overlap was 131.1s. One native `issue_children_completed` event invoked
+Sol High batch404; no Astra call, per-task Sol-QA or administrative stage task was needed. Sol assembled
+all six files on isolated tip 860608e and accepted exact hashes after focused checks and independent
+contract challenges. A stale base in MEM-400's narrative/patch was resolved from actual Git ancestry
+and the exact two-path diff; no developer/QA loop was launched. The existing canonical publisher then
+published 5173068bff30277f34c0ba4be9803027ff8c5e7d to local/remote `brain/development`; main remained
+2f8da5f. This canonical publication was externally assisted; native batch integration was completed
+by Sol. No production/runtime deployment occurred.
+
+Native model runs were exactly 3 Luna / 1 Sol / 0 Astra, all successful. Summed run intervals were 503.493s
+Luna and 342.834s Sol: 59.49% attributed to developer tasks, including tools/preparation, not measured
+pure coding or GPU time. External integrator time is excluded. Last whole-account quota was 9% at
+2026-10-31T13:50:45.781Z; one earlier provider-unavailable read remains recorded. No programme quota
+fraction is inferred. Company is Board-paused with zero queued/running runs; no automatic continuation.
+Forty-way concurrency, repeated autonomous batches and strategic role quality remain untested.
+
+Unique reproduction receipt: [`brain-luna-first-restructuring-20261031.json`](evidence/brain-luna-first-restructuring-20261031.json).
+
+The sections below record earlier campaigns and source evidence; their operating-model instructions
+are historical where they conflict with this directive. Final live status belongs to `memory/now.md`.
+
 ## Productive launch — 2026-10-30, finite cycle paused
 
 The founder explicitly resumed development after STOP: finish saved repairs, publish Experience,

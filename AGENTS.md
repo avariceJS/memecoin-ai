@@ -1,5 +1,23 @@
 # Project Agent Rules
 
+## Current Founder operating model — Luna-first, 2026-10-31
+
+`prompt/luna-first.md` supersedes the previous campaign's operating-model instructions below.
+Preserve historical STOP records and all protected/human/unknown-effect holds. Use the existing
+Paperclip organization: Astra sets substantial department objectives and evaluates completion; six
+Sol High leads assign independent meaningful batches directly to Luna High developers. Luna owns
+implementation, debugging, focused checks and commits on isolated branches through completion.
+No mandatory independent Sol-QA or bind/prepare/stage/manager chain per routine task. Optional
+independent Luna High review is selective; Sol reviews and integrates at meaningful batch boundaries
+with no-loss/candidate-identity/Git readback safeguards. Native all-children-terminal events replace
+model polling and per-task managerial handoffs. No new scheduler/orchestrator/admission/recovery
+framework. Normal profiles: Astra CEO, Sol High leads, Luna High developers/reviewers.
+
+This finite restructuring permits only a small useful concurrent demonstration and ends with company
+pause, zero active/queued runs and a checkpoint; it does not authorize another broad acceptance
+campaign. Stop new model-heavy work near 2-3% observed remaining quota; this temporary exception is
+not an atomic spending limiter or a future standing reserve. Read `memory/now.md` for live status.
+
 ## Entry and source of truth
 
 Current agent-facing documentation is English; the founder-facing `engineering/OWNER-DESK.md` is Russian by explicit founder direction. Start with:

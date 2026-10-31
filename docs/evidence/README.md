@@ -1,5 +1,7 @@
 # Evidence Index
 
+- [Luna-first restructuring, 2026-10-31](brain-luna-first-restructuring-20261031.json): applied native configuration, three direct Luna implementations, one Sol batch review, controlled Git publication and paused checkpoint.
+
 - [Final bounded acceptance](brain-final-acceptance-20261027.json): five accepted publications, normal roles, real correction, native strategy, lifecycle and exact accounting; strict repeated unassisted acceptance remains incomplete.
 
 - [Predecessor publisher repair](brain-predecessor-publisher-repair-20261026.json): activity-linked manager run caused false rejection; one Luna QA, existing MEM-146 completed through native recovery and publication readback.

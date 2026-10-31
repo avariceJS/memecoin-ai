@@ -1,0 +1,154 @@
+{
+  "schema": "brain-luna-first-restructuring-v1",
+  "recorded_at": "2026-10-31T13:50:45.810850+00:00",
+  "authority_sha256": "b67942893ce9c5a772dc8d7edc0451109b8ffab654aa29774f5c4e0440948d94",
+  "applied": {
+    "managed_instruction_profiles": 47,
+    "implementation_profiles": 39,
+    "department_leads": 6,
+    "unstarted_administrative_tasks_withdrawn": 24,
+    "department_programmes_reassigned": 6,
+    "reusable_department_source_workspaces": 6,
+    "historical_projections_preserved": true,
+    "department_workspace_default": "isolated_workspace/git_worktree",
+    "native_task_templates": 6,
+    "native_batch": 404,
+    "direct_sources": [
+      379,
+      393,
+      400
+    ],
+    "source386": "backlog; outside finite demonstration",
+    "periodic_heartbeat": "already disabled; retained",
+    "subscription_and_original_pause_holds": "verified preserved",
+    "new_framework": false
+  },
+  "models": {
+    "ceo": "gpt-6-astra; unchanged; not called",
+    "department_leads": "gpt-6.1-sol/high; unchanged",
+    "developers": "gpt-6-luna/high",
+    "primary_optional_reviewer": "gpt-6-luna/high; changed from mandatory Sol",
+    "temporary_leadership_test_profiles": false
+  },
+  "native_workflow": {
+    "source_runs": 3,
+    "batch_review_runs": 1,
+    "astra_runs": 0,
+    "all_model_runs_succeeded": true,
+    "three_way_overlap_seconds": 131.1,
+    "luna_share_of_summed_native_model_run_wall": 0.5949154404857697,
+    "automatic_batch_wake_reason": "issue_children_completed",
+    "no_intermediary_stage_or_qa_tasks": true,
+    "isolated_batch_integration_tip": "860608e9442d08c419dfc63d60f2144958338f0d",
+    "checks": {
+      "focused_tests": "65 passed; 10 subtests passed in 3.90s",
+      "additional_contract_challenges": 70,
+      "diff_check": "passed",
+      "existing_tree_entries_unchanged": 4678,
+      "all_existing_files_modes_and_blobs_preserved": true,
+      "exactly_six_new_authorized_paths": true,
+      "working_tree_matches_accepted_blobs": true,
+      "bundle_verify": "passed"
+    },
+    "metadata_discrepancy_preserved": "MEM-400 implementation-result states base 8dbb9cf, but Git first parent is 1c2f7cf. Acceptance uses actual commit ancestry and the two exact files, not an older-base combined patch."
+  },
+  "native_usage": {
+    "gpt-6.1-sol": {
+      "runs": 1,
+      "wall_seconds": 342.834,
+      "input_tokens": 87353,
+      "cached_input_tokens": 1219840,
+      "output_tokens": 11747
+    },
+    "gpt-6-luna": {
+      "runs": 3,
+      "wall_seconds": 503.493,
+      "input_tokens": 147304,
+      "cached_input_tokens": 2396288,
+      "output_tokens": 36451
+    }
+  },
+  "accepted_sources": [
+    {
+      "task": 379,
+      "issue_id": "22d54653-59ee-40ee-adf5-600be973698d",
+      "commit": "579bf456692b4aff12caad0c59a8dd25f430f8f8",
+      "base": "1c2f7cfb2b1581d88defd973cfe2b3dca2bdd43b",
+      "files": {
+        "src/memecoin_experience/revision_stability.py": "dcb9d342747c098ff44c1de8d76b3353afbfdf57f4a8cd09b18e7f54238bbd98",
+        "tests/test_research_revision_stability.py": "f184e2e89ecd5c8e5c050d6ed5e4ef3b9e5e2e7d367ac829b6e48f0ca1f5c35e"
+      }
+    },
+    {
+      "task": 393,
+      "issue_id": "f9d095dc-ffef-4b81-a5df-2a2f6e4f64b5",
+      "commit": "c8a32f3eb6e56a231a583ad96e080a78625aa098",
+      "base": "1c2f7cfb2b1581d88defd973cfe2b3dca2bdd43b",
+      "files": {
+        "src/memecoin_experience/state_transition_summary.py": "ec65c458af8c8368962a870c07c3db679caa0f4837d04d72bd25a505a57582a5",
+        "tests/test_research_state_transition_summary.py": "b2acb0539077555e5cf188cee25ed61894798fb15edf659c3f81deb1719c89ab"
+      }
+    },
+    {
+      "task": 400,
+      "issue_id": "0f719970-7a05-4ad3-9193-f272d0da5574",
+      "commit": "1f2a872536575c5235c801179f1a8a813c685137",
+      "base": "1c2f7cfb2b1581d88defd973cfe2b3dca2bdd43b",
+      "files": {
+        "src/memecoin_experience/research_budget_frontier.py": "a96163d9ca941afae7ee41cc07123da2fd66295cf4171712a6ab57b4ecf17b79",
+        "tests/test_research_research_budget_frontier.py": "bfe843843b0b65aa218b83cc2cb20de6f944f2ad95b59a9c39c1fec8e0867204"
+      }
+    }
+  ],
+  "canonical_publication": {
+    "before": "96e9848c655dc0c4e3347696eb2db56c04c3f1ea",
+    "after": "5173068bff30277f34c0ba4be9803027ff8c5e7d",
+    "local_and_remote_verified": true,
+    "files": {
+      "src/memecoin_experience/revision_stability.py": "dcb9d342747c098ff44c1de8d76b3353afbfdf57f4a8cd09b18e7f54238bbd98",
+      "tests/test_research_revision_stability.py": "f184e2e89ecd5c8e5c050d6ed5e4ef3b9e5e2e7d367ac829b6e48f0ca1f5c35e",
+      "src/memecoin_experience/state_transition_summary.py": "ec65c458af8c8368962a870c07c3db679caa0f4837d04d72bd25a505a57582a5",
+      "tests/test_research_state_transition_summary.py": "b2acb0539077555e5cf188cee25ed61894798fb15edf659c3f81deb1719c89ab",
+      "src/memecoin_experience/research_budget_frontier.py": "a96163d9ca941afae7ee41cc07123da2fd66295cf4171712a6ab57b4ecf17b79",
+      "tests/test_research_research_budget_frontier.py": "bfe843843b0b65aa218b83cc2cb20de6f944f2ad95b59a9c39c1fec8e0867204"
+    },
+    "publisher": "existing engineering.paperclip_canonical_publish; external controlled publication after exact native Sol acceptance",
+    "receipt_digest": "97f34207fd55d17725b8a6c6347f7a28a7c9e0db717afa581c6b2d030a006b51",
+    "main_unchanged": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+    "runtime_or_production_deployment": false
+  },
+  "final": {
+    "company": "paused",
+    "queued_runs": 0,
+    "active_runs": 0,
+    "weekly_remaining_percent": 9,
+    "quota_checked_at": "2026-10-31T13:50:45.781Z",
+    "historical_holds_preserved": [
+      118,
+      123,
+      126
+    ],
+    "paperclip_backend_unchanged": "69cefa8d4887d2a3835668823ff854fce9c95cc2"
+  },
+  "limitations": [
+    "Owner setup, source refresh, final configuration and canonical publication remain externally assisted.",
+    "Three-developer batch only; 40-way and sustained multi-batch autonomy untested.",
+    "Historical MEM-373/290/253 incidents and unknown holds preserved, not repaired.",
+    "No production/runtime deployment.",
+    "Native task-run intervals include preparation/tool time; not GPU time.",
+    "External integrator and account activity are excluded from native totals.",
+    "Account percentage is not programme quota or an atomic limiter.",
+    "One three-developer batch does not prove 40-way or sustained autonomy."
+  ],
+  "private_checkpoint": "/Users/root1/Developer/brain-paperclip-lab/state/luna-first-20261031/checkpoint.json",
+  "private_evidence": {
+    "founder-directive.md": "b67942893ce9c5a772dc8d7edc0451109b8ffab654aa29774f5c4e0440948d94",
+    "mechanical-verification.json": "ef8d8911aa1fff4e266e738519adcc4555cafc6a75d8c32ad9316f20136b2835",
+    "final-native-state.json": "f9619cff49171f2234c799ac8c80c4b1f00c9e83fd56635e0f3feb75c0b9fb13",
+    "telemetry.json": "70fc8e55fbad5682659e1f4b35f135b5626078d2520c6454d0bdba2ec1332a33",
+    "native-batch-acceptance.json": "79c44fe6027d74f36443c98aabfe62426ed78bd8e497852c9583b88fd4ce9fde",
+    "canonical-prepared.json": "507d81496a9dfda97d0c0f3b1ab945f70720134739e781e4464c70e8bcc568ac",
+    "local-publication-receipt.json": "9be98d015407861ddca5c58c3aeaf055069d1c53d356b6c3527a9de0609a9b7e",
+    "checkpoint.json": "186993ebe66266e3b96ed54d355cb0e795b351e6408bfbf076e15310cd0870a9"
+  }
+}

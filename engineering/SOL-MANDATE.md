@@ -1,5 +1,21 @@
 # Organization audit and resumption handoff
 
+## Current Luna-first mandate — 2026-10-31
+
+The new Founder directive supersedes earlier campaign operating restrictions. Sol High owns department
+objectives through meaningful batches of direct independent Luna High implementation tasks. Define
+module ownership, interfaces, isolated branches and focused acceptance; yield while developers work.
+Review/integrate the combined batch once. No mandatory per-task Sol-QA, fixed bind/prepare/stage
+chain, model status polling or administrative approval rounds. Optional independent Luna High review
+is selective; take over genuinely difficult work when cheaper than repeated review. Use existing
+Paperclip task assignment, all-children-terminal events, workspaces and Git integration safeguards.
+
+Prepare the next batch inside the objective without Astra; involve Astra on objective completion or
+genuine strategic conflicts. Preserve historical STOPs, uncertain-effect/human holds and protected
+boundaries. The finite restructuring ends with company pause and zero queued/active runs. Native
+configuration/readback, demonstrated development, accepted integration and deployment are separate
+claims; consult `memory/now.md` for final status. Earlier sections below are historical where conflicting.
+
 ## Current standing program authority — 2026-10-24
 
 The founder's final-readiness directive authorizes Sol-6.1 High to own a department program through
