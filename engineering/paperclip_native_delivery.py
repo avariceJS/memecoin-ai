@@ -3019,15 +3019,25 @@ def _batch_source(acceptance: dict[str, Any], source_repo: Path, canonical_repo:
 
 
 def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
-    task_id = os.environ.get("PAPERCLIP_TASK_ID", "")
-    require(UUID.fullmatch(task_id) is not None, "batch_current_task_missing")
     m = {"api_origin": policy["api_origin"], "company_id": policy["company_id"],
-         "publish": {"task_id": task_id, "agent_id": policy["publisher_agent_id"]},
+         "publish": {"task_id": "", "agent_id": policy["publisher_agent_id"]},
          "canonical": {**policy["canonical"], "candidate_ref": ""}}
     api = Paperclip(m)
+    process_run = api.request("GET", f"/heartbeat-runs/{api.run_id}")
+    context = process_run.get("contextSnapshot") if type(process_run) is dict else None
+    task_id = context.get("issueId") if type(context) is dict else None
+    require(type(process_run) is dict and process_run.get("id") == api.run_id
+            and process_run.get("agentId") == api.agent_id
+            and process_run.get("companyId") == policy["company_id"]
+            and process_run.get("runtimeMode") == "legacy" and process_run.get("status") == "running"
+            and type(task_id) is str and UUID.fullmatch(task_id), "batch_process_run_invalid")
+    optional_task_id = os.environ.get("PAPERCLIP_TASK_ID")
+    require(optional_task_id is None or optional_task_id == task_id, "batch_process_task_mismatch")
+    m["publish"]["task_id"] = task_id
     own_id = api.current("publish")
     require(own_id == task_id, "batch_current_task_mismatch")
     own = api.issue(own_id)
+    _check_batch_hold(own)
     parent_id = own.get("parentId")
     require(UUID.fullmatch(str(parent_id or "")), "batch_parent_missing")
     batch = api.issue(parent_id)
@@ -3043,26 +3053,33 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     require(type(company) is dict and company.get("id") == policy["company_id"]
             and company.get("status") == "active", "batch_company_inactive")
     lead = api.request("GET", f"/agents/{lead_id}")
+    lead_config = lead.get("adapterConfig") if type(lead) is dict else None
     require(type(lead) is dict and lead.get("id") == lead_id and lead.get("companyId") == policy["company_id"]
-            and lead.get("model") == "gpt-6-luna" and lead.get("reasoningEffort") == "high",
+            and type(lead_config) is dict and lead_config.get("model") == "gpt-6-luna"
+            and lead_config.get("modelReasoningEffort") == "high",
             "batch_lead_profile_invalid")
     acceptance, revision_id, body_sha = _batch_acceptance(api, batch, lead_id)
     source_ids = acceptance["source_task_ids"]
-    source_tasks = []
+    source_run_ids = []
     for source_id in source_ids:
         task = api.issue(source_id)
         require(task.get("id") == source_id and task.get("companyId") == policy["company_id"]
                 and task.get("parentId") == parent_id and task.get("status") == "done"
                 and UUID.fullmatch(str(task.get("assigneeAgentId", "")))
-                and task.get("assigneeAgentId") != lead_id, "batch_source_task_invalid")
+                and task.get("assigneeAgentId") not in policy["lead_agent_ids"],
+                "batch_source_task_invalid")
         _check_batch_hold(task)
         api.no_pending(source_id)
         profile = api.request("GET", f"/agents/{task['assigneeAgentId']}")
+        profile_config = profile.get("adapterConfig") if type(profile) is dict else None
         require(type(profile) is dict and profile.get("id") == task["assigneeAgentId"]
-                and profile.get("companyId") == policy["company_id"] and profile.get("model") == "gpt-6-luna"
-                and profile.get("reasoningEffort") == "high", "batch_source_profile_invalid")
-        api.latest_run_for_task({"task_id": source_id, "agent_id": task["assigneeAgentId"]}, "gpt-6-luna")
-        source_tasks.append(task)
+                and profile.get("companyId") == policy["company_id"] and type(profile_config) is dict
+                and profile_config.get("model") == "gpt-6-luna"
+                and profile_config.get("modelReasoningEffort") == "high", "batch_source_profile_invalid")
+        source_run = api.latest_run_for_task(
+            {"task_id": source_id, "agent_id": task["assigneeAgentId"]}, "gpt-6-luna"
+        )
+        source_run_ids.append(source_run["runId"])
     canonical = policy["canonical"]
     repo = Path(canonical["repo"])
     expected = acceptance["canonical_expected_tip"]
@@ -3081,10 +3098,12 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
                 and prior.get("policy_sha256") == policy_sha and prior.get("publisher_task_id") == own_id
                 and prior.get("batch_task_id") == parent_id and prior.get("lead_agent_id") == lead_id
                 and prior.get("source_task_ids") == source_ids
+                and prior.get("source_run_ids") == source_run_ids
                 and prior.get("source_base_sha") == acceptance["source_base_sha"]
                 and prior.get("assembled_tip") == acceptance["assembled_tip"]
                 and prior.get("canonical_expected_tip") == expected
-                and prior.get("candidate_ref") == candidate_ref and prior.get("files") == acceptance["files"],
+                and prior.get("candidate_ref") == candidate_ref and prior.get("files") == acceptance["files"]
+                and UUID.fullmatch(str(prior.get("native_process_run_id", ""))),
                 "batch_receipt_conflict")
         receipt = prior.get("canonical_receipt")
         require(type(receipt) is dict, "batch_receipt_invalid")
@@ -3095,10 +3114,12 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
                                     allowed_paths=list(acceptance["files"]))
         intent = {"schema": BATCH_RECEIPT_SCHEMA, "status": "prepared", "policy_sha256": policy_sha,
                   "batch_task_id": parent_id, "publisher_task_id": own_id, "publisher_agent_id": policy["publisher_agent_id"],
-                  "lead_agent_id": lead_id, "source_task_ids": source_ids, "source_base_sha": acceptance["source_base_sha"],
+                  "lead_agent_id": lead_id, "source_task_ids": source_ids,
+                  "source_run_ids": source_run_ids, "source_base_sha": acceptance["source_base_sha"],
                   "assembled_tip": acceptance["assembled_tip"], "acceptance_revision_id": revision_id,
                   "acceptance_body_sha256": body_sha, "canonical_expected_tip": expected,
-                  "candidate_ref": candidate_ref, "files": acceptance["files"], "canonical_receipt": receipt}
+                  "candidate_ref": candidate_ref, "files": acceptance["files"],
+                  "native_process_run_id": api.run_id, "canonical_receipt": receipt}
         save_record(receipt_path, intent)
         prior = intent
     candidate = receipt.get("candidate")
@@ -3120,10 +3141,12 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     require(refs.get(canonical["ref"]) == candidate and refs.get(candidate_ref) == candidate,
             "batch_publication_readback_failed")
     receipt_body = {"schema": BATCH_RECEIPT_SCHEMA, "status": "published", "batch_task_id": parent_id,
-                    "source_task_ids": source_ids, "lead_agent_id": lead_id, "publisher_task_id": own_id,
+                    "source_task_ids": source_ids, "source_run_ids": source_run_ids,
+                    "lead_agent_id": lead_id, "publisher_task_id": own_id,
                     "candidate_sha": candidate, "expected_tip": expected, "candidate_ref": candidate_ref,
                     "files": acceptance["files"], "acceptance_revision_id": revision_id,
-                    "acceptance_body_sha256": body_sha, "native_process_run_id": api.run_id,
+                    "acceptance_body_sha256": body_sha,
+                    "native_process_run_id": prior["native_process_run_id"],
                     "remote_readback": refs}
     # Preserve the immutable local intent and its exact canonical operation; publish status is the native document.
     receipt_body_text = json.dumps(receipt_body, sort_keys=True, separators=(",", ":"))
@@ -3133,29 +3156,36 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     matching_docs = [item for item in docs if item.get("key") == "publication-receipt"]
     require(len(matching_docs) <= 1, "batch_receipt_document_ambiguous")
     existing_doc = matching_docs[0] if matching_docs else None
-    if existing_doc is None:
-        doc = api.request("POST", f"/issues/{own_id}/documents", {"key": "publication-receipt",
-                           "title": "Native batch publication receipt", "format": "markdown",
-                           "body": receipt_body_text})
-        require(type(doc) is dict, "batch_receipt_document_write_failed")
-        docs = api.request("GET", f"/issues/{own_id}/documents?includeSystem=true")
-        matching_docs = [item for item in docs if type(item) is dict
-                         and item.get("key") == "publication-receipt"] if type(docs) is list else []
-        require(len(matching_docs) == 1 and matching_docs[0].get("companyId") == policy["company_id"]
-                and matching_docs[0].get("issueId") == own_id
-                and matching_docs[0].get("body") == receipt_body_text,
-                "batch_receipt_document_readback_failed")
-    else:
+    if existing_doc is not None:
         require(type(existing_doc) is dict and existing_doc.get("companyId") == policy["company_id"]
                 and existing_doc.get("issueId") == own_id and existing_doc.get("key") == "publication-receipt"
-                and existing_doc.get("body") == receipt_body_text, "batch_receipt_document_conflict")
+                and UUID.fullmatch(str(existing_doc.get("latestRevisionId", ""))),
+                "batch_receipt_document_metadata_invalid")
+        current_doc = api.request("GET", f"/issues/{own_id}/documents/publication-receipt")
+        require(type(current_doc) is dict and current_doc.get("companyId") == policy["company_id"]
+                and current_doc.get("issueId") == own_id and current_doc.get("key") == "publication-receipt"
+                and current_doc.get("body") == receipt_body_text
+                and current_doc.get("latestRevisionId") == existing_doc["latestRevisionId"],
+                "batch_receipt_document_conflict")
+    if existing_doc is None:
+        api.request("PUT", f"/issues/{own_id}/documents/publication-receipt", {
+            "title": "Native batch publication receipt", "format": "markdown",
+            "body": receipt_body_text, "baseRevisionId": None,
+        })
+        current_doc = api.request("GET", f"/issues/{own_id}/documents/publication-receipt")
+        require(type(current_doc) is dict and current_doc.get("companyId") == policy["company_id"]
+                and current_doc.get("issueId") == own_id and current_doc.get("key") == "publication-receipt"
+                and current_doc.get("body") == receipt_body_text
+                and UUID.fullmatch(str(current_doc.get("latestRevisionId", ""))),
+                "batch_receipt_document_readback_failed")
     api.complete(own_id)
     return {"status": "published", "batch_task_id": parent_id, "candidate_sha": candidate,
             "expected_tip": expected, "files": len(acceptance["files"]), "receipt": str(receipt_path)}
 
 
 def _check_batch_hold(issue: dict[str, Any]) -> None:
-    require(not any(issue.get(key) is True for key in
+    require(issue.get("activeRecoveryAction") is None
+            and not any(issue.get(key) is True for key in
                     ("recoveryHold", "recovery_hold", "manualHold", "approvalPending"))
             and issue.get("recoveryStatus") not in ("held", "pending", "unknown_effect"),
             "batch_task_has_hold")
