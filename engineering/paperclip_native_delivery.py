@@ -681,9 +681,7 @@ class Paperclip:
         else:
             return {**meta, "artifactType": "attachment"}, content
 
-        rows = self.request(
-            "GET", f"/issues/{task['task_id']}/documents?includeSystem=true"
-        )
+        rows = self.request("GET", f"/issues/{task['task_id']}/documents?includeSystem=true")
         if type(rows) is not list or any(type(row) is not dict for row in rows):
             raise DeliveryError("qa_documents_response_invalid")
         key_names = {name.lower(), Path(name).stem.lower()}
@@ -2264,9 +2262,7 @@ def stage(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
                 prior_handoff,
                 prior,
                 prior_qa_run["runId"],
-                prior_meta["id"]
-                if prior_meta.get("artifactType") == "attachment"
-                else prior_meta,
+                prior_meta["id"] if prior_meta.get("artifactType") == "attachment" else prior_meta,
                 prior_result,
             )
         record = {
@@ -2883,154 +2879,272 @@ def _strict_json_object(raw: str, reason: str) -> dict[str, Any]:
 
 def load_batch_policy(filename: str, expected_sha256: str) -> tuple[dict[str, Any], str]:
     path = Path(filename)
-    require(path.is_absolute() and re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is not None,
-            "batch_policy_binding_invalid")
+    require(
+        path.is_absolute() and re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is not None,
+        "batch_policy_binding_invalid",
+    )
     try:
         info = path.lstat()
         parent = path.parent.lstat()
     except OSError as exc:
         raise DeliveryError("batch_policy_unavailable") from exc
-    require(stat.S_ISREG(info.st_mode) and not stat.S_ISLNK(info.st_mode)
-            and info.st_uid == os.getuid() and stat.S_IMODE(info.st_mode) & 0o077 == 0
-            and stat.S_IMODE(info.st_mode) & 0o222 == 0
-            and stat.S_ISDIR(parent.st_mode) and not stat.S_ISLNK(parent.st_mode),
-            "batch_policy_not_owner_private")
+    require(
+        stat.S_ISREG(info.st_mode)
+        and not stat.S_ISLNK(info.st_mode)
+        and info.st_uid == os.getuid()
+        and stat.S_IMODE(info.st_mode) & 0o077 == 0
+        and stat.S_IMODE(info.st_mode) & 0o222 == 0
+        and stat.S_ISDIR(parent.st_mode)
+        and not stat.S_ISLNK(parent.st_mode),
+        "batch_policy_not_owner_private",
+    )
     raw = path.read_bytes()
     sha = digest(raw)
     require(sha == expected_sha256, "batch_policy_hash_mismatch")
     policy = _strict_json_object(raw.decode("utf-8"), "batch_policy_invalid_json")
-    require(set(policy) == {"schema", "api_origin", "company_id", "publisher_agent_id",
-                            "lead_agent_ids", "source_seed_repo", "custody_dir", "canonical"}
-            and policy.get("schema") == BATCH_POLICY_SCHEMA
-            and policy.get("api_origin") == "http://127.0.0.1:3310"
-            and UUID.fullmatch(str(policy.get("company_id", "")))
-            and UUID.fullmatch(str(policy.get("publisher_agent_id", ""))),
-            "batch_policy_invalid")
+    require(
+        set(policy)
+        == {
+            "schema",
+            "api_origin",
+            "company_id",
+            "publisher_agent_id",
+            "lead_agent_ids",
+            "source_seed_repo",
+            "custody_dir",
+            "canonical",
+        }
+        and policy.get("schema") == BATCH_POLICY_SCHEMA
+        and policy.get("api_origin") == "http://127.0.0.1:3310"
+        and UUID.fullmatch(str(policy.get("company_id", "")))
+        and UUID.fullmatch(str(policy.get("publisher_agent_id", ""))),
+        "batch_policy_invalid",
+    )
     leads = policy.get("lead_agent_ids")
-    require(type(leads) is list and len(leads) == 6
-            and all(type(item) is str and UUID.fullmatch(item) for item in leads)
-            and len(set(leads)) == 6,
-            "batch_policy_leads_invalid")
+    require(
+        type(leads) is list
+        and len(leads) == 6
+        and all(type(item) is str and UUID.fullmatch(item) for item in leads)
+        and len(set(leads)) == 6,
+        "batch_policy_leads_invalid",
+    )
     source = safe_dir(policy.get("source_seed_repo"), "batch_source_repo")
     custody = safe_dir(policy.get("custody_dir"), "batch_custody", private=True)
     canonical = policy.get("canonical")
-    require(type(canonical) is dict and set(canonical) == {"repo", "ref", "remote_name", "remote_url"}
-            and canonical.get("ref") == PUBLISH_REF
-            and canonical.get("remote_url") == "https://github.com/avariceJS/memecoin-ai.git"
-            and type(canonical.get("remote_name")) is str and canonical["remote_name"]
-            and Path(str(canonical.get("repo", ""))).is_absolute(), "batch_policy_canonical_invalid")
+    require(
+        type(canonical) is dict
+        and set(canonical) == {"repo", "ref", "remote_name", "remote_url"}
+        and canonical.get("ref") == PUBLISH_REF
+        and canonical.get("remote_url") == "https://github.com/avariceJS/memecoin-ai.git"
+        and type(canonical.get("remote_name")) is str
+        and canonical["remote_name"]
+        and Path(str(canonical.get("repo", ""))).is_absolute(),
+        "batch_policy_canonical_invalid",
+    )
     canonical_repo = safe_dir(canonical["repo"], "batch_canonical_repo")
-    require(git(canonical_repo, "remote", "get-url", canonical["remote_name"]).decode().strip()
-            == canonical["remote_url"], "batch_policy_remote_mismatch")
+    require(
+        git(canonical_repo, "remote", "get-url", canonical["remote_name"]).decode().strip()
+        == canonical["remote_url"],
+        "batch_policy_remote_mismatch",
+    )
     policy["source_seed_repo"] = str(source)
     policy["custody_dir"] = str(custody)
     policy["canonical"] = {**canonical, "repo": str(canonical_repo)}
     return policy, sha
 
 
-def _batch_acceptance(api: Paperclip, batch: dict[str, Any], lead_id: str) -> tuple[dict[str, Any], str, str]:
+def _batch_acceptance(
+    api: Paperclip, batch: dict[str, Any], lead_id: str
+) -> tuple[dict[str, Any], str, str]:
     doc = api.request("GET", f"/issues/{batch['id']}/documents/batch-acceptance")
-    require(type(doc) is dict and UUID.fullmatch(str(doc.get("id", "")))
-            and doc.get("companyId") == api.m["company_id"]
-            and doc.get("issueId") == batch["id"] and doc.get("key") == "batch-acceptance"
-            and doc.get("createdByAgentId") == lead_id and doc.get("updatedByAgentId") == lead_id
-            and UUID.fullmatch(str(doc.get("latestRevisionId", ""))), "batch_acceptance_document_invalid")
+    require(
+        type(doc) is dict
+        and UUID.fullmatch(str(doc.get("id", "")))
+        and doc.get("companyId") == api.m["company_id"]
+        and doc.get("issueId") == batch["id"]
+        and doc.get("key") == "batch-acceptance"
+        and doc.get("createdByAgentId") == lead_id
+        and doc.get("updatedByAgentId") == lead_id
+        and UUID.fullmatch(str(doc.get("latestRevisionId", ""))),
+        "batch_acceptance_document_invalid",
+    )
     body = doc.get("body")
     require(type(body) is str, "batch_acceptance_body_invalid")
     acceptance = _strict_json_object(body, "batch_acceptance_invalid_json")
-    exact = {"schema", "decision", "source_base_sha", "assembled_tip", "canonical_expected_tip",
-             "files", "source_task_ids", "checks"}
-    require(set(acceptance) == exact and acceptance.get("schema") == BATCH_ACCEPTANCE_SCHEMA
-            and acceptance.get("decision") == "accept", "batch_acceptance_invalid")
+    exact = {
+        "schema",
+        "decision",
+        "source_base_sha",
+        "assembled_tip",
+        "canonical_expected_tip",
+        "files",
+        "source_task_ids",
+        "checks",
+    }
+    require(
+        set(acceptance) == exact
+        and acceptance.get("schema") == BATCH_ACCEPTANCE_SCHEMA
+        and acceptance.get("decision") == "accept",
+        "batch_acceptance_invalid",
+    )
     for field in ("source_base_sha", "assembled_tip", "canonical_expected_tip"):
-        require(type(acceptance[field]) is str and re.fullmatch(r"[0-9a-f]{40}", acceptance[field]) is not None,
-                "batch_acceptance_oid_invalid")
+        require(
+            type(acceptance[field]) is str
+            and re.fullmatch(r"[0-9a-f]{40}", acceptance[field]) is not None,
+            "batch_acceptance_oid_invalid",
+        )
     files = acceptance["files"]
-    require(type(files) is dict and 2 <= len(files) <= 32 and all(type(k) is str for k in files),
-            "batch_acceptance_files_invalid")
+    require(
+        type(files) is dict and 2 <= len(files) <= 32 and all(type(k) is str for k in files),
+        "batch_acceptance_files_invalid",
+    )
     paths = list(files)
-    require(any(p.startswith("src/") for p in paths) and any(p.startswith("tests/") for p in paths),
-            "batch_acceptance_scope_invalid")
+    require(
+        any(p.startswith("src/") for p in paths) and any(p.startswith("tests/") for p in paths),
+        "batch_acceptance_scope_invalid",
+    )
     for path, sha in files.items():
-        require("\\" not in path and path.endswith(".py") and not path.startswith("/")
-                and not any(ord(ch) < 32 or ord(ch) == 127 for ch in path)
-                and all(part not in {"", ".", "..", ".git"} for part in path.split("/"))
-                and (path.startswith("src/") or path.startswith("tests/"))
-                and type(sha) is str and re.fullmatch(r"[0-9a-f]{64}", sha) is not None,
-                "batch_acceptance_path_invalid")
+        require(
+            "\\" not in path
+            and path.endswith(".py")
+            and not path.startswith("/")
+            and not any(ord(ch) < 32 or ord(ch) == 127 for ch in path)
+            and all(part not in {"", ".", "..", ".git"} for part in path.split("/"))
+            and (path.startswith("src/") or path.startswith("tests/"))
+            and type(sha) is str
+            and re.fullmatch(r"[0-9a-f]{64}", sha) is not None,
+            "batch_acceptance_path_invalid",
+        )
     ids = acceptance["source_task_ids"]
-    require(type(ids) is list and 1 <= len(ids) <= 20
-            and all(type(x) is str and UUID.fullmatch(x) for x in ids)
-            and len(set(ids)) == len(ids), "batch_source_tasks_invalid")
+    require(
+        type(ids) is list
+        and 1 <= len(ids) <= 20
+        and all(type(x) is str and UUID.fullmatch(x) for x in ids)
+        and len(set(ids)) == len(ids),
+        "batch_source_tasks_invalid",
+    )
     checks = acceptance["checks"]
-    require(type(checks) is list and checks and all(type(c) is dict and set(c) == {"name", "result"}
-            and type(c["name"]) is str and c["name"] and c["result"] == "passed" for c in checks),
-            "batch_checks_invalid")
+    require(
+        type(checks) is list
+        and checks
+        and all(
+            type(c) is dict
+            and set(c) == {"name", "result"}
+            and type(c["name"]) is str
+            and c["name"]
+            and c["result"] == "passed"
+            for c in checks
+        ),
+        "batch_checks_invalid",
+    )
     return acceptance, doc["latestRevisionId"], digest(body.encode("utf-8"))
 
 
-def _batch_source(acceptance: dict[str, Any], source_repo: Path, canonical_repo: Path,
-                  canonical_tip: str) -> tuple[dict[str, str | None], dict[str, str], dict[str, bytes]]:
+def _batch_source(
+    acceptance: dict[str, Any], source_repo: Path, canonical_repo: Path, canonical_tip: str
+) -> tuple[dict[str, str | None], dict[str, str], dict[str, bytes]]:
     base, assembled = acceptance["source_base_sha"], acceptance["assembled_tip"]
     for commit in (base, assembled):
-        require(git(source_repo, "cat-file", "-e", f"{commit}^{{commit}}") == b"", "batch_source_commit_missing")
+        require(
+            git(source_repo, "cat-file", "-e", f"{commit}^{{commit}}") == b"",
+            "batch_source_commit_missing",
+        )
     try:
         publisher._git(source_repo, "merge-base", "--is-ancestor", base, assembled)
     except publisher.CanonicalPublishError as exc:
         raise DeliveryError("batch_source_base_not_ancestor") from exc
-    changed = git(source_repo, "diff-tree", "--no-commit-id", "--name-status", "-r", "-M", base, assembled).decode("utf-8").splitlines()
+    changed = (
+        git(
+            source_repo, "diff-tree", "--no-commit-id", "--name-status", "-r", "-M", base, assembled
+        )
+        .decode("utf-8")
+        .splitlines()
+    )
     names = []
-    require(all(row.startswith("A\t") or row.startswith("M\t") for row in changed), "batch_source_change_type_invalid")
+    require(
+        all(row.startswith("A\t") or row.startswith("M\t") for row in changed),
+        "batch_source_change_type_invalid",
+    )
     names = [row.split("\t", 1)[1] for row in changed]
-    require(len(names) == len(set(names)) and set(names) == set(acceptance["files"]), "batch_source_diff_mismatch")
+    require(
+        len(names) == len(set(names)) and set(names) == set(acceptance["files"]),
+        "batch_source_diff_mismatch",
+    )
     old: dict[str, str | None] = {}
     new: dict[str, str] = {}
     contents: dict[str, bytes] = {}
     total = 0
     for path in names:
         tree = git(source_repo, "ls-tree", assembled, "--", path).decode().strip().split()
-        require(len(tree) == 4 and tree[0] == "100644" and tree[1] == "blob", "batch_source_mode_invalid")
+        require(
+            len(tree) == 4 and tree[0] == "100644" and tree[1] == "blob",
+            "batch_source_mode_invalid",
+        )
         blob = tree[2]
         data = git(source_repo, "cat-file", "blob", blob)
         total += len(data)
-        require(data and b"\x00" not in data and total <= 1024 * 1024
-                and digest(data) == acceptance["files"][path],
-                "batch_source_file_hash_invalid")
+        require(
+            data
+            and b"\x00" not in data
+            and total <= 1024 * 1024
+            and digest(data) == acceptance["files"][path],
+            "batch_source_file_hash_invalid",
+        )
         try:
             data.decode("utf-8")
         except UnicodeDecodeError as exc:
             raise DeliveryError("batch_source_file_not_utf8") from exc
-        canonical_row = git(canonical_repo, "ls-tree", canonical_tip, "--", path).decode().strip().split()
+        canonical_row = (
+            git(canonical_repo, "ls-tree", canonical_tip, "--", path).decode().strip().split()
+        )
         if canonical_row:
-            require(len(canonical_row) == 4 and canonical_row[0] == "100644" and canonical_row[1] == "blob",
-                    "batch_canonical_old_mode_invalid")
+            require(
+                len(canonical_row) == 4
+                and canonical_row[0] == "100644"
+                and canonical_row[1] == "blob",
+                "batch_canonical_old_mode_invalid",
+            )
             canonical_old = canonical_row[2]
         else:
             canonical_old = None
         base_row = git(source_repo, "ls-tree", base, "--", path).decode().strip().split()
         source_old = base_row[2] if base_row else None
-        # The Git object ids are shared; equality binds the reviewed source projection to the canonical tip.
+        # Shared Git object IDs bind the reviewed source projection
+        # to the canonical tip.
         require(source_old == canonical_old, "batch_canonical_old_blob_mismatch")
         old[path] = canonical_old
-        imported = publisher._git(canonical_repo, "hash-object", "-w", "--stdin", data=data).decode().strip()
+        imported = (
+            publisher._git(canonical_repo, "hash-object", "-w", "--stdin", data=data)
+            .decode()
+            .strip()
+        )
         new[path] = imported
         contents[path] = data
     return old, new, contents
 
 
 def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
-    m = {"api_origin": policy["api_origin"], "company_id": policy["company_id"],
-         "publish": {"task_id": "", "agent_id": policy["publisher_agent_id"]},
-         "canonical": {**policy["canonical"], "candidate_ref": ""}}
+    m = {
+        "api_origin": policy["api_origin"],
+        "company_id": policy["company_id"],
+        "publish": {"task_id": "", "agent_id": policy["publisher_agent_id"]},
+        "canonical": {**policy["canonical"], "candidate_ref": ""},
+    }
     api = Paperclip(m)
     process_run = api.request("GET", f"/heartbeat-runs/{api.run_id}")
     context = process_run.get("contextSnapshot") if type(process_run) is dict else None
     task_id = context.get("issueId") if type(context) is dict else None
-    require(type(process_run) is dict and process_run.get("id") == api.run_id
-            and process_run.get("agentId") == api.agent_id
-            and process_run.get("companyId") == policy["company_id"]
-            and process_run.get("runtimeMode") == "legacy" and process_run.get("status") == "running"
-            and type(task_id) is str and UUID.fullmatch(task_id), "batch_process_run_invalid")
+    require(
+        type(process_run) is dict
+        and process_run.get("id") == api.run_id
+        and process_run.get("agentId") == api.agent_id
+        and process_run.get("companyId") == policy["company_id"]
+        and process_run.get("runtimeMode") == "legacy"
+        and process_run.get("status") == "running"
+        and type(task_id) is str
+        and UUID.fullmatch(task_id),
+        "batch_process_run_invalid",
+    )
     optional_task_id = os.environ.get("PAPERCLIP_TASK_ID")
     require(optional_task_id is None or optional_task_id == task_id, "batch_process_task_mismatch")
     m["publish"]["task_id"] = task_id
@@ -3041,41 +3155,63 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     parent_id = own.get("parentId")
     require(UUID.fullmatch(str(parent_id or "")), "batch_parent_missing")
     batch = api.issue(parent_id)
-    require(batch.get("id") == parent_id and batch.get("companyId") == policy["company_id"]
-            and batch.get("status") in {"todo", "blocked", "in_progress"}
-            and batch.get("assigneeAgentId") in policy["lead_agent_ids"], "batch_parent_invalid")
+    require(
+        batch.get("id") == parent_id
+        and batch.get("companyId") == policy["company_id"]
+        and batch.get("status") in {"todo", "blocked", "in_progress"}
+        and batch.get("assigneeAgentId") in policy["lead_agent_ids"],
+        "batch_parent_invalid",
+    )
     _check_batch_hold(batch)
     api.no_pending(parent_id)
     api.no_pending(own_id)
     lead_id = batch["assigneeAgentId"]
     require(own.get("createdByAgentId") == lead_id, "batch_publisher_creator_mismatch")
     company = api.request("GET", f"/companies/{policy['company_id']}")
-    require(type(company) is dict and company.get("id") == policy["company_id"]
-            and company.get("status") == "active", "batch_company_inactive")
+    require(
+        type(company) is dict
+        and company.get("id") == policy["company_id"]
+        and company.get("status") == "active",
+        "batch_company_inactive",
+    )
     lead = api.request("GET", f"/agents/{lead_id}")
     lead_config = lead.get("adapterConfig") if type(lead) is dict else None
-    require(type(lead) is dict and lead.get("id") == lead_id and lead.get("companyId") == policy["company_id"]
-            and type(lead_config) is dict and lead_config.get("model") == "gpt-6-luna"
-            and lead_config.get("modelReasoningEffort") == "high",
-            "batch_lead_profile_invalid")
+    require(
+        type(lead) is dict
+        and lead.get("id") == lead_id
+        and lead.get("companyId") == policy["company_id"]
+        and type(lead_config) is dict
+        and lead_config.get("model") == "gpt-6-luna"
+        and lead_config.get("modelReasoningEffort") == "high",
+        "batch_lead_profile_invalid",
+    )
     acceptance, revision_id, body_sha = _batch_acceptance(api, batch, lead_id)
     source_ids = acceptance["source_task_ids"]
     source_run_ids = []
     for source_id in source_ids:
         task = api.issue(source_id)
-        require(task.get("id") == source_id and task.get("companyId") == policy["company_id"]
-                and task.get("parentId") == parent_id and task.get("status") == "done"
-                and UUID.fullmatch(str(task.get("assigneeAgentId", "")))
-                and task.get("assigneeAgentId") not in policy["lead_agent_ids"],
-                "batch_source_task_invalid")
+        require(
+            task.get("id") == source_id
+            and task.get("companyId") == policy["company_id"]
+            and task.get("parentId") == parent_id
+            and task.get("status") == "done"
+            and UUID.fullmatch(str(task.get("assigneeAgentId", "")))
+            and task.get("assigneeAgentId") not in policy["lead_agent_ids"],
+            "batch_source_task_invalid",
+        )
         _check_batch_hold(task)
         api.no_pending(source_id)
         profile = api.request("GET", f"/agents/{task['assigneeAgentId']}")
         profile_config = profile.get("adapterConfig") if type(profile) is dict else None
-        require(type(profile) is dict and profile.get("id") == task["assigneeAgentId"]
-                and profile.get("companyId") == policy["company_id"] and type(profile_config) is dict
-                and profile_config.get("model") == "gpt-6-luna"
-                and profile_config.get("modelReasoningEffort") == "high", "batch_source_profile_invalid")
+        require(
+            type(profile) is dict
+            and profile.get("id") == task["assigneeAgentId"]
+            and profile.get("companyId") == policy["company_id"]
+            and type(profile_config) is dict
+            and profile_config.get("model") == "gpt-6-luna"
+            and profile_config.get("modelReasoningEffort") == "high",
+            "batch_source_profile_invalid",
+        )
         source_run = api.latest_run_for_task(
             {"task_id": source_id, "agent_id": task["assigneeAgentId"]}, "gpt-6-luna"
         )
@@ -3090,105 +3226,189 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     prior = None
     if existing:
         info = receipt_path.lstat()
-        require(stat.S_ISREG(info.st_mode) and not stat.S_ISLNK(info.st_mode) and info.st_uid == os.getuid()
-                and stat.S_IMODE(info.st_mode) & 0o077 == 0 and stat.S_IMODE(info.st_mode) & 0o222 == 0,
-                "batch_receipt_not_private")
+        require(
+            stat.S_ISREG(info.st_mode)
+            and not stat.S_ISLNK(info.st_mode)
+            and info.st_uid == os.getuid()
+            and stat.S_IMODE(info.st_mode) & 0o077 == 0
+            and stat.S_IMODE(info.st_mode) & 0o222 == 0,
+            "batch_receipt_not_private",
+        )
         prior = _strict_json_object(receipt_path.read_text(), "batch_receipt_invalid")
-        require(prior.get("acceptance_revision_id") == revision_id and prior.get("acceptance_body_sha256") == body_sha
-                and prior.get("policy_sha256") == policy_sha and prior.get("publisher_task_id") == own_id
-                and prior.get("batch_task_id") == parent_id and prior.get("lead_agent_id") == lead_id
-                and prior.get("source_task_ids") == source_ids
-                and prior.get("source_run_ids") == source_run_ids
-                and prior.get("source_base_sha") == acceptance["source_base_sha"]
-                and prior.get("assembled_tip") == acceptance["assembled_tip"]
-                and prior.get("canonical_expected_tip") == expected
-                and prior.get("candidate_ref") == candidate_ref and prior.get("files") == acceptance["files"]
-                and UUID.fullmatch(str(prior.get("native_process_run_id", ""))),
-                "batch_receipt_conflict")
+        require(
+            prior.get("acceptance_revision_id") == revision_id
+            and prior.get("acceptance_body_sha256") == body_sha
+            and prior.get("policy_sha256") == policy_sha
+            and prior.get("publisher_task_id") == own_id
+            and prior.get("batch_task_id") == parent_id
+            and prior.get("lead_agent_id") == lead_id
+            and prior.get("source_task_ids") == source_ids
+            and prior.get("source_run_ids") == source_run_ids
+            and prior.get("source_base_sha") == acceptance["source_base_sha"]
+            and prior.get("assembled_tip") == acceptance["assembled_tip"]
+            and prior.get("canonical_expected_tip") == expected
+            and prior.get("candidate_ref") == candidate_ref
+            and prior.get("files") == acceptance["files"]
+            and UUID.fullmatch(str(prior.get("native_process_run_id", ""))),
+            "batch_receipt_conflict",
+        )
         receipt = prior.get("canonical_receipt")
         require(type(receipt) is dict, "batch_receipt_invalid")
     else:
         source_repo = Path(policy["source_seed_repo"])
         old, new, contents = _batch_source(acceptance, source_repo, repo, expected)
-        receipt = publisher.prepare(repo, canonical["ref"], expected, old, new, contents,
-                                    allowed_paths=list(acceptance["files"]))
-        intent = {"schema": BATCH_RECEIPT_SCHEMA, "status": "prepared", "policy_sha256": policy_sha,
-                  "batch_task_id": parent_id, "publisher_task_id": own_id, "publisher_agent_id": policy["publisher_agent_id"],
-                  "lead_agent_id": lead_id, "source_task_ids": source_ids,
-                  "source_run_ids": source_run_ids, "source_base_sha": acceptance["source_base_sha"],
-                  "assembled_tip": acceptance["assembled_tip"], "acceptance_revision_id": revision_id,
-                  "acceptance_body_sha256": body_sha, "canonical_expected_tip": expected,
-                  "candidate_ref": candidate_ref, "files": acceptance["files"],
-                  "native_process_run_id": api.run_id, "canonical_receipt": receipt}
+        receipt = publisher.prepare(
+            repo,
+            canonical["ref"],
+            expected,
+            old,
+            new,
+            contents,
+            allowed_paths=list(acceptance["files"]),
+        )
+        intent = {
+            "schema": BATCH_RECEIPT_SCHEMA,
+            "status": "prepared",
+            "policy_sha256": policy_sha,
+            "batch_task_id": parent_id,
+            "publisher_task_id": own_id,
+            "publisher_agent_id": policy["publisher_agent_id"],
+            "lead_agent_id": lead_id,
+            "source_task_ids": source_ids,
+            "source_run_ids": source_run_ids,
+            "source_base_sha": acceptance["source_base_sha"],
+            "assembled_tip": acceptance["assembled_tip"],
+            "acceptance_revision_id": revision_id,
+            "acceptance_body_sha256": body_sha,
+            "canonical_expected_tip": expected,
+            "candidate_ref": candidate_ref,
+            "files": acceptance["files"],
+            "native_process_run_id": api.run_id,
+            "canonical_receipt": receipt,
+        }
         save_record(receipt_path, intent)
         prior = intent
     candidate = receipt.get("candidate")
     refs = remote_refs(m)
-    require(refs.get(canonical["ref"]) in {expected, candidate}
-            and refs.get(candidate_ref) in {None, candidate}, "batch_remote_state_conflict")
+    require(
+        refs.get(canonical["ref"]) in {expected, candidate}
+        and refs.get(candidate_ref) in {None, candidate},
+        "batch_remote_state_conflict",
+    )
     publisher.inspect(repo, canonical["ref"], receipt, allowed_paths=list(acceptance["files"]))
-    done = publisher.reconcile(repo, canonical["ref"], receipt, candidate, receipt["receipt_digest"],
-                               allowed_paths=list(acceptance["files"]))
+    done = publisher.reconcile(
+        repo,
+        canonical["ref"],
+        receipt,
+        candidate,
+        receipt["receipt_digest"],
+        allowed_paths=list(acceptance["files"]),
+    )
     require(done.get("status") == "reconciled", "batch_local_reconcile_failed")
     if refs.get(candidate_ref) is None:
         push_ref(m, candidate, candidate_ref)
     refs = remote_refs(m)
-    require(refs.get(candidate_ref) == candidate and refs.get(canonical["ref"]) in {expected, candidate},
-            "batch_candidate_readback_failed")
+    require(
+        refs.get(candidate_ref) == candidate
+        and refs.get(canonical["ref"]) in {expected, candidate},
+        "batch_candidate_readback_failed",
+    )
     if refs.get(canonical["ref"]) == expected:
         push_ref(m, candidate, canonical["ref"])
     refs = remote_refs(m)
-    require(refs.get(canonical["ref"]) == candidate and refs.get(candidate_ref) == candidate,
-            "batch_publication_readback_failed")
-    receipt_body = {"schema": BATCH_RECEIPT_SCHEMA, "status": "published", "batch_task_id": parent_id,
-                    "source_task_ids": source_ids, "source_run_ids": source_run_ids,
-                    "lead_agent_id": lead_id, "publisher_task_id": own_id,
-                    "candidate_sha": candidate, "expected_tip": expected, "candidate_ref": candidate_ref,
-                    "files": acceptance["files"], "acceptance_revision_id": revision_id,
-                    "acceptance_body_sha256": body_sha,
-                    "native_process_run_id": prior["native_process_run_id"],
-                    "remote_readback": refs}
-    # Preserve the immutable local intent and its exact canonical operation; publish status is the native document.
+    require(
+        refs.get(canonical["ref"]) == candidate and refs.get(candidate_ref) == candidate,
+        "batch_publication_readback_failed",
+    )
+    receipt_body = {
+        "schema": BATCH_RECEIPT_SCHEMA,
+        "status": "published",
+        "batch_task_id": parent_id,
+        "source_task_ids": source_ids,
+        "source_run_ids": source_run_ids,
+        "lead_agent_id": lead_id,
+        "publisher_task_id": own_id,
+        "candidate_sha": candidate,
+        "expected_tip": expected,
+        "candidate_ref": candidate_ref,
+        "files": acceptance["files"],
+        "acceptance_revision_id": revision_id,
+        "acceptance_body_sha256": body_sha,
+        "native_process_run_id": prior["native_process_run_id"],
+        "remote_readback": refs,
+    }
+    # Keep the exact canonical operation in the immutable local intent.
+    # The native document records publication status.
     receipt_body_text = json.dumps(receipt_body, sort_keys=True, separators=(",", ":"))
     docs = api.request("GET", f"/issues/{own_id}/documents?includeSystem=true")
-    require(type(docs) is list and all(type(item) is dict for item in docs),
-            "batch_receipt_document_list_invalid")
+    require(
+        type(docs) is list and all(type(item) is dict for item in docs),
+        "batch_receipt_document_list_invalid",
+    )
     matching_docs = [item for item in docs if item.get("key") == "publication-receipt"]
     require(len(matching_docs) <= 1, "batch_receipt_document_ambiguous")
     existing_doc = matching_docs[0] if matching_docs else None
     if existing_doc is not None:
-        require(type(existing_doc) is dict and existing_doc.get("companyId") == policy["company_id"]
-                and existing_doc.get("issueId") == own_id and existing_doc.get("key") == "publication-receipt"
-                and UUID.fullmatch(str(existing_doc.get("latestRevisionId", ""))),
-                "batch_receipt_document_metadata_invalid")
+        require(
+            type(existing_doc) is dict
+            and existing_doc.get("companyId") == policy["company_id"]
+            and existing_doc.get("issueId") == own_id
+            and existing_doc.get("key") == "publication-receipt"
+            and UUID.fullmatch(str(existing_doc.get("latestRevisionId", ""))),
+            "batch_receipt_document_metadata_invalid",
+        )
         current_doc = api.request("GET", f"/issues/{own_id}/documents/publication-receipt")
-        require(type(current_doc) is dict and current_doc.get("companyId") == policy["company_id"]
-                and current_doc.get("issueId") == own_id and current_doc.get("key") == "publication-receipt"
-                and current_doc.get("body") == receipt_body_text
-                and current_doc.get("latestRevisionId") == existing_doc["latestRevisionId"],
-                "batch_receipt_document_conflict")
+        require(
+            type(current_doc) is dict
+            and current_doc.get("companyId") == policy["company_id"]
+            and current_doc.get("issueId") == own_id
+            and current_doc.get("key") == "publication-receipt"
+            and current_doc.get("body") == receipt_body_text
+            and current_doc.get("latestRevisionId") == existing_doc["latestRevisionId"],
+            "batch_receipt_document_conflict",
+        )
     if existing_doc is None:
-        api.request("PUT", f"/issues/{own_id}/documents/publication-receipt", {
-            "title": "Native batch publication receipt", "format": "markdown",
-            "body": receipt_body_text, "baseRevisionId": None,
-        })
+        api.request(
+            "PUT",
+            f"/issues/{own_id}/documents/publication-receipt",
+            {
+                "title": "Native batch publication receipt",
+                "format": "markdown",
+                "body": receipt_body_text,
+                "baseRevisionId": None,
+            },
+        )
         current_doc = api.request("GET", f"/issues/{own_id}/documents/publication-receipt")
-        require(type(current_doc) is dict and current_doc.get("companyId") == policy["company_id"]
-                and current_doc.get("issueId") == own_id and current_doc.get("key") == "publication-receipt"
-                and current_doc.get("body") == receipt_body_text
-                and UUID.fullmatch(str(current_doc.get("latestRevisionId", ""))),
-                "batch_receipt_document_readback_failed")
+        require(
+            type(current_doc) is dict
+            and current_doc.get("companyId") == policy["company_id"]
+            and current_doc.get("issueId") == own_id
+            and current_doc.get("key") == "publication-receipt"
+            and current_doc.get("body") == receipt_body_text
+            and UUID.fullmatch(str(current_doc.get("latestRevisionId", ""))),
+            "batch_receipt_document_readback_failed",
+        )
     api.complete(own_id)
-    return {"status": "published", "batch_task_id": parent_id, "candidate_sha": candidate,
-            "expected_tip": expected, "files": len(acceptance["files"]), "receipt": str(receipt_path)}
+    return {
+        "status": "published",
+        "batch_task_id": parent_id,
+        "candidate_sha": candidate,
+        "expected_tip": expected,
+        "files": len(acceptance["files"]),
+        "receipt": str(receipt_path),
+    }
 
 
 def _check_batch_hold(issue: dict[str, Any]) -> None:
-    require(issue.get("activeRecoveryAction") is None
-            and not any(issue.get(key) is True for key in
-                    ("recoveryHold", "recovery_hold", "manualHold", "approvalPending"))
-            and issue.get("recoveryStatus") not in ("held", "pending", "unknown_effect"),
-            "batch_task_has_hold")
+    require(
+        issue.get("activeRecoveryAction") is None
+        and not any(
+            issue.get(key) is True
+            for key in ("recoveryHold", "recovery_hold", "manualHold", "approvalPending")
+        )
+        and issue.get("recoveryStatus") not in ("held", "pending", "unknown_effect"),
+        "batch_task_has_hold",
+    )
 
 
 def publication_expected_tip(m: dict[str, Any], manifest_hash: str, api: Paperclip) -> str:
@@ -3211,7 +3431,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.action == "publish-batch":
-            if args.batch_policy is None or args.batch_policy_sha256 is None or args.manifest or args.envelope:
+            if (
+                args.batch_policy is None
+                or args.batch_policy_sha256 is None
+                or args.manifest
+                or args.envelope
+            ):
                 raise DeliveryError("batch_policy_required")
             policy, policy_sha = load_batch_policy(args.batch_policy, args.batch_policy_sha256)
             result = publish_batch(policy, policy_sha)
