@@ -30,6 +30,7 @@ DELIVERY_PLAN_SCHEMA = "brain-native-delivery-plan-v1"
 PREPARATION_RECEIPT_SCHEMA = "brain-native-delivery-preparation-receipt-v1"
 BATCH_POLICY_SCHEMA = "brain-native-batch-publisher-policy-v1"
 BATCH_ACCEPTANCE_SCHEMA = "brain-luna-batch-acceptance-v1"
+BATCH_ACCEPTANCE_V2_SCHEMA = "brain-luna-batch-acceptance-v2"
 BATCH_RECEIPT_SCHEMA = "brain-native-batch-publication-receipt-v1"
 PUBLISH_REF = "refs/heads/brain/development"
 PROCESS_WORKSPACE_IDS = {
@@ -2971,6 +2972,7 @@ def _batch_acceptance(
     body = doc.get("body")
     require(type(body) is str, "batch_acceptance_body_invalid")
     acceptance = _strict_json_object(body, "batch_acceptance_invalid_json")
+    schema = acceptance.get("schema")
     exact = {
         "schema",
         "decision",
@@ -2981,12 +2983,14 @@ def _batch_acceptance(
         "source_task_ids",
         "checks",
     }
+    v2_exact = exact | {"close_parent"}
     require(
-        set(acceptance) == exact
-        and acceptance.get("schema") == BATCH_ACCEPTANCE_SCHEMA
-        and acceptance.get("decision") == "accept",
+        (set(acceptance) == exact and schema == BATCH_ACCEPTANCE_SCHEMA)
+        or (set(acceptance) == v2_exact and schema == BATCH_ACCEPTANCE_V2_SCHEMA
+            and acceptance.get("close_parent") is True),
         "batch_acceptance_invalid",
     )
+    require(acceptance.get("decision") == "accept", "batch_acceptance_invalid")
     for field in ("source_base_sha", "assembled_tip", "canonical_expected_tip"):
         require(
             type(acceptance[field]) is str
@@ -3049,10 +3053,6 @@ def _batch_source(
             git(source_repo, "cat-file", "-e", f"{commit}^{{commit}}") == b"",
             "batch_source_commit_missing",
         )
-    try:
-        publisher._git(source_repo, "merge-base", "--is-ancestor", base, assembled)
-    except publisher.CanonicalPublishError as exc:
-        raise DeliveryError("batch_source_base_not_ancestor") from exc
     changed = (
         git(
             source_repo, "diff-tree", "--no-commit-id", "--name-status", "-r", "-M", base, assembled
@@ -3123,6 +3123,136 @@ def _batch_source(
     return old, new, contents
 
 
+def _batch_parent_runs(api: Paperclip, parent_id: str, lead_id: str) -> bool:
+    rows = api.request("GET", f"/issues/{parent_id}/runs")
+    require(
+        type(rows) is list and all(type(row) is dict for row in rows),
+        "batch_parent_runs_invalid",
+    )
+    active = {"queued", "running", "scheduled_retry"}
+    return any(
+        row.get("agentId") == lead_id
+        and (
+            row.get("contextIssueId") == parent_id
+            or (
+                type(row.get("contextSnapshot")) is dict
+                and row["contextSnapshot"].get("issueId") == parent_id
+            )
+        )
+        and row.get("status") in active
+        for row in rows
+    )
+
+
+def _close_batch_parent(
+    api: Paperclip,
+    policy: dict[str, Any],
+    parent_id: str,
+    publisher_id: str,
+    lead_id: str,
+    source_ids: list[str],
+    acceptance_revision: str,
+    acceptance_sha: str,
+    receipt_body: str,
+) -> None:
+    deadline = time.monotonic() + 60
+    while True:
+        parent = api.issue(parent_id)
+        require(
+            parent.get("id") == parent_id
+            and parent.get("companyId") == policy["company_id"]
+            and parent.get("assigneeAgentId") == lead_id
+            and parent.get("reviewPolicy") == "anyone",
+            "batch_parent_identity_changed",
+        )
+        child = api.issue(publisher_id)
+        require(
+            child.get("id") == publisher_id and child.get("companyId") == policy["company_id"]
+            and child.get("parentId") == parent_id
+            and child.get("assigneeAgentId") == api.agent_id,
+            "batch_publisher_relationship_changed",
+        )
+        _check_batch_hold(child)
+        api.no_pending(publisher_id)
+        _check_batch_hold(parent)
+        api.no_pending(parent_id)
+        company = api.request("GET", f"/companies/{policy['company_id']}")
+        require(
+            type(company) is dict and company.get("id") == policy["company_id"]
+            and company.get("status") == "active",
+            "batch_company_inactive",
+        )
+        doc = api.request("GET", f"/issues/{parent_id}/documents/batch-acceptance")
+        require(
+            type(doc) is dict and doc.get("companyId") == policy["company_id"]
+            and doc.get("issueId") == parent_id and doc.get("key") == "batch-acceptance"
+            and doc.get("createdByAgentId") == lead_id and doc.get("updatedByAgentId") == lead_id
+            and doc.get("latestRevisionId") == acceptance_revision
+            and type(doc.get("body")) is str and digest(doc["body"].encode()) == acceptance_sha,
+            "batch_acceptance_changed",
+        )
+        receipt = api.request("GET", f"/issues/{publisher_id}/documents/publication-receipt")
+        require(
+            type(receipt) is dict and receipt.get("companyId") == policy["company_id"]
+            and receipt.get("issueId") == publisher_id
+            and receipt.get("key") == "publication-receipt"
+            and receipt.get("body") == receipt_body
+            and UUID.fullmatch(str(receipt.get("latestRevisionId", ""))),
+            "batch_receipt_document_conflict",
+        )
+        descriptor = parent.get("unblockDescriptor")
+        if descriptor is not None:
+            owner = descriptor.get("owner") if type(descriptor) is dict else None
+            require(
+                type(owner) is dict and owner.get("agentId") == lead_id,
+                "batch_parent_unblock_hold",
+            )
+        blockers = _blocked_by(parent)
+        expected = set(source_ids) | {publisher_id}
+        require(
+            blockers <= expected and set(source_ids) <= blockers,
+            "batch_parent_blocker_set_changed",
+        )
+        if descriptor is None and parent.get("status") != "done":
+            require(publisher_id in blockers, "batch_parent_dependency_missing")
+        for source_id in source_ids:
+            source = api.issue(source_id)
+            require(
+                source.get("id") == source_id and source.get("companyId") == policy["company_id"]
+                and source.get("parentId") == parent_id and source.get("status") == "done",
+                "batch_source_task_invalid",
+            )
+            _check_batch_hold(source)
+            api.no_pending(source_id)
+        lead_runs_active = _batch_parent_runs(api, parent_id, lead_id)
+        if parent.get("status") == "done":
+            require(not lead_runs_active, "batch_parent_lead_run_active")
+            require(
+                blockers == set(source_ids) and descriptor is None,
+                "batch_parent_done_state_invalid",
+            )
+            return
+        require(publisher_id in blockers, "batch_parent_dependency_missing")
+        require(parent.get("status") in {"blocked", "in_progress"}, "batch_parent_not_yielded")
+        if parent.get("status") == "blocked" and not lead_runs_active:
+            break
+        if time.monotonic() >= deadline:
+            raise DeliveryError("batch_parent_lead_still_active")
+        time.sleep(min(1.0, max(0.0, deadline - time.monotonic())))
+    api.request(
+        "PATCH",
+        f"/issues/{parent_id}",
+        {"status": "done", "blockedByIssueIds": source_ids, "unblockDescriptor": None},
+    )
+    closed = api.issue(parent_id)
+    require(
+        closed.get("id") == parent_id and closed.get("companyId") == policy["company_id"]
+        and closed.get("assigneeAgentId") == lead_id and closed.get("status") == "done"
+        and _blocked_by(closed) == set(source_ids) and closed.get("unblockDescriptor") is None,
+        "batch_parent_close_readback_failed",
+    )
+
+
 def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     m = {
         "api_origin": policy["api_origin"],
@@ -3158,7 +3288,7 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     require(
         batch.get("id") == parent_id
         and batch.get("companyId") == policy["company_id"]
-        and batch.get("status") in {"todo", "blocked", "in_progress"}
+        and batch.get("status") in {"todo", "blocked", "in_progress", "done"}
         and batch.get("assigneeAgentId") in policy["lead_agent_ids"],
         "batch_parent_invalid",
     )
@@ -3181,11 +3311,13 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
         and lead.get("id") == lead_id
         and lead.get("companyId") == policy["company_id"]
         and type(lead_config) is dict
-        and lead_config.get("model") == "gpt-6-luna"
+        and lead_config.get("model") in {"gpt-6-luna", "gpt-6.1-sol"}
         and lead_config.get("modelReasoningEffort") == "high",
         "batch_lead_profile_invalid",
     )
     acceptance, revision_id, body_sha = _batch_acceptance(api, batch, lead_id)
+    close_parent = acceptance["schema"] == BATCH_ACCEPTANCE_V2_SCHEMA
+    require(batch.get("status") != "done" or close_parent, "batch_parent_done_v1_unsupported")
     source_ids = acceptance["source_task_ids"]
     source_run_ids = []
     for source_id in source_ids:
@@ -3388,6 +3520,18 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
             and UUID.fullmatch(str(current_doc.get("latestRevisionId", ""))),
             "batch_receipt_document_readback_failed",
         )
+    if close_parent:
+        _close_batch_parent(
+            api,
+            policy,
+            parent_id,
+            own_id,
+            lead_id,
+            source_ids,
+            revision_id,
+            body_sha,
+            receipt_body_text,
+        )
     api.complete(own_id)
     return {
         "status": "published",
@@ -3395,6 +3539,7 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
         "candidate_sha": candidate,
         "expected_tip": expected,
         "files": len(acceptance["files"]),
+        "parent_closed": close_parent,
         "receipt": str(receipt_path),
     }
 

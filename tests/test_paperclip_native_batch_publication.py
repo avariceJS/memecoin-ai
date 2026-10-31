@@ -78,6 +78,27 @@ def test_acceptance_binds_native_document_and_strict_body():
     assert body_hash == sha(body.encode())
 
 
+def test_acceptance_v2_requires_explicit_parent_close_opt_in():
+    body = json.dumps(acceptance(schema=delivery.BATCH_ACCEPTANCE_V2_SCHEMA, close_parent=True))
+    doc = acceptance_doc(body)
+    parsed, _, _ = delivery._batch_acceptance(
+        FakeApi(doc), {"id": doc["issueId"]}, doc["createdByAgentId"]
+    )
+    assert parsed["close_parent"] is True
+    for overrides in ({"close_parent": False}, {}):
+        invalid = acceptance(schema=delivery.BATCH_ACCEPTANCE_V2_SCHEMA, close_parent=True)
+        if overrides:
+            invalid.update(overrides)
+        else:
+            invalid.pop("close_parent")
+        invalid["schema"] = delivery.BATCH_ACCEPTANCE_V2_SCHEMA
+        candidate = acceptance_doc(json.dumps(invalid))
+        with pytest.raises(delivery.DeliveryError, match="batch_acceptance_invalid"):
+            delivery._batch_acceptance(
+                FakeApi(candidate), {"id": candidate["issueId"]}, candidate["createdByAgentId"]
+            )
+
+
 def test_acceptance_rejects_wrong_document_owner():
     body = json.dumps(acceptance())
     doc = acceptance_doc(body)
@@ -220,6 +241,36 @@ def test_source_rejects_extra_changes_and_hash_mismatch(tmp_path):
         delivery._batch_source(accepted, source, canonical, canonical_base)
 
 
+def test_source_accepts_unrelated_base_tree_but_rejects_changed_old_blob(tmp_path):
+    canonical, source, base, _, _, _ = _make_batch_repositories(tmp_path)
+    alternate = tmp_path / "alternate"
+    subprocess.run([GIT_BIN, "init", "-q", str(alternate)], check=True)
+    (alternate / "src").mkdir()
+    (alternate / "tests").mkdir()
+    (alternate / "src/mod.py").write_bytes(b"old\n")
+    (alternate / "tests/test_mod.py").write_bytes(b"old test\n")
+    (alternate / "README.md").write_bytes(b"preserve me\n")
+    unrelated_base = _commit_repo(alternate, "same tree, unrelated history")
+    subprocess.run(
+        [GIT_BIN, "-C", str(source), "fetch", str(alternate), unrelated_base], check=True,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    assembled = git(source, "rev-parse", "HEAD")
+    accepted = acceptance(
+        source_base_sha=unrelated_base,
+        assembled_tip=assembled,
+        canonical_expected_tip=base,
+        files={"src/mod.py": sha(b"new\n"), "tests/test_mod.py": sha(b"test\n")},
+    )
+    old, _, _ = delivery._batch_source(accepted, source, canonical, base)
+    assert all(old.values())
+    (canonical / "src/mod.py").write_bytes(b"drift\n")
+    drift = _commit_repo(canonical, "changed canonical old blob")
+    accepted["canonical_expected_tip"] = drift
+    with pytest.raises(delivery.DeliveryError, match="batch_canonical_old_blob_mismatch"):
+        delivery._batch_source(accepted, source, canonical, drift)
+
+
 @pytest.mark.parametrize("action", ["stage", "publish"])
 def test_existing_cli_actions_keep_manifest_dispatch(monkeypatch, capsys, action):
     calls = []
@@ -331,6 +382,15 @@ class BatchApiFixture:
         self.receipt_document = None
         self.receipt_puts = 0
         self.completions = 0
+        self.parent_status = "in_progress"
+        self.parent_blockers = []
+        self.parent_descriptor = None
+        self.parent_runs = []
+        self.parent_hold = None
+        self.parent_patches = 0
+        self.events = []
+        self.parent_reads = 0
+        self.fresh_parent_after_initial = False
 
     def request(
         self,
@@ -388,13 +448,24 @@ class BatchApiFixture:
                 "activeRecoveryAction": self.recovery_action,
             }
         if method == "GET" and route == f"/issues/{BATCH}":
-            return {
+            value = {
                 "id": BATCH,
                 "companyId": COMPANY,
-                "status": "in_progress",
+                "status": self.parent_status,
                 "assigneeAgentId": LEAD,
                 "activeRecoveryAction": None,
+                "reviewPolicy": "anyone",
+                "blockedBy": [{"id": blocker} for blocker in self.parent_blockers],
+                "unblockDescriptor": self.parent_descriptor,
+                **(self.parent_hold or {}),
             }
+            self.parent_reads += 1
+            if self.fresh_parent_after_initial and self.parent_reads == 1:
+                self.parent_status = "blocked"
+                self.parent_blockers = [SOURCE_TASK, PUBLISH_TASK]
+            return value
+        if method == "GET" and route == f"/issues/{BATCH}/runs":
+            return self.parent_runs
         if method == "GET" and route == f"/issues/{SOURCE_TASK}":
             return {
                 "id": SOURCE_TASK,
@@ -458,9 +529,22 @@ class BatchApiFixture:
             return self.receipt_document
         if method == "PATCH" and route == f"/issues/{PUBLISH_TASK}":
             assert body == {"status": "done"}
+            self.events.append("publisher_done")
             self.publisher_status = "done"
             self.completions += 1
             return {"id": PUBLISH_TASK, "status": "done"}
+        if method == "PATCH" and route == f"/issues/{BATCH}":
+            assert body == {
+                "status": "done",
+                "blockedByIssueIds": [SOURCE_TASK],
+                "unblockDescriptor": None,
+            }
+            self.events.append("parent_done")
+            self.parent_patches += 1
+            self.parent_status = "done"
+            self.parent_blockers = [SOURCE_TASK]
+            self.parent_descriptor = None
+            return {"id": BATCH, "status": "done"}
         raise AssertionError(f"unexpected API request: {method} {route}")
 
 
@@ -545,6 +629,141 @@ def test_publish_batch_success_derives_task_and_reuses_saved_receipt_on_new_run(
     assert fake_api.receipt_document["body"] == first_doc_body
     assert json.loads(first_doc_body)["native_process_run_id"] == PROCESS_RUN_1
     assert len(prepare_calls) == 1
+
+
+def test_publish_batch_v2_closes_fresh_yielded_parent_before_own_completion(tmp_path, monkeypatch):
+    canonical, source, base, branch, _, document = _make_batch_repositories(tmp_path)
+    acceptance_body = json.loads(document["body"])
+    acceptance_body.update({"schema": delivery.BATCH_ACCEPTANCE_V2_SCHEMA, "close_parent": True})
+    document["body"] = json.dumps(acceptance_body, sort_keys=True, separators=(",", ":"))
+    custody = tmp_path / "custody"
+    custody.mkdir(mode=0o700)
+    policy = {
+        "api_origin": "http://127.0.0.1:3310", "company_id": COMPANY,
+        "publisher_agent_id": PUBLISHER, "lead_agent_ids": [LEAD, *OTHER_LEADS],
+        "source_seed_repo": str(source), "custody_dir": str(custody),
+        "canonical": {"repo": str(canonical), "ref": branch, "remote_name": "origin",
+                      "remote_url": "https://github.com/avariceJS/memecoin-ai.git"},
+    }
+    fake_api = BatchApiFixture(document, PROCESS_RUN_1)
+    fake_api.parent_status = "in_progress"
+    fake_api.parent_blockers = [SOURCE_TASK]
+    fake_api.parent_descriptor = {"owner": {"agentId": LEAD}}
+    fake_api.fresh_parent_after_initial = True
+    fake_api.parent_runs = [
+        {"agentId": LEAD, "contextIssueId": "d" * 8 + "-1111-4111-8111-111111111111",
+         "status": "running"}
+    ]
+    remote = {branch: base}
+    monkeypatch.setattr(delivery, "remote_refs", lambda _m: dict(remote))
+
+    def push_ref(_manifest, source_ref, target_ref):
+        remote[target_ref] = source_ref
+
+    monkeypatch.setattr(delivery, "push_ref", push_ref)
+    result = _run_batch(monkeypatch, fake_api, policy, "f" * 64, PROCESS_RUN_1)
+    assert result["status"] == "published"
+    assert fake_api.parent_patches == 1
+    assert fake_api.events == ["parent_done", "publisher_done"]
+    assert fake_api.parent_blockers == [SOURCE_TASK]
+    assert fake_api.completions == 1
+
+    retry_run = "d0000000-1111-4111-8111-111111111111"
+    fake_api.publisher_run_id = retry_run
+    fake_api.checkout_run_id = retry_run
+    fake_api.execution_run_id = retry_run
+    fake_api.publisher_status = "in_progress"
+    retried = _run_batch(monkeypatch, fake_api, policy, "f" * 64, retry_run)
+    assert retried == result
+    assert fake_api.parent_patches == 1 and fake_api.receipt_puts == 1
+    assert fake_api.events == ["parent_done", "publisher_done", "publisher_done"]
+
+
+@pytest.mark.parametrize(
+    ("reason", "descriptor", "blockers", "runs", "hold"),
+    [
+        ("batch_parent_lead_still_active", {"owner": {"agentId": LEAD}},
+         [SOURCE_TASK, PUBLISH_TASK],
+         [{"agentId": LEAD, "contextSnapshot": {"issueId": BATCH}, "status": "running"}], None),
+        ("batch_parent_unblock_hold", {"owner": {"userId": "human"}},
+         [SOURCE_TASK, PUBLISH_TASK], [], None),
+        ("batch_parent_blocker_set_changed", {"owner": {"agentId": LEAD}},
+         [SOURCE_TASK, PUBLISH_TASK, "a" * 8 + "-1111-4111-8111-111111111111"], [], None),
+        ("batch_task_has_hold", {"owner": {"agentId": LEAD}},
+         [SOURCE_TASK, PUBLISH_TASK], [], {"manualHold": True}),
+        ("batch_task_has_hold", {"owner": {"agentId": LEAD}},
+         [SOURCE_TASK, PUBLISH_TASK], [], {"recoveryStatus": "unknown_effect"}),
+    ],
+)
+def test_batch_parent_closure_refuses_active_or_held_parent(
+    monkeypatch, reason, descriptor, blockers, runs, hold
+):
+    document = acceptance_doc(json.dumps(acceptance(schema=delivery.BATCH_ACCEPTANCE_V2_SCHEMA,
+                                                    close_parent=True)))
+    document["createdByAgentId"] = LEAD
+    document["updatedByAgentId"] = LEAD
+    document["issueId"] = BATCH
+    document["companyId"] = COMPANY
+    fake_api = BatchApiFixture(document, PROCESS_RUN_1)
+    fake_api.parent_status = "blocked"
+    fake_api.parent_blockers = blockers
+    fake_api.parent_descriptor = descriptor
+    fake_api.parent_runs = runs
+    fake_api.parent_hold = hold
+    fake_api.receipt_document = {
+        "companyId": COMPANY, "issueId": PUBLISH_TASK, "key": "publication-receipt",
+        "body": "{}", "latestRevisionId": RECEIPT_REV,
+    }
+    monkeypatch.setenv("PAPERCLIP_API_KEY", "fixture-api-token")
+    monkeypatch.setenv("PAPERCLIP_RUN_ID", PROCESS_RUN_1)
+    monkeypatch.setenv("PAPERCLIP_AGENT_ID", PUBLISHER)
+    monkeypatch.setenv("PAPERCLIP_COMPANY_ID", COMPANY)
+    monkeypatch.setenv("PAPERCLIP_API_URL", "http://127.0.0.1:3310")
+
+    def request(api, method, route, body=None, raw=False):
+        return fake_api.request(api, method, route, body=body, raw=raw)
+
+    monkeypatch.setattr(delivery.Paperclip, "request", request)
+    api = delivery.Paperclip({"api_origin": "http://127.0.0.1:3310", "company_id": COMPANY})
+    if reason == "batch_parent_lead_still_active":
+        times = iter([0.0, 61.0])
+        monkeypatch.setattr(delivery.time, "monotonic", lambda: next(times))
+    with pytest.raises(delivery.DeliveryError, match=reason):
+        delivery._close_batch_parent(
+            api, {"company_id": COMPANY}, BATCH, PUBLISH_TASK, LEAD, [SOURCE_TASK],
+            document["latestRevisionId"], sha(document["body"].encode()), "{}",
+        )
+    assert fake_api.parent_patches == 0
+
+
+def test_batch_parent_closure_refuses_changed_acceptance(monkeypatch):
+    document = acceptance_doc(json.dumps(acceptance(schema=delivery.BATCH_ACCEPTANCE_V2_SCHEMA,
+                                                    close_parent=True)))
+    document.update({"createdByAgentId": LEAD, "updatedByAgentId": LEAD,
+                     "issueId": BATCH, "companyId": COMPANY})
+    original_sha = sha(document["body"].encode())
+    changed = dict(document, latestRevisionId="f" * 8 + "-1111-4111-8111-111111111111")
+    fixture = BatchApiFixture(changed, PROCESS_RUN_1)
+    fixture.parent_status = "blocked"
+    fixture.parent_blockers = [SOURCE_TASK, PUBLISH_TASK]
+    fixture.parent_descriptor = {"owner": {"agentId": LEAD}}
+    monkeypatch.setenv("PAPERCLIP_API_KEY", "fixture-api-token")
+    monkeypatch.setenv("PAPERCLIP_RUN_ID", PROCESS_RUN_1)
+    monkeypatch.setenv("PAPERCLIP_AGENT_ID", PUBLISHER)
+    monkeypatch.setenv("PAPERCLIP_COMPANY_ID", COMPANY)
+    monkeypatch.setenv("PAPERCLIP_API_URL", "http://127.0.0.1:3310")
+    monkeypatch.setattr(
+        delivery.Paperclip, "request",
+        lambda api, method, route, body=None, raw=False:
+            fixture.request(api, method, route, body=body, raw=raw),
+    )
+    api = delivery.Paperclip({"api_origin": "http://127.0.0.1:3310", "company_id": COMPANY})
+    with pytest.raises(delivery.DeliveryError, match="batch_acceptance_changed"):
+        delivery._close_batch_parent(
+            api, {"company_id": COMPANY}, BATCH, PUBLISH_TASK, LEAD, [SOURCE_TASK],
+            document["latestRevisionId"], original_sha, "{}",
+        )
+    assert fixture.parent_patches == 0
 
 
 def test_publish_batch_holds_recovery_action_and_remote_drift_before_ref_effects(
