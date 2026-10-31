@@ -34,6 +34,9 @@ class PaperclipLabServerTests(unittest.TestCase):
         self.assertEqual(
             PAPERCLIP_SOURCE_CHAIN,
             (
+                "d06cbd5cd012e178a0e519d329eed36b8943fac9",
+                "76c6912266283ee4e8dfd80fa9c0821eeb40b614",
+                "b09fe3c3b9295e3e558dcbb4fc8d2a347782f837",
                 "69cefa8d4887d2a3835668823ff854fce9c95cc2",
                 "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
                 "e169417665e2ef61df18103eecab33701e1b06f5",
@@ -54,8 +57,8 @@ class PaperclipLabServerTests(unittest.TestCase):
                 *PAPERCLIP_PATCH_SOURCE_CHAIN,
             ),
         )
-        self.assertEqual(PAPERCLIP_PIN, "69cefa8d4887d2a3835668823ff854fce9c95cc2")
-        self.assertEqual(PAPERCLIP_PARENT_PIN, "1e7d18239e6dac28254e5b44a3959eea63cf0f3b")
+        self.assertEqual(PAPERCLIP_PIN, "d06cbd5cd012e178a0e519d329eed36b8943fac9")
+        self.assertEqual(PAPERCLIP_PARENT_PIN, "76c6912266283ee4e8dfd80fa9c0821eeb40b614")
         self.assertEqual(PAPERCLIP_UPSTREAM_PIN, "043f2514e67c50320433a0013fb228a75a51325c")
         self.assertEqual(PAPERCLIP_PATCH_PIN, "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd")
         self.assertEqual(PAPERCLIP_PATCH_PARENT_PIN, "d560a09538a255c779e4a10b14d41a3114bf10f2")
@@ -365,7 +368,7 @@ class PaperclipLabServerTests(unittest.TestCase):
             commit,
         ])
         self.assertEqual(managed["bundle_sha256"], manifest["bundle_sha256"])
-        self.assertEqual(PAPERCLIP_PIN, commit)
+        self.assertEqual(PAPERCLIP_SOURCE_CHAIN[3], commit)
 
     def test_source_pin_metadata_binds_cumulative_patch_and_source_only_review(self):
         engineering = Path(__file__).resolve().parents[1]

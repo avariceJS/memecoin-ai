@@ -444,5 +444,13 @@
       "review_sha256": "83722a44f3187f6d6adc002a6831f5c739758f39cfce54af33e6d18fca9245c8",
       "review_status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
     }
+  },
+  "active_runtime_source": {
+    "commit": "d06cbd5cd012e178a0e519d329eed36b8943fac9",
+    "tree": "c624850dd50e29ede7061ffa3ac42fb89acca972",
+    "prerequisite_commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+    "bundle_manifest": "../paperclip-source-bundles/d06cbd5cd012e178a0e519d329eed36b8943fac9.json",
+    "source_review_native_issue": "07ee2fb4-ca6d-4fa7-84fb-42c7dd349f1e",
+    "scope": "Atomic blocked-to-done mutation uses proposed retained dependencies without skipping actor, pause, trust or resume authorization. Historical managed_source remains the previous accepted checkpoint."
   }
 }
