@@ -1,39 +1,36 @@
 # Project Agent Rules
 
-## Final Founder operating model — Luna-managed, 2026-10-31
+## Current Founder operating model — efficient leadership, 2026-10-31
 
-The latest Founder directive supersedes the preceding Sol-led Luna-first model. Astra High remains
-strategic CEO; all six department leads, existing40 developers and optional reviewers use Luna High.
-No routine internal Sol call or permanent external integrator. Luna leads own meaningful direct
-batches, assignment, independent batch-level judgment, integration and publication through the
-existing native publisher. Developers implement/debug/check/commit autonomously in isolated
-worktrees; independent Luna review is selective, never mandatory per small task. Astra is contacted
-on real objective completion or exceptional strategic conflict, not routine events.
+Astra High remains strategic CEO. Six permanent Sol 6.1 High department leads own major objectives,
+meaningful independent batches, combined review and native publication. Forty original Luna High
+developers implement/debug/check/commit autonomously in separate task worktrees; five optional Luna
+High reviewers are selective. Sol was restored only after the clean Luna-lead low-wakeup proof;
+actual Sol-lead cost/quality is unmeasured. No permanent external interactive operator is required for
+the demonstrated bounded cycle. Astra wakes for genuine major-goal completion or strategy only.
 
-Preserve the existing flow, historical STOPs/holds and24 retired intermediary tasks. Do not create
-another publisher, scheduler, broker, admission/QA/recovery framework or repair unrelated incidents.
-This finite final pass demonstrates one useful end-to-end batch, then pauses the company and verifies
-zero queued/running runs. Target shutdown with1-2% account quota margin; percentage readback is not
-atomic spending control. Main/production/protected data/market/training/AUTO/trading/paid APIs remain
-excluded. Historical sections below are superseded where conflicting; current state is memory/now.md.
+Use existing native all-children/dependency completion. Lead planning assigns substantial independent
+work, then yields once. After all source children finish, one combined integration call writes exact
+v2 acceptance (`close_parent:true`), assigns the existing fixed process and yields with all DONE source
+blockers plus its publisher child. The process checks fresh task/receipt/holds/Git state, waits boundedly
+for the lead run to end, closes the parent retaining DONE source blockers, then completes itself.
+No acknowledgment/stale-state completion call is needed. A separate next root (`parentId:null`) gated
+on this parent starts through ordinary dependency readiness; no artificial Astra event.
 
-## Current Founder operating model — Luna-first, 2026-10-31
+Create these tasks via the admitted `call_api` full `POST /companies/:companyId/issues` contract:
+explicit `assigneeAgentId`, `reviewPolicy:"anyone"`, Goal/project/workspace/parent and workspace selection.
+Use `configured_source` + `managed_isolated` for each source child, fixed maintenance workspace +
+`shared` for the publisher. Fresh GET verifies metadata in the same existing model call before yield.
+The shortened child-creation path lost assignment/review metadata and inherited one worktree in the
+second failed trial. The six lead catalogs now omit abbreviated `create_task`; full native API access,
+assignment authority, runtime/subscription bindings and reporting relationships remain.
 
-`prompt/luna-first.md` supersedes the previous campaign's operating-model instructions below.
-Preserve historical STOP records and all protected/human/unknown-effect holds. Use the existing
-Paperclip organization: Astra sets substantial department objectives and evaluates completion; six
-Sol High leads assign independent meaningful batches directly to Luna High developers. Luna owns
-implementation, debugging, focused checks and commits on isolated branches through completion.
-No mandatory independent Sol-QA or bind/prepare/stage/manager chain per routine task. Optional
-independent Luna High review is selective; Sol reviews and integrates at meaningful batch boundaries
-with no-loss/candidate-identity/Git readback safeguards. Native all-children-terminal events replace
-model polling and per-task managerial handoffs. No new scheduler/orchestrator/admission/recovery
-framework. Normal profiles: Astra CEO, Sol High leads, Luna High developers/reviewers.
-
-This finite restructuring permits only a small useful concurrent demonstration and ends with company
-pause, zero active/queued runs and a checkpoint; it does not authorize another broad acceptance
-campaign. Stop new model-heavy work near 2-3% observed remaining quota; this temporary exception is
-not an atomic spending limiter or a future standing reserve. Read `memory/now.md` for live status.
+Preserve every historical STOP, rejection, human/manual/unknown-effect hold and24 cancelled
+administrative intermediaries. Do not restore per-task managerial/mandatory-QA stages or add a
+scheduler/controller/publisher/admission/QA/recovery framework. Main, production, protected data,
+live market collection, training, AUTO, paper/trading and paid APIs remain excluded. This finite pass
+ended paused with zero queued/running/live runs; a checkpoint/quota reset/reconnect is not launch
+authority. Read `memory/now.md` and the private HANDOFF before a fresh authorized continuation.
 
 ## Entry and source of truth
 

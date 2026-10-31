@@ -1,5 +1,23 @@
 # Training and Evaluation
 
+## Accepted population/split sensitivity diagnostics — 2026-10-31
+
+Brain development 8e4a413 contains six additional standard-library, offline declaration-only tools:
+`population_inclusion_delta` compares inclusion decisions/reasons/groups; `group_partition_concordance`
+reports exact pair agreement across declared groupings; `split_stratum_coverage` exposes per-stratum
+support/missingness; `split_target_deviation` compares explicit integer observed/target tables;
+`split_assignment_plan_delta` compares declared row assignments and optional group fragmentation;
+`weight_state_delta` compares pinned weights, support, concentration/effective-size and cohort mass.
+The final pair extends the latter two with cohort denominators and optional explicit group containment,
+preserving legacy inputs. Caller pins/groups are declarations, not independently verified provenance.
+
+Native combined review recorded 23 focused unittest cases in MEM416, 10 in MEM424 and 16 in MEM428.
+Exact accepted file hashes and each candidate remote ref were read back; final local/origin development
+are 8e4a413. First two workflow trials needed external repair; only MEM428 demonstrated the complete
+bounded assignment/review/publication/parent-close cycle without external intervention. No real
+population/dataset was read, no training/evaluation run or market/model-quality claim was made.
+See the unique [development and workflow receipt](evidence/brain-lead-wakeup-efficiency-20261031.json).
+
 ## Accepted Luna-managed Experience diagnostics — 2026-10-31
 
 Brainf758157 adds four pure standard-library utilities on explicit synthetic/caller-supplied inputs:

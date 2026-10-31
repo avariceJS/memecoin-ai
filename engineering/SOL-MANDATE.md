@@ -1,35 +1,38 @@
 # Organization audit and resumption handoff
 
-## Final Luna-managed authority — 2026-10-31
+## Current efficient leadership authority — 2026-10-31
 
-The latest Founder directive replaces all six internal Sol department-lead assignments with Luna High.
-Astra High sets substantial objectives and evaluates genuine goal completion; Luna High leads own
-decomposition, meaningful independent batches, source assignment, batch review/integration and native
-publication. Developers and optional selective reviewers use Luna High. No routine internal Sol call or
-required external interactive publication. This file retains its historical path for existing references.
+Astra High remains strategic CEO. Six permanent Sol 6.1 High department leads own major objectives,
+meaningful independent batches, combined review and native publication. Forty original Luna High
+developers implement/debug/check/commit autonomously in separate task worktrees; five optional Luna
+High reviewers are selective. Sol was restored only after the clean Luna-lead low-wakeup proof;
+actual Sol-lead cost/quality is unmeasured. No permanent external interactive operator is required for
+the demonstrated bounded cycle. Astra wakes for genuine major-goal completion or strategy only.
 
-Use existing Goals/projects, isolated Git-worktrees, native task/dependency completion and the existing
-trusted publisher's reviewed batch input. Do not restore24 retired administrative tasks or require QA
-for every small task. Resolve ordinary reversible development inside the responsible department.
-Historical STOPs, human/unknown-effect holds and all protected boundaries remain. The current finite
-pass demonstrates one batch, then pauses/checkpoints; read memory/now.md for actual live state.
-Earlier operating-model sections below are historical where conflicting.
+Use existing native all-children/dependency completion. Lead planning assigns substantial independent
+work, then yields once. After all source children finish, one combined integration call writes exact
+v2 acceptance (`close_parent:true`), assigns the existing fixed process and yields with all DONE source
+blockers plus its publisher child. The process checks fresh task/receipt/holds/Git state, waits boundedly
+for the lead run to end, closes the parent retaining DONE source blockers, then completes itself.
+No acknowledgment/stale-state completion call is needed. A separate next root (`parentId:null`) gated
+on this parent starts through ordinary dependency readiness; no artificial Astra event.
 
-## Current Luna-first mandate — 2026-10-31
+Create these tasks via the admitted `call_api` full `POST /companies/:companyId/issues` contract:
+explicit `assigneeAgentId`, `reviewPolicy:"anyone"`, Goal/project/workspace/parent and workspace selection.
+Use `configured_source` + `managed_isolated` for each source child, fixed maintenance workspace +
+`shared` for the publisher. Fresh GET verifies metadata in the same existing model call before yield.
+The shortened child-creation path lost assignment/review metadata and inherited one worktree in the
+second failed trial. The six lead catalogs now omit abbreviated `create_task`; full native API access,
+assignment authority, runtime/subscription bindings and reporting relationships remain.
 
-The new Founder directive supersedes earlier campaign operating restrictions. Sol High owns department
-objectives through meaningful batches of direct independent Luna High implementation tasks. Define
-module ownership, interfaces, isolated branches and focused acceptance; yield while developers work.
-Review/integrate the combined batch once. No mandatory per-task Sol-QA, fixed bind/prepare/stage
-chain, model status polling or administrative approval rounds. Optional independent Luna High review
-is selective; take over genuinely difficult work when cheaper than repeated review. Use existing
-Paperclip task assignment, all-children-terminal events, workspaces and Git integration safeguards.
+Preserve every historical STOP, rejection, human/manual/unknown-effect hold and24 cancelled
+administrative intermediaries. Do not restore per-task managerial/mandatory-QA stages or add a
+scheduler/controller/publisher/admission/QA/recovery framework. Main, production, protected data,
+live market collection, training, AUTO, paper/trading and paid APIs remain excluded. This finite pass
+ended paused with zero queued/running/live runs; a checkpoint/quota reset/reconnect is not launch
+authority. Read `memory/now.md` and the private HANDOFF before a fresh authorized continuation.
 
-Prepare the next batch inside the objective without Astra; involve Astra on objective completion or
-genuine strategic conflicts. Preserve historical STOPs, uncertain-effect/human holds and protected
-boundaries. The finite restructuring ends with company pause and zero queued/active runs. Native
-configuration/readback, demonstrated development, accepted integration and deployment are separate
-claims; consult `memory/now.md` for final status. Earlier sections below are historical where conflicting.
+Historical operating instructions below are superseded where conflicting.
 
 ## Current standing program authority — 2026-10-24
 

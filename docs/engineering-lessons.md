@@ -1,5 +1,21 @@
 # Engineering lessons and retrieval
 
+## Batch closure is deterministic; task contracts must be complete — 2026-10-31
+
+Use the existing publisher's opt-in v2 acceptance to close the verified parent before completing its
+publisher child. Installed atomic terminal admission must evaluate proposed retained blockers;
+checking the old unresolved publisher edge falsely rejects the same PATCH. Preserve permissions,
+trust/pause/recovery, exact old blobs/CAS and fresh remote readback. Non-ancestor source IDs alone do
+not imply different accepted bytes. Preserve failed original publication receipts and reconcile SAME
+immutable intent only after actual effects are known; a failed run may already have published.
+
+Abbreviated child creation lost assignee/reviewPolicy and inherited the parent worktree in MEM424.
+For this flow use full native company-issues POST with explicit assignment, anyone review policy and
+managed-isolated source selection; verify actual fields in the same planning/integration call before
+yielding. Never self-comment for bookkeeping. MEM428 then completed with exactly 2 lead / 2 developer
+calls and no external routing/publication/closure assistance. This short proof does not qualify scale,
+long-run reliability or actual Sol cost. [Source](evidence/brain-lead-wakeup-efficiency-20261031.json).
+
 ## Fresh dependency state before declaring a wait — 2026-10-31
 
 Trigger: MEM410's publisher was DONE before the final lead wake, but the lead reused earlier
@@ -7,11 +23,12 @@ in-progress state and self-blocked with Board ownership. The native backstop del
 that self-block; it was not missing authority to publish. Refresh the actual child and its native
 receipt immediately before waiting or reporting completion. Resolved blockers are not waits;
 ordinary dependency ownership belongs to the responsible agent. Preserve genuine human and
-unknown-effect holds. All six lead instruction bundles now carry this rule, but a subsequent fully
-unassisted closure cycle has not been verified. Source: [final result](evidence/brain-luna-managed-final-20261031.json).
+unknown-effect holds. All six lead instruction bundles now carry this rule, but at that historical checkpoint a subsequent fully
+unassisted closure cycle had not been verified. Source: [final result](evidence/brain-luna-managed-final-20261031.json).
 
 Also derive task UUIDs from actual native responses rather than manual transcription (MEM407), and
-verify actual Git ancestry as well as exact file bytes (MEM410). Both failed preflights were preserved;
+historically verify Git ancestry as well as exact file bytes (MEM410); the current reviewed
+v2 two-tree/old-blob contract above supersedes the mandatory ancestry condition. Both failed preflights were preserved;
 Luna performed same-task reconciliation. Do not weaken these gates or replay an already published result.
 
 

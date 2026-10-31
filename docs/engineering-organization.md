@@ -1,6 +1,75 @@
 # Brain Engineering Organization
 
-## Final operating authority — Luna-managed, 2026-10-31
+## Current efficient leadership — 2026-10-31
+
+Astra High remains strategic CEO. Six permanent Sol 6.1 High department leads own major objectives,
+meaningful independent batches, combined review and native publication. Forty original Luna High
+developers implement/debug/check/commit autonomously in separate task worktrees; five optional Luna
+High reviewers are selective. Sol was restored only after the clean Luna-lead low-wakeup proof;
+actual Sol-lead cost/quality is unmeasured. No permanent external interactive operator is required for
+the demonstrated bounded cycle. Astra wakes for genuine major-goal completion or strategy only.
+
+Use existing native all-children/dependency completion. Lead planning assigns substantial independent
+work, then yields once. After all source children finish, one combined integration call writes exact
+v2 acceptance (`close_parent:true`), assigns the existing fixed process and yields with all DONE source
+blockers plus its publisher child. The process checks fresh task/receipt/holds/Git state, waits boundedly
+for the lead run to end, closes the parent retaining DONE source blockers, then completes itself.
+No acknowledgment/stale-state completion call is needed. A separate next root (`parentId:null`) gated
+on this parent starts through ordinary dependency readiness; no artificial Astra event.
+
+Create these tasks via the admitted `call_api` full `POST /companies/:companyId/issues` contract:
+explicit `assigneeAgentId`, `reviewPolicy:"anyone"`, Goal/project/workspace/parent and workspace selection.
+Use `configured_source` + `managed_isolated` for each source child, fixed maintenance workspace +
+`shared` for the publisher. Fresh GET verifies metadata in the same existing model call before yield.
+The shortened child-creation path lost assignment/review metadata and inherited one worktree in the
+second failed trial. The six lead catalogs now omit abbreviated `create_task`; full native API access,
+assignment authority, runtime/subscription bindings and reporting relationships remain.
+
+### Applied fixes and observed limits
+
+Existing publisher source afbca40 retains v1 and adds opt-in v2 deterministic closure. Exact two-tree
+file bytes and captured old blobs/CAS/no-loss checks replace mandatory commit ancestry. Independent
+Luna415 accepted 25 focused tests. Installed Paperclip now runs reviewed d06cbd5: atomic agent
+blocked-to-DONE admission checks proposed retained dependency readiness without skipping actor,
+trust, pause, recovery or resume authority. Independent Luna423 accepted source; nine new regressions
+pass. Full route fixture has 178 pass / 10 fail versus 169 pass / 10 same preexisting failures on original 69cefa8;
+no full-suite pass is claimed. Launcher retains exact ancestry including both correction commits,
+process birth identity and owned start; 17 launcher tests / 20 subtests pass. API bundle/manifest is under
+`engineering/paperclip-source-bundles/`; source pin metadata preserves the historical69cefa8 checkpoint.
+
+| Useful batch | Lead calls | Developer calls | Outcome |
+|---|---:|---:|---|
+| Previous MEM407 / MEM410 |4 /5|2 /2|Published, assisted closure/recovery;76.63% manager wall share. |
+| MEM416 |4|4|Published95259ce; needed API repair and external same-intent bookkeeping recovery. |
+| MEM424 |5|2|Publishedfcef81d; orphan/metadata failure and external recovery; two sources inherited one worktree. |
+| MEM428 |2|2|Published8e4a413; separate worktrees; native assignment/review/publication/parent closure with no external intervention. |
+
+MEM428 calls are exactly `issue_blockers_resolved` for planning and `issue_children_completed` for
+combined review. Its two developers overlapped68.560s. First trial four-way overlap was88.021s;
+second two-way overlap88.267s. Native readiness from completed prior roots started the next roots.
+The clean pair ran180.935s developer versus219.576s management intervals,54.82% management share.
+All three product trials together used 11 lead / 8 developer calls, 1164.647s / 781.982s, 59.83% share. Separate
+maintenance used 5 Luna implementation/correction and 2 independent Luna review calls. All 26 actual
+model profiles were verified Luna High; 0 Sol / 0 Astra. Fixed process attempts: 3 successes / 2 failures.
+Failures remain; a failed origin publication run did publish code before bookkeeping failed, and its
+receipt remains bound to that original run. Later same-intent recovery never reapplied canonical Git.
+
+Native raw token sums and per-provider-session maxima are both preserved because resumed counters
+appear cumulative despite `per_run`. Maxima are observations, not billing reconciliation. Cache is
+reported separately. No subscription savings,40-way/multi-week reliability or measured Sol cost claim.
+The broad Experience Goal remains active, so no strategic completion/Astra-next-objective event was
+manufactured. All code is offline declaration/synthetic-input source, not training or runtime deployment.
+
+The six permanent model assignments, 52 agent instruction bundles, six native templates and existing
+Goal/project/programme descriptions were updated through native mechanisms and read back. Reporting,
+workspace identities,subscription bindings and original manual holds remain; no replacement Goal or
+organization. Company is paused with zero active/queued/live runs. See the unique
+[result receipt](evidence/brain-lead-wakeup-efficiency-20261031.json) and private
+`/Users/root1/Developer/brain-paperclip-lab/state/lead-efficiency-20261031/checkpoint.json`.
+
+Earlier checkpoint sections below are historical where their instructions or state conflict.
+
+## Historical Luna-managed checkpoint — 2026-10-31
 
 The latest Founder directive supersedes the earlier Sol-led Luna-first model. Astra High remains
 strategic CEO: substantial departmental objectives, genuine goal completion and exceptional strategic
@@ -107,7 +176,7 @@ Canonical aggregate: [final result](evidence/brain-luna-managed-final-20261031.j
 Private configuration/instruction exports, policy, native evidence and recoverable Git bundles are under
 `/Users/root1/Developer/brain-paperclip-lab/state/luna-managed-20261031/`; final checkpoint is `checkpoint.json`.
 
-## Current operating authority — Luna-first, 2026-10-31
+## Historical Luna-first checkpoint — 2026-10-31
 
 The Founder directive `prompt/luna-first.md` supersedes the previous campaign operating model.
 Historical STOPs, unknown-effect holds, rejected candidates and protected boundaries remain intact.

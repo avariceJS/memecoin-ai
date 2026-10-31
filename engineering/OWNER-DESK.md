@@ -1,27 +1,31 @@
-# Founder Desk — Brain Engineering Organization
+# Founder Desk — 31 октября 2026: wakeups исправлены, компания остановлена
 
-**31 октября 2026: Luna-managed конфигурация применена в действующей Paperclip. Компания остановлена: queued/running/live — 0. Новый запуск требует новой команды Founder.**
+**Чистый MEM-428 завершён: 2 вызова Luna-лида и 2 разработчиков; назначение, общий review, публикация и закрытие родителя — без внешней помощи.** После этого восстановлены шесть постоянных Sol6.1 High лидов. Astra High остаётся стратегическим CEO; 40 исходных разработчиков и 5 optional reviewer-профилей — Luna High. Live readback подтверждён; стоимость работы Sol не измерялась.
 
-Astra High сохранена стратегическим CEO. Шесть лидов, все40 прежних разработчиков и5 выборочных reviewer-профилей — Luna High. Исправлены подчинение, владельцы прежних Goals/программ/проектов, инструкции и рабочие базы. Периодические heartbeat отключены; три старых Sol-лида сохранены вручную paused вне штатного потока.24 отменённые промежуточные задачи не возвращались. Исторические STOP и protected holds сохранены.
+Исправлен существующий API blocked→DONE: он проверяет сохраняемые зависимости в том же атомарном переходе. Существующий publisher v2 после fresh task/Git/receipt checks закрывает родителя, затем свой child, без model acknowledgment. Убрана обязательная Git ancestry при сохранённых exact-tree/old-blob/CAS/no-loss checks. Полный native company-issues API теперь явно задаёт assignee, reviewPolicy и отдельный managed worktree; сокращённое создание задач удалено из каталога лидов. Нового publisher/controller/scheduler нет.
 
-Пробел canonical-публикации закрыт для новых/изменённых Python src/tests: существующий publisher получил проверенный batch-input, без нового publisher/scheduler/framework. Изменение MEM405 независимо принято Luna406 после сохранённого отказа и исправления;15 focused tests. Этот код опубликован в org/development на56219ba. Paperclip backend69cefa8 не менялся.
+| Пакет | Lead / developer calls | Причина каждого manager wake |
+|---|---:|---|
+| Прежние407/410 |4/2 и5/2|Старый цикл с acknowledgment/recovery/stale closure. |
+|416 |4/4|issue_assigned;issue_children_completed;issue_commented×2 — диагностика API и подготовка продолжения. |
+|424 |5/2|issue_blockers_resolved;issue_children_completed;issue_assigned orphan recovery;issue_commented×2 — ошибочные metadata/reassignment. |
+|428 |2/2|issue_blockers_resolved — планирование;issue_children_completed — общий review. |
 
-Два настоящих Experience-пакета дали четыре утилиты: feasibility группового split, аудит назначений/утечек групп, аудит включения популяции и lineage входа эксперимента. Опубликованы8 файлов/1066 строк с тестами: Brain **f758157**, локальный/удалённый readback и точные hashes совпали. Main2f8da5f неизменна. Production/runtime не развёрнуты.
+Первые два новых опыта **не были автономными по закрытию**: уже опубликованный Git подтверждён, затем внешне исправлены текущие metadata/API и выполнено supported same-intent reconciliation. Во втором developer-задачи унаследовали общий worktree; в заключительном две source worktree отдельные от лида. История отказов и исходные receipts сохранены; canonical Git внешняя сессия не применяла повторно.
 
-Первый пакет потребовал моей диагностики ошибочного UUID; дальше Luna сама исправила metadata, выполнила reconciliation и публикацию. Во втором Luna сама назначила двух разработчиков, проверила/исправила интерфейсы, интегрировала код, исправила Git ancestry после отказа и повторно успешно опубликовала тем же native process — без моего routing/review/Git apply/push/recovery. Но после публикации лид повторно заблокировал родителя по устаревшему статусу. Понадобилась одна внешняя корректировка закрытия. Теперь шесть лидов обязаны читать свежий child/receipt перед ожиданием; сам лид обновил базу отдела и завершил MEM410. **Полностью самостоятельное замыкание цикла после этой корректировки ещё не проверено.**
+Чистый пакет: 219,576 с управления / 180,935 с разработчиков; доля управления 54,82% против прежних 76,63%. Пересечение двух разработчиков 68,560 с; в первом опыте четыре Luna пересекались 88,021 с. Все три новых product-пакета вместе: 11 manager / 8 developer calls, 1164,647 с / 781,982 с, 59,83% управления. Это короткие неодинаковые задачи, не доказанная экономия подписки.
 
-| Native-вызовы за этот pass | Количество |
-|---|---:|
-| Luna-лид |9|
-| Luna-разработчики Brain |4|
-| Luna: реализация publisher / независимое review |2 /2|
-| Sol / Astra |0 /0|
-| Fixed-process: успех / отказ до публикации |2 /2|
+| Роль за весь ремонт | Calls | Сумма run-секунд | Input* | Output* | Cached input* |
+|---|---:|---:|---:|---:|---:|
+|Лиды продукта|11|1164.647|769 853|74 772|12 425 600|
+|Разработчики Brain|8|781.982|285 261|56 278|2 575 104|
+|Реализация исправлений|5|869.926|250 632|64 331|6 039 552|
+|Независимое review исправлений|2|202.551|106 551|13 415|823 936|
 
-Пересечение двух разработчиков:108,267 и114,064с. Управление продуктом заняло1564,844с против477,247с разработчиков —76,63% суммы их native-интервалов, включая инструменты/проверки/исправления. Это высокий overhead; экономия не доказана. Внешняя сессия в этот учёт не входит.
+*Наблюдаемые максимумы по provider session: продолженные native counters выглядят накопительными вопреки per_run. Сырые суммы ledger сохранены отдельно в JSON; это не точный billing reconciliation. External interactive session в учёт не входит. Все 26 реальных native model calls — Luna High, 0 Sol / 0 Astra; fixed process: 3 успеха / 2 отказа, 76,724 с.
 
-Native ledger: input1 970 539, output348 133, cached input отдельно48 496 768. У продолженных сессий счётчики выглядят накопительными вопреки метке per_run; простая сумма не подтверждает точный расход. Диагностический максимум по отдельным session IDs: input1 067 862/output188 666/cache22 799 488; это также не billing reconciliation. Последняя аккаунтная квота **8%** (16:52:47UTC), без пересчёта в расход программы.
+Доставлены 6 offline-диагностик в 12 Python source/test-файлах: изменения inclusion, concordance групп, покрытие strata, отклонение split quotas, сравнение split assignments и pinned weights; последний пакет добавил групповые и cohort-разрезы. Три native публикации95259ce,fcef81d,8e4a413 подтверждены Git/ref/hash readback. Финальные 16 focused unittest cases прошли у лида; независимый Luna review покрывал publisher/API исправления. У route fixture остаются те же 10 исторических test failures; полного acceptance campaign не было. Ни runtime deployment, ни обучение/качество на реальных данных не заявлены.
 
-Проверены два разработчика одновременно и bounded Python-публикация.40-поточная/многодневная надёжность и следующий стратегический цикл Astra не проверены; крупная Experience Goal остаётся активной. Pytest в части native сред был недоступен; прямые синтетические проверки не названы pytest-pass. Прерванный live push не квалифицирован. Старые recovery holds не ремонтировались; protected data, market collection, training, AUTO, paper/trading и paid API не затронуты.
+Компания **paused; 0 active / 0 queued / 0 live**. Старые holds/STOP и 24 cancelled задачи сохранены. Experience Goal ещё активна, поэтому Astra не будили искусственно.40-поточная/многодневная надёжность и реальная цена Sol не проверены. Последняя успешная квота 6%; финальный probe provider_unavailable, без выдуманного расхода. Для следующего запуска нужно новое явное разрешение Founder.
 
-[Точный итог](../docs/evidence/brain-luna-managed-final-20261031.json) · [Checkpoint](/Users/root1/Developer/brain-paperclip-lab/state/luna-managed-20261031/checkpoint.json).
+[Точные метрики и доказательства](../docs/evidence/brain-lead-wakeup-efficiency-20261031.json) · [Checkpoint](/Users/root1/Developer/brain-paperclip-lab/state/lead-efficiency-20261031/checkpoint.json).
