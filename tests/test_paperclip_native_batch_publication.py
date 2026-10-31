@@ -460,12 +460,15 @@ class BatchApiFixture:
                 **(self.parent_hold or {}),
             }
             self.parent_reads += 1
-            if self.fresh_parent_after_initial and self.parent_reads == 1:
+            if self.fresh_parent_after_initial and self.parent_reads == 2:
                 self.parent_status = "blocked"
                 self.parent_blockers = [SOURCE_TASK, PUBLISH_TASK]
             return value
         if method == "GET" and route == f"/issues/{BATCH}/runs":
-            return self.parent_runs
+            rows = self.parent_runs
+            if self.fresh_parent_after_initial and self.parent_reads >= 2:
+                self.parent_runs = []
+            return rows
         if method == "GET" and route == f"/issues/{SOURCE_TASK}":
             return {
                 "id": SOURCE_TASK,
@@ -651,11 +654,19 @@ def test_publish_batch_v2_closes_fresh_yielded_parent_before_own_completion(tmp_
     fake_api.parent_descriptor = {"owner": {"agentId": LEAD}}
     fake_api.fresh_parent_after_initial = True
     fake_api.parent_runs = [
-        {"agentId": LEAD, "contextIssueId": "d" * 8 + "-1111-4111-8111-111111111111",
-         "status": "running"}
+        {"agentId": LEAD, "contextIssueId": BATCH, "status": "running"}
     ]
+    monkeypatch.setattr(delivery.time, "sleep", lambda _seconds: None)
     remote = {branch: base}
     monkeypatch.setattr(delivery, "remote_refs", lambda _m: dict(remote))
+    prepare_calls = []
+    real_prepare = delivery.publisher.prepare
+
+    def counted_prepare(*args, **kwargs):
+        prepare_calls.append(True)
+        return real_prepare(*args, **kwargs)
+
+    monkeypatch.setattr(delivery.publisher, "prepare", counted_prepare)
 
     def push_ref(_manifest, source_ref, target_ref):
         remote[target_ref] = source_ref
@@ -677,6 +688,35 @@ def test_publish_batch_v2_closes_fresh_yielded_parent_before_own_completion(tmp_
     assert retried == result
     assert fake_api.parent_patches == 1 and fake_api.receipt_puts == 1
     assert fake_api.events == ["parent_done", "publisher_done", "publisher_done"]
+    assert prepare_calls == [True]
+
+
+def test_publish_batch_done_v2_without_saved_operation_stops_before_prepare_or_refs(
+    tmp_path, monkeypatch
+):
+    canonical, source, base, branch, _, document = _make_batch_repositories(tmp_path)
+    acceptance_body = json.loads(document["body"])
+    acceptance_body.update({"schema": delivery.BATCH_ACCEPTANCE_V2_SCHEMA, "close_parent": True})
+    document["body"] = json.dumps(acceptance_body, sort_keys=True, separators=(",", ":"))
+    custody = tmp_path / "custody"
+    custody.mkdir(mode=0o700)
+    policy = {
+        "api_origin": "http://127.0.0.1:3310", "company_id": COMPANY,
+        "publisher_agent_id": PUBLISHER, "lead_agent_ids": [LEAD, *OTHER_LEADS],
+        "source_seed_repo": str(source), "custody_dir": str(custody),
+        "canonical": {"repo": str(canonical), "ref": branch, "remote_name": "origin",
+                      "remote_url": "https://github.com/avariceJS/memecoin-ai.git"},
+    }
+    fake_api = BatchApiFixture(document, PROCESS_RUN_1)
+    fake_api.parent_status = "done"
+    fake_api.parent_blockers = [SOURCE_TASK]
+    ref_reads = []
+    prepares = []
+    monkeypatch.setattr(delivery, "remote_refs", lambda _m: ref_reads.append(True) or {branch: base})
+    monkeypatch.setattr(delivery.publisher, "prepare", lambda *a, **k: prepares.append(True))
+    with pytest.raises(delivery.DeliveryError, match="batch_done_receipt_missing"):
+        _run_batch(monkeypatch, fake_api, policy, "f" * 64, PROCESS_RUN_1)
+    assert prepares == [] and ref_reads == []
 
 
 @pytest.mark.parametrize(

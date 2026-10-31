@@ -3213,8 +3213,6 @@ def _close_batch_parent(
             blockers <= expected and set(source_ids) <= blockers,
             "batch_parent_blocker_set_changed",
         )
-        if descriptor is None and parent.get("status") != "done":
-            require(publisher_id in blockers, "batch_parent_dependency_missing")
         for source_id in source_ids:
             source = api.issue(source_id)
             require(
@@ -3232,9 +3230,14 @@ def _close_batch_parent(
                 "batch_parent_done_state_invalid",
             )
             return
-        require(publisher_id in blockers, "batch_parent_dependency_missing")
         require(parent.get("status") in {"blocked", "in_progress"}, "batch_parent_not_yielded")
         if parent.get("status") == "blocked" and not lead_runs_active:
+            require(
+                blockers == set(source_ids) | {publisher_id},
+                "batch_parent_dependency_missing",
+            )
+            if descriptor is None:
+                require(publisher_id in blockers, "batch_parent_dependency_missing")
             break
         if time.monotonic() >= deadline:
             raise DeliveryError("batch_parent_lead_still_active")
@@ -3355,6 +3358,10 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     m["canonical"] = {**canonical, "expected_tip": expected, "candidate_ref": candidate_ref}
     receipt_path = Path(policy["custody_dir"]) / f"batch-publication-{parent_id}.json"
     existing = receipt_path.exists() or receipt_path.is_symlink()
+    require(
+        batch.get("status") != "done" or (close_parent and existing),
+        "batch_done_receipt_missing",
+    )
     prior = None
     if existing:
         info = receipt_path.lstat()
@@ -3386,6 +3393,65 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
         )
         receipt = prior.get("canonical_receipt")
         require(type(receipt) is dict, "batch_receipt_invalid")
+        if batch.get("status") == "done":
+            candidate = receipt.get("candidate")
+            refs = remote_refs(m)
+            require(
+                type(candidate) is str
+                and refs.get(canonical["ref"]) == candidate
+                and refs.get(candidate_ref) == candidate
+                and git(repo, "rev-parse", canonical["ref"]).decode().strip() == candidate,
+                "batch_done_publication_refs_invalid",
+            )
+            publisher.inspect(
+                repo, canonical["ref"], receipt, allowed_paths=list(acceptance["files"])
+            )
+            docs = api.request("GET", f"/issues/{own_id}/documents?includeSystem=true")
+            require(
+                type(docs) is list and all(type(item) is dict for item in docs),
+                "batch_receipt_document_list_invalid",
+            )
+            matching_docs = [item for item in docs if item.get("key") == "publication-receipt"]
+            require(
+                len(matching_docs) == 1
+                and matching_docs[0].get("companyId") == policy["company_id"]
+                and matching_docs[0].get("issueId") == own_id
+                and UUID.fullmatch(str(matching_docs[0].get("latestRevisionId", ""))),
+                "batch_receipt_document_metadata_invalid",
+            )
+            current_doc = api.request("GET", f"/issues/{own_id}/documents/publication-receipt")
+            published = _strict_json_object(
+                current_doc.get("body") if type(current_doc) is dict else "",
+                "batch_receipt_document_invalid_json",
+            )
+            expected_receipt_fields = {
+                "schema": BATCH_RECEIPT_SCHEMA,
+                "status": "published",
+                "batch_task_id": parent_id,
+                "source_task_ids": source_ids,
+                "source_run_ids": source_run_ids,
+                "lead_agent_id": lead_id,
+                "publisher_task_id": own_id,
+                "candidate_sha": candidate,
+                "expected_tip": expected,
+                "candidate_ref": candidate_ref,
+                "files": acceptance["files"],
+                "acceptance_revision_id": revision_id,
+                "acceptance_body_sha256": body_sha,
+                "native_process_run_id": prior["native_process_run_id"],
+            }
+            require(
+                set(published) == set(expected_receipt_fields) | {"remote_readback"}
+                and all(published.get(key) == value for key, value in expected_receipt_fields.items())
+                and type(published.get("remote_readback")) is dict
+                and published["remote_readback"].get(canonical["ref"]) == candidate
+                and published["remote_readback"].get(candidate_ref) == candidate
+                and current_doc.get("companyId") == policy["company_id"]
+                and current_doc.get("issueId") == own_id
+                and current_doc.get("key") == "publication-receipt"
+                and current_doc.get("latestRevisionId") == matching_docs[0]["latestRevisionId"],
+                "batch_done_receipt_conflict",
+            )
     else:
         source_repo = Path(policy["source_seed_repo"])
         old, new, contents = _batch_source(acceptance, source_repo, repo, expected)
