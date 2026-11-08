@@ -232,19 +232,20 @@ Grok remains disabled by the user's latest instruction.
 
 ## Git integration and recovery registry
 
-### Consolidation and founder audit hold — 2026-10-20
+### Consolidated Git ownership and completed audit hold — 2026-10-20
 
-The founder paused organization development and authorized repository consolidation. This registry
-supersedes older branch instructions. `main` stays exactly at
+The founder authorized repository consolidation. The temporary organization-development hold for
+the independent Astra audit was later completed and explicitly superseded by the founder's
+resumption of source development. This registry supersedes older branch instructions. `main` stays exactly at
 `2f8da5f92da521b511e0d4fb20205981a000cab5`; no experimental source was promoted.
 
 | Branch | Role | Status |
 |---|---|---|
 | `main` | Stable existing baseline | Unchanged; existing repository failures remain documented |
-| `brain/development` | Current Brain development entry | Based on main; consolidation documentation only |
-| `org/development` | Unified organization source and audit entry | Reviewed metering and validator plus additive reviewed Store; merged candidate is not an independently accepted release |
-| `brain/linux` | Isolated Linux portability candidate | Original `65846e8` source retained; clean-host provisioning, lifecycle and inert-service qualification remain open |
-| `research/active` | Frozen remote compatibility alias at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` | Not a development lane; current `engineering/bootstrap.py` still resolves `origin/research/active`, and historical recovery packages name it |
+| `brain/development` | Brain research development | Brain-only development lane |
+| `org/development` | Unified engineering-organization development and audit entry | Sole organization source-development branch; source checkpoints do not by themselves qualify an operational release |
+| `brain/linux` | Separate Linux platform candidate | Unaccepted; clean-host provisioning, lifecycle and inert-service qualification remain open |
+| `research/active` | Frozen remote compatibility alias at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` | Not a development or integration lane; current `engineering/bootstrap.py` still resolves `origin/research/active`, and historical recovery packages name it |
 
 The compatibility alias cannot be removed without changing and qualifying current bootstrap/recovery
 callers. That is a separate controller release, outside this consolidation. Frozen private pilot
@@ -283,12 +284,15 @@ acceptance and independent review. Existing `archive/pre-reset-20261018`,
 `brain-git-consolidated-20261018` remain unchanged. Historical protocol hashes require their exact
 source commit, never current archival pointer text.
 
-New ordinary Brain work starts from `brain/development`; organization audit and any later explicitly
-resumed Luna work start from `org/development`. The founder will invite Astra High for independent
-architecture review. No Goal, team, service, inference, collector, training, AUTO or trading is resumed
-by consolidation. Pilot SQLite, its six failures and zero acceptances/integrations, STOP, protected
-datasets and historical owner runtime stay unchanged. The current publisher still targets private
-`research/active`; no new publication authority or runtime branch rebinding is implied.
+New Brain work belongs on `brain/development`; engineering-organization work belongs on
+`org/development` under the sole Luna-6 High implementation owner, with Sol-6.1 High handling
+substantial technical decisions and independent review. Astra High remains episodic and is not
+invoked automatically. The independent director audit of `b2dcd6d` is complete; findings and release
+gates are owned by `engineering-organization.md`, and the temporary hold is no longer active.
+`research/active` remains a frozen compatibility alias; it is not the organization development target.
+This resumption authorizes source work only. Pilot STOP, protected datasets, the unaccepted Linux
+candidate, runtime and release boundaries remain in force; no supervisor/runtime, inference,
+collector, training, AUTO or trading activation follows from branch consolidation or Goal activity.
 
 See the machine-readable [consolidation receipt](evidence/git-consolidation-2026-10-20.json) for exact
 source selection, tests, failures, custody and cleanup. Historical acceptance from the earlier

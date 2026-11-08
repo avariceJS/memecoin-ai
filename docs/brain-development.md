@@ -1,9 +1,95 @@
 # Brain Architecture
 
+## Explicit-support research tools — 2026-10-27
+
+Brain54fb180 includes independently accepted provider-roster coverage, paired-loss sign-flip,
+missing-loss bounds, target-cohort mixture sensitivity and cluster-removal influence. They strengthen offline support/interpretation of supplied observations; no
+acquisition, model training, promotion or runtime activation follows. The missing-loss diagnostic
+shows how a complete-case comparison can remain inconclusive over the declared roster.
+[Contracts and limitations](training-evaluation.md#roster-support-and-paired-loss-diagnostics--2026-10-27).
+The two held calibration/representation tasks remain protected; these additions do not replace them.
+
+## Research dossier accepted — 2026-10-26
+
+Brain `69b926d` adds `memecoin_experience.research_report`: deterministic composition of explicit
+diagnostic envelopes into a complete JSON dossier or safely fenced Markdown. It preserves full
+results, declared hashes and limitations without claiming raw-input verification or comparability.
+Independent Luna QA accepted the exact candidate with13 focused tests and additional synthetic/CLI
+checks. Six of eight programme features are now accepted; binary_calibration and representation_shift
+remain unfinished under preserved cancellation holds. No data collection, training or trading ran.
+[Contract](training-evaluation.md#research-dossier--2026-10-26) and
+[bounded native handoff](evidence/brain-native-handoff-20261026.json).
+
+## Research diagnostics backlog continuation — 2026-10-26
+
+Two further tools from the original eight-feature programme are accepted/published at Brain
+`7c9a601`: `memecoin_population.exposure_shift` explains corpus-versus-exposure differences on
+explicit common-known support; `memecoin_population.attrition_funnel` explains where cohorts lose
+usable observations across declared stages. Both expose analyze(payload) and JSON stdin/stdout CLI.
+Independent QA, 22 integrated tests and two demonstrations passed. At that earlier checkpoint, five of the original eight
+capabilities were accepted; binary_calibration, representation_shift and research_report remain
+unfinished. No real-data/model-quality claim follows from synthetic software verification.
+[Contracts](training-evaluation.md#additional-population-diagnostics--2026-10-26) and
+[bounded continuation evidence](evidence/brain-productive-backlog-20261026.json).
+
+## Research diagnostics programme — 2026-10-26
+
+Product work is not restricted to reproduced bugs. The CEO-selected next increment is an offline
+research toolkit that explains whether observations, corpus composition, evaluation and decision
+uncertainty support a research conclusion. Leads turn these useful questions into independent
+capabilities with explicit inputs and executable acceptance; bounded duplicate checks replace broad
+searches for defects. The six department ownerships and existing scientific boundaries are retained.
+
+The programme identified eight distinct outcomes: availability latency (Senses), exposure contrast
+and attrition funnels (Experience), conditional calibration and paired-loss comparison (Evaluation),
+fixed-bin representation shift (Cortex), abstention sensitivity (Policy), and a readable common
+research dossier (Platform). A frozen diagnostic envelope permits independent implementation; no
+scheduler, management framework or new runtime dependency is introduced.
+
+The initial checkpoint accepted three in Brain `cc5573b`: availability latency, paired-loss comparison and abstention
+sensitivity. Five source tasks remain blocked by actual provider429 refusals, not lack of useful work.
+Their contracts remain in native Paperclip tasks. Usage and examples for the implemented tools belong
+to [training/evaluation](training-evaluation.md#offline-research-diagnostics--2026-10-26); organizational
+limits and the bounded stop belong to [engineering organization](engineering-organization.md).
+
+
 **Status:** exploratory supervised forecasting and virtual paper; no demonstrated trading edge.
 This document owns the current system map and its intended growth boundary.
 
 ## Product goal
+
+### Founder mission and strategic order — 2026-10-24
+
+The ambition is a specialized Solana intelligence system: understand market structure, liquidity,
+transactions, participants and context across thousands of evolving markets; accumulate qualified
+experience; discover useful research questions; and demonstrate improving decisions on independent
+data. This is a target, not an assertion of current reasoning, learning or trading competence.
+Potential trading remains a separately authorized later capability.
+
+Astra owns product strategy and architecture. The founder supplies vision, suggestions, resources
+and permission boundaries, not the next feature or the department backlog. Prioritize falsifiable
+competence over feature count. Current evidence favors fixing observation semantics, population
+coverage and evaluation before increasing model complexity: narrow, correlated evaluation and
+poor conditional calibration cannot support a broad competence claim.
+
+The next approved strategic sequence is:
+
+1. **Trustworthy observations and experience.** Define coverage/missingness and arrival-time
+   contracts for evolving populations, then reproducible experience and exposure audits. Develop
+   code and synthetic fixtures only until acquisition is separately authorized.
+2. **Independent measurement before stronger learners.** Specify prospective cohorts, leakage
+   controls, conditional calibration, simple baselines and predeclared promotion criteria. Keep
+   exposed historical tests diagnostic; never reuse them as an independent benchmark.
+3. **Measured model and decision capability.** Once data/evaluation prerequisites are qualified
+   and training is explicitly authorized, compare representations and models against those
+   baselines. Policy must preserve abstention, uncertainty and execution-cost assumptions.
+4. **Broader ecosystem evidence.** Evaluate new-token discovery, participant behavior and
+   news/social narratives by incremental information value, source availability and cost; these
+   are candidate directions, not active acquisition programs.
+
+No collector, training job, market provider, AUTO, paper ledger or trading process is activated by
+this strategy. Department mandates and the distinction between policy and implemented autonomy
+are owned by [engineering-organization.md](engineering-organization.md).
 
 Build a persistent Solana research Brain that can acquire large market histories, produce
 reproducible model generations, and measure improvement on independent future markets. V1/V2/V3

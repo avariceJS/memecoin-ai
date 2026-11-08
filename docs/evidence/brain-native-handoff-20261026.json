@@ -1,0 +1,113 @@
+{
+  "schema": "brain-native-handoff-outcome-v1",
+  "date": "2026-10-26",
+  "scope": "One existing useful task MEM-125; first-review accepted path, no automatic next cohort",
+  "paperclip_pin": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "adapter_accepted_commit": "6c8825938f124cad631c261edd08074cf1299dc8",
+  "brain_base": "7c9a601cb676ce63fdf126510e50a9cda0f0b080",
+  "brain_published": "69b926d37c8dd7822d0c0a213a882166fe1574c6",
+  "candidate_branch": "brain/native-report-20261026",
+  "main_unchanged": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+  "product": {
+    "module": "memecoin_experience.research_report",
+    "source_lines_added": 143,
+    "test_lines_added": 113,
+    "focused_tests_passed": 13,
+    "independent_qa": "Separate native Luna High, exact patch and file hashes; adversarial synthetic checks plus JSON/Markdown CLI; accept",
+    "source_patch_sha256": "0bf38d6779d5597139b14ed4cec019c93380415dc164fcaecd812d9102100e2d",
+    "files": {
+      "src/memecoin_experience/research_report.py": "3e880c0dba7207f531fc629b2ec4cdd9ae74a01de0d5468377b82a44ec04ad39",
+      "tests/test_research_research_report.py": "5900396c50694c855ce68055d72b2311d9cd226bc2dde5b721bc9b74cf8ba306"
+    },
+    "total_programme_features_accepted": 6
+  },
+  "native_cycle": {
+    "model_runs": 2,
+    "development_runs": 1,
+    "qa_runs": 1,
+    "management_model_runs": 0,
+    "process_runs": 2,
+    "new_http429": 0,
+    "ceo_mutations_dispatch_to_publication": 0,
+    "all_four_tasks_done": true,
+    "all_six_companies_paused_live_zero": true
+  },
+  "timing_seconds": {
+    "dispatch_to_publish_run_finished": 212.031,
+    "development_finished_to_qa_started": 0.853,
+    "initial_dispatch_to_development_started": 0.098
+  },
+  "runs": {
+    "development": {
+      "status": "succeeded",
+      "runtime_mode": "native",
+      "started_at": "2026-10-26T16:52:37.219Z",
+      "finished_at": "2026-10-26T16:54:52.264Z",
+      "duration_seconds": 135.045,
+      "model": "gpt-6-luna/high",
+      "input_tokens": 42287,
+      "output_tokens": 6915,
+      "cached_input_tokens": 404224,
+      "accounting_receipt_ready": true
+    },
+    "stage": {
+      "status": "succeeded",
+      "runtime_mode": "legacy",
+      "started_at": "2026-10-26T16:54:52.247Z",
+      "finished_at": "2026-10-26T16:54:53.148Z",
+      "duration_seconds": 0.901,
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "accounting_receipt_ready": true
+    },
+    "qa": {
+      "status": "succeeded",
+      "runtime_mode": "native",
+      "started_at": "2026-10-26T16:54:53.117Z",
+      "finished_at": "2026-10-26T16:55:59.304Z",
+      "duration_seconds": 66.187,
+      "model": "gpt-6-luna/high",
+      "input_tokens": 56472,
+      "output_tokens": 3805,
+      "cached_input_tokens": 243328,
+      "accounting_receipt_ready": true
+    },
+    "publish": {
+      "status": "succeeded",
+      "runtime_mode": "legacy",
+      "started_at": "2026-10-26T16:55:59.288Z",
+      "finished_at": "2026-10-26T16:56:09.152Z",
+      "duration_seconds": 9.864,
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "accounting_receipt_ready": true
+    }
+  },
+  "usage": {
+    "uncached_input_tokens": 98759,
+    "output_tokens": 10720,
+    "cached_input_tokens": 647552,
+    "model_billing": "subscription_included",
+    "usd": null,
+    "quota_fraction": null,
+    "scope": "Native bounded cycle only; preparation/CEO excluded"
+  },
+  "preserved": {
+    "MEM-126": "in_review; original explicit human_only pending; not used as this publication approval",
+    "MEM-118_MEM-123": "cancelled-run holds; canRetry=false",
+    "historical_unknowns": "not replayed",
+    "protected_boundaries": "No main/production, protected data, market collection, training, AUTO, trading, paid API activation"
+  },
+  "limits": [
+    "Preparation, fixed task admission/manifest/base/branch and final shutdown remain owner operations.",
+    "Only first-review acceptance was observed; automatic correction/restaging after QA rejection is not implemented/qualified.",
+    "Fixed two-file added-source action is not a general merger or continuous autonomous company.",
+    "No scale or subscription concurrency limit measured.",
+    "CEO and collaboration preparation/independent adapter review usage is not in native run ledger; total session cost unknown."
+  ],
+  "private_evidence_locator": "brain-paperclip-lab/state/native-handoff-20261026"
+}

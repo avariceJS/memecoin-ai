@@ -1,0 +1,983 @@
+{
+  "schema": "brain-lead-wakeup-efficiency-result-v1",
+  "recordedAt": "2026-10-31T19:37:25.651365+00:00",
+  "status": "paused-after-bounded-proof",
+  "before": {
+    "product_manager_calls": 9,
+    "developer_calls": 4,
+    "manager_calls_by_batch": [
+      4,
+      5
+    ],
+    "manager_wall_seconds": 1564.844,
+    "developer_wall_seconds": 477.247,
+    "manager_wall_share": 0.7663,
+    "trigger_evidence": "state/lead-efficiency-20261031/before-manager-triggers.json"
+  },
+  "after": {
+    "batches": [
+      {
+        "id": "339d3f65-2619-471a-902b-55bf18f491d5",
+        "identifier": "MEM-416",
+        "status": "done",
+        "createdByAgentId": null,
+        "blockedBy": null,
+        "source_task_ids": [
+          "fae2fc52-b263-458c-933c-889441ea77f7",
+          "b3b38bad-f865-4457-b0e0-c29f998b271d",
+          "7378b0c6-ec80-42a1-9c0d-120fb1839328",
+          "73ef203f-2e4c-4365-8806-e12e695d0df8"
+        ],
+        "publisher_task_ids": [
+          "7117377c-ccd2-4d79-bb13-367ed609e26c"
+        ],
+        "manager_calls": 4,
+        "developer_calls": 4,
+        "roles": {
+          "process": {
+            "calls": 2,
+            "statuses": {
+              "succeeded": 1,
+              "failed": 1
+            },
+            "run_ids": [
+              "cf7047bf-823e-406f-9ce1-a93b4e9114f3",
+              "ed762941-e826-4eb2-b8ab-bb0af9b94c53"
+            ],
+            "wall_seconds": 26.539,
+            "native_ledger_sum": {
+              "inputTokens": 0,
+              "cachedInputTokens": 0,
+              "outputTokens": 0
+            },
+            "observed_session_maxima": {
+              "inputTokens": 0,
+              "cachedInputTokens": 0,
+              "outputTokens": 0
+            },
+            "provider_session_ids": [
+              "cf7047bf-823e-406f-9ce1-a93b4e9114f3",
+              "ed762941-e826-4eb2-b8ab-bb0af9b94c53"
+            ],
+            "sessions_in_prelaunch_baseline": [],
+            "unsettled_model_run_ids": []
+          },
+          "manager": {
+            "calls": 4,
+            "statuses": {
+              "succeeded": 4
+            },
+            "run_ids": [
+              "77cbb6d8-729d-4505-9bf8-79f245bfd4fa",
+              "dbedae17-d375-4a1a-a8b1-1aeb9c64bfcc",
+              "64332983-fa23-4dbb-8600-7e19cb67b257",
+              "27637ec0-4b39-4aeb-bf54-477c68d9ac09"
+            ],
+            "wall_seconds": 554.458,
+            "native_ledger_sum": {
+              "inputTokens": 511746,
+              "cachedInputTokens": 7315200,
+              "outputTokens": 41552
+            },
+            "observed_session_maxima": {
+              "inputTokens": 363923,
+              "cachedInputTokens": 6117376,
+              "outputTokens": 33246
+            },
+            "provider_session_ids": [
+              "01a19326-dccc-7a02-a58c-1c50f9b03089",
+              "01a1931e-5a10-70a1-a688-ffd0afeca980"
+            ],
+            "sessions_in_prelaunch_baseline": [],
+            "unsettled_model_run_ids": []
+          },
+          "developer": {
+            "calls": 4,
+            "statuses": {
+              "succeeded": 4
+            },
+            "run_ids": [
+              "628f9785-f38f-463c-8e84-50227a046330",
+              "abb07e61-410c-44c4-b5bd-f1be3bab8c83",
+              "cb69ee72-c972-4b71-91b4-ea9c67c204a4",
+              "9c012cc7-0d5e-4ac9-a67f-ef10523b957e"
+            ],
+            "wall_seconds": 412.081,
+            "native_ledger_sum": {
+              "inputTokens": 141455,
+              "cachedInputTokens": 1454208,
+              "outputTokens": 27198
+            },
+            "observed_session_maxima": {
+              "inputTokens": 141455,
+              "cachedInputTokens": 1454208,
+              "outputTokens": 27198
+            },
+            "provider_session_ids": [
+              "01a1931f-ce0f-7bd1-a314-9eada91eb4ee",
+              "01a1931f-c9b3-7111-822d-0184779306ff",
+              "01a1931f-c5c0-7a43-9687-fdbbbbe3d819",
+              "01a1931f-c1e3-7be3-a906-19604e6143c0"
+            ],
+            "sessions_in_prelaunch_baseline": [],
+            "unsettled_model_run_ids": []
+          }
+        },
+        "manager_triggers": [
+          {
+            "run_id": "27637ec0-4b39-4aeb-bf54-477c68d9ac09",
+            "wakeReason": "issue_assigned",
+            "startedAt": "2026-10-31T18:00:00.356Z",
+            "finishedAt": "2026-10-31T18:01:53.523Z",
+            "status": "succeeded"
+          },
+          {
+            "run_id": "64332983-fa23-4dbb-8600-7e19cb67b257",
+            "wakeReason": "issue_children_completed",
+            "startedAt": "2026-10-31T18:03:38.314Z",
+            "finishedAt": "2026-10-31T18:08:37.187Z",
+            "status": "succeeded"
+          },
+          {
+            "run_id": "dbedae17-d375-4a1a-a8b1-1aeb9c64bfcc",
+            "wakeReason": "issue_commented",
+            "startedAt": "2026-10-31T18:09:18.965Z",
+            "finishedAt": "2026-10-31T18:10:19.917Z",
+            "status": "succeeded"
+          },
+          {
+            "run_id": "77cbb6d8-729d-4505-9bf8-79f245bfd4fa",
+            "wakeReason": "issue_commented",
+            "startedAt": "2026-10-31T19:16:20.668Z",
+            "finishedAt": "2026-10-31T19:17:42.134Z",
+            "status": "succeeded"
+          }
+        ],
+        "developer_peak": 4,
+        "developer_overlap_seconds_by_active_count": {
+          "1": 22.547,
+          "2": 8.579,
+          "3": 6.764,
+          "4": 88.021
+        },
+        "publication": {
+          "acceptance_body_sha256": "d20b9b2c2d42bc6ee13e68c390e580cf7608c02307b1a37a1cf48fb1d2431801",
+          "acceptance_revision_id": "721839fe-4836-46c4-83b8-9bc0116a1739",
+          "batch_task_id": "339d3f65-2619-471a-902b-55bf18f491d5",
+          "candidate_ref": "refs/heads/brain/batch-339d3f65-2619-471a-902b-55bf18f491d5",
+          "candidate_sha": "95259ceeff92e8112be9ed92b1d373c189fa5c71",
+          "expected_tip": "f7581570f008b9fcad3473b2fb0ba8d3776ebb31",
+          "files": {
+            "src/memecoin_experience/group_partition_concordance.py": "1898c59440519d1968465f96fc78135de92d60897449ff85892ff1e1bdc63c50",
+            "src/memecoin_experience/population_inclusion_delta.py": "9c205d810292d023f5defc8b9fb8c678cc44e35c515ce0d7af106a43f19d811d",
+            "src/memecoin_experience/split_stratum_coverage.py": "49726fc3bc616ac391f82e0afdd55e6ae220286c19194cef9ec1536e21b96383",
+            "src/memecoin_experience/split_target_deviation.py": "539126ba4de95682c0c6d8faa40532e3ae603471218b0a1c04c47fa8d882e44a",
+            "tests/test_research_group_partition_concordance.py": "d6826d5948028cd685aa109aa916bfc0ec584abcf335654b50838c6c89dda988",
+            "tests/test_research_population_inclusion_delta.py": "6834568adfdd25244ba795f7abb7fe9b88f0edc5ac3375b1bb21b75155cc67cd",
+            "tests/test_research_split_stratum_coverage.py": "59bafa8ad912af44a8eef34ed5dbcd6785e5aeb9e6aee1a42759694ab1d562ca",
+            "tests/test_research_split_target_deviation.py": "8dea54b2c38dec75aa24da13d273c53157f18654d5ca0a40adae5f21a6b3e90a"
+          },
+          "lead_agent_id": "bf7de391-5774-46c3-89b3-f79cb6486b09",
+          "native_process_run_id": "ed762941-e826-4eb2-b8ab-bb0af9b94c53",
+          "publisher_task_id": "7117377c-ccd2-4d79-bb13-367ed609e26c",
+          "remote_readback": {
+            "refs/heads/brain/batch-339d3f65-2619-471a-902b-55bf18f491d5": "95259ceeff92e8112be9ed92b1d373c189fa5c71",
+            "refs/heads/brain/development": "95259ceeff92e8112be9ed92b1d373c189fa5c71"
+          },
+          "schema": "brain-native-batch-publication-receipt-v1",
+          "source_run_ids": [
+            "cb69ee72-c972-4b71-91b4-ea9c67c204a4",
+            "9c012cc7-0d5e-4ac9-a67f-ef10523b957e",
+            "abb07e61-410c-44c4-b5bd-f1be3bab8c83",
+            "628f9785-f38f-463c-8e84-50227a046330"
+          ],
+          "source_task_ids": [
+            "b3b38bad-f865-4457-b0e0-c29f998b271d",
+            "7378b0c6-ec80-42a1-9c0d-120fb1839328",
+            "73ef203f-2e4c-4365-8806-e12e695d0df8",
+            "fae2fc52-b263-458c-933c-889441ea77f7"
+          ],
+          "status": "published"
+        },
+        "final_bookkeeping_run_id": "cf7047bf-823e-406f-9ce1-a93b4e9114f3",
+        "closure_actor": "5500bfb9-59c5-49e0-93f6-97470eb92ec0",
+        "closure_run_id": "cf7047bf-823e-406f-9ce1-a93b4e9114f3",
+        "accepted_assembled_source": "8a6f4167c751cec9645fb49cf27d6a62d633b222",
+        "focused_checks": [
+          {
+            "name": "population inclusion delta focused standard-library unittest (7 tests)",
+            "result": "passed"
+          },
+          {
+            "name": "group partition concordance focused standard-library unittest (5 tests)",
+            "result": "passed"
+          },
+          {
+            "name": "split stratum coverage focused standard-library unittest (6 tests; includes bounded-input case)",
+            "result": "passed"
+          },
+          {
+            "name": "split target deviation focused standard-library unittest (5 tests)",
+            "result": "passed"
+          },
+          {
+            "name": "git diff --cached --check and exact eight-path source inventory",
+            "result": "passed"
+          }
+        ],
+        "source_workspace_ids": [
+          "8e9157cd-af35-4a7b-9307-aededebb624d",
+          "fab2db2f-9f8f-4532-9908-5f53b9c50ec1",
+          "1b2ce680-a894-489d-903d-a7e002a2ae54",
+          "2379c503-5308-4400-b88a-75a516c69662"
+        ],
+        "distinct_source_workspaces": true,
+        "external_trial_repair_required": true
+      },
+      {
+        "id": "72ef0f91-de8b-4294-b5e4-d3f6d02b252e",
+        "identifier": "MEM-424",
+        "status": "done",
+        "createdByAgentId": "bf7de391-5774-46c3-89b3-f79cb6486b09",
+        "blockedBy": null,
+        "source_task_ids": [
+          "ddb17a49-aff2-48c5-bb2e-0b250d53c7bb",
+          "8330dd92-acbc-4ad0-b9d5-d868ebffe4ae"
+        ],
+        "publisher_task_ids": [
+          "9c8b55ff-ad9b-43ec-be3d-1e4903e0f8b2"
+        ],
+        "manager_calls": 5,
+        "developer_calls": 2,
+        "roles": {
+          "process": {
+            "calls": 2,
+            "statuses": {
+              "succeeded": 1,
+              "failed": 1
+            },
+            "run_ids": [
+              "7ffc1e2d-76be-43ca-8d3e-36d1b15f8046",
+              "8889fba0-b960-4774-8726-7d31c9e35de2"
+            ],
+            "wall_seconds": 14.674,
+            "native_ledger_sum": {
+              "inputTokens": 0,
+              "cachedInputTokens": 0,
+              "outputTokens": 0
+            },
+            "observed_session_maxima": {
+              "inputTokens": 0,
+              "cachedInputTokens": 0,
+              "outputTokens": 0
+            },
+            "provider_session_ids": [
+              "7ffc1e2d-76be-43ca-8d3e-36d1b15f8046",
+              "8889fba0-b960-4774-8726-7d31c9e35de2"
+            ],
+            "sessions_in_prelaunch_baseline": [],
+            "unsettled_model_run_ids": []
+          },
+          "manager": {
+            "calls": 5,
+            "statuses": {
+              "succeeded": 5
+            },
+            "run_ids": [
+              "36356beb-4292-48c7-abca-14e7d3bd64b5",
+              "b0911419-95e9-4444-981a-e7ac2ab7c521",
+              "6bae2f96-6c9a-4473-9447-5405ba8d9ca9",
+              "07237b3e-4aa8-4793-86ac-6f717b2b3dee",
+              "3f9efdc2-2233-4601-b19c-2c5d98b27d13"
+            ],
+            "wall_seconds": 390.613,
+            "native_ledger_sum": {
+              "inputTokens": 359547,
+              "cachedInputTokens": 4796672,
+              "outputTokens": 34787
+            },
+            "observed_session_maxima": {
+              "inputTokens": 269330,
+              "cachedInputTokens": 4124544,
+              "outputTokens": 28619
+            },
+            "provider_session_ids": [
+              "01a1936b-dedf-7222-a5c8-4d5337aab3b1",
+              "01a1936b-0366-7c13-beb2-64922d399e42",
+              "01a19366-1206-7721-ae0b-1059d0e4f947"
+            ],
+            "sessions_in_prelaunch_baseline": [],
+            "unsettled_model_run_ids": []
+          },
+          "developer": {
+            "calls": 2,
+            "statuses": {
+              "succeeded": 2
+            },
+            "run_ids": [
+              "9b2f5b18-1f97-43be-a536-31a9f7ae1f6f",
+              "d4bc2177-6e67-40c3-8076-b51ee68b8924"
+            ],
+            "wall_seconds": 188.966,
+            "native_ledger_sum": {
+              "inputTokens": 77210,
+              "cachedInputTokens": 640384,
+              "outputTokens": 15894
+            },
+            "observed_session_maxima": {
+              "inputTokens": 77210,
+              "cachedInputTokens": 640384,
+              "outputTokens": 15894
+            },
+            "provider_session_ids": [
+              "01a19366-7eb4-7e42-9025-43b6d782067c",
+              "01a19366-7c29-72a3-9738-59f4e8477d9a"
+            ],
+            "sessions_in_prelaunch_baseline": [],
+            "unsettled_model_run_ids": []
+          }
+        },
+        "manager_triggers": [
+          {
+            "run_id": "3f9efdc2-2233-4601-b19c-2c5d98b27d13",
+            "wakeReason": "issue_blockers_resolved",
+            "startedAt": "2026-10-31T19:18:20.937Z",
+            "finishedAt": "2026-10-31T19:19:07.973Z",
+            "status": "succeeded"
+          },
+          {
+            "run_id": "07237b3e-4aa8-4793-86ac-6f717b2b3dee",
+            "wakeReason": "issue_children_completed",
+            "startedAt": "2026-10-31T19:20:29.309Z",
+            "finishedAt": "2026-10-31T19:23:30.279Z",
+            "status": "succeeded"
+          },
+          {
+            "run_id": "6bae2f96-6c9a-4473-9447-5405ba8d9ca9",
+            "wakeReason": "issue_assigned",
+            "startedAt": "2026-10-31T19:23:45.801Z",
+            "finishedAt": "2026-10-31T19:24:41.622Z",
+            "status": "succeeded"
+          },
+          {
+            "run_id": "b0911419-95e9-4444-981a-e7ac2ab7c521",
+            "wakeReason": "issue_commented",
+            "startedAt": "2026-10-31T19:24:41.709Z",
+            "finishedAt": "2026-10-31T19:25:32.234Z",
+            "status": "succeeded"
+          },
+          {
+            "run_id": "36356beb-4292-48c7-abca-14e7d3bd64b5",
+            "wakeReason": "issue_commented",
+            "startedAt": "2026-10-31T19:25:32.345Z",
+            "finishedAt": "2026-10-31T19:26:28.606Z",
+            "status": "succeeded"
+          }
+        ],
+        "developer_peak": 2,
+        "developer_overlap_seconds_by_active_count": {
+          "1": 12.432,
+          "2": 88.267
+        },
+        "publication": {
+          "acceptance_body_sha256": "847d2d3617dd61cc3b11f52d470cb8a5fb49808427267a37e30c335ab3d96bc7",
+          "acceptance_revision_id": "152dfd2b-d8d9-49df-8b51-830162e8715b",
+          "batch_task_id": "72ef0f91-de8b-4294-b5e4-d3f6d02b252e",
+          "candidate_ref": "refs/heads/brain/batch-72ef0f91-de8b-4294-b5e4-d3f6d02b252e",
+          "candidate_sha": "fcef81dd6ec9c8658a785522c55161b98c5787b3",
+          "expected_tip": "95259ceeff92e8112be9ed92b1d373c189fa5c71",
+          "files": {
+            "src/memecoin_experience/split_assignment_plan_delta.py": "11e5aa8622f8374f78a8b5be821d39f789873418ced07a3419e42eee22179ba8",
+            "src/memecoin_experience/weight_state_delta.py": "ff68810fc4bee1cf142004919092d78c5f6c2b1b95c728a0645c194441a0ce2d",
+            "tests/test_research_split_assignment_plan_delta.py": "e5caa5612e60aa4a2faffdacab7db9c0571122c2169337c845a7ab6882b8c6be",
+            "tests/test_research_weight_state_delta.py": "c79dad7abc754ae081661d1e2f6f136ea1f496af937b2beb4271ef7d3bc7a191"
+          },
+          "lead_agent_id": "bf7de391-5774-46c3-89b3-f79cb6486b09",
+          "native_process_run_id": "8889fba0-b960-4774-8726-7d31c9e35de2",
+          "publisher_task_id": "9c8b55ff-ad9b-43ec-be3d-1e4903e0f8b2",
+          "remote_readback": {
+            "refs/heads/brain/batch-72ef0f91-de8b-4294-b5e4-d3f6d02b252e": "fcef81dd6ec9c8658a785522c55161b98c5787b3",
+            "refs/heads/brain/development": "fcef81dd6ec9c8658a785522c55161b98c5787b3"
+          },
+          "schema": "brain-native-batch-publication-receipt-v1",
+          "source_run_ids": [
+            "d4bc2177-6e67-40c3-8076-b51ee68b8924",
+            "9b2f5b18-1f97-43be-a536-31a9f7ae1f6f"
+          ],
+          "source_task_ids": [
+            "ddb17a49-aff2-48c5-bb2e-0b250d53c7bb",
+            "8330dd92-acbc-4ad0-b9d5-d868ebffe4ae"
+          ],
+          "status": "published"
+        },
+        "final_bookkeeping_run_id": "7ffc1e2d-76be-43ca-8d3e-36d1b15f8046",
+        "closure_actor": "5500bfb9-59c5-49e0-93f6-97470eb92ec0",
+        "closure_run_id": "7ffc1e2d-76be-43ca-8d3e-36d1b15f8046",
+        "accepted_assembled_source": "4db760baeb295ea5c8a6470c441b938a7dbd889c",
+        "focused_checks": [
+          {
+            "name": "PYTHONPATH=src python3 -m unittest tests.test_research_split_assignment_plan_delta tests.test_research_weight_state_delta (10 tests)",
+            "result": "passed"
+          }
+        ],
+        "source_workspace_ids": [
+          "06b367bc-cc61-4669-8cc8-ef842bce9773",
+          "06b367bc-cc61-4669-8cc8-ef842bce9773"
+        ],
+        "distinct_source_workspaces": false,
+        "external_trial_repair_required": true
+      },
+      {
+        "id": "92542648-ef91-4252-b86f-690115bdc022",
+        "identifier": "MEM-428",
+        "status": "done",
+        "createdByAgentId": null,
+        "blockedBy": null,
+        "source_task_ids": [
+          "d5703e74-0f8a-438d-80c1-adde6505e9f5",
+          "89d789d1-6bf0-4c37-acd3-06ed5f7ee348"
+        ],
+        "publisher_task_ids": [
+          "f23d17c5-65fd-42d7-84ce-526c48e1f884"
+        ],
+        "manager_calls": 2,
+        "developer_calls": 2,
+        "roles": {
+          "process": {
+            "calls": 1,
+            "statuses": {
+              "succeeded": 1
+            },
+            "run_ids": [
+              "30dffe5d-d3ae-475f-946d-6220cf3467f7"
+            ],
+            "wall_seconds": 35.511,
+            "native_ledger_sum": {
+              "inputTokens": 0,
+              "cachedInputTokens": 0,
+              "outputTokens": 0
+            },
+            "observed_session_maxima": {
+              "inputTokens": 0,
+              "cachedInputTokens": 0,
+              "outputTokens": 0
+            },
+            "provider_session_ids": [
+              "30dffe5d-d3ae-475f-946d-6220cf3467f7"
+            ],
+            "sessions_in_prelaunch_baseline": [],
+            "unsettled_model_run_ids": []
+          },
+          "manager": {
+            "calls": 2,
+            "statuses": {
+              "succeeded": 2
+            },
+            "run_ids": [
+              "54ba1132-ffcf-4801-9726-10861e8e1e06",
+              "5d04aaa5-f7ce-4f3b-ba6f-b610e3284b30"
+            ],
+            "wall_seconds": 219.576,
+            "native_ledger_sum": {
+              "inputTokens": 213892,
+              "cachedInputTokens": 2722176,
+              "outputTokens": 17486
+            },
+            "observed_session_maxima": {
+              "inputTokens": 136600,
+              "cachedInputTokens": 2183680,
+              "outputTokens": 12907
+            },
+            "provider_session_ids": [
+              "01a19370-c499-7022-9c94-8364aa2ec5cd"
+            ],
+            "sessions_in_prelaunch_baseline": [],
+            "unsettled_model_run_ids": []
+          },
+          "developer": {
+            "calls": 2,
+            "statuses": {
+              "succeeded": 2
+            },
+            "run_ids": [
+              "c6ced01e-0e17-41f2-a5bb-c083a004e1fa",
+              "edb5e74a-ee9d-41cc-8928-c2fea23e269b"
+            ],
+            "wall_seconds": 180.935,
+            "native_ledger_sum": {
+              "inputTokens": 66596,
+              "cachedInputTokens": 480512,
+              "outputTokens": 13186
+            },
+            "observed_session_maxima": {
+              "inputTokens": 66596,
+              "cachedInputTokens": 480512,
+              "outputTokens": 13186
+            },
+            "provider_session_ids": [
+              "01a19371-6f68-7253-a4d7-66c76fc668e2",
+              "01a19371-6135-7371-a51d-af242b8a19a0"
+            ],
+            "sessions_in_prelaunch_baseline": [],
+            "unsettled_model_run_ids": []
+          }
+        },
+        "manager_triggers": [
+          {
+            "run_id": "5d04aaa5-f7ce-4f3b-ba6f-b610e3284b30",
+            "wakeReason": "issue_blockers_resolved",
+            "startedAt": "2026-10-31T19:30:02.066Z",
+            "finishedAt": "2026-10-31T19:31:18.596Z",
+            "status": "succeeded"
+          },
+          {
+            "run_id": "54ba1132-ffcf-4801-9726-10861e8e1e06",
+            "wakeReason": "issue_children_completed",
+            "startedAt": "2026-10-31T19:32:34.639Z",
+            "finishedAt": "2026-10-31T19:34:57.685Z",
+            "status": "succeeded"
+          }
+        ],
+        "developer_peak": 2,
+        "developer_overlap_seconds_by_active_count": {
+          "1": 43.815,
+          "2": 68.56
+        },
+        "publication": {
+          "acceptance_body_sha256": "1f156a90e22b4013b4e8ed36cdaebf802fccc072817653df4b3a0eb88886298e",
+          "acceptance_revision_id": "d54bcefd-c5ae-45a8-b3cd-d35fc4336133",
+          "batch_task_id": "92542648-ef91-4252-b86f-690115bdc022",
+          "candidate_ref": "refs/heads/brain/batch-92542648-ef91-4252-b86f-690115bdc022",
+          "candidate_sha": "8e4a4132c5da8bd30056ae9e3bf01eeb4e4d8134",
+          "expected_tip": "fcef81dd6ec9c8658a785522c55161b98c5787b3",
+          "files": {
+            "src/memecoin_experience/split_assignment_plan_delta.py": "7c64f9c4903496ceb5bcb2af99069e30b2d5efbee295a08b322f9a8c4cad8c1b",
+            "src/memecoin_experience/weight_state_delta.py": "86ac645110763d587c1461cc09903e7c7821bf508db1b1f3b5494bc9634a43cb",
+            "tests/test_research_split_assignment_plan_delta.py": "6e7a35fcb4e7767a2a440f81213b5c2c2080ee99d77608bb67dc58f56c061d64",
+            "tests/test_research_weight_state_delta.py": "6c791dc2e65ff7b8f8a60589f3d8cc5a4439459b56c891f58f1db4ad4aec2920"
+          },
+          "lead_agent_id": "bf7de391-5774-46c3-89b3-f79cb6486b09",
+          "native_process_run_id": "30dffe5d-d3ae-475f-946d-6220cf3467f7",
+          "publisher_task_id": "f23d17c5-65fd-42d7-84ce-526c48e1f884",
+          "remote_readback": {
+            "refs/heads/brain/batch-92542648-ef91-4252-b86f-690115bdc022": "8e4a4132c5da8bd30056ae9e3bf01eeb4e4d8134",
+            "refs/heads/brain/development": "8e4a4132c5da8bd30056ae9e3bf01eeb4e4d8134"
+          },
+          "schema": "brain-native-batch-publication-receipt-v1",
+          "source_run_ids": [
+            "edb5e74a-ee9d-41cc-8928-c2fea23e269b",
+            "c6ced01e-0e17-41f2-a5bb-c083a004e1fa"
+          ],
+          "source_task_ids": [
+            "89d789d1-6bf0-4c37-acd3-06ed5f7ee348",
+            "d5703e74-0f8a-438d-80c1-adde6505e9f5"
+          ],
+          "status": "published"
+        },
+        "final_bookkeeping_run_id": "30dffe5d-d3ae-475f-946d-6220cf3467f7",
+        "closure_actor": "5500bfb9-59c5-49e0-93f6-97470eb92ec0",
+        "closure_run_id": "30dffe5d-d3ae-475f-946d-6220cf3467f7",
+        "accepted_assembled_source": "f0657a97112c912d91073cc98f2a3c7b0fabfb18",
+        "focused_checks": [
+          {
+            "name": "focused unittest modules (16 tests)",
+            "result": "passed"
+          },
+          {
+            "name": "git diff --check",
+            "result": "passed"
+          }
+        ],
+        "source_workspace_ids": [
+          "1ee241bc-ed9d-4679-8992-247fdd45b332",
+          "60434be9-be53-439d-bb31-c15cb5c67708"
+        ],
+        "distinct_source_workspaces": true,
+        "external_trial_repair_required": false
+      }
+    ],
+    "all_pass_roles": {
+      "process": {
+        "calls": 5,
+        "statuses": {
+          "succeeded": 3,
+          "failed": 2
+        },
+        "run_ids": [
+          "30dffe5d-d3ae-475f-946d-6220cf3467f7",
+          "7ffc1e2d-76be-43ca-8d3e-36d1b15f8046",
+          "8889fba0-b960-4774-8726-7d31c9e35de2",
+          "cf7047bf-823e-406f-9ce1-a93b4e9114f3",
+          "ed762941-e826-4eb2-b8ab-bb0af9b94c53"
+        ],
+        "wall_seconds": 76.724,
+        "native_ledger_sum": {
+          "inputTokens": 0,
+          "cachedInputTokens": 0,
+          "outputTokens": 0
+        },
+        "observed_session_maxima": {
+          "inputTokens": 0,
+          "cachedInputTokens": 0,
+          "outputTokens": 0
+        },
+        "provider_session_ids": [
+          "30dffe5d-d3ae-475f-946d-6220cf3467f7",
+          "7ffc1e2d-76be-43ca-8d3e-36d1b15f8046",
+          "8889fba0-b960-4774-8726-7d31c9e35de2",
+          "cf7047bf-823e-406f-9ce1-a93b4e9114f3",
+          "ed762941-e826-4eb2-b8ab-bb0af9b94c53"
+        ],
+        "sessions_in_prelaunch_baseline": [],
+        "unsettled_model_run_ids": []
+      },
+      "manager": {
+        "calls": 11,
+        "statuses": {
+          "succeeded": 11
+        },
+        "run_ids": [
+          "54ba1132-ffcf-4801-9726-10861e8e1e06",
+          "5d04aaa5-f7ce-4f3b-ba6f-b610e3284b30",
+          "36356beb-4292-48c7-abca-14e7d3bd64b5",
+          "b0911419-95e9-4444-981a-e7ac2ab7c521",
+          "6bae2f96-6c9a-4473-9447-5405ba8d9ca9",
+          "07237b3e-4aa8-4793-86ac-6f717b2b3dee",
+          "3f9efdc2-2233-4601-b19c-2c5d98b27d13",
+          "77cbb6d8-729d-4505-9bf8-79f245bfd4fa",
+          "dbedae17-d375-4a1a-a8b1-1aeb9c64bfcc",
+          "64332983-fa23-4dbb-8600-7e19cb67b257",
+          "27637ec0-4b39-4aeb-bf54-477c68d9ac09"
+        ],
+        "wall_seconds": 1164.647,
+        "native_ledger_sum": {
+          "inputTokens": 1085185,
+          "cachedInputTokens": 14834048,
+          "outputTokens": 93825
+        },
+        "observed_session_maxima": {
+          "inputTokens": 769853,
+          "cachedInputTokens": 12425600,
+          "outputTokens": 74772
+        },
+        "provider_session_ids": [
+          "01a19370-c499-7022-9c94-8364aa2ec5cd",
+          "01a1936b-dedf-7222-a5c8-4d5337aab3b1",
+          "01a1936b-0366-7c13-beb2-64922d399e42",
+          "01a19366-1206-7721-ae0b-1059d0e4f947",
+          "01a19326-dccc-7a02-a58c-1c50f9b03089",
+          "01a1931e-5a10-70a1-a688-ffd0afeca980"
+        ],
+        "sessions_in_prelaunch_baseline": [],
+        "unsettled_model_run_ids": []
+      },
+      "developer": {
+        "calls": 8,
+        "statuses": {
+          "succeeded": 8
+        },
+        "run_ids": [
+          "c6ced01e-0e17-41f2-a5bb-c083a004e1fa",
+          "edb5e74a-ee9d-41cc-8928-c2fea23e269b",
+          "9b2f5b18-1f97-43be-a536-31a9f7ae1f6f",
+          "d4bc2177-6e67-40c3-8076-b51ee68b8924",
+          "628f9785-f38f-463c-8e84-50227a046330",
+          "abb07e61-410c-44c4-b5bd-f1be3bab8c83",
+          "cb69ee72-c972-4b71-91b4-ea9c67c204a4",
+          "9c012cc7-0d5e-4ac9-a67f-ef10523b957e"
+        ],
+        "wall_seconds": 781.982,
+        "native_ledger_sum": {
+          "inputTokens": 285261,
+          "cachedInputTokens": 2575104,
+          "outputTokens": 56278
+        },
+        "observed_session_maxima": {
+          "inputTokens": 285261,
+          "cachedInputTokens": 2575104,
+          "outputTokens": 56278
+        },
+        "provider_session_ids": [
+          "01a19371-6f68-7253-a4d7-66c76fc668e2",
+          "01a19371-6135-7371-a51d-af242b8a19a0",
+          "01a19366-7eb4-7e42-9025-43b6d782067c",
+          "01a19366-7c29-72a3-9738-59f4e8477d9a",
+          "01a1931f-ce0f-7bd1-a314-9eada91eb4ee",
+          "01a1931f-c9b3-7111-822d-0184779306ff",
+          "01a1931f-c5c0-7a43-9687-fdbbbbe3d819",
+          "01a1931f-c1e3-7be3-a906-19604e6143c0"
+        ],
+        "sessions_in_prelaunch_baseline": [],
+        "unsettled_model_run_ids": []
+      },
+      "independent_review": {
+        "calls": 2,
+        "statuses": {
+          "succeeded": 2
+        },
+        "run_ids": [
+          "13a57ce4-8d1f-496a-a528-06b69ba1ad78",
+          "5092a1e9-1608-4025-98b6-11123e5c9e4d"
+        ],
+        "wall_seconds": 202.551,
+        "native_ledger_sum": {
+          "inputTokens": 106551,
+          "cachedInputTokens": 823936,
+          "outputTokens": 13415
+        },
+        "observed_session_maxima": {
+          "inputTokens": 106551,
+          "cachedInputTokens": 823936,
+          "outputTokens": 13415
+        },
+        "provider_session_ids": [
+          "01a1935a-2079-7413-9568-92b79d805616",
+          "01a19316-32d7-7e92-b418-7c6b4c36f21e"
+        ],
+        "sessions_in_prelaunch_baseline": [],
+        "unsettled_model_run_ids": []
+      },
+      "implementation": {
+        "calls": 5,
+        "statuses": {
+          "succeeded": 5
+        },
+        "run_ids": [
+          "e095f937-6f1e-4ea6-9e9c-de2042a46626",
+          "fdd3ccce-b55f-4b87-882a-b5dca8d0a4e2",
+          "f9ebbaa5-3ca3-4e14-b746-e6f0a0738d62",
+          "876e0883-c49f-4251-8c6e-3ed7392b6d25",
+          "eafc31cd-473d-4195-82f0-04bb4cbe1c97"
+        ],
+        "wall_seconds": 869.926,
+        "native_ledger_sum": {
+          "inputTokens": 475465,
+          "cachedInputTokens": 9899392,
+          "outputTokens": 112931
+        },
+        "observed_session_maxima": {
+          "inputTokens": 250632,
+          "cachedInputTokens": 6039552,
+          "outputTokens": 64331
+        },
+        "provider_session_ids": [
+          "01a1933f-9b74-7c41-b7cd-368bcafaacd6",
+          "01a1930c-eb7e-7b53-96f5-95172e255af7"
+        ],
+        "sessions_in_prelaunch_baseline": [],
+        "unsettled_model_run_ids": []
+      }
+    },
+    "product_roles": {
+      "process": {
+        "calls": 5,
+        "statuses": {
+          "succeeded": 3,
+          "failed": 2
+        },
+        "run_ids": [
+          "30dffe5d-d3ae-475f-946d-6220cf3467f7",
+          "7ffc1e2d-76be-43ca-8d3e-36d1b15f8046",
+          "8889fba0-b960-4774-8726-7d31c9e35de2",
+          "cf7047bf-823e-406f-9ce1-a93b4e9114f3",
+          "ed762941-e826-4eb2-b8ab-bb0af9b94c53"
+        ],
+        "wall_seconds": 76.724,
+        "native_ledger_sum": {
+          "inputTokens": 0,
+          "cachedInputTokens": 0,
+          "outputTokens": 0
+        },
+        "observed_session_maxima": {
+          "inputTokens": 0,
+          "cachedInputTokens": 0,
+          "outputTokens": 0
+        },
+        "provider_session_ids": [
+          "30dffe5d-d3ae-475f-946d-6220cf3467f7",
+          "7ffc1e2d-76be-43ca-8d3e-36d1b15f8046",
+          "8889fba0-b960-4774-8726-7d31c9e35de2",
+          "cf7047bf-823e-406f-9ce1-a93b4e9114f3",
+          "ed762941-e826-4eb2-b8ab-bb0af9b94c53"
+        ],
+        "sessions_in_prelaunch_baseline": [],
+        "unsettled_model_run_ids": []
+      },
+      "manager": {
+        "calls": 11,
+        "statuses": {
+          "succeeded": 11
+        },
+        "run_ids": [
+          "54ba1132-ffcf-4801-9726-10861e8e1e06",
+          "5d04aaa5-f7ce-4f3b-ba6f-b610e3284b30",
+          "36356beb-4292-48c7-abca-14e7d3bd64b5",
+          "b0911419-95e9-4444-981a-e7ac2ab7c521",
+          "6bae2f96-6c9a-4473-9447-5405ba8d9ca9",
+          "07237b3e-4aa8-4793-86ac-6f717b2b3dee",
+          "3f9efdc2-2233-4601-b19c-2c5d98b27d13",
+          "77cbb6d8-729d-4505-9bf8-79f245bfd4fa",
+          "dbedae17-d375-4a1a-a8b1-1aeb9c64bfcc",
+          "64332983-fa23-4dbb-8600-7e19cb67b257",
+          "27637ec0-4b39-4aeb-bf54-477c68d9ac09"
+        ],
+        "wall_seconds": 1164.647,
+        "native_ledger_sum": {
+          "inputTokens": 1085185,
+          "cachedInputTokens": 14834048,
+          "outputTokens": 93825
+        },
+        "observed_session_maxima": {
+          "inputTokens": 769853,
+          "cachedInputTokens": 12425600,
+          "outputTokens": 74772
+        },
+        "provider_session_ids": [
+          "01a19370-c499-7022-9c94-8364aa2ec5cd",
+          "01a1936b-dedf-7222-a5c8-4d5337aab3b1",
+          "01a1936b-0366-7c13-beb2-64922d399e42",
+          "01a19366-1206-7721-ae0b-1059d0e4f947",
+          "01a19326-dccc-7a02-a58c-1c50f9b03089",
+          "01a1931e-5a10-70a1-a688-ffd0afeca980"
+        ],
+        "sessions_in_prelaunch_baseline": [],
+        "unsettled_model_run_ids": []
+      },
+      "developer": {
+        "calls": 8,
+        "statuses": {
+          "succeeded": 8
+        },
+        "run_ids": [
+          "c6ced01e-0e17-41f2-a5bb-c083a004e1fa",
+          "edb5e74a-ee9d-41cc-8928-c2fea23e269b",
+          "9b2f5b18-1f97-43be-a536-31a9f7ae1f6f",
+          "d4bc2177-6e67-40c3-8076-b51ee68b8924",
+          "628f9785-f38f-463c-8e84-50227a046330",
+          "abb07e61-410c-44c4-b5bd-f1be3bab8c83",
+          "cb69ee72-c972-4b71-91b4-ea9c67c204a4",
+          "9c012cc7-0d5e-4ac9-a67f-ef10523b957e"
+        ],
+        "wall_seconds": 781.982,
+        "native_ledger_sum": {
+          "inputTokens": 285261,
+          "cachedInputTokens": 2575104,
+          "outputTokens": 56278
+        },
+        "observed_session_maxima": {
+          "inputTokens": 285261,
+          "cachedInputTokens": 2575104,
+          "outputTokens": 56278
+        },
+        "provider_session_ids": [
+          "01a19371-6f68-7253-a4d7-66c76fc668e2",
+          "01a19371-6135-7371-a51d-af242b8a19a0",
+          "01a19366-7eb4-7e42-9025-43b6d782067c",
+          "01a19366-7c29-72a3-9738-59f4e8477d9a",
+          "01a1931f-ce0f-7bd1-a314-9eada91eb4ee",
+          "01a1931f-c9b3-7111-822d-0184779306ff",
+          "01a1931f-c5c0-7a43-9687-fdbbbbe3d819",
+          "01a1931f-c1e3-7be3-a906-19604e6143c0"
+        ],
+        "sessions_in_prelaunch_baseline": [],
+        "unsettled_model_run_ids": []
+      }
+    },
+    "product_manager_wall_share": 0.598289144978319,
+    "clean_manager_wall_share": 0.5482396238804927,
+    "actual_model_counts": {
+      "gpt-6-luna": 26
+    },
+    "astra_calls": 0,
+    "sol_calls": 0,
+    "sol_lead_cost_measured": false,
+    "accounting_method": "Native row sums are exact recorded fields; resumed Codex observations appear cumulative despite per_run labels. Session maxima avoid repeated observations for an entire provider session first created in this pass. Both are retained, neither is billing reconciliation; fields input/cached/output remain separate. Wall intervals include preparation/tools/checks/integration/correction, not pure coding; external interactive session is excluded."
+  },
+  "code": {
+    "organization_implementation_commit": "afbca4042b829c7eff9b84b8bba6d6532965a8c0",
+    "organization_api_release_commit": "3aabfce",
+    "installed_paperclip_commit": "d06cbd5cd012e178a0e519d329eed36b8943fac9",
+    "brain_commit": "8e4a4132c5da8bd30056ae9e3bf01eeb4e4d8134",
+    "brain_origin_commit": "8e4a4132c5da8bd30056ae9e3bf01eeb4e4d8134",
+    "main_unchanged": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+    "api_review_native_task": "MEM-423",
+    "publisher_review_native_task": "MEM-415",
+    "backend_test_limits": "Nine new regressions passed; full agent fixture178pass/10fail vs original169pass/10samefail. Preexisting budget/recovery fixture failures were not repaired. Independent reviewer inspected source/evidence but could not run Vitest due sandbox dependency visibility. Corrected launcher chain includes both intermediate parents;17launcher tests/20subtests and owned start passed.",
+    "final_release_focused_check": "42passed/20subtests (25existing-publisher focused tests plus17launcher tests), not a broad acceptance programme."
+  },
+  "configuration": {
+    "company_paused": true,
+    "zero_live": true,
+    "zero_active_queued": true,
+    "astra_strategic_high": true,
+    "astra_new_runs": [],
+    "lead_models": {
+      "7709847f-648b-4edd-9dea-00926dddbd0d": "gpt-6.1-sol",
+      "bd3bf21a-d7ab-4959-9b37-8b0de61ccb0b": "gpt-6.1-sol",
+      "bf7de391-5774-46c3-89b3-f79cb6486b09": "gpt-6.1-sol",
+      "c4ece767-3924-4d7b-b95d-d55c69de2138": "gpt-6.1-sol",
+      "6c2ec5f7-e797-4901-a8af-34da48d864d6": "gpt-6.1-sol",
+      "03e8f231-ff1c-40f4-8558-21dfd41b60fe": "gpt-6.1-sol"
+    },
+    "six_sol_high": true,
+    "forty_original_luna_developers": true,
+    "five_optional_luna_reviewers": true,
+    "manual_holds_exact": true,
+    "runtime_reporting_permissions_unchanged": true,
+    "all_periodic_heartbeats_off": true,
+    "protected_tasks_unchanged": {
+      "MEM-373": true,
+      "MEM-290": true,
+      "MEM-253": true,
+      "MEM-118": true,
+      "MEM-123": true,
+      "MEM-126": true
+    },
+    "24_cancelled_unchanged": true,
+    "lead_developer_distribution": {
+      "6c2ec5f7-e797-4901-a8af-34da48d864d6": 7,
+      "03e8f231-ff1c-40f4-8558-21dfd41b60fe": 7,
+      "7709847f-648b-4edd-9dea-00926dddbd0d": 7,
+      "bf7de391-5774-46c3-89b3-f79cb6486b09": 6,
+      "bd3bf21a-d7ab-4959-9b37-8b0de61ccb0b": 7,
+      "c4ece767-3924-4d7b-b95d-d55c69de2138": 6
+    },
+    "permissions_exact_expected": true,
+    "publisher_adapter_unchanged": true
+  },
+  "assistance": {
+    "MEM-416": "External API/source repair and same-intent current recovery; extra exception/continuation calls. Git publication performed by native process, never reapplied by external operator.",
+    "MEM-424": "Abbreviated child creation lost assignee/reviewPolicy and inherited one source worktree. Orphan recovery caused extra manager calls. External pause, current metadata repair and verified mixed-effect bookkeeping recovery. All code published natively.",
+    "MEM-428": "External finite objective admission while blocked on prior parent. From native readiness through task assignment/development/review/publication/parent closure: read-only external observation, no routing/review/recovery/completion/publication intervention."
+  },
+  "limitations": [
+    "One clean two-developer batch proves bounded mechanics, not multi-week or40-way reliability.",
+    "First two failed efficiency trials and all maintenance calls remain in totals; no net subscription savings claim.",
+    "Permanent Sol High configuration readback does not measure actual Sol leadership quality/cost.",
+    "Experience major Goal remains active; no genuine strategic completion or Astra next-objective call was manufactured.",
+    "Only offline caller-declared/synthetic research utilities; no runtime deployment, real data, learning quality or market competence claim.",
+    "No historical recovery holds were repaired; main, production, protected data, live collection, training, AUTO, paper/trading and paid API restrictions remain."
+  ],
+  "checkpoint": "/Users/root1/Developer/brain-paperclip-lab/state/lead-efficiency-20261031/checkpoint.json",
+  "quota": {
+    "last_successful_read": {
+      "checkedAt": "2026-10-31T19:29:56.590Z",
+      "remainingPercent": 6
+    },
+    "final_probe": {
+      "connectionId": "2462294e-2941-40d1-af1d-0f3505f80975",
+      "grantId": "1786812d-29bd-4b6c-a09a-d98383ba7f53",
+      "provider": "openai",
+      "method": "subscription",
+      "checkedAt": "2026-10-31T19:37:24.621Z",
+      "source": null,
+      "planType": null,
+      "limits": [],
+      "overage": null,
+      "status": "error",
+      "errorCode": "provider_unavailable",
+      "message": "Could not read provider usage. Try again later."
+    },
+    "account_percentage_is_not_programme_usage": true
+  }
+}

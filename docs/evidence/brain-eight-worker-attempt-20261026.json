@@ -1,0 +1,238 @@
+{
+  "schema": "brain.bounded-eight-attempt.v1",
+  "date": "2026-10-26",
+  "outcome": "Eight-way scaling NOT demonstrated; one bounded useful candidate accepted and integrated; company stopped",
+  "paperclip_pin": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "source_base": "40084d195c3a1b16c8b41a0186911c299edda94f",
+  "projection": "439f583d2b32b97dffc16aab4de1cdbebce4f9df",
+  "guidance_base": "1edb3231799f9bd7a9bf7c6b7eb667db269d203e",
+  "models": "All four native runs actually gpt-6-luna/high; separate manager, developer and QA actors. CEO unchanged/uninvoked. No Sol restoration.",
+  "parallelism": {
+    "prepared_developer_profiles": 8,
+    "developers_dispatched": 1,
+    "maximum_active_developers": 1,
+    "developer_run_seconds": 137.943,
+    "developer_run_start": "2026-10-26T13:00:07.824Z",
+    "developer_run_finish": "2026-10-26T13:02:25.767Z",
+    "tool_activity_start": "2026-10-26T13:00:19.676Z",
+    "tool_activity_finish": "2026-10-26T13:02:12.517Z",
+    "eight_way_overlap_seconds": 0,
+    "limit": "One evidence-backed independent task selected after two bounded management passes. This measures planning/task-supply limitation in this attempt, NOT global lack of work or subscription/adapter/hardware capacity."
+  },
+  "task_selection": {
+    "selected": "Regression proving duplicate observation identity rejection across chunk=1 publication and absence of a published manifest on failure",
+    "excluded_candidates": [
+      {
+        "candidate": "Experience generation lineage and artifact binding",
+        "inspected_paths": [
+          "src/memecoin_experience/generations.py",
+          "tests/test_experience_generations.py"
+        ],
+        "disposition": "No task: focused tests already cover resume/parent lineage, immutable declaration conflicts, resealed impossible progress, actual report metadata tampering, and coordinate frontier tampering. No additional uncovered invariant was established in the bounded excerpt."
+      },
+      {
+        "candidate": "Population observation and coverage provenance",
+        "inspected_paths": [
+          "src/memecoin_population/catalog.py",
+          "tests/test_population.py",
+          "tests/test_population_corpus.py",
+          "tests/test_experience_qualification.py"
+        ],
+        "disposition": "No task: tests already exercise temporal conflicts, unknown-is-not-zero, failed/stopped/empty status contracts, stopped planner action, lineage/compaction/replication/corruption, and qualification coverage-to-process/payload binding. No reproducible defect or distinct missing invariant was found in these excerpts."
+      },
+      {
+        "candidate": "Pure OHLCV source parsing and normalization",
+        "inspected_paths": [
+          "src/memecoin_brain/source.py",
+          "tests/brain/test_data_source.py"
+        ],
+        "disposition": "No task: synthetic tests already reject malformed OHLCV and duplicate bars, omit incomplete bars based on receipt time, retain earliest-version/revision provenance, reject duplicate identity, and preserve as-of behavior. No uncovered useful contract was established."
+      },
+      {
+        "candidate": "Experience source parsing/merge and evaluation denominators",
+        "inspected_paths": [
+          "src/memecoin_experience/sources.py",
+          "tests/test_experience_sources.py",
+          "src/memecoin_experience/evaluation.py",
+          "tests/test_experience_denominator_summary.py",
+          "tests/test_population_evaluation_denominators.py"
+        ],
+        "disposition": "No task: tests cover role-before-payload checks, pin-bound bytes, bounded source handles, duplicate/revised-key accounting, count conservation, optional zero support, and population target status/eligibility denominators. No distinct defect or uncovered invariant was supported."
+      },
+      {
+        "candidate": "Population acquisition/recovery and generic coverage planning",
+        "inspected_paths": [
+          "tests/test_population_acquisition.py",
+          "tests/test_population_recovery.py",
+          "tests/test_coverage.py"
+        ],
+        "disposition": "No task: inspected coverage includes no-retry/unknown requests, protected plan rejection, crash-safe recovery, failed recovery guards, support grid mismatch, rehashed report tamper, and overlap accounting. Further work would be redundant or expand scope."
+      }
+    ],
+    "search_limit": {
+      "scope": "One bounded refinement; selected candidate areas outside the existing observation task only.",
+      "inspections": "Focused searches and excerpts across generation lineage, population facts/coverage, OHLCV parsing, experience source merge/evaluation, acquisition/recovery, and generic coverage tests; well below the approximately 20-inspection ceiling.",
+      "result": "No additional task for dev-2 through dev-8 met the evidence threshold. This is a limited search result, not proof that no useful work exists across the repository.",
+      "next_action": "Stop planning after this refinement; do not launch another search pass or create quota-filling tasks."
+    }
+  },
+  "candidate": {
+    "source_reported_commit": "f3098657986f9f222bfd6a151aea16b992ba3e92",
+    "canonical_commit": "e1c4fd26f0036fa5cab478dc5b1bf244668d2868",
+    "canonical_branch": "brain/eight-luna-1-20261026",
+    "patch_sha256": "2cf00d928fe071236e90f2d97b1688640921a726538be84aa81c68723aea0b95",
+    "file_sha256": "ec59dc623caa95e4ca557fd4712be420edec0c2fd50b5a8c4826bf5a48b1a863",
+    "changed_path": "tests/test_experience_observation_coordinates.py",
+    "added_lines": 18,
+    "nature": "test-only regression, no production implementation defect claimed",
+    "qa": "independent Luna accepted exact patch/file; source/QA/integration focused suite each7passed",
+    "integrated_head": "6c4eceb9f7c8bc25d4253b30d931c03d1536f15e",
+    "published": true
+  },
+  "native_artifact_handoff": {
+    "mechanism": "register_deliverable -> task attachment -> native content API",
+    "developer_patch_bytes": 1128,
+    "qa_report_bytes": 1897,
+    "byte_size_and_sha256_verified": true,
+    "whole_files_through_model_messages": false,
+    "remaining_assistance": "Owner stages native attachments into QA/canonical checkout; this does not prove automatic artifact routing/integration."
+  },
+  "manual_assistance": {
+    "unplanned_or_corrective_interventions": 3,
+    "breakdown": [
+      "Initial agent-create request rejected422; state read back with no created agent, corrected minimal supported request succeeded",
+      "Permission-update request rejected400; schema required canAssignTasks=false, state read back and corrected without widening assignment rights",
+      "One managerial planning refinement requested because first result did not substantiate shortage; same task/session retained"
+    ],
+    "during_developer_and_qa_runs": 0,
+    "planned_batches": [
+      "Prepare isolated source clones and native profiles",
+      "Bind selected developer task and release once",
+      "Stage native candidate and dispatch independent QA",
+      "Integrate and publish accepted candidate",
+      "Pause company and checkpoint"
+    ],
+    "source_correction_cycles": 0
+  },
+  "runs": [
+    {
+      "role": "management",
+      "start": "2026-10-26T12:52:22.792Z",
+      "finish": "2026-10-26T12:54:33.660Z",
+      "status": "succeeded",
+      "model": "gpt-6-luna",
+      "usage": {
+        "inputTokens": 73968,
+        "outputTokens": 9178,
+        "cachedInputTokens": 894464,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "rawInputIncludesCached": false
+      },
+      "reasoning_effort": "high",
+      "duration_seconds": 130.868
+    },
+    {
+      "role": "management",
+      "start": "2026-10-26T12:57:10.768Z",
+      "finish": "2026-10-26T12:58:20.215Z",
+      "status": "succeeded",
+      "model": "gpt-6-luna",
+      "usage": {
+        "inputTokens": 152089,
+        "outputTokens": 14574,
+        "cachedInputTokens": 1517568,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "rawInputIncludesCached": false
+      },
+      "reasoning_effort": "high",
+      "duration_seconds": 69.447
+    },
+    {
+      "role": "development",
+      "start": "2026-10-26T13:00:07.824Z",
+      "finish": "2026-10-26T13:02:25.767Z",
+      "status": "succeeded",
+      "model": "gpt-6-luna",
+      "usage": {
+        "inputTokens": 28832,
+        "outputTokens": 4146,
+        "cachedInputTokens": 254592,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "rawInputIncludesCached": false
+      },
+      "reasoning_effort": "high",
+      "duration_seconds": 137.943
+    },
+    {
+      "role": "independent_qa",
+      "start": "2026-10-26T13:02:55.648Z",
+      "finish": "2026-10-26T13:04:31.735Z",
+      "status": "succeeded",
+      "model": "gpt-6-luna",
+      "usage": {
+        "inputTokens": 83214,
+        "outputTokens": 3953,
+        "cachedInputTokens": 206080,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "rawInputIncludesCached": false
+      },
+      "reasoning_effort": "high",
+      "duration_seconds": 96.087
+    }
+  ],
+  "model_run_counts": {
+    "management": 2,
+    "development": 1,
+    "independent_qa": 1,
+    "total": 4
+  },
+  "usage_totals": {
+    "inputTokens": 338103,
+    "outputTokens": 31851,
+    "cachedInputTokens": 2872704
+  },
+  "usage_limits": "Native runs only, subscription_included; inputTokens excludes cachedInputTokens. USD and quota percentages unknown. Interactive CEO/tool orchestration not included. No auxiliary model agents.",
+  "delays": {
+    "first_native_start_to_last_native_finish_seconds": 728.943,
+    "planning_refinement_finish_to_developer_start_seconds": 107.609,
+    "developer_finish_to_qa_start_seconds": 29.881
+  },
+  "stop": {
+    "tasks": [
+      {
+        "identifier": "MEM-114",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-115",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-116",
+        "status": "done"
+      }
+    ],
+    "companies_paused": 6,
+    "live_runs": 0,
+    "unused_profiles": "Seven developers and second QA never dispatched; remain held",
+    "next_campaign": "No automatic16/40 campaign"
+  },
+  "main_unchanged": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+  "remaining_scale_limits": [
+    "Prepare a genuinely independent useful backlog before provisioning/distributing more workers; this bounded search did not find eight",
+    "Native child-task workspace inheritance still needs explicit issue API binding in this installed pin",
+    "Native artifact delivery works, but QA staging and controlled Git integration remain assisted",
+    "No eight-run load experiment occurred; no capacity ceiling inferred"
+  ],
+  "private_evidence_locator": "Lab state/eight-native-20261026",
+  "private_receipt_sha256": {
+    "cohort-plan-final.json": "8105d169ff7e4f662e958cca27ed615731967bd71a88434bd84143b8abdd297a",
+    "source-tool-timing.json": "a5c92fa8532215bd94f737836721545fe36696bdb08e74aafd4e0394aa5156b1",
+    "QA-RESULT-native.json": "73899d291e94aac5a55970fdc7eee75504e7b53369e18ea4b4cbdc6843f7eae7",
+    "integrated-tests.json": "d7b761f54c27057ced6194e5b4d7456cee1d392fb04e785dee0d0d7b1b7887e6"
+  }
+}

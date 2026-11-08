@@ -1,5 +1,166 @@
 # Training and Evaluation
 
+## Accepted population/split sensitivity diagnostics — 2026-10-31
+
+Brain development 8e4a413 contains six additional standard-library, offline declaration-only tools:
+`population_inclusion_delta` compares inclusion decisions/reasons/groups; `group_partition_concordance`
+reports exact pair agreement across declared groupings; `split_stratum_coverage` exposes per-stratum
+support/missingness; `split_target_deviation` compares explicit integer observed/target tables;
+`split_assignment_plan_delta` compares declared row assignments and optional group fragmentation;
+`weight_state_delta` compares pinned weights, support, concentration/effective-size and cohort mass.
+The final pair extends the latter two with cohort denominators and optional explicit group containment,
+preserving legacy inputs. Caller pins/groups are declarations, not independently verified provenance.
+
+Native combined review recorded 23 focused unittest cases in MEM416, 10 in MEM424 and 16 in MEM428.
+Exact accepted file hashes and each candidate remote ref were read back; final local/origin development
+are 8e4a413. First two workflow trials needed external repair; only MEM428 demonstrated the complete
+bounded assignment/review/publication/parent-close cycle without external intervention. No real
+population/dataset was read, no training/evaluation run or market/model-quality claim was made.
+See the unique [development and workflow receipt](evidence/brain-lead-wakeup-efficiency-20261031.json).
+
+## Accepted Luna-managed Experience diagnostics — 2026-10-31
+
+Brainf758157 adds four pure standard-library utilities on explicit synthetic/caller-supplied inputs:
+
+| Module | Useful question | Limit |
+|---|---|---|
+| `group_split_feasibility` | Are exact declared per-stratum quotas attainable with indivisible groups? Bounded exact subset-sum with deterministic witness. | Limit-exceeded is unknown; declarations do not prove membership, representativeness or training admissibility. |
+| `group_split_allocation_audit` | Does an explicit row allocation contain duplicates, unknown/missing rows or cross-split group leakage? | Only declared rows/groups; no inferred population completeness. |
+| `population_inclusion_audit` | Which pinned snapshot rows/groups are included or explicitly excluded, with what denominator changes? | Pin/provenance are supplied claims; no data loading or scientific validation. |
+| `split_input_lineage` | Can declared split assignments be reconciled with the pinned inclusion report and experiment input? | Deterministic offline lineage audit; no evaluation/training/runtime activation. |
+
+Two Luna developers worked concurrently per batch. Luna batch review integrated accepted code and
+corrected the second pair's interface/validation mismatches. Focused direct synthetic checks were used;
+pytest was unavailable for the second developer/lead environment, so no native pytest-suite pass is
+claimed. Eight exact published file hashes and two native process receipts were independently read
+back. First publication required an external metadata diagnosis; second publication/recovery was native,
+while final parent closure needed a stale-status correction. These are source utility results, not
+real-market edge, calibration, model quality or autonomous research competence. See the unique
+[final receipt](evidence/brain-luna-managed-final-20261031.json).
+
+
+## Accepted Luna-first research utilities — 2026-10-31
+
+Brain development 5173068 integrates three standalone, standard-library synthetic-input tools:
+`revision_stability` reports exact revision deltas, direction reversals and the earliest suffix within
+a declared absolute tolerance of the final supplied revision; that reference is not truth or a future
+stability claim. `state_transition_summary` counts adjacent supplied categorical transitions with
+explicit missing/gap exclusions and episode boundaries, without inferred dynamics or prediction.
+`research_budget_frontier` enumerates nondominated integer cost/declared additive-benefit outcomes
+with deterministic subset witnesses, without executing or recommending a research programme.
+
+Three Luna developers implemented/committed independently. One Sol batch review accepted exact
+six-file hashes, 65 focused tests / 10 subtests and 70 additional contract challenges. Unchanged bytes
+were reused for controlled canonical publication; no historical/full acceptance suite was repeated.
+This establishes bounded implementation/CLI behavior on synthetic inputs, not scientific edge,
+real-market competence, calibration, training, production or runtime acceptance. Exact accepted
+commits, file hashes, native review and publication are in the unique
+[`Luna-first receipt`](evidence/brain-luna-first-restructuring-20261031.json).
+
+
+## Roster support and paired-loss diagnostics — 2026-10-27
+
+Five independently accepted additions are published through Brain54fb180. All consume explicit
+caller-supplied JSON via `analyze(payload)` or `python -m <module>`; they do not discover data or run
+training. They use `brain-research-diagnostic.v1`; the earlier research-report composer has a frozen
+kind allowlist and is not automatically extended by these new producers.
+
+| Module | Question and result | Interpretation limit |
+|---|---|---|
+| `memecoin_experience.provider_roster_coverage` | Given expected identities, providers and identified observations, report per-provider/shared absence, denominators and repeated provider/identity rows. | Roster, alignment and provenance are caller claims; omitted identities/providers remain unknown. |
+| `memecoin_runner.paired_loss_signflip` | Exact sign-flip comparison over supplied complete pairs, with bounded enumeration. | The sign-exchangeability assumption is explicit; no population representativeness or trading claim follows. |
+| `memecoin_runner.paired_loss_missing_bounds` | Bound all-roster mean `loss_b-loss_a` when either loss is missing, using caller-declared valid loss cap U; retain cohort/support counts. | U must be valid for the metric; observed maxima cannot validate an unbounded metric. No imputation, confidence interval or winner gate. |
+
+The later two standalone modules use the same envelope and exact rational intermediates:
+
+| Module | Question and result | Interpretation limit |
+|---|---|---|
+| `memecoin_runner.paired_loss_target_mix` | Compare pooled paired-loss mean with a caller-declared cohort mixture; missing positive-weight cohort support makes the target mean null. | No silent renormalization, inferred target distribution or transportability claim. |
+| `memecoin_runner.paired_loss_cluster_influence` | Recompute pooled mean after removing each declared cluster; report exact sign reversals and shifts using remaining row counts. | Removal range is not a confidence interval and does not recommend deleting clusters. |
+
+The target-mixture example changes pooled−0.5 to target+0.5 under declared weights. The cluster example
+has full mean−2/3 and leave-out means1,−3/2,−3/2, with one strict sign reversal. Target-mix QA first
+rejected non-JSON CLI errors and serialization of valid computed4301-digit integers; the corrected
+candidate passed16 independent check groups. Cluster influence passed11 groups at its first assessment.
+The lead carried the concrete CLI/numeric lessons into the second task without changing its contract.
+These results are synthetic diagnostic behavior only, not evidence of model improvement.
+
+For missing bounds, the four-row synthetic example has complete-pair mean−0.1 but all-roster range
+[-0.575,0.425]; a complete-case advantage is inconclusive over that roster. Exact rational
+intermediates preserve adjacent large-integer differences and finite extreme inputs; final JSON
+representation may round. Two genuine prior QA rejections remain preserved. The accepted numeric
+rework passed28 focused tests and independent Decimal endpoint/adversarial checks. These are software
+semantics and synthetic acceptance, not real-data evaluation findings or improved model competence.
+[Organization acceptance and evidence](engineering-organization.md#final-functional-acceptance--2026-10-27).
+
+## Research dossier — 2026-10-26
+
+Accepted Brain `69b926d` provides `memecoin_experience.research_report.analyze({"reports": [...]})`,
+`render_markdown(bundle)` and `python -m memecoin_experience.research_report [--markdown]` using
+JSON stdin. The output schema is `brain-research-bundle.v1`. Input reports use exactly the six
+`brain-research-diagnostic.v1` envelope fields described below; all seven planned diagnostic kinds
+are recognized, which does not imply all seven producers have been implemented.
+
+The dossier sorts by kind/declared input hash, preserves complete summaries/details/limitations,
+rejects duplicate identities, malformed hashes and nonfinite JSON, and supports empty reports.
+Markdown safely fences the complete JSON, including caller HTML/backticks. Declared hashes are only
+format-checked: raw inputs were not supplied for verification. It does not recompute metrics, infer
+comparability/causality, impute missing values, or produce promotion/acceptance decisions. There is no
+implicit file discovery or model/data loading. Independent QA passed13 focused tests, all-seven-kind
+synthetic/adversarial checks and JSON/Markdown CLI checks against exact staged hashes.
+[Acceptance/publication evidence](evidence/brain-native-handoff-20261026.json).
+
+## Additional population diagnostics — 2026-10-26
+
+Brain `7c9a601` adds two stdlib caller-supplied JSON tools with the same diagnostic envelope below.
+Both provide `analyze(payload)` and `python -m <module>`; module docstrings specify complete inputs.
+
+| Module | Input | Descriptive result |
+|---|---|---|
+| `memecoin_population.exposure_shift` | Unique entities with nonnegative corpus/exposure weights or null. | Common-known shares, ratios, deltas, ranked contributors and total variation; missing support and positive unmatched mass remain visible. Totals beyond finite float range are explicitly rejected. |
+| `memecoin_population.attrition_funnel` | Ordered stages, cohort counts and optional explicit complete-cohort lists per transition. | Adjacent-stage loss/retention, largest evidenced loss and completeness-bound aggregate metrics; missing and zero denominators remain distinct. |
+
+These tools do not collect data, fit models or change sampling/runtime policy. They explain supplied
+observations and do not establish causality, predictive improvement or population completeness.
+Independent QA accepted exact native artifacts; 22 integrated tests and two exact CLI demonstration
+replays passed. [Acceptance receipt](evidence/brain-productive-backlog-20261026.json).
+
+## Offline research diagnostics — 2026-10-26
+
+Accepted source `cc5573ba65f0df90b28a164c7fe5c9e70ced0611` adds three opt-in stdlib tools. Each exposes
+`analyze(payload)` and a `python -m <module>` CLI reading one caller-supplied JSON value from stdin and
+writing one JSON report. Use the project Python environment with `src` importable. No store discovery,
+collection, artifact loading, training, serving, policy activation or ledger mutation occurs.
+
+| Module | Scientific question and input | Descriptive output |
+|---|---|---|
+| `memecoin_experience.availability_profile` | Which streams arrive after a decision? Supply `decision_ns` and rows with identity, stream, event/availability/receipt timestamps. | Per-stream/global missing and ordering counts, late availability, valid delay support and nearest-rank p50/p95. Unknown availability is never inferred from event time. |
+| `memecoin_runner.paired_loss_comparison` | Which cohorts improve or regress between two models? Supply model names, loss metric and identified cohort rows with both losses or null. | Strict paired support, one-sided/both missing counts, wins/ties, cohort deltas, micro and macro means. Positive `loss_b-loss_a` favors model A. No significance claim. |
+| `memecoin_runner.abstention_frontier` | How does a declared uncertainty threshold change coverage and observed loss? Supply thresholds and identified supported/uncertainty/loss rows. | Coverage and disjoint abstention reasons per threshold, known/unknown accepted-loss support and finite mean loss. This is a diagnostic sensitivity curve, not an execution policy. |
+
+Reports use `brain-research-diagnostic.v1`, a tool `kind`, SHA256 of compact sorted UTF8 input JSON,
+`summary`, `details`, and `limitations`. The hash identifies supplied input; it does not establish
+its provenance, completeness or historical availability. Empty/unknown denominators remain explicit.
+The accepted module docstrings define complete input and output details.
+
+Example from an accepted synthetic CLI demonstration:
+
+```sh
+printf '%s\n' '{"decision_ns":10,"rows":[{"id":"late","stream":"ticks","event_ns":5,"available_ns":12,"receipt_ns":15},{"id":"zero","stream":"ticks","event_ns":10,"available_ns":10,"receipt_ns":10}]}' | PYTHONPATH=src python -m memecoin_experience.availability_profile
+```
+
+This separates one not-yet-available observation from one known zero delay; valid event-to-availability
+p50/p95 are 0/7 ns. The paired demonstration intentionally yields different micro 1.75 and macro 4.5
+mean deltas from unequal cohort sizes. Missing outcomes never become zero loss. Independent QA
+rejected the first abstention candidate for overflowing two finite 1e308 losses; the corrected mean
+and complete finite CLI JSON passed re-review. These examples establish software semantics only,
+not real-data calibration, forecasting gains, independent benchmark competence or trading edge.
+
+Validation: 32 integrated focused tests and three real integrated CLI demonstration replays with exact
+output/input-hash matches. The five other planned tools are not implemented or qualified by this result.
+[Exact source/QA/verification receipt](evidence/brain-research-diagnostics-20261026.json).
+
+
 **Status:** latest official champion is empirical; latest GRU candidate was not promoted. The
 broad prospective benchmark is not populated. This document owns model/training semantics,
 benchmark policy, current experiment conclusions, and ML evidence pointers.

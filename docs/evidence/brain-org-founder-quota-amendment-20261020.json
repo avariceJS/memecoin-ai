@@ -1,0 +1,157 @@
+{
+  "schema": "brain-org-executive-resource-amendment-v1",
+  "decision_id": "CEO-20261020-02",
+  "supersedes": "CEO-20261020-01",
+  "authority": "Explicit founder instruction in this thread: Founder Resource Authorization — Amendment to CEO-20261020-01",
+  "executive": {
+    "thread": "01a1563e-1a26-75e2-bdab-ca2b38c7b51f",
+    "model": "gpt-6-astra",
+    "effort": "high",
+    "actual_identity_verified_in_rollout": true
+  },
+  "recorded_at": 1792450512.858073,
+  "prior_policy_sha256": "1c810274297efd5ef76b4dd5f6e45fc1ea1327bc34464c934bdb71c9c9ec3789",
+  "policy": {
+    "id": "CEO-20261020-02",
+    "status": "founder_authorized_amendment_pending_reviewed_implementation",
+    "horizon": {
+      "mode": "rolling productive engineering under explicit founder weekly-quota authorization",
+      "hard_expiry_hours": null,
+      "review_interval_hours": 24,
+      "preserve_original_T0_and_all_history": true,
+      "reset_on_resume": false,
+      "renew_after_account_reset": true,
+      "duration_scope": "Current remaining weekly allowance and qualified continuation after access is restored for the ongoing engineering objective; no forced 72-hour cutoff."
+    },
+    "accounting": {
+      "preserve": "all historical totals, six failures, receipts, source and proposal pins; old 750k is not new debt",
+      "scope": "every root, worker, reviewer, probe, model and resume",
+      "identity": "provider request ID where available; otherwise stable thread/run/counter-epoch plus event identity; resumes retain identity unless counter reset is proven",
+      "method": "deduplicate overlapping sources per identity, union disjoint usage, derive cumulative deltas within each epoch; retain corrections and provenance; never max aggregate DB and telemetry sums",
+      "baseline": "snapshot all known cumulative counters at T0; retain pre-T0 history separately; unknown history is unresolved, never zero",
+      "subsets": "uncached_input=input-cached_input; cached_input is within input; reasoning is within output; reject inconsistent counters",
+      "turn": "persist start and end counters and charge their delta, including retries; use request receipts where concurrent usage prevents attribution",
+      "late": "append corrections and attribute by event interval; pre-T0 usage stays historical; ambiguous intervals retain reservations until resolved",
+      "missing": "Reserve bounded in-flight work before dispatch; retain unknown/late intervals with provenance. Reconcile without double charging. Account availability, not an arbitrary cumulative WPU reserve, governs the resource boundary."
+    },
+    "planning": {
+      "unit": "WPU is internal planning/efficiency telemetry, never subscription consumption or money",
+      "rates_per_million_uncached_cached_output": {
+        "Astra": [
+          250,
+          25,
+          1250
+        ],
+        "Sol6.1": [
+          50,
+          2.5,
+          250
+        ],
+        "Luna6": [
+          2.5,
+          0.25,
+          12.5
+        ]
+      },
+      "formula": "sum(rate times corresponding token count divided by 1000000)",
+      "cumulative_wpu_stop": false,
+      "cumulative_raw_token_stop": false,
+      "fixed_grant_count_limit": null,
+      "renewal": {
+        "authority": "Existing independent Sol coordinator",
+        "max_grants": null,
+        "review_interval_hours": 12,
+        "requirements": [
+          "Useful authorized scope and observed progress or a justified recovery task",
+          "Fresh actual account entitlement and quota",
+          "Reconciled known usage plus explicit uncertainty and in-flight reservations",
+          "Bounded next actions, timeouts and protected recovery capacity"
+        ],
+        "independent_review": "Required for code acceptance and controller release; no additional CEO or independent-review permission is needed merely to renew an ordinary planning allocation."
+      },
+      "bootstrap": {
+        "pilot_STOP": true,
+        "scope": "Existing accounting and release repair; independently reviewed maintenance may continue while pilot STOP remains",
+        "initial_wpu_estimate": 20,
+        "initial_hours_estimate": 2,
+        "Sol_may_renew": true,
+        "expiry_does_not_mean_subscription_exhaustion": true
+      },
+      "turn_control": {
+        "Sol6.1_wall_minutes_max": 20,
+        "Luna6_wall_minutes_max": 10,
+        "incremental_raw_and_wpu_estimates": "Keep per-task/per-turn estimates and reservations. Sol may adjust these planning estimates with provenance. Crossing an estimate causes reconcile/checkpoint/replan, not a claim of exhausted account quota. Do not restart an attempt blindly or erase retry history.",
+        "runaway_protection": "Retain wall deadlines, finite task attempts, lease fences, productive-progress checks and current-quota admission. No idle inference."
+      },
+      "uncertainty": "Retain historical unknowns and bounded in-flight reservations separately. Unknown old tokens are not zero and are not newly charged debt. Missing current usage requires reconciliation or bounded reservations; unbounded active uncertainty blocks affected dispatch. Historical incompleteness alone is not a global resource STOP when current account access is verified."
+    },
+    "quota": {
+      "authoritative_signal": "Actual account/rateLimits/read entitlement and applicable exposed account buckets; not raw tokens or WPU",
+      "observed_weekly_used_percent": 68,
+      "observed_at": 1792450512.8580701,
+      "reported_reset_at": 1792874446,
+      "productive_pause_at_percent": 99,
+      "checkpoint_recovery_reserve_percentage_points": 1,
+      "reduce_at_percent": 97,
+      "reduced_mode": "One productive team; short bounded turns, review/recovery capacity retained; no blanket half-WPU rule",
+      "reserve_adjustment": "Sol may justify up to2 percentage points only when measured in-flight exposure or telemetry granularity needs it; record evidence and shrink it when safe. Never preserve a large arbitrary unused weekly allowance.",
+      "poll": "Before dispatch and after completion; at most5 minutes while active, at most60 seconds once any applicable bucket is95% or higher",
+      "freshness": "Admission requires a successful read no older than the applicable poll interval. An explicitly absent optional bucket is not an unknown required bucket. Unknown required entitlement/limit evidence fails closed for new dispatch.",
+      "growth": "Track observed usage growth and shorten reservations/concurrency near exhaustion; the former1-point/15-minute automatic STOP is removed.",
+      "provider_stops": [
+        "ordinaryUsageAllowed=false",
+        "explicit applicable provider limit reached",
+        "spend control reached",
+        "access unavailable or no-subscription-only execution path"
+      ],
+      "reserve_use": "At99% stop discretionary inference, persist/checkpoint deterministically first. Minimal bounded recovery inference may use the reserve only while actual account permission remains. At a genuine provider limit, no further inference.",
+      "reset_recovery": "Pause inference safely, preserve edits/commits/attempts/leases/usage and resource-pause reason. Non-inference polling may wait for restoration; the reset timestamp alone grants nothing. Require two successful fresh account readings at least60 seconds apart confirming access and a restored applicable window/remaining capacity. Reconcile processes, leases, stale results and integration intents through qualified recovery before resuming; never duplicate active work.",
+      "automatic_resume": "Authorized for the same objective through the qualified recovery mechanism when all remaining STOP reasons and release gates permit. No new Astra approval for ordinary quota reset or planning renewal.",
+      "no_budget_history_reset": true,
+      "paid_credits": false,
+      "paid_upgrade_or_billable_API_fallback": false,
+      "no_idle_inference": true
+    },
+    "concurrency": {
+      "teams_max": 2,
+      "Sol_agents_max": 2,
+      "Luna_agents_max": 2,
+      "team": "one Sol and at most one confined Luna; coordinator and reviewers count toward these limits"
+    },
+    "release": {
+      "bootstrap_only": "Existing STOP-preserving repair and its routine Sol-managed renewals; pilot operations still require the original applicable release gates.",
+      "requires": "independent Sol review of exact candidate commit; bounded actual Luna confined work; counter-reset/resume/dedup/late-data and turn-delta verification; enforced budget, quota and STOP behavior; closure of applicable security and qualification gaps",
+      "approval": "record exact reviewed pins and permitted scope before lifting STOP through its supported mechanism",
+      "broader_resume": "goal, worker and supervisor resume require their own covered release gates; no inferred approval from bootstrap",
+      "unattended_maintainer": "not qualified by the interactive handoff"
+    },
+    "governance": {
+      "automatic_Astra": false,
+      "implementation_owner": "Existing Sol root 01a15657-3558-79c1-86dc-6ed033c264df with its Luna workers; no duplicate team",
+      "ordinary_renewals": "Sol records and manages planning renewals and quota pauses/recovery without executive episodes",
+      "exceptional_escalation": "Only changes outside founder authority, objectives, protected capabilities or unavoidable external resources; never automatically launch Astra",
+      "restrictions": "all existing protected-data, acquisition, training, trading, main and remote restrictions remain"
+    }
+  },
+  "interpretation": "Founder allocates essentially all remaining paid weekly subscription allowance to useful engineering, retaining only a small checkpoint/recovery reserve. No new money, protected capability or production activation is authorized.",
+  "removed_controls": [
+    "68% throttle",
+    "69% STOP",
+    "1 percentage point per15 minutes automatic STOP",
+    "72-hour hard resource expiry",
+    "200-WPU cumulative hard ceiling",
+    "five-renewal ceiling",
+    "fixed20-WPU/2-hour repair expiry requiring CEO renewal"
+  ],
+  "preserved_controls": [
+    "All accounting history and immutable receipts",
+    "Per-agent/task incremental and cached-token accounting",
+    "OS confinement, independent review and pinned controlled release",
+    "Pilot STOP until applicable gates pass",
+    "Protected data, science, acquisition, training, trading, Git and remote publication restrictions",
+    "Existing two-team concurrency ceiling and finite attempts",
+    "No paid credits, upgrades or billable API fallback"
+  ],
+  "implementation_is_delegated": true,
+  "new_implementation_team_created": false
+}

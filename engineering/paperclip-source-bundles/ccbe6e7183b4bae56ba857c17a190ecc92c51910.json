@@ -1,0 +1,25 @@
+{
+  "schema": "paperclip-managed-native-code-custody-v1",
+  "state": "reviewed-source-custody-not-stable-or-operational-release",
+  "native_source_commit": "ccbe6e7183b4bae56ba857c17a190ecc92c51910",
+  "native_source_tree": "d5c46161fa8cfdef45aec5d677879e8d52a8cbb6",
+  "prerequisite_commit": "240c623f381ceb84bda190270cafee3454ae17fc",
+  "prerequisite_note": "Requires the preserved 240c623 prerequisite bundle and its 8aa17aa baseline with declared 043f2514 shallow boundary. This bundle carries only the two source commits after 240c623; the launcher separately pins their exact ancestry.",
+  "exported_ref": "refs/heads/codex/luna-workspace-validation-parent-wake-20261029",
+  "bundle_file": "ccbe6e7183b4bae56ba857c17a190ecc92c51910.bundle",
+  "bundle_bytes": 6749,
+  "bundle_sha256": "ad41456c7348d9e7b5c4e045ddcee0f48024cf3ba62c19c3a69e4ae2077f1bc0",
+  "incremental_commits": [
+    "6dec1acae77171a4a25c2620858edb043f119373",
+    "ccbe6e7183b4bae56ba857c17a190ecc92c51910"
+  ],
+  "changed_source_paths": [
+    "server/src/__tests__/heartbeat-process-recovery.test.ts",
+    "server/src/services/recovery/legacy-continuation.test.ts",
+    "server/src/services/recovery/legacy-continuation.ts",
+    "server/src/services/recovery/service.ts"
+  ],
+  "source_acceptance_receipt_sha256": "164844cd283960848962396b58dd4a7aaca1c492386b99d3208b9d7a01e6f204",
+  "restore_qualification": "In a fresh bare repository, fetched the exact 043f2514 shallow boundary, then restored the existing 8aa17aa baseline bundle, the existing 240c623 prerequisite bundle, and this incremental bundle. git fsck --strict passed; restored HEAD, parent, and tree matched ccbe6e7, 6dec1ac, and d5c46161 respectively. This does not restore full upstream history, runtime, database, credentials, or operational qualification.",
+  "limits": "Source custody only. No deployment, server restart, runtime readback, or launch authority is implied. Existing older bundles and pins remain unchanged."
+}

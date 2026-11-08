@@ -1,0 +1,620 @@
+{
+  "schema": "brain.research-diagnostics-programme.v1",
+  "date": "2026-10-26",
+  "product_strategy": "New scientific capabilities are admitted by useful research question, bounded existing-capability comparison and executable acceptance; reproduced bugs are required only for bug claims.",
+  "programme": "Offline Research Diagnostics: readiness, comparability and abstention evidence",
+  "source_base": "6c4eceb9f7c8bc25d4253b30d931c03d1536f15e",
+  "guidance_base": "6e522fe41697a0a000dc25465acd85e0f8c3286d",
+  "projection": "42034450b61385407d09c78fc25436f8b1a8fdef",
+  "paperclip_pin": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "features": [
+    {
+      "department": "Senses",
+      "module": "memecoin_experience.availability_profile",
+      "question": "When were observations actually usable, and which streams arrive late?",
+      "task": "MEM-120",
+      "allowed_paths": [
+        "src/memecoin_experience/availability_profile.py",
+        "tests/test_research_availability_profile.py"
+      ],
+      "status": "accepted_and_integrated",
+      "canonical_commit": "cacb94a430922c5f41be72ad8ad56bcce56eaf90",
+      "branch": "brain/diagnostic-dev-1-20261026",
+      "patch_sha256": "d3db283fc8fb9f45fc329661fbdbcebde6d0b33f567a111c6e73169d7820a029"
+    },
+    {
+      "department": "Experience",
+      "module": "memecoin_population.exposure_shift",
+      "question": "Which entities are over/underrepresented in optimizer exposure relative to the usable corpus?",
+      "task": "MEM-119",
+      "allowed_paths": [
+        "src/memecoin_population/exposure_shift.py",
+        "tests/test_research_exposure_shift.py"
+      ],
+      "status": "blocked_without_candidate",
+      "blocker": "Codex HTTP429 before tools; failed execution/held task preserved, no substitute or replay"
+    },
+    {
+      "department": "Experience",
+      "module": "memecoin_population.attrition_funnel",
+      "question": "Where does enrolled research population disappear before becoming usable experience?",
+      "task": "MEM-121",
+      "allowed_paths": [
+        "src/memecoin_population/attrition_funnel.py",
+        "tests/test_research_attrition_funnel.py"
+      ],
+      "status": "blocked_without_candidate",
+      "blocker": "Codex HTTP429 before tools; failed execution/held task preserved, no substitute or replay"
+    },
+    {
+      "department": "Evaluation",
+      "module": "memecoin_runner.binary_calibration",
+      "question": "Are probability forecasts reliable within cohorts, not only good on an aggregate Brier score?",
+      "task": "MEM-118",
+      "allowed_paths": [
+        "src/memecoin_runner/binary_calibration.py",
+        "tests/test_research_binary_calibration.py"
+      ],
+      "status": "blocked_without_candidate",
+      "blocker": "Codex HTTP429 before tools; failed execution/held task preserved, no substitute or replay"
+    },
+    {
+      "department": "Evaluation",
+      "module": "memecoin_runner.paired_loss_comparison",
+      "question": "Which cohorts improve or regress in a candidate compared with a baseline on exactly paired observations?",
+      "task": "MEM-122",
+      "allowed_paths": [
+        "src/memecoin_runner/paired_loss_comparison.py",
+        "tests/test_research_paired_loss_comparison.py"
+      ],
+      "status": "accepted_and_integrated",
+      "canonical_commit": "06af662746b0857316b51095de8ca826b1043e33",
+      "branch": "brain/diagnostic-dev-5-20261026",
+      "patch_sha256": "559a80a2063ecd69b97f8a6045a463204fe30c0247ecd5d8f8e2a5e502c01bdb"
+    },
+    {
+      "department": "Cortex",
+      "module": "memecoin_experience.representation_shift",
+      "question": "Which input features shift or become missing between two declared research populations?",
+      "task": "MEM-123",
+      "allowed_paths": [
+        "src/memecoin_experience/representation_shift.py",
+        "tests/test_research_representation_shift.py"
+      ],
+      "status": "blocked_without_candidate",
+      "blocker": "Codex HTTP429 before tools; failed execution/held task preserved, no substitute or replay"
+    },
+    {
+      "department": "Policy",
+      "module": "memecoin_runner.abstention_frontier",
+      "question": "How does an uncertainty threshold trade declared coverage against observed diagnostic loss?",
+      "task": "MEM-124",
+      "allowed_paths": [
+        "src/memecoin_runner/abstention_frontier.py",
+        "tests/test_research_abstention_frontier.py"
+      ],
+      "status": "accepted_and_integrated",
+      "canonical_commit": "f601a7e0ad207dfc9f28f6e8bd01e64e14b01fd1",
+      "branch": "brain/diagnostic-dev-7-20261026",
+      "patch_sha256": "d1fafd01c0037b93b700a056a23137f4d23aa28f1c8592b9b9f0ecfbdae5e1ec"
+    },
+    {
+      "department": "Platform",
+      "module": "memecoin_experience.research_report",
+      "question": "Give the researcher one readable reproducible dossier from independent diagnostics without custom orchestration.",
+      "task": "MEM-125",
+      "allowed_paths": [
+        "src/memecoin_experience/research_report.py",
+        "tests/test_research_research_report.py"
+      ],
+      "status": "blocked_without_candidate",
+      "blocker": "Codex HTTP429 before tools; failed execution/held task preserved, no substitute or replay"
+    }
+  ],
+  "existing_capability_checks": [
+    "Availability: observations/sensing provide causal eligibility and timestamp fields but no explicit cross-stream delay profile; latency summary is distinct.",
+    "Exposure: diversity.summary already reports concentration/effective number; this task compares shares across corpus and exposure with attribution.",
+    "Attrition: population code has stage labels and workflows but no caller-supplied comparative funnel with missing counts.",
+    "Calibration: runner scoring reports aggregate Brier/coverage, not cohort probability-bin reliability.",
+    "Paired loss: scoring/bootstrap binds evaluation protocol; this task is descriptive over explicit caller-computed paired losses.",
+    "Representation: statistics_audit binds provenance; fixed-bin population distribution contrast is distinct.",
+    "Abstention: existing uncertainty/coverage concepts are protocol-specific; the new offline sensitivity curve does not mutate policy.",
+    "Report: existing CLIs and reports are feature-specific; no common deterministic multi-diagnostic dossier was found in bounded search."
+  ],
+  "parallelism": {
+    "count": 2,
+    "start": "2026-10-26T14:44:09.277000+00:00",
+    "end": "2026-10-26T14:46:16.038000+00:00",
+    "seconds": 126.761,
+    "target": 8,
+    "target_achieved": false,
+    "unique_productive_developers": 3,
+    "eight_way_overlap_seconds": 0,
+    "evidence": "All three productive developers executed native source/edit/test tools and produced candidate patches and CLI demonstrations; successful dev5/dev7 run intervals overlap. Failed pre-tool turns are not productive developers."
+  },
+  "provider_incident": {
+    "failed_turns": 5,
+    "error": "HTTP429; responseTooManyFailedAttempts; exceeded retry limit, last status: 429 Too Many Requests",
+    "cause_limit": "Provider refusal is confirmed; response does not distinguish subscription exhaustion, request-rate or concurrency sublimit. No fixed maximum inferred.",
+    "queued_cancelled_before_start": 3,
+    "bounded_backoff": "After readback and idle cooldown, one finite batch of at most4 on same tasks/identities; two previously unstarted workers completed, one failed429, one retry was skipped by native execution_reconciliation_required. No further retries.",
+    "protective_refusal": "execution_reconciliation_required preserved; no SQL/status repair or replacement operation"
+  },
+  "qa": {
+    "independent_model": "gpt-6-luna/high",
+    "initial": "Availability and paired loss accepted; abstention rejected on reproducible finite-loss mean overflow and truncated CLI JSON.31 focused tests passed plus independent edge checks; passing suite did not override demonstrated defect.",
+    "correction": "Manager routed full feedback via native comment_on_task(resume:true) on same task/worker. Corrected abstention accepted after12 focused tests and original large-finite CLI reproduction. Other two accepted file hashes unchanged; prior review reused.",
+    "final": "All3 available candidates independently accepted; five absent candidates not reviewed",
+    "prior_rejected_canonical_commit": "6eed74f463ef7912575e1dd5f59e5a742f2f5ffd",
+    "file_sha256": {
+      "src/memecoin_experience/availability_profile.py": "ab35e70e903d44525cc6627d62cea3622876ddb5a68d7ce1a63ce08afabd27bd",
+      "tests/test_research_availability_profile.py": "0b55658cb13316bd43a8d981a26fcf29027dde0602808fe0e6968019d470908c",
+      "src/memecoin_runner/paired_loss_comparison.py": "7088e964936ee24f11368aba8a98585d1f7bc7095c524d215c682294f7e6dfab",
+      "tests/test_research_paired_loss_comparison.py": "b49c5cafa7de2ba6765efd75e9f4d403efd54497705c459a7ca78d450fe2f751",
+      "src/memecoin_runner/abstention_frontier.py": "5376a05f7d806ee66db3b35fd0629e97e208ab1612fa7bd5110cf00e364c9016",
+      "tests/test_research_abstention_frontier.py": "3a495442b23989f076299f4f0d7a7e50d0888b5a12d760a8e7a6d9ef42dcada1"
+    }
+  },
+  "integration": {
+    "head": "cc5573ba65f0df90b28a164c7fe5c9e70ced0611",
+    "branch": "brain/development",
+    "published": true,
+    "source_files": 3,
+    "test_files": 3,
+    "source_lines_added": 526,
+    "test_lines_added": 317,
+    "combined_tests": "32 passed in0.75s",
+    "cli_demos": [
+      {
+        "module": "memecoin_experience.availability_profile",
+        "exit_code": 0,
+        "canonical_output_sha256": "233df96e98f163a84db90cb9ae6e8424e47f1873cf93f6fc155374c6f32c3615",
+        "input_sha256": "23bc43e3cefbf02ad8287d115aa50113ff2a5bf098da85b618b5c4ccc33f03e2"
+      },
+      {
+        "module": "memecoin_runner.paired_loss_comparison",
+        "exit_code": 0,
+        "canonical_output_sha256": "f66e00d4a5ac470cf3f3c4f5b233267cc90101ca79eba729b3b72b8015c6cdf2",
+        "input_sha256": "01851ba284bc2090d1037e7283b5c863cd27169c7d91bff9d5c85aa7dda00739"
+      },
+      {
+        "module": "memecoin_runner.abstention_frontier",
+        "exit_code": 0,
+        "canonical_output_sha256": "2c2c32b6bd75b25742720b4f8b56c60c644a3401f16fb8043b928123bfa7bf0b",
+        "input_sha256": "e9d6e7de35433dfb90d290c7ab0acc42e67b267960374d25009ffe193235cfe0"
+      }
+    ],
+    "main_unchanged": "2f8da5f92da521b511e0d4fb20205981a000cab5"
+  },
+  "native_delivery": "Native register_deliverable for candidate.patch/demonstration.json and QA reports; byte-size/SHA256 readback. No source files through model text and no custom broker/scheduler/framework.",
+  "manual_assistance": {
+    "counting_unit": "Distinct assisted phases/incidents, not HTTP call count",
+    "phases": [
+      "Prepare fresh source clones using held existing profiles; preserve prior workspaces",
+      "One batch binds10 child task workspaces and releases8 developers",
+      "Provider429 incident: pause, one bounded backoff batch, preserve native reconciliation refusal",
+      "Stage three native candidate artifacts and consolidate one QA review of available results",
+      "Stage full QA feedback and admit manager phase; manager itself dispatches source correction",
+      "Correction staging: confined Git index write denied; preserve limits, verify corrected working-tree bytes against immutable canonical candidate",
+      "Integration CLI harness accepts fixed full-module/short-slug aliases; no candidate code or acceptance weakened",
+      "Controlled serial integration, ordinary publication, explicit company pause and checkpoint"
+    ],
+    "during_developer_implementation": 0,
+    "source_correction_dispatch": "Native manager action, not CEO-issued worker wake",
+    "limits": "Artifact staging, admission and Git integration remain owner-assisted; not an unattended company qualification"
+  },
+  "runs": [
+    {
+      "role": "lead",
+      "status": "succeeded",
+      "start": "2026-10-26T14:57:26.461Z",
+      "finish": "2026-10-26T14:58:25.313Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 67334,
+        "outputTokens": 12183,
+        "cachedInputTokens": 645888,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": true,
+        "rawInputIncludesCached": false
+      },
+      "failure": null,
+      "accounting_note": "Complete provider accounting receipt"
+    },
+    {
+      "role": "lead",
+      "status": "succeeded",
+      "start": "2026-10-26T14:34:53.332Z",
+      "finish": "2026-10-26T14:37:51.847Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 47338,
+        "outputTokens": 9610,
+        "cachedInputTokens": 371072,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": true,
+        "rawInputIncludesCached": false
+      },
+      "failure": null,
+      "accounting_note": "Complete provider accounting receipt"
+    },
+    {
+      "role": "dev-1",
+      "status": "succeeded",
+      "start": "2026-10-26T14:38:59.455Z",
+      "finish": "2026-10-26T14:41:46.467Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 67289,
+        "outputTokens": 7009,
+        "cachedInputTokens": 325248,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": true,
+        "rawInputIncludesCached": false
+      },
+      "failure": null,
+      "accounting_note": "Complete provider accounting receipt"
+    },
+    {
+      "role": "dev-2",
+      "status": "failed",
+      "start": "2026-10-26T14:39:05.448Z",
+      "finish": "2026-10-26T14:39:21.239Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cachedInputTokens": 0,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": false,
+        "rawInputIncludesCached": false
+      },
+      "failure": {
+        "category": "turn_failed",
+        "provider": "codex",
+        "httpStatus": 429,
+        "codexErrorInfo": "responseTooManyFailedAttempts"
+      },
+      "accounting_note": "Accounting incomplete or no provider start; displayed zero is not proof of zero quota usage"
+    },
+    {
+      "role": "dev-3",
+      "status": "failed",
+      "start": "2026-10-26T14:39:11.234Z",
+      "finish": "2026-10-26T14:39:31.841Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cachedInputTokens": 0,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": false,
+        "rawInputIncludesCached": false
+      },
+      "failure": {
+        "category": "turn_failed",
+        "provider": "codex",
+        "httpStatus": 429,
+        "codexErrorInfo": "responseTooManyFailedAttempts"
+      },
+      "accounting_note": "Accounting incomplete or no provider start; displayed zero is not proof of zero quota usage"
+    },
+    {
+      "role": "dev-4",
+      "status": "failed",
+      "start": "2026-10-26T14:39:21.717Z",
+      "finish": "2026-10-26T14:39:31.842Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cachedInputTokens": 0,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": false,
+        "rawInputIncludesCached": false
+      },
+      "failure": {
+        "category": "turn_failed",
+        "provider": "codex",
+        "httpStatus": 429,
+        "codexErrorInfo": "responseTooManyFailedAttempts"
+      },
+      "accounting_note": "Accounting incomplete or no provider start; displayed zero is not proof of zero quota usage"
+    },
+    {
+      "role": "dev-5",
+      "status": "succeeded",
+      "start": "2026-10-26T14:44:03.033Z",
+      "finish": "2026-10-26T14:48:47.767Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 56630,
+        "outputTokens": 13747,
+        "cachedInputTokens": 727424,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": true,
+        "rawInputIncludesCached": false
+      },
+      "failure": null,
+      "accounting_note": "Complete provider accounting receipt"
+    },
+    {
+      "role": "dev-5",
+      "status": "cancelled",
+      "start": null,
+      "finish": "2026-10-26T14:40:26.292Z",
+      "model": null,
+      "effort": null,
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "cachedInputTokens": null,
+        "billingType": null,
+        "costUsd": null,
+        "accountingReceiptReady": null,
+        "rawInputIncludesCached": null
+      },
+      "failure": null,
+      "accounting_note": "Accounting incomplete or no provider start; displayed zero is not proof of zero quota usage"
+    },
+    {
+      "role": "dev-6",
+      "status": "failed",
+      "start": "2026-10-26T14:39:15.948Z",
+      "finish": "2026-10-26T14:39:21.207Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cachedInputTokens": 0,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": false,
+        "rawInputIncludesCached": false
+      },
+      "failure": {
+        "category": "turn_failed",
+        "provider": "codex",
+        "httpStatus": 429,
+        "codexErrorInfo": "responseTooManyFailedAttempts"
+      },
+      "accounting_note": "Accounting incomplete or no provider start; displayed zero is not proof of zero quota usage"
+    },
+    {
+      "role": "dev-7",
+      "status": "succeeded",
+      "start": "2026-10-26T14:57:49.798Z",
+      "finish": "2026-10-26T14:58:58.296Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 110133,
+        "outputTokens": 10289,
+        "cachedInputTokens": 565120,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": true,
+        "rawInputIncludesCached": false
+      },
+      "failure": null,
+      "accounting_note": "Complete provider accounting receipt"
+    },
+    {
+      "role": "dev-7",
+      "status": "succeeded",
+      "start": "2026-10-26T14:44:09.277Z",
+      "finish": "2026-10-26T14:46:16.038Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 82102,
+        "outputTokens": 6995,
+        "cachedInputTokens": 249088,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": true,
+        "rawInputIncludesCached": false
+      },
+      "failure": null,
+      "accounting_note": "Complete provider accounting receipt"
+    },
+    {
+      "role": "dev-7",
+      "status": "cancelled",
+      "start": null,
+      "finish": "2026-10-26T14:40:26.335Z",
+      "model": null,
+      "effort": null,
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "cachedInputTokens": null,
+        "billingType": null,
+        "costUsd": null,
+        "accountingReceiptReady": null,
+        "rawInputIncludesCached": null
+      },
+      "failure": null,
+      "accounting_note": "Accounting incomplete or no provider start; displayed zero is not proof of zero quota usage"
+    },
+    {
+      "role": "dev-8",
+      "status": "failed",
+      "start": "2026-10-26T14:44:14.433Z",
+      "finish": "2026-10-26T14:44:24.791Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cachedInputTokens": 0,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": false,
+        "rawInputIncludesCached": false
+      },
+      "failure": {
+        "category": "turn_failed",
+        "provider": "codex",
+        "httpStatus": 429,
+        "codexErrorInfo": "responseTooManyFailedAttempts"
+      },
+      "accounting_note": "Accounting incomplete or no provider start; displayed zero is not proof of zero quota usage"
+    },
+    {
+      "role": "dev-8",
+      "status": "cancelled",
+      "start": null,
+      "finish": "2026-10-26T14:40:26.363Z",
+      "model": null,
+      "effort": null,
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "cachedInputTokens": null,
+        "billingType": null,
+        "costUsd": null,
+        "accountingReceiptReady": null,
+        "rawInputIncludesCached": null
+      },
+      "failure": null,
+      "accounting_note": "Accounting incomplete or no provider start; displayed zero is not proof of zero quota usage"
+    },
+    {
+      "role": "qa-1",
+      "status": "succeeded",
+      "start": "2026-10-26T15:05:41.569Z",
+      "finish": "2026-10-26T15:07:35.664Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 94818,
+        "outputTokens": 20932,
+        "cachedInputTokens": 1642752,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": true,
+        "rawInputIncludesCached": false
+      },
+      "failure": null,
+      "accounting_note": "Complete provider accounting receipt"
+    },
+    {
+      "role": "qa-1",
+      "status": "succeeded",
+      "start": "2026-10-26T14:49:55.604Z",
+      "finish": "2026-10-26T14:54:07.566Z",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "usage": {
+        "inputTokens": 74381,
+        "outputTokens": 15075,
+        "cachedInputTokens": 952832,
+        "billingType": "subscription_included",
+        "costUsd": null,
+        "accountingReceiptReady": true,
+        "rawInputIncludesCached": false
+      },
+      "failure": null,
+      "accounting_note": "Complete provider accounting receipt"
+    }
+  ],
+  "run_counts": {
+    "successful": 8,
+    "successful_management": 2,
+    "successful_development": 4,
+    "successful_qa": 2,
+    "failed_before_tools": 5,
+    "cancelled_before_provider_start": 3,
+    "skipped_reconciliation_wakeup_not_a_run": 1
+  },
+  "usage_complete_receipts": {
+    "inputTokens": 600025,
+    "outputTokens": 95840,
+    "cachedInputTokens": 5479424
+  },
+  "usage_limits": "Eight successful native receipts only; five failed turns lack complete accounting. Cached input is separate. Subscription included; USD/quota fraction unknown; interactive CEO excluded.",
+  "stop": {
+    "companies_paused": 6,
+    "live_runs": 0,
+    "tasks": [
+      {
+        "identifier": "MEM-121",
+        "status": "blocked"
+      },
+      {
+        "identifier": "MEM-118",
+        "status": "blocked"
+      },
+      {
+        "identifier": "MEM-124",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-125",
+        "status": "blocked"
+      },
+      {
+        "identifier": "MEM-117",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-126",
+        "status": "in_review"
+      },
+      {
+        "identifier": "MEM-119",
+        "status": "blocked"
+      },
+      {
+        "identifier": "MEM-123",
+        "status": "blocked"
+      },
+      {
+        "identifier": "MEM-120",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-127",
+        "status": "blocked"
+      },
+      {
+        "identifier": "MEM-122",
+        "status": "done"
+      }
+    ],
+    "native_qa_completion": "MEM-126 remains in_review: explicit human_only confirmation created by first QA remains pending, even after accepted correction. No direct status override or impersonated human resolution. This is separate from code-review verdicts and authorized development publication.",
+    "next_campaign": "No16/40 or automatic retry campaign"
+  },
+  "scope_limits": [
+    "Synthetic caller-supplied JSON diagnostics only; no real-data qualification or market-quality claim",
+    "No market acquisition, model training, AUTO/trading, protected config/data, production/main or paid API changes",
+    "TEST retained; no Sol fallback; CEO not invoked as a routine worker/reviewer"
+  ],
+  "private_evidence_locator": "Lab state/research-diagnostics-20261026",
+  "private_receipt_sha256": {
+    "strategy.json": "5d3444173a7e5ca597216a240dcb4887895b9174bec8ff40ec270974736eedc6",
+    "cohort-plan-final.json": "c6a32da1706ead87fcc17cc2102be727b67ebaa1ff51009bf6f13ea43579c0f8",
+    "source-execution-evidence.json": "d1ea7b9327384b5122011ac41f531f6be34145b914781e3d9daf75c44d623d6f",
+    "QA-RESULT-first.json": "af59cbd51c0af69bedf478985d54963f039756e517aed1a1a2c775795751f706",
+    "QA-CORRECTION-final.json": "39c369f0563ec5fa0148a737345cb817f28a1d0daf340b489c7eac9c5025e3e6",
+    "integrated-tests.json": "fec253e6a6f8a09ae3e24ffc008b7f74b6b108579e693dc116ab88819a1460a2",
+    "integrated-demonstrations.json": "cb757100f403edacedd40a9f9ba8d53882a4ee050a64e666c64cbf218762f3cc",
+    "pending-native-review.json": "de36ecb18bf94274fd0436ab1f42e2d59cda23154423ee007287bd66b210b958"
+  }
+}

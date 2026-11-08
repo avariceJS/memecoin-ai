@@ -1,0 +1,239 @@
+{
+  "schema": "brain-org-independent-system-audit-v1",
+  "observed_at_utc": "2026-10-20T13:57:46.845469+00:00",
+  "auditor": {
+    "role": "Founder-invited independent director",
+    "thread": "01a1597e-d59e-78b1-80b3-3b481ae74672",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "high",
+    "identity_evidence": "read-only native threads metadata; not a requested override",
+    "additional_agents_started": false
+  },
+  "audited_source": "b2dcd6dc58a8e1ab09b15da8fa0d1bba5f3ad0d0",
+  "branch": "org/development",
+  "verdict": "retain core architecture; reject operational release and sustained unattended operation",
+  "implementation_changes": false,
+  "development_resumed": false,
+  "release_authorized": false,
+  "findings": [
+    {
+      "id": "ORG-A01",
+      "priority": "P1",
+      "area": "bootstrap/preflight",
+      "proof": "probes.json:bootstrap_preflight"
+    },
+    {
+      "id": "ORG-A02",
+      "priority": "P1",
+      "area": "first-dispatch ledger initialization",
+      "proof": "probes.json:bootstrap_admission"
+    },
+    {
+      "id": "ORG-A03",
+      "priority": "P1",
+      "area": "terminal usage settlement and scheduler liveness",
+      "proof": "probes.json:completed_turn_liveness"
+    },
+    {
+      "id": "ORG-A04",
+      "priority": "P1",
+      "area": "task-spec execution/verifier binding",
+      "proof": "probes.json:task_spec_verifier_binding"
+    },
+    {
+      "id": "ORG-A05",
+      "priority": "P1",
+      "area": "lifecycle and quota recovery ownership",
+      "proof": "probes.json:lifecycle_packaging; source supervisor.supervise/planning.plan_next; no runtime caller of reset_recovery_decision"
+    },
+    {
+      "id": "ORG-A06",
+      "priority": "P1",
+      "area": "complete checkpoint and restore",
+      "proof": "probes.json:snapshot_completeness"
+    },
+    {
+      "id": "ORG-A07",
+      "priority": "P1",
+      "area": "active-turn quota cancellation",
+      "proof": "probes.json:quota_watch_99"
+    },
+    {
+      "id": "ORG-A08",
+      "priority": "P1",
+      "area": "engineering release-check coverage",
+      "proof": "pyproject.toml testpaths; Makefile check; .github/workflows/checks.yml"
+    },
+    {
+      "id": "ORG-A09",
+      "priority": "P2",
+      "area": "failure classification and retry circuit breaker",
+      "proof": "pilot-failure-analysis.json; supervisor.run_attempt"
+    },
+    {
+      "id": "ORG-A10",
+      "priority": "P2",
+      "area": "generic departments/contracts and experiment jobs",
+      "proof": "bootstrap/planning/supervisor.activate_contract; source interface inspection"
+    },
+    {
+      "id": "ORG-A11",
+      "priority": "P2",
+      "area": "review visibility and coordination efficiency",
+      "proof": "supervisor.run_attempt/verify_one; planning.plan_next"
+    },
+    {
+      "id": "ORG-A12",
+      "priority": "P2",
+      "area": "bounded history projection and capacity",
+      "proof": "supplemental.json:existing_tasks_1025; Store.admit_task_spec/events; source analysis, not endurance benchmark"
+    }
+  ],
+  "checks": {
+    "engineering": {
+      "passed": 216,
+      "subtests_passed": 42,
+      "failed": 2,
+      "excluded_file": "engineering/tests/test_qualification.py",
+      "real_seatbelt_tests_included": true,
+      "failures": [
+        "test_independent_adapter_acceptance",
+        "test_independent_review_regressions_acceptance"
+      ],
+      "failure": "RpcError:permit_required",
+      "initial_run": {
+        "passed": 214,
+        "subtests_passed": 42,
+        "failed": 4,
+        "extra_failures": "two fixtures used noncanonical /var temporary paths; canonical TMPDIR fixed harness only"
+      }
+    },
+    "native_permission_canaries": {
+      "passed": 21,
+      "total": 21,
+      "qualified": true,
+      "no_inference": true,
+      "codex_version": "0.163.0"
+    },
+    "engineering_ruff": "passed",
+    "repository_ruff": {
+      "findings": 107,
+      "exit_code": 1
+    },
+    "synthetic_smoke": "passed",
+    "real_git_store_synthetic_reconciliation": {
+      "integrations": 2,
+      "duplicate_integrations": 0,
+      "old_base_disjoint_changes_preserved": true,
+      "boundaries": [
+        "intent-before-db-verification",
+        "published-before-db-integration"
+      ],
+      "model_review": false,
+      "physical_crash": false
+    },
+    "git": {
+      "pins_reachable": 69,
+      "selected_source_bytes_match": true,
+      "archived_dirty_files_hash_match": 4,
+      "bundles_hash_match": 11,
+      "private_dirty_archives_hash_match": 3,
+      "fsck_exit_code": 0,
+      "remote_refs_match_at_observation": true,
+      "new_network_restore_clone": false,
+      "ignored_artifact_restore_trials_repeated": false,
+      "Brain_src_tools_tests_diff_from_main": []
+    },
+    "original_task_defects": {
+      "schema_None_and_list": "AttributeError reproduced",
+      "context_symlink_read": "disposable synthetic canary read reproduced"
+    }
+  },
+  "protected_state": {
+    "before_equals_after": true,
+    "hashes": {
+      "organization.sqlite": "a617f5f4fef928a3d46ba31316b0649bf2b3c8bd537883125c4ae23137267053",
+      "STOP": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "config.json": "130d8802b23352a72d4b9d0a9144a9c313984d126aeed17fb4e60607578ccdc1",
+      "controller-manifest.json": "6b67c10f0027607edd596d31d03c9082b05c6675c23c3ee1c690586f7d3de075"
+    },
+    "counts": {
+      "attempts": 6,
+      "acceptances": 0,
+      "integrations": 0,
+      "events": 106
+    },
+    "pilot_STOP": true,
+    "main_pin": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+    "launch_agent_loaded": false,
+    "goal_statuses": {
+      "01a15657-3558-79c1-86dc-6ed033c264df": {
+        "status": "paused",
+        "tokensUsed": 6166161,
+        "timeUsedSeconds": 22822,
+        "updatedAt": 1792498049
+      },
+      "01a1563e-1a26-75e2-bdab-ca2b38c7b51f": {
+        "status": "paused",
+        "tokensUsed": 330688,
+        "timeUsedSeconds": 1926,
+        "updatedAt": 1792453789
+      }
+    },
+    "no_goal_resume": true,
+    "no_paid_model_requests": true,
+    "no_market_requests": true,
+    "no_training": true,
+    "no_protected_dataset_access": true,
+    "no_production_mutation": true
+  },
+  "supplied_duration_observation": {
+    "source": "founder prompt; not reconstructed independently in this audit",
+    "elapsed_minutes": 868,
+    "registered_activity_minutes": 479,
+    "post_403_idle_minutes": 277,
+    "unclassified_arithmetic_remainder_minutes": 112,
+    "causes_of_403_proven": false,
+    "model_efficiency_comparison_established": false
+  },
+  "limits": [
+    "No real model/tool end-to-end run",
+    "No controller upgrade or original-pilot recovery",
+    "No physical reboot/logout/storage-loss test",
+    "No complete organization restore",
+    "No prolonged endurance or multi-host acceptance",
+    "No full repository suite or training run",
+    "No independent scientific/market-quality acceptance",
+    "Remote CI was not rerun; earlier no-step account block remains historical evidence"
+  ],
+  "strategy_owner": "docs/engineering-organization.md",
+  "founder_projection": "engineering/OWNER-DESK.md",
+  "private_evidence_root": "/Users/root1/Developer/brain-org-state/audit-20261020-independent",
+  "evidence_files_sha256": {
+    "probes.py": "68bc3fd59140fb04628ebcefc8fac59c81408be4de39443c44bf9c0b1c30a4f4",
+    "probes.json": "4c7c16e12516d70cfc71bd6a3187d0abe5abce5f04a66965ba2d3293ca5176ba",
+    "probes.log": "b81c1ce30350602ea770189694d21219fbf839307a81d18695bf735a198c665e",
+    "probes-attempt2.log": "76871f621918202cdac0d36ecc2fef4133f100e591a7b2313cab3c519f02bd0f",
+    "probes-attempt3.log": "64502476c3cd0d29152ae67d6f8e86f3573ca12a4d260ff20463d9da9d4b76df",
+    "supplemental.py": "41d20582a0950285249ef1d507c351a5c69659259632e694f33391fcdd28d526",
+    "supplemental.json": "0555a44f986e8b409720803193bf31e4dcab9e69c148b1bb66bad05649b38f52",
+    "git_audit.py": "701e9dd8fe569d6123013319e202c0ed23479a90e69d40d4cb79b812b2093edf",
+    "git-audit.json": "02d5ff8d7f8d1195e74cf14776b2ba85bb388214f474ffcabe62c4d1ed57aeef",
+    "git-audit.log": "18e9cb278d12c843b8080542f8bc398583fcd6b3ea44408d0867f8dc38d0ec1e",
+    "git-fsck.log": "ee8c23bc68cf819395e40e7c3c5feba7166f11e31d5062934b44a02fdbac3f85",
+    "remote-refs.txt": "ca559b1cbdf6211d942e90640443000416860341bd5480c4e99fb7c302366997",
+    "engineering-tests.log": "11799cf071493e61aefaf78662cd5cce21c06127989532b7736c61a647493a44",
+    "engineering-tests-canonical-tmp.log": "ec888f150672c5fee1316c0c53ab7572dc073a4a72d47bed9efcf73fe4abb773",
+    "ruff-engineering.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff-repository.log": "413f08f7492c9a5037616e45f84d183e9004f26b13946995860f09a4011ea556",
+    "smoke.log": "1df45492d4c52c5e70729af868dc9d76a6e12283f542252cbf2b4c1a919e5360",
+    "native-profile.json": "1b919a2596e81a825dc90735abc40fef81f9ba41485da22f6b3d7ba6523b6d11",
+    "pilot-before.json": "23af9d8082ce5b13e487fc46792ff2fd4f0d3e4d74a3e43bb86d758ba0e7bffd",
+    "pilot-failure-analysis.json": "f416711eae7b68e5b15dbc4f49d571292e714d26169ba7625f11154cf7449fe6",
+    "owner-native-observation.json": "352f625ffac038db52464fa42ac5c8236dacd4c70e84cb6abfdae8f533c9c10d",
+    "owner-goal-current.json": "83ca1fcffaa38892aa555058ef812400ca50ab5bc2aa7fdc20dcec8276283efc",
+    "read_goal.py": "d76143e97c3fa6460340182f2a258977f2eae0fc0be03f8517b315c5054c422c"
+  },
+  "official_read_only_goal_method_reference": "https://learn.chatgpt.com/docs/app-server",
+  "next_step": "Founder decides whether to resume the existing Luna implementation owner; staged integrated release qualification only; STOP retained"
+}

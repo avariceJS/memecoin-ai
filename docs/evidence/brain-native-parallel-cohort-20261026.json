@@ -1,0 +1,307 @@
+{
+  "schema": "brain.native-parallel-cohort.v1",
+  "date": "2026-10-26",
+  "scope": "One bounded subscription-only native developer cohort; source acceptance, not production or unattended company qualification",
+  "paperclip_pin": "8aa17aa0600aa952ff50af9373a05a01bd6125a8",
+  "paperclip_version": "0.3.1",
+  "native_codex_version": "0.160.0",
+  "setup_commit": "46bde3dcd67916a0125e896f7bd11aa1e6f59070",
+  "brain_base": "37cf68f319b158d2253543e2857213367814fa2d",
+  "integrated_head": "40084d195c3a1b16c8b41a0186911c299edda94f",
+  "main_unchanged": "2f8da5f92da521b511e0d4fb20205981a000cab5",
+  "models": {
+    "implementation": "gpt-6-luna/high",
+    "lead_and_independent_qa": "gpt-6.1-sol/high"
+  },
+  "parallelism": {
+    "developers": 4,
+    "overlap_start_utc": "2026-10-26T11:43:00.911Z",
+    "overlap_end_utc": "2026-10-26T11:44:56.656Z",
+    "overlap_seconds": 115.745,
+    "evidence": "All four executed native source/test tools, modified disjoint files, tested and committed in separate confined clones; not inferred from task status alone."
+  },
+  "candidates": [
+    {
+      "worker": "luna-1",
+      "task": "MEM-109",
+      "branch": "brain/parallel-luna-1-20261026",
+      "commit": "3bb6bcdf8ea234c3104b6a450137b3108678e3d8",
+      "outcome": "Count targets require nonnegative integers",
+      "qa": "accepted",
+      "integrated": true,
+      "execution": {
+        "started_at": "2026-10-26T11:43:00.861Z",
+        "finished_at": "2026-10-26T11:45:14.207Z",
+        "completed_tools": 12,
+        "first_completed_tool_at": "2026-10-26T11:43:17.928Z",
+        "last_completed_tool_at": "2026-10-26T11:45:06.302Z",
+        "native_candidate_before_correction": "3c77f6766594e8a50e7d3d3585e5a043dfa94017"
+      }
+    },
+    {
+      "worker": "luna-2",
+      "task": "MEM-110",
+      "branch": "brain/parallel-luna-2-20261026",
+      "commit": "243a5d53c9bbd1562ab4e160fca9b99dd17e35b8",
+      "outcome": "Duplicate scoring targets rejected; hermetic hierarchy/head regressions",
+      "qa": "accepted",
+      "integrated": true,
+      "execution": {
+        "started_at": "2026-10-26T11:43:00.903Z",
+        "finished_at": "2026-10-26T11:45:06.326Z",
+        "completed_tools": 8,
+        "first_completed_tool_at": "2026-10-26T11:43:17.494Z",
+        "last_completed_tool_at": "2026-10-26T11:44:56.290Z",
+        "native_candidate_before_correction": "4147f0b86e27bbd94d7d3aa833f099306d0c0615"
+      }
+    },
+    {
+      "worker": "luna-3",
+      "task": "MEM-111",
+      "branch": "brain/parallel-luna-3-20261026",
+      "commit": "f2ddb659eeb36e5f393044e0c0cd17b888373820",
+      "outcome": "Experience report denominator consistency",
+      "qa": "accepted",
+      "integrated": true,
+      "execution": {
+        "started_at": "2026-10-26T11:43:00.893Z",
+        "finished_at": "2026-10-26T11:44:56.656Z",
+        "completed_tools": 8,
+        "first_completed_tool_at": "2026-10-26T11:43:17.959Z",
+        "last_completed_tool_at": "2026-10-26T11:44:46.764Z",
+        "native_candidate_before_correction": "86591270399c1b3b3dfb13ea0436ddcc721fb6d0"
+      }
+    },
+    {
+      "worker": "luna-4",
+      "task": "MEM-112",
+      "branch": "brain/parallel-luna-4-20261026",
+      "commit": "a0e55fe0ebf8c8361d22fbd3cc9906a06f389268",
+      "outcome": "Population cohort eligible/masked denominator reporting",
+      "qa": "accepted",
+      "integrated": true,
+      "execution": {
+        "started_at": "2026-10-26T11:43:00.911Z",
+        "finished_at": "2026-10-26T11:47:15.160Z",
+        "completed_tools": 23,
+        "first_completed_tool_at": "2026-10-26T11:43:17.956Z",
+        "last_completed_tool_at": "2026-10-26T11:47:04.955Z",
+        "native_candidate_before_correction": "9b9b1f61bf327aa4202f7642e093596df8e2ade5"
+      }
+    }
+  ],
+  "file_sha256": {
+    "src/memecoin_experience/evaluation.py": "2788adfb459c6a2784d10de5af690a8b5c89a578dd38775d7ed190537f8c4a22",
+    "src/memecoin_experience/schema.py": "5928264e71b0132f3ec4fc0029a094e4574bfd9d09ed3561c6942349a1ab513e",
+    "src/memecoin_population/evaluation.py": "69ec549b74c901bf3a4d148055580b6c5d24f2bcf3fc77578e9ca5a8b4fb7a58",
+    "src/memecoin_runner/scoring.py": "f5b662a5a647ed0d60bfdae16aa9dd2723b6d89f5832de811ce9b433c216bf5a",
+    "tests/runner/test_scoring_support.py": "cab7c90640771f66a03c78bb9f66a4ecfa54abae74e84ae98039ddc8c039d650",
+    "tests/test_experience_count_contract.py": "8113abfd1812a3baf82fbbfdd79e8acd4aa81d7ee9a8224fabdfdb2503db1f54",
+    "tests/test_experience_denominator_summary.py": "10af3807173f73b7f88b551bfa4ed6b4e8c0af39dd1bfdc101c1a7dfb813cac6",
+    "tests/test_population_evaluation_denominators.py": "a50fcfbf53b625bfea69cc2bb0dac597177816f6ced7494c19ac838950ca8396"
+  },
+  "verification": {
+    "first_independent_qa": "50 passed, 1 deselected; accept Luna1/3/4, reject Luna2 regression evidence gap",
+    "correction_independent_qa": "12 passed; accept corrected Luna2; unchanged other candidates retain acceptance",
+    "integrated": "54 passed, 1 deselected in 0.84s",
+    "excluded": "Generic training deselected; original F01-dependent command failed due absent protected config and remains a failure, never relabeled as passing. New scoring tests are hermetic."
+  },
+  "native_runs": [
+    {
+      "startedAt": "2026-10-26T11:33:10.866Z",
+      "finishedAt": "2026-10-26T11:33:55.525Z",
+      "status": "succeeded",
+      "usage": {
+        "model": "gpt-6-luna",
+        "inputTokens": 39352,
+        "outputTokens": 2434,
+        "cachedInputTokens": 86912,
+        "rawInputIncludesCached": false,
+        "billingType": "subscription_included",
+        "costUsd": null
+      }
+    },
+    {
+      "startedAt": "2026-10-26T11:37:26.984Z",
+      "finishedAt": "2026-10-26T11:41:50.470Z",
+      "status": "succeeded",
+      "usage": {
+        "model": "gpt-6.1-sol",
+        "inputTokens": 68759,
+        "outputTokens": 8114,
+        "cachedInputTokens": 487168,
+        "rawInputIncludesCached": false,
+        "billingType": "subscription_included",
+        "costUsd": null
+      }
+    },
+    {
+      "startedAt": "2026-10-26T11:43:00.861Z",
+      "finishedAt": "2026-10-26T11:45:14.207Z",
+      "status": "succeeded",
+      "usage": {
+        "model": "gpt-6-luna",
+        "inputTokens": 51953,
+        "outputTokens": 5386,
+        "cachedInputTokens": 613504,
+        "rawInputIncludesCached": false,
+        "billingType": "subscription_included",
+        "costUsd": null
+      }
+    },
+    {
+      "startedAt": "2026-10-26T11:43:00.903Z",
+      "finishedAt": "2026-10-26T11:45:06.326Z",
+      "status": "succeeded",
+      "usage": {
+        "model": "gpt-6-luna",
+        "inputTokens": 47203,
+        "outputTokens": 5496,
+        "cachedInputTokens": 429952,
+        "rawInputIncludesCached": false,
+        "billingType": "subscription_included",
+        "costUsd": null
+      }
+    },
+    {
+      "startedAt": "2026-10-26T11:43:00.893Z",
+      "finishedAt": "2026-10-26T11:44:56.656Z",
+      "status": "succeeded",
+      "usage": {
+        "model": "gpt-6-luna",
+        "inputTokens": 79012,
+        "outputTokens": 5645,
+        "cachedInputTokens": 305920,
+        "rawInputIncludesCached": false,
+        "billingType": "subscription_included",
+        "costUsd": null
+      }
+    },
+    {
+      "startedAt": "2026-10-26T11:43:00.911Z",
+      "finishedAt": "2026-10-26T11:47:15.160Z",
+      "status": "succeeded",
+      "usage": {
+        "model": "gpt-6-luna",
+        "inputTokens": 128668,
+        "outputTokens": 13922,
+        "cachedInputTokens": 1725184,
+        "rawInputIncludesCached": false,
+        "billingType": "subscription_included",
+        "costUsd": null
+      }
+    },
+    {
+      "startedAt": "2026-10-26T11:49:44.328Z",
+      "finishedAt": "2026-10-26T11:56:25.983Z",
+      "status": "succeeded",
+      "usage": {
+        "model": "gpt-6.1-sol",
+        "inputTokens": 80082,
+        "outputTokens": 12140,
+        "cachedInputTokens": 1199872,
+        "rawInputIncludesCached": false,
+        "billingType": "subscription_included",
+        "costUsd": null
+      }
+    },
+    {
+      "startedAt": "2026-10-26T11:59:22.120Z",
+      "finishedAt": "2026-10-26T12:02:06.277Z",
+      "status": "succeeded",
+      "usage": {
+        "model": "gpt-6-luna",
+        "inputTokens": 55268,
+        "outputTokens": 9522,
+        "cachedInputTokens": 689920,
+        "rawInputIncludesCached": false,
+        "billingType": "subscription_included",
+        "costUsd": null
+      }
+    },
+    {
+      "startedAt": "2026-10-26T12:03:58.703Z",
+      "finishedAt": "2026-10-26T12:06:13.514Z",
+      "status": "succeeded",
+      "usage": {
+        "model": "gpt-6.1-sol",
+        "inputTokens": 104776,
+        "outputTokens": 16846,
+        "cachedInputTokens": 1941760,
+        "rawInputIncludesCached": false,
+        "billingType": "subscription_included",
+        "costUsd": null
+      }
+    }
+  ],
+  "usage_totals": {
+    "inputTokens": 655073,
+    "outputTokens": 79505,
+    "cachedInputTokens": 7480192
+  },
+  "usage_limits": "Nine native runs only; subscription_included; USD unavailable. Root and auxiliary preparation usage not measured here; no quota percentage inference. Cached input is separate from reported uncached input.",
+  "manual_assistance": {
+    "initial_four_implementation_runs": 0,
+    "prelaunch_workspace_binding_batches": 1,
+    "qa_correction_cycles": 1,
+    "other": "Owner provisioned profiles/clones and local Python dependencies, transferred candidates under confinement, dispatched bounded tasks and serialized integration/publication. This is not an unattended end-to-end organization."
+  },
+  "final_state": {
+    "tasks": [
+      {
+        "identifier": "MEM-107",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-108",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-109",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-110",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-111",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-112",
+        "status": "done"
+      },
+      {
+        "identifier": "MEM-113",
+        "status": "done"
+      }
+    ],
+    "companies_paused": 6,
+    "live_runs": 0,
+    "next_campaign_authorized": false
+  },
+  "retained_boundaries": [
+    "Independent exact-candidate QA",
+    "OS filesystem confinement and shell network denial",
+    "Safe-source clones without owner history, credentials or personal memory",
+    "Serial owner-controlled Git publication"
+  ],
+  "replaced_in_cohort": [
+    "Custom source reader and whole-file proposal relay by native developer tools",
+    "Custom task/correction queue by Paperclip tasks and lifecycle"
+  ],
+  "limits": [
+    "Four-worker scale only; no measured subscription/hardware maximum",
+    "Workspace binding and artifact integration remain assisted",
+    "Old MEM99, failed recovery and manual holds preserved; historical repair8d994c9 not installed",
+    "No production/main/data/market/training/AUTO/trading change"
+  ],
+  "private_evidence_locator": "Lab state/parallel-native-20261026; raw provider logs and credentials excluded",
+  "private_receipt_sha256": {
+    "source-execution-evidence.json": "80ed72885119b04d1ef1e11a532fa188f819a4ee8079fcb79b69ffefc46567e7",
+    "QA-RESULT-first.json": "02a8018b074fe9a7a16c4a5dea1a15165eb84e849c81ec090590ee64917df852",
+    "QA-RESULT-correction-final.json": "892a296b7c56c9129986661b407bedc713fed143da1b0ab9a3f0e04a51536f50",
+    "integration-tests.json": "806b65fe353dcd720228e849224051288ae1f70727efae203cef366e71afe875"
+  }
+}

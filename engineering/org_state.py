@@ -1,0 +1,6374 @@
+"""Durable, local engineering coordination. No executor or network access.
+
+Each public mutation is one SQLite BEGIN IMMEDIATE transaction with an event.
+WAL + synchronous FULL provide local crash durability (not a distributed store).
+Execution is at-least-once: every claim gets a monotonically increasing fence;
+only the current, unexpired attempt can submit. A submitted candidate is immutable
+and verification/acceptance/integration always resolve its original attempt fence.
+Dependencies require integration, so consumers start from integrated producer work.
+Use one Store per process (multiple instances safely contend through SQLite).
+"""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import json
+import math
+import os
+import re
+import sqlite3
+import stat
+import threading
+import time
+from collections.abc import Callable
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Any
+
+from .research_protocol import (
+    CONTRACT_NAME as CORTEX_RESEARCH_PROTOCOL,
+)
+from .research_protocol import (
+    ResearchProtocolError,
+    canonical_protocol,
+)
+from .task_execution import build_execution_binding, resolve_execution_binding
+from .task_specs import validate_task_spec
+
+
+class StateError(ValueError):
+    """Invalid transition, conflicting immutable record, or malformed input."""
+
+
+class StaleAttempt(StateError):
+    """An expired, superseded, or otherwise inactive execution fence."""
+
+
+_ACTIVE_TASK_STATES = ("pending", "running", "submitted", "verified", "accepted")
+_TASK_STATES = (*_ACTIVE_TASK_STATES, "integrated", "failed")
+_LIFECYCLE_OBSERVATION_FIELDS = frozenset(
+    {
+        "desired_state",
+        "stop_reasons",
+        "runtime_ready",
+        "accounting_ready",
+        "quota_ready",
+        "process_state",
+        "process_owner",
+        "lease_owner",
+        "active_attempt_id",
+        "recovery_open",
+        "backoff_until",
+        "now",
+        "launch_authorized",
+    }
+)
+_LIFECYCLE_REQUEST_MAX_BYTES = 64 * 1024
+_LIFECYCLE_WORKLIST_MAX_BYTES = 1024 * 1024
+_LIFECYCLE_OWNER_RECORD_MAX_BYTES = 64 * 1024
+_LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS = 30.0
+_SUPERVISOR_EPISODE_CHECKPOINT_PREFIX = "supervisor/episode-checkpoint/"
+_COMPANY_CONTROL_ENTITY = "company/control"
+_SPAWN_FAILURE_BACKOFF_BASE_SECONDS = 5.0
+_SPAWN_FAILURE_BACKOFF_MAX_SECONDS = 300.0
+_SPAWN_FAILURE_BACKOFF_MAX_FAILURES = 8
+_CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES = 64 * 1024
+CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS = 1000
+_CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES = 512 * 1024
+_CONTRACT_TRANSITION_BATCH_MAX_BYTES = 32 * 1024 * 1024
+_CONTRACT_REVIEW_REPLAY_SCAN_LIMIT = 1000
+_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES = 512 * 1024
+_CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES = 2 * 1024 * 1024
+# Reserve 96 KiB for response custody and 72 KiB for terminal result/blockers.
+_CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES = 320 * 1024
+_CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES = 32 * 1024 * 1024
+_CONTRACT_REVIEW_WORKLIST_MAX_BYTES = 32 * 1024 * 1024
+_CONTRACT_REVIEW_IDENTITY_FIELDS = frozenset(
+    {
+        "kind",
+        "status",
+        "request_id",
+        "proposal_digest",
+        "contract_hash",
+        "name",
+        "version",
+        "team",
+        "role",
+        "evidence_revision",
+        "packet",
+        "packet_hash",
+        "dispatch_id",
+    }
+)
+_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS = len("contract-review/") + 64
+_LIFECYCLE_REQUEST_NAME_MAX_CHARS = len("lifecycle/request/") + 64
+_CONTRACT_REVIEW_BOUNDED_RECORD_QUERY = (
+    "WITH history AS ("
+    "SELECT version,body,length(CAST(body AS BLOB)) AS body_bytes,replaces,replaces_version "
+    "FROM decisions WHERE name=? ORDER BY version LIMIT 6"
+    "), budgeted AS ("
+    "SELECT *,count(*) OVER () AS history_count,"
+    "sum(CASE WHEN body_bytes>"
+    f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES} THEN "
+    f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES + 1} ELSE body_bytes END) OVER () "
+    "AS capped_history_bytes FROM history"
+    ") SELECT version,CASE WHEN history_count<=5 AND capped_history_bytes<="
+    f"{_CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES} AND body_bytes<="
+    f"{_CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES} "
+    "THEN CAST(body AS BLOB) END AS bounded_body,body_bytes,"
+    "CASE WHEN replaces IS NULL OR replaces=? THEN replaces END AS bounded_replaces,"
+    "CASE WHEN (version=1 AND replaces IS NULL) OR (version>1 AND replaces=?) "
+    "THEN 1 ELSE 0 END AS replaces_valid,replaces_version,history_count,"
+    "capped_history_bytes AS bounded_history_bytes FROM budgeted ORDER BY version"
+)
+_CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY = (
+    "SELECT CASE WHEN length(name)<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name>=? AND name<'contract-review0' ORDER BY decisions.name LIMIT 1"
+)
+_CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY = (
+    "SELECT CASE WHEN length(name)<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name>? AND name<'contract-review0' ORDER BY decisions.name LIMIT 1"
+)
+_LIFECYCLE_REQUEST_FIRST_QUERY = (
+    "SELECT CASE WHEN length(name)<="
+    f"{_LIFECYCLE_REQUEST_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_LIFECYCLE_REQUEST_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name>=? AND name<'lifecycle/request0' ORDER BY decisions.name LIMIT 1"
+)
+_LIFECYCLE_REQUEST_NEXT_QUERY = (
+    "SELECT CASE WHEN length(name)<="
+    f"{_LIFECYCLE_REQUEST_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_LIFECYCLE_REQUEST_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name>? AND name<'lifecycle/request0' ORDER BY decisions.name LIMIT 1"
+)
+_CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY = (
+    "SELECT CASE WHEN length(name)<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name GLOB 'contract-review/*' "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
+    "ORDER BY name LIMIT 1"
+)
+_CONTRACT_REVIEW_TRANSITION_REPLAY_NEXT_QUERY = (
+    "SELECT CASE WHEN length(name)<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS} "
+    "AND instr(name,char(0))=0 AND length(CAST(name AS BLOB))<="
+    f"{_CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS * 4} "
+    "THEN name END AS journal_name, length(name) AS journal_name_length, "
+    "length(CAST(name AS BLOB)) AS journal_name_storage_bytes FROM decisions "
+    "WHERE name GLOB 'contract-review/*' "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END=? "
+    "AND CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END=? "
+    "AND name>? ORDER BY name LIMIT 1"
+)
+
+
+def _json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def _json_equal(left: Any, right: Any) -> bool:
+    """Compare canonical JSON values without Python's bool/int equality coercion."""
+    try:
+        return _json(left) == _json(right)
+    except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+        return False
+
+
+def _bounded_index_name(row: sqlite3.Row, max_chars: int, error: str) -> str:
+    """Accept only a small indexed name returned by a bounded namespace seek."""
+    name = row["journal_name"]
+    size = row["journal_name_length"]
+    storage_bytes = row["journal_name_storage_bytes"]
+    if (
+        type(size) is not int
+        or size < 0
+        or size > max_chars
+        or type(storage_bytes) is not int
+        or storage_bytes < 0
+        or storage_bytes > max_chars * 4
+        or type(name) is not str
+        or len(name) != size
+        or "\0" in name
+        or len(name.encode("utf-8")) > max_chars * 4
+    ):
+        raise StateError(error)
+    return name
+
+
+def _strict_contract_review_result(raw_result: bytes) -> dict:
+    """Decode one durable review result, rejecting duplicate keys and non-object roots."""
+    if type(raw_result) is not bytes:
+        raise ValueError("contract review response bytes invalid")
+
+    def unique_object(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("duplicate JSON key")
+            value[key] = item
+        return value
+
+    value = json.loads(raw_result.decode("utf-8"), object_pairs_hook=unique_object)
+    if type(value) is not dict:
+        raise ValueError("contract review response root is not an object")
+    _json(value)  # Reject non-finite JSON values accepted by Python's decoder.
+    return value
+
+
+def _name(value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise StateError("identifier must be a nonempty string")
+    return value
+
+
+def _positive(value: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise StateError("positive finite number required")
+    if not math.isfinite(value) or value <= 0:
+        raise StateError("positive finite number required")
+    return value
+
+
+def _lifecycle_snapshot(value: Any) -> Any:
+    """Detach caller-owned JSON data before a lifecycle transaction can wait on SQLite."""
+    try:
+        return json.loads(_json(value))
+    except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+        raise StateError("invalid_lifecycle_input") from None
+
+
+class Store:
+    """Small transactional API; returned dictionaries are detached snapshots.
+
+    Task state: pending -> running -> submitted -> verified -> accepted -> integrated.
+    Failure/expiry returns to pending until max_attempts is exhausted, then failed.
+    Versions are append-only; contract requirements match the current version exactly.
+    A controller, separate from worker execution, owns verify/accept/integrate calls.
+    """
+
+    def __init__(
+        self,
+        path: str | Path,
+        clock: Callable[[], float] = time.time,
+        *,
+        controller_catalogue: list[str] | tuple[str, ...] | None = None,
+        require_company_control: bool = False,
+    ):
+        if controller_catalogue is not None and (
+            type(controller_catalogue) not in (list, tuple)
+            or any(type(task_id) is not str or not task_id for task_id in controller_catalogue)
+        ):
+            raise StateError("controller_assignment_policy_invalid")
+        self.clock = clock
+        self.controller_catalogue = (
+            None if controller_catalogue is None else frozenset(controller_catalogue)
+        )
+        if type(require_company_control) is not bool:
+            raise StateError("company_control_policy_invalid")
+        self.require_company_control = require_company_control
+        self._lock = threading.RLock()
+        self.db = sqlite3.connect(
+            str(path), timeout=30, isolation_level=None, check_same_thread=False
+        )
+        self.db.row_factory = sqlite3.Row
+        self.db.execute("PRAGMA foreign_keys=ON")
+        self.db.execute("PRAGMA journal_mode=WAL")
+        self.db.execute("PRAGMA synchronous=FULL")
+        self.db.executescript("""
+          CREATE TABLE IF NOT EXISTS objectives(
+            id TEXT PRIMARY KEY, title TEXT NOT NULL, brief TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS tasks(
+            id TEXT PRIMARY KEY, team TEXT NOT NULL, title TEXT NOT NULL,
+            brief TEXT NOT NULL, scope TEXT NOT NULL, acceptance TEXT NOT NULL,
+            dependencies TEXT NOT NULL, contracts TEXT NOT NULL, base_sha TEXT NOT NULL,
+            objective_id TEXT REFERENCES objectives(id), max_attempts INTEGER NOT NULL,
+            state TEXT NOT NULL DEFAULT 'pending', epoch INTEGER NOT NULL DEFAULT 0,
+            active_attempt INTEGER, candidate_sha TEXT);
+          CREATE TABLE IF NOT EXISTS attempts(
+            id INTEGER PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
+            epoch INTEGER NOT NULL, worker TEXT NOT NULL, lease_until REAL NOT NULL,
+            state TEXT NOT NULL, session TEXT, UNIQUE(task_id,epoch));
+          CREATE TABLE IF NOT EXISTS contracts(
+            name TEXT NOT NULL, version INTEGER NOT NULL, body TEXT NOT NULL,
+            PRIMARY KEY(name,version));
+          CREATE TABLE IF NOT EXISTS decisions(
+            name TEXT NOT NULL, version INTEGER NOT NULL, body TEXT NOT NULL,
+            replaces TEXT, replaces_version INTEGER, PRIMARY KEY(name,version));
+          CREATE TABLE IF NOT EXISTS company_control(
+            id INTEGER PRIMARY KEY CHECK(id=1), generation INTEGER NOT NULL,
+            phase TEXT NOT NULL, request_id TEXT NOT NULL, checkpoint_id TEXT,
+            body TEXT NOT NULL, body_sha256 TEXT NOT NULL);
+          CREATE INDEX IF NOT EXISTS idx_contract_review_transition_replay
+            ON decisions(
+              CASE WHEN json_valid(body) THEN json_extract(body,'$.name') END,
+              CASE WHEN json_valid(body) THEN json_extract(body,'$.version') END,
+              CASE WHEN json_valid(body) THEN json_extract(body,'$.contract_hash') END,
+              CASE WHEN json_valid(body) THEN json_extract(body,'$.proposal_digest') END,
+              name,version
+            ) WHERE name GLOB 'contract-review/*';
+          CREATE TABLE IF NOT EXISTS candidates(
+            task_id TEXT NOT NULL REFERENCES tasks(id), sha TEXT NOT NULL,
+            attempt_id INTEGER NOT NULL REFERENCES attempts(id), epoch INTEGER NOT NULL,
+            evidence TEXT NOT NULL, PRIMARY KEY(task_id,sha));
+          CREATE TABLE IF NOT EXISTS verifications(
+            id INTEGER PRIMARY KEY, task_id TEXT NOT NULL, sha TEXT NOT NULL,
+            attempt_id INTEGER NOT NULL, epoch INTEGER NOT NULL,
+            passed INTEGER NOT NULL, details TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS acceptances(
+            task_id TEXT PRIMARY KEY REFERENCES tasks(id), sha TEXT NOT NULL,
+            attempt_id INTEGER NOT NULL, epoch INTEGER NOT NULL);
+          CREATE TABLE IF NOT EXISTS integrations(
+            task_id TEXT PRIMARY KEY REFERENCES tasks(id), sha TEXT NOT NULL,
+            integration_sha TEXT NOT NULL, details TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS usage(
+            id INTEGER PRIMARY KEY, attempt_id INTEGER NOT NULL REFERENCES attempts(id),
+            epoch INTEGER NOT NULL, body TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS task_specs(
+            task_id TEXT PRIMARY KEY REFERENCES tasks(id), body TEXT NOT NULL,
+            policy_sha256 TEXT NOT NULL, admission TEXT NOT NULL,
+            decision_name TEXT NOT NULL, decision_version INTEGER NOT NULL);
+          CREATE TABLE IF NOT EXISTS events(
+            seq INTEGER PRIMARY KEY, at REAL NOT NULL, kind TEXT NOT NULL,
+            entity TEXT NOT NULL, body TEXT NOT NULL);
+          CREATE INDEX IF NOT EXISTS idx_events_lifecycle_owner_decision
+            ON events(seq) WHERE kind='decision_recorded' AND entity='lifecycle/owner';
+          CREATE INDEX IF NOT EXISTS idx_events_task_spec_admitted
+            ON events(entity) WHERE kind='task_spec_admitted';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_child_started
+            ON events(entity,seq) WHERE kind='attempt_child_started';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_stopped_before_work
+            ON events(entity,seq) WHERE kind='attempt_stopped_before_work';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_work_started
+            ON events(entity,seq) WHERE kind='attempt_work_started';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_process_reaped
+            ON events(entity,seq) WHERE kind='attempt_process_reaped';
+          CREATE INDEX IF NOT EXISTS idx_events_attempt_spawn_backoff
+            ON events(entity,seq) WHERE kind IN ('attempt_spawn_backoff','attempt_child_started');
+          CREATE INDEX IF NOT EXISTS idx_tasks_state_id ON tasks(state,id);
+        """)
+        self.db.executescript("""
+          CREATE TABLE IF NOT EXISTS quiescence_revision(
+            id INTEGER PRIMARY KEY CHECK(id=1), value INTEGER NOT NULL);
+          INSERT OR IGNORE INTO quiescence_revision(id,value) VALUES(1,0);
+          CREATE TRIGGER IF NOT EXISTS quiescence_tasks_insert
+            AFTER INSERT ON tasks BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_tasks_update
+            AFTER UPDATE ON tasks BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_tasks_delete
+            AFTER DELETE ON tasks BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contracts_insert
+            AFTER INSERT ON contracts BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contracts_update
+            AFTER UPDATE ON contracts BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contracts_delete
+            AFTER DELETE ON contracts BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contract_decisions_insert
+            AFTER INSERT ON decisions
+            WHEN NEW.name GLOB 'contract-transition/*'
+              OR NEW.name GLOB 'contract-ack/*'
+              OR NEW.name GLOB 'contract-review/*'
+            BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contract_decisions_update
+            AFTER UPDATE ON decisions
+            WHEN OLD.name GLOB 'contract-transition/*'
+              OR OLD.name GLOB 'contract-ack/*'
+              OR OLD.name GLOB 'contract-review/*'
+              OR NEW.name GLOB 'contract-transition/*'
+              OR NEW.name GLOB 'contract-ack/*'
+              OR NEW.name GLOB 'contract-review/*'
+            BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+          CREATE TRIGGER IF NOT EXISTS quiescence_contract_decisions_delete
+            AFTER DELETE ON decisions
+            WHEN OLD.name GLOB 'contract-transition/*'
+              OR OLD.name GLOB 'contract-ack/*'
+              OR OLD.name GLOB 'contract-review/*'
+            BEGIN
+              UPDATE quiescence_revision SET value=value+1 WHERE id=1;
+            END;
+        """)
+        self._issued_quiescence_snapshot_sha256: bytes | None = None
+
+    def _company_control_current(self, *, required: bool | None = None) -> dict | None:
+        """Read and event-bind the dedicated singleton company execution fence."""
+        require = self.require_company_control if required is None else required
+        row = self.db.execute("SELECT * FROM company_control WHERE id=1").fetchone()
+        if row is None:
+            if require:
+                raise StateError("company_control_missing")
+            return None
+        try:
+            body = json.loads(row["body"])
+            digest = hashlib.sha256(_json(body).encode("utf-8")).hexdigest()
+            latest = self.db.execute(
+                "SELECT body FROM events WHERE kind='company_control_transition' "
+                "AND entity=? ORDER BY seq DESC LIMIT 1",
+                (_COMPANY_CONTROL_ENTITY,),
+            ).fetchone()
+            if (
+                type(body) is not dict
+                or set(body)
+                != {"schema", "generation", "phase", "request_id", "checkpoint_id", "updated_at"}
+                or body["schema"] != "company-control-v1"
+                or type(body["generation"]) is not int
+                or body["generation"] < 0
+                or body["generation"] != row["generation"]
+                or body["phase"] not in {"running", "draining", "hibernated", "wake_pending"}
+                or body["phase"] != row["phase"]
+                or type(body["request_id"]) is not str
+                or not body["request_id"]
+                or body["request_id"] != row["request_id"]
+                or (body["checkpoint_id"] is not None and (
+                    type(body["checkpoint_id"]) is not str
+                    or re.fullmatch(r"[0-9a-f]{64}", body["checkpoint_id"]) is None
+                ))
+                or body["checkpoint_id"] != row["checkpoint_id"]
+                or type(body["updated_at"]) not in (int, float)
+                or isinstance(body["updated_at"], bool)
+                or not math.isfinite(body["updated_at"])
+                or digest != row["body_sha256"]
+                or latest is None
+                or latest["body"] != _json(body)
+            ):
+                raise ValueError
+        except (TypeError, ValueError, KeyError, RecursionError):
+            raise StateError("company_control_history_invalid") from None
+        return body
+
+    def company_control_state(self, *, required: bool | None = None) -> dict | None:
+        """Return the durable company fence without implying dispatch authority."""
+        with self._lock:
+            if self.db.in_transaction:
+                body = self._company_control_current(required=required)
+            else:
+                with self._read_snapshot():
+                    body = self._company_control_current(required=required)
+            return None if body is None else dict(body)
+
+    def _require_company_running(self) -> None:
+        body = self._company_control_current()
+        if body is not None and body["phase"] != "running":
+            raise StateError("company_hibernation_active")
+
+    def require_company_phase(self, expected: str) -> dict | None:
+        if type(expected) is not str or expected not in {
+            "running", "draining", "hibernated", "wake_pending"
+        }:
+            raise StateError("company_control_phase_invalid")
+        body = self.company_control_state()
+        if body is not None and body["phase"] != expected:
+            raise StateError("company_control_phase_mismatch")
+        return body
+
+    def require_company_running(self) -> dict | None:
+        """Fail closed for controller Stores while company dispatch is fenced."""
+        body = self.company_control_state()
+        if body is not None and body["phase"] != "running":
+            raise StateError("company_hibernation_active")
+        return body
+
+    def initialize_company_control(self) -> dict:
+        """Install the explicit initial running state during trusted deployment bootstrap."""
+        with self._tx():
+            existing = self._company_control_current(required=False)
+            if existing is not None:
+                return existing
+            if self.db.execute(
+                "SELECT 1 FROM events WHERE kind='company_control_transition' AND entity=? LIMIT 1",
+                (_COMPANY_CONTROL_ENTITY,),
+            ).fetchone():
+                raise StateError("company_control_history_invalid")
+            body = {
+                "schema": "company-control-v1",
+                "generation": 0,
+                "phase": "running",
+                "request_id": "deployment-bootstrap",
+                "checkpoint_id": None,
+                "updated_at": self.clock(),
+            }
+            self.db.execute(
+                "INSERT INTO company_control VALUES(1,?,?,?,?,?,?)",
+                (
+                    body["generation"],
+                    body["phase"],
+                    body["request_id"],
+                    body["checkpoint_id"],
+                    _json(body),
+                    hashlib.sha256(_json(body).encode("utf-8")).hexdigest(),
+                ),
+            )
+            self._event("company_control_transition", _COMPANY_CONTROL_ENTITY, body)
+            return body
+
+    def request_company_hibernation(self, request_id: str) -> dict:
+        """Persist the drain fence before a caller starts waiting for owned work."""
+        if type(request_id) is not str or not request_id.strip() or len(request_id) > 128:
+            raise StateError("company_hibernation_request_invalid")
+        with self._tx():
+            current = self._company_control_current(required=True)
+            if current["phase"] in ("draining", "hibernated"):
+                if current["request_id"] != request_id:
+                    raise StateError("company_hibernation_request_conflict")
+                return current
+            if current["phase"] != "running":
+                raise StateError("company_control_transition_invalid")
+            body = {
+                "schema": "company-control-v1",
+                "generation": current["generation"] + 1,
+                "phase": "draining",
+                "request_id": request_id,
+                "checkpoint_id": None,
+                "updated_at": self.clock(),
+            }
+            self._write_company_control(body)
+            return body
+
+    def company_hibernation_snapshot(self) -> dict:
+        """Capture one Store view for a request-bound handoff while draining."""
+        with self._read_snapshot():
+            control = self._company_control_current(required=True)
+            if control["phase"] != "draining":
+                raise StateError("company_hibernation_not_draining")
+            revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            events = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+            tasks = self.list_tasks()
+            attempts = self.list_attempts()
+            snapshot = {
+                "schema": "company-hibernation-store-v1",
+                "control": control,
+                "revision": revision,
+                "event_seq": events,
+                "tasks": tasks,
+                "attempts": attempts,
+                "readiness": self._readiness_report_in_snapshot(),
+                "contract_reviews": self._contract_transition_review_projection_in_snapshot(
+                    limit=100
+                ),
+                "review_requests": self._contract_review_worklist_in_snapshot(
+                    limit=100, overflow_as_result=True
+                ),
+            }
+            return snapshot
+
+    def complete_company_hibernation(
+        self,
+        *,
+        request_id: str,
+        generation: int,
+        checkpoint_id: str,
+        expected_revision: int,
+        expected_event_seq: int,
+    ) -> dict:
+        """Commit hibernated only if the exact drained Store snapshot is still current."""
+        if (
+            type(request_id) is not str
+            or not request_id
+            or type(generation) is not int
+            or generation < 1
+            or type(checkpoint_id) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", checkpoint_id) is None
+            or type(expected_revision) is not int
+            or expected_revision < 0
+            or type(expected_event_seq) is not int
+            or expected_event_seq < 0
+        ):
+            raise StateError("company_hibernation_checkpoint_invalid")
+        with self._tx():
+            current = self._company_control_current(required=True)
+            if current["phase"] == "hibernated":
+                if (
+                    current["request_id"] == request_id
+                    and current["generation"] == generation
+                    and current["checkpoint_id"] == checkpoint_id
+                ):
+                    return current
+                raise StateError("company_hibernation_checkpoint_conflict")
+            if (
+                current["phase"] != "draining"
+                or current["request_id"] != request_id
+                or current["generation"] != generation
+            ):
+                raise StateError("company_hibernation_generation_changed")
+            if self.db.execute("SELECT 1 FROM tasks WHERE state='running' LIMIT 1").fetchone():
+                raise StateError("company_hibernation_attempts_active")
+            if self.db.execute("SELECT 1 FROM attempts WHERE state='running' LIMIT 1").fetchone():
+                raise StateError("company_hibernation_attempts_active")
+            revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            event_seq = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+            if revision != expected_revision or event_seq != expected_event_seq:
+                raise StateError("company_hibernation_snapshot_changed")
+            body = {
+                "schema": "company-control-v1",
+                "generation": current["generation"],
+                "phase": "hibernated",
+                "request_id": request_id,
+                "checkpoint_id": checkpoint_id,
+                "updated_at": self.clock(),
+            }
+            self._write_company_control(body)
+            return body
+
+    def request_company_resume(self, request_id: str) -> dict:
+        if type(request_id) is not str or not request_id.strip() or len(request_id) > 128:
+            raise StateError("company_resume_request_invalid")
+        with self._tx():
+            current = self._company_control_current(required=True)
+            if current["phase"] == "wake_pending":
+                if current["request_id"] != request_id:
+                    raise StateError("company_resume_request_conflict")
+                return current
+            if current["phase"] != "hibernated":
+                raise StateError("company_not_hibernated")
+            body = {
+                "schema": "company-control-v1",
+                "generation": current["generation"] + 1,
+                "phase": "wake_pending",
+                "request_id": request_id,
+                "checkpoint_id": current["checkpoint_id"],
+                "updated_at": self.clock(),
+            }
+            self._write_company_control(body)
+            return body
+
+    def complete_company_resume(
+        self,
+        *,
+        request_id: str,
+        generation: int,
+        checkpoint_id: str,
+        expected_revision: int,
+        expected_event_seq: int,
+    ) -> dict:
+        if (
+            type(request_id) is not str
+            or not request_id
+            or type(generation) is not int
+            or generation < 1
+            or type(checkpoint_id) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", checkpoint_id) is None
+            or type(expected_revision) is not int
+            or expected_revision < 0
+            or type(expected_event_seq) is not int
+            or expected_event_seq < 0
+        ):
+            raise StateError("company_resume_checkpoint_invalid")
+        with self._tx():
+            current = self._company_control_current(required=True)
+            if (
+                current["phase"] != "wake_pending"
+                or current["request_id"] != request_id
+                or current["generation"] != generation
+                or current["checkpoint_id"] != checkpoint_id
+            ):
+                raise StateError("company_resume_generation_changed")
+            if self.db.execute("SELECT 1 FROM tasks WHERE state='running' LIMIT 1").fetchone():
+                raise StateError("company_resume_attempts_active")
+            if self.db.execute("SELECT 1 FROM attempts WHERE state='running' LIMIT 1").fetchone():
+                raise StateError("company_resume_attempts_active")
+            revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            event_seq = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+            if revision != expected_revision or event_seq != expected_event_seq:
+                raise StateError("company_resume_snapshot_changed")
+            body = {
+                "schema": "company-control-v1",
+                "generation": current["generation"] + 1,
+                "phase": "running",
+                "request_id": request_id,
+                "checkpoint_id": checkpoint_id,
+                "updated_at": self.clock(),
+            }
+            self._write_company_control(body)
+            return body
+
+    def _write_company_control(self, body: dict) -> None:
+        canonical = _json(body)
+        self.db.execute(
+            "UPDATE company_control SET generation=?,phase=?,request_id=?,checkpoint_id=?,"
+            "body=?,body_sha256=? WHERE id=1",
+            (
+                body["generation"], body["phase"], body["request_id"],
+                body["checkpoint_id"], canonical,
+                hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+            ),
+        )
+        self._event("company_control_transition", _COMPANY_CONTROL_ENTITY, body)
+
+    def admit_task_spec(
+        self,
+        spec: Any,
+        *,
+        envelope: Any,
+        acceptance_registry: Any,
+        policy_sha256: str,
+        admission: Any,
+        verifier_registry: Any = None,
+        controller_release_sha256: str | None = None,
+        integration_policy_sha256: str | None = None,
+    ) -> str:
+        if type(policy_sha256) is not str or re.fullmatch(r"[0-9a-f]{64}", policy_sha256) is None:
+            raise StateError("invalid_task_spec_policy_hash")
+        if type(admission) is not dict:
+            raise StateError("invalid_task_spec_admission")
+        try:
+            admission_snapshot = json.loads(_json(admission))
+        except (TypeError, ValueError, OverflowError, RuntimeError):
+            raise StateError("invalid_task_spec_admission") from None
+        if type(admission_snapshot) is not dict or set(admission_snapshot) != {
+            "rationale",
+            "evidence",
+        }:
+            raise StateError("invalid_task_spec_admission")
+        for key in ("rationale", "evidence"):
+            value = admission_snapshot[key]
+            if type(value) is not str or not value.strip() or not 10 <= len(value) <= 4000:
+                raise StateError("invalid_task_spec_admission")
+        proposed_id = spec.get("id") if type(spec) is dict else None
+        if type(proposed_id) is not str:
+            # Let the canonical validator provide its stable rejection code.
+            proposed_id = None
+        decision_name = "admission/task-spec/" + proposed_id if proposed_id else None
+        with self._tx():
+            self._require_company_running()
+            if (
+                proposed_id
+                and self.controller_catalogue is not None
+                and proposed_id in self.controller_catalogue
+            ):
+                raise StateError("task_spec_fixed_catalogue_collision")
+            if (
+                proposed_id
+                and self.db.execute("SELECT 1 FROM tasks WHERE id=?", (proposed_id,)).fetchone()
+            ):
+                raise StateError("task_spec_duplicate")
+            if (
+                decision_name
+                and self.db.execute(
+                    "SELECT 1 FROM decisions WHERE name=?", (decision_name,)
+                ).fetchone()
+            ):
+                raise StateError("task_spec_duplicate")
+            if (
+                type(spec) is dict
+                and type(spec.get("objective_id")) is str
+                and not self.db.execute(
+                    "SELECT 1 FROM objectives WHERE id=?", (spec["objective_id"],)
+                ).fetchone()
+            ):
+                raise StateError("task_spec_objective_missing")
+            existing = self.list_tasks()
+            try:
+                canonical = validate_task_spec(
+                    spec,
+                    envelope=envelope,
+                    acceptance_registry=acceptance_registry,
+                    existing_tasks=existing,
+                )
+            except StateError as exc:
+                if str(exc) == "duplicate_task_id":
+                    raise StateError("task_spec_duplicate") from None
+                raise
+            self._validate_cortex_task_spec(canonical)
+            task_id = canonical["id"]
+            if self.controller_catalogue is not None and task_id in self.controller_catalogue:
+                raise StateError("task_spec_fixed_catalogue_collision")
+            execution_binding = None
+            binding_requested = any(
+                value is not None
+                for value in (
+                    verifier_registry,
+                    controller_release_sha256,
+                    integration_policy_sha256,
+                )
+            )
+            if binding_requested:
+                if (
+                    verifier_registry is None
+                    or controller_release_sha256 is None
+                    or integration_policy_sha256 is None
+                ):
+                    raise StateError("incomplete_task_execution_binding")
+                try:
+                    execution_binding = build_execution_binding(
+                        canonical,
+                        verifier_registry=verifier_registry,
+                        controller_release_sha256=controller_release_sha256,
+                        integration_policy_sha256=integration_policy_sha256,
+                    )
+                except ValueError as exc:
+                    raise StateError(str(exc)) from None
+            decision_name = "admission/task-spec/" + task_id
+            collision = (
+                self.db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone()
+                or self.db.execute(
+                    "SELECT 1 FROM decisions WHERE name=?", (decision_name,)
+                ).fetchone()
+            )
+            if collision:
+                raise StateError("task_spec_duplicate")
+            if not self.db.execute(
+                "SELECT 1 FROM objectives WHERE id=?", (canonical["objective_id"],)
+            ).fetchone():
+                raise StateError("task_spec_objective_missing")
+            task_contracts = {}
+            for name, requirement in canonical["contracts"].items():
+                if name == CORTEX_RESEARCH_PROTOCOL and requirement["version"] < 2:
+                    raise StateError("cortex_research_protocol_requires_reviewed_v2")
+                row = self.db.execute(
+                    "SELECT version,body FROM contracts WHERE name=? ORDER BY version DESC LIMIT 1",
+                    (name,),
+                ).fetchone()
+                if row is None or row["version"] != requirement["version"]:
+                    raise StateError("task_spec_contract_not_current")
+                self._validate_task_spec_contract(name, requirement, row)
+                if requirement["version"] >= 2 or name == CORTEX_RESEARCH_PROTOCOL:
+                    self._validate_task_spec_contract_activation(name, requirement, row)
+                task_contracts[name] = requirement["version"]
+            body = _json(canonical)
+            admission_body = _json(admission_snapshot)
+            fields = (
+                canonical["id"],
+                canonical["team"],
+                canonical["title"],
+                canonical["brief"],
+                _json(canonical["scope"]),
+                _json([f"{a['id']}:{a['sha256']}" for a in canonical["acceptance"]]),
+                _json(canonical["dependencies"]),
+                _json(task_contracts),
+                canonical["base_sha"],
+                canonical["objective_id"],
+                canonical["resources"]["max_attempts"],
+            )
+            self.db.execute(
+                """INSERT INTO tasks(
+                  id,team,title,brief,scope,acceptance,dependencies,contracts,
+                  base_sha,objective_id,max_attempts
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                fields,
+            )
+            self._event("task_added", task_id, self._task(task_id))
+            decision_body = {
+                "spec": canonical,
+                "policy_sha256": policy_sha256,
+                "admission": admission_snapshot,
+                "execution_binding": execution_binding,
+            }
+            self.db.execute(
+                """INSERT INTO decisions(
+                  name,version,body,replaces,replaces_version
+                ) VALUES(?,?,?,?,?)""",
+                (decision_name, 1, _json(decision_body), None, None),
+            )
+            self._event(
+                "decision_recorded",
+                decision_name,
+                {
+                    "version": 1,
+                    "body": decision_body,
+                    "replaces": None,
+                    "replaces_version": None,
+                },
+            )
+            self.db.execute(
+                """INSERT INTO task_specs(
+                  task_id,body,policy_sha256,admission,decision_name,decision_version
+                ) VALUES(?,?,?,?,?,1)""",
+                (task_id, body, policy_sha256, admission_body, decision_name),
+            )
+            self._event(
+                "task_spec_admitted",
+                task_id,
+                {"decision": decision_name, "version": 1, "policy_sha256": policy_sha256},
+            )
+            return task_id
+
+    def get_task_spec(self, task_id: str) -> dict | None:
+        with self._lock:
+            row = self.db.execute("SELECT * FROM task_specs WHERE task_id=?", (task_id,)).fetchone()
+            if row is None:
+                if self._has_task_spec_admission(task_id):
+                    raise StateError("admitted_task_spec_missing")
+                return None
+            return {
+                "spec": json.loads(row["body"]),
+                "policy_sha256": row["policy_sha256"],
+                "admission": json.loads(row["admission"]),
+                "decision": {"name": row["decision_name"], "version": row["decision_version"]},
+            }
+
+    def _has_task_spec_admission(self, task_id: str) -> bool:
+        decision_name = "admission/task-spec/" + task_id
+        return (
+            self.db.execute(
+                """SELECT 1 FROM task_specs WHERE task_id=?
+               UNION ALL SELECT 1 FROM decisions WHERE name=?
+               UNION ALL SELECT 1 FROM events WHERE kind='task_spec_admitted' AND entity=?
+               LIMIT 1""",
+                (task_id, decision_name, task_id),
+            ).fetchone()
+            is not None
+        )
+
+    def resolve_task_execution_binding(
+        self, task_id: str, *, controller_release_sha256: str
+    ) -> dict:
+        """Read the exact immutable admission decision referenced by the spec row."""
+        with self._read_snapshot():
+            row = self.db.execute(
+                "SELECT body,policy_sha256,admission,decision_name,decision_version "
+                "FROM task_specs WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+            if row is None:
+                raise StateError("missing_execution_binding")
+            decision_row = self.db.execute(
+                "SELECT name,version,body FROM decisions WHERE name=? AND version=?",
+                (row["decision_name"], row["decision_version"]),
+            ).fetchone()
+            if decision_row is None:
+                raise StateError("missing_execution_binding_decision")
+            decision = {**dict(decision_row), "body": json.loads(decision_row["body"])}
+            decision_body = decision["body"]
+            spec = json.loads(row["body"])
+            self._validate_task_spec_contracts(spec)
+            if (
+                _json(decision_body.get("spec")) != _json(spec)
+                or decision_body.get("policy_sha256") != row["policy_sha256"]
+                or _json(decision_body.get("admission")) != _json(json.loads(row["admission"]))
+            ):
+                raise StateError("execution_admission_record_mismatch")
+            try:
+                return resolve_execution_binding(
+                    task_id,
+                    self._task(task_id),
+                    decision,
+                    controller_release_sha256=controller_release_sha256,
+                )
+            except ValueError as exc:
+                raise StateError(str(exc)) from None
+
+    def _validate_task_spec_contracts(self, spec: dict) -> None:
+        self._validate_cortex_task_spec(spec)
+        for name, requirement in spec["contracts"].items():
+            row = self.db.execute(
+                "SELECT version,body FROM contracts WHERE name=? ORDER BY version DESC LIMIT 1",
+                (name,),
+            ).fetchone()
+            if row is None or row["version"] != requirement["version"]:
+                raise StateError("task_spec_contract_not_current")
+            self._validate_task_spec_contract(name, requirement, row)
+            if requirement["version"] >= 2:
+                self._validate_task_spec_contract_activation(name, requirement, row)
+
+    def _validate_cortex_task_spec(self, spec: dict) -> None:
+        if type(spec) is not dict:
+            raise StateError("invalid_task_spec")
+        contracts = spec.get("contracts")
+        if type(contracts) is not dict:
+            raise StateError("invalid_task_spec_contracts")
+        if spec.get("team") == "Cortex":
+            requirement = contracts.get(CORTEX_RESEARCH_PROTOCOL)
+            if (
+                type(requirement) is not dict
+                or type(requirement.get("version")) is not int
+                or requirement["version"] < 2
+            ):
+                raise StateError("cortex_task_requires_reviewed_protocol")
+            protocol_row = self.db.execute(
+                "SELECT version,body FROM contracts WHERE name=? AND version=?",
+                (CORTEX_RESEARCH_PROTOCOL, requirement["version"]),
+            ).fetchone()
+            if protocol_row is None:
+                raise StateError("cortex_task_protocol_missing")
+            self._validate_task_spec_contract(CORTEX_RESEARCH_PROTOCOL, requirement, protocol_row)
+            protocol = json.loads(protocol_row["body"])
+            if protocol["objective_id"] != spec.get("objective_id"):
+                raise StateError("cortex_task_protocol_objective_mismatch")
+            capabilities = spec.get("capabilities")
+            if (
+                type(capabilities) is not list
+                or any(type(capability) is not str for capability in capabilities)
+                or "offline_code" not in capabilities
+                or not set(capabilities) <= {"offline_code", "synthetic_tests"}
+            ):
+                raise StateError("cortex_task_capability_outside_source_only_scope")
+        elif CORTEX_RESEARCH_PROTOCOL in contracts:
+            raise StateError("cortex_research_protocol_reserved_for_cortex")
+
+    @staticmethod
+    def _validate_task_spec_contract(name: str, requirement: dict, row: sqlite3.Row) -> None:
+        if name == CORTEX_RESEARCH_PROTOCOL and requirement.get("version", 0) < 2:
+            raise StateError("cortex_research_protocol_requires_reviewed_v2")
+        try:
+            raw_body = row["body"]
+            if type(raw_body) is not str:
+                raise StateError("task_spec_contract_content_invalid")
+            body = json.loads(raw_body)
+            canonical = _json(body)
+            if raw_body != canonical:
+                raise StateError("task_spec_contract_hash_mismatch")
+            digest = hashlib.sha256(raw_body.encode("utf-8")).hexdigest()
+        except StateError:
+            raise
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("task_spec_contract_content_invalid") from None
+        if digest != requirement["proposal_sha256"]:
+            raise StateError("task_spec_contract_hash_mismatch")
+        if name == CORTEX_RESEARCH_PROTOCOL:
+            try:
+                canonical_protocol(body, version=requirement["version"])
+            except ResearchProtocolError as exc:
+                raise StateError(str(exc)) from None
+
+    def _validate_task_spec_contract_activation(
+        self, name: str, requirement: dict, row: sqlite3.Row
+    ) -> None:
+        version = requirement["version"]
+        transition = self._single_contract_decision(self._contract_transition_key(name, version))
+        if transition is None:
+            raise StateError("task_spec_contract_transition_missing")
+        proposal = self._validated_contract_transition(transition["body"], name, version)
+        if proposal["contract_hash"] != requirement["proposal_sha256"] or _json(
+            proposal["body"]
+        ) != _json(json.loads(row["body"])):
+            raise StateError("task_spec_contract_transition_mismatch")
+        activation = self._single_contract_decision(
+            self._contract_transition_key(name, version) + "/activated"
+        )
+        participants = [proposal["producer_team"], *proposal["consumer_teams"]]
+        expected_activation = {
+            "kind": "contract_transition_activation",
+            "name": name,
+            "from_version": proposal["from_version"],
+            "to_version": version,
+            "contract_hash": proposal["contract_hash"],
+            "producer_task_id": proposal["producer_task_id"],
+            "acknowledged_teams": sorted(participants),
+        }
+        producer = self.db.execute(
+            "SELECT team,state FROM tasks WHERE id=?", (proposal["producer_task_id"],)
+        ).fetchone()
+        if (
+            activation is None
+            or not _json_equal(activation["body"], expected_activation)
+            or producer is None
+            or producer["team"] != proposal["producer_team"]
+            or producer["state"] != "integrated"
+        ):
+            raise StateError("task_spec_contract_activation_missing")
+        for team in participants:
+            ack = self._single_contract_decision(self._contract_ack_key(name, version, team))
+            if ack is None:
+                raise StateError("task_spec_contract_activation_evidence_missing")
+            self._validated_contract_ack(
+                ack["body"], name, version, team, proposal["contract_hash"]
+            )
+            self._validate_ack_review_provenance(ack["body"], name, version, team)
+
+    def close(self) -> None:
+        with self._lock:
+            self.db.close()
+
+    @contextmanager
+    def _tx(self):
+        with self._lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                yield
+                self.db.execute("COMMIT")
+            except BaseException:
+                self.db.execute("ROLLBACK")
+                raise
+
+    @contextmanager
+    def _read_snapshot(self):
+        with self._lock:
+            self.db.execute("BEGIN")
+            try:
+                yield
+            finally:
+                if self.db.in_transaction:
+                    self.db.execute("ROLLBACK")
+
+    def _event(self, kind: str, entity: str, body: Any) -> None:
+        self.db.execute(
+            "INSERT INTO events(at,kind,entity,body) VALUES(?,?,?,?)",
+            (self.clock(), kind, entity, _json(body)),
+        )
+
+    def _task(self, task_id: str) -> dict:
+        row = self.db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+        if row is None:
+            raise StateError(f"unknown task: {task_id}")
+        result = dict(row)
+        for key in ("scope", "acceptance", "dependencies", "contracts"):
+            result[key] = json.loads(result[key])
+        return result
+
+    def get_task(self, task_id: str) -> dict:
+        with self._lock:
+            return self._task(task_id)
+
+    def list_tasks(self) -> list[dict]:
+        with self._lock:
+            return [self._task(r[0]) for r in self.db.execute("SELECT id FROM tasks ORDER BY id")]
+
+    def active_task_projection(self, limit: int = 100) -> dict:
+        """Return a bounded active-task view while retaining full state counts and history."""
+        if type(limit) is not int or not 0 <= limit <= 1000:
+            raise StateError("active task projection limit must be between zero and one thousand")
+        with self._lock:
+            if self.db.in_transaction:
+                return self._active_task_projection(limit)
+            with self._read_snapshot():
+                return self._active_task_projection(limit)
+
+    def _active_task_projection(self, limit: int) -> dict:
+        count_row = self.db.execute(
+            """SELECT COUNT(*) AS total_count,
+              SUM(state='pending') AS pending,
+              SUM(state='running') AS running,
+              SUM(state='submitted') AS submitted,
+              SUM(state='verified') AS verified,
+              SUM(state='accepted') AS accepted,
+              SUM(state='integrated') AS integrated,
+              SUM(state='failed') AS failed,
+              SUM(state NOT IN ('pending','running','submitted','verified','accepted',
+                                'integrated','failed')) AS unclassified
+              FROM tasks"""
+        ).fetchone()
+        state_counts = {state: count_row[state] for state in _TASK_STATES if count_row[state]}
+        unclassified_count = count_row["unclassified"] or 0
+        active_count = sum(state_counts.get(state, 0) for state in _ACTIVE_TASK_STATES)
+        rows = self.db.execute(
+            "SELECT id FROM tasks WHERE state IN (?,?,?,?,?) ORDER BY state,id LIMIT ?",
+            (*_ACTIVE_TASK_STATES, limit),
+        )
+        if unclassified_count:
+            state_counts["unclassified"] = unclassified_count
+        return {
+            "tasks": [self._task(row[0]) for row in rows],
+            "total_count": count_row["total_count"],
+            "active_count": active_count,
+            "omitted_active_count": active_count - min(active_count, limit),
+            "unclassified_count": unclassified_count,
+            "state_counts": state_counts,
+        }
+
+    def add_objective(self, objective_id: str, title: str, brief: str = "") -> None:
+        with self._tx():
+            self.db.execute(
+                "INSERT INTO objectives VALUES(?,?,?)", (_name(objective_id), _name(title), brief)
+            )
+            self._event("objective_added", objective_id, {"title": title, "brief": brief})
+
+    def add_task(
+        self,
+        task_id: str,
+        team: str,
+        title: str,
+        brief: str = "",
+        *,
+        scope=(),
+        acceptance=(),
+        dependencies=(),
+        contracts=None,
+        base_sha="",
+        objective_id=None,
+        max_attempts=3,
+    ) -> None:
+        _name(task_id), _name(team), _name(title)
+        if isinstance(max_attempts, bool) or not isinstance(max_attempts, int) or max_attempts < 1:
+            raise StateError("max_attempts must be a positive integer")
+        scope, acceptance, dependencies = list(scope), list(acceptance), list(dependencies)
+        for value in scope + acceptance + dependencies:
+            _name(value)
+        if len(set(dependencies)) != len(dependencies):
+            raise StateError("duplicate dependencies")
+        contracts = dict(contracts or {})
+        for name, version in contracts.items():
+            _name(name)
+            if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+                raise StateError("contract versions must be positive integers")
+        with self._tx():
+            self._require_company_running()
+            # Existing dependencies only: immutable insertion order guarantees an acyclic DAG.
+            for dependency in dependencies:
+                self._task(dependency)
+            self.db.execute(
+                """INSERT INTO tasks(id,team,title,brief,scope,acceptance,
+              dependencies,contracts,base_sha,objective_id,max_attempts)
+              VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    task_id,
+                    team,
+                    title,
+                    brief,
+                    _json(scope),
+                    _json(acceptance),
+                    _json(dependencies),
+                    _json(contracts),
+                    base_sha,
+                    objective_id,
+                    max_attempts,
+                ),
+            )
+            self._event("task_added", task_id, self._task(task_id))
+
+    def _ready(self, task: dict) -> bool:
+        if (
+            self.controller_catalogue is not None
+            and task["id"] in self.controller_catalogue
+            and not self._controller_assignment_admitted(task)
+        ):
+            return False
+        if not all(self._task(d)["state"] == "integrated" for d in task["dependencies"]):
+            return False
+        if not all(
+            self.db.execute("SELECT MAX(version) FROM contracts WHERE name=?", (name,)).fetchone()[
+                0
+            ]
+            == version
+            for name, version in task["contracts"].items()
+        ):
+            return False
+        spec_row = self.db.execute(
+            "SELECT body FROM task_specs WHERE task_id=?", (task["id"],)
+        ).fetchone()
+        if spec_row is None and self._has_task_spec_admission(task["id"]):
+            return False
+        if spec_row is not None:
+            try:
+                spec = json.loads(spec_row["body"])
+                self._validate_task_spec_contracts(spec)
+            except (StateError, TypeError, ValueError):
+                return False
+            if spec.get("team") == "Cortex":
+                return False
+        return True
+
+    def _controller_assignment_admitted(self, task: dict) -> bool:
+        """Recheck controller-owned assignment inside readiness and claim transactions."""
+        if self.controller_catalogue is None or task["id"] not in self.controller_catalogue:
+            return True
+        task_id = task["id"]
+        row = self.db.execute(
+            "SELECT version,body FROM decisions WHERE name=? ORDER BY version DESC LIMIT 1",
+            ("admission/" + task_id,),
+        ).fetchone()
+        if row is None or row["version"] != 1:
+            return False
+        try:
+            body = json.loads(row["body"])
+        except (TypeError, ValueError, RecursionError):
+            return False
+        if (
+            type(body) is not dict
+            or set(body) != {"proposal", "base", "department_nomination"}
+            or type(body["proposal"]) is not dict
+            or body["proposal"].get("card") != task_id
+            or type(body["base"]) is not str
+            or body["base"] != task["base_sha"]
+        ):
+            return False
+        nomination = body["department_nomination"]
+        return (
+            type(nomination) is dict
+            and nomination.get("schema") == "department-plan-nomination-v1"
+            and nomination.get("card_id") == task_id
+            and nomination.get("team") == task["team"]
+            and nomination.get("objective_id") == task["objective_id"]
+            and type(nomination.get("owner_epoch")) is int
+            and nomination["owner_epoch"] > 0
+        )
+
+    def readiness_report(self) -> list[dict]:
+        """Return one coherent, read-only snapshot of pending work and explicit blockers.
+
+        A blocked task does not hide unrelated ready tasks. This report is advisory; `claim`
+        remains the transactional authority that rechecks readiness.
+        """
+        with self._read_snapshot():
+            return self._readiness_report_in_snapshot()
+
+    def quiescence_snapshot(self) -> dict:
+        """Return task readiness and pending contract reviews from one SQLite snapshot."""
+        with self._read_snapshot():
+            revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            tasks = self.list_tasks()
+            snapshot = {
+                "revision": revision,
+                "tasks": [
+                    {
+                        "task_id": task["id"],
+                        "state": task["state"],
+                        "candidate_sha": task["candidate_sha"],
+                    }
+                    for task in tasks
+                ],
+                "readiness": self._readiness_report_in_snapshot(),
+                "contract_reviews": self._contract_transition_review_projection_in_snapshot(
+                    limit=100
+                ),
+                "review_requests": self._contract_review_worklist_in_snapshot(
+                    limit=100, overflow_as_result=True
+                ),
+            }
+            self._issued_quiescence_snapshot_sha256 = hashlib.sha256(
+                _json(snapshot).encode("utf-8")
+            ).digest()
+            return snapshot
+
+    def capture_supervisor_episode_snapshot(self, deployment_root: Path) -> dict:
+        """Capture Store readiness and STOP for a passive bounded-episode checkpoint."""
+        root = Path(deployment_root)
+        try:
+            if not stat.S_ISDIR(root.lstat().st_mode):
+                raise StateError("supervisor_episode_root_invalid")
+        except OSError:
+            raise StateError("supervisor_episode_root_invalid") from None
+        store_snapshot = self.quiescence_snapshot()
+        stop = self._lifecycle_file_source(root / "STOP", optional=True)
+        return {
+            "schema": "supervisor-episode-input-v1",
+            "captured_at": self._lifecycle_now(),
+            "deployment_root_sha256": self._supervisor_episode_root_sha256(root),
+            "store": store_snapshot,
+            "stop": {"present": stop["present"], "sha256": stop["sha256"]},
+        }
+
+    def record_supervisor_episode_checkpoint(
+        self, deployment_root: Path, snapshot: Any, *, exit_reason: str
+    ) -> dict:
+        """Persist a source-bound passive checkpoint; unknown gates always hold."""
+        snapshot = _lifecycle_snapshot(snapshot)
+        if (
+            type(snapshot) is not dict
+            or set(snapshot) != {"schema", "captured_at", "deployment_root_sha256", "store", "stop"}
+            or snapshot["schema"] != "supervisor-episode-input-v1"
+            or type(snapshot["captured_at"]) not in (int, float)
+            or isinstance(snapshot["captured_at"], bool)
+            or type(snapshot["deployment_root_sha256"]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", snapshot["deployment_root_sha256"]) is None
+            or type(exit_reason) is not str
+            or exit_reason
+            not in {"stop_requested", "episode_deadline", "quiescent", "company_hibernation"}
+        ):
+            raise StateError("supervisor_episode_snapshot_invalid")
+        try:
+            captured_at_valid = math.isfinite(snapshot["captured_at"])
+        except OverflowError:
+            captured_at_valid = False
+        store_snapshot = snapshot["store"]
+        stop = snapshot["stop"]
+        if (
+            not captured_at_valid
+            or type(store_snapshot) is not dict
+            or set(store_snapshot)
+            != {"revision", "tasks", "readiness", "contract_reviews", "review_requests"}
+            or type(store_snapshot["revision"]) is not int
+            or store_snapshot["revision"] < 0
+            or type(stop) is not dict
+            or set(stop) != {"present", "sha256"}
+            or type(stop["present"]) is not bool
+            or (stop["present"] and type(stop["sha256"]) is not str)
+            or (not stop["present"] and stop["sha256"] is not None)
+        ):
+            raise StateError("supervisor_episode_snapshot_invalid")
+        snapshot_digest = hashlib.sha256(_json(store_snapshot).encode("utf-8")).hexdigest()
+        readiness_digest = self._supervisor_episode_readiness_sha256(store_snapshot["readiness"])
+        root = Path(deployment_root)
+        if snapshot["deployment_root_sha256"] != self._supervisor_episode_root_sha256(root):
+            raise StateError("supervisor_episode_root_changed")
+        with self._tx():
+            now = self._lifecycle_now()
+            if (
+                now < snapshot["captured_at"]
+                or now - snapshot["captured_at"] > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+            ):
+                raise StateError("supervisor_episode_snapshot_stale")
+            current_revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            current_stop = self._lifecycle_file_source(root / "STOP", optional=True)
+            if (
+                self._issued_quiescence_snapshot_sha256
+                != hashlib.sha256(_json(store_snapshot).encode("utf-8")).digest()
+                or current_revision != store_snapshot["revision"]
+                or self._supervisor_episode_readiness_sha256(self._readiness_report_in_snapshot())
+                != readiness_digest
+                or (current_stop["present"], current_stop["sha256"])
+                != (stop["present"], stop["sha256"])
+            ):
+                raise StateError("supervisor_episode_snapshot_changed")
+            retry_deadlines = []
+            for row in store_snapshot["readiness"]:
+                if row.get("state") != "pending":
+                    continue
+                for blocker in row.get("blockers", []):
+                    if blocker.get("kind") != "attempt_spawn_backoff":
+                        continue
+                    retry_at = blocker.get("retry_at")
+                    if (
+                        isinstance(retry_at, bool)
+                        or not isinstance(retry_at, (int, float))
+                        or not math.isfinite(retry_at)
+                    ):
+                        raise StateError("supervisor_episode_retry_invalid")
+                    retry_deadlines.append(retry_at)
+            next_retry_at = min(retry_deadlines) if retry_deadlines else None
+            identity = {
+                "deployment_root_sha256": snapshot["deployment_root_sha256"],
+                "store_revision": store_snapshot["revision"],
+                "store_snapshot_sha256": snapshot_digest,
+                "readiness_sha256": readiness_digest,
+                "stop": stop,
+                "exit_reason": exit_reason,
+                "next_retry_at": next_retry_at,
+            }
+            checkpoint_id = hashlib.sha256(_json(identity).encode("utf-8")).hexdigest()
+            name = _SUPERVISOR_EPISODE_CHECKPOINT_PREFIX + checkpoint_id
+            existing = self.get_decision(name)
+            if existing is not None:
+                self._validate_supervisor_episode_checkpoint(name, existing["body"])
+                return existing
+            body = {
+                "schema": "supervisor-episode-checkpoint-v1",
+                "checkpoint_id": checkpoint_id,
+                **identity,
+                "recorded_at": now,
+                "action": "hold",
+                "unknown_gates": {
+                    "runtime": "unknown",
+                    "accounting": "unknown",
+                    "quota": "unknown",
+                    "process": "unknown",
+                },
+                "dispatch_authority": False,
+            }
+            self._put_decision_in_transaction(name, body)
+            return {"name": name, "version": 1, "body": body}
+
+    def supervisor_episode_checkpoint_status(self, deployment_root: Path) -> dict:
+        """Read the latest episode checkpoint without scheduling or consuming work."""
+        root = Path(deployment_root)
+        try:
+            if not stat.S_ISDIR(root.lstat().st_mode):
+                raise StateError("supervisor_episode_root_invalid")
+        except OSError:
+            raise StateError("supervisor_episode_root_invalid") from None
+        with self._read_snapshot():
+            row = self.db.execute(
+                "SELECT entity,body FROM events WHERE kind='decision_recorded' "
+                "AND entity GLOB ? ORDER BY seq DESC LIMIT 1",
+                (_SUPERVISOR_EPISODE_CHECKPOINT_PREFIX + "*",),
+            ).fetchone()
+            if row is None:
+                return {
+                    "schema": "supervisor-episode-status-v1",
+                    "status": "none",
+                    "action": "hold",
+                    "due_for_recheck": False,
+                    "dispatch_authority": False,
+                }
+            try:
+                event = json.loads(row["body"])
+                decision = self.get_decision(row["entity"])
+                if (
+                    type(event) is not dict
+                    or set(event) != {"version", "body", "replaces", "replaces_version"}
+                    or decision is None
+                    or event["version"] != decision["version"]
+                    or event["body"] != decision["body"]
+                    or event["replaces"] != decision["replaces"]
+                    or event["replaces_version"] != decision["replaces_version"]
+                ):
+                    raise StateError("supervisor_episode_history_invalid")
+                body = decision["body"]
+            except (TypeError, ValueError, KeyError, RecursionError):
+                raise StateError("supervisor_episode_history_invalid") from None
+            self._validate_supervisor_episode_checkpoint(row["entity"], body)
+            current_stop = self._lifecycle_file_source(root / "STOP", optional=True)
+            current_revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            current_readiness_digest = self._supervisor_episode_readiness_sha256(
+                self._readiness_report_in_snapshot()
+            )
+            now = self._lifecycle_now()
+            if current_stop["present"]:
+                status = "stop_active"
+            elif (
+                self._supervisor_episode_root_sha256(root) != body["deployment_root_sha256"]
+                or current_revision != body["store_revision"]
+                or current_readiness_digest != body["readiness_sha256"]
+                or current_stop["sha256"] != body["stop"]["sha256"]
+            ):
+                status = "stale"
+            elif body["next_retry_at"] is not None and now < body["next_retry_at"]:
+                status = "waiting_until_retry"
+            else:
+                status = "due_for_recheck"
+            return {
+                "schema": "supervisor-episode-status-v1",
+                "status": status,
+                "action": "hold",
+                "due_for_recheck": status == "due_for_recheck",
+                "dispatch_authority": False,
+                "checkpoint": {"name": row["entity"], "body": body},
+            }
+
+    @staticmethod
+    def _supervisor_episode_root_sha256(root: Path) -> str:
+        try:
+            canonical = str(Path(root).resolve(strict=True))
+        except OSError:
+            raise StateError("supervisor_episode_root_invalid") from None
+        return hashlib.sha256(os.fsencode(canonical)).hexdigest()
+
+    @staticmethod
+    def _supervisor_episode_readiness_sha256(readiness: Any) -> str:
+        # Spawn cooldown is event-backed in the checkpoint's next_retry_at field and
+        # expires as a function of the injected clock. Normalize only that projection
+        # so passing its deadline can make a checkpoint due without making it stale.
+        normalized = []
+        for row in readiness:
+            blockers = [
+                blocker for blocker in row["blockers"] if blocker["kind"] != "attempt_spawn_backoff"
+            ]
+            normalized.append(
+                {
+                    **row,
+                    "eligible": row["state"] == "pending" and not blockers,
+                    "blockers": blockers,
+                }
+            )
+        return hashlib.sha256(_json(normalized).encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _validate_supervisor_episode_checkpoint(name: str, body: Any) -> None:
+        if type(body) is not dict:
+            raise StateError("supervisor_episode_history_invalid")
+        try:
+            recorded_at_valid = (
+                type(body.get("recorded_at")) in (int, float)
+                and not isinstance(body.get("recorded_at"), bool)
+                and math.isfinite(body["recorded_at"])
+            )
+            retry_at = body.get("next_retry_at")
+            retry_at_valid = retry_at is None or (
+                not isinstance(retry_at, bool)
+                and isinstance(retry_at, (int, float))
+                and math.isfinite(retry_at)
+            )
+        except (OverflowError, TypeError):
+            recorded_at_valid = False
+            retry_at_valid = False
+        required = {
+            "schema",
+            "checkpoint_id",
+            "deployment_root_sha256",
+            "store_revision",
+            "store_snapshot_sha256",
+            "readiness_sha256",
+            "stop",
+            "exit_reason",
+            "next_retry_at",
+            "recorded_at",
+            "action",
+            "unknown_gates",
+            "dispatch_authority",
+        }
+        if (
+            type(body) is not dict
+            or set(body) != required
+            or body.get("schema") != "supervisor-episode-checkpoint-v1"
+            or body.get("action") != "hold"
+            or body.get("dispatch_authority") is not False
+            or body.get("exit_reason")
+            not in {"stop_requested", "episode_deadline", "quiescent", "company_hibernation"}
+            or body.get("unknown_gates")
+            != {
+                "runtime": "unknown",
+                "accounting": "unknown",
+                "quota": "unknown",
+                "process": "unknown",
+            }
+            or type(body.get("deployment_root_sha256")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", body["deployment_root_sha256"]) is None
+            or type(body.get("store_revision")) is not int
+            or body["store_revision"] < 0
+            or type(body.get("store_snapshot_sha256")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", body["store_snapshot_sha256"]) is None
+            or type(body.get("readiness_sha256")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", body["readiness_sha256"]) is None
+            or not recorded_at_valid
+            or type(body.get("stop")) is not dict
+            or set(body["stop"]) != {"present", "sha256"}
+            or type(body["stop"].get("present")) is not bool
+            or (
+                body["stop"]["present"]
+                and (
+                    type(body["stop"].get("sha256")) is not str
+                    or re.fullmatch(r"[0-9a-f]{64}", body["stop"]["sha256"]) is None
+                )
+            )
+            or (not body["stop"]["present"] and body["stop"].get("sha256") is not None)
+            or not retry_at_valid
+        ):
+            raise StateError("supervisor_episode_history_invalid")
+        identity = {
+            "deployment_root_sha256": body["deployment_root_sha256"],
+            "store_revision": body["store_revision"],
+            "store_snapshot_sha256": body["store_snapshot_sha256"],
+            "readiness_sha256": body["readiness_sha256"],
+            "stop": body["stop"],
+            "exit_reason": body["exit_reason"],
+            "next_retry_at": body["next_retry_at"],
+        }
+        expected = hashlib.sha256(_json(identity).encode("utf-8")).hexdigest()
+        if (
+            body["checkpoint_id"] != expected
+            or name != _SUPERVISOR_EPISODE_CHECKPOINT_PREFIX + expected
+        ):
+            raise StateError("supervisor_episode_history_invalid")
+
+    def record_quiescence_handoff_if_current(
+        self, fingerprint: Any, expected_snapshot: Any, body: Any
+    ) -> bool:
+        """Atomically record an inert quiescence handoff only if its snapshot is current."""
+        if type(fingerprint) is not str or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None:
+            raise StateError("quiescence handoff fingerprint invalid")
+        expected_snapshot = _lifecycle_snapshot(expected_snapshot)
+        body = _lifecycle_snapshot(body)
+        if (
+            type(expected_snapshot) is not dict
+            or set(expected_snapshot)
+            != {"revision", "tasks", "readiness", "contract_reviews", "review_requests"}
+            or type(expected_snapshot.get("revision")) is not int
+            or expected_snapshot["revision"] < 0
+            or type(body) is not dict
+            or set(body)
+            != {
+                "owner",
+                "status",
+                "reason",
+                "resource_reason",
+                "fingerprint",
+                "review_requests",
+            }
+            or body.get("owner") != "Sol"
+            or body.get("status") != "requested"
+            or body.get("fingerprint") != fingerprint
+            or type(body.get("reason")) is not str
+            or type(body.get("resource_reason")) is not str
+            or body.get("review_requests") != expected_snapshot.get("review_requests")
+        ):
+            raise StateError("quiescence handoff body invalid")
+        if body["reason"] not in {
+            "quota-unavailable",
+            "local-capacity-unavailable",
+            "blocked-dependencies",
+            "catalogue-exhausted",
+            "controller-assignment-required",
+            "contract-reviews-pending",
+        }:
+            raise StateError("quiescence handoff reason invalid")
+        identity = {
+            "snapshot": expected_snapshot,
+            "resource_reason": body["resource_reason"],
+            "reason": body["reason"],
+        }
+        expected_fingerprint = hashlib.sha256(_json(identity).encode("utf-8")).hexdigest()
+        if fingerprint != expected_fingerprint:
+            raise StateError("quiescence handoff fingerprint mismatch")
+        expected_snapshot_sha256 = hashlib.sha256(_json(expected_snapshot).encode("utf-8")).digest()
+        name = "sol-handoff/" + fingerprint
+        with self._tx():
+            current_revision = self.db.execute(
+                "SELECT value FROM quiescence_revision WHERE id=1"
+            ).fetchone()[0]
+            if (
+                self._issued_quiescence_snapshot_sha256 != expected_snapshot_sha256
+                or current_revision != expected_snapshot["revision"]
+            ):
+                return False
+            existing = self.get_decision(name)
+            if existing is not None:
+                if _json(existing["body"]) != _json(body):
+                    raise StateError("quiescence handoff identity conflict")
+                return True
+            self._put_decision_in_transaction(name, body)
+            return True
+
+    def _readiness_report_in_snapshot(self) -> list[dict]:
+        """Build readiness from the current transaction or read snapshot."""
+        tasks = self.list_tasks()
+        by_id = {task["id"]: task for task in tasks}
+        report = []
+        for task in tasks:
+            blockers = []
+            if (
+                task["state"] == "pending"
+                and self.controller_catalogue is not None
+                and task["id"] in self.controller_catalogue
+                and not self._controller_assignment_admitted(task)
+            ):
+                blockers.append(
+                    {
+                        "kind": "controller_assignment",
+                        "reason": "fixed_card_admission_missing",
+                    }
+                )
+            for dependency_id in task["dependencies"]:
+                dependency = by_id.get(dependency_id)
+                state = None if dependency is None else dependency["state"]
+                if state != "integrated":
+                    blockers.append(
+                        {
+                            "kind": "dependency",
+                            "id": dependency_id,
+                            "state": state,
+                        }
+                    )
+            for contract_name, required_version in task["contracts"].items():
+                row = self.db.execute(
+                    "SELECT MAX(version) FROM contracts WHERE name=?", (contract_name,)
+                ).fetchone()
+                current_version = row[0]
+                if current_version != required_version:
+                    blockers.append(
+                        {
+                            "kind": "contract",
+                            "name": contract_name,
+                            "required_version": required_version,
+                            "current_version": current_version,
+                        }
+                    )
+            unreaped = self._unreaped_expired_attempt_ids(task["id"])
+            if unreaped:
+                blockers.append(
+                    {
+                        "kind": "attempt_process_recovery",
+                        "attempt_ids": unreaped,
+                    }
+                )
+            spawn_backoff = self._task_spawn_backoff(task["id"])
+            if spawn_backoff is not None:
+                blockers.append(
+                    {
+                        "kind": "attempt_spawn_backoff",
+                        "attempt_id": spawn_backoff["attempt_id"],
+                        "failure_count": spawn_backoff["failure_count"],
+                        "retry_at": spawn_backoff["retry_at"],
+                    }
+                )
+            spec_row = self.db.execute(
+                "SELECT body FROM task_specs WHERE task_id=?", (task["id"],)
+            ).fetchone()
+            if spec_row is None and self._has_task_spec_admission(task["id"]):
+                blockers.append(
+                    {"kind": "task_spec_binding", "reason": "admitted_task_spec_missing"}
+                )
+            elif spec_row is not None:
+                try:
+                    spec = json.loads(spec_row["body"])
+                    self._validate_task_spec_contracts(spec)
+                except (StateError, TypeError, ValueError) as exc:
+                    blockers.append(
+                        {
+                            "kind": "contract_binding",
+                            "reason": str(exc)
+                            if isinstance(exc, StateError)
+                            else "invalid_task_spec",
+                        }
+                    )
+                else:
+                    if spec.get("team") == "Cortex":
+                        blockers.append(
+                            {
+                                "kind": "execution_qualification",
+                                "reason": "cortex_execution_not_qualified",
+                            }
+                        )
+            report.append(
+                {
+                    "task_id": task["id"],
+                    "state": task["state"],
+                    "eligible": task["state"] == "pending" and not blockers,
+                    "blockers": blockers,
+                }
+            )
+        return report
+
+    def ready_tasks(self, team: str | None = None) -> list[dict]:
+        with self._tx():
+            self._recover()
+            return [
+                t
+                for t in self.list_tasks()
+                if t["state"] == "pending"
+                and (team is None or t["team"] == team)
+                and not self._unreaped_expired_attempt_ids(t["id"])
+                and self._task_spawn_backoff(t["id"]) is None
+                and self._ready(t)
+            ]
+
+    def _task_spawn_backoff_state(self, task_id: str) -> dict | None:
+        row = self.db.execute(
+            "SELECT kind,body FROM events WHERE entity=? "
+            "AND kind IN ('attempt_spawn_backoff','attempt_child_started') "
+            "ORDER BY seq DESC LIMIT 1",
+            (task_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            body = json.loads(row["body"])
+        except (TypeError, ValueError, RecursionError):
+            raise StateError("attempt_spawn_backoff_history_invalid") from None
+        if row["kind"] == "attempt_child_started":
+            if type(body) is not dict or type(body.get("attempt_id")) is not int:
+                raise StateError("attempt_spawn_backoff_history_invalid")
+            child = self._attempt_child_start_event(task_id, body["attempt_id"])
+            if child is None or child["epoch"] != body.get("epoch"):
+                raise StateError("attempt_spawn_backoff_history_invalid")
+            return None
+        if (
+            type(body) is not dict
+            or set(body) != {"attempt_id", "epoch", "failure_count", "retry_at"}
+            or type(body["attempt_id"]) is not int
+            or body["attempt_id"] <= 0
+            or type(body["epoch"]) is not int
+            or body["epoch"] <= 0
+            or type(body["failure_count"]) is not int
+            or not 1 <= body["failure_count"] <= _SPAWN_FAILURE_BACKOFF_MAX_FAILURES
+            or isinstance(body["retry_at"], bool)
+            or not isinstance(body["retry_at"], (int, float))
+        ):
+            raise StateError("attempt_spawn_backoff_history_invalid")
+        try:
+            if not math.isfinite(body["retry_at"]):
+                raise StateError("attempt_spawn_backoff_history_invalid")
+        except OverflowError:
+            raise StateError("attempt_spawn_backoff_history_invalid") from None
+        attempt = self.db.execute(
+            "SELECT task_id,epoch,state FROM attempts WHERE id=?", (body["attempt_id"],)
+        ).fetchone()
+        if (
+            attempt is None
+            or attempt["task_id"] != task_id
+            or attempt["epoch"] != body["epoch"]
+            or attempt["state"] != "cancelled_before_spawn"
+        ):
+            raise StateError("attempt_spawn_backoff_history_invalid")
+        return dict(body)
+
+    def _task_spawn_backoff(self, task_id: str) -> dict | None:
+        state = self._task_spawn_backoff_state(task_id)
+        return state if state is not None and state["retry_at"] > self.clock() else None
+
+    def _unreaped_expired_attempt_ids(self, task_id: str) -> list[int]:
+        unreaped = []
+        for row in self.db.execute(
+            "SELECT id,epoch FROM attempts WHERE task_id=? AND state='expired' ORDER BY id",
+            (task_id,),
+        ):
+            if self.attempt_process_reap_confirmation(row["id"], row["epoch"]) is None:
+                unreaped.append(row["id"])
+        return unreaped
+
+    def _retry_state(self, task: dict, retryable: bool) -> str:
+        used = self.db.execute(
+            "SELECT COUNT(*) FROM attempts WHERE task_id=? AND state NOT IN "
+            "('cancelled_before_start','cancelled_before_spawn','stopped_before_work')",
+            (task["id"],),
+        ).fetchone()[0]
+        return "pending" if retryable and used < task["max_attempts"] else "failed"
+
+    def _attempt_work_started(self, task_id: str, attempt_id: int, epoch: int) -> bool:
+        for row in self.db.execute(
+            "SELECT body FROM events WHERE kind='attempt_work_started' AND entity=?",
+            (task_id,),
+        ):
+            body = json.loads(row["body"])
+            if body.get("attempt_id") == attempt_id and body.get("epoch") == epoch:
+                return True
+        return False
+
+    def _recover(self) -> list[int]:
+        expired = list(
+            self.db.execute(
+                "SELECT * FROM attempts WHERE state='running' AND lease_until<=?", (self.clock(),)
+            )
+        )
+        for attempt in expired:
+            task = self._task(attempt["task_id"])
+            self.db.execute("UPDATE attempts SET state='expired' WHERE id=?", (attempt["id"],))
+            work_started = self._attempt_work_started(task["id"], attempt["id"], attempt["epoch"])
+            state = self._retry_state(task, not work_started)
+            self.db.execute("UPDATE tasks SET state=? WHERE id=?", (state, task["id"]))
+            self._event(
+                "attempt_expired_outcome_uncertain" if work_started else "attempt_expired",
+                task["id"],
+                {"attempt_id": attempt["id"], "state": state, "outcome_uncertain": work_started},
+            )
+        return [r["id"] for r in expired]
+
+    def recover_expired(self) -> list[int]:
+        with self._tx():
+            return self._recover()
+
+    def claim(self, task_id: str, worker: str, lease_seconds: float = 300) -> dict | None:
+        _name(worker)
+        _positive(lease_seconds)
+        with self._tx():
+            control = self._company_control_current()
+            if control is not None and control["phase"] != "running":
+                return None
+            self._recover()
+            task = self._task(task_id)
+            if (
+                task["state"] != "pending"
+                or self._unreaped_expired_attempt_ids(task_id)
+                or self._task_spawn_backoff(task_id) is not None
+                or not self._ready(task)
+            ):
+                return None
+            epoch = task["epoch"] + 1
+            cursor = self.db.execute(
+                """INSERT INTO attempts(task_id,epoch,worker,lease_until,state)
+               VALUES(?,?,?,?,'running')""",
+                (task_id, epoch, worker, self.clock() + lease_seconds),
+            )
+            attempt_id = cursor.lastrowid
+            self.db.execute(
+                """UPDATE tasks SET state='running',epoch=?,active_attempt=?,candidate_sha=NULL
+                               WHERE id=?""",
+                (epoch, attempt_id, task_id),
+            )
+            attempt = dict(
+                self.db.execute("SELECT * FROM attempts WHERE id=?", (attempt_id,)).fetchone()
+            )
+            self._event("attempt_claimed", task_id, attempt)
+            self._event(
+                "attempt_custody_required",
+                task_id,
+                {"attempt_id": attempt_id, "epoch": epoch, "protocol": "child-start-v1"},
+            )
+            return attempt
+
+    def cancel_unstarted_claim(self, attempt_id: int, epoch: int, *, reason: str) -> None:
+        """Cancel only a claim known to remain before process creation."""
+        _name(reason)
+        if reason not in {"stop_before_spawn", "popen_failed"}:
+            raise StateError("invalid unstarted claim cancellation reason")
+        with self._tx():
+            task, attempt = self._fence(attempt_id, epoch, running=False)
+            if attempt["state"] != "running":
+                raise StateError("attempt_already_started")
+            if attempt["lease_until"] <= self.clock():
+                raise StateError("unstarted_claim_lease_expired")
+            candidate = self.db.execute(
+                "SELECT 1 FROM candidates WHERE attempt_id=? LIMIT 1", (attempt_id,)
+            ).fetchone()
+            usage = self.db.execute(
+                "SELECT 1 FROM usage WHERE attempt_id=? LIMIT 1", (attempt_id,)
+            ).fetchone()
+            started = self._attempt_child_start_event(task["id"], attempt_id)
+            if (
+                attempt["session"] is not None
+                or candidate is not None
+                or usage is not None
+                or started is not None
+            ):
+                raise StateError("attempt_already_started")
+            self.db.execute(
+                "UPDATE attempts SET state='cancelled_before_spawn' WHERE id=?", (attempt_id,)
+            )
+            self.db.execute(
+                "UPDATE tasks SET state='pending',active_attempt=NULL WHERE id=?", (task["id"],)
+            )
+            self._event(
+                "attempt_cancelled_before_spawn",
+                task["id"],
+                {"attempt_id": attempt_id, "epoch": epoch, "reason": reason},
+            )
+            if reason == "popen_failed":
+                previous = self._task_spawn_backoff_state(task["id"])
+                failure_count = min(
+                    (previous["failure_count"] if previous is not None else 0) + 1,
+                    _SPAWN_FAILURE_BACKOFF_MAX_FAILURES,
+                )
+                delay = min(
+                    _SPAWN_FAILURE_BACKOFF_BASE_SECONDS * 2 ** (failure_count - 1),
+                    _SPAWN_FAILURE_BACKOFF_MAX_SECONDS,
+                )
+                self._event(
+                    "attempt_spawn_backoff",
+                    task["id"],
+                    {
+                        "attempt_id": attempt_id,
+                        "epoch": epoch,
+                        "failure_count": failure_count,
+                        "retry_at": self.clock() + delay,
+                    },
+                )
+
+    @staticmethod
+    def _validate_child_identity(identity: Any) -> dict:
+        if (
+            type(identity) is not dict
+            or set(identity) != {"pid", "birth"}
+            or type(identity["pid"]) is not int
+            or identity["pid"] <= 1
+            or type(identity["birth"]) is not str
+            or not identity["birth"].strip()
+            or len(identity["birth"]) > 500
+        ):
+            raise StateError("attempt_child_identity_invalid")
+        return {"pid": identity["pid"], "birth": identity["birth"]}
+
+    def _attempt_child_start_event(self, task_id: str, attempt_id: int) -> dict | None:
+        matches = []
+        try:
+            rows = self.db.execute(
+                "SELECT body FROM events WHERE kind='attempt_child_started' AND entity=?",
+                (task_id,),
+            )
+            for row in rows:
+                body = json.loads(row["body"])
+                if (
+                    type(body) is not dict
+                    or set(body) != {"attempt_id", "epoch", "process_identity"}
+                    or type(body["attempt_id"]) is not int
+                    or type(body["epoch"]) is not int
+                    or body["epoch"] <= 0
+                ):
+                    raise StateError("attempt_child_start_history_invalid")
+                body["process_identity"] = self._validate_child_identity(body["process_identity"])
+                if body["attempt_id"] == attempt_id:
+                    matches.append(body)
+        except (TypeError, ValueError, KeyError, RecursionError):
+            raise StateError("attempt_child_start_history_invalid") from None
+        if len(matches) > 1:
+            raise StateError("attempt_child_start_history_invalid")
+        return matches[0] if matches else None
+
+    def _attempt_custody_required_event(self, task_id: str, attempt_id: int) -> dict | None:
+        matches = []
+        try:
+            rows = self.db.execute(
+                "SELECT body FROM events WHERE kind='attempt_custody_required' AND entity=?",
+                (task_id,),
+            )
+            for row in rows:
+                body = json.loads(row["body"])
+                if (
+                    type(body) is not dict
+                    or set(body) != {"attempt_id", "epoch", "protocol"}
+                    or type(body["attempt_id"]) is not int
+                    or type(body["epoch"]) is not int
+                    or body["epoch"] <= 0
+                    or body["protocol"] != "child-start-v1"
+                ):
+                    raise StateError("attempt_custody_history_invalid")
+                if body["attempt_id"] == attempt_id:
+                    matches.append(body)
+        except (TypeError, ValueError, KeyError, RecursionError):
+            raise StateError("attempt_custody_history_invalid") from None
+        if len(matches) > 1:
+            raise StateError("attempt_custody_history_invalid")
+        return matches[0] if matches else None
+
+    def record_attempt_child_start(self, attempt_id: int, epoch: int, identity: Any) -> bool:
+        """Persist the one OS child identity before any worker or provider work."""
+        identity = self._validate_child_identity(identity)
+        with self._tx():
+            task, attempt = self._fence(attempt_id, epoch)
+            custody = self._attempt_custody_required_event(task["id"], attempt_id)
+            if custody is None or custody["epoch"] != epoch:
+                raise StateError("attempt_custody_policy_missing")
+            previous = self._attempt_child_start_event(task["id"], attempt_id)
+            if previous is not None:
+                if previous.get("process_identity") != identity:
+                    raise StateError("attempt_child_already_owned")
+                return False
+            if attempt["session"] is not None:
+                raise StateError("attempt_session_exists_without_child_start")
+            self._event(
+                "attempt_child_started",
+                task["id"],
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "process_identity": identity,
+                },
+            )
+            return True
+
+    def attempt_child_start_identity(self, attempt_id: int, epoch: int) -> dict | None:
+        """Read the immutable process owner recorded at the child start boundary."""
+        with self._lock:
+            row = self.db.execute(
+                "SELECT task_id,epoch FROM attempts WHERE id=?", (attempt_id,)
+            ).fetchone()
+            if row is None or row["epoch"] != epoch:
+                return None
+            event = self._attempt_child_start_event(row["task_id"], attempt_id)
+            if event is None:
+                return None
+            if event.get("epoch") != epoch:
+                raise StateError("attempt_child_start_history_invalid")
+            return dict(event["process_identity"])
+
+    def _attempt_process_reaped_event(self, task_id: str, attempt_id: int) -> dict | None:
+        matches = []
+        try:
+            rows = self.db.execute(
+                "SELECT body FROM events WHERE kind='attempt_process_reaped' AND entity=?",
+                (task_id,),
+            )
+            for row in rows:
+                body = json.loads(row["body"])
+                if (
+                    type(body) is not dict
+                    or set(body) != {"attempt_id", "epoch", "disposition", "process_identities"}
+                    or type(body["attempt_id"]) is not int
+                    or type(body["epoch"]) is not int
+                    or body["epoch"] <= 0
+                    or body["disposition"] not in {"processes_reaped", "no_work_before_custody"}
+                    or type(body["process_identities"]) is not list
+                ):
+                    raise StateError("attempt_process_reap_history_invalid")
+                if (body["disposition"] == "processes_reaped") == (not body["process_identities"]):
+                    raise StateError("attempt_process_reap_history_invalid")
+                identities = [
+                    self._validate_child_identity(item) for item in body["process_identities"]
+                ]
+                keys = [(item["pid"], item["birth"]) for item in identities]
+                if len(set(keys)) != len(keys) or keys != sorted(keys):
+                    raise StateError("attempt_process_reap_history_invalid")
+                body["process_identities"] = identities
+                if body["attempt_id"] == attempt_id:
+                    matches.append(body)
+        except (TypeError, ValueError, KeyError, RecursionError):
+            raise StateError("attempt_process_reap_history_invalid") from None
+        if len(matches) > 1:
+            raise StateError("attempt_process_reap_history_invalid")
+        return matches[0] if matches else None
+
+    def _attempt_no_work_before_custody(self, task_id: str, attempt_id: int, epoch: int) -> bool:
+        custody = self._attempt_custody_required_event(task_id, attempt_id)
+        if custody is None or custody["epoch"] != epoch:
+            return False
+        if self._attempt_child_start_event(task_id, attempt_id) is not None:
+            return False
+        attempt = self.db.execute(
+            "SELECT session FROM attempts WHERE id=? AND task_id=? AND epoch=?",
+            (attempt_id, task_id, epoch),
+        ).fetchone()
+        if attempt is None or attempt["session"] is not None:
+            return False
+        if self.db.execute(
+            "SELECT 1 FROM usage WHERE attempt_id=? AND epoch=? LIMIT 1", (attempt_id, epoch)
+        ).fetchone():
+            return False
+        if self.db.execute(
+            "SELECT 1 FROM candidates WHERE attempt_id=? AND epoch=? LIMIT 1", (attempt_id, epoch)
+        ).fetchone():
+            return False
+        for kind in ("attempt_work_started", "session_stage_recorded", "session_recorded"):
+            for row in self.db.execute(
+                "SELECT body FROM events WHERE kind=? AND entity=?", (kind, task_id)
+            ):
+                try:
+                    body = json.loads(row["body"])
+                except (TypeError, ValueError, RecursionError):
+                    raise StateError("attempt_no_work_history_invalid") from None
+                if type(body) is not dict or type(body.get("attempt_id")) is not int:
+                    raise StateError("attempt_no_work_history_invalid")
+                if body["attempt_id"] == attempt_id:
+                    return False
+        return True
+
+    def _attempt_required_process_identity_keys(
+        self, task_id: str, attempt_id: int, epoch: int, session_json: str | None
+    ) -> set[tuple[int, str]]:
+        expected = set()
+        child = self._attempt_child_start_event(task_id, attempt_id)
+        if child is not None:
+            if child["epoch"] != epoch:
+                raise StateError("attempt_child_start_history_invalid")
+            owner = child["process_identity"]
+            expected.add((owner["pid"], owner["birth"]))
+        if session_json is not None:
+            session = json.loads(session_json)
+            if type(session) is not dict:
+                raise StateError("expired_session_process_identity_invalid")
+            runner = session.get("runner")
+            if runner is not None:
+                if (
+                    type(runner) is not dict
+                    or type(runner.get("pid")) is not int
+                    or type(runner.get("birth")) is not str
+                ):
+                    raise StateError("expired_session_process_identity_invalid")
+                session_owner = self._validate_child_identity(
+                    {"pid": runner["pid"], "birth": runner["birth"]}
+                )
+                if child is not None and session_owner != child["process_identity"]:
+                    raise StateError("expired_session_child_owner_mismatch")
+                expected.add((session_owner["pid"], session_owner["birth"]))
+                app_pid = runner.get("app_server_pid")
+                app_birth = runner.get("app_server_birth")
+                if app_pid is not None or app_birth is not None:
+                    app = self._validate_child_identity({"pid": app_pid, "birth": app_birth})
+                    expected.add((app["pid"], app["birth"]))
+            else:
+                raise StateError("expired_session_process_identity_invalid")
+        return expected
+
+    def attempt_process_reap_confirmation(self, attempt_id: int, epoch: int) -> dict | None:
+        """Read the durable confirmation that permits retry after process recovery."""
+        with self._lock:
+            row = self.db.execute(
+                "SELECT task_id,epoch,state,session FROM attempts WHERE id=?", (attempt_id,)
+            ).fetchone()
+            if row is None or row["epoch"] != epoch:
+                return None
+            event = self._attempt_process_reaped_event(row["task_id"], attempt_id)
+            if event is None:
+                return None
+            if event["epoch"] != epoch:
+                raise StateError("attempt_process_reap_history_invalid")
+            observed = {(item["pid"], item["birth"]) for item in event["process_identities"]}
+            required = self._attempt_required_process_identity_keys(
+                row["task_id"], attempt_id, epoch, row["session"]
+            )
+            if event["disposition"] == "no_work_before_custody":
+                if (
+                    row["state"] != "expired"
+                    or observed
+                    or required
+                    or not self._attempt_no_work_before_custody(row["task_id"], attempt_id, epoch)
+                ):
+                    raise StateError("attempt_process_reap_history_invalid")
+            elif not required or not required.issubset(observed):
+                raise StateError("attempt_process_reap_history_invalid")
+            return {
+                "disposition": event["disposition"],
+                "process_identities": [dict(item) for item in event["process_identities"]],
+            }
+
+    def record_attempt_process_reaped(
+        self,
+        attempt_id: int,
+        epoch: int,
+        process_identities: Any,
+        *,
+        disposition: str = "processes_reaped",
+    ) -> bool:
+        """Durably fence retries until exact expired-attempt process owners are reaped."""
+        if (
+            type(attempt_id) is not int
+            or attempt_id <= 0
+            or type(epoch) is not int
+            or epoch <= 0
+            or type(process_identities) is not list
+            or type(disposition) is not str
+            or disposition not in {"processes_reaped", "no_work_before_custody"}
+            or (disposition == "processes_reaped" and not process_identities)
+            or (disposition == "no_work_before_custody" and process_identities)
+        ):
+            raise StateError("attempt_process_reap_identity_invalid")
+        identities = [self._validate_child_identity(item) for item in process_identities]
+        identities.sort(key=lambda item: (item["pid"], item["birth"]))
+        identity_keys = [(item["pid"], item["birth"]) for item in identities]
+        if len(set(identity_keys)) != len(identity_keys):
+            raise StateError("attempt_process_reap_identity_invalid")
+        with self._tx():
+            attempt = self.db.execute(
+                "SELECT task_id,epoch,state,session FROM attempts WHERE id=?", (attempt_id,)
+            ).fetchone()
+            if attempt is None or attempt["epoch"] != epoch or attempt["state"] != "expired":
+                raise StaleAttempt("expired attempt changed before process reap receipt")
+            expected = self._attempt_required_process_identity_keys(
+                attempt["task_id"], attempt_id, epoch, attempt["session"]
+            )
+            if disposition == "no_work_before_custody":
+                if expected or not self._attempt_no_work_before_custody(
+                    attempt["task_id"], attempt_id, epoch
+                ):
+                    raise StateError("attempt_process_reap_no_work_unproven")
+            elif not expected or not expected.issubset(set(identity_keys)):
+                raise StateError("attempt_process_reap_identity_incomplete")
+            previous = self._attempt_process_reaped_event(attempt["task_id"], attempt_id)
+            body = {
+                "attempt_id": attempt_id,
+                "epoch": epoch,
+                "disposition": disposition,
+                "process_identities": identities,
+            }
+            if previous is not None:
+                if previous != body:
+                    raise StateError("attempt_process_reap_receipt_conflict")
+                return False
+            self._event("attempt_process_reaped", attempt["task_id"], body)
+            return True
+
+    def record_attempt_work_start(
+        self, attempt_id: int, epoch: int, identity: Any, *, stage: str
+    ) -> bool:
+        """Persist provider-work intent before constructing or starting a provider client."""
+        identity = self._validate_child_identity(identity)
+        if type(stage) is not str or stage not in {"lead", "worker"}:
+            raise StateError("invalid_attempt_work_stage")
+        with self._tx():
+            task, _ = self._fence(attempt_id, epoch)
+            started = self._attempt_child_start_event(task["id"], attempt_id)
+            if started is None or started.get("process_identity") != identity:
+                raise StateError("attempt_child_start_owner_mismatch")
+            for row in self.db.execute(
+                "SELECT body FROM events WHERE kind='attempt_work_started' AND entity=?",
+                (task["id"],),
+            ):
+                body = json.loads(row["body"])
+                if body.get("attempt_id") != attempt_id or body.get("stage") != stage:
+                    continue
+                if body.get("process_identity") != identity or body.get("epoch") != epoch:
+                    raise StateError("attempt_work_start_owner_mismatch")
+                return False
+            self._event(
+                "attempt_work_started",
+                task["id"],
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "process_identity": identity,
+                    "stage": stage,
+                },
+            )
+            return True
+
+    def attempt_work_started(self, attempt_id: int, epoch: int) -> bool:
+        """Whether this attempt crossed the durable provider-work intent boundary."""
+        with self._lock:
+            row = self.db.execute(
+                "SELECT task_id,epoch FROM attempts WHERE id=?", (attempt_id,)
+            ).fetchone()
+            if row is None or row["epoch"] != epoch:
+                raise StaleAttempt("attempt work intent identity mismatch")
+            return self._attempt_work_started(row["task_id"], attempt_id, epoch)
+
+    def stop_started_child_before_work(self, attempt_id: int, epoch: int, identity: Any) -> bool:
+        """Record a no-work STOP only for the one durably registered child."""
+        identity = self._validate_child_identity(identity)
+        with self._tx():
+            row = self.db.execute("SELECT * FROM attempts WHERE id=?", (attempt_id,)).fetchone()
+            if row is None:
+                raise StaleAttempt("unknown attempt")
+            attempt = dict(row)
+            task = self._task(attempt["task_id"])
+            previous = next(
+                (
+                    json.loads(event["body"])
+                    for event in self.db.execute(
+                        "SELECT body FROM events WHERE kind='attempt_stopped_before_work' "
+                        "AND entity=?",
+                        (task["id"],),
+                    )
+                    if json.loads(event["body"]).get("attempt_id") == attempt_id
+                ),
+                None,
+            )
+            if previous is not None:
+                if previous.get("process_identity") == identity and previous.get("epoch") == epoch:
+                    return False
+                raise StateError("attempt_stop_owner_mismatch")
+            task, attempt = self._fence(attempt_id, epoch, running=False)
+            if attempt["state"] != "running" or attempt["lease_until"] <= self.clock():
+                raise StaleAttempt("attempt is not running under a valid lease")
+            started = self._attempt_child_start_event(task["id"], attempt_id)
+            session = json.loads(attempt["session"]) if attempt["session"] else None
+            work_started = any(
+                json.loads(event["body"]).get("attempt_id") == attempt_id
+                for event in self.db.execute(
+                    "SELECT body FROM events WHERE kind='attempt_work_started' AND entity=?",
+                    (task["id"],),
+                )
+            )
+            if (
+                started is None
+                or started.get("process_identity") != identity
+                or session is not None
+                or work_started
+            ):
+                raise StateError("attempt_child_start_owner_mismatch")
+            candidate = self.db.execute(
+                "SELECT 1 FROM candidates WHERE attempt_id=? LIMIT 1", (attempt_id,)
+            ).fetchone()
+            usage = self.db.execute(
+                "SELECT 1 FROM usage WHERE attempt_id=? LIMIT 1", (attempt_id,)
+            ).fetchone()
+            if candidate is not None or usage is not None:
+                raise StateError("attempt_work_already_recorded")
+            self.db.execute(
+                "UPDATE attempts SET state='stopped_before_work' WHERE id=?", (attempt_id,)
+            )
+            self.db.execute(
+                "UPDATE tasks SET state='pending',active_attempt=NULL WHERE id=?", (task["id"],)
+            )
+            self._event(
+                "attempt_stopped_before_work",
+                task["id"],
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "process_identity": identity,
+                },
+            )
+            return True
+
+    def _fence(self, attempt_id: int, epoch: int, *, running: bool = True) -> tuple[dict, dict]:
+        row = self.db.execute("SELECT * FROM attempts WHERE id=?", (attempt_id,)).fetchone()
+        if row is None:
+            raise StaleAttempt("unknown attempt")
+        attempt = dict(row)
+        task = self._task(attempt["task_id"])
+        if (
+            attempt["epoch"] != epoch
+            or task["epoch"] != epoch
+            or task["active_attempt"] != attempt_id
+        ):
+            raise StaleAttempt("superseded attempt fence")
+        if running and (attempt["state"] != "running" or attempt["lease_until"] <= self.clock()):
+            raise StaleAttempt("attempt is not running under a valid lease")
+        return task, attempt
+
+    def renew(self, attempt_id: int, epoch: int, lease_seconds: float = 300) -> float:
+        _positive(lease_seconds)
+        with self._tx():
+            task, _ = self._fence(attempt_id, epoch)
+            until = self.clock() + lease_seconds
+            self.db.execute("UPDATE attempts SET lease_until=? WHERE id=?", (until, attempt_id))
+            self._event(
+                "lease_renewed",
+                task["id"],
+                {"attempt_id": attempt_id, "epoch": epoch, "lease_until": until},
+            )
+            return until
+
+    def record_session(
+        self, attempt_id: int, epoch: int, thread_id: str, model: str, runner: Any = None
+    ) -> None:
+        _name(thread_id), _name(model)
+        session = {"thread_id": thread_id, "model": model, "runner": runner}
+        with self._tx():
+            task, attempt = self._fence(attempt_id, epoch)
+            if attempt["session"] is not None and json.loads(attempt["session"]) != session:
+                raise StateError("session identity is immutable within an attempt")
+            self.db.execute(
+                "UPDATE attempts SET session=? WHERE id=?", (_json(session), attempt_id)
+            )
+            self._event("session_recorded", task["id"], {"attempt_id": attempt_id, **session})
+
+    def record_stage_session(
+        self,
+        attempt_id: int,
+        epoch: int,
+        thread_id: str,
+        model: str,
+        runner: Any = None,
+        *,
+        stage: str,
+    ) -> None:
+        """Append one immutable named stage; latest session is the recovery pointer.
+
+        Identical retries are idempotent. A stage cannot be rebound to a different
+        thread/model/runner. History remains available in session_stage_recorded events.
+        """
+        _name(stage), _name(thread_id), _name(model)
+        session = {"thread_id": thread_id, "model": model, "runner": runner, "stage": stage}
+        with self._tx():
+            task, _ = self._fence(attempt_id, epoch)
+            for row in self.db.execute(
+                "SELECT body FROM events WHERE kind='session_stage_recorded' AND entity=?",
+                (task["id"],),
+            ):
+                old = json.loads(row["body"])
+                if old["attempt_id"] == attempt_id and old["session"]["stage"] == stage:
+                    if old["session"] != session:
+                        raise StateError("stage session identity is immutable")
+                    return
+            self.db.execute(
+                "UPDATE attempts SET session=? WHERE id=?", (_json(session), attempt_id)
+            )
+            self._event(
+                "session_stage_recorded",
+                task["id"],
+                {"attempt_id": attempt_id, "epoch": epoch, "session": session},
+            )
+
+    def fail(
+        self,
+        attempt_id: int,
+        epoch: int,
+        reason: str,
+        retryable: bool = True,
+        *,
+        outcome_uncertain: bool = False,
+    ) -> None:
+        with self._tx():
+            task, _ = self._fence(attempt_id, epoch)
+            if self._attempt_work_started(task["id"], attempt_id, epoch):
+                outcome_uncertain = True
+            if outcome_uncertain:
+                retryable = False
+            state = self._retry_state(task, retryable)
+            self.db.execute("UPDATE attempts SET state='failed' WHERE id=?", (attempt_id,))
+            self.db.execute("UPDATE tasks SET state=? WHERE id=?", (state, task["id"]))
+            self._event(
+                "attempt_outcome_uncertain" if outcome_uncertain else "attempt_failed",
+                task["id"],
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "reason": reason,
+                    "state": state,
+                    "outcome_uncertain": outcome_uncertain,
+                },
+            )
+
+    def reopen_failed(
+        self,
+        task_id: str,
+        recovery_id: str,
+        *,
+        reason: str,
+        evidence_refs,
+        extra_attempts: int = 3,
+    ) -> dict:
+        """Trusted reviewed recovery; preserve every failed attempt and usage record.
+
+        This API supplies no worker capability or resource budget. The caller must
+        first qualify the controller fix and authorize recovery. One immutable
+        recovery ID grants at most three fresh attempts; exact replay is a no-op.
+        """
+        _name(task_id), _name(recovery_id), _name(reason)
+        if len(recovery_id) > 200 or len(reason) > 4000:
+            raise StateError("recovery reason and ID must be bounded")
+        if type(extra_attempts) is not int or not 1 <= extra_attempts <= 3:
+            raise StateError("recovery permits one to three extra attempts")
+        if not isinstance(evidence_refs, (list, tuple)) or not 1 <= len(evidence_refs) <= 20:
+            raise StateError("recovery requires bounded evidence references")
+        for reference in evidence_refs:
+            _name(reference)
+            if len(reference) > 500:
+                raise StateError("recovery evidence reference is too long")
+        request = {
+            "task_id": task_id,
+            "recovery_id": recovery_id,
+            "reason": reason,
+            "evidence_refs": list(evidence_refs),
+            "extra_attempts": extra_attempts,
+        }
+        key = "recovery/" + recovery_id + "/" + task_id
+        with self._tx():
+            task = self._task(task_id)
+            prior = self.get_decision(key)
+            if prior is not None:
+                if prior["body"]["request"] != request:
+                    raise StateError("recovery ID cannot be reused with different content")
+                return task
+            if task["state"] != "failed":
+                raise StateError("only failed tasks can be reopened")
+            if (
+                self.db.execute(
+                    "SELECT 1 FROM attempts WHERE task_id=? AND state IN ('running','submitted')",
+                    (task_id,),
+                ).fetchone()
+                or self.db.execute(
+                    "SELECT 1 FROM acceptances WHERE task_id=?", (task_id,)
+                ).fetchone()
+                or self.db.execute(
+                    "SELECT 1 FROM integrations WHERE task_id=?", (task_id,)
+                ).fetchone()
+            ):
+                raise StateError("active or accepted task cannot be reopened")
+            new_max = task["epoch"] + extra_attempts
+            body = {
+                "request": request,
+                "previous_max_attempts": task["max_attempts"],
+                "new_max_attempts": new_max,
+                "preserved_epoch": task["epoch"],
+                "previous_attempt": task["active_attempt"],
+                "previous_candidate_sha": task["candidate_sha"],
+            }
+            self.db.execute(
+                "INSERT INTO decisions VALUES(?,?,?,?,?)", (key, 1, _json(body), None, None)
+            )
+            self._event(
+                "decision_recorded",
+                key,
+                {"version": 1, "body": body, "replaces": None, "replaces_version": None},
+            )
+            self.db.execute(
+                "UPDATE tasks SET state='pending',max_attempts=?,active_attempt=NULL,"
+                "candidate_sha=NULL WHERE id=?",
+                (new_max, task_id),
+            )
+            self._event("task_reopened", task_id, {"decision": key, **body})
+            return self._task(task_id)
+
+    def submit(self, attempt_id: int, epoch: int, candidate_sha: str, evidence: Any) -> dict:
+        _name(candidate_sha)
+        with self._tx():
+            task, _ = self._fence(attempt_id, epoch)
+            if not self._ready(task):
+                raise StateError("dependency or contract changed during execution")
+            self.db.execute(
+                "INSERT INTO candidates VALUES(?,?,?,?,?)",
+                (task["id"], candidate_sha, attempt_id, epoch, _json(evidence)),
+            )
+            self.db.execute("UPDATE attempts SET state='submitted' WHERE id=?", (attempt_id,))
+            self.db.execute(
+                "UPDATE tasks SET state='submitted',candidate_sha=? WHERE id=?",
+                (candidate_sha, task["id"]),
+            )
+            self._event(
+                "candidate_submitted",
+                task["id"],
+                {
+                    "sha": candidate_sha,
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "evidence": evidence,
+                },
+            )
+            return {
+                "task_id": task["id"],
+                "sha": candidate_sha,
+                "attempt_id": attempt_id,
+                "epoch": epoch,
+                "evidence": evidence,
+            }
+
+    def _candidate(self, task_id: str, candidate_sha: str) -> tuple[dict, dict]:
+        task = self._task(task_id)
+        row = self.db.execute(
+            "SELECT * FROM candidates WHERE task_id=? AND sha=?", (task_id, candidate_sha)
+        ).fetchone()
+        if row is None or task["candidate_sha"] != candidate_sha:
+            raise StaleAttempt("candidate is not current")
+        candidate = dict(row)
+        self._fence(candidate["attempt_id"], candidate["epoch"], running=False)
+        if not self._ready(task):
+            raise StateError("dependency or contract no longer current")
+        return task, candidate
+
+    def get_candidate(self, task_id: str, candidate_sha: str | None = None) -> dict | None:
+        """Read immutable evidence, including historical candidates, for controller resume."""
+        with self._lock:
+            if candidate_sha is None:
+                candidate_sha = self._task(task_id)["candidate_sha"]
+            row = self.db.execute(
+                "SELECT * FROM candidates WHERE task_id=? AND sha=?", (task_id, candidate_sha)
+            ).fetchone()
+            return None if row is None else {**dict(row), "evidence": json.loads(row["evidence"])}
+
+    def get_verification(self, task_id: str, candidate_sha: str) -> dict | None:
+        """Read the latest immutable verification record for recovery binding."""
+        with self._lock:
+            row = self.db.execute(
+                "SELECT * FROM verifications WHERE task_id=? AND sha=? ORDER BY id DESC LIMIT 1",
+                (task_id, candidate_sha),
+            ).fetchone()
+            if row is None:
+                return None
+            return {
+                **dict(row),
+                "passed": bool(row["passed"]),
+                "details": json.loads(row["details"]),
+            }
+
+    def verify(self, task_id: str, candidate_sha: str, passed: bool, details: Any) -> None:
+        if not isinstance(passed, bool):
+            raise StateError("verification result must be boolean")
+        with self._tx():
+            task, candidate = self._candidate(task_id, candidate_sha)
+            if task["state"] != "submitted":
+                raise StateError("verification requires submitted task")
+            self.db.execute(
+                "INSERT INTO verifications(task_id,sha,attempt_id,epoch,passed,details) "
+                "VALUES(?,?,?,?,?,?)",
+                (
+                    task_id,
+                    candidate_sha,
+                    candidate["attempt_id"],
+                    candidate["epoch"],
+                    passed,
+                    _json(details),
+                ),
+            )
+            state = "verified" if passed else self._retry_state(task, True)
+            self.db.execute("UPDATE tasks SET state=? WHERE id=?", (state, task_id))
+            if not passed:
+                self.db.execute(
+                    "UPDATE attempts SET state='rejected' WHERE id=?", (candidate["attempt_id"],)
+                )
+            self._event(
+                "candidate_verified",
+                task_id,
+                {"sha": candidate_sha, "passed": passed, "details": details, "state": state},
+            )
+
+    def hold_uncertain_verification(self, task_id: str, candidate_sha: str, details: Any) -> None:
+        """Hold a submitted candidate when the independent review outcome is unknown."""
+        with self._tx():
+            task, candidate = self._candidate(task_id, candidate_sha)
+            if task["state"] != "submitted":
+                raise StateError("uncertain verification requires submitted task")
+            self.db.execute(
+                "UPDATE attempts SET state='failed' WHERE id=?", (candidate["attempt_id"],)
+            )
+            self.db.execute("UPDATE tasks SET state='failed' WHERE id=?", (task_id,))
+            self._event(
+                "verification_outcome_uncertain",
+                task_id,
+                {
+                    "sha": candidate_sha,
+                    "attempt_id": candidate["attempt_id"],
+                    "epoch": candidate["epoch"],
+                    "details": details,
+                    "state": "failed",
+                    "outcome_uncertain": True,
+                },
+            )
+
+    def accept(self, task_id: str, candidate_sha: str) -> None:
+        with self._tx():
+            task, candidate = self._candidate(task_id, candidate_sha)
+            if task["state"] != "verified":
+                raise StateError("acceptance requires successful independent verification")
+            self.db.execute(
+                "INSERT INTO acceptances VALUES(?,?,?,?)",
+                (task_id, candidate_sha, candidate["attempt_id"], candidate["epoch"]),
+            )
+            self.db.execute("UPDATE tasks SET state='accepted' WHERE id=?", (task_id,))
+            self._event(
+                "candidate_accepted",
+                task_id,
+                {
+                    "sha": candidate_sha,
+                    "attempt_id": candidate["attempt_id"],
+                    "epoch": candidate["epoch"],
+                },
+            )
+
+    def integrate(
+        self, task_id: str, candidate_sha: str, integration_sha: str, details: Any = None
+    ) -> None:
+        _name(integration_sha)
+        with self._tx():
+            task, _ = self._candidate(task_id, candidate_sha)
+            if task["state"] != "accepted":
+                raise StateError("integration requires accepted candidate")
+            self.db.execute(
+                "INSERT INTO integrations VALUES(?,?,?,?)",
+                (task_id, candidate_sha, integration_sha, _json(details)),
+            )
+            self.db.execute("UPDATE tasks SET state='integrated' WHERE id=?", (task_id,))
+            self._event(
+                "candidate_integrated",
+                task_id,
+                {"sha": candidate_sha, "integration_sha": integration_sha, "details": details},
+            )
+
+    def get_integration(self, task_id: str) -> dict | None:
+        """Read the immutable integration row for controller evidence binding."""
+        _name(task_id)
+        with self._lock:
+            row = self.db.execute(
+                "SELECT sha,integration_sha,details FROM integrations WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            try:
+                details = json.loads(row["details"])
+            except (TypeError, ValueError, RecursionError):
+                raise StateError("integration details are invalid") from None
+            return {
+                "task_id": task_id,
+                "candidate_sha": row["sha"],
+                "integration_sha": row["integration_sha"],
+                "details": details,
+            }
+
+    def put_contract(self, name: str, version: int, body: Any) -> None:
+        _name(name)
+        if type(version) is not int or version < 1:
+            raise StateError("contract version must be positive integer")
+        if version != 1:
+            raise StateError("contract version advances require an acknowledged transition")
+        try:
+            body_json = _json(body)
+            body = json.loads(body_json)
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract body must be finite JSON data") from None
+        if name == CORTEX_RESEARCH_PROTOCOL and (
+            version != 1
+            or body
+            != {
+                "schema": "brain-cortex-research-protocol-unreviewed-v1",
+                "version": 1,
+                "status": "unreviewed_baseline",
+            }
+        ):
+            raise StateError("cortex research protocols require a reviewed v2 transition")
+        with self._tx():
+            if self.db.execute("SELECT 1 FROM contracts WHERE name=? LIMIT 1", (name,)).fetchone():
+                raise StateError("contract version advances require an acknowledged transition")
+            self._put_contract_in_transaction(name, version, body, body_json)
+
+    def _single_contract_decision(self, name: str) -> dict | None:
+        rows = self.db.execute(
+            "SELECT version,CASE WHEN replaces IS NULL AND replaces_version IS NULL "
+            "THEN 1 ELSE 0 END AS root_valid FROM decisions "
+            "WHERE name=? ORDER BY version LIMIT 2",
+            (name,),
+        ).fetchall()
+        if not rows:
+            return None
+        if len(rows) != 1 or rows[0]["version"] != 1 or rows[0]["root_valid"] != 1:
+            raise StateError("contract decision history invalid")
+        row = self.get_decision(name, 1)
+        if row is None:
+            raise StateError("contract decision history invalid")
+        events = self.db.execute(
+            "SELECT body FROM events WHERE kind='decision_recorded' AND entity=? ORDER BY seq",
+            (name,),
+        ).fetchall()
+        if len(events) != 1:
+            raise StateError("contract decision history invalid")
+        expected_event = {
+            "version": 1,
+            "body": row["body"],
+            "replaces": None,
+            "replaces_version": None,
+        }
+        if events[0]["body"] != _json(expected_event):
+            raise StateError("contract decision history invalid")
+        return row
+
+    def contract_transition_review_projection(self, *, limit: int = 100) -> dict:
+        """List exact missing participant reviews without depending on runnable tasks."""
+        if type(limit) is not int or not 0 <= limit <= 100:
+            raise StateError("contract review limit must be between 0 and 100")
+        with self._read_snapshot():
+            return self._contract_transition_review_projection_in_snapshot(limit=limit)
+
+    def _contract_transition_review_projection_in_snapshot(self, *, limit: int = 100) -> dict:
+        """Build the passive contract-review lane inside an existing SQLite snapshot."""
+        if type(limit) is not int or not 0 <= limit <= 100:
+            raise StateError("contract review limit must be between 0 and 100")
+        total = self.db.execute(
+            "SELECT COUNT(*) FROM decisions WHERE name GLOB 'contract-transition/*' "
+            "AND name NOT GLOB 'contract-transition/*/activated'"
+        ).fetchone()[0]
+        if total > 1000:
+            raise StateError("contract transition review catalogue exceeds bound")
+        rows = self.db.execute(
+            "SELECT name,version FROM decisions WHERE name GLOB 'contract-transition/*' "
+            "AND name NOT GLOB 'contract-transition/*/activated' "
+            "ORDER BY name LIMIT 1001"
+        ).fetchall()
+        pending = []
+        pending_count = 0
+        participant_count = 0
+        for row in rows:
+            transition = self._single_contract_decision(row["name"])
+            if transition is None or row["version"] != 1:
+                raise StateError("contract decision history invalid")
+            body = transition["body"]
+            if type(body) is not dict:
+                raise StateError("contract transition proposal invalid")
+            body = self._validated_contract_transition(
+                body, body.get("name"), body.get("to_version")
+            )
+            if self._contract_transition_key(body["name"], body["to_version"]) != row["name"]:
+                raise StateError("contract transition identity invalid")
+            current = self.db.execute(
+                "SELECT MAX(version) FROM contracts WHERE name=?", (body["name"],)
+            ).fetchone()[0]
+            if current is None or current < body["from_version"]:
+                raise StateError("contract transition source version is unavailable")
+            participants = [body["producer_team"], *body["consumer_teams"]]
+            participant_count += len(participants)
+            if participant_count > 1000:
+                raise StateError("contract transition review participants exceed bound")
+            is_current_proposal = current == body["from_version"]
+            if current >= body["to_version"]:
+                activation = self._single_contract_decision(row["name"] + "/activated")
+                published = self.db.execute(
+                    "SELECT version,body FROM contracts WHERE name=? AND version=?",
+                    (body["name"], body["to_version"]),
+                ).fetchone()
+                expected_activation = {
+                    "kind": "contract_transition_activation",
+                    "name": body["name"],
+                    "from_version": body["from_version"],
+                    "to_version": body["to_version"],
+                    "contract_hash": body["contract_hash"],
+                    "producer_task_id": body["producer_task_id"],
+                    "acknowledged_teams": sorted(participants),
+                }
+                if (
+                    activation is None
+                    or activation["body"] != expected_activation
+                    or published is None
+                    or json.loads(published["body"]) != body["body"]
+                    or hashlib.sha256(published["body"].encode("utf-8")).hexdigest()
+                    != body["contract_hash"]
+                ):
+                    raise StateError("activated contract review history is inconsistent")
+            for team in participants:
+                ack_key = self._contract_ack_key(body["name"], body["to_version"], team)
+                acknowledgement = self._single_contract_decision(ack_key)
+                if acknowledgement is not None:
+                    self._validated_contract_ack(
+                        acknowledgement["body"],
+                        body["name"],
+                        body["to_version"],
+                        team,
+                        body["contract_hash"],
+                    )
+                    if is_current_proposal and "review_request_id" not in acknowledgement["body"]:
+                        raise StateError(
+                            "legacy direct acknowledgement requires a reviewed transition repair"
+                        )
+                    continue
+                if not is_current_proposal:
+                    if current >= body["to_version"]:
+                        raise StateError("activated contract review evidence is incomplete")
+                    continue
+                pending_count += 1
+                if len(pending) < limit:
+                    pending.append(
+                        {
+                            "name": body["name"],
+                            "from_version": body["from_version"],
+                            "to_version": body["to_version"],
+                            "contract_hash": body["contract_hash"],
+                            "participant_team": team,
+                            "participant_role": (
+                                "producer" if team == body["producer_team"] else "consumer"
+                            ),
+                        }
+                    )
+        return {
+            "items": pending,
+            "pending_count": pending_count,
+            "omitted_count": pending_count - len(pending),
+        }
+
+    @staticmethod
+    def _validated_contract_transition(body: Any, name: str, version: int) -> dict:
+        required = {
+            "kind",
+            "status",
+            "name",
+            "from_version",
+            "to_version",
+            "body",
+            "contract_hash",
+            "producer_task_id",
+            "producer_team",
+            "consumer_teams",
+        }
+        if type(body) is not dict or set(body) != required:
+            raise StateError("contract transition proposal invalid")
+        if (
+            body["kind"] != "contract_transition"
+            or body["status"] != "proposed"
+            or type(body["name"]) is not str
+            or body["name"] != name
+            or type(body["from_version"]) is not int
+            or body["from_version"] < 1
+            or type(body["to_version"]) is not int
+            or body["to_version"] != body["from_version"] + 1
+            or body["to_version"] != version
+            or type(body["producer_task_id"]) is not str
+            or not body["producer_task_id"].strip()
+            or type(body["producer_team"]) is not str
+            or not body["producer_team"].strip()
+            or type(body["contract_hash"]) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", body["contract_hash"])
+        ):
+            raise StateError("contract transition proposal invalid")
+        teams = body["consumer_teams"]
+        if (
+            type(teams) is not list
+            or not teams
+            or len(teams) > 99
+            or any(type(team) is not str or not team.strip() for team in teams)
+            or teams != sorted(set(teams))
+            or body["producer_team"] in teams
+        ):
+            raise StateError("contract transition participants invalid")
+        try:
+            detached_body = json.loads(_json(body["body"]))
+            canonical = _json(detached_body)
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract transition content invalid") from None
+        if hashlib.sha256(canonical.encode("utf-8")).hexdigest() != body["contract_hash"]:
+            raise StateError("contract transition content hash mismatch")
+        if (
+            type(detached_body) is dict
+            and "version" in detached_body
+            and (
+                type(detached_body["version"]) is not int
+                or detached_body["version"] != body["to_version"]
+            )
+        ):
+            raise StateError("contract transition body version mismatch")
+        if name == CORTEX_RESEARCH_PROTOCOL:
+            if body["producer_team"] != "Cortex" or teams != ["Evaluation"]:
+                raise StateError("cortex research protocol requires Cortex and Evaluation")
+            try:
+                canonical_protocol(detached_body, version=version)
+            except ResearchProtocolError as exc:
+                raise StateError(str(exc)) from None
+        return body
+
+    @staticmethod
+    def _validated_contract_ack(body: Any, name: str, version: int, team: str, digest: str) -> dict:
+        expected = {
+            "kind": "contract_acknowledgement",
+            "name": name,
+            "version": version,
+            "team": team,
+            "contract_hash": digest,
+        }
+        provenance_keys = {
+            "review_request_id",
+            "review_packet_hash",
+            "review_raw_sha256",
+        }
+        if type(body) is not dict:
+            raise StateError("contract acknowledgement record invalid")
+        keys = set(body)
+        reviewed = keys == set(expected) | provenance_keys
+        if keys != set(expected) and not reviewed:
+            raise StateError("contract acknowledgement record invalid")
+        if any(body.get(key) != value for key, value in expected.items()):
+            raise StateError("contract acknowledgement record invalid")
+        if reviewed and any(
+            type(body.get(key)) is not str or not re.fullmatch(r"[0-9a-f]{64}", body[key])
+            for key in provenance_keys
+        ):
+            raise StateError("contract acknowledgement record invalid")
+        return body
+
+    def _put_contract_in_transaction(
+        self, name: str, version: int, body: Any, body_json: str
+    ) -> None:
+        old = self.db.execute(
+            "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
+        ).fetchone()[0]
+        if old is not None and version <= old:
+            raise StateError("contract versions must increase")
+        self.db.execute("INSERT INTO contracts VALUES(?,?,?)", (name, version, body_json))
+        self._event("contract_published", name, {"version": version, "body": body})
+
+    def _validate_ack_review_provenance(
+        self, ack: dict, name: str, version: int, team: str
+    ) -> None:
+        """Require an ACK to resolve to its exact approved durable review result."""
+        request_id = ack.get("review_request_id")
+        request = self._contract_review_record(request_id, bounded_replay=True)
+        if request is None:
+            raise StateError("contract acknowledgement review evidence missing")
+        body = request["body"]
+        if (
+            body.get("status") != "approved"
+            or body.get("name") != name
+            or body.get("version") != version
+            or body.get("team") != team
+            or body.get("contract_hash") != ack.get("contract_hash")
+            or body.get("packet_hash") != ack.get("review_packet_hash")
+            or body.get("raw_sha256") != ack.get("review_raw_sha256")
+            or type(body.get("model_result")) is not dict
+            or body["model_result"].get("decision") != "approve"
+        ):
+            raise StateError("contract acknowledgement review provenance invalid")
+
+    @staticmethod
+    def _contract_transition_key(name: str, version: int) -> str:
+        digest = hashlib.sha256(name.encode("utf-8")).hexdigest()
+        return f"contract-transition/{digest}/{version}"
+
+    @staticmethod
+    def _contract_ack_key(name: str, version: int, team: str) -> str:
+        contract_id = hashlib.sha256(name.encode("utf-8")).hexdigest()
+        team_id = hashlib.sha256(team.encode("utf-8")).hexdigest()
+        return f"contract-ack/{contract_id}/{version}/{team_id}"
+
+    @staticmethod
+    def _contract_review_key(request_id: str) -> str:
+        if type(request_id) is not str or not re.fullmatch(r"[0-9a-f]{64}", request_id):
+            raise StateError("contract review request identity invalid")
+        return f"contract-review/{request_id}"
+
+    @staticmethod
+    def _contract_review_digest(value: Any) -> str:
+        return hashlib.sha256(_json(value).encode("utf-8")).hexdigest()
+
+    def _contract_review_replay_history_size(self, request_id: str) -> int:
+        """Preflight retained bytes without hydrating JSON bodies."""
+        key = self._contract_review_key(request_id)
+        rows = self.db.execute(
+            "SELECT version,length(CAST(body AS BLOB)) AS body_bytes FROM decisions "
+            "WHERE name=? ORDER BY version LIMIT 6",
+            (key,),
+        ).fetchall()
+        if len(rows) > 5 or [row["version"] for row in rows] != list(range(1, len(rows) + 1)):
+            raise StateError("contract review history invalid")
+        total = 0
+        for row in rows:
+            size = row["body_bytes"]
+            if (
+                type(size) is not int
+                or size < 0
+                or size > _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES
+            ):
+                raise StateError("contract review replay history byte limit exceeded")
+            total += size
+        if total > _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES:
+            raise StateError("contract review replay request byte limit exceeded")
+        return total
+
+    def _put_contract_review_version_in_transaction(self, request_id: str, body: dict) -> int:
+        """Append one review version only when the complete retained journal stays bounded."""
+        serialized = _json(body)
+        body_bytes = len(serialized.encode("utf-8"))
+        if body_bytes > _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES:
+            raise StateError("contract review version byte limit exceeded")
+        if (
+            self._contract_review_replay_history_size(request_id) + body_bytes
+            > _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES
+        ):
+            raise StateError("contract review request history byte limit exceeded")
+        return self._put_decision_in_transaction(self._contract_review_key(request_id), body)
+
+    def _contract_review_record(
+        self, request_id: str, *, bounded_replay: bool = False
+    ) -> dict | None:
+        key = self._contract_review_key(request_id)
+        if bounded_replay:
+            # Keep count, byte checks, and bounded body projection in one statement so a
+            # writer cannot add rows between preflight and an unbounded body fetch. The
+            # window budget also suppresses every body when aggregate bytes overflow.
+            rows = self.db.execute(
+                _CONTRACT_REVIEW_BOUNDED_RECORD_QUERY,
+                (key, key, key),
+            ).fetchall()
+        else:
+            rows = self.db.execute(
+                "SELECT version,CAST(body AS BLOB) AS bounded_body,"
+                "CAST(replaces AS BLOB) AS replaces_blob,typeof(replaces) AS replaces_type,"
+                "replaces_version "
+                "FROM decisions WHERE name=? ORDER BY version LIMIT 6",
+                (key,),
+            ).fetchall()
+        if not rows:
+            return None
+        if len(rows) > 5 or [row["version"] for row in rows] != list(range(1, len(rows) + 1)):
+            raise StateError("contract review history invalid")
+        if bounded_replay:
+            history_bytes = rows[0]["bounded_history_bytes"]
+            if type(history_bytes) is not int or history_bytes < 0:
+                raise StateError("contract review replay request byte limit exceeded")
+            if history_bytes > _CONTRACT_REVIEW_REPLAY_REQUEST_MAX_BYTES:
+                raise StateError("contract review replay request byte limit exceeded")
+            for row in rows:
+                if row["replaces_valid"] != 1:
+                    raise StateError("contract review history invalid")
+                size = row["body_bytes"]
+                if (
+                    type(size) is not int
+                    or size < 0
+                    or size > _CONTRACT_REVIEW_REPLAY_VERSION_MAX_BYTES
+                ):
+                    raise StateError("contract review replay history byte limit exceeded")
+                if type(row["bounded_body"]) is not bytes:
+                    raise StateError("contract review replay history byte limit exceeded")
+        previous = None
+        record = None
+        allowed_status = {
+            None: {"prepared"},
+            "prepared": {"dispatching"},
+            "dispatching": {"thread_known"},
+            # Pre-custody terminal records remain readable. New finalization is
+            # still gated on response_recorded in finish_contract_review().
+            "thread_known": {"response_recorded", "approved", "blocked"},
+            "response_recorded": {"approved", "blocked"},
+        }
+        database_encoding = self.db.execute("PRAGMA encoding").fetchone()[0]
+        text_codec = {
+            "UTF-8": "utf-8",
+            "UTF-16le": "utf-16le",
+            "UTF-16be": "utf-16be",
+        }.get(database_encoding)
+        if text_codec is None:
+            raise StateError("contract review history invalid")
+        for row in rows:
+            try:
+                body = json.loads(row["bounded_body"].decode(text_codec))
+                if bounded_replay:
+                    replaces = row["bounded_replaces"]
+                else:
+                    replaces_blob = row["replaces_blob"]
+                    if replaces_blob is not None and row["replaces_type"] != "text":
+                        raise ValueError("contract review replaces storage type invalid")
+                    replaces = None if replaces_blob is None else replaces_blob.decode(text_codec)
+            except (TypeError, ValueError, UnicodeDecodeError, OverflowError, RecursionError):
+                raise StateError("contract review history invalid") from None
+            if (
+                type(body) is not dict
+                or not _CONTRACT_REVIEW_IDENTITY_FIELDS.issubset(body)
+                or body.get("kind") != "contract_review_request"
+                or body.get("request_id") != request_id
+                or type(body.get("status")) is not str
+                or body.get("status")
+                not in {
+                    "prepared",
+                    "dispatching",
+                    "thread_known",
+                    "response_recorded",
+                    "approved",
+                    "blocked",
+                }
+                or type(body.get("proposal_digest")) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", body["proposal_digest"]) is None
+                or type(body.get("contract_hash")) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", body["contract_hash"]) is None
+                or type(body.get("name")) is not str
+                or not body["name"].strip()
+                or type(body.get("version")) is not int
+                or body["version"] < 2
+                or type(body.get("team")) is not str
+                or not body["team"].strip()
+                or type(body.get("role")) is not str
+                or body["role"] not in {"producer", "consumer"}
+                or type(body.get("evidence_revision")) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", body["evidence_revision"]) is None
+                or type(body.get("packet")) is not dict
+                or type(body.get("packet_hash")) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", body["packet_hash"]) is None
+                or body.get("dispatch_id") != "contract-review:" + request_id
+                or replaces != (key if previous is not None else None)
+                or row["replaces_version"] != (row["version"] - 1 if previous is not None else None)
+            ):
+                raise StateError("contract review history invalid")
+            if body["status"] not in allowed_status.get(
+                previous.get("status") if previous is not None else None, set()
+            ):
+                raise StateError("contract review state transition invalid")
+            if previous is not None and any(
+                body.get(field) != previous.get(field)
+                for field in (
+                    "request_id",
+                    "proposal_digest",
+                    "contract_hash",
+                    "name",
+                    "version",
+                    "team",
+                    "role",
+                    "evidence_revision",
+                    "packet",
+                    "packet_hash",
+                    "dispatch_id",
+                )
+            ):
+                raise StateError("contract review identity changed")
+            if (
+                previous is not None
+                and "session" in previous
+                and body.get("session") != previous["session"]
+            ):
+                raise StateError("contract review session identity changed")
+            if (
+                previous is not None
+                and previous["status"]
+                in {
+                    "response_recorded",
+                    "approved",
+                    "blocked",
+                }
+                and any(
+                    body.get(field) != previous.get(field)
+                    for field in ("raw_sha256", "raw_result_base64", "provider_turn_id")
+                )
+            ):
+                raise StateError("contract review response custody changed")
+            if body["status"] == "prepared" and any(
+                field in body
+                for field in (
+                    "session",
+                    "raw_sha256",
+                    "raw_result_base64",
+                    "provider_turn_id",
+                    "result",
+                )
+            ):
+                raise StateError("contract review prepared state invalid")
+            if body["status"] == "dispatching" and any(
+                field in body
+                for field in (
+                    "session",
+                    "raw_sha256",
+                    "raw_result_base64",
+                    "provider_turn_id",
+                    "result",
+                )
+            ):
+                raise StateError("contract review dispatch state invalid")
+            if body["status"] == "thread_known":
+                session = body.get("session")
+                if (
+                    type(session) is not dict
+                    or set(session)
+                    != {"thread_id", "model", "turn_dispatch_id", "process_identity"}
+                    or any(
+                        type(session[field]) is not str or not session[field]
+                        for field in ("thread_id", "model", "turn_dispatch_id")
+                    )
+                    or type(session["process_identity"]) is not dict
+                    or set(session["process_identity"]) != {"pid", "birth"}
+                    or type(session["process_identity"]["pid"]) is not int
+                    or session["process_identity"]["pid"] <= 0
+                    or type(session["process_identity"]["birth"]) is not str
+                    or "raw_sha256" in body
+                    or "raw_result_base64" in body
+                    or "provider_turn_id" in body
+                    or "result" in body
+                ):
+                    raise StateError("contract review session state invalid")
+            if body["status"] == "response_recorded" and (
+                type(body.get("session")) is not dict
+                or type(body.get("raw_sha256")) is not str
+                or not re.fullmatch(r"[0-9a-f]{64}", body["raw_sha256"])
+                or type(body.get("raw_result_base64")) is not str
+                or type(body.get("provider_turn_id")) is not str
+                or not body["provider_turn_id"]
+                or len(body["provider_turn_id"]) > 256
+                or body["session"].get("turn_dispatch_id") != body.get("dispatch_id")
+            ):
+                raise StateError("contract review response custody invalid")
+            if body["status"] in ("response_recorded", "approved", "blocked") and (
+                "raw_result_base64" in body or "provider_turn_id" in body
+            ):
+                if (
+                    type(body.get("session")) is not dict
+                    or type(body.get("raw_sha256")) is not str
+                    or not re.fullmatch(r"[0-9a-f]{64}", body["raw_sha256"])
+                    or type(body.get("raw_result_base64")) is not str
+                    or type(body.get("provider_turn_id")) is not str
+                    or not body["provider_turn_id"]
+                    or len(body["provider_turn_id"]) > 256
+                    or body["session"].get("turn_dispatch_id") != body.get("dispatch_id")
+                ):
+                    raise StateError("contract review response custody invalid")
+                try:
+                    raw_result = base64.b64decode(body["raw_result_base64"], validate=True)
+                except (ValueError, TypeError):
+                    raise StateError("contract review response custody invalid") from None
+                if (
+                    len(raw_result) > 65536
+                    or hashlib.sha256(raw_result).hexdigest() != body["raw_sha256"]
+                ):
+                    raise StateError("contract review response custody invalid")
+                if body["status"] in ("approved", "blocked"):
+                    try:
+                        if (
+                            type(body.get("result")) is not dict
+                            or type(body.get("model_result")) is not dict
+                        ):
+                            raise ValueError("terminal result shape invalid")
+                        parsed_result = _strict_contract_review_result(raw_result)
+                        if _json(parsed_result) != _json(body["model_result"]) or _json(
+                            body["result"]
+                        ) != _json(body["model_result"]):
+                            raise ValueError("terminal result differs from custodied response")
+                    except (
+                        TypeError,
+                        ValueError,
+                        UnicodeDecodeError,
+                        OverflowError,
+                        RecursionError,
+                    ):
+                        raise StateError("contract review result custody invalid") from None
+            if body["status"] in ("approved", "blocked"):
+                if (
+                    type(body.get("raw_sha256")) is not str
+                    or not re.fullmatch(r"[0-9a-f]{64}", body["raw_sha256"])
+                    or type(body.get("result")) is not dict
+                    or type(body.get("model_result")) is not dict
+                    or type(body.get("blocking_reasons")) is not list
+                    or (("raw_result_base64" in body) != ("provider_turn_id" in body))
+                    or (
+                        "raw_result_base64" not in body
+                        and previous is not None
+                        and previous["status"] != "thread_known"
+                    )
+                ):
+                    raise StateError("contract review result state invalid")
+            previous, record = body, {"name": key, "version": row["version"], "body": body}
+        return record
+
+    def prepare_contract_review(
+        self, name: str, version: int, team: str, evidence_revision: str, packet: Any
+    ) -> dict:
+        """Persist one immutable, task-independent review request for exact evidence."""
+        if (
+            type(name) is not str
+            or not name.strip()
+            or type(version) is not int
+            or version < 2
+            or type(team) is not str
+            or not team.strip()
+            or type(evidence_revision) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", evidence_revision)
+        ):
+            raise StateError("contract review identity invalid")
+        try:
+            submitted = json.loads(_json(packet))
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract review packet invalid") from None
+        required_packet = {
+            "source_commit",
+            "evidence_refs",
+            "compatibility_analysis",
+            "migration_plan",
+        }
+        if (
+            type(submitted) is not dict
+            or set(submitted) != required_packet
+            or type(submitted["source_commit"]) is not str
+            or not re.fullmatch(r"[0-9a-f]{40}", submitted["source_commit"])
+            or type(submitted["evidence_refs"]) is not list
+            or not submitted["evidence_refs"]
+            or len(submitted["evidence_refs"]) > 100
+            or type(submitted["compatibility_analysis"]) is not str
+            or not submitted["compatibility_analysis"].strip()
+            or len(submitted["compatibility_analysis"]) > 8000
+            or (
+                submitted["migration_plan"] is not None
+                and (
+                    type(submitted["migration_plan"]) is not str
+                    or not submitted["migration_plan"].strip()
+                    or len(submitted["migration_plan"]) > 8000
+                )
+            )
+        ):
+            raise StateError("contract review packet shape invalid")
+        refs = []
+        for item in submitted["evidence_refs"]:
+            if (
+                type(item) is not dict
+                or set(item) != {"ref", "sha256"}
+                or type(item["ref"]) is not str
+                or not item["ref"].strip()
+                or len(item["ref"]) > 512
+                or type(item["sha256"]) is not str
+                or not re.fullmatch(r"[0-9a-f]{64}", item["sha256"])
+            ):
+                raise StateError("contract review evidence reference invalid")
+            refs.append(item["ref"])
+        if len(set(refs)) != len(refs):
+            raise StateError("contract review evidence references must be unique")
+        key = self._contract_transition_key(name, version)
+        with self._tx():
+            transition = self._single_contract_decision(key)
+            if transition is None:
+                raise StateError("contract transition proposal missing")
+            proposal = self._validated_contract_transition(transition["body"], name, version)
+            current = self.db.execute(
+                "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
+            ).fetchone()[0]
+            if current != proposal["from_version"]:
+                raise StateError("contract review proposal is no longer current")
+            participants = [proposal["producer_team"], *proposal["consumer_teams"]]
+            if team not in participants:
+                raise StateError("contract review team is not a participant")
+            producer_task_row = self.db.execute(
+                "SELECT id FROM tasks WHERE id=?", (proposal["producer_task_id"],)
+            ).fetchone()
+            if producer_task_row is None:
+                raise StateError("contract review producer task is unavailable")
+            team_tasks = self.db.execute(
+                "SELECT id FROM tasks WHERE team=? ORDER BY id LIMIT 101", (team,)
+            ).fetchall()
+            if len(team_tasks) > 100:
+                raise StateError("contract review participant task inventory exceeds bound")
+            task_inventory = [self._task(row["id"]) for row in team_tasks]
+            prior_contract = self.db.execute(
+                "SELECT version,body FROM contracts WHERE name=? AND version=?",
+                (name, proposal["from_version"]),
+            ).fetchone()
+            if prior_contract is None:
+                raise StateError("contract review source contract is unavailable")
+            ack_key = self._contract_ack_key(name, version, team)
+            ack = self._single_contract_decision(ack_key)
+            if ack is not None:
+                self._validated_contract_ack(
+                    ack["body"], name, version, team, proposal["contract_hash"]
+                )
+                raise StateError("contract participant already acknowledged")
+            proposal_digest = self._contract_review_digest(proposal)
+            detached = {
+                "name": name,
+                "from_version": proposal["from_version"],
+                "to_version": proposal["to_version"],
+                "contract_hash": proposal["contract_hash"],
+                "proposal_digest": proposal_digest,
+                "participant_team": team,
+                "participant_role": (
+                    "producer" if team == proposal["producer_team"] else "consumer"
+                ),
+                "source_commit": submitted["source_commit"],
+                "producer_task": self._task(proposal["producer_task_id"]),
+                "old_contract": {
+                    "version": prior_contract["version"],
+                    "body": json.loads(prior_contract["body"]),
+                },
+                "proposed_contract": proposal["body"],
+                "participant_tasks": task_inventory,
+                "affected_consumer_task_ids": [task["id"] for task in task_inventory],
+                "compatibility_analysis": submitted["compatibility_analysis"],
+                "compatibility_evidence": submitted["evidence_refs"],
+                "migration_plan": submitted["migration_plan"],
+                "evidence_refs": refs,
+            }
+            packet_json = _json(detached)
+            if len(packet_json.encode("utf-8")) > 65536:
+                raise StateError("contract review packet exceeds byte bound")
+            packet_hash = hashlib.sha256(packet_json.encode("utf-8")).hexdigest()
+            request_id = self._contract_review_digest([proposal_digest, team, evidence_revision])
+            existing = self._contract_review_record(request_id)
+            if existing is not None:
+                body = existing["body"]
+                if (
+                    body["proposal_digest"] != proposal_digest
+                    or body["contract_hash"] != proposal["contract_hash"]
+                    or body["packet_hash"] != packet_hash
+                    or body["packet"] != detached
+                ):
+                    raise StateError("contract review request identity conflict")
+                return existing
+            body = {
+                "kind": "contract_review_request",
+                "status": "prepared",
+                "request_id": request_id,
+                "proposal_digest": proposal_digest,
+                "contract_hash": proposal["contract_hash"],
+                "name": name,
+                "version": version,
+                "team": team,
+                "role": "producer" if team == proposal["producer_team"] else "consumer",
+                "evidence_revision": evidence_revision,
+                "packet": detached,
+                "packet_hash": packet_hash,
+                "dispatch_id": "contract-review:" + request_id,
+            }
+            self._put_contract_review_version_in_transaction(request_id, body)
+            return {"name": self._contract_review_key(request_id), "version": 1, "body": body}
+
+    def get_contract_review_request(self, request_id: str) -> dict:
+        """Read one detached, hash-checked contract review packet for its assigned reviewer."""
+        if type(request_id) is not str or not re.fullmatch(r"[0-9a-f]{64}", request_id):
+            raise StateError("contract review request identity invalid")
+        with self._read_snapshot():
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if type(body.get("packet")) is not dict or self._contract_review_digest(
+                body["packet"]
+            ) != body.get("packet_hash"):
+                raise StateError("contract review packet hash invalid")
+            return json.loads(_json(current))
+
+    def _contract_review_currentness_in_snapshot(self, current: dict, packet_hash: str) -> dict:
+        body = current["body"]
+        if body["packet_hash"] != packet_hash:
+            raise StateError("contract review packet changed")
+        packet = body["packet"]
+        if (
+            type(packet) is not dict
+            or set(packet)
+            != {
+                "name",
+                "from_version",
+                "to_version",
+                "contract_hash",
+                "proposal_digest",
+                "participant_team",
+                "participant_role",
+                "source_commit",
+                "producer_task",
+                "old_contract",
+                "proposed_contract",
+                "participant_tasks",
+                "affected_consumer_task_ids",
+                "compatibility_analysis",
+                "compatibility_evidence",
+                "migration_plan",
+                "evidence_refs",
+            }
+            or hashlib.sha256(_json(packet).encode("utf-8")).hexdigest() != packet_hash
+        ):
+            raise StateError("contract review packet custody invalid")
+        transition = self._single_contract_decision(
+            self._contract_transition_key(body["name"], body["version"])
+        )
+        if transition is None:
+            raise StateError("contract transition proposal missing")
+        proposal = self._validated_contract_transition(
+            transition["body"], body["name"], body["version"]
+        )
+        expected_role = "producer" if body["team"] == proposal["producer_team"] else "consumer"
+        if (
+            body["role"] != expected_role
+            or body["contract_hash"] != proposal["contract_hash"]
+            or self._contract_review_digest(proposal) != body["proposal_digest"]
+            or packet.get("name") != body["name"]
+            or packet.get("to_version") != body["version"]
+            or packet.get("from_version") != proposal["from_version"]
+            or packet.get("contract_hash") != body["contract_hash"]
+            or packet.get("proposed_contract") != proposal["body"]
+            or packet.get("participant_team") != body["team"]
+            or packet.get("participant_role") != expected_role
+        ):
+            raise StateError("contract review proposal changed")
+        if (
+            body["team"] not in [proposal["producer_team"], *proposal["consumer_teams"]]
+            or packet["proposal_digest"] != body["proposal_digest"]
+            or body["request_id"]
+            != self._contract_review_digest(
+                [body["proposal_digest"], body["team"], body["evidence_revision"]]
+            )
+        ):
+            raise StateError("contract review request identity changed")
+        blockers = []
+        source = self.db.execute(
+            "SELECT version,body FROM contracts WHERE name=? ORDER BY version DESC LIMIT 1",
+            (body["name"],),
+        ).fetchone()
+        if source is None:
+            raise StateError("contract review source contract is unavailable")
+        if source["version"] != proposal["from_version"]:
+            blockers.append("source_version_changed")
+        pinned_source = packet.get("old_contract")
+        if (
+            type(pinned_source) is not dict
+            or pinned_source.get("version") != proposal["from_version"]
+        ):
+            raise StateError("contract review source packet invalid")
+        exact_source = self.db.execute(
+            "SELECT version,body FROM contracts WHERE name=? AND version=?",
+            (body["name"], proposal["from_version"]),
+        ).fetchone()
+        if exact_source is None:
+            raise StateError("contract review source contract is unavailable")
+        try:
+            source_body = json.loads(exact_source["body"])
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            source_matches = False
+        else:
+            source_matches = _json_equal(source_body, pinned_source.get("body"))
+        if not source_matches:
+            blockers.append("source_contract_changed")
+        try:
+            producer = self._task(proposal["producer_task_id"])
+        except StateError:
+            raise
+        except (TypeError, ValueError, OverflowError, RecursionError):
+            producer_matches = False
+        else:
+            producer_matches = producer["team"] == proposal["producer_team"] and _json_equal(
+                producer, packet.get("producer_task")
+            )
+        if not producer_matches:
+            blockers.append("producer_snapshot_changed")
+        rows = self.db.execute(
+            "SELECT id FROM tasks WHERE team=? ORDER BY id LIMIT 101", (body["team"],)
+        ).fetchall()
+        if len(rows) > 100:
+            blockers.append("participant_inventory_exceeds_bound")
+        else:
+            try:
+                inventory = [self._task(row["id"]) for row in rows]
+            except StateError:
+                raise
+            except (TypeError, ValueError, OverflowError, RecursionError):
+                inventory_matches = False
+            else:
+                inventory_matches = _json_equal(inventory, packet.get("participant_tasks"))
+            if not inventory_matches:
+                blockers.append("participant_inventory_changed")
+        if [task["id"] for task in packet["participant_tasks"]] != packet.get(
+            "affected_consumer_task_ids"
+        ):
+            raise StateError("contract review participant coverage invalid")
+        ack_key = self._contract_ack_key(body["name"], body["version"], body["team"])
+        acknowledgement = self._single_contract_decision(ack_key)
+        if acknowledgement is not None:
+            self._validated_contract_ack(
+                acknowledgement["body"],
+                body["name"],
+                body["version"],
+                body["team"],
+                body["contract_hash"],
+            )
+            blockers.append("participant_already_acknowledged")
+        return {
+            "request_id": body["request_id"],
+            "packet_hash": packet_hash,
+            "journal_version": current["version"],
+            "status": body["status"],
+            "current": not blockers,
+            "blockers": blockers,
+        }
+
+    def contract_review_currentness(self, request_id: str, packet_hash: str) -> dict:
+        """Report packet evidence freshness without granting send authority."""
+        if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
+            raise StateError("contract review packet hash invalid")
+        with self._read_snapshot():
+            current = self._contract_review_record(request_id)
+            if current is None:
+                raise StateError("contract review request missing")
+            return self._contract_review_currentness_in_snapshot(current, packet_hash)
+
+    def contract_review_worklist(self, *, limit: int = 100) -> dict:
+        """Project a bounded inventory of review requests without dispatch authority."""
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise StateError("contract review worklist limit invalid")
+        with self._read_snapshot():
+            return self._contract_review_worklist_in_snapshot(limit=limit)
+
+    def _contract_review_worklist_in_snapshot(
+        self, *, limit: int, overflow_as_result: bool = False
+    ) -> dict:
+        """Build the bounded request projection inside an existing read snapshot."""
+        names = self._contract_review_global_replay_names_in_snapshot(limit=limit)
+        if len(names) > limit:
+            if overflow_as_result:
+                return self._contract_review_worklist_overflow(limit=limit)
+            raise StateError("contract review worklist exceeds bound")
+        identities = []
+        for name in names:
+            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", name)
+            if match is None:
+                raise StateError("contract review worklist identity invalid")
+            identities.append(match.group(1))
+        byte_total = 0
+        try:
+            for request_id in identities:
+                byte_total += self._contract_review_replay_history_size(request_id)
+                if byte_total > _CONTRACT_REVIEW_WORKLIST_MAX_BYTES:
+                    if overflow_as_result:
+                        return self._contract_review_worklist_overflow(limit=limit)
+                    raise StateError("contract review worklist byte limit exceeded")
+        except StateError as exc:
+            if "byte limit exceeded" in str(exc):
+                if overflow_as_result:
+                    return self._contract_review_worklist_overflow(limit=limit)
+                raise StateError("contract review worklist byte limit exceeded") from None
+            raise
+        items = []
+        for request_id in identities:
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review worklist record missing")
+            body = current["body"]
+            freshness = self._contract_review_currentness_in_snapshot(current, body["packet_hash"])
+            status = body["status"]
+            recovery_required = status in {"dispatching", "thread_known", "response_recorded"}
+            recovery_action = {
+                "dispatching": "hold_no_resend",
+                "thread_known": "hold_no_resend",
+                "response_recorded": "local_replay",
+            }.get(status)
+            items.append(
+                {
+                    "request_id": body["request_id"],
+                    "journal_version": current["version"],
+                    "status": status,
+                    "team": body["team"],
+                    "role": body["role"],
+                    "packet_hash": body["packet_hash"],
+                    "dispatch_id": body["dispatch_id"],
+                    "current": freshness["current"],
+                    "blockers": freshness["blockers"],
+                    "dispatch_eligible": (status == "prepared" and freshness["current"]),
+                    "recovery_required": recovery_required,
+                    "recovery_action": recovery_action,
+                    "session": body.get("session"),
+                    "provider_turn_id": body.get("provider_turn_id"),
+                    "provider_turn_known": type(body.get("provider_turn_id")) is str,
+                    "provider_usage": "unknown" if status != "prepared" else None,
+                    "recovery_dispatch_authority": False,
+                }
+            )
+        return {
+            "items": items,
+            "count": len(items),
+            "limit": limit,
+            "dispatch_authority": False,
+        }
+
+    @staticmethod
+    def _contract_review_worklist_overflow(*, limit: int) -> dict:
+        return {
+            "items": [],
+            "count": None,
+            "limit": limit,
+            "dispatch_authority": False,
+            "overflow": True,
+        }
+
+    def _contract_review_global_replay_names_in_snapshot(
+        self, *, limit: int | None = None
+    ) -> list[str]:
+        """Seek at most the bounded journal count without grouping retained versions."""
+        names = []
+        cursor = "contract-review/"
+        query = _CONTRACT_REVIEW_GLOBAL_REPLAY_FIRST_QUERY
+        name_limit = (
+            _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT
+            if limit is None
+            else min(limit, _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT)
+        )
+        while len(names) <= name_limit:
+            row = self.db.execute(query, (cursor,)).fetchone()
+            if row is None:
+                break
+            cursor = _bounded_index_name(
+                row,
+                _CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS,
+                "contract review worklist identity invalid",
+            )
+            names.append(cursor)
+            query = _CONTRACT_REVIEW_GLOBAL_REPLAY_NEXT_QUERY
+        return names
+
+    def _contract_review_replay_inventory_in_snapshot(self, *, limit: int) -> dict:
+        """Select only current custodied responses for bounded local replay."""
+        names = self._contract_review_global_replay_names_in_snapshot()
+        if len(names) > _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+            return self._contract_review_replay_overflow()
+        identities = []
+        for name in names:
+            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", name)
+            if match is None:
+                raise StateError("contract review worklist identity invalid")
+            identities.append(match.group(1))
+        byte_total = 0
+        try:
+            for request_id in identities:
+                byte_total += self._contract_review_replay_history_size(request_id)
+                if byte_total > _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES:
+                    return self._contract_review_replay_overflow()
+        except StateError as exc:
+            if "byte limit exceeded" in str(exc):
+                return self._contract_review_replay_overflow()
+            raise
+        items = []
+        skipped_count = 0
+        for request_id in identities:
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review worklist record missing")
+            body = current["body"]
+            if body["status"] != "response_recorded":
+                skipped_count += 1
+                continue
+            items.append(
+                {
+                    "request_id": body["request_id"],
+                    "packet_hash": body["packet_hash"],
+                }
+            )
+            if len(items) > limit:
+                return self._contract_review_replay_overflow()
+        return {
+            "items": items,
+            "count": len(items),
+            "skipped_count": skipped_count,
+            "overflow": False,
+        }
+
+    def _contract_review_transition_replay_inventory_in_snapshot(
+        self, *, name: str, version: int, contract_hash: str, limit: int
+    ) -> dict:
+        """Select bounded response journals for one exact current proposal."""
+        transition = self._single_contract_decision(self._contract_transition_key(name, version))
+        if transition is None:
+            raise StateError("contract transition proposal missing")
+        proposal = self._validated_contract_transition(transition["body"], name, version)
+        if proposal["contract_hash"] != contract_hash:
+            raise StateError("contract review proposal changed")
+        proposal_digest = self._contract_review_digest(proposal)
+        names = self._contract_review_transition_replay_names_in_snapshot(
+            name=name,
+            version=version,
+            contract_hash=contract_hash,
+            proposal_digest=proposal_digest,
+        )
+        if len(names) > _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+            return self._contract_review_replay_overflow()
+        identities = []
+        for journal_name in names:
+            match = re.fullmatch(r"contract-review/([0-9a-f]{64})", journal_name)
+            if match is None:
+                raise StateError("contract review worklist identity invalid")
+            identities.append(match.group(1))
+        byte_total = 0
+        try:
+            for request_id in identities:
+                byte_total += self._contract_review_replay_history_size(request_id)
+                if byte_total > _CONTRACT_REVIEW_REPLAY_INVENTORY_MAX_BYTES:
+                    return self._contract_review_replay_overflow()
+        except StateError as exc:
+            if "byte limit exceeded" in str(exc):
+                return self._contract_review_replay_overflow()
+            raise
+        items = []
+        skipped_count = 0
+        for request_id in identities:
+            current = self._contract_review_record(request_id)
+            if current is None:
+                raise StateError("contract review worklist record missing")
+            body = current["body"]
+            if (
+                body["name"] != name
+                or body["version"] != version
+                or body["contract_hash"] != contract_hash
+                or body["proposal_digest"] != proposal_digest
+            ):
+                raise StateError("contract review transition index mismatch")
+            if body["status"] != "response_recorded":
+                skipped_count += 1
+                continue
+            items.append({"request_id": body["request_id"], "packet_hash": body["packet_hash"]})
+            if len(items) > limit:
+                return self._contract_review_replay_overflow()
+        return {
+            "items": items,
+            "count": len(items),
+            "skipped_count": skipped_count,
+            "overflow": False,
+        }
+
+    def _contract_review_transition_replay_names_in_snapshot(
+        self, *, name: str, version: int, contract_hash: str, proposal_digest: str
+    ) -> list[str]:
+        """Seek distinct matching journal names without grouping their retained versions."""
+        names = []
+        query = _CONTRACT_REVIEW_TRANSITION_REPLAY_FIRST_QUERY
+        params = (name, version, contract_hash, proposal_digest)
+        cursor = None
+        while len(names) <= _CONTRACT_REVIEW_REPLAY_SCAN_LIMIT:
+            query_params = params if cursor is None else (*params, cursor)
+            row = self.db.execute(query, query_params).fetchone()
+            if row is None:
+                break
+            cursor = _bounded_index_name(
+                row,
+                _CONTRACT_REVIEW_JOURNAL_NAME_MAX_CHARS,
+                "contract review worklist identity invalid",
+            )
+            names.append(cursor)
+            query = _CONTRACT_REVIEW_TRANSITION_REPLAY_NEXT_QUERY
+        return names
+
+    @staticmethod
+    def _contract_review_replay_overflow() -> dict:
+        return {"items": [], "count": None, "skipped_count": None, "overflow": True}
+
+    def begin_contract_review_dispatch(self, request_id: str, packet_hash: str) -> dict:
+        """Write the one-shot dispatch intent before any metered provider call."""
+        if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
+            raise StateError("contract review packet hash invalid")
+        with self._tx():
+            self._require_company_running()
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if body["status"] != "prepared":
+                raise StateError("contract review dispatch is not sendable")
+            freshness = self._contract_review_currentness_in_snapshot(current, packet_hash)
+            if not freshness["current"]:
+                raise StateError(
+                    "contract review packet is stale: " + ",".join(freshness["blockers"])
+                )
+            updated = {**body, "status": "dispatching"}
+            self._put_contract_review_version_in_transaction(request_id, updated)
+            return {"name": current["name"], "version": current["version"] + 1, "body": updated}
+
+    def record_contract_review_session(
+        self,
+        request_id: str,
+        packet_hash: str,
+        thread_id: str,
+        model: str,
+        turn_dispatch_id: str,
+        process_identity: Any,
+    ) -> dict:
+        """Persist the exact metered session before issuing its review turn."""
+        for value in (thread_id, model, turn_dispatch_id):
+            _name(value)
+        try:
+            identity = json.loads(_json(process_identity))
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract review process identity invalid") from None
+        if (
+            type(identity) is not dict
+            or set(identity) != {"pid", "birth"}
+            or type(identity["pid"]) is not int
+            or identity["pid"] <= 0
+            or type(identity["birth"]) is not str
+            or not identity["birth"]
+        ):
+            raise StateError("contract review process identity invalid")
+        session = {
+            "thread_id": thread_id,
+            "model": model,
+            "turn_dispatch_id": turn_dispatch_id,
+            "process_identity": identity,
+        }
+        with self._tx():
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if body["packet_hash"] != packet_hash:
+                raise StateError("contract review session is stale")
+            if turn_dispatch_id != body["dispatch_id"]:
+                raise StateError("contract review turn dispatch identity mismatch")
+            if "session" in body:
+                if body["session"] != session:
+                    raise StateError("contract review session identity changed")
+                if (
+                    body["status"] == "thread_known"
+                    and len(_json(body).encode("utf-8"))
+                    > _CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES
+                ):
+                    raise StateError("contract review session leaves insufficient response space")
+                return current
+            if body["status"] != "dispatching":
+                raise StateError("contract review session is stale")
+            updated = {**body, "status": "thread_known", "session": session}
+            if (
+                len(_json(updated).encode("utf-8"))
+                > _CONTRACT_REVIEW_THREAD_KNOWN_VERSION_MAX_BYTES
+            ):
+                raise StateError("contract review session leaves insufficient response space")
+            self._put_contract_review_version_in_transaction(request_id, updated)
+            return {"name": current["name"], "version": current["version"] + 1, "body": updated}
+
+    def record_contract_review_response(
+        self,
+        request_id: str,
+        packet_hash: str,
+        turn_dispatch_id: str,
+        provider_turn_id: str,
+        raw_result: bytes,
+    ) -> dict:
+        """Custody exact bounded review-result bytes before parsing or finalization.
+
+        This is not the full RPC transcript and does not authenticate provider-turn or
+        usage-ledger identity; the caller must qualify those separately.
+        """
+        if (
+            type(packet_hash) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", packet_hash)
+            or type(turn_dispatch_id) is not str
+            or not turn_dispatch_id
+            or type(provider_turn_id) is not str
+            or not provider_turn_id
+            or len(provider_turn_id) > 256
+            or type(raw_result) is not bytes
+            or len(raw_result) > 65536
+        ):
+            raise StateError("contract review response invalid")
+        raw_sha256 = hashlib.sha256(raw_result).hexdigest()
+        encoded = base64.b64encode(raw_result).decode("ascii")
+        with self._tx():
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if body["packet_hash"] != packet_hash:
+                raise StateError("contract review response is stale")
+            if body["dispatch_id"] != turn_dispatch_id:
+                raise StateError("contract review turn dispatch identity mismatch")
+            response_identity = {
+                "raw_sha256": raw_sha256,
+                "raw_result_base64": encoded,
+                "provider_turn_id": provider_turn_id,
+            }
+            if body["status"] in ("response_recorded", "approved", "blocked"):
+                if any(body.get(key) != value for key, value in response_identity.items()):
+                    raise StateError("contract review response custody changed")
+                return current
+            if body["status"] != "thread_known":
+                raise StateError("contract review response has no durable session")
+            session = body.get("session")
+            if type(session) is not dict or session.get("turn_dispatch_id") != turn_dispatch_id:
+                raise StateError("contract review response session mismatch")
+            updated = {**body, "status": "response_recorded", **response_identity}
+            self._put_contract_review_version_in_transaction(request_id, updated)
+            return {"name": current["name"], "version": current["version"] + 1, "body": updated}
+
+    def get_contract_review_response(
+        self, request_id: str, *, _bounded_replay: bool = False
+    ) -> dict:
+        """Read and rehash the immutable stored result bytes for local recovery."""
+        with self._lock:
+            current = self._contract_review_record(request_id, bounded_replay=_bounded_replay)
+            if current is None or current["body"]["status"] not in {
+                "response_recorded",
+                "approved",
+                "blocked",
+            }:
+                raise StateError("contract review response unavailable")
+            body = current["body"]
+            if "raw_result_base64" not in body:
+                raise StateError("legacy contract review has no retained raw response")
+            try:
+                raw_result = base64.b64decode(body["raw_result_base64"], validate=True)
+            except (ValueError, TypeError):
+                raise StateError("contract review response custody invalid") from None
+            if hashlib.sha256(raw_result).hexdigest() != body["raw_sha256"]:
+                raise StateError("contract review response custody invalid")
+            return {
+                "request_id": request_id,
+                "packet_hash": body["packet_hash"],
+                "dispatch_id": body["dispatch_id"],
+                "thread_id": body["session"]["thread_id"],
+                "provider_turn_id": body["provider_turn_id"],
+                "raw_sha256": body["raw_sha256"],
+                "raw_result": raw_result,
+            }
+
+    def replay_contract_review_response(self, request_id: str, packet_hash: str) -> dict:
+        """Finalize one already-custodied response locally, without contacting a provider."""
+        if type(packet_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", packet_hash):
+            raise StateError("contract review packet hash invalid")
+        with self._read_snapshot():
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review response unavailable")
+            body = current["body"]
+            if body["status"] not in {"response_recorded", "approved", "blocked"}:
+                raise StateError("contract review response unavailable")
+            if "raw_result_base64" not in body:
+                raise StateError("legacy contract review has no retained raw response")
+            try:
+                raw_result = base64.b64decode(body["raw_result_base64"], validate=True)
+            except (ValueError, TypeError):
+                raise StateError("contract review response custody invalid") from None
+            if hashlib.sha256(raw_result).hexdigest() != body["raw_sha256"]:
+                raise StateError("contract review response custody invalid")
+            response = {
+                "request_id": request_id,
+                "packet_hash": body["packet_hash"],
+                "raw_sha256": body["raw_sha256"],
+                "raw_result": raw_result,
+            }
+        if response["packet_hash"] != packet_hash:
+            raise StateError("contract review response is stale")
+        try:
+            result = _strict_contract_review_result(response["raw_result"])
+        except (TypeError, ValueError, UnicodeDecodeError, OverflowError, RecursionError):
+            raise StateError("contract review response is not replayable") from None
+        return self.finish_contract_review(
+            request_id, packet_hash, response["raw_sha256"], result, _bounded_replay=True
+        )
+
+    def replay_pending_contract_review_responses(self, *, limit: int = 100) -> dict:
+        """Locally finalize a bounded snapshot of custodied responses; never dispatch."""
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise StateError("contract review replay limit invalid")
+        with self._read_snapshot():
+            inventory = self._contract_review_replay_inventory_in_snapshot(limit=limit)
+        return self._replay_contract_review_inventory(inventory, limit=limit)
+
+    def replay_contract_review_responses_for_transition(
+        self, name: str, version: int, contract_hash: str, *, limit: int = 100
+    ) -> dict:
+        """Locally replay bounded custodied responses for one exact transition only."""
+        if (
+            type(name) is not str
+            or not name.strip()
+            or type(version) is not int
+            or version < 2
+            or type(contract_hash) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", contract_hash) is None
+            or type(limit) is not int
+            or not 1 <= limit <= 100
+        ):
+            raise StateError("contract review transition replay request invalid")
+        with self._read_snapshot():
+            inventory = self._contract_review_transition_replay_inventory_in_snapshot(
+                name=name,
+                version=version,
+                contract_hash=contract_hash,
+                limit=limit,
+            )
+        result = self._replay_contract_review_inventory(inventory, limit=limit)
+        return {**result, "name": name, "version": version, "contract_hash": contract_hash}
+
+    def _replay_contract_review_inventory(self, inventory: dict, *, limit: int) -> dict:
+        if inventory["overflow"]:
+            return {
+                "limit": limit,
+                "count": None,
+                "overflow": True,
+                "response_recorded_count": None,
+                "replayed": [],
+                "failures": [],
+                "skipped_count": None,
+                "dispatch_authority": False,
+                "provider_dispatch": False,
+            }
+
+        response_recorded = inventory["items"]
+        replayed = []
+        failures = []
+        for item in response_recorded:
+            try:
+                finished = self.replay_contract_review_response(
+                    item["request_id"], item["packet_hash"]
+                )
+            except StateError as exc:
+                error = str(exc)
+                failures.append(
+                    {
+                        "request_id": item["request_id"],
+                        "packet_hash": item["packet_hash"],
+                        "error": error[:256],
+                        "error_truncated": len(error) > 256,
+                    }
+                )
+            else:
+                body = finished["body"]
+                replayed.append(
+                    {
+                        "request_id": item["request_id"],
+                        "packet_hash": item["packet_hash"],
+                        "status": body["status"],
+                        "raw_sha256": body.get("raw_sha256"),
+                    }
+                )
+        return {
+            "limit": limit,
+            "count": inventory["count"],
+            "overflow": False,
+            "response_recorded_count": len(response_recorded),
+            "replayed": replayed,
+            "failures": failures,
+            "skipped_count": inventory["skipped_count"],
+            "dispatch_authority": False,
+            "provider_dispatch": False,
+        }
+
+    def finish_contract_review(
+        self,
+        request_id: str,
+        packet_hash: str,
+        raw_sha256: str,
+        result: Any,
+        *,
+        _bounded_replay: bool = False,
+    ) -> dict:
+        """Commit immutable review evidence and any exact acknowledgement atomically."""
+        if (
+            type(packet_hash) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", packet_hash)
+            or type(raw_sha256) is not str
+            or not re.fullmatch(r"[0-9a-f]{64}", raw_sha256)
+        ):
+            raise StateError("contract review evidence hash invalid")
+        try:
+            detached = json.loads(_json(result))
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("contract review result invalid") from None
+        required = {
+            "decision",
+            "compatibility",
+            "rationale",
+            "findings",
+            "reviewed_evidence_refs",
+            "affected_consumers_reviewed",
+            "migration_plan",
+        }
+        if (
+            type(detached) is not dict
+            or set(detached) != required
+            or detached["decision"] not in ("approve", "blocked")
+            or detached["compatibility"] not in ("compatible", "migration_required", "insufficient")
+            or type(detached["rationale"]) is not str
+            or not detached["rationale"].strip()
+            or type(detached["findings"]) is not list
+            or any(type(item) is not str for item in detached["findings"])
+            or type(detached["reviewed_evidence_refs"]) is not list
+            or any(type(item) is not str for item in detached["reviewed_evidence_refs"])
+            or type(detached["affected_consumers_reviewed"]) is not list
+            or any(type(item) is not str for item in detached["affected_consumers_reviewed"])
+            or (
+                detached["migration_plan"] is not None
+                and type(detached["migration_plan"]) is not str
+            )
+        ):
+            raise StateError("contract review result shape invalid")
+        if (
+            len(_json(detached).encode("utf-8")) > 32768
+            or len(detached["rationale"]) > 4000
+            or len(detached["findings"]) > 100
+            or any(len(item) > 1000 for item in detached["findings"])
+            or len(detached["reviewed_evidence_refs"]) > 100
+            or any(len(item) > 512 for item in detached["reviewed_evidence_refs"])
+            or len(detached["affected_consumers_reviewed"]) > 100
+            or any(len(item) > 32768 for item in detached["affected_consumers_reviewed"])
+            or (detached["migration_plan"] is not None and len(detached["migration_plan"]) > 8000)
+        ):
+            raise StateError("contract review result exceeds bound")
+        with self._tx():
+            current = self._contract_review_record(request_id, bounded_replay=True)
+            if current is None:
+                raise StateError("contract review request missing")
+            body = current["body"]
+            if body["packet_hash"] != packet_hash:
+                raise StateError("contract review packet changed")
+            if body["status"] in ("approved", "blocked"):
+                completed = body.get("model_result")
+                if body.get("raw_sha256") != raw_sha256 or completed != detached:
+                    raise StateError("contract review result is immutable")
+                return current
+            if body["status"] != "response_recorded":
+                raise StateError("contract review response is not durably recorded")
+            if body.get("raw_sha256") != raw_sha256:
+                raise StateError("contract review response hash mismatch")
+            response = self.get_contract_review_response(request_id, _bounded_replay=True)
+            try:
+                raw_result = _strict_contract_review_result(response["raw_result"])
+                if _json(raw_result) != _json(detached):
+                    raise ValueError("stored response differs from parsed result")
+            except (TypeError, ValueError, UnicodeDecodeError, OverflowError, RecursionError):
+                raise StateError(
+                    "contract review raw result does not match parsed result"
+                ) from None
+            allowed_refs = body["packet"].get("evidence_refs", [])
+            allowed_consumers = body["packet"].get("affected_consumer_task_ids", [])
+            if (
+                type(allowed_refs) is not list
+                or any(type(ref) is not str for ref in allowed_refs)
+                or type(allowed_consumers) is not list
+                or any(type(task_id) is not str for task_id in allowed_consumers)
+                or len(set(detached["reviewed_evidence_refs"]))
+                != len(detached["reviewed_evidence_refs"])
+                or not set(detached["reviewed_evidence_refs"]).issubset(allowed_refs)
+                or len(set(detached["affected_consumers_reviewed"]))
+                != len(detached["affected_consumers_reviewed"])
+                or not set(detached["affected_consumers_reviewed"]).issubset(allowed_consumers)
+            ):
+                raise StateError("contract review evidence coverage invalid")
+            approved = detached["decision"] == "approve"
+            if approved and (
+                sorted(detached["affected_consumers_reviewed"]) != sorted(allowed_consumers)
+                or detached["compatibility"] == "insufficient"
+                or not detached["reviewed_evidence_refs"]
+                or (
+                    detached["compatibility"] == "migration_required"
+                    and not (detached["migration_plan"] or "").strip()
+                )
+            ):
+                raise StateError("contract review approval lacks compatibility evidence")
+            freshness = self._contract_review_currentness_in_snapshot(current, packet_hash)
+            blocker_messages = {
+                "participant_inventory_exceeds_bound": (
+                    "participant task inventory exceeds bound after packet preparation"
+                ),
+                "participant_inventory_changed": (
+                    "participant task inventory changed after packet preparation"
+                ),
+                "producer_snapshot_changed": (
+                    "producer task evidence changed after packet preparation"
+                ),
+                "source_version_changed": (
+                    "contract source version changed while this review was pending"
+                ),
+                "source_contract_changed": (
+                    "contract source body changed while this review was pending"
+                ),
+                "participant_already_acknowledged": (
+                    "participant was acknowledged while this review was pending"
+                ),
+            }
+            stale_reasons = [blocker_messages.get(code, code) for code in freshness["blockers"]]
+            if approved and detached["compatibility"] == "migration_required":
+                # A plan describes future work; without a qualified migration-completion
+                # contract it cannot authorize publication of the new interface.
+                stale_reasons.append("migration_completion_unqualified")
+            transition = self._single_contract_decision(
+                self._contract_transition_key(body["name"], body["version"])
+            )
+            if transition is None:
+                raise StateError("contract transition proposal missing")
+            proposal = self._validated_contract_transition(
+                transition["body"], body["name"], body["version"]
+            )
+            current_version = self.db.execute(
+                "SELECT MAX(version) FROM contracts WHERE name=?", (body["name"],)
+            ).fetchone()[0]
+            ack_key = self._contract_ack_key(body["name"], body["version"], body["team"])
+            updated = {
+                **body,
+                "status": "approved" if approved and not stale_reasons else "blocked",
+                "raw_sha256": raw_sha256,
+                "model_result": detached,
+                "result": detached,
+                "blocking_reasons": stale_reasons,
+            }
+            self._put_contract_review_version_in_transaction(request_id, updated)
+            if approved and not stale_reasons:
+                if (
+                    self._contract_review_digest(proposal) != body["proposal_digest"]
+                    or proposal["contract_hash"] != body["contract_hash"]
+                    or body["team"] not in [proposal["producer_team"], *proposal["consumer_teams"]]
+                    or current_version != proposal["from_version"]
+                ):
+                    raise StateError("contract review proposal changed")
+                existing = self._single_contract_decision(ack_key)
+                ack_record = {
+                    "kind": "contract_acknowledgement",
+                    "name": body["name"],
+                    "version": body["version"],
+                    "team": body["team"],
+                    "contract_hash": body["contract_hash"],
+                    "review_request_id": request_id,
+                    "review_packet_hash": packet_hash,
+                    "review_raw_sha256": raw_sha256,
+                }
+                if existing is not None:
+                    raise StateError("contract participant acknowledgement race")
+                self._put_decision_in_transaction(ack_key, ack_record)
+            return {"name": current["name"], "version": current["version"] + 1, "body": updated}
+
+    def propose_contract_transition(
+        self,
+        name: str,
+        from_version: int,
+        to_version: int,
+        body: Any,
+        *,
+        producer_task_id: str,
+        producer_team: str,
+        consumer_teams: list[str],
+    ) -> dict:
+        """Persist one immutable proposal through the atomic batch path."""
+        return self.propose_contract_transitions(
+            [
+                {
+                    "name": name,
+                    "from_version": from_version,
+                    "to_version": to_version,
+                    "body": body,
+                    "producer_task_id": producer_task_id,
+                    "producer_team": producer_team,
+                    "consumer_teams": consumer_teams,
+                }
+            ]
+        )[0]
+
+    def propose_contract_transitions(self, proposals: list[dict]) -> list[dict]:
+        """Persist a set of immutable proposals atomically after detaching caller input."""
+        if type(proposals) is not list:
+            raise StateError("contract transitions must be a list")
+        proposals = tuple(proposals)
+        if len(proposals) > CONTRACT_TRANSITION_BATCH_MAX_PROPOSALS:
+            raise StateError("contract transition batch exceeds count limit")
+        required = {
+            "name",
+            "from_version",
+            "to_version",
+            "body",
+            "producer_task_id",
+            "producer_team",
+            "consumer_teams",
+        }
+        prepared = []
+        keys = set()
+        total_bytes = 0
+        for proposal in proposals:
+            if type(proposal) is not dict or set(proposal) != required:
+                raise StateError("contract transition proposal shape invalid")
+            name = proposal["name"]
+            from_version = proposal["from_version"]
+            to_version = proposal["to_version"]
+            producer_task_id = proposal["producer_task_id"]
+            producer_team = proposal["producer_team"]
+            consumer_teams = proposal["consumer_teams"]
+            if type(name) is not str or not name.strip():
+                raise StateError("contract name must be a plain nonempty string")
+            if any(type(v) is not int or v < 1 for v in (from_version, to_version)):
+                raise StateError("contract versions must be positive integers")
+            if to_version != from_version + 1:
+                raise StateError("contract transition must advance exactly one version")
+            if type(producer_task_id) is not str or not producer_task_id.strip():
+                raise StateError("contract producer task required")
+            if type(producer_team) is not str or not producer_team.strip():
+                raise StateError("contract producer team required")
+            if type(consumer_teams) is not list or any(
+                type(team) is not str or not team.strip() for team in consumer_teams
+            ):
+                raise StateError("contract consumer teams must be nonempty strings")
+            consumer_teams = list(consumer_teams)
+            if not consumer_teams:
+                raise StateError("contract transition requires at least one consumer")
+            if len(set(consumer_teams)) != len(consumer_teams) or producer_team in consumer_teams:
+                raise StateError("contract participants must be unique")
+            try:
+                body = json.loads(_json(proposal["body"]))
+                body_json = _json(body)
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+                raise StateError("contract body must be finite JSON data") from None
+            key = self._contract_transition_key(name, to_version)
+            if key in keys:
+                raise StateError("duplicate contract transition proposal")
+            keys.add(key)
+            record = {
+                "kind": "contract_transition",
+                "status": "proposed",
+                "name": name,
+                "from_version": from_version,
+                "to_version": to_version,
+                "body": body,
+                "contract_hash": hashlib.sha256(body_json.encode("utf-8")).hexdigest(),
+                "producer_task_id": producer_task_id,
+                "producer_team": producer_team,
+                "consumer_teams": sorted(consumer_teams),
+            }
+            self._validated_contract_transition(record, name, to_version)
+            record_bytes = len(_json(record).encode("utf-8"))
+            if record_bytes > _CONTRACT_TRANSITION_BATCH_MAX_RECORD_BYTES:
+                raise StateError("contract transition proposal exceeds byte limit")
+            total_bytes += record_bytes
+            if total_bytes > _CONTRACT_TRANSITION_BATCH_MAX_BYTES:
+                raise StateError("contract transition batch exceeds byte limit")
+            prepared.append((key, record))
+        if not prepared:
+            return []
+
+        persisted = []
+        with self._tx():
+            for key, record in prepared:
+                existing = self._single_contract_decision(key)
+                if existing is not None:
+                    existing_body = self._validated_contract_transition(
+                        existing["body"], record["name"], record["to_version"]
+                    )
+                    if existing_body != record:
+                        raise StateError("contract transition proposal is immutable")
+                    persisted.append(
+                        {
+                            "name": existing["name"],
+                            "version": existing["version"],
+                            "body": existing_body,
+                        }
+                    )
+                    continue
+                current = self.db.execute(
+                    "SELECT MAX(version) FROM contracts WHERE name=?", (record["name"],)
+                ).fetchone()[0]
+                if current != record["from_version"]:
+                    raise StateError("contract transition source version is stale")
+                version = self._put_decision_in_transaction(key, record)
+                persisted.append({"name": key, "version": version, "body": record})
+        return persisted
+
+    def get_contract_transition(self, name: str, version: int) -> dict | None:
+        if type(name) is not str or type(version) is not int:
+            raise StateError("invalid contract transition identity")
+        return self.get_decision(self._contract_transition_key(name, version))
+
+    def acknowledge_contract_transition(
+        self, name: str, version: int, team: str, contract_hash: str
+    ) -> dict:
+        """Reject direct acknowledgements; only a completed independent review can acknowledge."""
+        if type(name) is not str or not name.strip() or type(team) is not str or not team.strip():
+            raise StateError("contract and team names must be plain nonempty strings")
+        if type(version) is not int or version < 2:
+            raise StateError("contract transition version must be an integer >= 2")
+        if type(contract_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", contract_hash):
+            raise StateError("contract hash must be lowercase SHA-256")
+        raise StateError(
+            "contract transition acknowledgement requires an approved independent review"
+        )
+
+    def record_lead_result(
+        self,
+        attempt_id: int,
+        epoch: int,
+        *,
+        thread: str,
+        model: str,
+        base: str,
+        plan: dict,
+    ) -> int:
+        """Atomically persist the fenced lead result and its exact proposal acknowledgements."""
+        if any(
+            type(value) is not str or not value.strip() or "\x00" in value
+            for value in (thread, model, base)
+        ):
+            raise StateError("lead result identity invalid")
+        try:
+            plan = json.loads(_json(plan))
+        except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+            raise StateError("lead result plan invalid") from None
+        if (
+            type(plan) is not dict
+            or set(plan) != {"decision", "worker_brief", "rationale", "contract_acks"}
+            or plan["decision"] not in ("approve", "blocked")
+            or type(plan["worker_brief"]) is not str
+            or type(plan["rationale"]) is not str
+            or type(plan["contract_acks"]) is not list
+            or plan["contract_acks"]
+        ):
+            raise StateError("lead result plan invalid")
+        with self._tx():
+            task, _ = self._fence(attempt_id, epoch)
+            lead_body = {
+                "team": task["team"],
+                "thread": thread,
+                "model": model,
+                "base": base,
+                "plan": plan,
+            }
+            version = self._put_decision_in_transaction("lead-" + task["id"], lead_body)
+            return version
+
+    def activate_contract_transition(self, name: str, version: int) -> dict:
+        """Atomically publish a proposed version after producer integration and all exact acks."""
+        if type(name) is not str or not name.strip() or type(version) is not int or version < 2:
+            raise StateError("invalid contract transition identity")
+        key = self._contract_transition_key(name, version)
+        result_key = key + "/activated"
+        with self._tx():
+            transition = self._single_contract_decision(key)
+            if transition is None:
+                raise StateError("contract transition proposal missing")
+            proposal = self._validated_contract_transition(transition["body"], name, version)
+            prior = self._single_contract_decision(result_key)
+            if prior is not None:
+                task = self.db.execute(
+                    "SELECT team,state FROM tasks WHERE id=?", (proposal["producer_task_id"],)
+                ).fetchone()
+                participants = [proposal["producer_team"], *proposal["consumer_teams"]]
+                for team in participants:
+                    ack = self._single_contract_decision(
+                        self._contract_ack_key(name, version, team)
+                    )
+                    if ack is None:
+                        raise StateError("contract activation evidence incomplete")
+                    self._validated_contract_ack(
+                        ack["body"], name, version, team, proposal["contract_hash"]
+                    )
+                    self._validate_ack_review_provenance(ack["body"], name, version, team)
+                published = self.db.execute(
+                    "SELECT version,body FROM contracts WHERE name=? AND version=?",
+                    (name, version),
+                ).fetchone()
+                expected_result = {
+                    "kind": "contract_transition_activation",
+                    "name": name,
+                    "from_version": proposal["from_version"],
+                    "to_version": version,
+                    "contract_hash": proposal["contract_hash"],
+                    "producer_task_id": proposal["producer_task_id"],
+                    "acknowledged_teams": sorted(participants),
+                }
+                if (
+                    published is None
+                    or task is None
+                    or task["team"] != proposal["producer_team"]
+                    or task["state"] != "integrated"
+                    or json.loads(published["body"]) != proposal["body"]
+                    or prior["body"] != expected_result
+                    or prior["body"].get("contract_hash")
+                    != hashlib.sha256(published["body"].encode("utf-8")).hexdigest()
+                ):
+                    raise StateError("activated contract state is inconsistent")
+                return {
+                    "name": prior["name"],
+                    "version": prior["version"],
+                    "body": prior["body"],
+                    "created": False,
+                }
+            current = self.db.execute(
+                "SELECT MAX(version) FROM contracts WHERE name=?", (name,)
+            ).fetchone()[0]
+            if current != proposal["from_version"] or version != proposal["to_version"]:
+                raise StateError("contract transition source version is stale")
+            task = self.db.execute(
+                "SELECT team,state FROM tasks WHERE id=?", (proposal.get("producer_task_id"),)
+            ).fetchone()
+            if (
+                task is None
+                or task["team"] != proposal.get("producer_team")
+                or task["state"] != "integrated"
+            ):
+                raise StateError("contract producer is not integrated")
+            participants = [proposal["producer_team"], *proposal["consumer_teams"]]
+            digest = proposal["contract_hash"]
+            for team in participants:
+                ack_key = self._contract_ack_key(name, version, team)
+                ack = self._single_contract_decision(ack_key)
+                if ack is None:
+                    raise StateError("contract transition acknowledgements incomplete")
+                self._validated_contract_ack(ack["body"], name, version, team, digest)
+                self._validate_ack_review_provenance(ack["body"], name, version, team)
+            body_json = _json(proposal["body"])
+            self._put_contract_in_transaction(name, version, proposal["body"], body_json)
+            result = {
+                "kind": "contract_transition_activation",
+                "name": name,
+                "from_version": proposal["from_version"],
+                "to_version": version,
+                "contract_hash": digest,
+                "producer_task_id": proposal["producer_task_id"],
+                "acknowledged_teams": sorted(participants),
+            }
+            result_version = self._put_decision_in_transaction(result_key, result)
+            return {"name": result_key, "version": result_version, "body": result, "created": True}
+
+    def get_contract(self, name: str, version: int | None = None) -> dict | None:
+        with self._lock:
+            row = self.db.execute(
+                "SELECT * FROM contracts WHERE name=? AND (? IS NULL OR version=?) "
+                "ORDER BY version DESC LIMIT 1",
+                (name, version, version),
+            ).fetchone()
+            return None if row is None else {**dict(row), "body": json.loads(row["body"])}
+
+    def put_decision(self, name: str, body: Any, replaces: str | None = None) -> int:
+        if type(name) is not str:
+            raise StateError("decision name must be a plain string")
+        _name(name)
+        if (
+            name == "lifecycle/owner"
+            or name
+            in (
+                "circuit/controller-parse",
+                "recovery-obligation/controller-parse",
+            )
+            or name.startswith("lifecycle/request/")
+            or name.startswith("contract-transition/")
+            or name.startswith("contract-ack/")
+            or name.startswith("contract-review/")
+            or name.startswith("admission/")
+            or name.startswith("department-plan-cycle/")
+            or name.startswith("sol-handoff/")
+            or name.startswith(_SUPERVISOR_EPISODE_CHECKPOINT_PREFIX)
+            or name == _COMPANY_CONTROL_ENTITY
+            or name.startswith(_COMPANY_CONTROL_ENTITY + "/")
+        ):
+            raise StateError("decision_namespace_reserved")
+        with self._tx():
+            old = (
+                self.db.execute(
+                    "SELECT MAX(version) FROM decisions WHERE name=?", (name,)
+                ).fetchone()[0]
+                or 0
+            )
+            # Pin the replaced version; later edits of that decision cannot rewrite history.
+            replaced = (
+                self.get_decision(replaces) if replaces is not None else self.get_decision(name)
+            )
+            if replaces is not None and replaced is None:
+                raise StateError("replacement decision must exist")
+            replaces = replaced["name"] if replaced else None
+            replaces_version = replaced["version"] if replaced else None
+            self.db.execute(
+                "INSERT INTO decisions VALUES(?,?,?,?,?)",
+                (name, old + 1, _json(body), replaces, replaces_version),
+            )
+            self._event(
+                "decision_recorded",
+                name,
+                {
+                    "version": old + 1,
+                    "body": body,
+                    "replaces": replaces,
+                    "replaces_version": replaces_version,
+                },
+            )
+            return old + 1
+
+    def _put_decision_in_transaction(self, name: str, body: Any) -> int:
+        old = (
+            self.db.execute("SELECT MAX(version) FROM decisions WHERE name=?", (name,)).fetchone()[
+                0
+            ]
+            or 0
+        )
+        replaced = self.get_decision(name)
+        version = old + 1
+        self.db.execute(
+            "INSERT INTO decisions VALUES(?,?,?,?,?)",
+            (
+                name,
+                version,
+                _json(body),
+                name if replaced else None,
+                replaced["version"] if replaced else None,
+            ),
+        )
+        self._event(
+            "decision_recorded",
+            name,
+            {
+                "version": version,
+                "body": body,
+                "replaces": name if replaced else None,
+                "replaces_version": replaced["version"] if replaced else None,
+            },
+        )
+        return version
+
+    def _lifecycle_now(self) -> float:
+        now = self.clock()
+        if isinstance(now, bool) or not isinstance(now, (int, float)):
+            raise StateError("lifecycle_clock_invalid")
+        try:
+            finite_now = math.isfinite(now)
+        except OverflowError:
+            finite_now = False
+        if not finite_now:
+            raise StateError("lifecycle_clock_invalid")
+        return float(now)
+
+    def _lifecycle_decision_versions(self, name: str) -> int:
+        row = self.db.execute(
+            "SELECT COUNT(*) AS version_count,MIN(version) AS first_version,"
+            "MAX(version) AS last_version,"
+            "MAX(length(CAST(body AS BLOB))) AS max_body_bytes,"
+            "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) "
+            "AS invalid_versions,SUM(CASE "
+            "WHEN typeof(version)='integer' AND version=1 "
+            "AND replaces IS NULL AND replaces_version IS NULL THEN 0 "
+            "WHEN typeof(version)='integer' AND version>1 "
+            "AND typeof(replaces)='text' AND replaces=name "
+            "AND typeof(replaces_version)='integer' AND replaces_version=version-1 THEN 0 "
+            "ELSE 1 END) AS invalid_links "
+            "FROM decisions WHERE name=?",
+            (name,),
+        ).fetchone()
+        count = row["version_count"]
+        if type(count) is not int:
+            raise StateError("controller_parse_recovery_history_invalid")
+        if count == 0:
+            return 0
+        first, last = row["first_version"], row["last_version"]
+        max_body_bytes = row["max_body_bytes"]
+        if (
+            row["invalid_versions"] != 0
+            or row["invalid_links"] != 0
+            or type(first) is not int
+            or type(last) is not int
+            or type(max_body_bytes) is not int
+            or max_body_bytes < 0
+            or max_body_bytes > _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES
+            or first != 1
+            or last != count
+        ):
+            raise StateError("controller_parse_recovery_history_invalid")
+        return count
+
+    def _controller_parse_recovery_record_bytes(self, body: dict) -> int:
+        """Measure serialized record bytes using SQLite's configured text encoding."""
+        serialized = _json(body)
+        row = self.db.execute(
+            "SELECT length(CAST(? AS BLOB)) AS body_bytes", (serialized,)
+        ).fetchone()
+        size = row["body_bytes"]
+        if type(size) is not int or size < 0:
+            raise StateError("controller_parse_recovery_record_byte_limit")
+        return size
+
+    def _lifecycle_owner_history_head(self) -> int | None:
+        """Validate owner version links, bodies, and transitions with constant memory."""
+        row = self.db.execute(
+            "SELECT COUNT(*) AS version_count, MIN(version) AS first_version, "
+            "MAX(version) AS last_version, "
+            "MAX(length(CAST(body AS BLOB))) AS max_body_bytes, "
+            "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) AS invalid_versions, "
+            "SUM(CASE "
+            "WHEN typeof(version)='integer' AND version=1 "
+            "AND replaces IS NULL AND replaces_version IS NULL THEN 0 "
+            "WHEN typeof(version)='integer' AND version>1 "
+            "AND typeof(replaces)='text' AND replaces='lifecycle/owner' "
+            "AND typeof(replaces_version)='integer' AND replaces_version=version-1 THEN 0 "
+            "ELSE 1 END) AS invalid_links "
+            "FROM decisions WHERE name='lifecycle/owner'"
+        ).fetchone()
+        count = row["version_count"]
+        if type(count) is not int:
+            raise StateError("lifecycle_decision_history_invalid")
+        event_summary = self.db.execute(
+            "SELECT COUNT(*) AS event_count, "
+            "MAX(length(CAST(body AS BLOB))) AS max_body_bytes FROM events "
+            "WHERE kind='decision_recorded' AND entity='lifecycle/owner'"
+        ).fetchone()
+        event_count = event_summary["event_count"]
+        max_event_body_bytes = event_summary["max_body_bytes"]
+        if type(event_count) is not int:
+            raise StateError("lifecycle_decision_history_invalid")
+        if count == 0:
+            if event_count != 0:
+                raise StateError("lifecycle_decision_history_invalid")
+            return None
+        first, last = row["first_version"], row["last_version"]
+        max_body_bytes = row["max_body_bytes"]
+        if (
+            row["invalid_versions"] != 0
+            or row["invalid_links"] != 0
+            or type(first) is not int
+            or type(last) is not int
+            or type(max_body_bytes) is not int
+            or max_body_bytes < 0
+            or max_body_bytes > _LIFECYCLE_OWNER_RECORD_MAX_BYTES
+            or first != 1
+            or last != count
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
+
+        database_encoding = self.db.execute("PRAGMA encoding").fetchone()[0]
+        text_codec = {
+            "UTF-8": "utf-8",
+            "UTF-16le": "utf-16le",
+            "UTF-16be": "utf-16be",
+        }.get(database_encoding)
+        if text_codec is None:
+            raise StateError("lifecycle_decision_history_invalid")
+
+        if max_event_body_bytes is not None and (
+            type(max_event_body_bytes) is not int
+            or max_event_body_bytes < 0
+            or max_event_body_bytes > _LIFECYCLE_OWNER_RECORD_MAX_BYTES
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
+
+        def unique_object(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate lifecycle owner JSON key")
+                result[key] = value
+            return result
+
+        cursor = self.db.execute(
+            "SELECT version,CAST(body AS BLOB) AS bounded_body "
+            "FROM decisions WHERE name='lifecycle/owner' ORDER BY version"
+        )
+        event_cursor = self.db.execute(
+            "SELECT seq,typeof(at) AS at_type, "
+            "CASE WHEN typeof(at) IN ('integer','real') THEN at END AS bounded_at, "
+            "CAST(body AS BLOB) AS bounded_body FROM events "
+            "WHERE kind='decision_recorded' AND entity='lifecycle/owner' ORDER BY seq"
+        )
+        previous = None
+        while current := cursor.fetchone():
+            version = current["version"]
+            try:
+                raw_body = current["bounded_body"]
+                if type(raw_body) is not bytes:
+                    raise ValueError("owner body is not bytes")
+                body = json.loads(raw_body.decode(text_codec), object_pairs_hook=unique_object)
+                body = self._lifecycle_fence_state(body)
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError) as exc:
+                if version == last and isinstance(exc, StateError):
+                    raise
+                if version == last:
+                    raise StateError("lifecycle_owner_state_invalid") from None
+                raise StateError("lifecycle_decision_history_invalid") from None
+
+            if previous is None:
+                valid_transition = body["status"] == "active" and body["epoch"] == 1
+            elif previous["status"] == "active" and body["status"] == "active":
+                valid_transition = (
+                    body["owner"] == previous["owner"] and body["epoch"] == previous["epoch"]
+                ) or body["epoch"] == previous["epoch"] + 1
+            elif previous["status"] == "active" and body["status"] == "released":
+                valid_transition = (
+                    body["owner"] == previous["owner"] and body["epoch"] == previous["epoch"]
+                )
+            else:
+                valid_transition = (
+                    previous["status"] == "released"
+                    and body["status"] == "active"
+                    and body["epoch"] == previous["epoch"] + 1
+                )
+            if not valid_transition:
+                raise StateError("lifecycle_decision_history_invalid")
+
+            event = event_cursor.fetchone()
+            if event is None or type(event["seq"]) is not int:
+                raise StateError("lifecycle_decision_history_invalid")
+            event_at = event["bounded_at"]
+            if (
+                event["at_type"] not in ("integer", "real")
+                or isinstance(event_at, bool)
+                or not isinstance(event_at, (int, float))
+            ):
+                raise StateError("lifecycle_decision_history_invalid")
+            try:
+                if not math.isfinite(event_at):
+                    raise StateError("lifecycle_decision_history_invalid")
+            except OverflowError:
+                raise StateError("lifecycle_decision_history_invalid") from None
+            try:
+                raw_event = event["bounded_body"]
+                if type(raw_event) is not bytes:
+                    raise ValueError("owner event body is not bytes")
+                event_body = json.loads(
+                    raw_event.decode(text_codec), object_pairs_hook=unique_object
+                )
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+                raise StateError("lifecycle_decision_history_invalid") from None
+            if type(event_body) is not dict or set(event_body) != {
+                "version",
+                "body",
+                "replaces",
+                "replaces_version",
+            }:
+                raise StateError("lifecycle_decision_history_invalid")
+            try:
+                event_decision = self._lifecycle_fence_state(event_body["body"])
+            except (KeyError, StateError):
+                raise StateError("lifecycle_decision_history_invalid") from None
+            if (
+                type(event_body["version"]) is not int
+                or event_body["version"] != version
+                or _json(event_decision) != _json(body)
+                or event_body["replaces"] != (None if version == 1 else "lifecycle/owner")
+                or event_body["replaces_version"] != (None if version == 1 else version - 1)
+                or (version > 1 and type(event_body["replaces_version"]) is not int)
+            ):
+                raise StateError("lifecycle_decision_history_invalid")
+            previous = body
+        if event_cursor.fetchone() is not None:
+            raise StateError("lifecycle_decision_history_invalid")
+        if event_count != count:
+            raise StateError("lifecycle_decision_history_invalid")
+        return last
+
+    def _lifecycle_fence(self, lease: Any) -> dict:
+        head = self._lifecycle_owner_history_head()
+        current = self.get_decision("lifecycle/owner")
+        if (current is None) != (head is None) or (
+            current is not None and current["version"] != head
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
+        body = self._lifecycle_fence_state(current["body"]) if current is not None else None
+        now = self._lifecycle_now()
+        if (
+            type(lease) is not dict
+            or current is None
+            or type(lease.get("owner")) is not str
+            or type(lease.get("epoch")) is not int
+            or body["status"] != "active"
+            or body["owner"] != lease.get("owner")
+            or body["epoch"] != lease.get("epoch")
+            or body["lease_until"] <= now
+        ):
+            raise StateError("stale_lifecycle_owner")
+        return body
+
+    def claim_lifecycle_owner(self, owner: str, lease_seconds: float = 30) -> dict | None:
+        """Claim the passive lifecycle journal using a durable, monotonically fenced epoch.
+
+        This does not schedule work or start a process. A live owner cannot be displaced;
+        an expired or released owner can be replaced only by a strictly newer epoch.
+        """
+        _name(owner)
+        if len(owner) > 200:
+            raise StateError("lifecycle_owner_invalid")
+        lease_seconds = _positive(lease_seconds)
+        with self._tx():
+            head = self._lifecycle_owner_history_head()
+            current = self.get_decision("lifecycle/owner")
+            if (current is None) != (head is None) or (
+                current is not None and current["version"] != head
+            ):
+                raise StateError("lifecycle_decision_history_invalid")
+            now = self._lifecycle_now()
+            if current is not None:
+                old = self._lifecycle_fence_state(current["body"])
+            else:
+                old = None
+            if old and old["status"] == "active" and old["lease_until"] > now:
+                return None
+            epoch = (old["epoch"] if old else 0) + 1
+            body = {
+                "status": "active",
+                "owner": owner,
+                "epoch": epoch,
+                "lease_until": now + lease_seconds,
+            }
+            version = self._put_decision_in_transaction("lifecycle/owner", body)
+            return {**body, "version": version}
+
+    @staticmethod
+    def _lifecycle_fence_state(body: Any) -> dict:
+        if (
+            type(body) is not dict
+            or set(body) != {"status", "owner", "epoch", "lease_until"}
+            or type(body["status"]) is not str
+            or (body["status"] != "active" and body["status"] != "released")
+            or type(body["owner"]) is not str
+            or not body["owner"].strip()
+            or len(body["owner"]) > 200
+            or type(body["epoch"]) is not int
+            or body["epoch"] <= 0
+            or isinstance(body["lease_until"], bool)
+            or not isinstance(body["lease_until"], (int, float))
+        ):
+            raise StateError("lifecycle_owner_state_invalid")
+        try:
+            finite_lease = math.isfinite(body["lease_until"])
+        except OverflowError:
+            finite_lease = False
+        if not finite_lease:
+            raise StateError("lifecycle_owner_state_invalid")
+        return body
+
+    def renew_lifecycle_owner(self, lease: Any, lease_seconds: float = 30) -> dict:
+        """Extend a current lifecycle owner lease without changing its fencing epoch."""
+        lease = _lifecycle_snapshot(lease)
+        lease_seconds = _positive(lease_seconds)
+        with self._tx():
+            current = self._lifecycle_fence(lease)
+            body = {**current, "lease_until": self._lifecycle_now() + lease_seconds}
+            version = self._put_decision_in_transaction("lifecycle/owner", body)
+            return {**body, "version": version}
+
+    def release_lifecycle_owner(self, lease: Any) -> None:
+        """Persist owner release; a later claim receives a higher epoch."""
+        lease = _lifecycle_snapshot(lease)
+        with self._tx():
+            current = self._lifecycle_fence(lease)
+            body = {**current, "status": "released", "lease_until": self._lifecycle_now()}
+            self._put_decision_in_transaction("lifecycle/owner", body)
+
+    def record_lifecycle_plan(self, lease: Any, plan: Any) -> dict:
+        """Persist a non-launch lifecycle decision under the current owner fence.
+
+        Launch requests require `record_lifecycle_evaluation` so their claimed gate inputs
+        are stored beside the deterministic plan. This API has no process, service,
+        scheduler, or dispatch side effects. Exact retries return the original journal identity.
+        """
+        lease = _lifecycle_snapshot(lease)
+        plan = _lifecycle_snapshot(plan)
+        required = {
+            "action",
+            "reason",
+            "retry_at",
+            "attempt_id",
+            "request_owner",
+            "request_epoch",
+            "decision_sha256",
+        }
+        if type(plan) is not dict or set(plan) != required:
+            raise StateError("invalid_lifecycle_plan")
+        if type(plan["action"]) is not str or plan["action"] not in {
+            "hold",
+            "wait",
+            "observe",
+            "recovery_required",
+            "launch_request",
+        }:
+            raise StateError("invalid_lifecycle_plan")
+        if plan["action"] == "launch_request":
+            raise StateError("lifecycle_launch_requires_observation")
+        if (
+            type(plan["reason"]) is not str
+            or not plan["reason"].strip()
+            or len(plan["reason"]) > 500
+        ):
+            raise StateError("invalid_lifecycle_plan")
+        if plan["retry_at"] is not None:
+            if isinstance(plan["retry_at"], bool) or not isinstance(plan["retry_at"], (int, float)):
+                raise StateError("invalid_lifecycle_plan")
+            try:
+                finite_retry_at = math.isfinite(plan["retry_at"])
+            except OverflowError:
+                finite_retry_at = False
+            if not finite_retry_at:
+                raise StateError("invalid_lifecycle_plan")
+        if plan["attempt_id"] is not None and (
+            type(plan["attempt_id"]) is not int or plan["attempt_id"] <= 0
+        ):
+            raise StateError("invalid_lifecycle_plan")
+        if plan["request_owner"] is not None:
+            _name(plan["request_owner"])
+        if plan["request_epoch"] is not None and (
+            type(plan["request_epoch"]) is not int or plan["request_epoch"] <= 0
+        ):
+            raise StateError("invalid_lifecycle_plan")
+        if plan["action"] != "launch_request" and (
+            plan["request_owner"] is not None or plan["request_epoch"] is not None
+        ):
+            raise StateError("invalid_lifecycle_plan")
+        digest = plan["decision_sha256"]
+        if type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise StateError("invalid_lifecycle_plan")
+
+        with self._tx():
+            owner = self._lifecycle_fence(lease)
+            return self._persist_lifecycle_evaluation(owner, plan)
+
+    def record_lifecycle_evaluation(self, lease: Any, observations: Any) -> dict:
+        """Compute and persist a plan together with the exact caller-supplied observations.
+
+        The observation object is detached before a possible SQLite lock wait. The planner
+        runs under the current durable owner fence, and launch requests can only be emitted
+        from that computed plan. Stored observations are provenance for the decision inputs,
+        not proof that an external sensor measured them correctly.
+        """
+        lease = _lifecycle_snapshot(lease)
+        observations = _lifecycle_snapshot(observations)
+        if type(observations) is not dict or set(observations) != _LIFECYCLE_OBSERVATION_FIELDS:
+            raise StateError("invalid_lifecycle_observation")
+
+        with self._tx():
+            owner = self._lifecycle_fence(lease)
+            bound_observations = {
+                **observations,
+                "request_owner": owner["owner"],
+                "request_epoch": owner["epoch"],
+            }
+            from .lifecycle import plan_lifecycle
+
+            computed = plan_lifecycle(**bound_observations)
+            plan = {
+                "action": computed.action,
+                "reason": computed.reason,
+                "retry_at": computed.retry_at,
+                "attempt_id": computed.attempt_id,
+                "request_owner": computed.request_owner,
+                "request_epoch": computed.request_epoch,
+                "decision_sha256": computed.decision_sha256,
+            }
+            if plan["action"] == "launch_request":
+                self._require_controller_parse_recovery_clear()
+            return self._persist_lifecycle_evaluation(owner, plan, bound_observations)
+
+    def capture_passive_lifecycle_gate_snapshot(self, deployment_root: Path) -> dict:
+        """Capture source-labelled recovery gates for a passive restored-copy hold.
+
+        Only STOP presence, the restore receipt, and the Store-owned controller-parse
+        obligation are observed. Other gates remain explicitly unknown/unqualified.
+        This snapshot is not an authorization to consume a lifecycle request.
+        """
+        root = Path(deployment_root)
+        try:
+            root_mode = root.lstat().st_mode
+        except OSError:
+            raise StateError("lifecycle_deployment_root_invalid") from None
+        if not stat.S_ISDIR(root_mode):
+            raise StateError("lifecycle_deployment_root_invalid")
+        with self._read_snapshot():
+            stop = self._lifecycle_file_source(root / "STOP", optional=True)
+            receipt = self._lifecycle_file_source(root / "restore-receipt.json", optional=False)
+            if receipt["present"] is not True:
+                raise StateError("lifecycle_restore_receipt_missing")
+            receipt_body = self._validate_lifecycle_restore_receipt(root, receipt)
+            parser_state = self._controller_parse_gate_state()
+            sequence_row = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()
+            sequence = sequence_row[0]
+            if type(sequence) is not int or sequence < 0:
+                raise StateError("lifecycle_gate_snapshot_sequence_invalid")
+            confirm = self._capture_passive_lifecycle_gate_sources(root)
+            if (
+                confirm["stop"] != {"present": stop["present"], "sha256": stop["sha256"]}
+                or confirm["restore_receipt_sha256"] != receipt["sha256"]
+                or confirm["runtime_ready"] != receipt_body["runtime_ready"]
+                or confirm["host_requalification_required"]
+                != receipt_body["host_requalification_required"]
+                or confirm["controller_parse"] != parser_state
+                or confirm["capture_sequence"] != sequence
+            ):
+                raise StateError("lifecycle_gate_snapshot_changed")
+            source = {
+                "schema": "passive-lifecycle-gates-v1",
+                "captured_at": self._lifecycle_now(),
+                "capture_sequence": sequence,
+                "stop": {"present": stop["present"], "sha256": stop["sha256"]},
+                "restore_receipt_sha256": receipt["sha256"],
+                "runtime_ready": receipt_body["runtime_ready"],
+                "host_requalification_required": receipt_body["host_requalification_required"],
+                "controller_parse": parser_state,
+            }
+            source["snapshot_sha256"] = hashlib.sha256(_json(source).encode("utf-8")).hexdigest()
+            return source
+
+    def record_passive_lifecycle_hold(self, lease: Any, deployment_root: Path, snapshot: Any):
+        """Persist a source-bound passive hold if captured gates remain fresh and unchanged.
+
+        Re-reads file sources and controller-parse history after SQLite's write lock is
+        acquired. No launch request can be emitted by this API.
+        """
+        lease = _lifecycle_snapshot(lease)
+        snapshot = _lifecycle_snapshot(snapshot)
+        self._validate_passive_lifecycle_gate_snapshot(snapshot)
+        stop = snapshot["stop"]
+
+        with self._tx():
+            now = self._lifecycle_now()
+            if (
+                now < snapshot["captured_at"]
+                or now - snapshot["captured_at"] > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+            ):
+                raise StateError("lifecycle_gate_snapshot_stale_or_invalid")
+            owner = self._lifecycle_fence(lease)
+            current = self._capture_passive_lifecycle_gate_sources(Path(deployment_root))
+            if (
+                current["stop"] != stop
+                or current["restore_receipt_sha256"] != snapshot["restore_receipt_sha256"]
+                or current["runtime_ready"] != snapshot["runtime_ready"]
+                or current["host_requalification_required"]
+                != snapshot["host_requalification_required"]
+                or current["controller_parse"] != snapshot["controller_parse"]
+                or current["capture_sequence"] != snapshot["capture_sequence"]
+            ):
+                raise StateError("lifecycle_gate_snapshot_changed")
+            commit_now = self._lifecycle_now()
+            if (
+                commit_now < snapshot["captured_at"]
+                or commit_now - snapshot["captured_at"] > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+            ):
+                raise StateError("lifecycle_gate_snapshot_stale_or_invalid")
+            observations = {
+                "desired_state": "enabled",
+                "stop_reasons": ["deployment_stop"] if stop["present"] else [],
+                "runtime_ready": False,
+                "accounting_ready": False,
+                "quota_ready": False,
+                "process_state": "unknown",
+                "process_owner": None,
+                "lease_owner": None,
+                "active_attempt_id": None,
+                "recovery_open": (
+                    snapshot["host_requalification_required"]
+                    or snapshot["controller_parse"] != "clear"
+                ),
+                "backoff_until": None,
+                "now": commit_now,
+                "launch_authorized": False,
+            }
+            bound_observations = {
+                **observations,
+                "request_owner": owner["owner"],
+                "request_epoch": owner["epoch"],
+                "source_snapshot_sha256": snapshot["snapshot_sha256"],
+            }
+            from .lifecycle import plan_lifecycle
+
+            computed = plan_lifecycle(**bound_observations)
+            if computed.action != "hold":
+                raise StateError("lifecycle_passive_snapshot_not_hold")
+            final_now = self._lifecycle_now()
+            if (
+                final_now < snapshot["captured_at"]
+                or final_now - snapshot["captured_at"] > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+            ):
+                raise StateError("lifecycle_gate_snapshot_stale_or_invalid")
+            plan = {
+                "action": computed.action,
+                "reason": computed.reason,
+                "retry_at": computed.retry_at,
+                "attempt_id": computed.attempt_id,
+                "request_owner": computed.request_owner,
+                "request_epoch": computed.request_epoch,
+                "decision_sha256": computed.decision_sha256,
+            }
+            existing = self._find_passive_lifecycle_hold_in_snapshot(snapshot)
+            if existing is not None:
+                return existing
+            worklist = self._lifecycle_request_worklist_in_snapshot(limit=100)
+            if worklist["overflow"]:
+                raise StateError("lifecycle_worklist_overflow")
+            return self._persist_lifecycle_evaluation(
+                owner, plan, bound_observations, source_snapshot=snapshot
+            )
+
+    def find_passive_lifecycle_hold(self, snapshot: Any) -> dict | None:
+        """Return a prior hold for the same restored sources, ignoring capture metadata.
+
+        This read-only lookup lets a controller recover after it committed a passive hold
+        but exited before returning its bounded readback. Capture time and global event
+        sequence are deliberately excluded from source identity; STOP bytes, restore
+        receipt, host barrier, and parser obligation remain exact.
+        """
+        snapshot = _lifecycle_snapshot(snapshot)
+        self._validate_passive_lifecycle_gate_snapshot(snapshot)
+        with self._read_snapshot():
+            return self._find_passive_lifecycle_hold_in_snapshot(snapshot)
+
+    def _find_passive_lifecycle_hold_in_snapshot(self, snapshot: dict) -> dict | None:
+        target = self._passive_lifecycle_source_identity(snapshot)
+        worklist = self._lifecycle_request_worklist_in_snapshot(limit=100)
+        if worklist["overflow"]:
+            raise StateError("lifecycle_worklist_overflow")
+        match = None
+        for item in worklist["items"]:
+            decision = self.get_decision(item["decision_name"])
+            if decision is None:
+                raise StateError("lifecycle_request_history_invalid")
+            body = decision["body"]
+            source = body.get("source_snapshot")
+            if (
+                item["action"] == "hold"
+                and type(source) is dict
+                and self._passive_lifecycle_source_identity(source) == target
+            ):
+                if match is not None:
+                    raise StateError("lifecycle_passive_hold_identity_ambiguous")
+                match = {
+                    "id": decision["name"],
+                    "version": decision["version"],
+                    "body": body,
+                }
+        return match
+
+    @staticmethod
+    def _passive_lifecycle_source_identity(snapshot: dict) -> str:
+        fields = (
+            "schema",
+            "stop",
+            "restore_receipt_sha256",
+            "runtime_ready",
+            "host_requalification_required",
+            "controller_parse",
+        )
+        return _json({key: snapshot[key] for key in fields})
+
+    @staticmethod
+    def _lifecycle_file_source(path: Path, *, optional: bool) -> dict:
+        try:
+            before = path.lstat()
+        except FileNotFoundError:
+            if optional:
+                return {"present": False, "sha256": None, "bytes": b""}
+            raise StateError("lifecycle_source_missing") from None
+        if not stat.S_ISREG(before.st_mode):
+            raise StateError("lifecycle_source_not_regular")
+        nofollow = getattr(os, "O_NOFOLLOW", None)
+        if nofollow is None:
+            raise StateError("lifecycle_no_follow_unavailable")
+        flags = os.O_RDONLY | os.O_NONBLOCK | nofollow
+        try:
+            fd = os.open(path, flags)
+            try:
+                opened = os.fstat(fd)
+                if not stat.S_ISREG(opened.st_mode):
+                    raise StateError("lifecycle_source_not_regular")
+                if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+                    raise StateError("lifecycle_source_changed")
+                if opened.st_size > 1024 * 1024:
+                    raise StateError("lifecycle_source_too_large")
+                chunks = []
+                remaining = opened.st_size + 1
+                while remaining:
+                    chunk = os.read(fd, min(remaining, 65536))
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                    remaining -= len(chunk)
+                data = b"".join(chunks)
+                after = os.fstat(fd)
+            finally:
+                os.close(fd)
+        except OSError:
+            raise StateError("lifecycle_source_unreadable") from None
+        if len(data) != before.st_size or (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+        ) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+            raise StateError("lifecycle_source_changed")
+        return {"present": True, "sha256": hashlib.sha256(data).hexdigest(), "bytes": data}
+
+    @staticmethod
+    def _validate_passive_lifecycle_gate_snapshot(snapshot: Any) -> None:
+        required = {
+            "schema",
+            "captured_at",
+            "capture_sequence",
+            "stop",
+            "restore_receipt_sha256",
+            "runtime_ready",
+            "host_requalification_required",
+            "controller_parse",
+            "snapshot_sha256",
+        }
+        if type(snapshot) is not dict or set(snapshot) != required:
+            raise StateError("lifecycle_gate_snapshot_invalid")
+        claimed = dict(snapshot)
+        digest = claimed.pop("snapshot_sha256")
+        try:
+            expected = hashlib.sha256(_json(claimed).encode("utf-8")).hexdigest()
+            captured_at_valid = (
+                type(snapshot["captured_at"]) in (int, float)
+                and not isinstance(snapshot["captured_at"], bool)
+                and math.isfinite(snapshot["captured_at"])
+            )
+        except (TypeError, ValueError, OverflowError, RecursionError):
+            raise StateError("lifecycle_gate_snapshot_invalid") from None
+        stop = snapshot["stop"]
+        if (
+            snapshot["schema"] != "passive-lifecycle-gates-v1"
+            or not captured_at_valid
+            or type(snapshot["capture_sequence"]) is not int
+            or snapshot["capture_sequence"] < 0
+            or type(stop) is not dict
+            or set(stop) != {"present", "sha256"}
+            or type(stop["present"]) is not bool
+            or (
+                stop["present"]
+                and (
+                    type(stop["sha256"]) is not str
+                    or re.fullmatch(r"[0-9a-f]{64}", stop["sha256"]) is None
+                )
+            )
+            or (not stop["present"] and stop["sha256"] is not None)
+            or type(snapshot["restore_receipt_sha256"]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", snapshot["restore_receipt_sha256"]) is None
+            or snapshot["runtime_ready"] is not False
+            or snapshot["host_requalification_required"] is not True
+            or type(snapshot["controller_parse"]) is not str
+            or snapshot["controller_parse"] not in {"clear", "open", "unknown"}
+            or type(digest) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or digest != expected
+        ):
+            raise StateError("lifecycle_gate_snapshot_invalid")
+
+    def _controller_parse_gate_state(self) -> str:
+        try:
+            self._require_controller_parse_recovery_clear()
+        except StateError as exc:
+            if str(exc) == "controller_parse_recovery_open":
+                return "open"
+            return "unknown"
+        return "clear"
+
+    def _capture_passive_lifecycle_gate_sources(self, root: Path) -> dict:
+        try:
+            root_mode = root.lstat().st_mode
+        except OSError:
+            raise StateError("lifecycle_deployment_root_invalid") from None
+        if not stat.S_ISDIR(root_mode):
+            raise StateError("lifecycle_deployment_root_invalid")
+        stop = self._lifecycle_file_source(root / "STOP", optional=True)
+        receipt = self._lifecycle_file_source(root / "restore-receipt.json", optional=False)
+        if not receipt["present"]:
+            raise StateError("lifecycle_restore_receipt_missing")
+        body = self._validate_lifecycle_restore_receipt(root, receipt)
+        sequence = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+        if type(sequence) is not int or sequence < 0:
+            raise StateError("lifecycle_gate_snapshot_sequence_invalid")
+        return {
+            "stop": {"present": stop["present"], "sha256": stop["sha256"]},
+            "restore_receipt_sha256": receipt["sha256"],
+            "runtime_ready": body["runtime_ready"],
+            "host_requalification_required": body["host_requalification_required"],
+            "controller_parse": self._controller_parse_gate_state(),
+            "capture_sequence": sequence,
+        }
+
+    def _validate_lifecycle_restore_receipt(self, root: Path, receipt: dict) -> dict:
+        try:
+            body = json.loads(receipt["bytes"].decode("utf-8"))
+        except (UnicodeDecodeError, TypeError, ValueError, OverflowError, RecursionError):
+            raise StateError("lifecycle_restore_receipt_invalid") from None
+        required = {
+            "schema",
+            "snapshot_manifest_sha256",
+            "restored_path",
+            "stop_preserved",
+            "structural_deployment_validation",
+            "runtime_ready",
+            "host_requalification_required",
+        }
+        manifest = self._lifecycle_file_source(root / "snapshot.json", optional=False)
+        if (
+            type(body) is not dict
+            or set(body) != required
+            or body.get("schema") != "brain-organization-restore-v1"
+            or body.get("snapshot_manifest_sha256") != manifest["sha256"]
+            or body.get("restored_path") != str(root)
+            or body.get("stop_preserved") is not True
+            or body.get("structural_deployment_validation") is not True
+            or body.get("runtime_ready") is not False
+            or body.get("host_requalification_required") is not True
+        ):
+            raise StateError("lifecycle_restore_receipt_invalid")
+        return body
+
+    def _require_controller_parse_recovery_clear(self) -> None:
+        """Reject optimistic launch requests while the durable parser recovery is open.
+
+        This checks only the Store-owned controller-parse obligation. It does not
+        establish that other lifecycle gates are current or complete.
+        """
+        circuit_name = "circuit/controller-parse"
+        obligation_name = "recovery-obligation/controller-parse"
+        circuit_version_count = self._lifecycle_decision_versions(circuit_name)
+        obligation_version_count = self._lifecycle_decision_versions(obligation_name)
+        if not circuit_version_count and not obligation_version_count:
+            return
+        if not circuit_version_count or circuit_version_count != obligation_version_count:
+            raise StateError("controller_parse_recovery_history_invalid")
+
+        def valid_open_pair(circuit_body: Any, obligation_body: Any) -> bool:
+            circuit_fields = {
+                "status",
+                "fault",
+                "first_attempt_id",
+                "task_id",
+                "stage",
+                "exception_type",
+            }
+            obligation_fields = {
+                "status",
+                "fault",
+                "first_attempt_id",
+                "task_id",
+                "stage",
+                "required_evidence",
+            }
+            return (
+                type(circuit_body) is dict
+                and set(circuit_body) == circuit_fields
+                and circuit_body["status"] == "open"
+                and circuit_body["fault"] == "structured_response"
+                and type(circuit_body["first_attempt_id"]) is int
+                and circuit_body["first_attempt_id"] > 0
+                and type(circuit_body["task_id"]) is str
+                and bool(circuit_body["task_id"].strip())
+                and type(circuit_body["stage"]) is str
+                and bool(circuit_body["stage"].strip())
+                and type(circuit_body["exception_type"]) is str
+                and bool(circuit_body["exception_type"].strip())
+                and type(obligation_body) is dict
+                and set(obligation_body) == obligation_fields
+                and obligation_body["status"] == "open"
+                and obligation_body["fault"] == circuit_body["fault"]
+                and type(obligation_body["first_attempt_id"]) is int
+                and obligation_body["first_attempt_id"] == circuit_body["first_attempt_id"]
+                and type(obligation_body["task_id"]) is str
+                and obligation_body["task_id"] == circuit_body["task_id"]
+                and type(obligation_body["stage"]) is str
+                and obligation_body["stage"] == circuit_body["stage"]
+                and obligation_body["required_evidence"]
+                == [
+                    "qualified parser/controller fix",
+                    "independent release review",
+                    "separate bounded recovery authorization",
+                ]
+            )
+
+        def valid_resolved_pair(circuit_body: Any, obligation_body: Any) -> bool:
+            circuit_fields = {
+                "status",
+                "recovery_id",
+                "fix_sha256",
+                "review_ref",
+                "authorization_ref",
+                "fault",
+            }
+            obligation_fields = {
+                "status",
+                "recovery_id",
+                "fix_sha256",
+                "review_ref",
+                "authorization_ref",
+            }
+            return (
+                type(circuit_body) is dict
+                and set(circuit_body) == circuit_fields
+                and circuit_body["status"] == "resolved"
+                and circuit_body["fault"] == "structured_response"
+                and type(obligation_body) is dict
+                and set(obligation_body) == obligation_fields
+                and obligation_body["status"] == "resolved"
+                and all(
+                    type(circuit_body[key]) is str and bool(circuit_body[key].strip())
+                    for key in ("recovery_id", "fix_sha256", "review_ref", "authorization_ref")
+                )
+                and re.fullmatch(r"[0-9a-f]{64}", circuit_body["fix_sha256"]) is not None
+                and all(
+                    obligation_body[key] == circuit_body[key]
+                    for key in ("recovery_id", "fix_sha256", "review_ref", "authorization_ref")
+                )
+            )
+
+        previous_status = None
+        for version in range(1, circuit_version_count + 1):
+            circuit = self.get_decision(circuit_name, version)
+            obligation = self.get_decision(obligation_name, version)
+            if circuit is None or obligation is None:
+                raise StateError("controller_parse_recovery_history_invalid")
+            circuit_body = circuit["body"]
+            obligation_body = obligation["body"]
+            if type(circuit_body) is not dict or type(obligation_body) is not dict:
+                raise StateError("controller_parse_recovery_history_invalid")
+            status = circuit_body.get("status")
+            if status == "open":
+                if previous_status not in (None, "resolved") or not valid_open_pair(
+                    circuit_body, obligation_body
+                ):
+                    raise StateError("controller_parse_recovery_history_invalid")
+            elif status == "resolved":
+                if previous_status != "open" or not valid_resolved_pair(
+                    circuit_body, obligation_body
+                ):
+                    raise StateError("controller_parse_recovery_history_invalid")
+            else:
+                raise StateError("controller_parse_recovery_history_invalid")
+            previous_status = status
+
+        if previous_status == "open":
+            raise StateError("controller_parse_recovery_open")
+
+    def require_controller_parse_recovery_clear(self) -> None:
+        """Check the paired controller-parse recovery journal in one read snapshot."""
+        try:
+            with self._read_snapshot():
+                self._require_controller_parse_recovery_clear()
+        except StateError:
+            raise
+        except (ValueError, TypeError, KeyError, IndexError, OverflowError, RecursionError):
+            raise StateError("controller_parse_recovery_history_invalid") from None
+
+    def _persist_lifecycle_evaluation(
+        self,
+        owner: dict,
+        plan: dict,
+        observations: dict | None = None,
+        source_snapshot: dict | None = None,
+    ) -> dict:
+        digest = plan["decision_sha256"]
+        request_id = hashlib.sha256(
+            f"{owner['owner']}\0{owner['epoch']}\0{digest}".encode()
+        ).hexdigest()
+        name = "lifecycle/request/" + request_id
+        body = {"owner": owner["owner"], "epoch": owner["epoch"], "plan": plan}
+        if observations is not None:
+            body["observations"] = observations
+        if source_snapshot is not None:
+            body["source_snapshot"] = source_snapshot
+        if len(_json(body).encode("utf-8")) > _LIFECYCLE_REQUEST_MAX_BYTES:
+            raise StateError("lifecycle_request_byte_limit")
+        history = self.db.execute(
+            "SELECT COUNT(*) AS version_count,MIN(version) AS first_version,"
+            "MAX(version) AS last_version,"
+            "SUM(CASE WHEN typeof(version)='integer' THEN 0 ELSE 1 END) AS invalid_versions "
+            "FROM decisions WHERE name=?",
+            (name,),
+        ).fetchone()
+        version_count = history["version_count"]
+        first_version, last_version = history["first_version"], history["last_version"]
+        if type(version_count) is not int:
+            raise StateError("lifecycle_decision_history_invalid")
+        if version_count and (
+            history["invalid_versions"] != 0
+            or type(first_version) is not int
+            or type(last_version) is not int
+            or first_version != 1
+            or last_version != version_count
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
+        if version_count > 1:
+            raise StateError("lifecycle_request_history_invalid")
+        old = None
+        if version_count:
+            row = self.db.execute(
+                "SELECT version,length(CAST(body AS BLOB)) AS body_bytes,"
+                "CASE WHEN replaces IS NULL AND replaces_version IS NULL THEN 1 ELSE 0 END "
+                "AS root_valid FROM decisions WHERE name=? AND version=1",
+                (name,),
+            ).fetchone()
+            if row is None:
+                raise StateError("lifecycle_decision_history_invalid")
+            if row["root_valid"] != 1:
+                raise StateError("lifecycle_request_history_invalid")
+            request_bytes = row["body_bytes"]
+            if type(request_bytes) is not int or request_bytes < 0:
+                raise StateError("lifecycle_request_invalid")
+            if request_bytes > _LIFECYCLE_REQUEST_MAX_BYTES:
+                raise StateError("lifecycle_request_byte_limit")
+            old_row = self.db.execute(
+                "SELECT body FROM decisions "
+                "WHERE name=? AND version=1 AND replaces IS NULL AND replaces_version IS NULL",
+                (name,),
+            ).fetchone()
+            if old_row is None:
+                raise StateError("lifecycle_request_history_invalid")
+            try:
+                old = {"name": name, "version": 1, "body": json.loads(old_row["body"])}
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+                raise StateError("lifecycle_request_invalid") from None
+        if old is not None:
+            if _json(old["body"]) != _json(body):
+                raise StateError("lifecycle_request_identity_conflict")
+            return {"id": name, "version": old["version"], "body": old["body"]}
+        version = self._put_decision_in_transaction(name, body)
+        return {"id": name, "version": version, "body": body}
+
+    def lifecycle_request_worklist(self, *, limit: int = 100) -> dict:
+        """Return a bounded, read-only projection of immutable lifecycle requests.
+
+        This exposes journal and current owner-lease state only. It grants no launch,
+        dispatch, consumption, or disposition authority; caller-supplied gate observations
+        remain claims rather than proof of current launch authorization.
+        """
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise StateError("lifecycle request worklist limit invalid")
+        with self._read_snapshot():
+            return self._lifecycle_request_worklist_in_snapshot(limit=limit)
+
+    def _lifecycle_request_worklist_in_snapshot(self, *, limit: int) -> dict:
+        request_names = self._lifecycle_request_names_in_snapshot(limit=limit)
+        rows = [{"name": name} for name in request_names]
+        owner_head = self._lifecycle_owner_history_head()
+        owner_record = self.get_decision("lifecycle/owner")
+        if (owner_record is None) != (owner_head is None) or (
+            owner_record is not None and owner_record["version"] != owner_head
+        ):
+            raise StateError("lifecycle_decision_history_invalid")
+        captured_at = self._lifecycle_now()
+        owner = None
+        if owner_record is not None:
+            owner = self._lifecycle_fence_state(owner_record["body"])
+            owner = {
+                "owner": owner["owner"],
+                "epoch": owner["epoch"],
+                "status": owner["status"],
+                "lease_until": owner["lease_until"],
+                "live": owner["status"] == "active" and owner["lease_until"] > captured_at,
+            }
+        if len(rows) > limit:
+            return {
+                "items": [],
+                "count": None,
+                "limit": limit,
+                "payload_bytes": None,
+                "payload_bytes_limit": _LIFECYCLE_WORKLIST_MAX_BYTES,
+                "overflow": True,
+                "captured_at": captured_at,
+                "owner": owner,
+                "dispatch_authority": False,
+                "consumption_authority": False,
+            }
+
+        request_sizes = {}
+        payload_bytes = 0
+        for row in rows:
+            name = row["name"]
+            if re.fullmatch(r"lifecycle/request/[0-9a-f]{64}", name) is None:
+                raise StateError("lifecycle_request_identity_invalid")
+            history = self.db.execute(
+                "SELECT version, length(CAST(body AS BLOB)) AS body_bytes, "
+                "CASE WHEN replaces IS NULL AND replaces_version IS NULL THEN 1 ELSE 0 END "
+                "AS root_valid FROM decisions "
+                "WHERE name=? ORDER BY version LIMIT 2",
+                (name,),
+            ).fetchall()
+            if [item["version"] for item in history] != [1] or history[0]["root_valid"] != 1:
+                raise StateError("lifecycle_request_history_invalid")
+            request_bytes = history[0]["body_bytes"]
+            if type(request_bytes) is not int or request_bytes < 0:
+                raise StateError("lifecycle_request_invalid")
+            if request_bytes > _LIFECYCLE_REQUEST_MAX_BYTES:
+                raise StateError("lifecycle_request_byte_limit")
+            payload_bytes += request_bytes
+            if payload_bytes > _LIFECYCLE_WORKLIST_MAX_BYTES:
+                raise StateError("lifecycle_worklist_byte_limit")
+            request_sizes[name] = request_bytes
+
+        items = []
+        for row in rows:
+            name = row["name"]
+            match = re.fullmatch(r"lifecycle/request/([0-9a-f]{64})", name)
+            if match is None:
+                raise StateError("lifecycle_request_identity_invalid")
+            row = self.db.execute(
+                "SELECT name,version,body FROM decisions "
+                "WHERE name=? AND version=1 AND replaces IS NULL AND replaces_version IS NULL",
+                (name,),
+            ).fetchone()
+            if row is None or request_sizes.get(name) is None:
+                raise StateError("lifecycle_request_history_invalid")
+            try:
+                body = json.loads(row["body"])
+            except (TypeError, ValueError, OverflowError, RecursionError, RuntimeError):
+                raise StateError("lifecycle_request_invalid") from None
+            record_version = row["version"]
+            if type(body) is not dict or set(body) not in (
+                {"owner", "epoch", "plan"},
+                {"owner", "epoch", "plan", "observations"},
+                {"owner", "epoch", "plan", "observations", "source_snapshot"},
+            ):
+                raise StateError("lifecycle_request_invalid")
+            if "source_snapshot" in body:
+                source = body["source_snapshot"]
+                try:
+                    self._validate_passive_lifecycle_gate_snapshot(source)
+                except StateError:
+                    raise StateError("lifecycle_request_invalid") from None
+                observations = body.get("observations")
+                if type(observations) is not dict or observations.get(
+                    "source_snapshot_sha256"
+                ) != source.get("snapshot_sha256"):
+                    raise StateError("lifecycle_request_invalid")
+            request_owner, request_epoch, plan = body["owner"], body["epoch"], body["plan"]
+            required_plan = {
+                "action",
+                "reason",
+                "retry_at",
+                "attempt_id",
+                "request_owner",
+                "request_epoch",
+                "decision_sha256",
+            }
+            if (
+                type(request_owner) is not str
+                or not request_owner.strip()
+                or len(request_owner) > 200
+                or type(request_epoch) is not int
+                or request_epoch <= 0
+                or type(plan) is not dict
+                or set(plan) != required_plan
+                or type(plan["action"]) is not str
+                or plan["action"]
+                not in {
+                    "hold",
+                    "wait",
+                    "observe",
+                    "recovery_required",
+                    "launch_request",
+                }
+                or type(plan["reason"]) is not str
+                or not plan["reason"].strip()
+                or len(plan["reason"]) > 500
+            ):
+                raise StateError("lifecycle_request_invalid")
+            retry_at = plan["retry_at"]
+            if retry_at is not None:
+                if isinstance(retry_at, bool) or not isinstance(retry_at, (int, float)):
+                    raise StateError("lifecycle_request_invalid")
+                try:
+                    finite_retry_at = math.isfinite(retry_at)
+                except OverflowError:
+                    finite_retry_at = False
+                if not finite_retry_at:
+                    raise StateError("lifecycle_request_invalid")
+            attempt_id = plan["attempt_id"]
+            if attempt_id is not None and (type(attempt_id) is not int or attempt_id <= 0):
+                raise StateError("lifecycle_request_invalid")
+            if plan["action"] == "launch_request":
+                if (
+                    plan["request_owner"] != request_owner
+                    or plan["request_epoch"] != request_epoch
+                    or type(plan["request_epoch"]) is not int
+                    or plan["request_epoch"] <= 0
+                    or "observations" not in body
+                ):
+                    raise StateError("lifecycle_request_invalid")
+            elif plan["request_owner"] is not None or plan["request_epoch"] is not None:
+                raise StateError("lifecycle_request_invalid")
+            digest = plan["decision_sha256"]
+            if type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                raise StateError("lifecycle_request_invalid")
+            expected_id = hashlib.sha256(
+                f"{request_owner}\0{request_epoch}\0{digest}".encode()
+            ).hexdigest()
+            if expected_id != match.group(1):
+                raise StateError("lifecycle_request_identity_invalid")
+            if "observations" in body:
+                observations = body["observations"]
+                ordinary_observations = _LIFECYCLE_OBSERVATION_FIELDS | {
+                    "request_owner",
+                    "request_epoch",
+                }
+                snapshot_observations = ordinary_observations | {"source_snapshot_sha256"}
+                if type(observations) is not dict or set(observations) not in (
+                    ordinary_observations,
+                    snapshot_observations,
+                ):
+                    raise StateError("lifecycle_request_invalid")
+                if (
+                    observations["request_owner"] != request_owner
+                    or type(observations["request_epoch"]) is not int
+                    or observations["request_epoch"] != request_epoch
+                ):
+                    raise StateError("lifecycle_request_invalid")
+                planner_observations = {
+                    key: value
+                    for key, value in observations.items()
+                    if key in _LIFECYCLE_OBSERVATION_FIELDS
+                }
+                if "source_snapshot_sha256" in observations:
+                    source = body.get("source_snapshot")
+                    if type(source) is not dict or observations[
+                        "source_snapshot_sha256"
+                    ] != source.get("snapshot_sha256"):
+                        raise StateError("lifecycle_request_invalid")
+                    planner_observations["source_snapshot_sha256"] = observations[
+                        "source_snapshot_sha256"
+                    ]
+                    expected_stop_reasons = ["deployment_stop"] if source["stop"]["present"] else []
+                    try:
+                        observation_time = observations["now"]
+                        finite_observation_time = (
+                            type(observation_time) in (int, float)
+                            and not isinstance(observation_time, bool)
+                            and math.isfinite(observation_time)
+                        )
+                    except (TypeError, ValueError, OverflowError):
+                        finite_observation_time = False
+                    if (
+                        plan["action"] != "hold"
+                        or observations["desired_state"] != "enabled"
+                        or observations["stop_reasons"] != expected_stop_reasons
+                        or observations["runtime_ready"] is not False
+                        or observations["accounting_ready"] is not False
+                        or observations["quota_ready"] is not False
+                        or observations["process_state"] != "unknown"
+                        or observations["process_owner"] is not None
+                        or observations["lease_owner"] is not None
+                        or observations["active_attempt_id"] is not None
+                        or observations["recovery_open"]
+                        is not (
+                            source["host_requalification_required"]
+                            or source["controller_parse"] != "clear"
+                        )
+                        or observations["backoff_until"] is not None
+                        or observations["launch_authorized"] is not False
+                        or not finite_observation_time
+                        or observation_time < source["captured_at"]
+                        or observation_time - source["captured_at"]
+                        > _LIFECYCLE_GATE_SNAPSHOT_MAX_AGE_SECONDS
+                    ):
+                        raise StateError("lifecycle_request_invalid")
+                try:
+                    from .lifecycle import plan_lifecycle
+
+                    computed = plan_lifecycle(
+                        **planner_observations,
+                        request_owner=request_owner,
+                        request_epoch=request_epoch,
+                    )
+                except (TypeError, ValueError, OverflowError, RecursionError):
+                    raise StateError("lifecycle_request_invalid") from None
+                computed_plan = {
+                    "action": computed.action,
+                    "reason": computed.reason,
+                    "retry_at": computed.retry_at,
+                    "attempt_id": computed.attempt_id,
+                    "request_owner": computed.request_owner,
+                    "request_epoch": computed.request_epoch,
+                    "decision_sha256": computed.decision_sha256,
+                }
+                if computed_plan != plan:
+                    raise StateError("lifecycle_request_invalid")
+            items.append(
+                {
+                    "request_id": match.group(1),
+                    "decision_name": name,
+                    "journal_version": record_version,
+                    "owner": request_owner,
+                    "epoch": request_epoch,
+                    "action": plan["action"],
+                    "reason": plan["reason"],
+                    "retry_at": plan["retry_at"],
+                    "decision_sha256": digest,
+                    "owner_current": bool(
+                        owner
+                        and owner["live"]
+                        and owner["owner"] == request_owner
+                        and owner["epoch"] == request_epoch
+                    ),
+                }
+            )
+        return {
+            "items": items,
+            "count": len(items),
+            "limit": limit,
+            "payload_bytes": payload_bytes,
+            "payload_bytes_limit": _LIFECYCLE_WORKLIST_MAX_BYTES,
+            "overflow": False,
+            "captured_at": captured_at,
+            "owner": owner,
+            "dispatch_authority": False,
+            "consumption_authority": False,
+        }
+
+    def _lifecycle_request_names_in_snapshot(self, *, limit: int) -> list[str]:
+        """Seek a bounded number of distinct request journals by primary-key name."""
+        names = []
+        cursor = "lifecycle/request/"
+        query = _LIFECYCLE_REQUEST_FIRST_QUERY
+        while len(names) <= limit:
+            row = self.db.execute(query, (cursor,)).fetchone()
+            if row is None:
+                break
+            cursor = _bounded_index_name(
+                row,
+                _LIFECYCLE_REQUEST_NAME_MAX_CHARS,
+                "lifecycle_request_identity_invalid",
+            )
+            names.append(cursor)
+            query = _LIFECYCLE_REQUEST_NEXT_QUERY
+        return names
+
+    def open_controller_parse_fault(
+        self,
+        attempt_id: int,
+        epoch: int,
+        *,
+        stage: str,
+        exception_type: str,
+    ) -> None:
+        _name(stage), _name(exception_type)
+        with self._tx():
+            task, _attempt = self._fence(attempt_id, epoch)
+            current = self.get_decision("circuit/controller-parse")
+            if current is None or current["body"].get("status") != "open":
+                circuit = {
+                    "status": "open",
+                    "fault": "structured_response",
+                    "first_attempt_id": attempt_id,
+                    "task_id": task["id"],
+                    "stage": stage,
+                    "exception_type": exception_type,
+                }
+                obligation = {
+                    "status": "open",
+                    "fault": "structured_response",
+                    "first_attempt_id": attempt_id,
+                    "task_id": task["id"],
+                    "stage": stage,
+                    "required_evidence": [
+                        "qualified parser/controller fix",
+                        "independent release review",
+                        "separate bounded recovery authorization",
+                    ],
+                }
+                if any(
+                    self._controller_parse_recovery_record_bytes(body)
+                    > _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES
+                    for body in (circuit, obligation)
+                ):
+                    raise StateError("controller_parse_recovery_record_byte_limit")
+                self._put_decision_in_transaction("circuit/controller-parse", circuit)
+                self._put_decision_in_transaction(
+                    "recovery-obligation/controller-parse", obligation
+                )
+            state = self._retry_state(task, False)
+            self.db.execute("UPDATE attempts SET state='failed' WHERE id=?", (attempt_id,))
+            self.db.execute("UPDATE tasks SET state=? WHERE id=?", (state, task["id"]))
+            self._event(
+                "attempt_failed",
+                task["id"],
+                {
+                    "attempt_id": attempt_id,
+                    "epoch": epoch,
+                    "reason": "controller_fault:structured_response",
+                    "state": state,
+                },
+            )
+
+    def resolve_controller_parse_fault(
+        self,
+        *,
+        expected_circuit_version: int,
+        expected_obligation_version: int,
+        recovery_id: str,
+        fix_sha256: str,
+        review_ref: str,
+        authorization_ref: str,
+    ) -> None:
+        references = (recovery_id, review_ref, authorization_ref)
+        if (
+            any(
+                type(value) is not str or not value.strip() or "\x00" in value
+                for value in references
+            )
+            or type(fix_sha256) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", fix_sha256) is None
+        ):
+            raise StateError("controller_recovery_reference_invalid")
+        with self._tx():
+            circuit = self.get_decision("circuit/controller-parse")
+            obligation = self.get_decision("recovery-obligation/controller-parse")
+            if (
+                circuit is None
+                or obligation is None
+                or circuit["version"] != expected_circuit_version
+                or obligation["version"] != expected_obligation_version
+                or circuit["body"].get("status") != "open"
+                or obligation["body"].get("status") != "open"
+            ):
+                raise StateError("controller_recovery_obligation_changed")
+            resolved = {
+                "status": "resolved",
+                "recovery_id": recovery_id,
+                "fix_sha256": fix_sha256,
+                "review_ref": review_ref,
+                "authorization_ref": authorization_ref,
+            }
+            circuit = {**resolved, "fault": "structured_response"}
+            if any(
+                self._controller_parse_recovery_record_bytes(body)
+                > _CONTROLLER_PARSE_RECOVERY_RECORD_MAX_BYTES
+                for body in (circuit, resolved)
+            ):
+                raise StateError("controller_parse_recovery_record_byte_limit")
+            self._put_decision_in_transaction("circuit/controller-parse", circuit)
+            self._put_decision_in_transaction("recovery-obligation/controller-parse", resolved)
+
+    def get_decision(self, name: str, version: int | None = None) -> dict | None:
+        with self._lock:
+            row = self.db.execute(
+                "SELECT * FROM decisions WHERE name=? AND (? IS NULL OR version=?) "
+                "ORDER BY version DESC LIMIT 1",
+                (name, version, version),
+            ).fetchone()
+            return None if row is None else {**dict(row), "body": json.loads(row["body"])}
+
+    def record_usage(self, attempt_id: int, epoch: int, usage: dict) -> None:
+        for key, value in usage.items():
+            _name(key)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value < 0
+            ):
+                raise StateError("usage values must be finite nonnegative numbers")
+        with self._tx():
+            task, _ = self._fence(attempt_id, epoch)
+            self.db.execute(
+                "INSERT INTO usage(attempt_id,epoch,body) VALUES(?,?,?)",
+                (attempt_id, epoch, _json(usage)),
+            )
+            self._event(
+                "usage_recorded",
+                task["id"],
+                {"attempt_id": attempt_id, "epoch": epoch, "usage": usage},
+            )
+
+    def usage_summary(self) -> dict:
+        """Sum incremental measurements, including failed/expired executions."""
+        with self._lock:
+            total: dict = {}
+            teams: dict = {}
+            for row in self.db.execute(
+                "SELECT u.body,t.team FROM usage u JOIN attempts a ON a.id=u.attempt_id "
+                "JOIN tasks t ON t.id=a.task_id"
+            ):
+                team = teams.setdefault(row["team"], {})
+                for key, value in json.loads(row["body"]).items():
+                    total[key] = total.get(key, 0) + value
+                    team[key] = team.get(key, 0) + value
+            return {"total": total, "teams": teams}
+
+    def list_attempts(self, task_id: str | None = None) -> list[dict]:
+        with self._lock:
+            rows = self.db.execute(
+                "SELECT * FROM attempts WHERE (? IS NULL OR task_id=?) ORDER BY id",
+                (task_id, task_id),
+            )
+            return [
+                {**dict(row), "session": json.loads(row["session"]) if row["session"] else None}
+                for row in rows
+            ]
+
+    def events(self, after: int = 0) -> list[dict]:
+        with self._lock:
+            return [
+                {**dict(row), "body": json.loads(row["body"])}
+                for row in self.db.execute(
+                    "SELECT * FROM events WHERE seq>? ORDER BY seq", (after,)
+                )
+            ]

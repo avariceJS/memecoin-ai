@@ -1,0 +1,814 @@
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pytest
+
+from engineering import paperclip_campaign_resource_guard as guard
+from engineering import paperclip_native_delivery as delivery
+
+COMPANY = "10000000-0000-4000-8000-000000000001"
+CONNECTION = "20000000-0000-4000-8000-000000000002"
+ROOT = "30000000-0000-4000-8000-000000000003"
+CHILD = "30000000-0000-4000-8000-000000000004"
+UNRELATED = "30000000-0000-4000-8000-000000000005"
+RUN = "40000000-0000-4000-8000-000000000006"
+NOW = datetime(2026, 10, 28, 10, 0, tzinfo=UTC)
+
+
+def policy(**overrides):
+    value = {
+        "schema": guard.POLICY_SCHEMA,
+        "company_id": COMPANY,
+        "connection_id": CONNECTION,
+        "issued_at_utc": "2026-10-28T09:00:00Z",
+        "deadline_utc": "2026-10-28T17:00:00Z",
+        "max_model_runs": 80,
+        "min_remaining_percent": 15,
+        "task_scope_root_ids": [ROOT],
+    }
+    value.update(overrides)
+    return value
+
+
+def usage(**overrides):
+    value = {
+        "connectionId": CONNECTION,
+        "grantId": "not-secret",
+        "provider": "openai",
+        "method": "subscription",
+        "source": "codex_wham",
+        "checkedAt": NOW.isoformat().replace("+00:00", "Z"),
+        "status": "ok",
+        "limits": [
+            {
+                "id": "codex.primary_window",
+                "allowed": True,
+                "usedPercent": 20,
+                "remainingPercent": 80,
+            },
+            {"id": "spend_control", "allowed": None},
+        ],
+        "overage": {
+            "enabled": None,
+            "available": False,
+            "unlimited": False,
+            "used": None,
+            "balance": 0,
+        },
+    }
+    value.update(overrides)
+    return value
+
+
+def install_board_usage_http(monkeypatch, checked_at: datetime):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self, _limit):
+            return json.dumps(
+                usage(checkedAt=checked_at.isoformat().replace("+00:00", "Z"))
+            ).encode()
+
+    monkeypatch.setattr(
+        guard.urllib.request, "urlopen", lambda _request, timeout: Response()
+    )
+
+
+def install_clock(monkeypatch, *values: datetime):
+    class Clock(datetime):
+        reads = iter(values)
+        last = values[-1]
+
+        @classmethod
+        def now(cls, tz=None):
+            cls.last = next(cls.reads, cls.last)
+            return cls.last
+
+    monkeypatch.setattr(guard, "datetime", Clock)
+
+
+def test_preflight_saves_only_small_private_nonsecret_observation(tmp_path: Path, monkeypatch):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(guard, "read_board_usage", lambda *_args, **_kwargs: usage())
+    path = tmp_path / "receipt.json"
+    receipt = guard.preflight(policy(), COMPANY, "setup", [], path, now=NOW)
+    saved = json.loads(path.read_text())
+    assert receipt == saved
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert "grantId" not in saved and "token" not in saved
+    assert saved["remaining_percent"] == 80
+    assert saved["observed_model_run_count"] == 0
+
+
+def test_preflight_accepts_fresh_board_usage_after_slow_response(tmp_path: Path, monkeypatch):
+    tmp_path.chmod(0o700)
+    start = NOW
+    completion = start + timedelta(seconds=6)
+    install_clock(monkeypatch, start, completion, completion)
+    install_board_usage_http(monkeypatch, completion)
+
+    receipt = guard.preflight(policy(), COMPANY, "prepare", [], tmp_path / "slow.json")
+
+    assert receipt["observed_at"] == completion.isoformat().replace("+00:00", "Z")
+    assert receipt["checked_at"] == completion.isoformat().replace("+00:00", "Z")
+    assert receipt["remaining_percent"] == 80
+
+
+def test_preflight_rechecks_deadline_after_board_usage_response(tmp_path: Path, monkeypatch):
+    tmp_path.chmod(0o700)
+    start = NOW
+    deadline = start + timedelta(seconds=5)
+    completion = deadline + timedelta(seconds=1)
+    install_clock(monkeypatch, start, completion, completion)
+    install_board_usage_http(monkeypatch, start + timedelta(seconds=4))
+
+    with pytest.raises(guard.ResourceGuardError, match="resource_policy_deadline_expired"):
+        guard.preflight(
+            policy(deadline_utc=deadline.isoformat().replace("+00:00", "Z")),
+            COMPANY,
+            "prepare",
+            [],
+            tmp_path / "expired.json",
+        )
+
+    assert not (tmp_path / "expired.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("policy_overrides", "usage_overrides", "reason"),
+    [
+        (
+            {"issued_at_utc": "2026-10-28T08:00:00Z", "deadline_utc": "2026-10-28T09:00:00Z"},
+            {},
+            "resource_policy_deadline_expired",
+        ),
+        ({"max_model_runs": 1}, {}, "resource_run_cap_exceeded"),
+        ({}, {"checkedAt": "2026-10-28T09:58:00Z"}, "resource_usage_stale"),
+        ({}, {"method": "api_key"}, "resource_subscription_mismatch"),
+        (
+            {},
+            {
+                "limits": [
+                    {
+                        "id": "codex.primary_window",
+                        "allowed": True,
+                        "usedPercent": 86,
+                        "remainingPercent": 14,
+                    }
+                ]
+            },
+            "resource_headroom_insufficient",
+        ),
+        ({}, {"overage": {"available": True, "unlimited": False}}, "resource_overage_active"),
+        ({}, {"limits": []}, "resource_primary_limit_missing"),
+    ],
+)
+def test_preflight_fails_closed_on_bad_policy_or_telemetry(
+    tmp_path: Path, monkeypatch, policy_overrides, usage_overrides, reason
+):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(
+        guard, "read_board_usage", lambda *_args, **_kwargs: usage(**usage_overrides)
+    )
+    runs = (
+        [RUN, "40000000-0000-4000-8000-000000000007"]
+        if reason == "resource_run_cap_exceeded"
+        else []
+    )
+    with pytest.raises(guard.ResourceGuardError, match=reason):
+        guard.preflight(
+            policy(**policy_overrides),
+            COMPANY,
+            "stage",
+            runs,
+            tmp_path / "receipt.json",
+            now=NOW,
+        )
+    assert not (tmp_path / "receipt.json").exists()
+
+
+def test_preflight_reserves_next_model_admission_before_current_action_completes(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(guard, "read_board_usage", lambda *_args, **_kwargs: usage())
+    observed = [f"{index:08x}-0000-4000-8000-{index:012x}" for index in range(72)]
+    receipt = guard.preflight(
+        policy(),
+        COMPANY,
+        "prepare",
+        observed,
+        tmp_path / "allowed.json",
+        reserve_model_runs=8,
+        now=NOW,
+    )
+    assert receipt["observed_model_run_count"] == 72
+    assert receipt["reserved_model_runs"] == 8
+    with pytest.raises(guard.ResourceGuardError, match="resource_run_cap_exceeded"):
+        guard.preflight(
+            policy(),
+            COMPANY,
+            "prepare",
+            observed + ["40000000-0000-4000-8000-000000000007"],
+            tmp_path / "blocked.json",
+            reserve_model_runs=8,
+            now=NOW,
+        )
+    assert not (tmp_path / "blocked.json").exists()
+
+
+def test_v2_uncapped_preflight_records_unknown_run_count_and_ids_as_null(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(guard, "read_board_usage", lambda *_args, **_kwargs: usage())
+    uncapped = policy(
+        schema=guard.POLICY_SCHEMA_V2,
+        issued_at_utc="2026-10-28T09:00:00Z",
+        deadline_utc="2026-10-28T20:00:00Z",
+        max_model_runs=None,
+    )
+
+    receipt = guard.preflight(
+        uncapped, COMPANY, "prepare", None, tmp_path / "uncapped.json", now=NOW
+    )
+
+    assert receipt["schema"] == guard.RECEIPT_SCHEMA_V2
+    assert receipt["policy_max_model_runs"] is None
+    assert receipt["observed_model_run_count"] is None
+    assert receipt["observed_model_run_ids"] is None
+    assert receipt["remaining_percent"] == 80
+
+
+@pytest.mark.parametrize(
+    "bounded_policy",
+    [policy(), policy(schema=guard.POLICY_SCHEMA_V2, max_model_runs=80)],
+)
+def test_preflight_rejects_unknown_run_ids_when_policy_is_capped(
+    tmp_path: Path, monkeypatch, bounded_policy
+):
+    tmp_path.chmod(0o700)
+    monkeypatch.setattr(guard, "read_board_usage", lambda *_args, **_kwargs: usage())
+
+    with pytest.raises(guard.ResourceGuardError, match="resource_run_ids_invalid"):
+        guard.preflight(
+            bounded_policy, COMPANY, "prepare", None, tmp_path / "bounded.json", now=NOW
+        )
+
+    assert not (tmp_path / "bounded.json").exists()
+
+
+def test_delivery_preflight_skips_enumeration_only_for_validated_v2_uncapped_policy(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    now = datetime.now(UTC).replace(microsecond=0)
+    issued_at = (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+    deadline = (now + timedelta(hours=10)).isoformat().replace("+00:00", "Z")
+    uncapped = policy(
+        schema=guard.POLICY_SCHEMA_V2,
+        issued_at_utc=issued_at,
+        deadline_utc=deadline,
+        max_model_runs=None,
+    )
+    capped = {**uncapped, "max_model_runs": 80}
+    policies = {"uncapped": uncapped, "capped": capped}
+    enumerated: list[str] = []
+
+    def load_policy(reference, company_id, *, allow_v1_to_v2=False):
+        return guard.validate_policy(policies[reference["mode"]], company_id), "f" * 64
+
+    def enumerate_runs(_api, _company_id, _policy):
+        enumerated.append("called")
+        return [RUN]
+
+    monkeypatch.setattr(guard, "load_policy_reference", load_policy)
+    monkeypatch.setattr(guard, "campaign_model_run_ids", enumerate_runs)
+    monkeypatch.setattr(
+        guard,
+        "read_board_usage",
+        lambda *_args, **_kwargs: usage(
+            checkedAt=now.isoformat().replace("+00:00", "Z")
+        ),
+    )
+
+    class API:
+        m = {"company_id": COMPANY}
+        run_id = "50000000-0000-4000-8000-000000000001"
+
+    uncapped_receipt = delivery._resource_preflight(
+        API(), {"mode": "uncapped", "path": str(tmp_path / "policy.json")},
+        "prepare", tmp_path,
+    )
+    assert uncapped_receipt is not None
+    uncapped_data = json.loads(uncapped_receipt.read_text())
+    assert uncapped_data["observed_model_run_count"] is None
+    assert uncapped_data["observed_model_run_ids"] is None
+    assert enumerated == []
+
+    capped_receipt = delivery._resource_preflight(
+        API(), {"mode": "capped", "path": str(tmp_path / "policy.json")},
+        "prepare", tmp_path,
+    )
+    assert capped_receipt is not None
+    capped_data = json.loads(capped_receipt.read_text())
+    assert capped_data["observed_model_run_count"] == 1
+    assert capped_data["observed_model_run_ids"] == [RUN]
+    assert enumerated == ["called"]
+
+
+def test_policy_reference_is_hash_pinned_and_private(tmp_path: Path, monkeypatch):
+    tmp_path.chmod(0o700)
+    monkeypatch.delenv(guard.RENEWAL_ENV, raising=False)
+    path = tmp_path / "policy.json"
+    raw = (json.dumps(policy(), sort_keys=True, separators=(",", ":")) + "\n").encode()
+    path.write_bytes(raw)
+    path.chmod(0o400)
+    reference = {"path": str(path), "sha256": guard._sha(raw)}
+    loaded, sha = guard.load_policy_reference(reference, COMPANY)
+    assert loaded == policy() and sha == reference["sha256"]
+    with pytest.raises(guard.ResourceGuardError, match="resource_policy_hash_mismatch"):
+        guard.load_policy_reference({**reference, "sha256": "0" * 64}, COMPANY)
+
+
+def _write_private_json(path: Path, value: dict) -> bytes:
+    raw = (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    path.write_bytes(raw)
+    path.chmod(0o400)
+    return raw
+
+
+def test_explicit_private_renewal_preserves_original_binding_and_returns_effective_hash(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    original_path = tmp_path / "policy.json"
+    original_raw = _write_private_json(original_path, policy())
+    original_ref = {"path": str(original_path), "sha256": guard._sha(original_raw)}
+    renewed = policy(
+        issued_at_utc="2026-10-28T17:00:00Z",
+        deadline_utc="2026-10-28T22:00:00Z",
+        max_model_runs=60,
+    )
+    renewal_path = tmp_path / "renewal.json"
+    renewal_raw = _write_private_json(
+        renewal_path,
+        {
+            "schema": guard.RENEWAL_SCHEMA,
+            "original_policy_sha256": original_ref["sha256"],
+            "new_policy": renewed,
+        },
+    )
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+
+    loaded, effective_hash = guard.load_policy_reference(original_ref, COMPANY)
+
+    assert loaded == renewed
+    assert loaded.renewal_issued_at_utc == renewed["issued_at_utc"]
+    assert effective_hash == guard._sha(renewal_raw)
+    assert original_ref["sha256"] == guard._sha(original_raw)
+
+
+@pytest.mark.parametrize(
+    ("renewal_changes", "reason"),
+    [
+        ({"original_policy_sha256": "f" * 64}, "resource_policy_renewal_binding_invalid"),
+        (
+            {"new_policy": policy(connection_id="20000000-0000-4000-8000-000000000099")},
+            "resource_policy_renewal_scope_invalid",
+        ),
+        (
+            {
+                "new_policy": policy(
+                    task_scope_root_ids=[UNRELATED],
+                    issued_at_utc="2026-10-28T17:00:00Z",
+                    deadline_utc="2026-10-28T22:00:00Z",
+                )
+            },
+            "resource_policy_renewal_scope_invalid",
+        ),
+        (
+            {
+                "new_policy": policy(
+                    issued_at_utc="2026-10-28T17:00:00Z", deadline_utc="2026-10-28T23:01:00Z"
+                )
+            },
+            "resource_policy_renewal_lifetime_invalid",
+        ),
+        (
+            {
+                "new_policy": policy(
+                    issued_at_utc="2026-10-28T17:00:00Z",
+                    deadline_utc="2026-10-28T22:00:00Z",
+                    max_model_runs=61,
+                )
+            },
+            "resource_policy_renewal_run_cap_invalid",
+        ),
+    ],
+)
+def test_renewal_rejects_unbound_or_expanded_authority(
+    tmp_path: Path, monkeypatch, renewal_changes, reason
+):
+    tmp_path.chmod(0o700)
+    original_path = tmp_path / "policy.json"
+    original_raw = _write_private_json(original_path, policy())
+    reference = {"path": str(original_path), "sha256": guard._sha(original_raw)}
+    renewal = {
+        "schema": guard.RENEWAL_SCHEMA,
+        "original_policy_sha256": reference["sha256"],
+        "new_policy": policy(
+            issued_at_utc="2026-10-28T17:00:00Z",
+            deadline_utc="2026-10-28T22:00:00Z",
+            max_model_runs=60,
+        ),
+    }
+    renewal.update(renewal_changes)
+    renewal_path = tmp_path / "renewal.json"
+    _write_private_json(renewal_path, renewal)
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+
+    with pytest.raises(guard.ResourceGuardError, match=reason):
+        guard.load_policy_reference(reference, COMPANY)
+
+
+def test_renewed_policy_run_accounting_excludes_only_verified_pre_renewal_completion(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    original_path = tmp_path / "policy.json"
+    original_raw = _write_private_json(original_path, policy())
+    reference = {"path": str(original_path), "sha256": guard._sha(original_raw)}
+    renewed = policy(
+        issued_at_utc="2026-10-28T17:00:00Z",
+        deadline_utc="2026-10-28T22:00:00Z",
+        max_model_runs=60,
+    )
+    renewal_path = tmp_path / "renewal.json"
+    _write_private_json(
+        renewal_path,
+        {
+            "schema": guard.RENEWAL_SCHEMA,
+            "original_policy_sha256": reference["sha256"],
+            "new_policy": renewed,
+        },
+    )
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+    effective, _ = guard.load_policy_reference(reference, COMPANY)
+    old_run = "40000000-0000-4000-8000-000000000021"
+    new_run = "40000000-0000-4000-8000-000000000022"
+    overlapping_run = "40000000-0000-4000-8000-000000000024"
+    unknown_status_run = "40000000-0000-4000-8000-000000000025"
+    missing_end_run = "40000000-0000-4000-8000-000000000026"
+
+    class API:
+        def request(self, method: str, route: str):
+            agent = "50000000-0000-4000-8000-000000000023"
+            if route.startswith("/companies/"):
+                return [{"id": ROOT, "companyId": COMPANY, "parentId": None}]
+            if route == f"/issues/{ROOT}/runs":
+                return [
+                    {"runId": old_run},
+                    {"runId": new_run},
+                    {"runId": overlapping_run},
+                    {"runId": unknown_status_run},
+                    {"runId": missing_end_run},
+                ]
+            run_id = route.rsplit("/", 1)[-1]
+            finished_at = {
+                old_run: "2026-10-28T16:59:59Z",
+                new_run: "2026-10-28T17:00:00Z",
+                unknown_status_run: "2026-10-28T16:59:59Z",
+            }.get(run_id)
+            status = {
+                old_run: "failed",
+                new_run: "failed",
+                overlapping_run: "running",
+                unknown_status_run: "unrecognized",
+                missing_end_run: "failed",
+            }[run_id]
+            native = {
+                "id": run_id,
+                "createdAt": "2026-10-28T16:00:00Z",
+                "runtimeMode": "native",
+                "status": status,
+                "companyId": COMPANY,
+                "issueId": ROOT,
+                "nativeIssueId": ROOT,
+                "agentId": agent,
+                "contextSnapshot": {"issueId": ROOT},
+                "runnerProfileJson": {"nativeExecutionInput": {"provider": {"kind": "codex"}}},
+                "usageJson": {"billingType": "subscription"},
+            }
+            if finished_at is not None:
+                native["finishedAt"] = finished_at
+            return native
+
+    assert guard.campaign_model_run_ids(API(), COMPANY, effective) == [
+        new_run,
+        overlapping_run,
+        unknown_status_run,
+        missing_end_run,
+    ]
+
+
+def test_renewed_policy_refuses_run_without_verified_creation_time(tmp_path: Path, monkeypatch):
+    tmp_path.chmod(0o700)
+    original_path = tmp_path / "policy.json"
+    original_raw = _write_private_json(original_path, policy())
+    reference = {"path": str(original_path), "sha256": guard._sha(original_raw)}
+    renewal_path = tmp_path / "renewal.json"
+    _write_private_json(
+        renewal_path,
+        {
+            "schema": guard.RENEWAL_SCHEMA,
+            "original_policy_sha256": reference["sha256"],
+            "new_policy": policy(
+                issued_at_utc="2026-10-28T17:00:00Z",
+                deadline_utc="2026-10-28T22:00:00Z",
+                max_model_runs=60,
+            ),
+        },
+    )
+    monkeypatch.setenv(guard.RENEWAL_ENV, str(renewal_path))
+    effective, _ = guard.load_policy_reference(reference, COMPANY)
+
+    class API:
+        def request(self, method: str, route: str):
+            agent = "50000000-0000-4000-8000-000000000023"
+            if route.startswith("/companies/"):
+                return [{"id": ROOT, "companyId": COMPANY, "parentId": None}]
+            if route == f"/issues/{ROOT}/runs":
+                return [{"runId": RUN}]
+            return {
+                "id": RUN,
+                "runtimeMode": "native",
+                "companyId": COMPANY,
+                "issueId": ROOT,
+                "nativeIssueId": ROOT,
+                "agentId": agent,
+                "contextSnapshot": {"issueId": ROOT},
+                "runnerProfileJson": {"nativeExecutionInput": {"provider": {"kind": "codex"}}},
+                "usageJson": {"billingType": "subscription"},
+            }
+
+    assert guard.campaign_model_run_ids(API(), COMPANY, effective) == [RUN]
+
+
+def test_scope_counts_only_unique_native_codex_runs_in_root_descendants():
+    class API:
+        def request(self, method: str, route: str):
+            agent = "50000000-0000-4000-8000-000000000008"
+            if route.startswith("/companies/"):
+                return [
+                    {"id": ROOT, "companyId": COMPANY, "parentId": None, "assigneeAgentId": agent},
+                    {"id": CHILD, "companyId": COMPANY, "parentId": ROOT, "assigneeAgentId": agent},
+                    {
+                        "id": UNRELATED,
+                        "companyId": COMPANY,
+                        "parentId": None,
+                        "assigneeAgentId": agent,
+                    },
+                ]
+            if route == f"/issues/{ROOT}/runs":
+                return [{"id": RUN, "contextIssueId": ROOT}]
+            if route == f"/issues/{CHILD}/runs" or route == f"/issues/{UNRELATED}/runs":
+                return []
+            if route == f"/heartbeat-runs/{RUN}":
+                return {
+                    "id": RUN,
+                    "runtimeMode": "native",
+                    "companyId": COMPANY,
+                    "issueId": ROOT,
+                    "nativeIssueId": ROOT,
+                    "agentId": agent,
+                    "contextSnapshot": {"issueId": ROOT},
+                    "runnerProfileJson": {"nativeExecutionInput": {"provider": {"kind": "codex"}}},
+                    "usageJson": {"billingType": "subscription"},
+                }
+            raise AssertionError(route)
+
+    assert guard.campaign_model_run_ids(API(), COMPANY, policy()) == [RUN]
+
+
+def test_unknown_native_run_billing_is_conservatively_reserved():
+    company_id = "be0053ed-cb7c-4320-b9db-cef012a91d62"
+    issue_id = "c9a3e4b0-b83e-4e87-bc75-f5b23bace17e"
+    run_id = "b61e0f27-cfa8-49c1-b0d8-925bbff176c3"
+    agent_id = "2713ebb5-ba60-4720-8085-02b465094abf"
+    native = {
+        "id": run_id,
+        "runtimeMode": "native",
+        "status": "running",
+        "companyId": company_id,
+        "issueId": issue_id,
+        "nativeIssueId": issue_id,
+        "agentId": agent_id,
+        "contextSnapshot": {"issueId": issue_id},
+        "runnerProfileJson": {"nativeExecutionInput": {"provider": {"kind": "codex"}}},
+        "usageJson": None,
+    }
+
+    class API:
+        def request(self, _method: str, route: str):
+            if route.startswith(f"/companies/{company_id}/issues?"):
+                return [{"id": issue_id, "companyId": company_id, "parentId": None}]
+            if route == f"/issues/{issue_id}/runs":
+                return [{"runId": run_id, "agentId": agent_id, "contextIssueId": issue_id}]
+            if route == f"/heartbeat-runs/{run_id}":
+                return native
+            raise AssertionError(route)
+
+    scoped_policy = policy(company_id=company_id, task_scope_root_ids=[issue_id])
+    assert guard.campaign_model_run_ids(API(), company_id, scoped_policy) == [run_id]
+
+    native["status"] = "queued"
+    native.pop("usageJson")
+    assert guard.campaign_model_run_ids(API(), company_id, scoped_policy) == [run_id]
+
+    native["status"] = "failed"
+    native["usageJson"] = None
+    assert guard.campaign_model_run_ids(API(), company_id, scoped_policy) == [run_id]
+
+    native["usageJson"] = {"billingType": "unknown"}
+    assert guard.campaign_model_run_ids(API(), company_id, scoped_policy) == [run_id]
+
+    for usage in (
+        {"billingType": "metered_api"},
+        {"billingType": None, "billing_type": "metered_api"},
+        {"billingType": "unknown", "billing_type": "api"},
+    ):
+        native["usageJson"] = usage
+        with pytest.raises(
+            guard.ResourceGuardError,
+            match="resource_native_run_subscription_invalid",
+        ):
+            guard.campaign_model_run_ids(API(), company_id, scoped_policy)
+
+
+def test_board_usage_request_has_no_bearer_credential(monkeypatch):
+    captured = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self, _size):
+            return json.dumps(usage()).encode()
+
+    def fake_urlopen(request, timeout):
+        captured["request"] = request
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr(guard.urllib.request, "urlopen", fake_urlopen)
+    result = guard.validate_usage(
+        guard.read_board_usage(COMPANY, CONNECTION, now=NOW), CONNECTION, now=NOW
+    )
+    assert result["remaining_percent"] == 80
+    assert captured["timeout"] == 15
+    assert captured["request"].full_url.startswith(guard.BOARD_ORIGIN)
+    assert captured["request"].get_header("Authorization") is None
+
+
+def test_board_usage_timeout_fails_closed_and_later_read_uses_fresh_response(monkeypatch):
+    calls = 0
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self, _size):
+            return json.dumps(usage(checkedAt="2026-10-28T10:00:01Z")).encode()
+
+    def fake_urlopen(_request, timeout):
+        nonlocal calls
+        assert timeout == 15
+        calls += 1
+        if calls == 1:
+            raise TimeoutError("mock delayed response")
+        return Response()
+
+    monkeypatch.setattr(guard.urllib.request, "urlopen", fake_urlopen)
+
+    with pytest.raises(guard.ResourceGuardError, match="resource_usage_unavailable"):
+        guard.read_board_usage(COMPANY, CONNECTION, now=NOW)
+
+    result = guard.validate_usage(
+        guard.read_board_usage(COMPANY, CONNECTION, now=NOW + timedelta(seconds=1)),
+        CONNECTION,
+        now=NOW + timedelta(seconds=1),
+    )
+    assert calls == 2
+    assert result["checked_at"] == "2026-10-28T10:00:01Z"
+    assert result["remaining_percent"] == 80
+
+
+def test_publish_quota_failure_precedes_candidate_creation_and_all_publication_mutations(
+    tmp_path: Path, monkeypatch
+):
+    tmp_path.chmod(0o700)
+    custody = tmp_path / "custody"
+    custody.mkdir(mode=0o700)
+    source_id = "60000000-0000-4000-8000-000000000009"
+    qa_id = "60000000-0000-4000-8000-000000000010"
+    publish_id = "60000000-0000-4000-8000-000000000011"
+    source_agent = "50000000-0000-4000-8000-000000000012"
+    qa_agent = "50000000-0000-4000-8000-000000000013"
+    source_run = {"runId": "70000000-0000-4000-8000-000000000014", "agentId": source_agent}
+    qa_run = {"runId": "70000000-0000-4000-8000-000000000015", "agentId": qa_agent}
+    stage = custody / "stage.json"
+    stage.write_text(
+        json.dumps(
+            {
+                "schema": delivery.STAGE_SCHEMA,
+                "manifest_sha256": "a" * 64,
+                "developer_run_id": source_run["runId"],
+                "patch": {"sha256": "b" * 64},
+                "files": {"src/out.py": {"sha256": guard._sha(b"candidate")}},
+                "paths": ["src/out.py"],
+            }
+        )
+    )
+    native_files = custody / f"native-handoff-{source_id}-{source_run['runId']}" / "files"
+    native_files.mkdir(parents=True, mode=0o700)
+    (native_files / "src").mkdir(mode=0o700)
+    (native_files / "src" / "out.py").write_bytes(b"candidate")
+    m = {
+        "company_id": COMPANY,
+        "api_origin": "http://127.0.0.1:3310",
+        "manager_task_id": ROOT,
+        "resource_policy": {"path": str(tmp_path / "policy.json"), "sha256": "d" * 64},
+        "developer": {"task_id": source_id, "agent_id": source_agent},
+        "qa": {"task_id": qa_id, "agent_id": qa_agent},
+        "publish": {"task_id": publish_id, "agent_id": "50000000-0000-4000-8000-000000000016"},
+        "custody_dir": str(custody),
+        "canonical": {
+            "repo": str(tmp_path / "repo"),
+            "ref": "refs/heads/brain/development",
+            "expected_tip": "e" * 40,
+            "candidate_ref": "refs/heads/candidate",
+        },
+    }
+
+    class API:
+        def __init__(self, _manifest):
+            self.m = m
+
+        def current(self, action):
+            assert action == "publish"
+            return publish_id
+
+        def artifact(self, _task, _run, _name, _limit):
+            return {"id": "80000000-0000-4000-8000-000000000017"}, b"{}"
+
+        def qa_artifact(self, _task, run, _name, _limit):
+            return {
+                "id": "80000000-0000-4000-8000-000000000017",
+                "originatingRunId": run["runId"],
+                "createdByAgentId": qa_agent,
+                "artifactType": "attachment",
+            }, b"{}"
+
+    monkeypatch.setattr(delivery, "Paperclip", API)
+    monkeypatch.setattr(
+        delivery,
+        "latest_successful",
+        lambda _api, task: source_run if task["task_id"] == source_id else qa_run,
+    )
+    monkeypatch.setattr(delivery, "stage_path", lambda *_args: stage)
+    monkeypatch.setattr(delivery, "target", lambda root, name: Path(root) / name)
+    monkeypatch.setattr(delivery, "validate_qa", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(delivery, "predecessor_expected_tip", lambda *_args: None)
+    monkeypatch.setattr(delivery.publisher, "_git", lambda *_args, **_kwargs: b"f" * 40)
+    mutations = []
+    monkeypatch.setattr(
+        delivery.publisher, "prepare", lambda *_args, **_kwargs: mutations.append("prepare")
+    )
+    monkeypatch.setattr(
+        delivery.publisher, "reconcile", lambda *_args, **_kwargs: mutations.append("reconcile")
+    )
+    monkeypatch.setattr(delivery, "push_ref", lambda *_args, **_kwargs: mutations.append("push"))
+
+    def fail_gate(*_args, **_kwargs):
+        mutations.append("quota")
+        raise delivery.DeliveryError("resource_headroom_insufficient")
+
+    monkeypatch.setattr(delivery, "_resource_preflight", fail_gate)
+    with pytest.raises(delivery.DeliveryError, match="resource_headroom_insufficient"):
+        delivery.publish(m, "a" * 64)
+    assert mutations == ["quota"]
+    assert not list(custody.glob("publication-*.json"))

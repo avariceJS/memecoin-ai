@@ -1,7 +1,7 @@
 PYTHON ?= python3
 VENV := .venv/bin
 
-.PHONY: setup check test smoke build
+.PHONY: setup check test smoke build engineering-release-check
 setup:
 	$(PYTHON) -m venv .venv
 	$(VENV)/python -m pip install -r requirements-dev.lock -e .
@@ -21,6 +21,12 @@ smoke:
 
 build:
 	$(VENV)/python -m build
+
+# Explicit controller release gate; the default Brain package checks do not include engineering/.
+engineering-release-check:
+	$(VENV)/ruff check engineering
+	$(VENV)/ruff format --check engineering
+	$(VENV)/python -m pytest engineering/tests -q
 
 # Optional ML environment: Python 3.13, isolated from the frozen D43 collector.
 MLVENV := work/ml-venv/bin

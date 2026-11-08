@@ -3,22 +3,41 @@
 Read this page first. Current documentation is English and intentionally small. Open one canonical
 source for the task; do not scan `docs/` or `docs/evidence/` wholesale.
 
-## Consolidated repository entry — 2026-10-20
+## Historical consolidated audit entry — 2026-10-20
 
-Brain development: `brain/development`; stable main is unchanged. Organization audit/handoff lives
-on `org/development`, not in this branch. See the Git registry in `operator-runtime.md` and
-`evidence/git-consolidation-2026-10-20.json`. Founder audit hold prohibits autonomous resumption.
+Historical record: the organization branch was `org/development`; Brain: `brain/development`; Linux: `brain/linux`.
+The independent director audit of `b2dcd6d` completed and the founder then resumed
+bounded source development. This dated resumption is not current launch authority. Findings and staged release gates are in `engineering-organization.md`;
+the unique audit receipt is `evidence/brain-org-independent-audit-2026-10-20.json`.
+Read `engineering/SOL-MANDATE.md` and the current Git registry in `operator-runtime.md`.
+The exact consolidation result is `evidence/git-consolidation-2026-10-20.json`.
 
 ## Session entry
 
-1. [`memory/now.md`](../memory/now.md): dated volatile state; verify live status before acting.
+1. [`memory/now.md`](../memory/now.md): dated volatile state; verify relevant live status when the action depends on it.
 2. `git status --short` and `git rev-parse HEAD`.
 3. Read the relevant owner below. Read [`contracts.md`](contracts.md) when touching shared
    time, provenance, admission, scoring, ledger, or release invariants.
 4. Open only a named receipt from [`evidence/README.md`](evidence/README.md) when a claim needs
    verification or reproduction.
 
-`AGENTS.md` defines persistent work/documentation rules. It is always injected in agent context.
+## Knowledge retrieval
+
+[`engineering-lessons.md`](engineering-lessons.md) is a short linked recall index for reusable
+engineering constraints and explicitly historical audit lessons; its linked canonical documents remain authoritative. Search a
+specific question with `rg` or retrieve bounded project context, for example:
+
+```sh
+python3 tools/agent_context.py --task architecture --query 'accepted source runtime publication'
+```
+
+Use `--task docs|data|ml|operator|review` for other scopes. The repository itself is an Obsidian-ready
+Markdown vault; no index build or plugin is required.
+
+`AGENTS.md` defines persistent work/documentation rules. Loading depends on the actual client/profile,
+launch directory and instruction scope, including applicable overrides and nested rules. Verify the
+effective context when that matters; a file on disk does not prove that every desktop or worker
+session received it. The interactive Codex profile does not establish Paperclip worker visibility.
 
 ## Canonical sources
 
@@ -30,6 +49,8 @@ on `org/development`, not in this branch. See the Git registry in `operator-runt
 | Control Center, AUTO, virtual paper, Watch Market, two Macs, releases and Git recovery registry | [`operator-runtime.md`](operator-runtime.md) |
 | Mac1 reset/restore from Kingston + GitHub, inventory and erase readiness | [`portability-disaster-recovery.md`](portability-disaster-recovery.md) |
 | Deferred hardened portability / DR v2 handoff | [`portability-disaster-recovery-v2-roadmap.md`](portability-disaster-recovery-v2-roadmap.md) |
+| Engineering organization, executive authority, confinement and integration | [`engineering-organization.md`](engineering-organization.md), [Sol mandate](../engineering/SOL-MANDATE.md), [Russian Founder Desk](../engineering/OWNER-DESK.md), [30 October finite campaign and scaling report](../engineering/SCALING-REPORT-20261030.md) |
+| Private Paperclip instance shutdown / resume custody | `/Users/root1/Developer/brain-paperclip-lab/state/HANDOFF.md` — current English operational handoff; private instance IDs, WIP and backup custody cannot live in public architecture documentation |
 | Cross-cutting engineering and research invariants | [`contracts.md`](contracts.md) |
 | Concise experiment timeline and key failures | [`research-history.md`](research-history.md) |
 | Evidence filenames, scope, and reproduction pointers | [`evidence/README.md`](evidence/README.md) |

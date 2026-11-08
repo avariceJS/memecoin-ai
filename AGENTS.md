@@ -1,12 +1,52 @@
 # Project Agent Rules
 
+## Current Founder operating model — efficient leadership, 2026-10-31
+
+Astra High remains strategic CEO. Six permanent Sol 6.1 High department leads own major objectives,
+meaningful independent batches, combined review and native publication. Forty original Luna High
+developers implement/debug/check/commit autonomously in separate task worktrees; five optional Luna
+High reviewers are selective. Sol was restored only after the clean Luna-lead low-wakeup proof;
+actual Sol-lead cost/quality is unmeasured. No permanent external interactive operator is required for
+the demonstrated bounded cycle. Astra wakes for genuine major-goal completion or strategy only.
+
+Use existing native all-children/dependency completion. Lead planning assigns substantial independent
+work, then yields once. After all source children finish, one combined integration call writes exact
+v2 acceptance (`close_parent:true`), assigns the existing fixed process and yields with all DONE source
+blockers plus its publisher child. The process checks fresh task/receipt/holds/Git state, waits boundedly
+for the lead run to end, closes the parent retaining DONE source blockers, then completes itself.
+No acknowledgment/stale-state completion call is needed. A separate next root (`parentId:null`) gated
+on this parent starts through ordinary dependency readiness; no artificial Astra event.
+
+Create these tasks via the admitted `call_api` full `POST /companies/:companyId/issues` contract:
+explicit `assigneeAgentId`, `reviewPolicy:"anyone"`, Goal/project/workspace/parent and workspace selection.
+Use `configured_source` + `managed_isolated` for each source child, fixed maintenance workspace +
+`shared` for the publisher. Fresh GET verifies metadata in the same existing model call before yield.
+The shortened child-creation path lost assignment/review metadata and inherited one worktree in the
+second failed trial. The six lead catalogs now omit abbreviated `create_task`; full native API access,
+assignment authority, runtime/subscription bindings and reporting relationships remain.
+
+Preserve every historical STOP, rejection, human/manual/unknown-effect hold and24 cancelled
+administrative intermediaries. Do not restore per-task managerial/mandatory-QA stages or add a
+scheduler/controller/publisher/admission/QA/recovery framework. Main, production, protected data,
+live market collection, training, AUTO, paper/trading and paid APIs remain excluded. This finite pass
+ended paused with zero queued/running/live runs; a checkpoint/quota reset/reconnect is not launch
+authority. Read `memory/now.md` and the private HANDOFF before a fresh authorized continuation.
+
 ## Entry and source of truth
 
-All current agent-facing documentation is written in English. Start with:
+Current agent-facing documentation is English; the founder-facing `engineering/OWNER-DESK.md` is Russian by explicit founder direction. Start with:
 
 1. `memory/now.md` for dated, volatile project state.
 2. `git status --short`, `git rev-parse HEAD`, and the read-only owner runtime status when relevant.
 3. `docs/INDEX.md`, then only the canonical source for the task.
+
+For Brain work, use `docs/INDEX.md` to select a canonical source and, when useful, retrieve a
+bounded task-specific excerpt with `python3 tools/agent_context.py --task <architecture|data|ml|operator|review|docs> --query 'terms'`.
+The linked [engineering lessons](docs/engineering-lessons.md) are recall aids; verify dated claims at
+their current source when the action depends on them. Explicit current founder permission applies
+within its scope; routine authorized reads and local tests need no whole-company reconciliation.
+For nontrivial subsystem choices, recurring integration failures, scope expansion, or proportional
+verification, use `.agents/skills/brain-delivery-calibration/SKILL.md`; skip it for trivial edits.
 
 Canonical ownership:
 
@@ -31,69 +71,88 @@ is available from historical Git commits.
 - Keep raw receipts immutable. Never duplicate a receipt or copy its full contents into Markdown.
 - A new Markdown file needs a distinct long-lived owner/topic or a frozen protocol hash dependency.
   Add it to `docs/INDEX.md` and explain why existing canonical documents cannot own it.
-- Current Markdown must be English. Legacy protocol paths may be short English archival pointers;
+- Current technical Markdown must be English; the explicitly requested Founder Desk is Russian. Legacy protocol paths may be short English archival pointers;
   exact historical bytes remain in Git history. Never run an old campaign script against a pointer
   at current HEAD or claim that the pointer preserves the old protocol hash. Reproduce only from
   the recorded source commit and verify its receipt-bound hashes.
 - Keep `memory/now.md` short and dated. Do not recreate the old append-only narrative memory bank;
   Git history and immutable evidence hold the detailed chronology.
 
-## Git branch and push policy
+## Product-led backlog — founder clarification 2026-10-26
 
-- GitHub `avariceJS/memecoin-ai` is the source of truth for code and development history.
-  `main` is the sole primary integration baseline. Start new tasks from freshly fetched `main`.
-- Each active task or parallel agent may use its own short-lived branch and isolated worktree.
-  Give each branch a bounded purpose and a clear owner; avoid overlapping writes.
-- Commit and push meaningful progress regularly. Before handoff or host loss/reset, publish every
-  irreplaceable code change. Incomplete work may be committed as an explicitly labeled checkpoint
-  on its topic branch; a checkpoint is not acceptance and must not be promoted merely for custody.
-- Integrate finished, compatible, checked work into `main`. Preserve published history; use merges
-  or fast-forwards and never force-push `main` or rewrite shared commits.
-- Keep experimental branches only while needed, publish them on GitHub, and document their purpose,
-  acceptance gaps, and resume point in `docs/operator-runtime.md`. Do not maintain another general
-  development baseline. `research/active` is temporarily frozen solely for the pinned Migration v1
-  historical operator package (now retired from current use); retire the ref only after replacement
-  recovery execution is verified.
-- After integration, verify ancestry and remote custody before deleting obsolete branches/worktrees.
-  Preserve unique uncommitted files, reflog/checkpoint objects, and private data before cleanup.
-  Immutable archival tags can retain historical checkpoints without creating active branches.
-- Code must be recoverable after total Mac loss from GitHub. Runtime state, datasets, model artifacts,
-  protected data and credentials remain outside Git and follow their separate custody/reissue rules.
-- Updating `main` does not deploy or authorize activation. Keep owner runtime checkouts pinned and
-  separate; never tie a branch push or development checkout update to collectors, trading or services.
+Astra owns Brain product strategy and architecture across Senses, Experience, Cortex, Evaluation,
+Policy and Platform. New functions, scientific capabilities and analysis tools are valid work when
+there is a concrete user/research question, a bounded check against existing capability, and an
+observable acceptance result. A reproduced defect or absent invariant is NOT a prerequisite for
+new feature work. Reproduction remains required for claims about existing bugs. Leads decompose
+product outcomes into genuinely independent tasks; do not replace product initiative with broad
+bug searches or split trivial changes merely to fill worker slots. Use native Paperclip tasks,
+normal Codex workspaces and independent finished-candidate QA; existing protected boundaries apply.
 
-## Model routing and planning
+## Current normal model composition — 2026-10-27
 
-- Luna High is the primary long-running agent and handles ordinary engineering within settled
-  contracts: implementation, local features, debugging, tests, CLI/tooling, recovery, bounded
-  refactoring, profiling, qualification, and integration of accepted decisions. Do not escalate
-  routine work merely because it is nontrivial or lengthy.
-- Route architecture, shared contracts, ML/data semantics, objectives and representations,
-  temporal/causal correctness, evaluation methodology, sampling/population decisions, high-impact
-  changes, and consequential ambiguity to Sol High before dependent implementation. Route by
-  decision type, uncertainty, blast radius, and cost of error, not by Luna's subjective confidence.
-  Once the decision is settled and execution is bounded, return implementation to Luna. If a
-  local task reveals a foundational assumption, stop that dependent branch and escalate the
-  decision while continuing independent work.
-- Sol High is the primary decision-maker and may escalate to Astra High only for costly
-  fundamental uncertainty, strong mutually exclusive options, contradictory evidence, major
-  project-direction changes, or substantial hidden scientific/causal/leakage risk. Astra is not
-  for routine implementation, debugging, or log reading. Sol adjudicates Astra's input and returns
-  a bounded implementation brief to Luna.
-- For lengthy work, Luna remains the lead. At the start of a major direction, Sol defines the
-  nearest decision horizon and separates stable independent work, evidence-dependent work, and
-  architecture/research decisions. Plan only the next useful horizon in detail; revisit it at
-  meaningful evidence boundaries, not after every small milestone. A prior roadmap is not a
-  commitment when new evidence changes the path.
-- Escalate with a compact dossier: goal, relevant facts and evidence locators, what was checked,
-  viable options, constraints, uncertainty, and the exact decision required. Use an isolated clean
-  context when possible; include only the dossier and rules needed for the decision. Return the
-  decision, rationale, interfaces/invariants, scope, acceptance evidence, and limitations to Luna.
-  Treat model output as fallible input and retain the integrator's responsibility for verification.
-- This routing authorizes specialist delegation for these purposes. Keep delegated work bounded,
-  avoid overlapping edits, and use only the requested model tier when available; report capability
-  limits instead of silently substituting. Routing does not relax project authorization, evidence,
-  testing, provenance, temporal-correctness, recovery, or protected-data requirements.
+Under the founder's bounded final-acceptance directive, TEST was retained for early checks and then
+reversibly restored to normal roles: Sol High for department/program leads and independent QA,
+Luna High for implementers, and the existing Astra CEO configuration. Actual Sol/Luna/Sol runs and
+an independently accepted Brain publication verified these roles; configuration alone is not proof.
+Use native Paperclip adapterConfig fields and preserve subscription/runtime bindings. Do not silently
+return leads or QA to Luna TEST. The saved model-only rollback is private; canonical evidence and
+limits are in docs/engineering-organization.md. This composition does not authorize a new campaign.
+
+## Current organization authority and Git ownership — 2026-10-24
+
+The founder-confirmed organization directive supersedes the completed 2026-10-20 audit hold and all
+older role, publication, and continuation instructions. Luna-6 High is the sole owner of autonomous
+source implementation. Sol-6.1 High handles substantial technical decisions and independent review.
+Astra owns product strategy and architecture as an episodic CEO. The founder's 2026-10-24 directive
+permits strategic-event invocation through independently accepted native Paperclip routing; it does
+not authorize a continuous CEO dispatcher or imply that such routing is already qualified. Sol owns
+department programs and their task decomposition/corrections through completion; Astra chooses the
+next program without a fresh founder product assignment. See the current standing mandate in
+`docs/engineering-organization.md`. Preserve historical Luna Goal ownership and read current native
+Goal state; do not create a replacement Goal, second scheduler or competing implementation owner.
+
+The founder supplies vision, suggestions, resources and permission boundaries, not routine backlog
+management. Escalate only for additional resources/permissions, with alternatives. After Founder STOP,
+quota reset, reboot and reconnection never authorize resumption; require an explicit founder launch
+command plus fresh reconciliation. Source capability, operational admission and product competence
+remain separate claims.
+
+This standing mandate governs ordinary Brain development. A current founder request may explicitly
+scope a session to local Codex maintenance and exclude company activity; that does not resume a
+company, authorize Paperclip/runtime access, or change worker configuration. Dated state and recalled
+lessons are evidence to reconcile, never a current launch command.
+
+- `org/development` is the unified engineering-organization development branch and audit entry.
+  Continue authorized source work there; use isolated candidate checkouts when useful, then preserve
+  independent review and controlled integration. `brain/development` owns Brain research development.
+- `brain/linux` is a separate, unaccepted platform candidate. `research/active` is a frozen
+  compatibility alias for existing bootstrap/recovery callers, not a development or integration
+  target. `main` is stable and must remain unchanged.
+- The 2026-10-20 independent Astra audit and temporary founder hold are historical, completed
+  decisions. They do not block the explicitly resumed engineering program. A03 remains an external
+  operational-release blocker only; it does not stop unrelated source development.
+- Preserve `archive/consolidation-20261020` and older archive/handoff tags; never merge the custody
+  commit as source. Preserve frozen pilot/historical owner checkouts during cleanup. The registry in
+  `docs/operator-runtime.md` and current engineering mandate supersede older branch instructions.
+
+- Read `docs/engineering-organization.md` for the separate engineering control system and its gates.
+  Founder communication lives in `engineering/OWNER-DESK.md` and its deployed durable projection.
+- Keep implementation and integration on `org/development`, using isolated task branches/checkouts
+  for bounded candidates where appropriate. Do not publish organization development to
+  `research/active`. **Do not change `main`**; stable releases have separate gates.
+- Preserve historical `research/active` exactly under an immutable archive ref before repurposing it.
+  No force push, rewriting shared history, or discarding unique changes. Preserve dirty worktrees.
+- GitHub protection/hosted CI are not trusted enforcement. Worker OS confinement, immutable external
+  acceptance policy and the local publisher boundary must be qualified before unattended execution.
+- Keep meaningful code/evidence checkpoints recoverable through GitHub; checkpoint custody alone
+  is not acceptance. Private datasets, credentials, runtime and raw session logs stay outside Git.
+- New policy/capability envelopes require reviewed controller releases; workers cannot amend gates.
+  Routine engineering strategy, staffing, conflicts and verified development need no founder approval.
+- Astra records precise founder resource/authority requests only when genuinely necessary; unrelated
+  authorized work continues while requests are pending. Never embed secrets in the Founder Desk.
+- Specialist delegation is authorized. Use compact dossiers and evidence references; preserve the
+  installed model identity and report unavailable capabilities instead of substituting silently.
 
 ## Consolidated branches and founder audit hold — 2026-10-20
 

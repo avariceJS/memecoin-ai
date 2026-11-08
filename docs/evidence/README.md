@@ -1,10 +1,46 @@
 # Evidence Index
 
+- [Leadership wakeup efficiency](brain-lead-wakeup-efficiency-20261031.json): atomic native closure, complete task metadata, two failed repair trials and one unassisted 2 lead / 2 developer batch;6Sol High restored, exact accounting and paused checkpoint.
+- [Final Luna-managed restructuring, 2026-10-31](brain-luna-managed-final-20261031.json): 6 Luna leads/40 developers, independently reviewed existing-publisher batch input, two real native publications, exact assistance/overhead/accounting limits and paused checkpoint.
+
+- [Luna-first restructuring, 2026-10-31](brain-luna-first-restructuring-20261031.json): applied native configuration, three direct Luna implementations, one Sol batch review, controlled Git publication and paused checkpoint.
+
+- [Final bounded acceptance](brain-final-acceptance-20261027.json): five accepted publications, normal roles, real correction, native strategy, lifecycle and exact accounting; strict repeated unassisted acceptance remains incomplete.
+
+- [Predecessor publisher repair](brain-predecessor-publisher-repair-20261026.json): activity-linked manager run caused false rejection; one Luna QA, existing MEM-146 completed through native recovery and publication readback.
+
+- [Bounded autonomous shift admission](brain-autonomous-shift-admission-20261026.json): one justified task within the founder ceiling of two, finite correction and native manager routing; post-session outcome remains to be measured.
+
+- [Native handoff cycle](brain-native-handoff-20261026.json): one research dossier accepted/published with no CEO mutation from dispatch to publication; source-backed Retry, automatic stage/QA/publish, measured usage and explicit correction-loop limits.
+
+- [Productive backlog continuation](brain-productive-backlog-20261026.json): two accepted population diagnostics, native Retry workspace limitation, throughput/usage and final stop; excludes raw logs and private IDs.
+
+- [Research Diagnostics product programme](brain-research-diagnostics-20261026.json): eight useful feature contracts, three accepted tools, measured two-developer overlap, native correction/QA, provider429 limits and explicit stopped/pending lifecycle state.
+
+- [Bounded eight-worker attempt](brain-eight-worker-attempt-20261026.json): target not reached; one actual developer/accepted regression, native artifact handoff, exact model usage and task-supply limitation.
+
+- [TEST model configuration](brain-test-model-mode-20261026.json): native reversible Luna lead/worker/QA composition, unchanged-role/task readback and model-only rollback; no test campaign.
+
+- [Bounded native parallel cohort](brain-native-parallel-cohort-20261026.json): four real concurrent Luna developers, independent Sol QA, accepted Brain integration, measured native tokens and explicit assisted-workflow limits. Raw private logs excluded.
+
 Evidence is immutable and task-scoped. Do not read this directory wholesale. Historical receipts
 and figures retain their original bytes. Reports/receipts can
 contain large exact payloads, so open only the named artifact needed for a specific claim.
 
 ## Brain and operator
+
+- [Independent organization system audit](brain-org-independent-audit-2026-10-20.json): source at
+  `b2dcd6d`, current pause/custody checks, local component tests, new synthetic integration and
+  failure reproductions, and explicit operational rejection. Conclusions and future gates belong
+  to `../engineering-organization.md`; no runtime resumption or controller implementation.
+- [Metered organization source acceptance](brain-org-metering-source-acceptance-20261020.json): independent Sol accepted exact content pins for quota pause/lifecycle recovery. This is source-only; Git object verification and operational release are excluded.
+- [Task-spec validator source acceptance](brain-org-task-spec-validator-source-acceptance-20261020.json): independent Sol accepted exact content hashes after closing malformed existing-state/scope validation gaps. Standalone validator only; Git object, scheduler wiring, live admission and release are excluded.
+- [Task-spec Store source acceptance](brain-org-task-spec-store-source-acceptance-2026-10-20.json): independent Sol review of bounded additive SQLite persistence, frozen pre-implementation acceptance, focused tests and source-only limits. Planner/scheduler wiring, verifier binding, release qualification and pilot activation remain open; STOP remains in place.
+
+- [Engineering organization executive handoff](brain-org-handoff-20261019.json):
+  scoped controller tests, actual permission probes, six failed lead attempts, stopped process
+  custody and protected branch pins. Checkpoint only: no accepted Brain changes or unattended
+  organization qualification. Private evidence remains in the named engineering state directory.
 
 - [Scheduled sensing neural engineering qualification](brain-scheduled-sensing-neural-qualification-2026-10-15.json):
   synthetic-only scheduled episode build, one CPU lower-bound objective fit, exact stop/resume

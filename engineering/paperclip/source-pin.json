@@ -1,0 +1,456 @@
+{
+  "schema": "brain-paperclip-source-v6",
+  "upstream_repository": "https://github.com/paperclipai/paperclip",
+  "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
+  "predecessor_commit": "d560a09538a255c779e4a10b14d41a3114bf10f2",
+  "predecessor_chain": [
+    "d560a09538a255c779e4a10b14d41a3114bf10f2",
+    "44b4a1c13d23094283914b8326c902fea9d0d994",
+    "b89d1f5e82f7275e372087799f21566721814029",
+    "b00893db62c0e1719f731c94f20c9c70cecfac11",
+    "c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343",
+    "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
+    "89cd827fdb36ede8d12fce16302cf595c88d2ade",
+    "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+    "f24926c8e7fd231e4cac127532ed642247b222c2",
+    "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
+    "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
+    "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
+    "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
+    "a0cdea58195eed97c6f1ba4518c88826c778bb02",
+    "407762fa09288fad6a9e39771efc5d738b57be7b",
+    "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+    "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
+    "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+    "01302914b5501fbb274b39477e087ac1692d9b6a",
+    "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
+    "fecf7b18def542fb6b58e7e665011e66599ffffb",
+    "519c892646ec7b06996e990e9e728f794e1a689e",
+    "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
+    "043f2514e67c50320433a0013fb228a75a51325c"
+  ],
+  "derivative_commit": "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
+  "patch": "managed-codex-isolation-3eb.patch",
+  "patch_sha256": "e5280d26ea3243483f88cce9c15457eae50f1ec1930de39f1f6412827880368e",
+  "source_review": {
+    "status": "accepted_source_only",
+    "reviewer": "Sol-6.1 High",
+    "receipt": "state/resumption-20261025/sol-independent-native-core-workspace-dto-review-3eb3-accepted.json",
+    "receipt_sha256": "737aec6399ec3c5b82f95ffd900ea01aee85998cfcfb480e2838a02d17a5beae",
+    "commit": "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
+    "parent": "d560a09538a255c779e4a10b14d41a3114bf10f2",
+    "combined_diff_sha256": "e5280d26ea3243483f88cce9c15457eae50f1ec1930de39f1f6412827880368e",
+    "scope": [
+      "allocate a distinct empty repository-free execution root and Core workspace row per task run while retaining prior run rows",
+      "expose only a narrow typed Core-owned repository-free workspace provenance projection through the existing SDK read interface",
+      "reject malformed Core identity and ignore providerMetadata lookalikes"
+    ],
+    "limits": [
+      "source-only acceptance and emitted SDK validation; no native deployment or live service verification",
+      "no MEM89/MEM96 retry, migration, or current Brain runtime DTO consumption accepted by this source receipt",
+      "Brain consumer must validate current issue/run/assignee, owner policy, binding revision, seed, and filesystem identity"
+    ]
+  },
+  "source_review_chain": [
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/sol-review/native-owner-policy-source-review-20261023.json",
+      "commit": "519c892646ec7b06996e990e9e728f794e1a689e",
+      "parent": "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
+      "diff_sha256": "c2451cbd3ff5dffcbd8681a86052b5eab5d4a28301fbe811b3fc4e975b8f9ecb",
+      "scope": [
+        "optional permissions.nativeToolAllowlist with advertised and hidden-call enforcement",
+        "canConfigureSelf false denies self configuration and persistent instruction mutation before allowances",
+        "exact assigned plugin aliases and wrapper targets restricted by underlying owner tool names"
+      ],
+      "limits": [
+        "source-only review; no deployment or restart",
+        "native adapter and REST negative probes and lifecycle vertical remain required",
+        "provider built-in shell tools remain under existing adapter OS sandbox policy",
+        "absent optional fields retain legacy access; each qualified agent needs explicit policy"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/sol-review/native-plugin-relay-source-review-20261023.json",
+      "receipt_sha256": "01bfa783e7cce23c8e126809f34e9c8118dd9e947857bd4911ef3b1322be3361",
+      "commit": "fecf7b18def542fb6b58e7e665011e66599ffffb",
+      "parent": "519c892646ec7b06996e990e9e728f794e1a689e"
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/sol-review/private-plugin-sdk-source-review-20261023.json",
+      "receipt_sha256": "e33ddb7ecac91fe5d305cbef0c0e36afee91b48d440633b06e2ef4810e004917",
+      "commit": "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
+      "parent": "fecf7b18def542fb6b58e7e665011e66599ffffb",
+      "diff_sha256": "48176e323787f175dd6c69c6859a46e75e37eb1eed7d4c68868a8164ce65dde2",
+      "scope": [
+        "five explicit forCurrentToolRun issue methods; ordinary SDK APIs and jobs unchanged",
+        "existing host-minted opaque invocation and AsyncLocalStorage reused; no caller-selected actor",
+        "scoped calls check persisted running issue run, exact snapshot issue/project, current executionRunId/assignee, direct parent-child and same-company/project",
+        "canonical actual-agent privacy and issue read/comment/mutate decisions; actor rewrites rejected; status-only update",
+        "scoped summary returns actual current-run and validated blocker IDs only",
+        "bridge checks fixed owner-pinned pair and exact native blocker before submission effects",
+        "plugin only activates preassigned reviewer todo and records evidence; no explicit wake or self/source-completion writes"
+      ],
+      "limits": [
+        "source-only review; no deployment or runtime acceptance",
+        "live SDK and plugin rebuild plus emitted hash comparison remain required",
+        "actual private tool calls and native dependency release remain unproved",
+        "fixed task pair is pipeline qualification only, not autonomous backlog or Brain branch admission"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/sol-review/optional-github-discovery-source-review-20261023.json",
+      "receipt_sha256": "310433e2b74aece765763cbf24b588713ad7eb9c73a92f40a5677336d529b445",
+      "commit": "01302914b5501fbb274b39477e087ac1692d9b6a",
+      "parent": "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
+      "diff_sha256": "a6f60ecbc54b931630b339b0a65f1fe2572013f92374a1a3623b889f83039178",
+      "scope": [
+        "validate all session UUIDs and persisted exact company, agent and bound issue before the absence shortcut",
+        "skip guest-origin resolution only when no same-company current-issue GitHub conversation exists",
+        "retain original provenance and guest selection for real GitHub tasks, including cross-agent ancestry denial",
+        "retain valid bound guest connection behavior"
+      ],
+      "limits": [
+        "source-only acceptance; no deployed or native recovery acceptance",
+        "MEM5 failed continuation, unknown accounting and finalization barrier remain pending supported recovery",
+        "frozen Brain controller d856 and owner bridge configuration unchanged"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261023/native-stage-sdk-final-independent-review.json",
+      "receipt_sha256": "fa9d9c89e76546c07a56749189fa5dbcc84b72942d60405b29d6bf37238edbfa",
+      "commit": "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
+      "parent": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+      "diff_sha256": "e602f522e5255495de85bfce4468fba6633902ee46554e3f716c46e296aa5bfa",
+      "scope": [
+        "atomic revalidation of current tool-run authorization while preserving native backlog-to-todo CAS",
+        "readiness query returns existing dependency readiness result"
+      ],
+      "limits": [
+        "bounded source/SDK boundary only; no deployment, runtime or finite-stage continuation acceptance"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261023/plugin-capability-approval-core-independent-review.json",
+      "receipt_sha256": "3cd914f4bff9b72bd44776cb6ca662e92ad1625d47b62241d6fb016ad255e3b2",
+      "commit": "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+      "parent": "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
+      "diff_sha256": "2258ab55070ceb61c6f8ae34b4fb0e55b33d037a28fc7a4082417b902c77e1c5",
+      "scope": [
+        "internal lifecycle stages added capability manifests as upgrade_pending atomically while default loader upgrades continue to refuse escalation",
+        "pending approval remains sticky across restart and repeated upgrade until explicit admin enable activates the staged manifest"
+      ],
+      "limits": [
+        "source-only review; disabled-plugin rollout still required a separate narrow follow-up",
+        "no deployment, service restart, or runtime acceptance"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261023/plugin-capability-disabled-upgrade-independent-review.json",
+      "receipt_sha256": "de38ad34bffb7731a1544aae266b2bcc51a7fddc2bcbd156eb6e87749e1aa160",
+      "commit": "407762fa09288fad6a9e39771efc5d738b57be7b",
+      "parent": "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+      "diff_sha256": "25ede6858e7287b673e11146c166d30e95d0a0da967e10a603d06b2246e17868",
+      "combined_diff_sha256": "7fa2c9b815984fa9279ff086129521b71b9179041a74f68abef4ba73cc17422f",
+      "scope": [
+        "default capability-escalation refusal preserved; internal lifecycle stages the new manifest and upgrade_pending in one registry update",
+        "disabled plugins can upgrade without activation; new capabilities stage pending and no-capability upgrades preserve disabled state",
+        "pending remains sticky across restart and repeated upgrades; existing admin enable remains the approval boundary"
+      ],
+      "limits": [
+        "source-only acceptance; no live deployment or restart qualification",
+        "worker manager was mocked in composed fixtures; immutable package bytes and serialized admin actions remain required at rollout"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024/native-board-hold-wake-16ae5c5-independent-review.json",
+      "receipt_sha256": "8151ea3ff6ab3198c75e4c335885a46752c17ef9e5f2a8de3bc71070f2411bf6",
+      "commit": "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
+      "parent": "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
+      "diff_sha256": "d4a43a36820d9b48e9011afff930b32b6178676cd1d97f7be2c6310daa462afd",
+      "combined_diff_sha256": "75efc9cb241ee95026f3c80d2971f0377112e69fdd176e0801151a416ca0b4ae",
+      "scope": [
+        "direct-target issue update wakes are suppressed when the effective issue is closed or remains blocked under a typed board-owned unblock descriptor",
+        "dependent release wakes, explicit runnable transitions, and agent-owned blocked routing remain unchanged",
+        "POST comment eligibility uses its fresh issue snapshot; a fresh board hold or closed state wins after earlier reopen intent"
+      ],
+      "limits": [
+        "source-only acceptance; no Paperclip runtime deployment or restart qualification",
+        "launcher packaging binds the accepted source tree but does not establish operational readiness"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-mvp/native-summary-source-independent-review-09ec93b.json",
+      "receipt_sha256": "3088f2afe6c408242bb7276c29aa8c02137b8c77ba14356359e4de58faf2f606",
+      "commit": "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
+      "parent": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
+      "scope": [
+        "unscoped summaries report native readiness only when raw direct blocker IDs exactly match native readiness blockers",
+        "raw and native blocker reads share one read-only repeatable-read snapshot; a current edge reread fails closed on drift",
+        "all raw/native blocker IDs pass existing company and privacy guards; pending workspace finalization remains authoritative",
+        "executeTool-scoped summaries remain unchanged"
+      ],
+      "limits": [
+        "source-only acceptance; no native deployment, restart or runtime qualification",
+        "packaging closure and controlled release require separate review"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-mvp/native-dependency-wake-source-independent-review-0e0c1eb.json",
+      "receipt_sha256": "02432d4fa62695822c1cf1334425cdf91797d047cba8372c9db707f49785c813",
+      "commit": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+      "parent": "f24926c8e7fd231e4cac127532ed642247b222c2",
+      "scope": [
+        "resume the exact deferred issue_blockers_resolved wake after predecessor terminal through existing bounded native queue recovery and admission",
+        "revalidate locked current issue state, assignee, board-owned unblockDescriptor, native dependencies and workspace finalization before dispatch",
+        "preserve company and agent pause, execution uncertainty, same-receipt idempotency and normal maxConcurrentRuns controls"
+      ],
+      "limits": [
+        "exact native source acceptance only; packaging and controlled release require separate review",
+        "synthetic embedded PostgreSQL and mocked adapter only; no live provider, native queue mutation or deployment",
+        "actual paused startup then company resume of the pending MEM13 wake remains an operational acceptance step"
+      ],
+      "diff_sha256": "3d2d0497b89908aee3f811aa6306a874ce03da16d55837a8c944b735c848a235"
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-routing-recovery/native-release/finite-recovery/native-local-workspace-settlement-source-independent-review-aa0cdc.json",
+      "receipt_sha256": "49b3f7461bffc18dc969419e5d01219472d430082593042934499349f508cbc5",
+      "commit": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
+      "parent": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
+      "combined_diff_sha256": "146a81a24dc0add698f5531424128279c8dfb389fd61429d68b1e694d5e217d1",
+      "scope": [
+        "strict existing recover-workspace settlement for the exact stopped local cancelled run",
+        "preserve original run and failed operation while recording a new read-only workspace validation receipt",
+        "no model dispatch or semantic result promotion"
+      ],
+      "limits": [
+        "source-only acceptance; packaging and controlled release remain separate",
+        "no native runtime deployment or recovery invocation"
+      ]
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261025/sol-independent-native-workspace-source-review-44b4-accepted.json",
+      "receipt_sha256": "5950dcc6a3cbf341471e5abedf505ab1799a66b42244e199ff913076f72483c4",
+      "commit": "44b4a1c13d23094283914b8326c902fea9d0d994",
+      "parent": "b89d1f5e82f7275e372087799f21566721814029",
+      "diff_sha256": "1c44e2619eff68690efe3cc138cccb98e0750b79c7a0cfc15d74154d4c3952a6"
+    },
+    {
+      "status": "accepted_source_only",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261025/sol-independent-native-core-workspace-dto-review-3eb3-accepted.json",
+      "receipt_sha256": "737aec6399ec3c5b82f95ffd900ea01aee85998cfcfb480e2838a02d17a5beae",
+      "commit": "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
+      "parent": "d560a09538a255c779e4a10b14d41a3114bf10f2",
+      "diff_sha256": "6fb6ee6bafead77da89dd9fe2561425fdb27b26e56ce6b27630ebee8e2dad340",
+      "scope": [
+        "narrow typed Core provenance DTO; Core row/schema identity checks; providerMetadata lookalike ignored"
+      ]
+    }
+  ],
+  "stop_custody_source_pins": [
+    "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+    "16ae5c543a18db635a03c14f81e4ab7921d9c9a6",
+    "09ec93b95111d7d5e8b9c4a867f37e30d7462de1",
+    "35fbfa29a1b2ebaf81019d8022fdf60d70628ead",
+    "a0cdea58195eed97c6f1ba4518c88826c778bb02",
+    "407762fa09288fad6a9e39771efc5d738b57be7b",
+    "0f478de9d9ef0dbac4e2f32bd4f80e8f28dcd9fb",
+    "67ae03445e7c4a13d06ebbd1894fcc339f44907b",
+    "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+    "01302914b5501fbb274b39477e087ac1692d9b6a",
+    "b853ab3fa7addbbdba51087bb8e46dc89ca29fda",
+    "fecf7b18def542fb6b58e7e665011e66599ffffb",
+    "519c892646ec7b06996e990e9e728f794e1a689e",
+    "bd1a12fbf94068884cb2d65db3d2fdab5f0a9595",
+    "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24",
+    "ccbe6e7183b4bae56ba857c17a190ecc92c51910",
+    "5b5540f5418977ab2d861f7da3ee3dc7554d0601"
+  ],
+  "runtime_acceptance": "pending",
+  "launcher_scope": "managed Codex startup; preconfigured home excluded from lab qualification",
+  "source_history": [
+    {
+      "status": "rejected",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261023/native-stage-sdk-independent-review.json",
+      "receipt_sha256": "8703852143126e783ad5a91870175cb17d3ed74471934a21bd121828787db140",
+      "commit": "d142b1dee5c25980169109f0d6161a8c4c7380a2",
+      "reason": "SDK-SCOPE-001 CAS authorization race; superseded by accepted child 67ae034 without rewriting history"
+    },
+    {
+      "status": "rejected",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-mvp/native-summary-source-independent-review-d2f6ded.json",
+      "receipt_sha256": "14573f064ae39e4d0fbba628d89e3b07a49b6df67b4234f9396886c71fd26ebd",
+      "commit": "d2f6dedfe456473e7cf74799a1ac687ea90a1484",
+      "reason": "NATIVE-SUMMARY-COMPLETENESS-01: raw blocker edges were not reconciled with native readiness; corrected by accepted child 09ec93b without rewriting history"
+    },
+    {
+      "status": "rejected",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261024-mvp/native-dependency-wake-source-independent-review-f24926c.json",
+      "receipt_sha256": "ab2581f95a6b4c106abfcbc1c3808507fac00ada1e31abea1678bf1608358ce6",
+      "commit": "f24926c8e7fd231e4cac127532ed642247b222c2",
+      "reason": "DEFERRED-DEPENDENCY-BOARD-HOLD-01: re-admission bypassed a board-owned unblockDescriptor installed after deferral; corrected by accepted child 0e0c1eb without rewriting history"
+    },
+    {
+      "status": "included_in_accepted_descendant",
+      "commit": "89cd827fdb36ede8d12fce16302cf595c88d2ade",
+      "parent": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+      "reason": "native local workspace settlement candidate predecessor; not an accepted STOP custody pin",
+      "accepted_descendant": "aa0cdc262ea5a1d81ef95aa9a7dadc0f981a9e24"
+    },
+    {
+      "status": "rejected",
+      "reviewer": "Sol-6.1 High",
+      "receipt": "state/resumption-20261025/sol-independent-native-workspace-source-review-c9a2ac-rejected.json",
+      "receipt_sha256": "61637bb85bdc2f9228b5ae681f7db7734d2c654a2e6e3442772044729c3ff80a",
+      "commit": "c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343",
+      "reason": "repository-free repeat/run ownership lifecycle and owner-project policy anchoring defects; superseded without rewriting history"
+    },
+    {
+      "status": "superseded_intermediate",
+      "commit": "b00893db62c0e1719f731c94f20c9c70cecfac11",
+      "parent": "c9a2ac81b0c7cdcf6903b2e39ab29b55d9cf9343",
+      "reason": "repeat-run workspace row and stamp could disagree; superseded by unique-root-per-run semantics"
+    },
+    {
+      "status": "superseded_intermediate",
+      "commit": "b89d1f5e82f7275e372087799f21566721814029",
+      "parent": "b00893db62c0e1719f731c94f20c9c70cecfac11",
+      "reason": "interim continuation semantics superseded by per-run roots and final typed provenance"
+    },
+    {
+      "status": "rejected_superseded",
+      "commit": "d560a09538a255c779e4a10b14d41a3114bf10f2",
+      "parent": "44b4a1c13d23094283914b8326c902fea9d0d994",
+      "reason": "nullable trusted-row identity fields could pass as null DTO identities; fixed by accepted child 3eb3e6d"
+    }
+  ],
+  "patch_tree_equivalence": {
+    "status": "verified",
+    "method": "git apply cumulative patch at upstream commit and compare Git tree IDs",
+    "upstream_tree": "547374c4e8abe51ff22b8cecc51644800f794dd6",
+    "derivative_tree": "d01cfc0f7a898dadcc91c99af4e4d4cc72c8a27b"
+  },
+  "prior_accepted_source_review": {
+    "status": "accepted_source_only",
+    "reviewer": "Sol-6.1 High",
+    "receipt": "state/resumption-20261024-mvp/native-dependency-wake-source-independent-review-0e0c1eb.json",
+    "receipt_sha256": "02432d4fa62695822c1cf1334425cdf91797d047cba8372c9db707f49785c813",
+    "commit": "0e0c1eb22c879203337cee9710471c6fd30b00b1",
+    "parent": "f24926c8e7fd231e4cac127532ed642247b222c2",
+    "scope": [
+      "resume the exact deferred issue_blockers_resolved wake after predecessor terminal through existing bounded native queue recovery and admission",
+      "revalidate locked current issue state, assignee, board-owned unblockDescriptor, native dependencies and workspace finalization before dispatch",
+      "preserve company and agent pause, execution uncertainty, same-receipt idempotency and normal maxConcurrentRuns controls"
+    ],
+    "limits": [
+      "exact native source acceptance only; packaging and controlled release require separate review",
+      "synthetic embedded PostgreSQL and mocked adapter only; no live provider, native queue mutation or deployment",
+      "actual paused startup then company resume of the pending MEM13 wake remains an operational acceptance step"
+    ]
+  },
+  "managed_source": {
+    "schema": "paperclip-managed-source-pin-v3",
+    "commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+    "tree": "751c43d00dda1c40b95ac88e5348f34e7f4d77be",
+    "parent": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+    "ancestry": [
+      "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+      "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+      "e169417665e2ef61df18103eecab33701e1b06f5",
+      "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+      "e7075c6660859eed0990f352d525b40356411e6a",
+      "920d2a32fffbe711bc3cb078b9091d6604e55acc",
+      "645bf29bf8deb41f857a970199d58909927635d2",
+      "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7"
+    ],
+    "bundle_manifest": "engineering/paperclip-source-bundles/69cefa8d4887d2a3835668823ff854fce9c95cc2.json",
+    "bundle_sha256": "a8fc52c5440eccb65ffc5b0d94ba93be5207eb8430daf8b9738a67fee9f3ed6f",
+    "accepted_source_reviews": [
+      {
+        "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/recovery-review-final.json",
+        "sha256": "7113f1eb0eb3f72b9ac33e4606fba9102cc182a075b16cbe537b8a7a32950132",
+        "accepted_commit": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+        "status": "accepted_source_only"
+      },
+      {
+        "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/shutdown-review-final.json",
+        "sha256": "fa8d56a8f121cc86f3fa3f95fcce9adfa7e8fa024d7b16ed2f6248bbc89a8626",
+        "accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
+        "status": "accept",
+        "integrated_as": "e169417665e2ef61df18103eecab33701e1b06f5"
+      },
+      {
+        "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/owner-scope-review.json",
+        "sha256": "70639c092646bd1d0b0e85669289b807c416ce6f2102b6f6c8a54c76867f5af5",
+        "accepted_commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+        "status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
+      },
+      {
+        "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/responsible-intersection-review.json",
+        "sha256": "83722a44f3187f6d6adc002a6831f5c739758f39cfce54af33e6d18fca9245c8",
+        "accepted_commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+        "status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
+      }
+    ],
+    "integrated_change": {
+      "original_accepted_commit": "c2b80534d04440dca62e757884fa9a9ae3c5b1b1",
+      "integrated_commit": "e169417665e2ef61df18103eecab33701e1b06f5",
+      "integrated_parent": "15aee8eb62c13d90f8e8e462db6c3b83b33f858b",
+      "subject": "Retry workspace operation insert deadlocks"
+    },
+    "follow_up_source_fix": {
+      "commit": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+      "parent": "e169417665e2ef61df18103eecab33701e1b06f5",
+      "path": "server/src/routes/issues.ts",
+      "change": "Pass scope:{targetAgentId:assigneeAgentId} to the existing tasks:manage_active_checkouts authorization decision in hasActiveCheckoutManagementOverride."
+    },
+    "runtime_acceptance": "pending",
+    "final_follow_up_source_fix": {
+      "commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+      "parent": "1e7d18239e6dac28254e5b44a3959eea63cf0f3b",
+      "paths": [
+        "server/src/services/authorization.ts",
+        "server/src/__tests__/issue-recovery-actions.test.ts"
+      ],
+      "change": "Honor an exact target-scoped explicit agent checkout grant through responsible-user intersection only for an active non-viewer user and a current running issue-bound JWT run; retain existing responsible-user authorization elsewhere.",
+      "review_receipt": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/responsible-intersection-review.json",
+      "review_sha256": "83722a44f3187f6d6adc002a6831f5c739758f39cfce54af33e6d18fca9245c8",
+      "review_status": "ACCEPT_SCOPED_SOURCE_CANDIDATE"
+    }
+  },
+  "active_runtime_source": {
+    "commit": "d06cbd5cd012e178a0e519d329eed36b8943fac9",
+    "tree": "c624850dd50e29ede7061ffa3ac42fb89acca972",
+    "prerequisite_commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
+    "bundle_manifest": "../paperclip-source-bundles/d06cbd5cd012e178a0e519d329eed36b8943fac9.json",
+    "source_review_native_issue": "07ee2fb4-ca6d-4fa7-84fb-42c7dd349f1e",
+    "scope": "Atomic blocked-to-done mutation uses proposed retained dependencies without skipping actor, pause, trust or resume authorization. Historical managed_source remains the previous accepted checkpoint."
+  }
+}
