@@ -36,7 +36,7 @@
       "status": "unaccepted_hold",
       "runtime_admitted": false,
       "patch": "mem-290.patch",
-      "patch_sha256": "fcb662cd9be949ce969a3089dc046d2b38dd23cdabc35c0409b9a99e23a5c3b7",
+      "patch_sha256": "b33f5915be5e695fed00f477e002c457d930d7ad31f483d86c72fbb1bd7d2f4b",
       "exact_after_files": {
         "engineering/paperclip_native_delivery.py": {
           "sha256": "e82ef013d3b813f9e60094e73c56eb5dd51cb6909c99e507a26d395cca0711b9",

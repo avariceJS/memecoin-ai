@@ -4,7 +4,7 @@ index f121294f69f5abd5fc57f9400f32ea356aedc204..6fd2b0b0defa577d8eb4283095e995e8
 +++ b/engineering/paperclip_native_delivery.py
 @@ -3,6 +3,8 @@
  from __future__ import annotations
- 
+
  import argparse
 +import calendar
 +from contextlib import nullcontext
@@ -37,8 +37,8 @@ index f121294f69f5abd5fc57f9400f32ea356aedc204..6fd2b0b0defa577d8eb4283095e995e8
  DELIVERY_PLAN_SCHEMA = "brain-native-delivery-plan-v1"
 @@ -95,6 +114,437 @@ def require(condition: bool, reason: str) -> None:
          raise DeliveryError(reason)
- 
- 
+
+
 +def _compatibility_binding(
 +    api: "Paperclip", task_id: str, manifest: dict[str, Any], manifest_hash: str,
 +    manifest_path: str | None = None, *, require_process_env: bool = True,
@@ -475,8 +475,8 @@ index f121294f69f5abd5fc57f9400f32ea356aedc204..6fd2b0b0defa577d8eb4283095e995e8
          return {"developer": "gpt-6-luna", "qa": "gpt-6-luna"}
 @@ -2346,7 +2796,9 @@ def remote_git(repo: Path, *args: str, github_auth: bool = False) -> bytes:
      return result.stdout
- 
- 
+
+
 -def remote_refs(m: dict[str, Any]) -> dict[str, str]:
 +def remote_refs(
 +    m: dict[str, Any], compatibility: dict[str, Any] | None = None
@@ -497,8 +497,8 @@ index f121294f69f5abd5fc57f9400f32ea356aedc204..6fd2b0b0defa577d8eb4283095e995e8
      for line in raw.decode("ascii").splitlines():
 @@ -2375,17 +2829,21 @@ def check_publication_head(
      )
- 
- 
+
+
 -def push_ref(m: dict[str, Any], source: str, target_ref: str) -> None:
 +def push_ref(m: dict[str, Any], source: str, target_ref: str, expected_old: str | None) -> None:
      c = m["canonical"]
@@ -510,8 +510,8 @@ index f121294f69f5abd5fc57f9400f32ea356aedc204..6fd2b0b0defa577d8eb4283095e995e8
 -    remote_git(repo, "push", c["remote_name"], f"{source}:{target_ref}", github_auth=True)
 +    lease = f"--force-with-lease={target_ref}:{expected_old or ''}"
 +    remote_git(repo, "push", c["remote_name"], lease, f"{source}:{target_ref}", github_auth=True)
- 
- 
+
+
 -def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Paperclip) -> str | None:
 +def predecessor_expected_tip(
 +    m: dict[str, Any], manifest_hash: str, api: Paperclip,
@@ -682,8 +682,8 @@ index f121294f69f5abd5fc57f9400f32ea356aedc204..6fd2b0b0defa577d8eb4283095e995e8
              or refs.get(m["canonical"]["candidate_ref"]) in {None, own_candidate}
 @@ -2592,7 +3144,7 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
      return candidate
- 
- 
+
+
 -def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
 +def publish(m: dict[str, Any], manifest_hash: str, manifest_path: str | None = None) -> dict[str, Any]:
      api = Paperclip(m)
@@ -821,8 +821,8 @@ index f121294f69f5abd5fc57f9400f32ea356aedc204..6fd2b0b0defa577d8eb4283095e995e8
          api,
 @@ -2724,13 +3316,17 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
      }
- 
- 
+
+
 -def publication_expected_tip(m: dict[str, Any], manifest_hash: str, api: Paperclip) -> str:
 +def publication_expected_tip(
 +    m: dict[str, Any], manifest_hash: str, api: Paperclip,
@@ -838,8 +838,8 @@ index f121294f69f5abd5fc57f9400f32ea356aedc204..6fd2b0b0defa577d8eb4283095e995e8
          return expected
 +    require(compatibility is None, "compatibility_predecessor_missing")
      return m["canonical"]["expected_tip"]
- 
- 
+
+
 @@ -2749,7 +3345,7 @@ def main(argv: list[str] | None = None) -> int:
              if args.manifest is None or args.envelope is not None:
                  raise DeliveryError("manifest_required")
@@ -863,8 +863,8 @@ index c88bbe88f1760f3def0168190489375c35109608..908fb07d778b893beb9b32d444dcfb9c
  from pathlib import Path
 @@ -2724,5 +2725,536 @@ class PreparationTests(unittest.TestCase):
          prepare.assert_called_once_with(str(self.envelope_path))
- 
- 
+
+
 +class CompatibilityAuthorizationTests(unittest.TestCase):
 +    def setUp(self) -> None:
 +        self.acceptance = {
