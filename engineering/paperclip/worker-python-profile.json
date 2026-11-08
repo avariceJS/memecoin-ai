@@ -1,0 +1,28 @@
+{
+  "schema": "brain-existing-worker-python-profile-v1",
+  "platform": "darwin-arm64",
+  "purpose": "Source and pins for the existing isolated worker interpreter, not a new installer or release authorization.",
+  "python_version": "3.13.6",
+  "pytest_version": "9.1.1",
+  "sqlite_version": "3.53.4",
+  "launcher_source": "worker-python.sh",
+  "launcher_sha256": "970fe13e9e03ed37e0e771d33bd119ebd3b535aae15f9936a0be4782fab20e14",
+  "layout": {
+    "framework": ".runtime/Python.framework",
+    "libraries": ".runtime/lib",
+    "development_packages": ".runtime/site-packages",
+    "launcher": ".runtime/python"
+  },
+  "sqlite_library_sha256": "6b8bb64feced74cd0766990ad5e089566be6fec655a6c96d4cc1358325afb35a",
+  "ssl_library_sha256": {
+    "libssl.3.dylib": "c6ee373222087cf31bc2f3817537d268b3c23e56b7fadd44bbf5c2317caed349",
+    "libcrypto.3.dylib": "bae675614cd791d37ec35416ea9f87edcc85407d020810504cf458119b63522c"
+  },
+  "development_requirements": "../../requirements-dev.lock",
+  "restore": "Connect the existing qualified .runtime capsule from the single private runtime store, or reconstruct dependencies from pinned Python/development packages on the owner host and qualify the replacement under the existing native sandbox before admission. No old Git bundle is required.",
+  "seed_rule": "The private independent worker seed tracks this execution capsule so native Git worktrees receive their own interpreter. Do not add the capsule to the canonical GitHub repository. Keep no remotes, credentials, model/data artifacts or alternates to canonical Git in the seed.",
+  "limitations": [
+    "No new machine or alternate architecture runtime qualification performed by consolidation.",
+    "This source profile never starts models, collectors, training or trading."
+  ]
+}

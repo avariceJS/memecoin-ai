@@ -3297,6 +3297,120 @@ def _cleanup_batch_candidate(m: dict[str, Any], candidate: str) -> None:
         require(remote_refs(m).get(candidate_ref) is None, "batch_cleanup_readback_failed")
 
 
+def _advance_batch_workspace_bases(
+    api: Paperclip, policy: dict[str, Any], acceptance: dict[str, Any], parent_id: str
+) -> dict[str, Any]:
+    """Enable the existing native cleanup sweep; never delete a workspace here."""
+    summary: dict[str, Any] = {
+        "status": "pending_native_cleanup",
+        "updated": [],
+        "already_current": [],
+        "deferred": [],
+    }
+    issue_ids = [*acceptance["source_task_ids"], parent_id]
+    seed = Path(policy["source_seed_repo"]).resolve()
+    canonical = Path(policy["canonical"]["repo"]).resolve()
+    assembled = acceptance["assembled_tip"]
+    try:
+        parent = api.issue(parent_id)
+        require(
+            parent.get("id") == parent_id
+            and parent.get("companyId") == policy["company_id"]
+            and parent.get("status") == "done",
+            "workspace_parent_not_done",
+        )
+        _check_batch_hold(parent)
+        api.no_pending(parent_id)
+        common = Path(
+            git(seed, "rev-parse", "--path-format=absolute", "--git-common-dir").decode().strip()
+        ).resolve()
+        require(common == (seed / ".git").resolve(), "workspace_seed_not_git_root")
+        require(
+            git(seed, "rev-parse", f"{assembled}^{{commit}}").decode().strip() == assembled,
+            "workspace_assembled_missing",
+        )
+        registered = {
+            Path(os.fsdecode(row.removeprefix(b"worktree "))).resolve()
+            for row in git(seed, "worktree", "list", "--porcelain", "-z").split(b"\0")
+            if row.startswith(b"worktree ")
+        }
+    except (DeliveryError, publisher.CanonicalPublishError, OSError, ValueError) as exc:
+        summary["deferred"] = [{"issue_id": key, "reason": str(exc)} for key in issue_ids]
+        return summary
+    for issue_id in issue_ids:
+        try:
+            issue = api.issue(issue_id)
+            require(
+                issue.get("id") == issue_id
+                and issue.get("companyId") == policy["company_id"]
+                and issue.get("status") == "done",
+                "workspace_issue_not_done",
+            )
+            _check_batch_hold(issue)
+            api.no_pending(issue_id)
+            workspace_id = issue.get("executionWorkspaceId")
+            require(
+                type(workspace_id) is str and UUID.fullmatch(workspace_id),
+                "workspace_identity_missing",
+            )
+            workspace = api.request("GET", f"/execution-workspaces/{workspace_id}")
+            require(
+                type(workspace) is dict
+                and workspace.get("id") == workspace_id
+                and workspace.get("companyId") == policy["company_id"]
+                and workspace.get("sourceIssueId") == issue_id
+                and issue.get("projectId") is not None
+                and workspace.get("projectId") == issue["projectId"],
+                "workspace_identity_mismatch",
+            )
+            require(
+                workspace.get("mode") == "isolated_workspace"
+                and workspace.get("strategyType") == "git_worktree"
+                and workspace.get("providerType") == "git_worktree"
+                and workspace.get("status") not in {"archived", "cleanup_failed"},
+                "workspace_not_active_isolated_git",
+            )
+            cwd = safe_dir(workspace.get("cwd"), "workspace_cleanup").resolve()
+            require(
+                cwd != seed and cwd != canonical and cwd.is_relative_to(seed) and cwd in registered,
+                "workspace_not_registered_seed_child",
+            )
+            require(
+                workspace.get("providerRef") in {None, str(cwd)}, "workspace_provider_path_mismatch"
+            )
+            workspace_common = Path(
+                git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir").decode().strip()
+            ).resolve()
+            require(workspace_common == common, "workspace_git_common_dir_mismatch")
+            head = git(cwd, "rev-parse", "HEAD").decode().strip()
+            try:
+                git(seed, "merge-base", "--is-ancestor", head, assembled)
+            except publisher.CanonicalPublishError as exc:
+                raise DeliveryError("workspace_head_not_in_assembled") from exc
+            previous = workspace.get("baseRef")
+            require(
+                previous in {acceptance["source_base_sha"], assembled}, "workspace_base_changed"
+            )
+            if previous == assembled:
+                summary["already_current"].append(workspace_id)
+                continue
+            # This only changes the comparison base. Native lifecycle checks still
+            # own dirty/active/terminal/cooldown/generation checks and actual removal.
+            api.request("PATCH", f"/execution-workspaces/{workspace_id}", {"baseRef": assembled})
+            readback = api.request("GET", f"/execution-workspaces/{workspace_id}")
+            require(
+                type(readback) is dict
+                and readback.get("id") == workspace_id
+                and readback.get("companyId") == policy["company_id"]
+                and readback.get("baseRef") == assembled,
+                "workspace_base_readback_failed",
+            )
+            summary["updated"].append(workspace_id)
+        except (DeliveryError, publisher.CanonicalPublishError, OSError, ValueError) as exc:
+            summary["deferred"].append({"issue_id": issue_id, "reason": str(exc)})
+    return summary
+
+
 def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     m = {
         "api_origin": policy["api_origin"],
@@ -3519,6 +3633,9 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
                 "files": len(acceptance["files"]),
                 "parent_closed": close_parent,
                 "receipt": str(receipt_path),
+                "workspace_cleanup": _advance_batch_workspace_bases(
+                    api, policy, acceptance, parent_id
+                ),
             }
     else:
         source_repo = Path(policy["source_seed_repo"])
@@ -3677,6 +3794,15 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
         "files": len(acceptance["files"]),
         "parent_closed": close_parent,
         "receipt": str(receipt_path),
+        **(
+            {
+                "workspace_cleanup": _advance_batch_workspace_bases(
+                    api, policy, acceptance, parent_id
+                )
+            }
+            if close_parent
+            else {}
+        ),
     }
 
 

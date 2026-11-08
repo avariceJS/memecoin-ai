@@ -1002,3 +1002,200 @@ def test_publish_batch_rejects_wrong_native_source_run_identity(tmp_path, monkey
     with pytest.raises(delivery.DeliveryError, match="latest_task_run_not_successful"):
         _run_batch(monkeypatch, fake_api, policy, "f" * 64, PROCESS_RUN_1)
     assert git(canonical, "rev-parse", branch) == base
+
+
+@pytest.fixture
+def workspace_cleanup_case(tmp_path):
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    subprocess.run([GIT_BIN, "init", "-q", "-b", "develop", str(seed)], check=True)
+    (seed / ".gitignore").write_text("tasks/\n")
+    (seed / "module.py").write_text("value = 1\n")
+    base = _commit_repo(seed, "source base")
+    source = seed / "tasks/source"
+    subprocess.run(
+        [GIT_BIN, "-C", str(seed), "worktree", "add", "-q", "-b", "source-task", str(source), base],
+        check=True,
+    )
+    (source / "module.py").write_text("value = 2\n")
+    assembled = _commit_repo(source, "accepted source")
+    git(seed, "merge", "--ff-only", "source-task")
+    workspace_id = "e0000000-1111-4111-8111-111111111111"
+    issue = {
+        "id": SOURCE_TASK,
+        "companyId": COMPANY,
+        "projectId": "project-one",
+        "status": "done",
+        "executionWorkspaceId": workspace_id,
+    }
+    workspace = {
+        "id": workspace_id,
+        "companyId": COMPANY,
+        "projectId": "project-one",
+        "sourceIssueId": SOURCE_TASK,
+        "mode": "isolated_workspace",
+        "strategyType": "git_worktree",
+        "providerType": "git_worktree",
+        "status": "active",
+        "cwd": str(source),
+        "providerRef": str(source),
+        "baseRef": base,
+    }
+
+    class Api:
+        patches = []
+        deny = False
+        parent_issue = {"id": BATCH, "companyId": COMPANY, "status": "done"}
+
+        def issue(self, issue_id):
+            return dict(issue) if issue_id == SOURCE_TASK else dict(self.parent_issue)
+
+        def no_pending(self, issue_id):
+            pass
+
+        def request(self, method, route, body=None):
+            assert route.startswith("/execution-workspaces/")
+            selected = self.workspaces[route.rsplit("/", 1)[1]]
+            if self.deny:
+                raise delivery.DeliveryError("paperclip_request_failed")
+            if method == "PATCH":
+                assert body == {"baseRef": assembled}
+                self.patches.append(dict(body))
+                selected.update(body)
+            else:
+                assert method == "GET"
+            return dict(selected)
+
+    api = Api()
+    api.patches = []
+    api.workspaces = {workspace_id: workspace}
+    policy = {
+        "company_id": COMPANY,
+        "source_seed_repo": str(seed),
+        "canonical": {"repo": str(tmp_path / "canonical")},
+    }
+    accepted = {
+        "source_task_ids": [SOURCE_TASK],
+        "source_base_sha": base,
+        "assembled_tip": assembled,
+    }
+    return api, policy, accepted, issue, workspace, seed, source
+
+
+def test_workspace_cleanup_advances_native_base_without_git_or_filesystem_mutation(
+    workspace_cleanup_case,
+):
+    api, policy, accepted, _, workspace, seed, source = workspace_cleanup_case
+    before_head = git(source, "rev-parse", "HEAD")
+    before_file = (source / "module.py").read_bytes()
+    first = delivery._advance_batch_workspace_bases(api, policy, accepted, BATCH)
+    assert first["status"] == "pending_native_cleanup"
+    assert first["updated"] == [workspace["id"]]
+    assert first["deferred"] == [{"issue_id": BATCH, "reason": "workspace_identity_missing"}]
+    assert api.patches == [{"baseRef": accepted["assembled_tip"]}]
+    second = delivery._advance_batch_workspace_bases(api, policy, accepted, BATCH)
+    assert second["updated"] == [] and second["already_current"] == [workspace["id"]]
+    assert len(api.patches) == 1
+    assert source.exists() and git(source, "rev-parse", "HEAD") == before_head
+    assert (source / "module.py").read_bytes() == before_file
+    assert git(seed, "rev-parse", "HEAD") == accepted["assembled_tip"]
+
+
+@pytest.mark.parametrize(
+    "change,reason",
+    [
+        ("shared", "workspace_not_active_isolated_git"),
+        ("active_issue", "workspace_issue_not_done"),
+        ("hold", "batch_task_has_hold"),
+        ("different_company", "workspace_identity_mismatch"),
+        ("different_project", "workspace_identity_mismatch"),
+        ("base_changed", "workspace_base_changed"),
+        ("outside", "workspace_not_registered_seed_child"),
+        ("wrong_repo", "workspace_not_registered_seed_child"),
+        ("nonancestor", "workspace_head_not_in_assembled"),
+        ("denied", "paperclip_request_failed"),
+    ],
+)
+def test_workspace_cleanup_defers_unproven_workspace(
+    workspace_cleanup_case, tmp_path, change, reason
+):
+    api, policy, accepted, issue, workspace, seed, source = workspace_cleanup_case
+    if change == "shared":
+        workspace["mode"] = "shared_workspace"
+    elif change == "active_issue":
+        issue["status"] = "in_progress"
+    elif change == "hold":
+        issue["manualHold"] = True
+    elif change == "different_company":
+        workspace["companyId"] = "other-company"
+    elif change == "different_project":
+        workspace["projectId"] = "other-project"
+    elif change == "base_changed":
+        workspace["baseRef"] = "refs/heads/user-choice"
+    elif change in {"outside", "wrong_repo"}:
+        path = tmp_path / "outside" if change == "outside" else seed / "tasks/wrong-repository"
+        path.mkdir(parents=True)
+        subprocess.run([GIT_BIN, "init", "-q", str(path)], check=True)
+        workspace.update(cwd=str(path), providerRef=str(path))
+    elif change == "nonancestor":
+        (source / "module.py").write_text("unaccepted followup = True\n")
+        _commit_repo(source, "unaccepted later source work")
+    elif change == "denied":
+        api.deny = True
+    original_base = workspace["baseRef"]
+    result = delivery._advance_batch_workspace_bases(api, policy, accepted, BATCH)
+    assert result["updated"] == [] and api.patches == []
+    source_reason = next(
+        item["reason"] for item in result["deferred"] if item["issue_id"] == SOURCE_TASK
+    )
+    assert reason in source_reason
+    assert workspace["baseRef"] == original_base
+    assert source.exists()
+
+
+def test_workspace_cleanup_includes_parent_lead_worktree(workspace_cleanup_case):
+    api, policy, accepted, _, workspace, seed, _ = workspace_cleanup_case
+    lead = seed / "tasks/lead"
+    subprocess.run(
+        [
+            GIT_BIN,
+            "-C",
+            str(seed),
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "lead-task",
+            str(lead),
+            accepted["assembled_tip"],
+        ],
+        check=True,
+    )
+    lead_id = "f0000000-1111-4111-8111-111111111111"
+    api.parent_issue = {
+        "id": BATCH,
+        "companyId": COMPANY,
+        "status": "done",
+        "projectId": "project-one",
+        "executionWorkspaceId": lead_id,
+    }
+    api.workspaces[lead_id] = {
+        **workspace,
+        "id": lead_id,
+        "sourceIssueId": BATCH,
+        "cwd": str(lead),
+        "providerRef": str(lead),
+    }
+    result = delivery._advance_batch_workspace_bases(api, policy, accepted, BATCH)
+    assert result["updated"] == [workspace["id"], lead_id]
+    assert result["deferred"] == [] and len(api.patches) == 2
+    assert lead.exists()
+
+
+def test_workspace_cleanup_defers_entire_batch_if_parent_reopened_or_held(workspace_cleanup_case):
+    api, policy, accepted, _, _, _, source = workspace_cleanup_case
+    for changed in ({"status": "in_progress"}, {"manualHold": True}):
+        api.parent_issue = {"id": BATCH, "companyId": COMPANY, "status": "done", **changed}
+        result = delivery._advance_batch_workspace_bases(api, policy, accepted, BATCH)
+        assert result["updated"] == [] and len(result["deferred"]) == 2
+        assert api.patches == [] and source.exists()
