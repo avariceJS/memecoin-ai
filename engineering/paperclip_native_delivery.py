@@ -32,13 +32,13 @@ BATCH_POLICY_SCHEMA = "brain-native-batch-publisher-policy-v1"
 BATCH_ACCEPTANCE_SCHEMA = "brain-luna-batch-acceptance-v1"
 BATCH_ACCEPTANCE_V2_SCHEMA = "brain-luna-batch-acceptance-v2"
 BATCH_RECEIPT_SCHEMA = "brain-native-batch-publication-receipt-v1"
-PUBLISH_REF = "refs/heads/brain/development"
+PUBLISH_REF = "refs/heads/develop"
 PROCESS_WORKSPACE_IDS = {
     "stage": "bb6956ed-1210-48a0-8e6a-b28f584855fc",
     "publish": "3a62ff9a-ff85-499f-b5e9-de265565d669",
 }
 GIT = "/usr/bin/git"
-ORG_ROOT = Path("/Users/root1/Developer/brain-org-build")
+ORG_ROOT = Path(__file__).resolve().parents[1]
 GH_HELPER = "!/opt/homebrew/bin/gh auth git-credential"
 GH_CONFIG_DIR = "/Users/root1/.config/gh"
 GH_OWNER_HOME = "/Users/root1"
@@ -3271,6 +3271,32 @@ def _close_batch_parent(
     )
 
 
+def _cleanup_batch_candidate(m: dict[str, Any], candidate: str) -> None:
+    """Delete only this completed batch's redundant remote ref, using a normal push."""
+    canonical = m["canonical"]
+    candidate_ref = canonical["candidate_ref"]
+    require(
+        canonical["ref"] == PUBLISH_REF
+        and candidate_ref.startswith("refs/heads/brain/batch-")
+        and UUID.fullmatch(candidate_ref.removeprefix("refs/heads/brain/batch-")),
+        "batch_cleanup_ref_invalid",
+    )
+    refs = remote_refs(m)
+    tip = refs.get(canonical["ref"])
+    require(type(tip) is str and OID.fullmatch(tip), "batch_cleanup_canonical_missing")
+    repo = Path(canonical["repo"])
+    require(
+        git(repo, "rev-parse", canonical["ref"]).decode().strip() == tip,
+        "batch_cleanup_canonical_mismatch",
+    )
+    publisher._git(repo, "merge-base", "--is-ancestor", candidate, tip)
+    require(refs.get(candidate_ref) in {None, candidate}, "batch_cleanup_ref_changed")
+    if refs.get(candidate_ref) is not None:
+        # This UUID ref is owned solely by this batch; no force push or shared ref deletion.
+        push_ref(m, "", candidate_ref)
+        require(remote_refs(m).get(candidate_ref) is None, "batch_cleanup_readback_failed")
+
+
 def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     m = {
         "api_origin": policy["api_origin"],
@@ -3413,14 +3439,17 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
             refs = remote_refs(m)
             require(
                 type(candidate) is str
-                and refs.get(canonical["ref"]) == candidate
-                and refs.get(candidate_ref) == candidate
-                and git(repo, "rev-parse", canonical["ref"]).decode().strip() == candidate,
+                and refs.get(canonical["ref"])
+                == git(repo, "rev-parse", canonical["ref"]).decode().strip()
+                and refs.get(candidate_ref) in {None, candidate},
                 "batch_done_publication_refs_invalid",
             )
-            publisher.inspect(
-                repo, canonical["ref"], receipt, allowed_paths=list(acceptance["files"])
+            # A completed batch may be behind newer accepted develop commits. Validate
+            # its immutable candidate without reapplying an old tree or changing its receipt.
+            publisher._check_candidate(
+                repo, canonical["ref"], receipt, publisher._paths(list(acceptance["files"]))
             )
+            publisher._git(repo, "merge-base", "--is-ancestor", candidate, canonical["ref"])
             docs = api.request("GET", f"/issues/{own_id}/documents?includeSystem=true")
             require(
                 type(docs) is list and all(type(item) is dict for item in docs),
@@ -3469,6 +3498,28 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
                 and current_doc.get("latestRevisionId") == matching_docs[0]["latestRevisionId"],
                 "batch_done_receipt_conflict",
             )
+            _close_batch_parent(
+                api,
+                policy,
+                parent_id,
+                own_id,
+                lead_id,
+                source_ids,
+                revision_id,
+                body_sha,
+                current_doc["body"],
+            )
+            api.complete(own_id)
+            _cleanup_batch_candidate(m, candidate)
+            return {
+                "status": "published",
+                "batch_task_id": parent_id,
+                "candidate_sha": candidate,
+                "expected_tip": expected,
+                "files": len(acceptance["files"]),
+                "parent_closed": close_parent,
+                "receipt": str(receipt_path),
+            }
     else:
         source_repo = Path(policy["source_seed_repo"])
         old, new, contents = _batch_source(acceptance, source_repo, repo, expected)
@@ -3616,6 +3667,8 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
             receipt_body_text,
         )
     api.complete(own_id)
+    if close_parent:
+        _cleanup_batch_candidate(m, candidate)
     return {
         "status": "published",
         "batch_task_id": parent_id,

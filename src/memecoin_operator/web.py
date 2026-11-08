@@ -989,12 +989,14 @@ function renderHost(d) {
   if (power.source) powerBits.push(String(power.source));
   if (power.percent != null) powerBits.push(power.percent + "%");
   const powerText = powerBits.length ? esc(powerBits.join(" · ")) : (power.reason ? esc(String(power.reason)) : miss("неизвестно"));
+  const linuxService = typeof op.label === "string" && op.label.endsWith(".service");
   const rows = [
     ["Кэш", ageText],
     ["Причина снимка", host.reason ? esc(String(host.reason)) : "—"],
     ["Диск", diskText],
     ["Питание", powerText],
-    ["LaunchAgent loaded", triState(op.loaded, "да", "нет")],
+    [linuxService ? "Systemd unit " + esc(op.label) + " loaded" : "LaunchAgent loaded", triState(op.loaded, "да", "нет")],
+    ...(linuxService ? [["Состояние сервиса", op.state ? esc(String(op.state)) : miss("неизвестно")], ["Unit file", op.unit_file_state ? esc(String(op.unit_file_state)) : miss("неизвестно")]] : []),
     ["Расположение", op.disposition ? esc(String(op.disposition)) : miss("неизвестно")],
     ["Процесс, с", up.process_s == null ? (up.process_reason ? esc(String(up.process_reason)) : miss("неизвестно")) : esc(up.process_s)],
     ["Загрузка машины, с", up.boot_s == null ? (up.boot_reason ? esc(String(up.boot_reason)) : miss("неизвестно")) : esc(Math.round(Number(up.boot_s)))]

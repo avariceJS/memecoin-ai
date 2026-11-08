@@ -20,7 +20,7 @@ smoke:
 	$(VENV)/python tools/smoke.py
 
 build:
-	$(VENV)/python -m build
+	$(VENV)/python tools/build_distribution.py
 
 # Explicit controller release gate; the default Brain package checks do not include engineering/.
 engineering-release-check:

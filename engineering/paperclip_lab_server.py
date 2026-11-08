@@ -107,7 +107,7 @@ PAPERCLIP_CLEANUP_ONLY_PINS = PAPERCLIP_STOP_CUSTODY_PINS | frozenset(
         "15f93e91bd7a561e6b4c3460ccd619923e15165b",
     }
 )
-DEFAULT_LAB_ROOT = Path("/Users/root1/Developer/brain-paperclip-lab")
+DEFAULT_LAB_ROOT = Path.home() / "Developer" / "memecoin-runtime"
 PORT = 3310
 HEALTH_URL = f"http://127.0.0.1:{PORT}/api/health"
 PID_FILENAME = "paperclip-lab-server.pid.json"
@@ -499,7 +499,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("start", "status", "stop"))
     parser.add_argument("--lab-root", type=Path, default=DEFAULT_LAB_ROOT)
-    parser.add_argument("--node", type=Path, default=Path("/Users/root1/.local/bin/node"))
+    parser.add_argument("--node", type=Path, default=Path.home() / ".local" / "bin" / "node")
     args = parser.parse_args(argv)
     paths = LabPaths.resolve(args.lab_root)
     try:

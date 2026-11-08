@@ -30,8 +30,6 @@
     "043f2514e67c50320433a0013fb228a75a51325c"
   ],
   "derivative_commit": "3eb3e6d50b91707bb6c06b7dfef9a608643f87fd",
-  "patch": "managed-codex-isolation-3eb.patch",
-  "patch_sha256": "e5280d26ea3243483f88cce9c15457eae50f1ec1930de39f1f6412827880368e",
   "source_review": {
     "status": "accepted_source_only",
     "reviewer": "Sol-6.1 High",
@@ -390,8 +388,6 @@
       "645bf29bf8deb41f857a970199d58909927635d2",
       "b31d6598dd93d4e597874b5e4b12c2e3e0127eb7"
     ],
-    "bundle_manifest": "engineering/paperclip-source-bundles/69cefa8d4887d2a3835668823ff854fce9c95cc2.json",
-    "bundle_sha256": "a8fc52c5440eccb65ffc5b0d94ba93be5207eb8430daf8b9738a67fee9f3ed6f",
     "accepted_source_reviews": [
       {
         "path": "/Users/root1/Developer/brain-paperclip-lab/state/scaling-20261030/recovery-review-final.json",
@@ -449,8 +445,19 @@
     "commit": "d06cbd5cd012e178a0e519d329eed36b8943fac9",
     "tree": "c624850dd50e29ede7061ffa3ac42fb89acca972",
     "prerequisite_commit": "69cefa8d4887d2a3835668823ff854fce9c95cc2",
-    "bundle_manifest": "../paperclip-source-bundles/d06cbd5cd012e178a0e519d329eed36b8943fac9.json",
     "source_review_native_issue": "07ee2fb4-ca6d-4fa7-84fb-42c7dd349f1e",
     "scope": "Atomic blocked-to-done mutation uses proposed retained dependencies without skipping actor, pause, trust or resume authorization. Historical managed_source remains the previous accepted checkpoint."
-  }
+  },
+  "reproducible_source": {
+    "format": "git-fast-export-gzip-v1",
+    "file": "source.fast-export.gz",
+    "sha256": "b79ef2ecf1406a8ecbc06d7aa924fcf7070bebb86ad4eaa68430cfdd1cc1501c",
+    "bytes": 5134223,
+    "upstream_commit": "043f2514e67c50320433a0013fb228a75a51325c",
+    "commit": "d06cbd5cd012e178a0e519d329eed36b8943fac9",
+    "tree": "c624850dd50e29ede7061ffa3ac42fb89acca972",
+    "branch": "brain/development-managed-codex",
+    "custom_commit_count": 44
+  },
+  "source_distribution": "The exact admitted custom history is reconstructed from pinned upstream plus reproducible_source; historical review records below are evidence, not alternate installation inputs."
 }

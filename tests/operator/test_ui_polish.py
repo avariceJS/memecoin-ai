@@ -98,6 +98,14 @@ def test_page_keeps_security_and_operator_language():
     assert "prefers-reduced-motion" in PAGE
 
 
+def test_linux_host_projection_names_systemd_state():
+    source = PAGE
+    assert 'op.label.endsWith(".service")' in source
+    assert '"Systemd unit " + esc(op.label) + " loaded"' in source
+    assert '"Состояние сервиса"' in source
+    assert '"Unit file"' in source
+
+
 def _status() -> dict:
     second = NOW // NS
     return {

@@ -1,0 +1,386 @@
+"""Linux systemd unit rendering stays inert and bounded to the lab paths."""
+
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+from memecoin_operator import linux_service
+from memecoin_operator.linux_service import CODE_ROOT, STATE_BASE, render_unit
+
+
+def test_render_is_manual_sandboxed_and_state_scoped(tmp_path):
+    python = tmp_path / "venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    unit = render_unit(python, STATE_BASE / "operator", 18792)
+    assert "User=brain" in unit
+    assert "PrivateNetwork=yes" in unit
+    assert "ProtectSystem=strict" in unit
+    assert f"WorkingDirectory={CODE_ROOT}" in unit
+    assert f"ReadWritePaths={STATE_BASE}" in unit
+    assert "Restart=no" in unit
+    assert "ExecStart=/" in unit and " -B -I -m memecoin_operator.runtime " in unit
+    assert "[Install]" not in unit
+    assert "WantedBy=multi-user.target" not in unit
+    assert "systemctl enable" not in unit
+    assert "systemctl start" not in unit
+
+
+def test_render_can_scope_writes_to_one_release_state(tmp_path):
+    python = tmp_path / "venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    state_root = STATE_BASE / "release-1" / "operator"
+    unit = render_unit(
+        python,
+        state_root,
+        18792,
+        readwrite_path=state_root,
+    )
+    assert f"ReadWritePaths={state_root}" in unit
+
+
+def test_render_can_omit_broad_state_directory_for_attached_state(tmp_path):
+    python = tmp_path / "venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    attachment_root = STATE_BASE / "attachments" / "x" / "operator"
+    unit = render_unit(
+        python,
+        attachment_root,
+        21001,
+        readwrite_path=attachment_root,
+        state_directory=False,
+    )
+    assert "StateDirectory=" not in unit
+    assert "ReadWritePaths=" + str(attachment_root) in unit
+
+
+def test_render_release_v2_uses_only_the_private_operator_directory(tmp_path):
+    release_id = "a" * 64
+    code_root = Path("/opt/brain/releases") / release_id
+    state_base = Path("/var/lib/brain-release-state")
+    state_root = state_base / release_id / "operator"
+    prepared_python = tmp_path / "prepared-python"
+    prepared_python.write_text("", encoding="utf-8")
+    prepared_python.chmod(0o755)
+    unit = render_unit(
+        code_root / "venv/bin/python",
+        state_root,
+        18792,
+        code_root=code_root,
+        readwrite_path=state_root,
+        state_directory=False,
+        state_base=state_base,
+        home=state_root,
+        state_layout="release-v2",
+        prepared_python=prepared_python,
+    )
+    assert f"Environment=HOME={state_root}" in unit
+    assert f"ReadWritePaths={state_root}" in unit
+    assert "StateDirectory=" not in unit
+
+
+def test_render_release_v2_rejects_broad_state_or_unpinned_python(tmp_path):
+    release_id = "a" * 64
+    code_root = Path("/opt/brain/releases") / release_id
+    state_base = Path("/var/lib/brain-release-state")
+    state_root = state_base / release_id / "operator"
+    prepared_python = tmp_path / "prepared-python"
+    prepared_python.write_text("", encoding="utf-8")
+    prepared_python.chmod(0o755)
+    with pytest.raises(ValueError, match="invalid_release_v2_unit_paths"):
+        render_unit(
+            code_root / "venv/bin/python",
+            state_root,
+            18792,
+            code_root=code_root,
+            readwrite_path=state_base / release_id,
+            state_directory=False,
+            state_base=state_base,
+            home=state_root,
+            state_layout="release-v2",
+            prepared_python=prepared_python,
+        )
+    with pytest.raises(ValueError, match="python_not_executable"):
+        render_unit(
+            code_root / "venv/bin/python",
+            state_root,
+            18792,
+            code_root=code_root,
+            readwrite_path=state_root,
+            state_directory=False,
+            state_base=state_base,
+            home=state_root,
+            state_layout="release-v2",
+        )
+
+
+def test_render_handoff_v1_pins_release_and_generation_state(tmp_path):
+    release_id = "a" * 64
+    code_root = Path("/opt/brain/releases") / release_id
+    state_base = Path("/var/lib/brain-installations")
+    state_root = state_base / "night-lab" / "generations" / ("b" * 64) / "operator"
+    prepared_python = tmp_path / "prepared-python"
+    prepared_python.write_text("", encoding="utf-8")
+    prepared_python.chmod(0o755)
+    unit = render_unit(
+        code_root / "venv/bin/python",
+        state_root,
+        28792,
+        code_root=code_root,
+        readwrite_path=state_root,
+        state_directory=False,
+        state_base=state_base,
+        home=state_root,
+        state_layout="handoff-v1",
+        prepared_python=prepared_python,
+    )
+    assert f"WorkingDirectory={code_root}" in unit
+    assert f"Environment=HOME={state_root}" in unit
+    assert f"ReadWritePaths={state_root}" in unit
+    assert "PrivateNetwork=yes" in unit
+    assert "Restart=no" in unit
+    assert "StateDirectory=" not in unit
+
+
+def test_render_handoff_v1_rejects_broad_state(tmp_path):
+    release_id = "a" * 64
+    code_root = Path("/opt/brain/releases") / release_id
+    state_base = Path("/var/lib/brain-installations")
+    state_root = state_base / "night-lab" / "generations" / ("b" * 64) / "operator"
+    prepared_python = tmp_path / "prepared-python"
+    prepared_python.write_text("", encoding="utf-8")
+    prepared_python.chmod(0o755)
+    with pytest.raises(ValueError, match="invalid_handoff_v1_unit_paths"):
+        render_unit(
+            code_root / "venv/bin/python",
+            state_root,
+            28792,
+            code_root=code_root,
+            readwrite_path=state_base,
+            state_directory=False,
+            state_base=state_base,
+            home=state_root,
+            state_layout="handoff-v1",
+            prepared_python=prepared_python,
+        )
+
+
+def test_render_rejects_write_scope_outside_lab(tmp_path):
+    python = tmp_path / "venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    with pytest.raises(ValueError, match="readwrite_path_outside_lab"):
+        render_unit(
+            python,
+            STATE_BASE / "operator",
+            18792,
+            readwrite_path=Path("/var/lib/brain-data"),
+        )
+
+
+@pytest.mark.parametrize(
+    ("python", "state_root", "port", "reason"),
+    [
+        ("relative/python", str(STATE_BASE / "operator"), 18792, "invalid_python_path"),
+        ("/no/such/python", str(STATE_BASE / "operator"), 18792, "python_not_executable"),
+        ("/usr/bin/python3", "/var/lib/brain/operator", 18792, "state_root_outside_lab"),
+        ("/usr/bin/python3", str(STATE_BASE), 18792, "invalid_port_or_state_root"),
+        ("/usr/bin/python3", str(STATE_BASE / "operator"), 80, "invalid_port_or_state_root"),
+        ("/usr/bin/python3", "/var/lib/brain-lab/../brain", 18792, "invalid_state_root"),
+    ],
+)
+def test_rejects_unsafe_paths_and_ports(python, state_root, port, reason):
+    with pytest.raises(ValueError, match=reason):
+        render_unit(Path(python), Path(state_root), port)
+
+
+def test_install_only_reloads_and_leaves_unit_static(tmp_path, monkeypatch):
+    python = tmp_path / "venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    unit_path = tmp_path / "memecoin-brain-lab.service"
+    monkeypatch.setattr(linux_service, "UNIT_PATH", unit_path)
+    monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
+    calls = []
+
+    statuses = iter(
+        [
+            "LoadState=not-found\nActiveState=inactive\nUnitFileState=\nMainPID=0\n",
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=static\nMainPID=0\n",
+        ]
+    )
+
+    def run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        if argv[1] == "show":
+            return SimpleNamespace(returncode=0, stdout=next(statuses), stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(linux_service.subprocess, "run", run)
+    text = render_unit(python, STATE_BASE / "operator", 18792)
+    linux_service.install(text, unit_path=unit_path)
+    assert unit_path.read_text(encoding="utf-8") == text
+    assert unit_path.stat().st_mode & 0o777 == 0o644
+    commands = [call[0] for call in calls]
+    assert commands == [
+        [
+            "systemctl",
+            "show",
+            "--no-pager",
+            "--property=LoadState,ActiveState,UnitFileState,MainPID",
+            linux_service.UNIT,
+        ],
+        ["systemctl", "daemon-reload"],
+        [
+            "systemctl",
+            "show",
+            "--no-pager",
+            "--property=LoadState,ActiveState,UnitFileState,MainPID",
+            linux_service.UNIT,
+        ],
+    ]
+
+
+def test_install_refuses_to_replace_active_unit(tmp_path, monkeypatch):
+    python = tmp_path / "venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    unit_path = tmp_path / "memecoin-brain-lab.service"
+    monkeypatch.setattr(linux_service, "UNIT_PATH", unit_path)
+    monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(
+        linux_service.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0,
+            stdout="LoadState=loaded\nActiveState=active\nUnitFileState=static\nMainPID=42\n",
+            stderr="",
+        ),
+    )
+    with pytest.raises(RuntimeError, match="refusing_to_replace_active_unit"):
+        linux_service.install("[Service]\n", unit_path=unit_path)
+    assert not unit_path.exists()
+
+
+@pytest.mark.parametrize(
+    ("status", "reason"),
+    [
+        (
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=enabled\nMainPID=0\n",
+            "refusing_to_replace_nonstatic_unit",
+        ),
+        (
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=static\nMainPID=0\nMainPID=0\n",
+            "systemctl_status_malformed",
+        ),
+    ],
+)
+def test_install_refuses_unsafe_existing_state_before_write(tmp_path, monkeypatch, status, reason):
+    path = tmp_path / linux_service.UNIT
+    monkeypatch.setattr(linux_service, "UNIT_PATH", path)
+    monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(
+        linux_service.subprocess,
+        "run",
+        lambda *_a, **_k: SimpleNamespace(returncode=0, stdout=status, stderr=""),
+    )
+    with pytest.raises(RuntimeError, match=reason):
+        linux_service.install("new unit", unit_path=path)
+    assert not path.exists()
+
+
+def test_install_status_command_failure_fails_closed(tmp_path, monkeypatch):
+    path = tmp_path / linux_service.UNIT
+    monkeypatch.setattr(linux_service, "UNIT_PATH", path)
+    monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(
+        linux_service.subprocess,
+        "run",
+        lambda *_a, **_k: SimpleNamespace(returncode=1, stdout="", stderr="unavailable"),
+    )
+    with pytest.raises(RuntimeError, match="systemctl_status_failed"):
+        linux_service.install("new unit", unit_path=path)
+    assert not path.exists()
+
+
+def test_install_rolls_back_when_post_reload_state_is_enabled(tmp_path, monkeypatch):
+    path = tmp_path / linux_service.UNIT
+    path.write_text("old unit\n", encoding="utf-8")
+    path.chmod(0o640)
+    monkeypatch.setattr(linux_service, "UNIT_PATH", path)
+    monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
+    statuses = iter(
+        [
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=static\nMainPID=0\n",
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=enabled\nMainPID=0\n",
+        ]
+    )
+    monkeypatch.setattr(
+        linux_service.subprocess,
+        "run",
+        lambda argv, **_k: SimpleNamespace(
+            returncode=0, stdout=next(statuses) if argv[1] == "show" else "", stderr=""
+        ),
+    )
+    with pytest.raises(RuntimeError, match="unit_not_static_after_install"):
+        linux_service.install("new unit", unit_path=path)
+    assert path.read_text(encoding="utf-8") == "old unit\n"
+    assert path.stat().st_mode & 0o777 == 0o640
+
+
+def test_versioned_install_writes_only_its_own_unit(tmp_path, monkeypatch):
+    base = tmp_path / linux_service.UNIT
+    base.write_text("existing lab unit\n", encoding="utf-8")
+    monkeypatch.setattr(linux_service, "UNIT_PATH", base)
+    monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
+    name = "memecoin-brain-" + "a" * 64 + ".service"
+    target = tmp_path / name
+    statuses = iter(
+        [
+            "LoadState=not-found\nActiveState=inactive\nUnitFileState=\nMainPID=0\n",
+            "LoadState=loaded\nActiveState=inactive\nUnitFileState=static\nMainPID=0\n",
+        ]
+    )
+    monkeypatch.setattr(
+        linux_service.subprocess,
+        "run",
+        lambda argv, **_kwargs: SimpleNamespace(
+            returncode=0, stdout=next(statuses) if argv[1] == "show" else "", stderr=""
+        ),
+    )
+    linux_service.install("versioned unit\n", unit_path=target, unit=name)
+    assert target.read_text(encoding="utf-8") == "versioned unit\n"
+    assert base.read_text(encoding="utf-8") == "existing lab unit\n"
+
+
+def test_versioned_create_only_install_preserves_foreign_unit(tmp_path, monkeypatch):
+    base = tmp_path / linux_service.UNIT
+    monkeypatch.setattr(linux_service, "UNIT_PATH", base)
+    monkeypatch.setattr(linux_service.os, "geteuid", lambda: 0)
+    name = "memecoin-brain-" + "a" * 64 + ".service"
+    target = tmp_path / name
+    target.write_text("foreign unit\n", encoding="utf-8")
+    target.chmod(0o644)
+    monkeypatch.setattr(
+        linux_service,
+        "subprocess",
+        SimpleNamespace(
+            run=lambda *_a, **_k: SimpleNamespace(
+                returncode=0,
+                stdout="LoadState=not-found\nActiveState=inactive\nUnitFileState=\nMainPID=0\n",
+                stderr="",
+            )
+        ),
+    )
+    with pytest.raises(FileExistsError):
+        linux_service.install("replacement\n", unit_path=target, unit=name, create_only=True)
+    assert target.read_text(encoding="utf-8") == "foreign unit\n"

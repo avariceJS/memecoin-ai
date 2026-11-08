@@ -12,14 +12,15 @@
     "worker": "./dist/worker.js"
   },
   "dependencies": {
-    "@paperclipai/plugin-sdk": "file:../../../../paperclip/packages/plugins/sdk"
+    "@paperclipai/plugin-sdk": "link:../../../../memecoin-runtime/paperclip/packages/plugins/sdk"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "@types/node": "24.13.3",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
   },
   "engines": {
     "node": ">=24.11.0"
-  }
+  },
+  "packageManager": "pnpm@9.15.4"
 }

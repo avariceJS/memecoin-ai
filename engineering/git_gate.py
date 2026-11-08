@@ -63,12 +63,15 @@ Verifier = Callable[[Path, str, VerificationPolicy], Mapping[str, str]]
 MAX_RECEIPT_BYTES = 256_000
 OWNER_ACTIVE_REFS = frozenset(
     {
+        "refs/heads/develop",
         "refs/heads/brain/paperclip-integration",
         "refs/heads/brain/development",
         "refs/heads/org/development",
     }
 )
-OWNER_CAS_REFS = frozenset({"refs/heads/brain/development", "refs/heads/org/development"})
+OWNER_CAS_REFS = frozenset(
+    {"refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"}
+)
 
 
 class GitGate:
@@ -119,8 +122,8 @@ class GitGate:
             raise GitGateError("owner engineering exception must be an exact path list")
         if not paths:
             return ()
-        if active_ref != "refs/heads/org/development":
-            raise GitGateError("owner engineering exception requires org development")
+        if active_ref not in {"refs/heads/develop", "refs/heads/org/development"}:
+            raise GitGateError("owner engineering exception requires development target")
         if any(type(path) is not str for path in paths):
             raise GitGateError("owner engineering exception contains an invalid path")
         normalized = tuple(_safe_path(path) for path in paths)
@@ -387,7 +390,7 @@ class GitGate:
         if not self.remote:
             raise GitGateError("remote publication is disabled")
         if not expected_tip or not expected_main:
-            raise GitGateError("remote publication requires expected research/active and main SHAs")
+            raise GitGateError("remote publication requires expected development and main SHAs")
         active, main = self._remote_refs()
         if main != expected_main:
             raise GitGateError("remote tip or main changed before publication")

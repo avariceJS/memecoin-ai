@@ -1128,6 +1128,7 @@ def _parse_accepted_source_reader(raw: Any) -> AcceptedSourceReaderSpec | None:
             or ".." in Path(repository).parts
             or type(ref) is not str
             or ref not in {
+                "refs/heads/develop",
                 "refs/heads/brain/development",
                 "refs/heads/org/development",
             }
@@ -1250,8 +1251,8 @@ def _parse_program_admission(raw: Any) -> ProgramAdmissionSpec | None:
             raise BridgeError("owner_config_program_admission_invalid")
         if (type(row["source_workspace_id"]) is not str or not ID_RE.fullmatch(row["source_workspace_id"])
             or type(row["repository_free_policy_digest"]) is not str or not HASH_RE.fullmatch(row["repository_free_policy_digest"])
-            or row["canonical_ref"] not in {"refs/heads/brain/development", "refs/heads/org/development"}
-            or row["expected_dev_ref"] not in {"refs/heads/brain/development", "refs/heads/brain/paperclip-integration", "refs/heads/org/development"}):
+            or row["canonical_ref"] not in {"refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"}
+            or row["expected_dev_ref"] not in {"refs/heads/develop", "refs/heads/brain/development", "refs/heads/brain/paperclip-integration", "refs/heads/org/development"}):
             raise BridgeError("owner_config_program_admission_invalid")
         def ids(value: Any, *, minimum: int, maximum: int) -> tuple[str, ...]:
             if type(value) is not list or not minimum <= len(value) <= maximum or any(
@@ -1457,6 +1458,7 @@ def _validate_canonical_acceptance(
         or acknowledgement.get("candidate") != candidate_sha
         or acknowledgement.get("receipt_digest") != receipt_digest
         or acknowledgement.get("ref") not in {
+            "refs/heads/develop",
             "refs/heads/brain/development",
             "refs/heads/org/development",
         }
@@ -3219,7 +3221,7 @@ class BridgeConfig:
         if any(value is not None for value in canonical_values) and (
             canonical_repo is None
             or raw.get("canonical_ref")
-            not in {"refs/heads/brain/development", "refs/heads/org/development"}
+            not in {"refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"}
             or type(raw.get("canonical_expected_tip")) is not str
             or not SHA_RE.fullmatch(raw["canonical_expected_tip"])
         ):
@@ -3417,6 +3419,7 @@ class BridgeConfig:
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
                 lane_ref = row.get("expected_dev_ref")
                 if lane_ref is not None and lane_ref not in {
+                    "refs/heads/develop",
                     "refs/heads/brain/development",
                     "refs/heads/brain/paperclip-integration",
                     "refs/heads/org/development",
@@ -3428,17 +3431,17 @@ class BridgeConfig:
                     canonical_ref is not None
                     and (
                         canonical_ref
-                        not in {"refs/heads/brain/development", "refs/heads/org/development"}
+                        not in {"refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"}
                         or type(canonical_tip) is not str
                         or not SHA_RE.fullmatch(canonical_tip)
                         or row.get("canonical_repo") is None
                     )
                 ):
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
-                if lane_ref == "refs/heads/org/development" and row.get("source_repo") is None:
+                if lane_ref in {"refs/heads/develop", "refs/heads/org/development"} and row.get("source_repo") is None:
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
-                if lane_ref == "refs/heads/org/development" and (
-                    canonical_ref != "refs/heads/org/development"
+                if lane_ref in {"refs/heads/develop", "refs/heads/org/development"} and (
+                    canonical_ref != lane_ref
                     or row.get("canonical_repo") is None
                 ):
                     raise BridgeError("owner_config_source_stage_catalog_invalid")
@@ -3581,6 +3584,7 @@ class BridgeConfig:
             raise BridgeError("owner_config_verifier_runtime_roots_invalid")
         runtime_roots = tuple(Path(item) for item in runtime_roots_raw)
         allowed_refs = {
+            "refs/heads/develop",
             "refs/heads/brain/paperclip-integration",
             "refs/heads/brain/development",
             "refs/heads/org/development",
@@ -3652,7 +3656,11 @@ class BridgeConfig:
         owner_engineering_paths: tuple[str, ...] = ()
         if self.source_stage_key is not None:
             stage = self.source_stage(self.source_stage_key)
-            org_ref = "refs/heads/org/development"
+            org_ref = (
+                "refs/heads/develop"
+                if stage.expected_dev_ref == "refs/heads/develop"
+                else "refs/heads/org/development"
+            )
             if (
                 stage.expected_dev_ref == org_ref
                 and stage.canonical_ref == org_ref
@@ -4250,7 +4258,7 @@ def _prepare_source_content_locked(
         canonical_base_sha = config.canonical_base_sha or config.canonical_expected_tip
         if (
             config.canonical_ref
-            not in {"refs/heads/brain/development", "refs/heads/org/development"}
+            not in {"refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"}
             or not canonical_base_sha
         ):
             discard_projection(gate, projection)

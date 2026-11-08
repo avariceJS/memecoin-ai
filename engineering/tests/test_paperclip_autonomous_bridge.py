@@ -277,6 +277,12 @@ class PaperclipAutonomousBridgeTests(unittest.TestCase):
         }
         parsed_admission = _parse_program_admission({"missions": [mission_row]})
         self.assertEqual(parsed_admission.missions[0].repository_free_policy_digest, mission.repository_free_policy_digest)
+        # Current develop admission and immutable historical lane metadata remain readable.
+        develop_row = {**mission_row, "canonical_ref": "refs/heads/develop",
+                       "expected_dev_ref": "refs/heads/develop"}
+        develop_admission = _parse_program_admission({"missions": [develop_row]})
+        self.assertEqual(develop_admission.missions[0].canonical_ref, "refs/heads/develop")
+        self.assertEqual(develop_admission.missions[0].expected_dev_ref, "refs/heads/develop")
         invalid_mission_row = dict(mission_row)
         invalid_mission_row["repository_free_policy_digest"] = "invalid"
         with self.assertRaisesRegex(BridgeError, "owner_config_program_admission_invalid"):

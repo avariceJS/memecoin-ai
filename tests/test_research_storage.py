@@ -5,6 +5,7 @@ import os
 import shutil
 import stat
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -252,6 +253,119 @@ def test_config_owner_mode_and_relative_path_validation(tmp_path: Path) -> None:
             resolve(config_path, probe=FakeProbe(mount))
 
 
+def test_tagged_linux_config_v2_round_trips_without_changing_macos_v1(tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    payload = {
+        "version": 2,
+        "platform": "linux",
+        "filesystem": "ext4",
+        "root_id": ROOT_ID,
+        "fs_uuid": UUID,
+        "mount_path": str(mount),
+        "data_root": "research/root",
+        "min_free_bytes": 100,
+    }
+    config_path.write_text(json.dumps(payload))
+    config_path.chmod(0o600)
+    config = StorageConfig.load(config_path)
+    assert config.platform == "linux"
+    assert config.filesystem == "ext4"
+    assert config.version == 2
+    assert config.to_json() == payload
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("platform", "darwin"), ("filesystem", "xfs")],
+)
+def test_tagged_linux_config_rejects_unsupported_adapter(field, value, tmp_path: Path) -> None:
+    config_path, mount, _ = make_binding(tmp_path)
+    payload = {
+        "version": 2,
+        "platform": "linux",
+        "filesystem": "ext4",
+        "root_id": ROOT_ID,
+        "fs_uuid": UUID,
+        "mount_path": str(mount),
+        "data_root": "research/root",
+        "min_free_bytes": 100,
+    }
+    payload[field] = value
+    config_path.write_text(json.dumps(payload))
+    config_path.chmod(0o600)
+    with pytest.raises(StorageError, match="unsupported_storage_platform_or_filesystem"):
+        StorageConfig.load(config_path)
+
+
+def test_linux_mountinfo_parser_decodes_mountpoint_and_keeps_identity_fields() -> None:
+    records = research_storage._parse_linux_mountinfo(
+        "42 1 7:3 / /mnt/research\\040data rw,nosuid shared:2 - ext4 /dev/loop3 rw\n"
+    )
+    assert records == [
+        {
+            "mount_id": "42",
+            "major_minor": "7:3",
+            "mount_root": "/",
+            "mount_path": "/mnt/research data",
+            "mount_options": ("rw", "nosuid"),
+            "filesystem": "ext4",
+            "source": "/dev/loop3",
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("findmnt_uuid", "linked_uuids", "expected"),
+    [
+        (UUID, [UUID], UUID),
+        (UUID, [], UUID),
+        ("", [UUID], UUID),
+    ],
+)
+def test_linux_uuid_sources_accept_single_agreeing_identity(
+    findmnt_uuid: str, linked_uuids: list[str], expected: str
+) -> None:
+    assert research_storage._select_linux_volume_uuid(findmnt_uuid, linked_uuids) == expected
+
+
+def test_linux_uuid_sources_reject_conflicts_duplicates_and_absence() -> None:
+    with pytest.raises(StorageError, match="volume_uuid_source_conflict"):
+        research_storage._select_linux_volume_uuid(UUID, ["aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"])
+    with pytest.raises(StorageError, match="ambiguous_volume_uuid_link"):
+        research_storage._select_linux_volume_uuid(
+            "", [UUID, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"]
+        )
+    with pytest.raises(StorageError, match="volume_uuid_unavailable"):
+        research_storage._select_linux_volume_uuid("", [])
+
+
+def test_linux_uuid_sources_reject_malformed_findmnt_identity() -> None:
+    with pytest.raises(StorageError, match="invalid_volume_uuid"):
+        research_storage._canonical_linux_uuid("not-a-uuid")
+
+
+def test_linux_uuid_link_requires_canonical_name_and_matching_device() -> None:
+    assert research_storage._matching_linux_uuid_link(UUID, "7:3", "7:3") == UUID
+    assert research_storage._matching_linux_uuid_link(UUID, "7:4", "7:3") is None
+    with pytest.raises(StorageError, match="invalid_volume_uuid_link"):
+        research_storage._matching_linux_uuid_link("not-a-uuid", "7:3", "7:3")
+
+
+@pytest.mark.parametrize(
+    "directory_stat",
+    [
+        SimpleNamespace(st_mode=stat.S_IFDIR | 0o777, st_uid=0),
+        SimpleNamespace(st_mode=stat.S_IFDIR | 0o755, st_uid=501),
+        SimpleNamespace(st_mode=stat.S_IFREG | 0o755, st_uid=0),
+    ],
+)
+def test_linux_uuid_directory_must_be_root_owned_and_not_untrusted_writable(
+    directory_stat: SimpleNamespace,
+) -> None:
+    with pytest.raises(StorageError, match="unsafe_volume_uuid_directory"):
+        research_storage._validate_linux_uuid_directory(directory_stat)  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
@@ -389,6 +503,199 @@ def test_bind_existing_writes_host_binding_without_volume_mutation(
     assert not (mount / ".research-storage.lock").exists()
     assert probe.calls == 3
     assert root.is_dir()
+
+
+def test_linux_bind_existing_writes_tagged_config_and_does_not_mutate_volume(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=77,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+    monkeypatch.setattr(
+        research_storage, "_verify_linux_case_sensitive_directory", lambda _fd: None
+    )
+    before = sorted(str(path.relative_to(mount)) for path in mount.rglob("*"))
+    config = bind_existing(
+        config_path,
+        mount,
+        "research/root",
+        expected_volume_uuid=UUID,
+        expected_root_id=ROOT_ID,
+        min_free_bytes=100,
+        probe=probe,
+        platform="linux",
+    )
+    after = sorted(str(path.relative_to(mount)) for path in mount.rglob("*"))
+    assert before == after
+    assert config.version == 2
+    assert config.platform == "linux"
+    assert config.filesystem == "ext4"
+    assert StorageConfig.load(config_path) == config
+    assert json.loads(config_path.read_text()) == {
+        "version": 2,
+        "platform": "linux",
+        "filesystem": "ext4",
+        "root_id": ROOT_ID,
+        "fs_uuid": UUID,
+        "mount_path": str(mount),
+        "data_root": "research/root",
+        "min_free_bytes": 100,
+    }
+
+
+def test_linux_bind_existing_fails_closed_on_mount_id_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=lambda call: 77 if call == 1 else 78,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+    monkeypatch.setattr(
+        research_storage, "_verify_linux_case_sensitive_directory", lambda _fd: None
+    )
+    with pytest.raises(StorageError, match="mounted_directory_replaced"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=probe,
+            platform="linux",
+        )
+    assert not config_path.exists()
+
+
+def test_linux_bind_existing_rejects_casefold_root_before_config_publication(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=77,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+
+    def reject_casefold(_fd: int) -> None:
+        raise StorageError("filesystem_casefold_enabled")
+
+    monkeypatch.setattr(research_storage, "_verify_linux_case_sensitive_directory", reject_casefold)
+    with pytest.raises(StorageError, match="filesystem_casefold_enabled"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=probe,
+            platform="linux",
+        )
+    assert not config_path.exists()
+
+
+def test_linux_bind_existing_removes_its_config_if_final_verify_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=77,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+    monkeypatch.setattr(
+        research_storage, "_verify_linux_case_sensitive_directory", lambda _fd: None
+    )
+
+    def fail_verify(*_args, **_kwargs):
+        raise StorageError("synthetic_final_verify_failure")
+
+    monkeypatch.setattr(research_storage, "verify_root", fail_verify)
+    with pytest.raises(StorageError, match="synthetic_final_verify_failure"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=probe,
+            platform="linux",
+        )
+    assert not config_path.exists()
+
+
+def test_linux_bind_existing_removes_partial_config_after_write_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path, mount, _ = _existing_root_fixture(tmp_path)
+    probe = FakeProbe(
+        mount,
+        filesystem="ext4",
+        filesystem_type="ext4",
+        mount_options=("rw",),
+        mount_id=77,
+        source="/dev/loop0",
+        mount_root="/",
+    )
+    monkeypatch.setattr(research_storage, "_ensure_config_parent_on_other_device", lambda *_: None)
+    monkeypatch.setattr(research_storage, "_fd_mount_id", lambda _fd: 77)
+    monkeypatch.setattr(research_storage.sys, "platform", "linux")
+    monkeypatch.setattr(
+        research_storage, "_verify_linux_case_sensitive_directory", lambda _fd: None
+    )
+
+    def partial_write_then_fail(fd: int, data: bytes) -> None:
+        os.write(fd, data[:8])
+        raise OSError("synthetic interrupted config write")
+
+    monkeypatch.setattr(research_storage, "_write_all", partial_write_then_fail)
+    with pytest.raises(StorageError, match="existing_root_binding_failed"):
+        bind_existing(
+            config_path,
+            mount,
+            "research/root",
+            expected_volume_uuid=UUID,
+            expected_root_id=ROOT_ID,
+            min_free_bytes=100,
+            probe=probe,
+            platform="linux",
+        )
+    assert not config_path.exists()
 
 
 def test_bind_existing_rejects_absent_malformed_or_mismatched_marker(

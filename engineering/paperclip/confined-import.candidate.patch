@@ -1,0 +1,1228 @@
+diff --git a/engineering/git_gate.py b/engineering/git_gate.py
+index b7453ed..d9c4092 100644
+--- a/engineering/git_gate.py
++++ b/engineering/git_gate.py
+@@ -48,6 +48,20 @@ class Candidate:
+     changed_paths: tuple[str, ...]
+ 
+ 
++@dataclass(frozen=True)
++class NormalizedSubmission:
++    """Owner-staged Git import produced by the confined bundle importer."""
++
++    checkout: Path
++    submitted_sha: str
++    base_sha: str
++    bundle_sha256: str
++    bundle_bytes: int
++    export_profile_sha256: str
++    import_profile_sha256: str
++    quarantine_config_sha256: str
++
++
+ @dataclass(frozen=True)
+ class Receipt:
+     digest: str
+@@ -87,6 +101,11 @@ class GitGate:
+         remote: str | None = None,
+         operation_guard: Callable[[], object] | None = None,
+         active_ref: str | None = None,
++        normalized_import_root: Path | None = None,
++        expected_base_sha: str | None = None,
++        git_import_mode: str | None = None,
++        git_executable: Path | None = None,
++        git_executable_sha256: str | None = None,
+     ) -> None:
+         self.source_repo = Path(source_repo).resolve()
+         self.repo = Path(integration_repo).resolve()
+@@ -94,6 +113,13 @@ class GitGate:
+         self.receipt_store = Path(receipt_store).resolve()
+         self.remote = remote
+         self.operation_guard = operation_guard
++        self.normalized_import_root = (
++            Path(normalized_import_root).resolve() if normalized_import_root is not None else None
++        )
++        self.expected_base_sha = expected_base_sha
++        self.git_import_mode = git_import_mode
++        self.git_executable = Path(git_executable) if git_executable is not None else None
++        self.git_executable_sha256 = git_executable_sha256
+         selected_ref = self.ACTIVE_REF if active_ref is None else active_ref
+         if selected_ref != self.ACTIVE_REF and selected_ref not in OWNER_ACTIVE_REFS:
+             raise GitGateError("active ref is not an approved owner target")
+@@ -110,20 +136,23 @@ class GitGate:
+ 
+     def submit(
+         self,
+-        checkout: Path,
+-        commit: str,
+-        expected_base: str,
++        submission: NormalizedSubmission,
+         allowed_paths: Sequence[str],
+         *,
+         expected_source_tip: str | None = None,
+         expected_integration_tip: str | None = None,
+     ) -> Candidate:
+-        """Import and merge a worker commit; return an isolated detached candidate checkout."""
+-        submitted = self._resolve_sha(Path(checkout), commit)
+-        base = self._resolve_sha(Path(checkout), expected_base)
+-        if not self._is_ancestor(Path(checkout), base, submitted):
++        """Merge only a confined, owner-normalized worker bundle into a candidate checkout."""
++        self._require_normalized_import(submission)
++        checkout = submission.checkout
++        submitted = self._resolve_sha(checkout, submission.submitted_sha)
++        base = self._resolve_sha(checkout, submission.base_sha)
++        if base != self.expected_base_sha:
++            raise GitGateError("submission base differs from the owner-pinned safe projection")
++        self.validate_source_projection(base)
++        if not self._is_ancestor(checkout, base, submitted):
+             raise GitGateError("expected base is not an ancestor of submitted commit")
+-        trusted_base = self._resolve_sha(self.source_repo, expected_base)
++        trusted_base = self._resolve_sha(self.source_repo, base)
+         # Planning advances on the broker-owned active ref even when the stable checkout HEAD
+         # remains on main; a task may use only that active history (or initial HEAD fallback).
+         source_ref_tip = self._ref_sha(self.source_repo, self.active_ref, missing_ok=True)
+@@ -132,11 +161,10 @@ class GitGate:
+             raise GitGateError("source active tip differs from the owner-admitted tip")
+         if trusted_base != base or not self._is_ancestor(self.source_repo, base, source_tip):
+             raise GitGateError("expected base is not in trusted source history")
+-        paths = self._changed_paths(Path(checkout), base, submitted)
+-        self._check_paths(Path(checkout), base, submitted, paths, allowed_paths)
++        paths = self._changed_paths(checkout, base, submitted)
++        self._check_paths(checkout, base, submitted, paths, allowed_paths)
+ 
+-        # Fetch only the explicit object id from the submitted local checkout. No worker remote,
+-        # config, hooks, or executable is consulted. A private ref keeps the imported object alive.
++        # Fetch only from the owner-normalized quarantine, never from the worker checkout.
+         imported_ref = f"refs/git-gate/import/{submitted}"
+         self._run(
+             self.repo,
+@@ -144,7 +172,7 @@ class GitGate:
+                 "fetch",
+                 "--no-tags",
+                 "--no-write-fetch-head",
+-                str(Path(checkout).resolve()),
++                str(checkout),
+                 f"{submitted}:{imported_ref}",
+             ],
+         )
+@@ -192,6 +220,144 @@ class GitGate:
+         self._run(self.repo, ["worktree", "add", "--detach", str(checkout_path), candidate])
+         return Candidate(submitted, base, tip, candidate, checkout_path, paths)
+ 
++    def _require_normalized_import(self, submission: NormalizedSubmission) -> None:
++        if type(submission) is not NormalizedSubmission:
++            raise GitGateError("owner-normalized submission required")
++        if (
++            self.git_import_mode != "safe-source-projection-bundle-v1"
++            or self.normalized_import_root is None
++            or self.expected_base_sha is None
++            or self.git_executable is None
++            or self.git_executable_sha256 is None
++            or not re.fullmatch(r"[0-9a-f]{64}", self.git_executable_sha256)
++        ):
++            raise GitGateError("safe normalized Git import is not owner-configured")
++        if not isinstance(submission.checkout, Path):
++            raise GitGateError("normalized import checkout is invalid")
++        try:
++            checkout = submission.checkout.resolve(strict=True)
++            checkout.relative_to(self.normalized_import_root)
++        except (OSError, ValueError):
++            raise GitGateError("normalized import is outside the owner staging root") from None
++        if checkout == self.normalized_import_root or not checkout.is_dir():
++            raise GitGateError("normalized import checkout is invalid")
++        if (
++            not self.SHA_RE.fullmatch(submission.submitted_sha)
++            or not self.SHA_RE.fullmatch(submission.base_sha)
++            or not re.fullmatch(r"[0-9a-f]{64}", submission.bundle_sha256)
++            or type(submission.bundle_bytes) is not int
++            or not 1 <= submission.bundle_bytes <= 10_000_000
++            or not re.fullmatch(r"[0-9a-f]{64}", submission.export_profile_sha256)
++            or not re.fullmatch(r"[0-9a-f]{64}", submission.import_profile_sha256)
++            or not re.fullmatch(r"[0-9a-f]{64}", submission.quarantine_config_sha256)
++        ):
++            raise GitGateError("normalized import evidence is invalid")
++        if submission.base_sha != self.expected_base_sha:
++            raise GitGateError("normalized import base differs from owner-pinned base")
++        config = checkout / "config"
++        try:
++            info = config.lstat()
++            if not stat.S_ISREG(info.st_mode) or _digest(config.read_bytes()) != (
++                submission.quarantine_config_sha256
++            ):
++                raise GitGateError("normalized import configuration changed")
++        except OSError as exc:
++            raise GitGateError("normalized import configuration is unavailable") from exc
++        for metadata in (
++            checkout / "objects" / "info" / "alternates",
++            checkout / "objects" / "info" / "http-alternates",
++            checkout / "commondir",
++            checkout / "info" / "grafts",
++        ):
++            if metadata.exists() or metadata.is_symlink():
++                raise GitGateError("normalized import contains external Git metadata")
++        refs = self._run(checkout, ["for-each-ref", "--format=%(refname) %(objectname)"])
++        expected_refs = {
++            f"refs/git-gate/base {submission.base_sha}",
++            f"refs/git-gate/import/{submission.submitted_sha} {submission.submitted_sha}",
++        }
++        actual_refs = set(refs.stdout.decode("ascii", errors="strict").splitlines())
++        if actual_refs != expected_refs:
++            raise GitGateError("normalized import refs differ from the bound submission")
++
++    def validate_source_projection(self, expected_base: str) -> None:
++        """Reject any source seed except a clean, parentless, owner-pinned projection commit."""
++        if (
++            self.git_import_mode != "safe-source-projection-bundle-v1"
++            or self.expected_base_sha != expected_base
++            or not self.SHA_RE.fullmatch(expected_base)
++        ):
++            raise GitGateError("safe source projection is not owner-pinned")
++        gitdir = self.source_repo / ".git"
++        if gitdir.is_symlink() or not gitdir.is_dir():
++            raise GitGateError("safe source projection must use a private Git directory")
++        for metadata in (
++            gitdir / "objects" / "info" / "alternates",
++            gitdir / "objects" / "info" / "http-alternates",
++            gitdir / "commondir",
++            gitdir / "info" / "grafts",
++            gitdir / "shallow",
++        ):
++            if metadata.exists() or metadata.is_symlink():
++                raise GitGateError("safe source projection has external or shallow metadata")
++        config = gitdir / "config"
++        try:
++            info = config.lstat()
++            raw_config = config.read_bytes()
++        except OSError as exc:
++            raise GitGateError("safe source projection config is unavailable") from exc
++        if (
++            not stat.S_ISREG(info.st_mode)
++            or len(raw_config) > 16_384
++            or re.search(rb"(?im)^\s*(include|objectdirectory)\s*=|^\s*\[include", raw_config)
++        ):
++            raise GitGateError("safe source projection config has external includes")
++        head = self._rev(self.source_repo, "HEAD")
++        if head != expected_base:
++            raise GitGateError("safe source projection HEAD differs from owner-pinned base")
++        source_tip = self._ref_sha(self.source_repo, self.active_ref, missing_ok=True)
++        if source_tip is not None and source_tip != expected_base:
++            raise GitGateError("safe source projection ref differs from owner-pinned base")
++        parents = self._run(self.source_repo, ["rev-list", "--parents", "-n", "1", expected_base])
++        if parents.stdout.decode("ascii", errors="strict").strip() != expected_base:
++            raise GitGateError("safe source projection base must have no original history")
++        status = self._run(
++            self.source_repo, ["status", "--porcelain", "-z", "--untracked-files=all"]
++        )
++        if status.stdout:
++            raise GitGateError("safe source projection is not clean")
++        refs = self._run(self.source_repo, ["for-each-ref", "--format=%(refname) %(objectname)"])
++        ref_lines = refs.stdout.decode("ascii", errors="strict").splitlines()
++        if not ref_lines or any(line.rsplit(" ", 1)[-1] != expected_base for line in ref_lines):
++            raise GitGateError("safe source projection contains non-base refs")
++    def initialize_quarantine(self, checkout: Path, expected_base: str) -> str:
++        """Create a bare quarantine seeded only with the admitted projection root commit."""
++        if self.normalized_import_root is None:
++            raise GitGateError("normalized import root is not owner-configured")
++        checkout = Path(checkout).resolve(strict=True)
++        try:
++            checkout.relative_to(self.normalized_import_root)
++        except ValueError:
++            raise GitGateError("quarantine is outside owner import staging") from None
++        if any(checkout.iterdir()):
++            raise GitGateError("quarantine directory is not empty")
++        self._run(checkout, ["init", "--bare", "--quiet"])
++        self._run(
++            checkout,
++            [
++                "fetch",
++                "--depth=1",
++                "--no-tags",
++                "--no-write-fetch-head",
++                str(self.source_repo),
++                f"{expected_base}:refs/git-gate/base",
++            ],
++        )
++        if self._rev(checkout, "refs/git-gate/base") != expected_base:
++            raise GitGateError("quarantine seed differs from owner-pinned projection base")
++        config = checkout / "config"
++        return _digest(config.read_bytes())
++
+     def is_detached(self) -> bool:
+         result = self._run(self.repo, ["symbolic-ref", "--quiet", "HEAD"], check=False)
+         if result.returncode not in (0, 1):
+@@ -522,8 +688,20 @@ class GitGate:
+                 "GIT_NO_REPLACE_OBJECTS": "1",
+             }
+         )
++        executable = str(self.git_executable) if self.git_executable is not None else "git"
++        if self.git_executable is not None and self.git_executable_sha256 is not None:
++            try:
++                fd = os.open(self.git_executable, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
++                with os.fdopen(fd, "rb") as stream:
++                    digest = hashlib.sha256()
++                    for block in iter(lambda: stream.read(1024 * 1024), b""):
++                        digest.update(block)
++            except OSError as exc:
++                raise GitGateError("pinned Git executable is unavailable") from exc
++            if digest.hexdigest() != self.git_executable_sha256:
++                raise GitGateError("pinned Git executable changed")
+         command = [
+-            "git",
++            executable,
+             "-c",
+             "core.hooksPath=/dev/null",
+             "-c",
+diff --git a/engineering/paperclip_autonomous_bridge.py b/engineering/paperclip_autonomous_bridge.py
+index 5ff06c5..6102e1e 100644
+--- a/engineering/paperclip_autonomous_bridge.py
++++ b/engineering/paperclip_autonomous_bridge.py
+@@ -33,7 +33,12 @@ from engineering.confinement import (  # noqa: E402
+     SandboxRunner,
+     python_runtime_roots,
+ )
+-from engineering.git_gate import Candidate, GitGate, VerificationPolicy  # noqa: E402
++from engineering.git_gate import (  # noqa: E402
++    Candidate,
++    GitGate,
++    NormalizedSubmission,
++    VerificationPolicy,
++)
+ from engineering.paperclip_git_broker import (  # noqa: E402
+     OperationBinding,
+     PaperclipGitBroker,
+@@ -47,6 +52,8 @@ MAX_REQUEST_BYTES = 32_000
+ MAX_EVIDENCE_BYTES = 16_000
+ MAX_REVIEW_DIFF_BYTES = 60_000
+ MAX_GIT_ERROR_BYTES = 16_000
++MAX_GIT_IMPORT_BYTES = 10_000_000
++GIT_IMPORT_MODE = "safe-source-projection-bundle-v1"
+ ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+ SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
+ HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+@@ -404,7 +411,11 @@ class BridgeConfig:
+     bridge_journal_dir: Path
+     receipt_store: Path
+     verifier_scratch_root: Path
++    git_import_scratch_root: Path
+     python_executable: Path
++    git_executable: Path
++    git_executable_sha256: str
++    git_import_mode: str
+     allowed_scope: tuple[str, ...]
+     verifier_commands: tuple[tuple[str, ...], ...]
+     verifier_env: tuple[tuple[str, str], ...]
+@@ -434,7 +445,9 @@ class BridgeConfig:
+             "bridge_journal_dir",
+             "receipt_store",
+             "verifier_scratch_root",
++            "git_import_scratch_root",
+             "python_executable",
++            "git_executable",
+             "allowed_scope",
+             "verifier_commands",
+             "verifier_env",
+@@ -443,6 +456,8 @@ class BridgeConfig:
+             "expected_dev_ref",
+             "expected_base_sha",
+             "verifier_runtime_read_roots",
++            "git_executable_sha256",
++            "git_import_mode",
+         }
+         if set(raw) - allowed_keys:
+             raise BridgeError("owner_config_unknown_fields")
+@@ -454,7 +469,9 @@ class BridgeConfig:
+             "bridge_journal_dir",
+             "receipt_store",
+             "verifier_scratch_root",
++            "git_import_scratch_root",
+             "python_executable",
++            "git_executable",
+         )
+         try:
+             paths = {key: Path(raw[key]) for key in path_values}
+@@ -462,6 +479,26 @@ class BridgeConfig:
+             raise BridgeError("owner_config_paths_invalid") from None
+         if any(not value.is_absolute() for value in paths.values()):
+             raise BridgeError("owner_config_paths_must_be_absolute")
++        import_root = paths["git_import_scratch_root"]
++        if import_root.is_symlink() or not import_root.is_dir():
++            raise BridgeError("owner_config_git_import_scratch_invalid")
++        import_root = import_root.resolve(strict=True)
++        import_info = import_root.stat()
++        if import_info.st_uid != os.getuid() or import_info.st_mode & 0o077:
++            raise BridgeError("owner_config_git_import_scratch_permissions_invalid")
++        for key in (
++            "source_repo",
++            "worker_checkout",
++            "publisher_repo",
++            "broker_journal_dir",
++            "bridge_journal_dir",
++            "receipt_store",
++            "verifier_scratch_root",
++        ):
++            other = paths[key].resolve(strict=False)
++            if import_root == other or import_root in other.parents or other in import_root.parents:
++                raise BridgeError("owner_config_git_import_scratch_overlaps_protected_root")
++        paths["git_import_scratch_root"] = import_root
+         ids = (
+             "company_id",
+             "project_id",
+@@ -520,10 +557,27 @@ class BridgeConfig:
+         if raw.get("expected_dev_ref") != raw["fixed_dev_ref"]:
+             raise BridgeError("owner_config_expected_ref_mismatch")
+         expected_base = raw.get("expected_base_sha")
+-        if raw["fixed_dev_ref"] == "refs/heads/brain/development" and (
+-            type(expected_base) is not str or not SHA_RE.fullmatch(expected_base)
+-        ):
++        if type(expected_base) is not str or not SHA_RE.fullmatch(expected_base):
+             raise BridgeError("owner_config_expected_base_invalid")
++        if raw.get("git_import_mode") != GIT_IMPORT_MODE:
++            raise BridgeError("owner_config_git_import_mode_invalid")
++        git_executable = paths["git_executable"]
++        if git_executable.is_symlink() or not git_executable.is_file():
++            raise BridgeError("owner_config_git_executable_invalid")
++        git_executable = git_executable.resolve(strict=True)
++        if not os.access(git_executable, os.X_OK):
++            raise BridgeError("owner_config_git_executable_invalid")
++        try:
++            git_sha = hashlib.sha256(git_executable.read_bytes()).hexdigest()
++        except OSError as exc:
++            raise BridgeError("owner_config_git_executable_unavailable") from exc
++        if (
++            type(raw.get("git_executable_sha256")) is not str
++            or not HASH_RE.fullmatch(raw["git_executable_sha256"])
++            or git_sha != raw["git_executable_sha256"]
++        ):
++            raise BridgeError("owner_config_git_executable_digest_invalid")
++        paths["git_executable"] = git_executable
+         if type(raw.get("verifier_policy_id")) is not str or not ID_RE.fullmatch(
+             raw["verifier_policy_id"]
+         ):
+@@ -538,6 +592,8 @@ class BridgeConfig:
+             fixed_dev_ref=raw["fixed_dev_ref"],
+             expected_dev_ref=raw["expected_dev_ref"],
+             expected_base_sha=expected_base,
++            git_executable_sha256=git_sha,
++            git_import_mode=GIT_IMPORT_MODE,
+             verifier_runtime_read_roots=runtime_roots,
+         )
+ 
+@@ -556,12 +612,22 @@ class BridgeConfig:
+             self.receipt_store,
+             remote=None,
+             active_ref=self.expected_dev_ref,
++            normalized_import_root=self.git_import_scratch_root,
++            expected_base_sha=self.expected_base_sha,
++            git_import_mode=self.git_import_mode,
++            git_executable=self.git_executable,
++            git_executable_sha256=self.git_executable_sha256,
+         )
+ 
+     def broker(self) -> PaperclipGitBroker:
+         gate = self.gate()
+         broker = PaperclipGitBroker(
+-            gate, self.broker_journal_dir, active_ref=self.expected_dev_ref
++            gate,
++            self.broker_journal_dir,
++            active_ref=self.expected_dev_ref,
++            submission_normalizer=lambda binding, worker, staging: _normalize_submission(
++                self, binding, worker, staging
++            ),
+         )
+         if broker.active_ref != self.expected_dev_ref:
+             raise BridgeError("configured_active_ref_mismatch")
+@@ -579,7 +645,9 @@ class BridgeConfig:
+                 self.bridge_journal_dir,
+                 self.receipt_store,
+                 self.verifier_scratch_root,
++                self.git_import_scratch_root,
+                 self.python_executable,
++                self.git_executable,
+                 *self.verifier_runtime_read_roots,
+             )
+         )
+@@ -599,6 +667,9 @@ class BridgeConfig:
+             "verifier_commands": self.verifier_commands,
+             "verifier_env": self.verifier_env,
+             "verifier_policy_id": self.verifier_policy_id,
++            "git_import_mode": self.git_import_mode,
++            "git_executable": str(self.git_executable),
++            "git_executable_sha256": self.git_executable_sha256,
+             "policy_digest": self.policy().digest,
+             "fixed_dev_ref": self.fixed_dev_ref,
+             "expected_dev_ref": self.expected_dev_ref,
+@@ -610,6 +681,228 @@ class BridgeConfig:
+         return hashlib.sha256(_canonical(value)).hexdigest()
+ 
+ 
++_LIMITED_GIT_EXEC = """
++import hashlib, os, resource, stat, sys
++from pathlib import Path
++limit, expected, executable, worker_root = sys.argv[1:5]
++limit = int(limit)
++fd = os.open(executable, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
++with os.fdopen(fd, 'rb') as stream:
++    if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
++        raise SystemExit(80)
++    digest = hashlib.sha256()
++    for block in iter(lambda: stream.read(1024 * 1024), b''):
++        digest.update(block)
++if digest.hexdigest() != expected:
++    raise SystemExit(81)
++if worker_root != '-':
++    gitdir = Path(worker_root) / '.git'
++    if gitdir.is_symlink() or not gitdir.is_dir():
++        raise SystemExit(82)
++    blocked = (
++        gitdir / 'commondir',
++        gitdir / 'objects' / 'info' / 'alternates',
++        gitdir / 'objects' / 'info' / 'http-alternates',
++        gitdir / 'info' / 'grafts',
++        gitdir / 'shallow',
++        gitdir / 'refs' / 'replace',
++    )
++    if any(path.exists() or path.is_symlink() for path in blocked):
++        raise SystemExit(83)
++    objects = gitdir / 'objects'
++    if objects.is_symlink() or not objects.is_dir():
++        raise SystemExit(84)
++    for directory, dirs, files in os.walk(objects, followlinks=False):
++        children = dirs + files
++        if Path(directory).is_symlink() or any(
++            (Path(directory) / name).is_symlink() for name in children
++        ):
++            raise SystemExit(85)
++resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
++os.umask(0o077)
++argv = [executable, *sys.argv[5:]]
++os.execve(executable, argv, os.environ)
++"""
++
++
++def _bounded_file_digest(path: Path, *, limit: int) -> tuple[str, int]:
++    no_follow = getattr(os, "O_NOFOLLOW", None)
++    if no_follow is None:
++        raise BridgeError("git_import_no_follow_unavailable")
++    try:
++        fd = os.open(path, os.O_RDONLY | no_follow | getattr(os, "O_NONBLOCK", 0))
++        with os.fdopen(fd, "rb") as stream:
++            before = os.fstat(stream.fileno())
++            if (
++                not stat.S_ISREG(before.st_mode)
++                or before.st_uid != os.getuid()
++                or before.st_mode & 0o077
++                or before.st_size <= 0
++                or before.st_size > limit
++            ):
++                raise BridgeError("git_import_bundle_file_invalid")
++            digest = hashlib.sha256()
++            total = 0
++            while block := stream.read(1024 * 1024):
++                total += len(block)
++                if total > limit:
++                    raise BridgeError("git_import_bundle_too_large")
++                digest.update(block)
++            after = os.fstat(stream.fileno())
++            if (
++                total != before.st_size
++                or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
++                != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
++            ):
++                raise BridgeError("git_import_bundle_changed")
++        return digest.hexdigest(), total
++    except OSError as exc:
++        raise BridgeError("git_import_bundle_unavailable") from exc
++
++
++def _run_confined_git(
++    config: BridgeConfig,
++    runner: SandboxRunner,
++    args: tuple[str, ...],
++    *,
++    cwd: Path,
++    worker_root: Path | None = None,
++):
++    try:
++        python_sha = hashlib.sha256(config.python_executable.read_bytes()).hexdigest()
++    except OSError as exc:
++        raise BridgeError("git_import_python_unavailable") from exc
++    result = runner.run(
++        [
++            str(config.python_executable),
++            "-I",
++            "-S",
++            "-B",
++            "-c",
++            _LIMITED_GIT_EXEC,
++            str(MAX_GIT_IMPORT_BYTES),
++            config.git_executable_sha256,
++            str(config.git_executable),
++            str(worker_root) if worker_root is not None else "-",
++            *args,
++        ],
++        cwd=cwd,
++        timeout=60,
++        max_output_bytes=64_000,
++        expected_executable_sha256=python_sha,
++    )
++    if result.returncode != 0 or result.timed_out or result.output_truncated:
++        raise BridgeError("confined_git_import_command_failed")
++    return result
++
++
++def _normalize_submission(
++    config: BridgeConfig,
++    binding: OperationBinding,
++    worker_checkout: Path,
++    staging_root: Path,
++) -> NormalizedSubmission:
++    """Export worker objects under Seatbelt, then import them into a fresh quarantine."""
++    if (
++        config.git_import_mode != GIT_IMPORT_MODE
++        or config.expected_base_sha != binding.base_sha
++        or Path(worker_checkout) != config.worker_checkout
++        or worker_checkout.is_symlink()
++        or not worker_checkout.is_dir()
++    ):
++        raise BridgeError("safe_git_import_binding_invalid")
++    stage = Path(staging_root).resolve(strict=True)
++    import_root = config.git_import_scratch_root.resolve(strict=True)
++    try:
++        stage.relative_to(import_root)
++    except ValueError:
++        raise BridgeError("safe_git_import_staging_root_invalid") from None
++    if stage == import_root or stage.stat().st_mode & 0o077:
++        raise BridgeError("safe_git_import_staging_permissions_invalid")
++
++    gate = config.gate()
++    export_dir = stage / "export"
++    quarantine = stage / "quarantine.git"
++    export_dir.mkdir(mode=0o700)
++    quarantine.mkdir(mode=0o700)
++    bundle = export_dir / "submission.bundle"
++    protected = [
++        config.source_repo,
++        config.publisher_repo,
++        config.broker_journal_dir,
++        config.bridge_journal_dir,
++        config.receipt_store,
++    ]
++    runtime_roots = [
++        *python_runtime_roots(config.python_executable),
++        config.git_executable.parent,
++    ]
++    exporter = SandboxRunner(
++        writable_roots=[export_dir],
++        read_roots=[worker_checkout, *runtime_roots],
++        home=export_dir,
++        protected_roots=protected,
++    )
++    export = _run_confined_git(
++        config,
++        exporter,
++        (
++            "-c",
++            "core.hooksPath=/dev/null",
++            "-c",
++            "core.fsmonitor=false",
++            "--no-replace-objects",
++            "-C",
++            str(worker_checkout),
++            "bundle",
++            "create",
++            str(bundle),
++            binding.submitted_sha,
++            f"^{binding.base_sha}",
++        ),
++        cwd=worker_checkout,
++        worker_root=worker_checkout,
++    )
++    bundle_sha, bundle_bytes = _bounded_file_digest(bundle, limit=MAX_GIT_IMPORT_BYTES)
++
++    quarantine_config_sha = gate.initialize_quarantine(quarantine, binding.base_sha)
++    importer = SandboxRunner(
++        writable_roots=[quarantine],
++        read_roots=[export_dir, *runtime_roots],
++        home=quarantine,
++        protected_roots=[*protected, worker_checkout],
++    )
++    imported = _run_confined_git(
++        config,
++        importer,
++        (
++            "-c",
++            "core.hooksPath=/dev/null",
++            "-c",
++            "core.fsmonitor=false",
++            "--no-replace-objects",
++            "-C",
++            str(quarantine),
++            "fetch",
++            "--no-tags",
++            "--no-write-fetch-head",
++            str(bundle),
++            f"{binding.submitted_sha}:refs/git-gate/import/{binding.submitted_sha}",
++        ),
++        cwd=quarantine,
++    )
++    return NormalizedSubmission(
++        quarantine,
++        binding.submitted_sha,
++        binding.base_sha,
++        bundle_sha,
++        bundle_bytes,
++        export.profile_sha256,
++        imported.profile_sha256,
++        quarantine_config_sha,
++    )
++
++
+ def _verifier(config: BridgeConfig, candidate_checkout: Path):
+     """Build trusted verifier callback; only fixed commands execute in sandboxed children."""
+     config.verifier_scratch_root.mkdir(parents=True, exist_ok=True)
+@@ -720,11 +1013,8 @@ def _binding(config: BridgeConfig, payload: dict[str, Any]) -> OperationBinding:
+     for key in ("base_sha", "submitted_sha"):
+         if type(payload.get(key)) is not str or not SHA_RE.fullmatch(payload[key]):
+             raise BridgeError("submitted_sha_invalid")
+-    if (
+-        config.expected_dev_ref == "refs/heads/brain/development"
+-        and payload["base_sha"] != config.expected_base_sha
+-    ):
+-        raise BridgeError("development_base_not_owner_admitted")
++    if payload["base_sha"] != config.expected_base_sha:
++        raise BridgeError("base_not_owner_admitted")
+     policy = config.policy()
+     return OperationBinding(
+         company_id=config.company_id,
+diff --git a/engineering/paperclip_git_broker.py b/engineering/paperclip_git_broker.py
+index d0fd3fd..4a65fa7 100644
+--- a/engineering/paperclip_git_broker.py
++++ b/engineering/paperclip_git_broker.py
+@@ -12,17 +12,25 @@ import hashlib
+ import json
+ import os
+ import re
++import shutil
+ import stat
+ import subprocess
+ import tempfile
+ import threading
+ import time
+-from collections.abc import Iterator
++from collections.abc import Callable, Iterator
+ from contextlib import contextmanager
+ from dataclasses import dataclass
+ from pathlib import Path
+ 
+-from engineering.git_gate import OWNER_ACTIVE_REFS, Candidate, GitGate, GitGateError, Verifier
++from engineering.git_gate import (
++    OWNER_ACTIVE_REFS,
++    Candidate,
++    GitGate,
++    GitGateError,
++    NormalizedSubmission,
++    Verifier,
++)
+ 
+ ACTIVE_REF = "refs/heads/brain/paperclip-integration"
+ SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
+@@ -371,7 +379,14 @@ class PaperclipGitBroker:
+         super().__setattr__(name, value)
+ 
+     def __init__(
+-        self, gate: GitGate, journal_dir: Path, *, active_ref: str | None = None
++        self,
++        gate: GitGate,
++        journal_dir: Path,
++        *,
++        active_ref: str | None = None,
++        submission_normalizer: Callable[
++            [OperationBinding, Path, Path], NormalizedSubmission
++        ] | None = None,
+     ) -> None:
+         if gate.remote is not None:
+             raise BrokerError("Paperclip broker requires local-only GitGate publication")
+@@ -388,10 +403,16 @@ class PaperclipGitBroker:
+             remote=None,
+             operation_guard=gate.operation_guard,
+             active_ref=target_ref,
++            normalized_import_root=gate.normalized_import_root,
++            expected_base_sha=gate.expected_base_sha,
++            git_import_mode=gate.git_import_mode,
++            git_executable=gate.git_executable,
++            git_executable_sha256=gate.git_executable_sha256,
+         )
+         self._active_ref = target_ref
+         self.journal_dir = Path(journal_dir).resolve()
+         self.journal_dir.mkdir(parents=True, exist_ok=True)
++        self.submission_normalizer = submission_normalizer
+         self._lock = threading.RLock()
+ 
+     @property
+@@ -486,6 +507,9 @@ class PaperclipGitBroker:
+                     return candidate
+                 raise BrokerError(f"operation is held in state {record['state']}")
+ 
++            if self.submission_normalizer is None or self.gate.normalized_import_root is None:
++                raise BrokerError("confined submission normalizer is not owner-configured")
++
+             expected_tip = self.gate._ref_sha(
+                 self.gate.repo, self.active_ref, missing_ok=True
+             )
+@@ -497,15 +521,39 @@ class PaperclipGitBroker:
+                 "expected_tip": expected_tip or "0" * len(binding.base_sha),
+             }
+             self._create(path, record)
++            import_root = Path(
++                tempfile.mkdtemp(
++                    prefix=f"paperclip-import-{binding.operation_key[:16]}-",
++                    dir=self.gate.normalized_import_root,
++                )
++            )
++            os.chmod(import_root, 0o700)
++            record["submission_import"] = {"state": "normalizing"}
++            self._write(path, record)
+             try:
+                 if self.active_ref == "refs/heads/brain/development" and not (
+                     self.gate.is_detached()
+                 ):
+                     raise GitGateError("development publisher HEAD must be detached")
++                submission = self.submission_normalizer(
++                    binding, Path(worker_checkout), import_root
++                )
++                if (
++                    submission.submitted_sha != binding.submitted_sha
++                    or submission.base_sha != binding.base_sha
++                ):
++                    raise BrokerError("normalized submission differs from the admitted binding")
++                record["submission_import"] = {
++                    "state": "normalized",
++                    "bundle_sha256": submission.bundle_sha256,
++                    "bundle_bytes": submission.bundle_bytes,
++                    "export_profile_sha256": submission.export_profile_sha256,
++                    "import_profile_sha256": submission.import_profile_sha256,
++                    "quarantine_config_sha256": submission.quarantine_config_sha256,
++                }
++                self._write(path, record)
+                 candidate = self.gate.submit(
+-                    Path(worker_checkout),
+-                    binding.submitted_sha,
+-                    binding.base_sha,
++                    submission,
+                     binding.scope,
+                     expected_source_tip=(
+                         binding.base_sha
+@@ -518,6 +566,7 @@ class PaperclipGitBroker:
+                         else None
+                     ),
+                 )
++                shutil.rmtree(import_root)
+             except BaseException as exc:
+                 self._mark_held(path, "preparing", exc)
+                 raise BrokerError(
+diff --git a/engineering/tests/test_git_gate.py b/engineering/tests/test_git_gate.py
+index a3213f4..d36323d 100644
+--- a/engineering/tests/test_git_gate.py
++++ b/engineering/tests/test_git_gate.py
+@@ -3,13 +3,14 @@ from __future__ import annotations
+ import hashlib
+ import json
+ import os
++import shutil
+ import subprocess
+ import sys
+ from pathlib import Path
+ 
+ import pytest
+ 
+-from engineering.git_gate import GitGate, GitGateError, VerificationPolicy
++from engineering.git_gate import GitGate, GitGateError, NormalizedSubmission, VerificationPolicy
+ 
+ 
+ def git(path: Path, *args: str, input: str | None = None) -> str:
+@@ -38,12 +39,63 @@ def commit(path: Path, message: str) -> str:
+     return git(path, "rev-parse", "HEAD")
+ 
+ 
++def configure_projection(path: Path, base: str, refs=(GitGate.ACTIVE_REF,)) -> None:
++    for ref in refs:
++        git(path, "update-ref", ref, base)
++    git(path, "update-ref", "-d", "refs/heads/main")
++    git(path, "symbolic-ref", "HEAD", refs[0])
++
++
++def make_gate(source, integration, policy, receipts, import_root, base, *, active_ref=None, **kwargs):
++    git_executable = Path(shutil.which("git")).resolve(strict=True)
++    return GitGate(
++        source,
++        integration,
++        policy,
++        receipts,
++        active_ref=active_ref,
++        normalized_import_root=import_root,
++        expected_base_sha=base,
++        git_import_mode="safe-source-projection-bundle-v1",
++        git_executable=git_executable,
++        git_executable_sha256=hashlib.sha256(git_executable.read_bytes()).hexdigest(),
++        **kwargs,
++    )
++
++
++def normalized(gate: GitGate, worker: Path, submitted: str, base: str) -> NormalizedSubmission:
++    root = gate.normalized_import_root / f"fixture-{submitted[:12]}-{os.urandom(4).hex()}"
++    root.mkdir(mode=0o700)
++    config_sha = gate.initialize_quarantine(root, base)
++    git(
++        root,
++        "fetch",
++        "--no-tags",
++        "--no-write-fetch-head",
++        str(worker),
++        f"{submitted}:refs/git-gate/import/{submitted}",
++    )
++    return NormalizedSubmission(
++        root,
++        submitted,
++        base,
++        hashlib.sha256(submitted.encode()).hexdigest(),
++        1,
++        "a" * 64,
++        "b" * 64,
++        config_sha,
++    )
++
++
+ @pytest.fixture
+ def setup_gate(tmp_path: Path):
+     integration = tmp_path / "integration"
+     init(integration)
+     (integration / "README.md").write_text("base\n")
+     base = commit(integration, "base")
++    source = tmp_path / "source-projection"
++    git(tmp_path, "clone", str(integration), str(source))
++    configure_projection(source, base)
+     worker = tmp_path / "worker"
+     git(tmp_path, "clone", str(integration), str(worker))
+     git(worker, "config", "user.name", "worker")
+@@ -51,7 +103,9 @@ def setup_gate(tmp_path: Path):
+     policy = VerificationPolicy(
+         (("python", "-m", "pytest"),), (("PYTHONDONTWRITEBYTECODE", "1"),), "pilot"
+     )
+-    gate = GitGate(integration, integration, policy, tmp_path / "receipts")
++    import_root = tmp_path / "git-import"
++    import_root.mkdir(mode=0o700)
++    gate = make_gate(source, integration, policy, tmp_path / "receipts", import_root, base)
+     return tmp_path, integration, worker, base, gate
+ 
+ 
+@@ -61,7 +115,7 @@ def submit(setup, path: str = "src/module.py"):
+     target.parent.mkdir(parents=True, exist_ok=True)
+     target.write_text("value = 1\n")
+     submitted = commit(worker, "worker change")
+-    candidate = gate.submit(worker, submitted, base, ["src"])
++    candidate = gate.submit(normalized(gate, worker, submitted, base), ["src"])
+     return candidate
+ 
+ 
+@@ -250,7 +304,7 @@ def test_candidate_refuses_active_ref_moved_after_construction(setup_gate):
+ 
+     (worker / "src" / "second.py").write_text("value = 2\n")
+     second_sha = commit(worker, "second worker change")
+-    second = gate.submit(worker, second_sha, base, ["src"])
++    second = gate.submit(normalized(gate, worker, second_sha, base), ["src"])
+     second_receipt = gate.verify(second, verifier)
+ 
+     git(integration, "update-ref", gate.ACTIVE_REF, base, first.sha)
+@@ -267,7 +321,7 @@ def test_sequential_candidates_build_on_and_preserve_active_tip(setup_gate):
+ 
+     (worker / "src" / "second.py").write_text("value = 2\n")
+     second_sha = commit(worker, "second worker change")
+-    second = gate.submit(worker, second_sha, base, ["src"])
++    second = gate.submit(normalized(gate, worker, second_sha, base), ["src"])
+     assert second.integration_tip == first.sha
+     assert git(second.checkout, "show", "HEAD:src/module.py") == "value = 1"
+     second_receipt = gate.verify(second, verifier)
+@@ -294,13 +348,13 @@ def test_unscoped_and_protected_changes_are_rejected(setup_gate):
+     (worker / "docs" / "escape.md").write_text("outside\n")
+     submitted = commit(worker, "outside scope")
+     with pytest.raises(GitGateError, match="outside allowed scope"):
+-        gate.submit(worker, submitted, base, ["src"])
++        gate.submit(normalized(gate, worker, submitted, base), ["src"])
+ 
+     (worker / "engineering").mkdir()
+     (worker / "engineering" / "evil.py").write_text("raise RuntimeError()\n")
+     submitted2 = commit(worker, "protected path")
+     with pytest.raises(GitGateError, match="protected path"):
+-        gate.submit(worker, submitted2, base, ["docs", "engineering"])
++        gate.submit(normalized(gate, worker, submitted2, base), ["docs", "engineering"])
+ 
+ 
+ def test_symlink_change_rejected_even_when_in_scope(setup_gate):
+@@ -309,7 +363,7 @@ def test_symlink_change_rejected_even_when_in_scope(setup_gate):
+     os.symlink("../../outside", worker / "src" / "link.py")
+     submitted = commit(worker, "symlink")
+     with pytest.raises(GitGateError, match="symlink"):
+-        gate.submit(worker, submitted, base, ["src"])
++        gate.submit(normalized(gate, worker, submitted, base), ["src"])
+ 
+ 
+ def test_main_is_not_a_publish_target(setup_gate):
+@@ -321,20 +375,31 @@ def test_main_is_not_a_publish_target(setup_gate):
+     assert git(integration, "rev-parse", "main") == candidate.integration_tip
+ 
+ 
++def test_default_gate_rejects_worker_checkout_without_normalized_import(setup_gate):
++    _, _, worker, _, gate = setup_gate
++    with pytest.raises(GitGateError, match="owner-normalized submission required"):
++        gate.submit(worker, ["src"])
++
++
+ def test_owner_lane_refs_are_instance_scoped_and_main_is_rejected(setup_gate):
+-    _, integration, worker, base, _ = setup_gate
++    _, integration, worker, base, initial_gate = setup_gate
++    source = initial_gate.source_repo
++    import_root = initial_gate.normalized_import_root
+     lanes = (
+         "refs/heads/brain/paperclip-integration",
+         "refs/heads/brain/development",
+     )
+     for ref in lanes:
+         git(integration, "update-ref", ref, base)
++        git(source, "update-ref", ref, base)
+     gates = [
+-        GitGate(
+-            integration,
++        make_gate(
++            source,
+             integration,
+             VerificationPolicy((("python", "-c", "pass"),)),
+             integration.parent / f"receipts-{index}",
++            import_root,
++            base,
+             active_ref=ref,
+         )
+         for index, ref in enumerate(lanes)
+@@ -344,23 +409,21 @@ def test_owner_lane_refs_are_instance_scoped_and_main_is_rejected(setup_gate):
+     submitted = commit(worker, "shared lane submission")
+     with pytest.raises(GitGateError, match="source active tip differs"):
+         gates[0].submit(
+-            worker,
+-            submitted,
+-            base,
++            normalized(gates[0], worker, submitted, base),
+             ["src"],
+             expected_source_tip="c" * 40,
+             expected_integration_tip=base,
+         )
+     with pytest.raises(GitGateError, match="integration active tip differs"):
+         gates[0].submit(
+-            worker,
+-            submitted,
+-            base,
++            normalized(gates[0], worker, submitted, base),
+             ["src"],
+             expected_source_tip=base,
+             expected_integration_tip="c" * 40,
+         )
+-    candidates = [gate.submit(worker, submitted, base, ["src"]) for gate in gates]
++    candidates = [
++        gate.submit(normalized(gate, worker, submitted, base), ["src"]) for gate in gates
++    ]
+     for gate, candidate, ref in zip(gates, candidates, lanes, strict=True):
+         receipt = gate.verify(candidate, verifier)
+         gate.publish(candidate, receipt.digest, base)
+@@ -372,17 +435,19 @@ def test_owner_lane_refs_are_instance_scoped_and_main_is_rejected(setup_gate):
+     with pytest.raises(AttributeError, match="immutable"):
+         gates[0]._active_ref = "refs/heads/main"
+     with pytest.raises(GitGateError, match="approved owner target"):
+-        GitGate(
+-            integration,
++        make_gate(
++            source,
+             integration,
+             VerificationPolicy((("python", "-c", "pass"),)),
+             integration.parent / "receipts-main",
++            import_root,
++            base,
+             active_ref="refs/heads/main",
+         )
+ 
+ 
+ def test_local_bare_remote_checks_active_and_main_before_normal_push(setup_gate, tmp_path):
+-    _, integration, worker, base, _ = setup_gate
++    _, integration, worker, base, initial_gate = setup_gate
+     bare = tmp_path / "remote.git"
+     subprocess.run(["git", "init", "--bare", str(bare)], check=True, capture_output=True)
+     # Seed remote main and a stable research/active baseline.
+@@ -392,11 +457,13 @@ def test_local_bare_remote_checks_active_and_main_before_normal_push(setup_gate,
+     remote_active = git(integration, "ls-remote", "origin", "refs/heads/research/active").split()[0]
+     remote_main = git(integration, "ls-remote", "origin", "refs/heads/main").split()[0]
+     git(integration, "update-ref", "refs/heads/research/active", remote_active)
+-    gate = GitGate(
+-        integration,
++    gate = make_gate(
++        initial_gate.source_repo,
+         integration,
+         VerificationPolicy((("make", "check"),)),
+         tmp_path / "remote-receipts",
++        initial_gate.normalized_import_root,
++        base,
+         remote="origin",
+     )
+     candidate = submit((tmp_path, integration, worker, base, gate))
+diff --git a/engineering/tests/test_paperclip_git_broker.py b/engineering/tests/test_paperclip_git_broker.py
+index 1c5b48f..92ac6a1 100644
+--- a/engineering/tests/test_paperclip_git_broker.py
++++ b/engineering/tests/test_paperclip_git_broker.py
+@@ -3,7 +3,10 @@
+ from __future__ import annotations
+ 
+ import json
++import hashlib
+ import subprocess
++import os
++import shutil
+ import sys
+ import tempfile
+ import time
+@@ -12,7 +15,7 @@ from contextlib import nullcontext
+ from dataclasses import replace
+ from pathlib import Path
+ 
+-from engineering.git_gate import GitGate, VerificationPolicy
++from engineering.git_gate import GitGate, NormalizedSubmission, VerificationPolicy
+ from engineering.paperclip_git_broker import (
+     ACTIVE_REF,
+     BrokerError,
+@@ -46,6 +49,29 @@ def commit(path: Path, message: str) -> str:
+     return git(path, "rev-parse", "HEAD")
+ 
+ 
++def projection(path: Path, base: str) -> None:
++    git(path, "update-ref", ACTIVE_REF, base)
++    git(path, "update-ref", "refs/heads/brain/development", base)
++    git(path, "update-ref", "-d", "refs/heads/main")
++    git(path, "symbolic-ref", "HEAD", ACTIVE_REF)
++
++
++def make_gate(source, integration, policy, receipts, import_root, base, *, active_ref=None):
++    git_executable = Path(shutil.which("git")).resolve(strict=True)
++    return GitGate(
++        source,
++        integration,
++        policy,
++        receipts,
++        active_ref=active_ref,
++        normalized_import_root=import_root,
++        expected_base_sha=base,
++        git_import_mode="safe-source-projection-bundle-v1",
++        git_executable=git_executable,
++        git_executable_sha256=hashlib.sha256(git_executable.read_bytes()).hexdigest(),
++    )
++
++
+ class PaperclipGitBrokerTests(unittest.TestCase):
+     def setUp(self) -> None:
+         self.temp = tempfile.TemporaryDirectory(prefix="paperclip-git-broker-")
+@@ -64,14 +90,22 @@ class PaperclipGitBrokerTests(unittest.TestCase):
+         (self.worker / "src" / "change.py").write_text("value = 'synthetic'\n")
+         self.submitted = commit(self.worker, "synthetic worker change")
+         self.policy = VerificationPolicy((("python", "-m", "unittest"),), (), "paperclip-test")
+-        self.gate = GitGate(
++        projection(self.source, self.base)
++        self.import_root = self.root / "git-import"
++        self.import_root.mkdir(mode=0o700)
++        self.gate = make_gate(
+             self.source,
+             self.integration,
+             self.policy,
+             self.root / "receipts",
+-            operation_guard=nullcontext,
++            self.import_root,
++            self.base,
++        )
++        self.broker = PaperclipGitBroker(
++            self.gate,
++            self.root / "journal",
++            submission_normalizer=self.normalize_submission,
+         )
+-        self.broker = PaperclipGitBroker(self.gate, self.root / "journal")
+         self.binding = OperationBinding(
+             "company-local",
+             "issue-17",
+@@ -87,6 +121,29 @@ class PaperclipGitBrokerTests(unittest.TestCase):
+     def tearDown(self) -> None:
+         self.temp.cleanup()
+ 
++    def normalize_submission(self, binding, worker_checkout, staging):
++        quarantine = staging / "quarantine.git"
++        quarantine.mkdir(mode=0o700)
++        config_sha = self.gate.initialize_quarantine(quarantine, binding.base_sha)
++        git(
++            quarantine,
++            "fetch",
++            "--no-tags",
++            "--no-write-fetch-head",
++            str(worker_checkout),
++            f"{binding.submitted_sha}:refs/git-gate/import/{binding.submitted_sha}",
++        )
++        return NormalizedSubmission(
++            quarantine,
++            binding.submitted_sha,
++            binding.base_sha,
++            hashlib.sha256(binding.submitted_sha.encode()).hexdigest(),
++            1,
++            "a" * 64,
++            "b" * 64,
++            config_sha,
++        )
++
+     def approval(self, candidate, *, approved=True) -> ReviewerApproval:
+         return ReviewerApproval(
+             self.binding.company_id,
+@@ -140,17 +197,20 @@ class PaperclipGitBrokerTests(unittest.TestCase):
+             self.broker.recover_candidate(self.binding)
+ 
+     def test_development_lane_rejects_unbound_direct_binding(self) -> None:
+-        gate = GitGate(
++        gate = make_gate(
+             self.source,
+             self.integration,
+             self.policy,
+             self.root / "dev-receipts",
++            self.import_root,
++            self.base,
+             active_ref="refs/heads/brain/development",
+         )
+         broker = PaperclipGitBroker(
+             gate,
+             self.root / "dev-journal",
+             active_ref="refs/heads/brain/development",
++            submission_normalizer=self.normalize_submission,
+         )
+         binding = OperationBinding(
+             self.binding.company_id,
+@@ -173,14 +233,21 @@ class PaperclipGitBrokerTests(unittest.TestCase):
+         git(self.integration, "update-ref", ref, self.base)
+         receipts = self.root / "bound-receipts"
+         journal = self.root / "bound-journal"
+-        gate = GitGate(
++        gate = make_gate(
+             self.source,
+             self.integration,
+             self.policy,
+             receipts,
++            self.import_root,
++            self.base,
++            active_ref=ref,
++        )
++        broker = PaperclipGitBroker(
++            gate,
++            journal,
+             active_ref=ref,
++            submission_normalizer=self.normalize_submission,
+         )
+-        broker = PaperclipGitBroker(gate, journal, active_ref=ref)
+         roots = tuple(
+             str(path.resolve())
+             for path in (self.source, self.integration, receipts, journal, self.worker)

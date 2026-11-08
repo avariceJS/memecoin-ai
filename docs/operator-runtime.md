@@ -230,70 +230,15 @@ mandatory pass after every edit. Treat findings as hypotheses. Architecture, com
 integration, ML/data semantics and the final quality judgment remain the integrator's responsibility.
 Grok remains disabled by the user's latest instruction.
 
-## Git integration and recovery registry
+## Git and local state — 2026-11-08
 
-### Consolidated Git ownership and completed audit hold — 2026-10-20
+The only source root is `~/Developer/memecoin-research`; remote `avariceJS/memecoin-ai`.
+Use `develop` for Brain and organization source. `main` remains the stable baseline and requires
+separate release authority. Temporary agent branches/worktrees are removed after accepted publication.
+Old branch registries/custody narratives remain in Git history; do not use their paths as live setup.
 
-The founder authorized repository consolidation. The temporary organization-development hold for
-the independent Astra audit was later completed and explicitly superseded by the founder's
-resumption of source development. This registry supersedes older branch instructions. `main` stays exactly at
-`2f8da5f92da521b511e0d4fb20205981a000cab5`; no experimental source was promoted.
-
-| Branch | Role | Status |
-|---|---|---|
-| `main` | Stable existing baseline | Unchanged; existing repository failures remain documented |
-| `brain/development` | Brain research development | Brain-only development lane |
-| `org/development` | Unified engineering-organization development and audit entry | Sole organization source-development branch; source checkpoints do not by themselves qualify an operational release |
-| `brain/linux` | Separate Linux platform candidate | Unaccepted; clean-host provisioning, lifecycle and inert-service qualification remain open |
-| `research/active` | Frozen remote compatibility alias at `c157f79471c1cb330bdab01cc4b4cdd7b9a1a186` | Not a development or integration lane; current `engineering/bootstrap.py` still resolves `origin/research/active`, and historical recovery packages name it |
-
-The compatibility alias cannot be removed without changing and qualifying current bootstrap/recovery
-callers. That is a separate controller release, outside this consolidation. Frozen private pilot
-repositories also retain their exact historical refs; they are not development checkouts. Linux
-changes overlap operator host/control and shared storage behavior; merging this unqualified platform
-release into Brain solely to reduce branch count would overstate acceptance. Linux was renamed,
-not updated to the current Brain baseline; reconcile that dependency during its future review.
-
-The obsolete development-readiness and organization topic branches are consolidated. UI reconstruction
-`de4b42d` and DR v3 prototype `6554a01` are archived, not accepted or silently merged. UI visual
-acceptance and physical/owner-scale v3 qualification remain open. Unreviewed supervisor proposal
-`1546e4c` and backup/restore `613c5e9` plus its last dirty repair are also custody only.
-
-`archive/consolidation-20261020` is an annotated, never-retargeted custody tag. Its commit has an
-archive tree, not a runnable project. `manifest.json` maps every original ref/checkpoint and dirty
-organization source file. Its parents preserve all 69 original commit pins. A separate bare clone
-from this GitHub tag verified all pins, four dirty organization files, and `git fsck --full` before
-branch deletion. Five historical owner documentation edits remain untouched at
-`/Users/root1/Desktop/memecoin-ai` and in a verified private dirty-file archive. Private bundles,
-ignored worktree artifacts and raw reviewer logs remain outside Git under
-`/Users/root1/Developer/brain-org-state/consolidation-20261020/`.
-
-Recover an archived source without merging the custody tree:
-
-```sh
-git fetch origin --tags
-git show archive/consolidation-20261020:manifest.json
-git switch -c recovery/<topic> <original-commit-from-manifest>
-```
-
-The archive stores the final uncommitted service repair under
-`snapshots/checkout-15/engineering/service.py` and the matching test path. Reconstruct it on
-`613c5e9e6dd6fe00d6ebf4b072a31885826ac7a4` only in an isolated recovery checkout, then obtain frozen
-acceptance and independent review. Existing `archive/pre-reset-20261018`,
-`archive/bootstrap-fixtures-20261018`, `archive/research-active-pre-org-20261019`, DR handoff tags and
-`brain-git-consolidated-20261018` remain unchanged. Historical protocol hashes require their exact
-source commit, never current archival pointer text.
-
-New Brain work belongs on `brain/development`; engineering-organization work belongs on
-`org/development` under the sole Luna-6 High implementation owner, with Sol-6.1 High handling
-substantial technical decisions and independent review. Astra High remains episodic and is not
-invoked automatically. The independent director audit of `b2dcd6d` is complete; findings and release
-gates are owned by `engineering-organization.md`, and the temporary hold is no longer active.
-`research/active` remains a frozen compatibility alias; it is not the organization development target.
-This resumption authorizes source work only. Pilot STOP, protected datasets, the unaccepted Linux
-candidate, runtime and release boundaries remain in force; no supervisor/runtime, inference,
-collector, training, AUTO or trading activation follows from branch consolidation or Goal activity.
-
-See the machine-readable [consolidation receipt](evidence/git-consolidation-2026-10-20.json) for exact
-source selection, tests, failures, custody and cleanup. Historical acceptance from the earlier
-[2026-10-18 consolidation](evidence/git-consolidation-2026-10-18.json) is not new verification.
+Private runtime is `~/Developer/memecoin-runtime`. Paperclip owns `state/instances/lab` and its live DB,
+secrets, durable receipts and holds. Brain's retained local state is under `brain/`.
+Large research data stays on its explicitly configured volume. BrainDevelopment and Kingston have
+different identities; Kingston is currently absent. Existing protected holdout is never cleanup input.
+See [organization](engineering-organization.md) for the paused native operating model and source install.

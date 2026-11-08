@@ -66,6 +66,50 @@ def acceptance_doc(body: str):
     }
 
 
+@pytest.mark.parametrize(
+    "ref,accepted",
+    [
+        ("refs/heads/develop", True),
+        ("refs/heads/brain/development", False),
+        ("refs/heads/org/development", False),
+        ("refs/heads/main", False),
+    ],
+)
+def test_batch_policy_publishes_only_to_develop(tmp_path, monkeypatch, ref, accepted):
+    source = tmp_path / "source"
+    canonical = tmp_path / "canonical"
+    custody = tmp_path / "custody"
+    for directory in (source, canonical, custody):
+        directory.mkdir(mode=0o700)
+    remote = "https://github.com/avariceJS/memecoin-ai.git"
+    policy = {
+        "schema": delivery.BATCH_POLICY_SCHEMA,
+        "api_origin": "http://127.0.0.1:3310",
+        "company_id": COMPANY,
+        "publisher_agent_id": PUBLISHER,
+        "lead_agent_ids": [LEAD, *OTHER_LEADS],
+        "source_seed_repo": str(source),
+        "custody_dir": str(custody),
+        "canonical": {
+            "repo": str(canonical),
+            "ref": ref,
+            "remote_name": "origin",
+            "remote_url": remote,
+        },
+    }
+    path = tmp_path / "policy.json"
+    raw = json.dumps(policy).encode()
+    path.write_bytes(raw)
+    path.chmod(0o400)
+    monkeypatch.setattr(delivery, "git", lambda *args: (remote + "\n").encode())
+    if accepted:
+        result, _ = delivery.load_batch_policy(str(path), sha(raw))
+        assert result["canonical"]["ref"] == "refs/heads/develop"
+    else:
+        with pytest.raises(delivery.DeliveryError, match="batch_policy_canonical_invalid"):
+            delivery.load_batch_policy(str(path), sha(raw))
+
+
 def test_acceptance_binds_native_document_and_strict_body():
     body = json.dumps(acceptance())
     result, revision, body_hash = delivery._batch_acceptance(
@@ -336,7 +380,7 @@ def _make_batch_repositories(tmp_path: Path):
     source = tmp_path / "source"
     canonical.mkdir()
     subprocess.run(
-        [GIT_BIN, "-c", "init.defaultBranch=brain/development", "init", "-q", str(canonical)],
+        [GIT_BIN, "-c", "init.defaultBranch=develop", "init", "-q", str(canonical)],
         check=True,
     )
     (canonical / "src").mkdir()
@@ -676,7 +720,12 @@ def test_publish_batch_v2_closes_fresh_yielded_parent_before_own_completion(tmp_
     monkeypatch.setattr(delivery.publisher, "prepare", counted_prepare)
 
     def push_ref(_manifest, source_ref, target_ref):
-        remote[target_ref] = source_ref
+        if source_ref:
+            remote[target_ref] = source_ref
+        else:
+            assert fake_api.parent_status == "done"
+            assert fake_api.publisher_status == "done"
+            remote.pop(target_ref)
 
     monkeypatch.setattr(delivery, "push_ref", push_ref)
     result = _run_batch(monkeypatch, fake_api, policy, "f" * 64, PROCESS_RUN_1)
@@ -685,6 +734,13 @@ def test_publish_batch_v2_closes_fresh_yielded_parent_before_own_completion(tmp_
     assert fake_api.events == ["parent_done", "publisher_done"]
     assert fake_api.parent_blockers == [SOURCE_TASK]
     assert fake_api.completions == 1
+    candidate_ref = f"refs/heads/brain/batch-{BATCH}"
+    assert candidate_ref not in remote
+    saved_body = fake_api.receipt_document["body"]
+    # A later accepted commit must not cause replay to reapply the completed batch.
+    (canonical / "README.md").write_bytes(b"later accepted change\n")
+    later = _commit_repo(canonical, "later develop change")
+    remote[branch] = later
 
     retry_run = "d0000000-1111-4111-8111-111111111111"
     fake_api.publisher_run_id = retry_run
@@ -696,6 +752,25 @@ def test_publish_batch_v2_closes_fresh_yielded_parent_before_own_completion(tmp_
     assert fake_api.parent_patches == 1 and fake_api.receipt_puts == 1
     assert fake_api.events == ["parent_done", "publisher_done", "publisher_done"]
     assert prepare_calls == [True]
+    assert candidate_ref not in remote
+    assert fake_api.receipt_document["body"] == saved_body
+    assert git(canonical, "rev-parse", branch) == later
+    assert (canonical / "README.md").read_bytes() == b"later accepted change\n"
+
+
+def test_batch_cleanup_preserves_changed_or_nonbatch_refs(tmp_path, monkeypatch):
+    canonical, _, candidate, branch, _, _ = _make_batch_repositories(tmp_path)
+    temp_ref = f"refs/heads/brain/batch-{BATCH}"
+    manifest = {"canonical": {"repo": str(canonical), "ref": branch, "candidate_ref": temp_ref}}
+    pushes = []
+    monkeypatch.setattr(delivery, "remote_refs", lambda _m: {branch: candidate, temp_ref: "f" * 40})
+    monkeypatch.setattr(delivery, "push_ref", lambda *args: pushes.append(args))
+    with pytest.raises(delivery.DeliveryError, match="batch_cleanup_ref_changed"):
+        delivery._cleanup_batch_candidate(manifest, candidate)
+    manifest["canonical"]["candidate_ref"] = "refs/heads/main"
+    with pytest.raises(delivery.DeliveryError, match="batch_cleanup_ref_invalid"):
+        delivery._cleanup_batch_candidate(manifest, candidate)
+    assert pushes == []
 
 
 def test_publish_batch_done_v2_without_saved_operation_stops_before_prepare_or_refs(

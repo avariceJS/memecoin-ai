@@ -324,6 +324,7 @@ def test_main_is_not_a_publish_target(setup_gate):
 def test_owner_lane_refs_are_instance_scoped_and_main_is_rejected(setup_gate):
     _, integration, worker, base, _ = setup_gate
     lanes = (
+        "refs/heads/develop",
         "refs/heads/brain/paperclip-integration",
         "refs/heads/brain/development",
     )

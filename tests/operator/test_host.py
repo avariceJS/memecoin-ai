@@ -80,7 +80,15 @@ def _install(monkeypatch, outputs: dict | None = None, *, platform: str = "darwi
         assert timeout <= 1
         record = tuple(argv)
         calls.append(record)
-        assert argv[0] in {"launchctl", "pmset", "ps", "sysctl"}
+        assert argv[0] in {"launchctl", "pmset", "ps", "sysctl", "systemctl"}
+        if argv[0] == "systemctl":
+            assert argv == [
+                "systemctl",
+                "show",
+                "--no-pager",
+                "--property=LoadState,UnitFileState,ActiveState,MainPID",
+                host._SYSTEMD_OPERATOR,
+            ]
         if argv[0] == "launchctl":
             assert argv[1:][:1] == ["print"]
             assert len(argv) == 3
@@ -97,6 +105,11 @@ def _install(monkeypatch, outputs: dict | None = None, *, platform: str = "darwi
             result = _done(0, AC)
         elif argv[0] == "sysctl":
             result = _done(0, "{ sec = 100, usec = 1 }\n")
+        elif argv[0] == "systemctl":
+            result = _done(
+                0,
+                "LoadState=not-found\nUnitFileState=\nActiveState=inactive\nMainPID=0\n",
+            )
         else:
             result = _done(0, "12\n")
         if isinstance(result, BaseException):
@@ -192,12 +205,138 @@ def test_battery_zero_is_parsed_and_missing_percent_is_null(tmp_path, monkeypatc
 def test_non_mac_skips_power_and_boot(tmp_path, monkeypatch):
     root = _config(tmp_path / "op", [])
     calls = _install(monkeypatch, platform="linux")
+    monkeypatch.setattr(host, "_linux_boot", lambda: (None, "boot_unavailable"))
     got = snapshot(root)
     assert got["power"]["reason"] == "power_unsupported"
     assert got["power"]["percent"] is None
     assert got["uptime"]["boot_s"] is None
-    assert got["uptime"]["boot_reason"] == "boot_unsupported"
+    assert got["uptime"]["boot_reason"] == "boot_unavailable"
     assert all(call[0] != "pmset" and call[0] != "sysctl" for call in calls)
+    assert all(call[0] != "launchctl" for call in calls)
+    assert got["operator"]["loaded"] is False
+    assert got["operator"]["disposition"] == "not_installed"
+    assert got["services"] == []
+
+
+def test_linux_systemd_reports_disabled_and_inactive_without_launchd(tmp_path, monkeypatch):
+    root = _config(tmp_path / "op", ["ignored-mac-label"])
+    calls = _install(
+        monkeypatch,
+        {
+            "systemctl": _done(
+                0,
+                "LoadState=loaded\nUnitFileState=disabled\nActiveState=inactive\nMainPID=4242\n",
+            )
+        },
+        platform="linux",
+    )
+    got = snapshot(root)
+    assert got["operator"]["label"] == host._SYSTEMD_OPERATOR
+    assert got["operator"]["loaded"] is True
+    assert got["operator"]["disposition"] == "systemd"
+    assert got["operator"]["state"] == "inactive"
+    assert got["operator"]["unit_file_state"] == "disabled"
+    assert got["operator"]["pid"] is None
+    assert got["operator"]["runs"] is None and got["operator"]["last_exit"] is None
+    assert got["services"] == []
+    assert [call for call in calls if call[0] == "systemctl"] == [
+        (
+            "systemctl",
+            "show",
+            "--no-pager",
+            "--property=LoadState,UnitFileState,ActiveState,MainPID",
+            host._SYSTEMD_OPERATOR,
+        )
+    ]
+    assert all(call[0] != "launchctl" for call in calls)
+
+
+def test_linux_systemd_active_pid_is_distinct_from_enabled_state(tmp_path, monkeypatch):
+    root = _config(tmp_path / "op", [])
+    calls = _install(
+        monkeypatch,
+        {
+            "systemctl": _done(
+                0,
+                "LoadState=loaded\nUnitFileState=disabled\nActiveState=active\nMainPID=4242\n",
+            ),
+            "ps": _done(0, "12\n"),
+        },
+        platform="linux",
+    )
+    got = snapshot(root)
+    assert got["operator"]["loaded"] is True
+    assert got["operator"]["state"] == "active"
+    assert got["operator"]["unit_file_state"] == "disabled"
+    assert got["operator"]["pid"] == 4242
+    assert got["operator"]["runs"] is None and got["operator"]["last_exit"] is None
+    assert got["uptime"]["process_s"] == 12.0
+    assert all(call[0] != "launchctl" for call in calls)
+
+
+@pytest.mark.parametrize(
+    ("output", "reason"),
+    [
+        ("LoadState=loaded\nLoadState=loaded\n", "systemd_malformed"),
+        (
+            "LoadState=loaded\nUnitFileState=disabled\nActiveState=unknown\nMainPID=0\n",
+            "systemd_unrecognized_state",
+        ),
+    ],
+)
+def test_linux_systemd_rejects_malformed_output(tmp_path, monkeypatch, output, reason):
+    root = _config(tmp_path / "op", [])
+    _install(monkeypatch, {"systemctl": _done(0, output)}, platform="linux")
+    got = snapshot(root)
+    assert got["operator"]["loaded"] is None
+    assert got["operator"]["state"] is None
+    assert got["operator"]["unit_file_state"] is None
+    assert got["operator"]["reason"] == reason
+
+
+@pytest.mark.parametrize(
+    "failure,reason",
+    [
+        (FileNotFoundError(), "systemd_unavailable"),
+        (subprocess.TimeoutExpired("systemctl", 1), "systemctl_timeout"),
+    ],
+)
+def test_linux_systemd_failure_stays_unknown(tmp_path, monkeypatch, failure, reason):
+    root = _config(tmp_path / "op", [])
+    _install(monkeypatch, {"systemctl": failure}, platform="linux")
+    got = snapshot(root)
+    assert got["operator"]["loaded"] is None
+    assert got["operator"]["state"] is None
+    assert got["operator"]["unit_file_state"] is None
+    assert got["operator"]["reason"] == reason
+
+
+def test_linux_systemd_display_cache_expires_before_rechecking(tmp_path, monkeypatch):
+    root = _config(tmp_path / "op", [])
+    state = {"active": False, "clock": 1_000_000_000}
+
+    def run(argv, **kwargs):
+        if argv[0] == "ps":
+            return _done(0, "12\n")
+        assert argv[0] == "systemctl"
+        active, pid = ("active", "4242") if state["active"] else ("inactive", "0")
+        return _done(
+            0,
+            f"LoadState=loaded\nUnitFileState=disabled\nActiveState={active}\nMainPID={pid}\n",
+        )
+
+    monkeypatch.setattr(host.sys, "platform", "linux")
+    monkeypatch.setattr(host.subprocess, "run", run)
+    monkeypatch.setattr(host.time, "monotonic_ns", lambda: state["clock"])
+    first = snapshot(root)
+    state["active"] = True
+    cached = snapshot(root)
+    assert first["operator"]["state"] == "inactive"
+    assert cached["operator"]["state"] == "inactive"
+    state["clock"] += int((host._TTL_S + 1) * 1e9)
+    fresh = snapshot(root)
+    assert fresh["operator"]["state"] == "active"
+    assert fresh["operator"]["pid"] == 4242
 
 
 def test_launchd_process_uptime_is_not_boot_time(tmp_path, monkeypatch):

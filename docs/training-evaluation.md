@@ -869,7 +869,7 @@ not established by these engineering fixtures. No promotion follows automaticall
 ## Historical reproduction map
 
 Receipts live in `docs/evidence/` and sealed `work/` roots on the research machines. The receipt
-index is [`evidence/README.md`](evidence/README.md); open only the relevant artifact.
+index is `evidence/README.md` (Git history before consolidation); open only the relevant artifact.
 
 | Result | Machine evidence |
 |---|---|
@@ -1495,5 +1495,5 @@ was not measured. This establishes only retrieval of the frozen synthetic lag ru
 it does not establish market skill, general temporal learning, transfer, or a model improvement for
 Brain. Two read-only result-controller attempts failed before publishing metrics and are preserved;
 the final reconciliation reused the sole sealed score without refitting, invoking prediction again,
-registering another protocol, or rebuilding the cohort. See the [assay preregistration and result
-receipts](evidence/README.md#brain-and-operator).
+registering another protocol, or rebuilding the cohort. See the assay preregistration and result
+receipts (Git history before consolidation).

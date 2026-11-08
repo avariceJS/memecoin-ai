@@ -1,0 +1,3380 @@
+{
+  "schema": "brain-organization-configuration-v1",
+  "sourceDate": "2026-11-08",
+  "companyMustRemainPaused": true,
+  "counts": {
+    "astra": 1,
+    "departmentLeads": 6,
+    "developers": 40,
+    "optionalReviewers": 5
+  },
+  "installation": {
+    "api": "Existing native Paperclip API; no alternate controller or importer.",
+    "newAgent": "POST /api/companies/${COMPANY_ID}/agents with resolved payload plus instructionsBundle:{entryFile:\"AGENTS.md\",files:{\"AGENTS.md\":<instructionFile contents>}}. Create Astra, leads, then developers/reviewers and resolve reportsTo from actual responses.",
+    "existingAgent": "Match the private owner-maintained key-to-agent mapping. PATCH /api/agents/${AGENT_ID} with explicitly reviewed configuration fields; permissions use the existing board-only permission endpoint. PUT /api/agents/${AGENT_ID}/instructions-bundle/file with {path:\"AGENTS.md\",content:<resolved instructionFile>,baseRevisionId:<fresh revision ID>}. Do not replace lifecycle state, holds, task history or current runtime binding.",
+    "placeholders": "Resolve PROJECT_ROOT/RUNTIME_ROOT, native agent/project/workspace IDs and owner-bound delegated subscription fields locally. Never send unresolved placeholders to the API or commit binding values.",
+    "environment": "Plain env values are placeholders for local bindings; API responses can redact them. Do not infer original values or switch subscription access to paid API keys.",
+    "workspace": "No legacy cwd is required. Register current project workspaces through native API; source tasks explicitly use configured_source/managed_isolated, publisher fixed shared workspace.",
+    "readback": "Fresh GET verifies model/effort, reporting, permissions, instruction revision, heartbeat disabled and unchanged pause/holds. Configuration import never authorizes a run.",
+    "history": "Retired profiles, qualification fixtures, existing STOP/rejection/unknown-effect records and historical fixed processes stay in the private live database; these templates do not recreate or delete them.",
+    "researcher": "One of the original forty Luna workforce profiles is a constrained read-only researcher with an old phase-specific instruction bundle, retained with an inactive-phase header and local task-pin placeholders. It is not forty interchangeable code implementers; current assignments and holds remain authoritative."
+  },
+  "agents": [
+    {
+      "key": "astra",
+      "instructionFile": "astra.md",
+      "sourceInstructionSha256": "da63a7c340b1696e4f6a6fb4cf4754d1c72411ecfbf43f59e77ed9c17b20541f",
+      "payload": {
+        "name": "Astra",
+        "role": "ceo",
+        "title": "Astra High — CEO and chief architect",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "trustPreset": "standard",
+          "canAssignTasks": true,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "authorizationPolicy": {
+            "trustPreset": "standard",
+            "assignmentPolicy": {
+              "mode": "protected"
+            }
+          },
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "list_agents",
+            "search_tasks",
+            "create_task",
+            "set_dependencies",
+            "read_document",
+            "write_document",
+            "read_task_document",
+            "paperclip_finish",
+            "get_task",
+            "list_task_documents",
+            "call_api",
+            "search_api"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-astra",
+          "graceSec": 15,
+          "provider": "codex",
+          "timeoutSec": 600,
+          "lifecycleMode": "per_turn",
+          "paperclipSkillSync": {
+            "desiredSkills": []
+          },
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high"
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${ASTRA_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${ASTRA_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": null
+      }
+    },
+    {
+      "key": "cortex-lead",
+      "instructionFile": "lead.md",
+      "sourceInstructionSha256": "4d45bc4b95bb57a342a4f66b960e87cb90c92ce84e9eea32ce801ace8c2819f3",
+      "payload": {
+        "name": "Cortex Sol High Lead",
+        "role": "cto",
+        "title": "Cortex Sol High Department Lead",
+        "capabilities": "Sol High department leadership at meaningful batch boundaries; autonomous Luna High development, selective Luna review, existing fixed publisher and deterministic completion. Astra only for strategy.",
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": true,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "list_agents",
+            "register_deliverable",
+            "set_dependencies",
+            "search_tasks",
+            "search_api",
+            "call_api",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6.1-sol",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high"
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${CORTEX_LEAD_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${CORTEX_LEAD_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:astra}"
+      }
+    },
+    {
+      "key": "developer-01",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Cortex developer 18",
+        "role": "engineer",
+        "title": "Cortex source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_01_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_01_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_01_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_01_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:cortex-lead}"
+      }
+    },
+    {
+      "key": "developer-02",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Cortex developer 24",
+        "role": "engineer",
+        "title": "Cortex source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_02_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_02_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_02_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_02_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:cortex-lead}"
+      }
+    },
+    {
+      "key": "developer-03",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Cortex developer 30",
+        "role": "engineer",
+        "title": "Cortex source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_03_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_03_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_03_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_03_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:cortex-lead}"
+      }
+    },
+    {
+      "key": "developer-04",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Cortex developer 36",
+        "role": "engineer",
+        "title": "Cortex source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_04_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_04_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_04_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_04_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:cortex-lead}"
+      }
+    },
+    {
+      "key": "developer-05",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Evaluation developer 19",
+        "role": "engineer",
+        "title": "Evaluation source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_05_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_05_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_05_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_05_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:evaluation-lead}"
+      }
+    },
+    {
+      "key": "developer-06",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Evaluation developer 25",
+        "role": "engineer",
+        "title": "Evaluation source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_06_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_06_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_06_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_06_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:evaluation-lead}"
+      }
+    },
+    {
+      "key": "developer-07",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Evaluation developer 31",
+        "role": "engineer",
+        "title": "Evaluation source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_07_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_07_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_07_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_07_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:evaluation-lead}"
+      }
+    },
+    {
+      "key": "developer-08",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Evaluation developer 37",
+        "role": "engineer",
+        "title": "Evaluation source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_08_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_08_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_08_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_08_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:evaluation-lead}"
+      }
+    },
+    {
+      "key": "developer-09",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Experience developer 17",
+        "role": "engineer",
+        "title": "Experience source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_09_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_09_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_09_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_09_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:experience-lead}"
+      }
+    },
+    {
+      "key": "developer-10",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Experience developer 23",
+        "role": "engineer",
+        "title": "Experience source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_10_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_10_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_10_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_10_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:experience-lead}"
+      }
+    },
+    {
+      "key": "developer-11",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Experience developer 29",
+        "role": "engineer",
+        "title": "Experience source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_11_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_11_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_11_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_11_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:experience-lead}"
+      }
+    },
+    {
+      "key": "developer-12",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Experience developer 35",
+        "role": "engineer",
+        "title": "Experience source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_12_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_12_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_12_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_12_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:experience-lead}"
+      }
+    },
+    {
+      "key": "developer-13",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Platform developer 21",
+        "role": "engineer",
+        "title": "Platform source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_13_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_13_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_13_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_13_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "developer-14",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Platform developer 27",
+        "role": "engineer",
+        "title": "Platform source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_14_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_14_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_14_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_14_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "developer-15",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Platform developer 33",
+        "role": "engineer",
+        "title": "Platform source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_15_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_15_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_15_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_15_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "developer-16",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Platform developer 39",
+        "role": "engineer",
+        "title": "Platform source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_16_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_16_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_16_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_16_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "developer-17",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Policy developer 20",
+        "role": "engineer",
+        "title": "Policy source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_17_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_17_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_17_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_17_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:policy-lead}"
+      }
+    },
+    {
+      "key": "developer-18",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Policy developer 26",
+        "role": "engineer",
+        "title": "Policy source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_18_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_18_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_18_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_18_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:policy-lead}"
+      }
+    },
+    {
+      "key": "developer-19",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Policy developer 32",
+        "role": "engineer",
+        "title": "Policy source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_19_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_19_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_19_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_19_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:policy-lead}"
+      }
+    },
+    {
+      "key": "developer-20",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Policy developer 38",
+        "role": "engineer",
+        "title": "Policy source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_20_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_20_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_20_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_20_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:policy-lead}"
+      }
+    },
+    {
+      "key": "developer-21",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Senses developer 16",
+        "role": "engineer",
+        "title": "Senses source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_21_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_21_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_21_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_21_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:senses-lead}"
+      }
+    },
+    {
+      "key": "developer-22",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Senses developer 22",
+        "role": "engineer",
+        "title": "Senses source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_22_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_22_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_22_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_22_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:senses-lead}"
+      }
+    },
+    {
+      "key": "developer-23",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Senses developer 28",
+        "role": "engineer",
+        "title": "Senses source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_23_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_23_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_23_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_23_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:senses-lead}"
+      }
+    },
+    {
+      "key": "developer-24",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Senses developer 34",
+        "role": "engineer",
+        "title": "Senses source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_24_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_24_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_24_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_24_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:senses-lead}"
+      }
+    },
+    {
+      "key": "developer-25",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain Senses developer 40",
+        "role": "engineer",
+        "title": "Senses source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_25_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_25_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_25_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_25_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:senses-lead}"
+      }
+    },
+    {
+      "key": "developer-26",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Brain developer 15 — final acceptance",
+        "role": "engineer",
+        "title": "Brain source developer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_26_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_26_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_26_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_26_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:cortex-lead}"
+      }
+    },
+    {
+      "key": "developer-27",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Eight dev-1 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_27_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_27_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_27_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_27_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:evaluation-lead}"
+      }
+    },
+    {
+      "key": "developer-28",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Eight dev-2 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_28_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_28_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_28_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_28_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:experience-lead}"
+      }
+    },
+    {
+      "key": "developer-29",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Eight dev-3 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_29_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_29_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_29_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_29_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:policy-lead}"
+      }
+    },
+    {
+      "key": "developer-30",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Eight dev-4 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_30_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_30_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_30_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_30_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:evaluation-lead}"
+      }
+    },
+    {
+      "key": "developer-31",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Eight dev-5 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_31_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_31_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_31_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_31_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:senses-lead}"
+      }
+    },
+    {
+      "key": "developer-32",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Eight dev-6 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_32_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_32_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_32_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_32_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:experience-lead}"
+      }
+    },
+    {
+      "key": "developer-33",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Eight dev-7 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_33_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_33_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_33_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_33_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:cortex-lead}"
+      }
+    },
+    {
+      "key": "developer-34",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Eight dev-8 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_34_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_34_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_34_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_34_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "developer-35",
+      "instructionFile": "researcher.md",
+      "sourceInstructionSha256": "8920121a0bd269e7b071fcc179dd8ea2dc51afd9ec14a4bb84dae74d7a3188b7",
+      "payload": {
+        "name": "Luna Research Analyst",
+        "role": "researcher",
+        "title": "On-demand read-only department analysis",
+        "capabilities": "Read-only source analysis in the assigned no-Git projection. Report source facts separately from hypotheses, cite exact paths and line locations, identify existing guards and hypotheses, and recommend next synthetic cases and a next step. Do not import or execute Brain modules, tests, models or ledgers; standard-library file reads, SHA-256 and AST parsing are permitted. Do not write in the workspace; report only through task output. No external app, plugin, connector or skill tools are assigned.",
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "read_document",
+            "write_document",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "graceSec": 15,
+          "provider": "codex",
+          "timeoutSec": 600,
+          "lifecycleMode": "per_turn",
+          "paperclipSkillSync": {
+            "desiredSkills": []
+          },
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high"
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_35_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_35_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:evaluation-lead}"
+      }
+    },
+    {
+      "key": "developer-36",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Luna Senses Engineer",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "trustPreset": "standard",
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "authorizationPolicy": {
+            "trustPreset": "standard",
+            "assignmentPolicy": {
+              "mode": "protected"
+            }
+          },
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "paperclip_finish",
+            "read_document",
+            "write_document",
+            "read_task_document",
+            "brain.autonomous-bridge:list_accepted_source",
+            "brain.autonomous-bridge:search_accepted_source",
+            "brain.autonomous-bridge:read_accepted_source",
+            "brain.autonomous-bridge:deliver_program_source_content",
+            "brain.autonomous-bridge:verify_program_source_unchanged",
+            "get_task",
+            "write_task_document",
+            "register_deliverable"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "graceSec": 15,
+          "provider": "codex",
+          "timeoutSec": 1800,
+          "lifecycleMode": "per_turn",
+          "paperclipSkillSync": {
+            "desiredSkills": []
+          },
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_36_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_36_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_36_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_36_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:senses-lead}"
+      }
+    },
+    {
+      "key": "developer-37",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Parallel luna-1 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "paperclip_finish",
+            "register_deliverable"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1800,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_37_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_37_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_37_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_37_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:cortex-lead}"
+      }
+    },
+    {
+      "key": "developer-38",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Parallel luna-2 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "paperclip_finish",
+            "register_deliverable"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1800,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_38_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_38_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_38_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_38_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:policy-lead}"
+      }
+    },
+    {
+      "key": "developer-39",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Parallel luna-3 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "paperclip_finish",
+            "register_deliverable"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1800,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_39_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_39_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_39_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_39_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:evaluation-lead}"
+      }
+    },
+    {
+      "key": "developer-40",
+      "instructionFile": "developer.md",
+      "sourceInstructionSha256": "c3147a961ea6df2289440e567755e59cf9ef8d0587057a0e5b0befc56266f972",
+      "payload": {
+        "name": "Parallel luna-4 20261026",
+        "role": "engineer",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "paperclip_finish",
+            "register_deliverable"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1800,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_40_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${DEVELOPER_40_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${DEVELOPER_40_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${DEVELOPER_40_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "evaluation-lead",
+      "instructionFile": "lead.md",
+      "sourceInstructionSha256": "4d45bc4b95bb57a342a4f66b960e87cb90c92ce84e9eea32ce801ace8c2819f3",
+      "payload": {
+        "name": "Evaluation Sol High Lead",
+        "role": "cto",
+        "title": "Evaluation Sol High Department Lead",
+        "capabilities": "Sol High department leadership at meaningful batch boundaries; autonomous Luna High development, selective Luna review, existing fixed publisher and deterministic completion. Astra only for strategy.",
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": true,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "list_agents",
+            "register_deliverable",
+            "set_dependencies",
+            "search_tasks",
+            "search_api",
+            "call_api",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6.1-sol",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high"
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${EVALUATION_LEAD_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${EVALUATION_LEAD_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:astra}"
+      }
+    },
+    {
+      "key": "experience-lead",
+      "instructionFile": "lead.md",
+      "sourceInstructionSha256": "4d45bc4b95bb57a342a4f66b960e87cb90c92ce84e9eea32ce801ace8c2819f3",
+      "payload": {
+        "name": "Experience Sol High Lead",
+        "role": "cto",
+        "title": "Experience Sol High Department Lead",
+        "capabilities": "Sol High department leadership at meaningful batch boundaries; autonomous Luna High development, selective Luna review, existing fixed publisher and deterministic completion. Astra only for strategy.",
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": true,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "list_agents",
+            "register_deliverable",
+            "set_dependencies",
+            "search_tasks",
+            "search_api",
+            "call_api",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6.1-sol",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high"
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${EXPERIENCE_LEAD_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${EXPERIENCE_LEAD_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:astra}"
+      }
+    },
+    {
+      "key": "platform-lead",
+      "instructionFile": "lead.md",
+      "sourceInstructionSha256": "4d45bc4b95bb57a342a4f66b960e87cb90c92ce84e9eea32ce801ace8c2819f3",
+      "payload": {
+        "name": "Platform Sol High Lead",
+        "role": "cto",
+        "title": "Platform Sol High Department Lead",
+        "capabilities": "Sol High department leadership at meaningful batch boundaries; autonomous Luna High development, selective Luna review, existing fixed publisher and deterministic completion. Astra only for strategy.",
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": true,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "list_agents",
+            "register_deliverable",
+            "set_dependencies",
+            "search_tasks",
+            "search_api",
+            "call_api",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6.1-sol",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high"
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${PLATFORM_LEAD_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${PLATFORM_LEAD_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:astra}"
+      }
+    },
+    {
+      "key": "policy-lead",
+      "instructionFile": "lead.md",
+      "sourceInstructionSha256": "4d45bc4b95bb57a342a4f66b960e87cb90c92ce84e9eea32ce801ace8c2819f3",
+      "payload": {
+        "name": "Policy Sol High Lead",
+        "role": "cto",
+        "title": "Policy Sol High Department Lead",
+        "capabilities": "Sol High department leadership at meaningful batch boundaries; autonomous Luna High development, selective Luna review, existing fixed publisher and deterministic completion. Astra only for strategy.",
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": true,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "list_agents",
+            "register_deliverable",
+            "set_dependencies",
+            "search_tasks",
+            "search_api",
+            "call_api",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6.1-sol",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high"
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${POLICY_LEAD_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${POLICY_LEAD_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:astra}"
+      }
+    },
+    {
+      "key": "reviewer-01",
+      "instructionFile": "reviewer.md",
+      "sourceInstructionSha256": "407fa8ad53678c2efcdc85b63582ce9f13116118de0cb59ecc32a81082ac6a68",
+      "payload": {
+        "name": "Eight qa-1 20261026",
+        "role": "qa",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${REVIEWER_01_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${REVIEWER_01_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${REVIEWER_01_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${REVIEWER_01_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "reviewer-02",
+      "instructionFile": "reviewer.md",
+      "sourceInstructionSha256": "407fa8ad53678c2efcdc85b63582ce9f13116118de0cb59ecc32a81082ac6a68",
+      "payload": {
+        "name": "Eight qa-2 20261026",
+        "role": "qa",
+        "title": null,
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "register_deliverable",
+            "call_api"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${REVIEWER_02_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${REVIEWER_02_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${REVIEWER_02_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${REVIEWER_02_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "reviewer-03",
+      "instructionFile": "reviewer.md",
+      "sourceInstructionSha256": "407fa8ad53678c2efcdc85b63582ce9f13116118de0cb59ecc32a81082ac6a68",
+      "payload": {
+        "name": "Luna High Optional Reviewer",
+        "role": "qa",
+        "title": "Selective independent review at a lead request",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "trustPreset": "standard",
+          "canAssignTasks": false,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "authorizationPolicy": {
+            "trustPreset": "standard",
+            "assignmentPolicy": {
+              "mode": "protected"
+            }
+          },
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "paperclip_finish",
+            "read_document",
+            "write_document",
+            "read_task_document",
+            "brain.autonomous-bridge:list_accepted_source",
+            "brain.autonomous-bridge:search_accepted_source",
+            "brain.autonomous-bridge:read_accepted_source",
+            "brain.autonomous-bridge:inspect_program_source_candidate",
+            "brain.autonomous-bridge:approve_program_source_candidate",
+            "brain.autonomous-bridge:inspect_program_source_no_change",
+            "brain.autonomous-bridge:record_program_source_no_change_merits",
+            "read_tool_result"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "graceSec": 15,
+          "provider": "codex",
+          "timeoutSec": 600,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${REVIEWER_03_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${REVIEWER_03_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${REVIEWER_03_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${REVIEWER_03_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "reviewer-04",
+      "instructionFile": "reviewer.md",
+      "sourceInstructionSha256": "407fa8ad53678c2efcdc85b63582ce9f13116118de0cb59ecc32a81082ac6a68",
+      "payload": {
+        "name": "Parallel Luna High optional QA 20261026",
+        "role": "qa",
+        "title": "Luna High selective independent reviewer",
+        "capabilities": null,
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 1800,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high",
+          "env": {
+            "CODEX_API_KEY": {
+              "type": "plain",
+              "value": "${REVIEWER_04_CODEX_API_KEY}"
+            },
+            "OPENAI_API_KEY": {
+              "type": "plain",
+              "value": "${REVIEWER_04_OPENAI_API_KEY}"
+            }
+          }
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${REVIEWER_04_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${REVIEWER_04_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "reviewer-05",
+      "instructionFile": "reviewer.md",
+      "sourceInstructionSha256": "407fa8ad53678c2efcdc85b63582ce9f13116118de0cb59ecc32a81082ac6a68",
+      "payload": {
+        "name": "Platform Luna SDK Release Assessor",
+        "role": "qa",
+        "title": "On-demand Platform SDK declaration-build diagnosis",
+        "capabilities": "Read-only release assessment for one exact accepted SDK declaration-build portability issue.",
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "trustPreset": "standard",
+          "canAssignTasks": true,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "authorizationPolicy": {
+            "trustPreset": "standard",
+            "assignmentPolicy": {
+              "mode": "protected"
+            }
+          },
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "list_agents",
+            "search_tasks",
+            "create_task",
+            "set_dependencies",
+            "paperclip_finish",
+            "brain.autonomous-bridge:bind_source_stage"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6-luna",
+          "provider": "codex",
+          "timeoutSec": 600,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high"
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${REVIEWER_05_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${REVIEWER_05_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:platform-lead}"
+      }
+    },
+    {
+      "key": "senses-lead",
+      "instructionFile": "lead.md",
+      "sourceInstructionSha256": "4d45bc4b95bb57a342a4f66b960e87cb90c92ce84e9eea32ce801ace8c2819f3",
+      "payload": {
+        "name": "Senses Sol High Lead",
+        "role": "cto",
+        "title": "Senses Sol High Department Lead",
+        "capabilities": "Sol High department leadership at meaningful batch boundaries; autonomous Luna High development, selective Luna review, existing fixed publisher and deterministic completion. Astra only for strategy.",
+        "adapterType": "paperclip_runner",
+        "budgetMonthlyCents": 0,
+        "permissions": {
+          "canAssignTasks": true,
+          "canCreateAgents": false,
+          "canCreateSkills": false,
+          "canConfigureSelf": false,
+          "nativeToolAllowlist": [
+            "get_task_context",
+            "get_task_history",
+            "comment_on_task",
+            "read_task_document",
+            "write_task_document",
+            "report_progress",
+            "get_task",
+            "list_task_documents",
+            "list_agents",
+            "register_deliverable",
+            "set_dependencies",
+            "search_tasks",
+            "search_api",
+            "call_api",
+            "paperclip_finish"
+          ]
+        },
+        "adapterConfig": {
+          "model": "gpt-6.1-sol",
+          "provider": "codex",
+          "timeoutSec": 1200,
+          "lifecycleMode": "per_turn",
+          "codexPermissionMode": "never",
+          "modelReasoningEffort": "high"
+        },
+        "runtimeConfig": {
+          "heartbeat": {
+            "enabled": false,
+            "wakeOnDemand": true,
+            "maxConcurrentRuns": 1
+          },
+          "aiConnection": {
+            "mode": "delegated",
+            "method": "subscription",
+            "grantId": "${SENSES_LEAD_GRANT_ID}",
+            "provider": "openai",
+            "connectionId": "${SENSES_LEAD_CONNECTION_ID}"
+          }
+        },
+        "reportsTo": "${AGENT_ID:astra}"
+      }
+    }
+  ],
+  "publisher": {
+    "key": "native-publisher",
+    "payload": {
+      "name": "Native batch publish (existing trusted process)",
+      "role": "general",
+      "title": "Fixed-policy Luna lead batch publication; existing canonical Git publisher",
+      "capabilities": null,
+      "adapterType": "process",
+      "budgetMonthlyCents": 0,
+      "permissions": {
+        "canAssignTasks": false,
+        "canCreateAgents": false,
+        "canCreateSkills": false,
+        "canConfigureSelf": false
+      },
+      "runtimeConfig": {
+        "heartbeat": {
+          "enabled": false,
+          "wakeOnDemand": true,
+          "maxConcurrentRuns": 1
+        }
+      },
+      "adapterConfig": {
+        "cwd": "${RUNTIME_ROOT}/publisher",
+        "args": [
+          "-c",
+          "import sys; sys.path.insert(0, '${PROJECT_ROOT}'); from engineering.paperclip_native_delivery import main; raise SystemExit(main())",
+          "publish-batch",
+          "--batch-policy",
+          "${RUNTIME_ROOT}/publisher/batch-policy.json",
+          "--batch-policy-sha256",
+          "${BATCH_POLICY_SHA256}"
+        ],
+        "command": "${PROJECT_ROOT}/.venv/bin/python",
+        "timeoutSec": 300,
+        "env": {
+          "BRAIN_CAMPAIGN_RESOURCE_RENEWAL": {
+            "type": "plain",
+            "value": "${BRAIN_CAMPAIGN_RESOURCE_RENEWAL}"
+          }
+        }
+      },
+      "reportsTo": "${AGENT_ID:platform-lead}"
+    },
+    "note": "Existing trusted publisher only; native run context supplies task identity. Owner resolves reviewed policy hash and source/remote CAS pins. Keep historical receipts immutable."
+  }
+}

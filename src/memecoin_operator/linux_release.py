@@ -1,0 +1,3198 @@
+"""Create and verify inert, content-addressed Linux release candidates."""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import configparser
+import csv
+import ctypes
+import fcntl
+import hashlib
+import json
+import os
+import pwd
+import re
+import secrets
+import shlex
+import shutil
+import sqlite3
+import stat
+import subprocess
+import sys
+from email.parser import BytesParser
+from email.policy import default as email_default
+from io import StringIO
+from pathlib import Path
+from zipfile import ZipFile
+
+from memecoin_operator import linux_service, linux_service_identity
+
+RELEASE_BASE = Path("/opt/brain/releases")
+UNIT_BASE = Path("/etc/systemd/system")
+STATE_BASE = Path("/var/lib/brain-lab/releases")
+STATE_BASE_V2 = Path("/var/lib/brain-release-state")
+STATE_PREPARED_BASE = Path("/var/lib/brain-release-prepared")
+STAGE_ATTEMPT_BASE = Path("/var/lib/brain-release-stage-attempts")
+STAGE_LOCK_BASE = Path("/run/brain-release-stage-locks")
+SCHEMA = "brain-linux-release-v1"
+SCHEMA_V2 = "brain-linux-release-v2"
+SCHEMA_V3 = "brain-linux-release-v3"
+STAGE_ATTEMPT_SCHEMA = "brain-linux-release-stage-attempt-v1"
+PUBLISH_INTENT_SCHEMA = "brain-linux-release-publish-intent-v2"
+DISCARD_INTENT_SCHEMA = "brain-linux-release-stage-discard-intent-v1"
+DISCARD_RECEIPT_SCHEMA = "brain-linux-release-stage-discard-receipt-v1"
+PREPARE_INTENT_SCHEMA = "brain-linux-release-stage-prepare-intent-v1"
+PREPARE_PROGRESS_SCHEMA = "brain-linux-release-stage-prepare-progress-v1"
+PREPARE_RECEIPT_SCHEMA = "brain-linux-release-stage-prepare-receipt-v1"
+STAGE_ATTEMPT_ID_RE = re.compile(r"^[0-9a-f]{12}-[0-9a-f]{16}$")
+MAX_WHEEL_BYTES = 100 * 1024 * 1024
+SAFE_WHEEL_NAME = re.compile(
+    r"^[A-Za-z0-9_]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+\.whl$"
+)
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _service_identity_snapshot() -> dict[str, object]:
+    try:
+        return linux_service_identity.snapshot()
+    except linux_service_identity.IdentityError as exc:
+        raise RuntimeError(f"release_service_identity_refused:{exc}") from exc
+
+
+def _run(argv: list[str], *, capture: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        argv,
+        check=True,
+        capture_output=capture,
+        text=True,
+        timeout=120,
+        env={
+            "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+            "HOME": "/root",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PIP_NO_INPUT": "1",
+            "PIP_CONFIG_FILE": "/dev/null",
+        },
+    )
+
+
+def _stage_slice_name(attempt_id: str) -> str:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return f"brain-release-stage-{attempt_id}.slice"
+
+
+def _stage_attempt_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.json"
+
+
+def _publish_intent_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.publish.json"
+
+
+def _discard_intent_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.discard.json"
+
+
+def _discard_receipt_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.discarded.json"
+
+
+def _prepare_intent_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.prepare.json"
+
+
+def _prepare_progress_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.prepare-progress.json"
+
+
+def _prepare_receipt_path(attempt_id: str) -> Path:
+    if not STAGE_ATTEMPT_ID_RE.fullmatch(attempt_id):
+        raise ValueError("stage_attempt_id_invalid")
+    return STAGE_ATTEMPT_BASE / f"{attempt_id}.prepared-recovered.json"
+
+
+def _discard_quarantine_path(attempt_id: str, item: dict[str, object]) -> Path:
+    return Path(str(item["source_parent"])) / f".brain-discard-{attempt_id}-{item['name']}"
+
+
+def _prepare_artifact_specs(attempt_id: str, release_id: str) -> list[dict[str, object]]:
+    unit_name = f"memecoin-brain-{release_id}.service"
+    values = [
+        ("state", STATE_PREPARED_BASE, f".{attempt_id}", "directory"),
+        (
+            "pin",
+            RELEASE_BASE / ".pins",
+            f".{release_id}.{attempt_id}.tmp",
+            "file",
+        ),
+        ("unit", UNIT_BASE, f".{unit_name}.{attempt_id}.tmp", "file"),
+    ]
+    result = []
+    for name, parent, source_name, kind in values:
+        parent_metadata = parent.lstat()
+        result.append(
+            {
+                "name": name,
+                "source_parent": str(parent),
+                "source_name": source_name,
+                "quarantine_parent": str(parent / ".brain-stage-quarantine"),
+                "quarantine_name": f"{attempt_id}.{name}",
+                "kind": kind,
+                "parent_identity": {
+                    "dev": parent_metadata.st_dev,
+                    "ino": parent_metadata.st_ino,
+                    "uid": parent_metadata.st_uid,
+                    "gid": parent_metadata.st_gid,
+                    "mode": stat.S_IMODE(parent_metadata.st_mode),
+                },
+            }
+        )
+    return result
+
+
+def _legacy_preintent_temp_paths(attempt_id: str, release_id: str) -> dict[str, Path]:
+    unit_name = f"memecoin-brain-{release_id}.service"
+    return {
+        "state": STATE_PREPARED_BASE / f".{attempt_id}",
+        "pin": RELEASE_BASE / ".pins" / f".{release_id}.{attempt_id}.tmp",
+        "unit": UNIT_BASE / f".{unit_name}.{attempt_id}.tmp",
+    }
+
+
+def _validate_prepare_intent(
+    attempt_id: str, record: dict[str, object], intent: dict[str, object]
+) -> list[dict[str, object]]:
+    if (
+        intent.get("schema") != PREPARE_INTENT_SCHEMA
+        or intent.get("attempt_id") != attempt_id
+        or intent.get("release_id") != record.get("release_id")
+        or intent.get("source_commit") != record.get("source_commit")
+        or intent.get("wheel_sha256") != record.get("wheel_sha256")
+        or intent.get("interpreter") != record.get("interpreter")
+        or intent.get("artifacts") != _prepare_artifact_specs(attempt_id, str(record["release_id"]))
+    ):
+        raise RuntimeError("stage_prepare_intent_invalid")
+    artifacts = intent["artifacts"]
+    if not isinstance(artifacts, list) or len(artifacts) != 3:
+        raise RuntimeError("stage_prepare_intent_invalid")
+    for item in artifacts:
+        if not isinstance(item, dict):
+            raise RuntimeError("stage_prepare_intent_invalid")
+        parent = Path(str(item["source_parent"]))
+        _require_root_directory_chain(parent)
+        metadata = parent.lstat()
+        if (
+            metadata.st_dev != item["parent_identity"]["dev"]
+            or metadata.st_ino != item["parent_identity"]["ino"]
+        ):
+            raise RuntimeError("stage_prepare_parent_identity_mismatch")
+        quarantine_parent = Path(str(item["quarantine_parent"]))
+        if os.path.lexists(quarantine_parent):
+            _require_root_directory_chain(quarantine_parent)
+            qmeta = quarantine_parent.lstat()
+            if (
+                qmeta.st_dev != metadata.st_dev
+                or qmeta.st_uid != 0
+                or stat.S_IMODE(qmeta.st_mode) != 0o700
+            ):
+                raise RuntimeError("stage_prepare_quarantine_parent_unsafe")
+    return artifacts
+
+
+def _ensure_root_directory(path: Path, mode: int) -> None:
+    """Create one /var/lib child and require a root-controlled directory."""
+    parent_fd = os.open("/var/lib", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        parent = os.fstat(parent_fd)
+        if parent.st_uid != 0 or stat.S_IMODE(parent.st_mode) & 0o022:
+            raise RuntimeError("release_state_parent_unsafe")
+        try:
+            os.mkdir(path.name, mode=mode, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        except FileExistsError:
+            pass
+        fd = os.open(path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
+    finally:
+        os.close(parent_fd)
+    try:
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) != mode
+        ):
+            raise RuntimeError("release_state_directory_unsafe")
+    finally:
+        os.close(fd)
+
+
+def _ensure_unit_base() -> None:
+    for path in (Path("/etc"), Path("/etc/systemd"), UNIT_BASE):
+        metadata = path.lstat()
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("release_unit_parent_unsafe")
+
+
+def _tree_sha256(path: Path) -> str:
+    return _inventory(path)[1]
+
+
+def _rename_noreplace(
+    source_parent: Path, source_name: str, destination_parent: Path, destination_name: str
+) -> None:
+    if any(
+        name in {"", ".", ".."} or "/" in name or "\\" in name
+        for name in (source_name, destination_name)
+    ):
+        raise RuntimeError("release_publish_name_invalid")
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    source_fd = os.open(source_parent, flags)
+    destination_fd = os.open(destination_parent, flags)
+    try:
+        if os.fstat(source_fd).st_dev != os.fstat(destination_fd).st_dev:
+            raise RuntimeError("release_publish_cross_filesystem")
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = getattr(libc, "renameat2", None)
+        if renameat2 is None:
+            raise RuntimeError("release_publish_noreplace_unsupported")
+        renameat2.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        renameat2.restype = ctypes.c_int
+        if (
+            renameat2(
+                source_fd,
+                os.fsencode(source_name),
+                destination_fd,
+                os.fsencode(destination_name),
+                1,
+            )
+            != 0
+        ):
+            error = ctypes.get_errno()
+            if error == 17:
+                raise RuntimeError("release_publish_destination_exists")
+            raise RuntimeError("release_publish_failed") from OSError(error, os.strerror(error))
+        os.fsync(source_fd)
+        if source_fd != destination_fd:
+            os.fsync(destination_fd)
+    finally:
+        os.close(source_fd)
+        os.close(destination_fd)
+
+
+def _artifact_identity(path: Path, *, kind: str) -> dict[str, object]:
+    metadata = path.lstat()
+    if kind == "directory":
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise RuntimeError("release_publish_artifact_type_mismatch")
+        content_sha = _tree_sha256(path)
+    elif kind == "file":
+        if not stat.S_ISREG(metadata.st_mode):
+            raise RuntimeError("release_publish_artifact_type_mismatch")
+        content_sha = _sha256(path)
+    else:
+        raise RuntimeError("release_publish_artifact_type_invalid")
+    return {
+        "dev": metadata.st_dev,
+        "ino": metadata.st_ino,
+        "uid": metadata.st_uid,
+        "gid": metadata.st_gid,
+        "mode": stat.S_IMODE(metadata.st_mode),
+        "kind": kind,
+        "content_sha256": content_sha,
+    }
+
+
+def _write_publish_intent(attempt_id: str, record: dict[str, object]) -> None:
+    path = _publish_intent_path(attempt_id)
+    payload = (json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    directory_fd = _open_stage_attempt_directory()
+    temporary = f".{path.name}.{secrets.token_hex(8)}.tmp"
+    try:
+        fd = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=directory_fd,
+        )
+        try:
+            view = memoryview(payload)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise OSError("publish_intent_write_failed")
+                view = view[written:]
+            os.fsync(fd)
+            os.fchmod(fd, 0o444)
+        finally:
+            os.close(fd)
+        _rename_noreplace(STAGE_ATTEMPT_BASE, temporary, STAGE_ATTEMPT_BASE, path.name)
+        os.fsync(directory_fd)
+    finally:
+        try:
+            os.unlink(temporary, dir_fd=directory_fd)
+        except FileNotFoundError:
+            pass
+        os.close(directory_fd)
+
+
+def _read_publish_intent(attempt_id: str) -> dict[str, object] | None:
+    path = _publish_intent_path(attempt_id)
+    directory_fd = _open_stage_attempt_directory()
+    fd = -1
+    try:
+        try:
+            fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+        except FileNotFoundError:
+            return None
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) != 0o444
+            or metadata.st_size > 32 * 1024
+        ):
+            raise RuntimeError("release_publish_intent_unsafe")
+        payload = bytearray()
+        while len(payload) <= 32 * 1024:
+            block = os.read(fd, 4096)
+            if not block:
+                break
+            payload.extend(block)
+        if len(payload) > 32 * 1024:
+            raise RuntimeError("release_publish_intent_unsafe")
+        value = json.loads(payload.decode("utf-8"), object_pairs_hook=_unique_json_object)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError("release_publish_intent_unavailable") from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        os.close(directory_fd)
+    if (
+        not isinstance(value, dict)
+        or value.get("schema") != PUBLISH_INTENT_SCHEMA
+        or value.get("attempt_id") != attempt_id
+    ):
+        raise RuntimeError("release_publish_intent_invalid")
+    return value
+
+
+def _ensure_release_base() -> None:
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        current_fd = os.open("/opt", flags)
+    except OSError as exc:
+        raise RuntimeError("release_parent_unavailable") from exc
+    try:
+        parent = os.fstat(current_fd)
+        if (
+            not stat.S_ISDIR(parent.st_mode)
+            or parent.st_uid != 0
+            or stat.S_IMODE(parent.st_mode) & 0o022
+        ):
+            raise RuntimeError("release_parent_unsafe")
+        for name in ("brain", "releases"):
+            try:
+                os.mkdir(name, mode=0o755, dir_fd=current_fd)
+                os.fsync(current_fd)
+            except FileExistsError:
+                pass
+            next_fd = os.open(name, flags, dir_fd=current_fd)
+            metadata = os.fstat(next_fd)
+            if (
+                not stat.S_ISDIR(metadata.st_mode)
+                or metadata.st_uid != 0
+                or stat.S_IMODE(metadata.st_mode) & 0o022
+            ):
+                os.close(next_fd)
+                raise RuntimeError("release_parent_unsafe")
+            os.close(current_fd)
+            current_fd = next_fd
+    finally:
+        os.close(current_fd)
+
+
+def _open_stage_attempt_directory() -> int:
+    parent_fd = os.open("/var/lib", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        parent = os.fstat(parent_fd)
+        if (
+            not stat.S_ISDIR(parent.st_mode)
+            or parent.st_uid != 0
+            or stat.S_IMODE(parent.st_mode) & 0o022
+        ):
+            raise RuntimeError("stage_attempt_parent_unsafe")
+        try:
+            os.mkdir(STAGE_ATTEMPT_BASE.name, mode=0o700, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        except FileExistsError:
+            pass
+        directory_fd = os.open(
+            STAGE_ATTEMPT_BASE.name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            dir_fd=parent_fd,
+        )
+    finally:
+        os.close(parent_fd)
+    metadata = os.fstat(directory_fd)
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != 0
+        or stat.S_IMODE(metadata.st_mode) != 0o700
+    ):
+        os.close(directory_fd)
+        raise RuntimeError("stage_attempt_directory_unsafe")
+    return directory_fd
+
+
+def _write_stage_attempt(path: Path, record: dict[str, object], *, create: bool = False) -> None:
+    directory_fd = _open_stage_attempt_directory()
+    payload = (json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    try:
+        if create:
+            fd = os.open(
+                path.name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=directory_fd,
+            )
+            try:
+                view = memoryview(payload)
+                while view:
+                    written = os.write(fd, view)
+                    if written <= 0:
+                        raise OSError("stage_attempt_write_failed")
+                    view = view[written:]
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        else:
+            temporary = f".{path.name}.{secrets.token_hex(8)}.tmp"
+            fd = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=directory_fd,
+            )
+            try:
+                view = memoryview(payload)
+                while view:
+                    written = os.write(fd, view)
+                    if written <= 0:
+                        raise OSError("stage_attempt_write_failed")
+                    view = view[written:]
+                os.fsync(fd)
+                os.replace(
+                    temporary,
+                    path.name,
+                    src_dir_fd=directory_fd,
+                    dst_dir_fd=directory_fd,
+                )
+            finally:
+                os.close(fd)
+                try:
+                    os.unlink(temporary, dir_fd=directory_fd)
+                except FileNotFoundError:
+                    pass
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def _read_stage_attempt(attempt_id: str) -> tuple[Path, dict[str, object]]:
+    path = _stage_attempt_path(attempt_id)
+    directory_fd = _open_stage_attempt_directory()
+    fd = -1
+    try:
+        fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) not in {0o600, 0o444}
+            or metadata.st_size > 16 * 1024
+        ):
+            raise RuntimeError("stage_attempt_record_unsafe")
+        payload = bytearray()
+        while len(payload) <= 16 * 1024:
+            block = os.read(fd, 4096)
+            if not block:
+                break
+            payload.extend(block)
+        if len(payload) > 16 * 1024:
+            raise RuntimeError("stage_attempt_record_unsafe")
+        value = json.loads(payload.decode("utf-8"), object_pairs_hook=_unique_json_object)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError("stage_attempt_record_unavailable") from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        os.close(directory_fd)
+    return path, _validate_stage_attempt_record(attempt_id, value)
+
+
+def _validate_stage_attempt_record(attempt_id: str, value: object) -> dict[str, object]:
+    expected = {
+        "schema",
+        "attempt_id",
+        "release_id",
+        "wheel_sha256",
+        "source_commit",
+        "interpreter",
+        "builder_name",
+        "builder_uid",
+        "staging_name",
+        "staging_dev",
+        "staging_ino",
+        "slice_name",
+        "phase",
+    }
+    if (
+        not isinstance(value, dict)
+        or set(value) != expected
+        or value.get("schema") != STAGE_ATTEMPT_SCHEMA
+        or value.get("attempt_id") != attempt_id
+        or not isinstance(value.get("release_id"), str)
+        or not re.fullmatch(r"[0-9a-f]{64}", value["release_id"])
+        or not isinstance(value.get("wheel_sha256"), str)
+        or not re.fullmatch(r"[0-9a-f]{64}", value["wheel_sha256"])
+        or value.get("staging_name") != f".stage-{attempt_id}"
+        or value.get("slice_name") != _stage_slice_name(attempt_id)
+        or value.get("builder_name") != f"bs-{attempt_id}"
+        or attempt_id[:12] != value.get("release_id", "")[:12]
+        or value.get("phase")
+        not in {
+            "intent",
+            "builder-created",
+            "building",
+            "publishing",
+            "complete",
+            "recovery-required",
+            "recovered",
+        }
+        or type(value.get("staging_dev")) is not int
+        or type(value.get("staging_ino")) is not int
+        or (
+            value.get("builder_uid") is not None
+            and (type(value.get("builder_uid")) is not int or not 1 <= value["builder_uid"] < 2**31)
+        )
+        or not isinstance(value.get("builder_name"), str)
+        or not isinstance(value.get("source_commit"), str)
+        or not re.fullmatch(r"[0-9a-f]{40,64}", value["source_commit"])
+        or not isinstance(value.get("interpreter"), dict)
+        or set(value["interpreter"]) != {"path", "version", "soabi"}
+        or any(not isinstance(item, str) or not item for item in value["interpreter"].values())
+        or not Path(value["interpreter"]["path"]).is_absolute()
+        or value["release_id"]
+        not in {
+            _identity(value["wheel_sha256"], value["interpreter"], SCHEMA),
+            _identity(value["wheel_sha256"], value["interpreter"], SCHEMA_V2),
+            _identity(value["wheel_sha256"], value["interpreter"], SCHEMA_V3),
+        }
+    ):
+        raise RuntimeError("stage_attempt_record_invalid")
+    return value
+
+
+def _acquire_stage_lock(release_id: str) -> int:
+    if not re.fullmatch(r"[0-9a-f]{64}", release_id):
+        raise ValueError("invalid_release_id")
+    run_fd = os.open("/run", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        run_metadata = os.fstat(run_fd)
+        if (
+            not stat.S_ISDIR(run_metadata.st_mode)
+            or run_metadata.st_uid != 0
+            or stat.S_IMODE(run_metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("stage_lock_parent_unsafe")
+        try:
+            os.mkdir(STAGE_LOCK_BASE.name, mode=0o700, dir_fd=run_fd)
+            os.fsync(run_fd)
+        except FileExistsError:
+            pass
+        lock_dir_fd = os.open(
+            STAGE_LOCK_BASE.name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            dir_fd=run_fd,
+        )
+    finally:
+        os.close(run_fd)
+    try:
+        lock_metadata = os.fstat(lock_dir_fd)
+        if (
+            not stat.S_ISDIR(lock_metadata.st_mode)
+            or lock_metadata.st_uid != 0
+            or stat.S_IMODE(lock_metadata.st_mode) != 0o700
+        ):
+            raise RuntimeError("stage_lock_directory_unsafe")
+        fd = os.open(
+            f"brain-release-stage-{release_id}.lock",
+            os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=lock_dir_fd,
+        )
+    finally:
+        os.close(lock_dir_fd)
+    metadata = os.fstat(fd)
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != 0
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        os.close(fd)
+        raise RuntimeError("stage_lock_file_unsafe")
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as exc:
+        os.close(fd)
+        raise RuntimeError("stage_already_in_progress") from exc
+    return fd
+
+
+def _uid_has_processes(uid: int, proc_root: Path = Path("/proc")) -> bool:
+    for entry in proc_root.iterdir():
+        if not entry.name.isdecimal():
+            continue
+        try:
+            status = (entry / "status").read_text(encoding="ascii")
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        except OSError as exc:
+            raise RuntimeError("stage_process_census_unavailable") from exc
+        uid_line = next((line for line in status.splitlines() if line.startswith("Uid:")), "")
+        fields = uid_line.split()
+        if len(fields) != 5 or any(not field.isdecimal() for field in fields[1:]):
+            raise RuntimeError("stage_process_census_unavailable")
+        if str(uid) in fields[1:]:
+            return True
+    return False
+
+
+def _stage_slice_cgroup(slice_name: str) -> Path | None:
+    if not re.fullmatch(r"brain-release-stage-[0-9a-f]{12}-[0-9a-f]{16}\.slice", slice_name):
+        raise RuntimeError("stage_slice_name_invalid")
+    result = subprocess.run(
+        ["systemctl", "show", "--property=ControlGroup", "--value", slice_name],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root"},
+    )
+    if result.returncode != 0:
+        if result.returncode == 1 and any(
+            phrase in result.stderr.lower()
+            for phrase in ("not found", "could not be found", "not loaded")
+        ):
+            return None
+        raise RuntimeError("stage_cgroup_status_unavailable")
+    value = result.stdout.strip()
+    if not value:
+        return None
+    parts = Path(value).parts
+    if not value.startswith("/") or ".." in parts:
+        raise RuntimeError("stage_cgroup_path_invalid")
+    return Path("/sys/fs/cgroup").joinpath(*parts[1:])
+
+
+def _require_stage_slice_empty(slice_name: str) -> None:
+    cgroup = _stage_slice_cgroup(slice_name)
+    if cgroup is None:
+        return
+    if not cgroup.exists():
+        return
+    try:
+        events = (cgroup / "cgroup.events").read_text(encoding="ascii").splitlines()
+        processes = (cgroup / "cgroup.procs").read_text(encoding="ascii").splitlines()
+    except OSError as exc:
+        raise RuntimeError("stage_cgroup_status_unavailable") from exc
+    populated = next((line for line in events if line.startswith("populated ")), "")
+    if populated != "populated 0" or processes:
+        raise RuntimeError("stage_builder_processes_remaining")
+
+
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate_json_key")
+        result[key] = value
+    return result
+
+
+def _record_stage_phase(
+    path: Path, record: dict[str, object], phase: str, *, seal: bool = False
+) -> None:
+    record["phase"] = phase
+    _write_stage_attempt(path, record)
+    if seal:
+        directory_fd = _open_stage_attempt_directory()
+        try:
+            os.chmod(path.name, 0o444, dir_fd=directory_fd, follow_symlinks=False)
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+
+
+def _release_stage_artifacts(release_id: str) -> list[Path]:
+    artifacts = [RELEASE_BASE / release_id, UNIT_BASE / f"memecoin-brain-{release_id}.service"]
+    pin = RELEASE_BASE / ".pins" / f"{release_id}.sha256"
+    state = STATE_BASE / release_id
+    state_v2 = STATE_BASE_V2 / release_id
+    artifacts.extend([pin, state, state_v2])
+    return [path for path in artifacts if os.path.lexists(path)]
+
+
+def _sync_tree(root: Path) -> None:
+    for parent, _dirs, files in os.walk(root, topdown=False, followlinks=False):
+        for name in files:
+            path = Path(parent) / name
+            if path.is_symlink():
+                continue
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+
+def _publish_artifact_paths(attempt_id: str, release_id: str) -> list[dict[str, str]]:
+    unit_name = f"memecoin-brain-{release_id}.service"
+    return [
+        {
+            "name": "release",
+            "source_parent": str(RELEASE_BASE),
+            "source_name": f".stage-{attempt_id}",
+            "destination_parent": str(RELEASE_BASE),
+            "destination_name": release_id,
+            "kind": "directory",
+        },
+        {
+            "name": "pin",
+            "source_parent": str(RELEASE_BASE / ".pins"),
+            "source_name": f".{release_id}.{attempt_id}.tmp",
+            "destination_parent": str(RELEASE_BASE / ".pins"),
+            "destination_name": f"{release_id}.sha256",
+            "kind": "file",
+        },
+        {
+            "name": "state",
+            "source_parent": str(STATE_PREPARED_BASE),
+            "source_name": f".{attempt_id}",
+            "destination_parent": str(STATE_BASE_V2),
+            "destination_name": release_id,
+            "kind": "directory",
+        },
+        {
+            "name": "unit",
+            "source_parent": str(UNIT_BASE),
+            "source_name": f".{unit_name}.{attempt_id}.tmp",
+            "destination_parent": str(UNIT_BASE),
+            "destination_name": unit_name,
+            "kind": "file",
+        },
+    ]
+
+
+def _validate_publish_intent(attempt_id: str, record: dict[str, object]) -> list[dict[str, object]]:
+    release_id = record.get("release_id")
+    if (
+        record.get("schema") != PUBLISH_INTENT_SCHEMA
+        or record.get("attempt_id") != attempt_id
+        or not isinstance(release_id, str)
+        or not re.fullmatch(r"[0-9a-f]{64}", release_id)
+        or attempt_id[:12] != release_id[:12]
+        or not isinstance(record.get("source_commit"), str)
+        or not re.fullmatch(r"[0-9a-f]{40,64}", str(record.get("source_commit")))
+        or not isinstance(record.get("wheel_sha256"), str)
+        or not re.fullmatch(r"[0-9a-f]{64}", str(record.get("wheel_sha256")))
+        or not isinstance(record.get("interpreter"), dict)
+        or set(record["interpreter"]) != {"path", "version", "soabi"}
+        or any(not isinstance(value, str) or not value for value in record["interpreter"].values())
+        or not isinstance(record.get("artifacts"), list)
+        or release_id
+        not in {
+            _identity(str(record.get("wheel_sha256")), record["interpreter"], SCHEMA),
+            _identity(str(record.get("wheel_sha256")), record["interpreter"], SCHEMA_V2),
+            _identity(str(record.get("wheel_sha256")), record["interpreter"], SCHEMA_V3),
+        }
+    ):
+        raise RuntimeError("release_publish_intent_invalid")
+    expected = _publish_artifact_paths(attempt_id, release_id)
+    artifacts = record["artifacts"]
+    if len(artifacts) != len(expected):
+        raise RuntimeError("release_publish_intent_invalid")
+    for item, spec in zip(artifacts, expected, strict=True):
+        if not isinstance(item, dict) or set(item) != {*spec, "identity"}:
+            raise RuntimeError("release_publish_intent_invalid")
+        if any(item.get(key) != value for key, value in spec.items()):
+            raise RuntimeError("release_publish_intent_invalid")
+        identity = item.get("identity")
+        if (
+            not isinstance(identity, dict)
+            or set(identity) != {"dev", "ino", "uid", "gid", "mode", "kind", "content_sha256"}
+            or identity.get("kind") != spec["kind"]
+            or any(
+                type(identity.get(key)) is not int or identity[key] < 0
+                for key in ("dev", "ino", "uid", "gid", "mode")
+            )
+            or not isinstance(identity.get("content_sha256"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", identity["content_sha256"])
+        ):
+            raise RuntimeError("release_publish_intent_invalid")
+        if os.stat(spec["source_parent"], follow_symlinks=False).st_dev != identity["dev"]:
+            raise RuntimeError("release_publish_filesystem_mismatch")
+        if os.stat(spec["destination_parent"], follow_symlinks=False).st_dev != identity["dev"]:
+            raise RuntimeError("release_publish_filesystem_mismatch")
+        brain = pwd.getpwnam("brain")
+        policy = {
+            "release": (0, brain.pw_gid, 0o555),
+            "pin": (0, 0, 0o444),
+            "state": (0, 0, 0o711),
+            "unit": (0, 0, 0o644),
+        }[spec["name"]]
+        if (identity["uid"], identity["gid"], identity["mode"]) != policy:
+            raise RuntimeError("release_publish_artifact_policy_mismatch")
+    return artifacts
+
+
+def _write_sealed_stage_json(path: Path, payload: dict[str, object]) -> None:
+    directory_fd = _open_stage_attempt_directory()
+    temporary = f".{path.name}.{secrets.token_hex(8)}.tmp"
+    encoded = (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    try:
+        fd = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=directory_fd,
+        )
+        try:
+            view = memoryview(encoded)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise OSError("stage_discard_write_failed")
+                view = view[written:]
+            os.fsync(fd)
+            os.fchmod(fd, 0o444)
+        finally:
+            os.close(fd)
+        _rename_noreplace(STAGE_ATTEMPT_BASE, temporary, STAGE_ATTEMPT_BASE, path.name)
+        os.fsync(directory_fd)
+    finally:
+        try:
+            os.unlink(temporary, dir_fd=directory_fd)
+        except FileNotFoundError:
+            pass
+        os.close(directory_fd)
+
+
+def _read_sealed_stage_json(path: Path, *, schema: str) -> dict[str, object] | None:
+    directory_fd = _open_stage_attempt_directory()
+    fd = -1
+    try:
+        try:
+            fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+        except FileNotFoundError:
+            return None
+        metadata = os.fstat(fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) != 0o444
+            or metadata.st_size > 32 * 1024
+        ):
+            raise RuntimeError("stage_discard_record_unsafe")
+        payload = bytearray()
+        while len(payload) <= 32 * 1024:
+            block = os.read(fd, 4096)
+            if not block:
+                break
+            payload.extend(block)
+        if len(payload) > 32 * 1024:
+            raise RuntimeError("stage_discard_record_unsafe")
+        value = json.loads(payload.decode("utf-8"), object_pairs_hook=_unique_json_object)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError("stage_discard_record_unavailable") from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        os.close(directory_fd)
+    if not isinstance(value, dict) or value.get("schema") != schema:
+        raise RuntimeError("stage_discard_record_invalid")
+    return value
+
+
+def _artifact_location(path: Path, identity: dict[str, object], kind: str) -> bool:
+    if not os.path.lexists(path):
+        return False
+    if path.is_symlink() or _artifact_identity(path, kind=kind) != identity:
+        raise RuntimeError("stage_discard_artifact_mismatch")
+    return True
+
+
+def _require_root_directory_chain(path: Path) -> None:
+    if not path.is_absolute():
+        raise RuntimeError("stage_discard_parent_unsafe")
+    for directory in reversed((path, *path.parents)):
+        metadata = directory.lstat()
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("stage_discard_parent_unsafe")
+
+
+def _artifact_size(path: Path) -> int:
+    metadata = path.lstat()
+    if stat.S_ISREG(metadata.st_mode):
+        return metadata.st_size
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise RuntimeError("stage_discard_artifact_type_mismatch")
+    total = 0
+    for parent, dirs, files in os.walk(path, followlinks=False):
+        for name in [*dirs, *files]:
+            item = Path(parent) / name
+            metadata = item.lstat()
+            if stat.S_ISREG(metadata.st_mode):
+                total += metadata.st_size
+            elif not stat.S_ISDIR(metadata.st_mode) and not stat.S_ISLNK(metadata.st_mode):
+                raise RuntimeError("stage_discard_artifact_type_mismatch")
+    return total
+
+
+def _discard_preflight(
+    attempt_id: str,
+) -> tuple[dict[str, object], dict[str, object], list[dict[str, object]]]:
+    _, record = _read_stage_attempt(attempt_id)
+    intent = _read_publish_intent(attempt_id)
+    if intent is None:
+        raise RuntimeError("stage_discard_publish_intent_required")
+    artifacts = _validate_publish_intent(attempt_id, intent)
+    for item in artifacts:
+        _require_root_directory_chain(Path(str(item["source_parent"])))
+        _require_root_directory_chain(Path(str(item["destination_parent"])))
+    discard_intent = _read_sealed_stage_json(
+        _discard_intent_path(attempt_id), schema=DISCARD_INTENT_SCHEMA
+    )
+    expected_discard_intent = {
+        "schema": DISCARD_INTENT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "artifacts": [
+            {
+                "name": item["name"],
+                "source_parent": item["source_parent"],
+                "source_name": item["source_name"],
+                "quarantine_name": _discard_quarantine_path(attempt_id, item).name,
+                "identity": item["identity"],
+            }
+            for item in artifacts
+        ],
+    }
+    if discard_intent is not None and discard_intent != expected_discard_intent:
+        raise RuntimeError("stage_discard_intent_invalid")
+    if record.get("phase") not in {"publishing", "recovery-required"} or any(
+        record.get(key) != intent.get(key)
+        for key in ("release_id", "source_commit", "wheel_sha256", "interpreter")
+    ):
+        raise RuntimeError("stage_discard_attempt_not_abandoned")
+    for item in artifacts:
+        identity = item["identity"]
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        destination = Path(str(item["destination_parent"])) / str(item["destination_name"])
+        source_exists = _artifact_location(source, identity, str(item["kind"]))
+        if os.path.lexists(destination):
+            raise RuntimeError("stage_discard_destination_exists")
+        quarantine = _discard_quarantine_path(attempt_id, item)
+        quarantine_exists = _artifact_location(quarantine, identity, str(item["kind"]))
+        if source_exists == quarantine_exists:
+            raise RuntimeError("stage_discard_artifact_location_ambiguous")
+        if discard_intent is None and not source_exists:
+            raise RuntimeError("stage_discard_source_missing")
+    unit_name = f"memecoin-brain-{record['release_id']}.service"
+    load, active, file_state, pid = linux_service._unit_status(unit_name)
+    if load != "not-found" or active != "inactive" or file_state != "" or pid != 0:
+        raise RuntimeError("stage_discard_unit_requires_manual_review")
+    _require_stage_slice_empty(str(record["slice_name"]))
+    builder_uid = record["builder_uid"]
+    if builder_uid is not None and _uid_has_processes(builder_uid):
+        raise RuntimeError("stage_discard_builder_processes_remaining")
+    return record, intent, artifacts
+
+
+def _validate_discarded_attempt(
+    attempt_id: str,
+    record: dict[str, object],
+    publish_intent: dict[str, object] | None,
+    receipt: dict[str, object],
+) -> None:
+    if publish_intent is None:
+        raise RuntimeError("stage_discard_receipt_mismatch")
+    if any(
+        record.get(key) != publish_intent.get(key)
+        for key in ("release_id", "source_commit", "wheel_sha256", "interpreter")
+    ):
+        raise RuntimeError("release_publish_attempt_mismatch")
+    artifacts = _validate_publish_intent(attempt_id, publish_intent)
+    expected_intent = {
+        "schema": DISCARD_INTENT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "artifacts": [
+            {
+                "name": item["name"],
+                "source_parent": item["source_parent"],
+                "source_name": item["source_name"],
+                "quarantine_name": _discard_quarantine_path(attempt_id, item).name,
+                "identity": item["identity"],
+            }
+            for item in artifacts
+        ],
+    }
+    if (
+        _read_sealed_stage_json(_discard_intent_path(attempt_id), schema=DISCARD_INTENT_SCHEMA)
+        != expected_intent
+    ):
+        raise RuntimeError("stage_discard_intent_invalid")
+    expected_receipt = {
+        "schema": DISCARD_RECEIPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "quarantined": [
+            {
+                "name": item["name"],
+                "quarantine": str(_discard_quarantine_path(attempt_id, item)),
+                "identity": item["identity"],
+            }
+            for item in artifacts
+        ],
+        "status": "quarantined-retained",
+    }
+    if receipt != expected_receipt or any(
+        os.path.lexists(Path(str(item["source_parent"])) / str(item["source_name"]))
+        or os.path.lexists(Path(str(item["destination_parent"])) / str(item["destination_name"]))
+        or not _artifact_location(
+            _discard_quarantine_path(attempt_id, item),
+            item["identity"],
+            str(item["kind"]),
+        )
+        for item in artifacts
+    ):
+        raise RuntimeError("stage_discard_receipt_mismatch")
+
+
+def _observe_attempt_path(
+    path: Path, kind: str, *, hash_content: bool = False
+) -> dict[str, object]:
+    if not os.path.lexists(path):
+        return {"path": str(path), "exists": False}
+    metadata = path.lstat()
+    result: dict[str, object] = {
+        "path": str(path),
+        "exists": True,
+        "uid": metadata.st_uid,
+        "gid": metadata.st_gid,
+        "mode": oct(stat.S_IMODE(metadata.st_mode)),
+        "dev": metadata.st_dev,
+        "ino": metadata.st_ino,
+        "size_bytes": metadata.st_size if stat.S_ISREG(metadata.st_mode) else None,
+    }
+    if stat.S_ISREG(metadata.st_mode):
+        result["kind"] = "file"
+        if hash_content:
+            result["sha256"] = _sha256(path)
+    elif stat.S_ISDIR(metadata.st_mode):
+        result["kind"] = "directory"
+        if hash_content:
+            result["tree_sha256"] = _tree_sha256(path)
+    elif stat.S_ISLNK(metadata.st_mode):
+        result["kind"] = "symlink"
+    else:
+        result["kind"] = "special"
+    if kind not in {"file", "directory"}:
+        raise RuntimeError("stage_prepare_artifact_kind_invalid")
+    return result
+
+
+def _audit_attempt_observations(
+    attempt_id: str, record: dict[str, object], plan: dict[str, object] | None
+) -> dict[str, object]:
+    release_id = str(record["release_id"])
+    sources = _legacy_preintent_temp_paths(attempt_id, release_id)
+    prepared_temps = []
+    for name, path in sources.items():
+        kind = "directory" if name == "state" else "file"
+        prepared_temps.append({"name": name, **_observe_attempt_path(path, kind)})
+        if plan is not None:
+            item = next(value for value in plan["artifacts"] if value["name"] == name)
+            quarantine = Path(str(item["quarantine_parent"])) / str(item["quarantine_name"])
+            prepared_temps.append(
+                {"name": f"{name}-quarantine", **_observe_attempt_path(quarantine, kind)}
+            )
+    destinations = []
+    for item in _publish_artifact_paths(attempt_id, release_id):
+        path = Path(str(item["destination_parent"])) / str(item["destination_name"])
+        destinations.append({"name": item["name"], **_observe_attempt_path(path, item["kind"])})
+    unit_status = None
+    unit_error = None
+    try:
+        unit_status = linux_service._unit_status(f"memecoin-brain-{release_id}.service")
+    except RuntimeError as exc:
+        unit_error = str(exc)
+    return {
+        "attempt_phase": record["phase"],
+        "record_mtime_ns": _stage_attempt_path(attempt_id).stat().st_mtime_ns,
+        "prepare_intent_present": plan is not None,
+        "pre_intent_temps": prepared_temps,
+        "final_destinations": destinations,
+        "unit_status": unit_status,
+        "unit_status_error": unit_error,
+    }
+
+
+def _partial_prepare_identity(path: Path, item: dict[str, object]) -> dict[str, object]:
+    metadata = path.lstat()
+    if stat.S_ISLNK(metadata.st_mode):
+        raise RuntimeError("stage_prepare_temp_symlink")
+    if item["kind"] == "file":
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or metadata.st_nlink != 1
+            or stat.S_IMODE(metadata.st_mode) not in {0o600, 0o444, 0o644}
+        ):
+            raise RuntimeError("stage_prepare_temp_unsafe")
+    else:
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != 0
+            or stat.S_IMODE(metadata.st_mode) != 0o711
+        ):
+            raise RuntimeError("stage_prepare_temp_unsafe")
+        if _has_nested_mount(path):
+            raise RuntimeError("stage_prepare_temp_nested_mount")
+        brain = pwd.getpwnam("brain")
+        for parent, dirs, files in os.walk(path, followlinks=False):
+            base = Path(parent)
+            for name in [*dirs, *files]:
+                child = base / name
+                child_metadata = child.lstat()
+                if stat.S_ISLNK(child_metadata.st_mode):
+                    raise RuntimeError("stage_prepare_temp_symlink")
+                if child == path / "operator":
+                    allowed = stat.S_ISDIR(child_metadata.st_mode) and (
+                        child_metadata.st_uid,
+                        stat.S_IMODE(child_metadata.st_mode),
+                    ) in {(0, 0o700), (brain.pw_uid, 0o700)}
+                elif child == path / "operator/config.json":
+                    allowed = (
+                        stat.S_ISREG(child_metadata.st_mode)
+                        and child_metadata.st_nlink == 1
+                        and (
+                            child_metadata.st_uid,
+                            stat.S_IMODE(child_metadata.st_mode),
+                        )
+                        in {(0, 0o600), (0, 0o644), (brain.pw_uid, 0o600)}
+                    )
+                else:
+                    allowed = False
+                if not allowed:
+                    raise RuntimeError("stage_prepare_temp_unsafe")
+    if metadata.st_dev != os.stat(item["source_parent"], follow_symlinks=False).st_dev:
+        raise RuntimeError("stage_prepare_filesystem_mismatch")
+    return _artifact_identity(path, kind=str(item["kind"]))
+
+
+def _has_nested_mount(path: Path) -> bool:
+    """Reject mountpoints below an artifact root before walking or hashing it."""
+    root = path.resolve(strict=True)
+    for line in Path("/proc/self/mountinfo").read_text(encoding="ascii").splitlines():
+        fields = line.split(" ")
+        if len(fields) < 5:
+            raise RuntimeError("stage_mountinfo_invalid")
+        mountpoint = re.sub(
+            r"\\([0-7]{3})",
+            lambda match: chr(int(match.group(1), 8)),
+            fields[4],
+        )
+        candidate = Path(mountpoint)
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            continue
+        if candidate == root or candidate.is_relative_to(root):
+            return True
+    return False
+
+
+def _preflight_prepared_temp_locations(
+    attempt_id: str, record: dict[str, object], artifacts: list[dict[str, object]]
+) -> list[dict[str, object] | None]:
+    """Validate every external temp and quarantine before any recovery rename."""
+    if _release_stage_artifacts(str(record["release_id"])):
+        raise RuntimeError("stage_partial_publication_requires_manual_review")
+    identities = []
+    for item in artifacts:
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        quarantine = Path(str(item["quarantine_parent"])) / str(item["quarantine_name"])
+        source_exists = os.path.lexists(source)
+        quarantine_exists = os.path.lexists(quarantine)
+        if source_exists and quarantine_exists:
+            raise RuntimeError("stage_prepare_temp_location_ambiguous")
+        if quarantine_exists:
+            identity = _partial_prepare_identity(quarantine, item)
+        elif source_exists:
+            identity = _partial_prepare_identity(source, item)
+        else:
+            identity = None
+        identities.append(identity)
+    return identities
+
+
+def _validate_prepared_recovery_receipt(
+    attempt_id: str,
+    record: dict[str, object],
+    plan: dict[str, object],
+    artifacts: list[dict[str, object]],
+) -> dict[str, object]:
+    """Read-only validation for a terminal pre-intent recovery after later publication."""
+    progress = _read_sealed_stage_json(
+        _prepare_progress_path(attempt_id), schema=PREPARE_PROGRESS_SCHEMA
+    )
+    receipt = _read_sealed_stage_json(
+        _prepare_receipt_path(attempt_id), schema=PREPARE_RECEIPT_SCHEMA
+    )
+    if progress is None or receipt is None:
+        raise RuntimeError("stage_prepare_recovery_receipt_missing")
+    expected_header = {
+        "schema": PREPARE_PROGRESS_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "plan_sha256": hashlib.sha256(
+            json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+    }
+    observed = progress.get("artifacts")
+    if (
+        any(progress.get(key) != value for key, value in expected_header.items())
+        or not isinstance(observed, list)
+        or [value.get("name") for value in observed if isinstance(value, dict)]
+        != [item["name"] for item in artifacts]
+        or any(
+            not isinstance(value, dict)
+            or set(value) != {"name", "identity"}
+            or (value["identity"] is not None and not isinstance(value["identity"], dict))
+            for value in observed
+        )
+    ):
+        raise RuntimeError("stage_prepare_progress_invalid")
+    quarantined = []
+    for item, value in zip(artifacts, observed, strict=True):
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        quarantine_parent = Path(str(item["quarantine_parent"]))
+        _require_root_directory_chain(quarantine_parent)
+        quarantine = quarantine_parent / str(item["quarantine_name"])
+        identity = value["identity"]
+        if os.path.lexists(source):
+            raise RuntimeError("stage_prepare_terminal_location_mismatch")
+        if identity is None:
+            if os.path.lexists(quarantine):
+                raise RuntimeError("stage_prepare_terminal_location_mismatch")
+            continue
+        if not os.path.lexists(quarantine):
+            raise RuntimeError("stage_prepare_terminal_location_mismatch")
+        if _partial_prepare_identity(quarantine, item) != identity:
+            raise RuntimeError("stage_prepare_temp_identity_mismatch")
+        quarantined.append({"name": item["name"], "path": str(quarantine), "identity": identity})
+    expected_receipt = {
+        "schema": PREPARE_RECEIPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "quarantined": quarantined,
+        "status": "pre-intent-temps-quarantined-retained",
+    }
+    if receipt != expected_receipt:
+        raise RuntimeError("stage_prepare_receipt_mismatch")
+    return receipt
+
+
+def _ensure_prepare_quarantine(item: dict[str, object]) -> Path:
+    parent = Path(str(item["source_parent"]))
+    _require_root_directory_chain(parent)
+    qparent = Path(str(item["quarantine_parent"]))
+    try:
+        os.mkdir(qparent, mode=0o700)
+        parent_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+    except FileExistsError:
+        pass
+    _require_root_directory_chain(qparent)
+    metadata = qparent.lstat()
+    if stat.S_IMODE(metadata.st_mode) != 0o700 or metadata.st_uid != 0:
+        raise RuntimeError("stage_prepare_quarantine_parent_unsafe")
+    if metadata.st_dev != parent.lstat().st_dev:
+        raise RuntimeError("stage_prepare_filesystem_mismatch")
+    return qparent / str(item["quarantine_name"])
+
+
+def _recover_prepared_temps_locked(
+    attempt_id: str, record: dict[str, object], plan: dict[str, object]
+) -> dict[str, object]:
+    artifacts = _validate_prepare_intent(attempt_id, record, plan)
+    if record["phase"] == "recovered":
+        return _validate_prepared_recovery_receipt(attempt_id, record, plan, artifacts)
+    if _release_stage_artifacts(str(record["release_id"])):
+        raise RuntimeError("stage_partial_publication_requires_manual_review")
+    unit_name = f"memecoin-brain-{record['release_id']}.service"
+    load, active, file_state, pid = linux_service._unit_status(unit_name)
+    if load != "not-found" or active != "inactive" or file_state != "" or pid != 0:
+        raise RuntimeError("stage_recovery_unit_requires_manual_review")
+    _require_stage_slice_empty(str(record["slice_name"]))
+    builder_uid = record["builder_uid"]
+    if builder_uid is not None and _uid_has_processes(builder_uid):
+        raise RuntimeError("stage_builder_processes_remaining")
+    progress_path = _prepare_progress_path(attempt_id)
+    receipt_path = _prepare_receipt_path(attempt_id)
+    receipt = _read_sealed_stage_json(receipt_path, schema=PREPARE_RECEIPT_SCHEMA)
+    progress = _read_sealed_stage_json(progress_path, schema=PREPARE_PROGRESS_SCHEMA)
+    expected_header = {
+        "schema": PREPARE_PROGRESS_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "plan_sha256": hashlib.sha256(
+            json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+    }
+    if progress is None:
+        observed_identities = _preflight_prepared_temp_locations(attempt_id, record, artifacts)
+        for item in artifacts:
+            quarantine = Path(str(item["quarantine_parent"])) / str(item["quarantine_name"])
+            if os.path.lexists(quarantine):
+                raise RuntimeError("stage_prepare_quarantine_exists_without_progress")
+        identities = [
+            {"name": item["name"], "identity": identity}
+            for item, identity in zip(artifacts, observed_identities, strict=True)
+        ]
+        for item in artifacts:
+            _ensure_prepare_quarantine(item)
+        progress = {**expected_header, "artifacts": identities}
+        _write_sealed_stage_json(progress_path, progress)
+    elif any(progress.get(key) != value for key, value in expected_header.items()):
+        raise RuntimeError("stage_prepare_progress_invalid")
+    expected_items = [item["name"] for item in artifacts]
+    observed = progress.get("artifacts")
+    if (
+        not isinstance(observed, list)
+        or [value.get("name") for value in observed if isinstance(value, dict)] != expected_items
+        or any(
+            not isinstance(value, dict) or set(value) != {"name", "identity"} for value in observed
+        )
+    ):
+        raise RuntimeError("stage_prepare_progress_invalid")
+    identity_by_name = {value["name"]: value["identity"] for value in observed}
+    current_identities = _preflight_prepared_temp_locations(attempt_id, record, artifacts)
+    for item, current in zip(artifacts, current_identities, strict=True):
+        if current != identity_by_name[item["name"]]:
+            raise RuntimeError("stage_prepare_temp_identity_mismatch")
+    quarantined = []
+    for item in artifacts:
+        identity = identity_by_name[item["name"]]
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        quarantine = _ensure_prepare_quarantine(item)
+        source_exists = os.path.lexists(source)
+        quarantine_exists = os.path.lexists(quarantine)
+        if identity is None:
+            if source_exists or quarantine_exists:
+                raise RuntimeError("stage_prepare_temp_unexpected")
+            continue
+        if not isinstance(identity, dict):
+            raise RuntimeError("stage_prepare_progress_invalid")
+        if source_exists == quarantine_exists:
+            raise RuntimeError("stage_prepare_temp_location_ambiguous")
+        current = source if source_exists else quarantine
+        actual = _partial_prepare_identity(current, item)
+        if actual != identity:
+            raise RuntimeError("stage_prepare_temp_identity_mismatch")
+        if source_exists:
+            _rename_noreplace(
+                source.parent,
+                source.name,
+                quarantine.parent,
+                quarantine.name,
+            )
+        quarantined.append({"name": item["name"], "path": str(quarantine), "identity": identity})
+    expected_receipt = {
+        "schema": PREPARE_RECEIPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": record["release_id"],
+        "source_commit": record["source_commit"],
+        "quarantined": quarantined,
+        "status": "pre-intent-temps-quarantined-retained",
+    }
+    if receipt is None:
+        _write_sealed_stage_json(receipt_path, expected_receipt)
+        return expected_receipt
+    if receipt != expected_receipt:
+        raise RuntimeError("stage_prepare_receipt_mismatch")
+    return receipt
+
+
+def audit_stage(attempt_id: str | None = None) -> dict[str, object]:
+    """Read-only inventory of interrupted publish attempts and discard eligibility."""
+    if os.geteuid() != 0:
+        raise PermissionError("stage_audit_requires_root")
+    try:
+        metadata = STAGE_ATTEMPT_BASE.lstat()
+    except FileNotFoundError:
+        return {"attempts": [], "count": 0, "read_only": True}
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != 0
+        or stat.S_IMODE(metadata.st_mode) != 0o700
+    ):
+        raise RuntimeError("stage_attempt_directory_unsafe")
+    if attempt_id is None:
+        ids = sorted(
+            path.name[:-5]
+            for path in STAGE_ATTEMPT_BASE.glob("*.json")
+            if STAGE_ATTEMPT_ID_RE.fullmatch(path.name[:-5])
+        )
+    else:
+        ids = [attempt_id]
+    entries = []
+    for current_id in ids:
+        entry: dict[str, object] = {"attempt_id": current_id, "classification": "manual-review"}
+        try:
+            _, record = _read_stage_attempt(current_id)
+            intent = _read_publish_intent(current_id)
+            plan = _read_sealed_stage_json(
+                _prepare_intent_path(current_id), schema=PREPARE_INTENT_SCHEMA
+            )
+            if plan is not None:
+                _validate_prepare_intent(current_id, record, plan)
+            entry.update(_audit_attempt_observations(current_id, record, plan))
+            if intent is None:
+                temp_exists = any(
+                    value["exists"] and not value["name"].endswith("-quarantine")
+                    for value in entry["pre_intent_temps"]
+                )
+                if plan is None and temp_exists:
+                    entry["reason"] = "stage_prepare_intent_missing_manual_review"
+                elif _release_stage_artifacts(str(record["release_id"])):
+                    entry["reason"] = "stage_partial_publication_requires_manual_review"
+                elif record["phase"] in {"complete", "recovered"}:
+                    entry["classification"] = "terminal-no-publish-intent"
+                elif plan is None:
+                    entry["classification"] = "recoverable-no-external-temps"
+                else:
+                    unit_status = entry["unit_status"]
+                    if _release_stage_artifacts(str(record["release_id"])):
+                        raise RuntimeError("stage_partial_publication_requires_manual_review")
+                    if unit_status != ("not-found", "inactive", "", 0):
+                        raise RuntimeError("stage_recovery_unit_requires_manual_review")
+                    _require_stage_slice_empty(str(record["slice_name"]))
+                    if record["builder_uid"] is not None and _uid_has_processes(
+                        record["builder_uid"]
+                    ):
+                        raise RuntimeError("stage_builder_processes_remaining")
+                    entry["classification"] = "pre-intent-recovery-ready"
+                entries.append(entry)
+                continue
+            record, intent, artifacts = _discard_preflight(current_id)
+            receipt = _read_sealed_stage_json(
+                _discard_receipt_path(current_id), schema=DISCARD_RECEIPT_SCHEMA
+            )
+            if receipt is not None:
+                _validate_discarded_attempt(current_id, record, intent, receipt)
+            bytes_pinned = 0
+            for item in artifacts:
+                location = Path(str(item["source_parent"])) / str(item["source_name"])
+                if not os.path.lexists(location):
+                    location = _discard_quarantine_path(current_id, item)
+                bytes_pinned += _artifact_size(location)
+            entry.update(
+                {
+                    "classification": (
+                        "quarantined-retained" if receipt is not None else "discard-eligible"
+                    ),
+                    "release_id": record["release_id"],
+                    "source_commit": intent["source_commit"],
+                    "artifacts": len(artifacts),
+                    "bytes": bytes_pinned,
+                    "record_mtime_ns": _stage_attempt_path(current_id).stat().st_mtime_ns,
+                }
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            entry["reason"] = str(exc)
+        entries.append(entry)
+    return {"attempts": entries, "count": len(entries), "read_only": True}
+
+
+def discard_stage(attempt_id: str) -> dict[str, object]:
+    """Quarantine one exact abandoned publish attempt; never activates or deletes it."""
+    if os.geteuid() != 0:
+        raise PermissionError("stage_discard_requires_root")
+    _, record = _read_stage_attempt(attempt_id)
+    lock_fd = _acquire_stage_lock(str(record["release_id"]))
+    try:
+        receipt_path = _discard_receipt_path(attempt_id)
+        receipt = _read_sealed_stage_json(receipt_path, schema=DISCARD_RECEIPT_SCHEMA)
+        _, intent, artifacts = _discard_preflight(attempt_id)
+        existing = _read_sealed_stage_json(
+            _discard_intent_path(attempt_id), schema=DISCARD_INTENT_SCHEMA
+        )
+        expected_intent = {
+            "schema": DISCARD_INTENT_SCHEMA,
+            "attempt_id": attempt_id,
+            "release_id": record["release_id"],
+            "artifacts": [
+                {
+                    "name": item["name"],
+                    "source_parent": item["source_parent"],
+                    "source_name": item["source_name"],
+                    "quarantine_name": _discard_quarantine_path(attempt_id, item).name,
+                    "identity": item["identity"],
+                }
+                for item in artifacts
+            ],
+        }
+        if existing is None:
+            _write_sealed_stage_json(_discard_intent_path(attempt_id), expected_intent)
+        elif existing != expected_intent:
+            raise RuntimeError("stage_discard_intent_invalid")
+        if receipt is not None:
+            expected_quarantine = [
+                {
+                    "name": item["name"],
+                    "quarantine": str(_discard_quarantine_path(attempt_id, item)),
+                    "identity": item["identity"],
+                }
+                for item in artifacts
+            ]
+            if receipt != {
+                "schema": DISCARD_RECEIPT_SCHEMA,
+                "attempt_id": attempt_id,
+                "release_id": record["release_id"],
+                "source_commit": intent["source_commit"],
+                "quarantined": expected_quarantine,
+                "status": "quarantined-retained",
+            } or any(
+                os.path.lexists(Path(str(item["source_parent"])) / str(item["source_name"]))
+                or not os.path.lexists(_discard_quarantine_path(attempt_id, item))
+                for item in artifacts
+            ):
+                raise RuntimeError("stage_discard_receipt_mismatch")
+            return receipt
+        moved = []
+        for item in artifacts:
+            identity = item["identity"]
+            source = Path(str(item["source_parent"])) / str(item["source_name"])
+            quarantine = _discard_quarantine_path(attempt_id, item)
+            source_exists = _artifact_location(source, identity, str(item["kind"]))
+            quarantine_exists = _artifact_location(quarantine, identity, str(item["kind"]))
+            if source_exists == quarantine_exists:
+                raise RuntimeError("stage_discard_artifact_location_ambiguous")
+            if source_exists:
+                _rename_noreplace(source.parent, source.name, quarantine.parent, quarantine.name)
+            moved.append(
+                {"name": item["name"], "quarantine": str(quarantine), "identity": identity}
+            )
+        result = {
+            "schema": DISCARD_RECEIPT_SCHEMA,
+            "attempt_id": attempt_id,
+            "release_id": record["release_id"],
+            "source_commit": intent["source_commit"],
+            "quarantined": moved,
+            "status": "quarantined-retained",
+        }
+        _write_sealed_stage_json(receipt_path, result)
+        return result
+    finally:
+        os.close(lock_fd)
+
+
+def _finish_publish_locked(
+    attempt_id: str, record: dict[str, object], intent: dict[str, object]
+) -> dict[str, str]:
+    artifacts = _validate_publish_intent(attempt_id, intent)
+    if record.get("release_id") != intent.get("release_id") or any(
+        record.get(key) != intent.get(key)
+        for key in ("source_commit", "wheel_sha256", "interpreter")
+    ):
+        raise RuntimeError("release_publish_attempt_mismatch")
+    release_id = str(intent["release_id"])
+    if record.get("phase") == "complete":
+        _record_stage_phase(_stage_attempt_path(attempt_id), record, "complete", seal=True)
+        verification = verify(release_id)
+        if (
+            verification["source_commit"] != intent["source_commit"]
+            or verification["wheel_sha256"] != intent["wheel_sha256"]
+        ):
+            raise RuntimeError("release_publish_verify_identity_mismatch")
+        return {
+            "release_id": release_id,
+            "unit": f"memecoin-brain-{release_id}.service",
+            "release_path": str(RELEASE_BASE / release_id),
+        }
+    _ensure_release_base()
+    _ensure_root_directory(STATE_BASE_V2, 0o755)
+    _ensure_root_directory(STATE_PREPARED_BASE, 0o700)
+    _ensure_unit_base()
+    _stop_stage_slice(str(record["slice_name"]))
+    builder_name = str(record["builder_name"])
+    uid_value = record["builder_uid"]
+    try:
+        builder = pwd.getpwnam(builder_name)
+    except KeyError:
+        builder = None
+    if builder is not None:
+        if (
+            (uid_value is not None and builder.pw_uid != uid_value)
+            or builder.pw_dir != "/nonexistent"
+            or builder.pw_shell != "/usr/sbin/nologin"
+        ):
+            raise RuntimeError("stage_builder_identity_mismatch")
+        uid_value = builder.pw_uid
+        if _uid_has_processes(uid_value):
+            raise RuntimeError("stage_builder_processes_remaining")
+        result = subprocess.run(
+            ["userdel", builder_name],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root"},
+        )
+        if result.returncode != 0:
+            raise RuntimeError("stage_builder_account_removal_failed")
+    elif uid_value is not None and _uid_has_processes(uid_value):
+        raise RuntimeError("stage_builder_processes_remaining")
+    unit_name = f"memecoin-brain-{release_id}.service"
+    load, active, file_state, pid = linux_service._unit_status(unit_name)
+    if active != "inactive" or pid != 0 or file_state not in {"", "static"}:
+        raise RuntimeError("release_publish_unit_requires_manual_review")
+    publish_pending = []
+    for item in artifacts:
+        spec = {
+            key: item[key]
+            for key in (
+                "source_parent",
+                "source_name",
+                "destination_parent",
+                "destination_name",
+                "kind",
+            )
+        }
+        identity = item["identity"]
+        source = Path(str(item["source_parent"])) / str(item["source_name"])
+        destination = Path(str(item["destination_parent"])) / str(item["destination_name"])
+        source_exists = os.path.lexists(source)
+        destination_exists = os.path.lexists(destination)
+        if source_exists and destination_exists:
+            raise RuntimeError("release_publish_ambiguous_artifacts")
+        current = source if source_exists else destination if destination_exists else None
+        if current is None or _artifact_identity(current, kind=str(spec["kind"])) != identity:
+            raise RuntimeError("release_publish_artifact_mismatch")
+        if source_exists:
+            publish_pending.append((item, destination, spec["kind"], identity))
+    for item, destination, kind, identity in publish_pending:
+        _rename_noreplace(
+            Path(str(item["source_parent"])),
+            str(item["source_name"]),
+            Path(str(item["destination_parent"])),
+            str(item["destination_name"]),
+        )
+        if _artifact_identity(destination, kind=str(kind)) != identity:
+            raise RuntimeError("release_publish_readback_mismatch")
+    _run(["systemctl", "daemon-reload"])
+    if linux_service._unit_status(unit_name) != ("loaded", "inactive", "static", 0):
+        raise RuntimeError("release_publish_unit_not_inert")
+    verification = verify(release_id)
+    if (
+        verification["source_commit"] != intent["source_commit"]
+        or verification["wheel_sha256"] != intent["wheel_sha256"]
+    ):
+        raise RuntimeError("release_publish_verify_identity_mismatch")
+    record_path = _stage_attempt_path(attempt_id)
+    _record_stage_phase(record_path, record, "complete", seal=True)
+    return {
+        "release_id": release_id,
+        "unit": unit_name,
+        "release_path": str(RELEASE_BASE / release_id),
+    }
+
+
+def _recover_stage_locked(attempt_id: str) -> dict[str, str]:
+    _ensure_release_base()
+    record_path, record = _read_stage_attempt(attempt_id)
+    intent = _read_publish_intent(attempt_id)
+    if (
+        _read_sealed_stage_json(_discard_intent_path(attempt_id), schema=DISCARD_INTENT_SCHEMA)
+        is not None
+        or _read_sealed_stage_json(_discard_receipt_path(attempt_id), schema=DISCARD_RECEIPT_SCHEMA)
+        is not None
+    ):
+        raise RuntimeError("stage_discard_recovery_required")
+    if intent is not None:
+        return _finish_publish_locked(attempt_id, record, intent)
+    release_id = str(record["release_id"])
+    prepare_intent = _read_sealed_stage_json(
+        _prepare_intent_path(attempt_id), schema=PREPARE_INTENT_SCHEMA
+    )
+    if record["phase"] == "recovered" and prepare_intent is not None:
+        receipt = _recover_prepared_temps_locked(attempt_id, record, prepare_intent)
+        return {
+            "attempt_id": attempt_id,
+            "recovered": "true",
+            "quarantined_preintent_artifacts": str(len(receipt["quarantined"])),
+        }
+    if record["phase"] in {"complete", "recovered"}:
+        raise RuntimeError("stage_attempt_not_recoverable")
+    if _release_stage_artifacts(release_id):
+        raise RuntimeError("stage_partial_publication_requires_manual_review")
+    if prepare_intent is None and any(
+        os.path.lexists(path)
+        for path in _legacy_preintent_temp_paths(attempt_id, release_id).values()
+    ):
+        raise RuntimeError("stage_prepare_intent_missing_manual_review")
+    unit_name = f"memecoin-brain-{release_id}.service"
+    load, active, file_state, pid = linux_service._unit_status(unit_name)
+    if load != "not-found" or active != "inactive" or file_state != "" or pid != 0:
+        raise RuntimeError("stage_recovery_unit_requires_manual_review")
+    slice_name = str(record["slice_name"])
+    _stop_stage_slice(slice_name)
+    builder_name = str(record["builder_name"])
+    uid_value = record["builder_uid"]
+    try:
+        builder = pwd.getpwnam(builder_name)
+    except KeyError:
+        builder = None
+    if builder is not None:
+        if uid_value is not None and builder.pw_uid != uid_value:
+            raise RuntimeError("stage_builder_identity_mismatch")
+        uid_value = builder.pw_uid
+        if builder.pw_dir != "/nonexistent" or builder.pw_shell != "/usr/sbin/nologin":
+            raise RuntimeError("stage_builder_identity_mismatch")
+        if _uid_has_processes(uid_value):
+            raise RuntimeError("stage_builder_processes_remaining")
+    elif uid_value is not None and _uid_has_processes(uid_value):
+        raise RuntimeError("stage_builder_processes_remaining")
+    prepared_artifacts = (
+        _validate_prepare_intent(attempt_id, record, prepare_intent)
+        if prepare_intent is not None
+        else None
+    )
+    if prepared_artifacts is not None:
+        _preflight_prepared_temp_locations(attempt_id, record, prepared_artifacts)
+    staging = RELEASE_BASE / str(record["staging_name"])
+    incomplete = RELEASE_BASE / f".incomplete-{attempt_id}"
+    try:
+        metadata = staging.lstat()
+    except FileNotFoundError:
+        metadata = None
+    if metadata is not None and (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_dev != record["staging_dev"]
+        or metadata.st_ino != record["staging_ino"]
+        or metadata.st_uid != 0
+    ):
+        raise RuntimeError("stage_staging_identity_mismatch")
+    try:
+        quarantined_metadata = incomplete.lstat()
+    except FileNotFoundError:
+        quarantined_metadata = None
+    if metadata is None and quarantined_metadata is None:
+        raise RuntimeError("stage_staging_evidence_missing")
+    if quarantined_metadata is not None and (
+        metadata is not None
+        or not stat.S_ISDIR(quarantined_metadata.st_mode)
+        or quarantined_metadata.st_dev != record["staging_dev"]
+        or quarantined_metadata.st_ino != record["staging_ino"]
+        or quarantined_metadata.st_uid != 0
+    ):
+        raise RuntimeError("stage_incomplete_destination_mismatch")
+    if builder is not None:
+        result = subprocess.run(
+            ["userdel", builder_name],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root"},
+        )
+        if result.returncode != 0:
+            raise RuntimeError("stage_builder_account_removal_failed")
+    if metadata is not None:
+        os.replace(staging, incomplete)
+    if metadata is not None or quarantined_metadata is not None:
+        marker = incomplete / "INCOMPLETE"
+        expected_marker = "release staging interrupted; quarantined for evidence\n"
+        if os.path.lexists(marker):
+            if (
+                marker.is_symlink()
+                or not marker.is_file()
+                or marker.read_text(encoding="utf-8") != expected_marker
+            ):
+                raise RuntimeError("stage_incomplete_marker_mismatch")
+        else:
+            marker.write_text(expected_marker, encoding="utf-8")
+        marker.chmod(0o444)
+        _seal(incomplete, pwd.getpwnam("brain").pw_gid)
+    prepared_receipt: dict[str, object] | None = None
+    if prepare_intent is not None:
+        prepared_receipt = _recover_prepared_temps_locked(attempt_id, record, prepare_intent)
+    _record_stage_phase(record_path, record, "recovered", seal=True)
+    return {
+        "attempt_id": attempt_id,
+        "recovered": "true",
+        "quarantined_preintent_artifacts": str(
+            len(prepared_receipt["quarantined"]) if prepared_receipt is not None else 0
+        ),
+    }
+
+
+def recover_stage(attempt_id: str) -> dict[str, str]:
+    if os.geteuid() != 0:
+        raise PermissionError("stage_recovery_requires_root")
+    _, record = _read_stage_attempt(attempt_id)
+    lock_fd = _acquire_stage_lock(str(record["release_id"]))
+    try:
+        return _recover_stage_locked(attempt_id)
+    finally:
+        os.close(lock_fd)
+
+
+def _stop_stage_slice(slice_name: str) -> None:
+    if not re.fullmatch(r"brain-release-stage-[0-9a-f]{12}-[0-9a-f]{16}\.slice", slice_name):
+        raise RuntimeError("stage_slice_name_invalid")
+    result = subprocess.run(
+        ["systemctl", "stop", slice_name],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    if result.returncode != 0:
+        _stage_slice_cgroup(slice_name)
+        if _stage_slice_cgroup(slice_name) is not None:
+            raise RuntimeError("stage_builder_slice_stop_failed")
+    _require_stage_slice_empty(slice_name)
+
+
+def _run_builder(
+    argv: list[str], *, attempt_id: str, phase: str, timeout: int = 120
+) -> subprocess.CompletedProcess:
+    if not re.fullmatch(r"[a-z0-9-]{1,24}", phase):
+        raise ValueError("stage_builder_phase_invalid")
+    slice_name = _stage_slice_name(attempt_id)
+    unit = f"brain-release-stage-{attempt_id}-{phase}.scope"
+    env = {
+        "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+        "HOME": "/root",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PIP_NO_INPUT": "1",
+        "PIP_CONFIG_FILE": "/dev/null",
+    }
+    try:
+        result = subprocess.run(
+            [
+                "systemd-run",
+                "--scope",
+                "--quiet",
+                f"--slice={slice_name}",
+                f"--unit={unit}",
+                "--property=KillMode=control-group",
+                "--",
+                *argv,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError("stage_builder_command_failed") from exc
+    if result.returncode != 0:
+        output = f"{result.stdout or ''}\n{result.stderr or ''}"
+        if "No space left on device" in output or "Errno 28" in output:
+            raise RuntimeError("stage_builder_no_space")
+        try:
+            filesystem = os.statvfs(RELEASE_BASE)
+        except OSError:
+            filesystem = None
+        if filesystem is not None and (filesystem.f_bavail == 0 or filesystem.f_favail == 0):
+            raise RuntimeError("stage_builder_no_space")
+        raise RuntimeError("stage_builder_command_failed")
+    _require_stage_slice_empty(slice_name)
+    return result
+
+
+def _interpreter(python: Path) -> dict[str, str]:
+    resolved = python.resolve(strict=True)
+    code = (
+        "import json,sys,sysconfig;"
+        "print(json.dumps({'version':sys.version.split()[0],"
+        "'soabi':sysconfig.get_config_var('SOABI') or ''}))"
+    )
+    result = _run([str(resolved), "-I", "-c", code])
+    try:
+        details = json.loads(result.stdout)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise RuntimeError("interpreter_probe_malformed") from exc
+    if not isinstance(details, dict) or not details.get("version"):
+        raise RuntimeError("interpreter_probe_malformed")
+    return {"path": str(resolved), "version": details["version"], "soabi": details["soabi"]}
+
+
+def _identity(wheel_sha: str, interpreter: dict[str, str], schema: str = SCHEMA) -> str:
+    body = json.dumps(
+        {"schema": schema, "wheel_sha256": wheel_sha, "interpreter": interpreter},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(body).hexdigest()
+
+
+def _inventory(root: Path) -> tuple[list[dict[str, str]], str]:
+    entries: list[dict[str, str]] = []
+    for parent, dirs, files in os.walk(root, followlinks=False):
+        dirs.sort()
+        files.sort()
+        base = Path(parent)
+        for name in [*dirs, *files]:
+            path = base / name
+            relative = path.relative_to(root).as_posix()
+            metadata = path.lstat()
+            if stat.S_ISLNK(metadata.st_mode):
+                item = {"path": relative, "kind": "symlink", "target": os.readlink(path)}
+            elif stat.S_ISDIR(metadata.st_mode):
+                item = {"path": relative, "kind": "directory"}
+            elif stat.S_ISREG(metadata.st_mode):
+                item = {"path": relative, "kind": "file", "sha256": _sha256(path)}
+            else:
+                raise RuntimeError("release_contains_special_file")
+            entries.append(item)
+    entries.sort(key=lambda item: item["path"])
+    encoded = json.dumps(entries, sort_keys=True, separators=(",", ":")).encode()
+    return entries, hashlib.sha256(encoded).hexdigest()
+
+
+def _wheel_requirement(wheel: Path) -> tuple[str, str]:
+    try:
+        with ZipFile(wheel) as archive:
+            metadata_names = [
+                name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+            ]
+            if len(metadata_names) != 1:
+                raise RuntimeError("release_wheel_metadata_invalid")
+            info = archive.getinfo(metadata_names[0])
+            if info.file_size > 1024 * 1024:
+                raise RuntimeError("release_wheel_metadata_invalid")
+            with archive.open(info) as handle:
+                metadata_bytes = handle.read(1024 * 1024 + 1)
+            if len(metadata_bytes) > 1024 * 1024:
+                raise RuntimeError("release_wheel_metadata_invalid")
+            metadata = BytesParser(policy=email_default).parsebytes(metadata_bytes)
+    except (OSError, ValueError, KeyError) as exc:
+        raise RuntimeError("release_wheel_metadata_invalid") from exc
+    name = metadata.get("Name")
+    version = metadata.get("Version")
+    canonical_name = re.sub(r"[-_.]+", "-", name or "").lower()
+    if (
+        canonical_name != "memecoin-ai"
+        or not isinstance(version, str)
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.!+_-]*", version)
+    ):
+        raise RuntimeError("release_wheel_metadata_invalid")
+    return canonical_name, version
+
+
+def _staged_parts(relative: str) -> tuple[str, ...]:
+    parts = tuple(relative.split("/"))
+    if not parts or any(part in {"", ".", ".."} or "\\" in part for part in parts):
+        raise RuntimeError("release_venv_normalization_path_invalid")
+    return parts
+
+
+def _staged_parent(root_fd: int, relative: str) -> tuple[int, str]:
+    parts = _staged_parts(relative)
+    current = os.dup(root_fd)
+    root_device = os.fstat(root_fd).st_dev
+    try:
+        for component in parts[:-1]:
+            before = os.stat(component, dir_fd=current, follow_symlinks=False)
+            if not stat.S_ISDIR(before.st_mode) or before.st_dev != root_device:
+                raise RuntimeError("release_venv_normalization_layout_invalid")
+            flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            if hasattr(os, "O_CLOEXEC"):
+                flags |= os.O_CLOEXEC
+            child = os.open(component, flags, dir_fd=current)
+            after = os.fstat(child)
+            if (after.st_dev, after.st_ino) != (before.st_dev, before.st_ino):
+                os.close(child)
+                raise RuntimeError("release_venv_normalization_path_changed")
+            os.close(current)
+            current = child
+        return current, parts[-1]
+    except OSError as exc:
+        os.close(current)
+        raise RuntimeError("release_venv_normalization_path_invalid") from exc
+    except BaseException:
+        os.close(current)
+        raise
+
+
+def _read_staged_regular(
+    root_fd: int, relative: str, *, max_bytes: int = MAX_WHEEL_BYTES
+) -> tuple[bytes, os.stat_result]:
+    parent_fd, name = _staged_parent(root_fd, relative)
+    try:
+        metadata = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_nlink != 1
+            or metadata.st_size > max_bytes
+        ):
+            raise RuntimeError("release_venv_normalization_file_invalid")
+        flags = os.O_RDONLY | os.O_NOFOLLOW
+        if hasattr(os, "O_CLOEXEC"):
+            flags |= os.O_CLOEXEC
+        fd = os.open(name, flags, dir_fd=parent_fd)
+        try:
+            opened = os.fstat(fd)
+            if (
+                not stat.S_ISREG(opened.st_mode)
+                or opened.st_nlink != 1
+                or (opened.st_dev, opened.st_ino) != (metadata.st_dev, metadata.st_ino)
+                or opened.st_size > max_bytes
+            ):
+                raise RuntimeError("release_venv_normalization_file_invalid")
+            chunks: list[bytes] = []
+            total = 0
+            while True:
+                chunk = os.read(fd, min(1024 * 1024, max_bytes + 1 - total))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                total += len(chunk)
+                if total > max_bytes:
+                    raise RuntimeError("release_venv_normalization_file_invalid")
+            return b"".join(chunks), opened
+        finally:
+            os.close(fd)
+    except OSError as exc:
+        raise RuntimeError("release_venv_normalization_path_invalid") from exc
+    finally:
+        os.close(parent_fd)
+
+
+def _replace_staged_regular(
+    root_fd: int, relative: str, payload: bytes, original: os.stat_result
+) -> None:
+    parent_fd, name = _staged_parent(root_fd, relative)
+    temporary = f".{name}.brain-normalize-{secrets.token_hex(8)}"
+    try:
+        parent_metadata = os.fstat(parent_fd)
+        if (
+            parent_metadata.st_uid not in {0, original.st_uid}
+            or stat.S_IMODE(parent_metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("release_venv_normalization_parent_invalid")
+        current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if (current.st_dev, current.st_ino) != (original.st_dev, original.st_ino):
+            raise RuntimeError("release_venv_normalization_path_changed")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        if hasattr(os, "O_CLOEXEC"):
+            flags |= os.O_CLOEXEC
+        fd = os.open(temporary, flags, stat.S_IMODE(original.st_mode), dir_fd=parent_fd)
+        try:
+            os.fchown(fd, original.st_uid, original.st_gid)
+            os.fchmod(fd, stat.S_IMODE(original.st_mode))
+            view = memoryview(payload)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise RuntimeError("release_venv_normalization_write_failed")
+                view = view[written:]
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if (current.st_dev, current.st_ino) != (original.st_dev, original.st_ino):
+            raise RuntimeError("release_venv_normalization_path_changed")
+        os.replace(temporary, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+        os.fsync(parent_fd)
+    except OSError as exc:
+        raise RuntimeError("release_venv_normalization_write_failed") from exc
+    finally:
+        try:
+            os.unlink(temporary, dir_fd=parent_fd)
+        except FileNotFoundError:
+            pass
+        os.close(parent_fd)
+
+
+def _normalize_staged_venv(
+    venv: Path,
+    final_venv: Path,
+    source: Path,
+    attempt_id: str,
+    expected_interpreter: Path | None = None,
+) -> None:
+    """Normalize only known venv-generated absolute paths before sealing its inventory."""
+    if not venv.is_absolute() or not final_venv.is_absolute():
+        raise RuntimeError("release_venv_normalization_path_invalid")
+    if sys.platform.startswith("linux") and _has_nested_mount(venv):
+        raise RuntimeError("release_venv_normalization_nested_mount")
+    root_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    if hasattr(os, "O_CLOEXEC"):
+        root_flags |= os.O_CLOEXEC
+    try:
+        root_fd = os.open(venv, root_flags)
+    except OSError as exc:
+        raise RuntimeError("release_venv_normalization_path_invalid") from exc
+    root_metadata = os.fstat(root_fd)
+    try:
+        path_metadata = venv.lstat()
+    except OSError as exc:
+        os.close(root_fd)
+        raise RuntimeError("release_venv_normalization_path_invalid") from exc
+    if not stat.S_ISDIR(path_metadata.st_mode) or (root_metadata.st_dev, root_metadata.st_ino) != (
+        path_metadata.st_dev,
+        path_metadata.st_ino,
+    ):
+        os.close(root_fd)
+        raise RuntimeError("release_venv_normalization_path_invalid")
+    try:
+        _normalize_staged_venv_at_fd(
+            root_fd, venv, final_venv, source, attempt_id, expected_interpreter
+        )
+    finally:
+        os.close(root_fd)
+
+
+def _normalize_staged_venv_at_fd(
+    root_fd: int,
+    venv: Path,
+    final_venv: Path,
+    source: Path,
+    attempt_id: str,
+    expected_interpreter: Path | None,
+) -> None:
+    root_device = os.fstat(root_fd).st_dev
+
+    def list_directory(relative: str) -> list[str]:
+        if not relative:
+            return sorted(os.listdir(root_fd))
+        directory_fd, _ = _staged_parent(root_fd, f"{relative}/.sentinel")
+        try:
+            return sorted(os.listdir(directory_fd))
+        finally:
+            os.close(directory_fd)
+
+    def metadata(relative: str) -> os.stat_result:
+        parent_fd, name = _staged_parent(root_fd, relative)
+        try:
+            return os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        finally:
+            os.close(parent_fd)
+
+    def remove_file(relative: str) -> None:
+        parent_fd, name = _staged_parent(root_fd, relative)
+        try:
+            os.unlink(name, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+
+    def remove_dir(relative: str) -> None:
+        parent_fd, name = _staged_parent(root_fd, relative)
+        try:
+            os.rmdir(name, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+
+    lib_names = [
+        name for name in list_directory("lib") if re.fullmatch(r"python[0-9]+\.[0-9]+", name)
+    ]
+    if len(lib_names) != 1 or len(list_directory("lib")) != 1:
+        raise RuntimeError("release_venv_normalization_layout_invalid")
+    site_root = f"lib/{lib_names[0]}/site-packages"
+    if not stat.S_ISDIR(metadata(site_root).st_mode):
+        raise RuntimeError("release_venv_normalization_layout_invalid")
+    site_names = list_directory(site_root)
+    package_metadata = [
+        name for name in site_names if re.fullmatch(r"memecoin_ai-[^/]+\.dist-info", name)
+    ]
+    if len(package_metadata) != 1:
+        raise RuntimeError("release_venv_normalization_metadata_invalid")
+    metadata_root = f"{site_root}/{package_metadata[0]}"
+    entry_points_bytes, _ = _read_staged_regular(root_fd, f"{metadata_root}/entry_points.txt")
+    parser = configparser.ConfigParser(interpolation=None, strict=True)
+    try:
+        parser.read_string(entry_points_bytes.decode("utf-8"))
+        scripts = set(parser["console_scripts"])
+    except (UnicodeDecodeError, configparser.Error, KeyError) as exc:
+        raise RuntimeError("release_venv_normalization_entry_points_invalid") from exc
+    if (
+        not scripts
+        or len(scripts) > 32
+        or any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name) for name in scripts)
+    ):
+        raise RuntimeError("release_venv_normalization_entry_points_invalid")
+
+    directories: list[str] = []
+    files: list[str] = []
+
+    def walk(relative: str) -> None:
+        for name in list_directory(relative):
+            child = f"{relative}/{name}" if relative else name
+            item = metadata(child)
+            if stat.S_ISDIR(item.st_mode):
+                if item.st_dev != root_device:
+                    raise RuntimeError("release_venv_normalization_layout_invalid")
+                directories.append(child)
+                walk(child)
+            else:
+                files.append(child)
+
+    walk("")
+    for directory in sorted(directories, key=lambda item: item.count("/"), reverse=True):
+        if directory.endswith("/__pycache__"):
+            for child_name in list_directory(directory):
+                child = f"{directory}/{child_name}"
+                item = metadata(child)
+                if (
+                    not stat.S_ISREG(item.st_mode)
+                    or item.st_nlink != 1
+                    or not child_name.endswith(".pyc")
+                ):
+                    raise RuntimeError("release_venv_bytecode_layout_invalid")
+                remove_file(child)
+                files.remove(child)
+            remove_dir(directory)
+            directories.remove(directory)
+    pyvenv_cfg = "pyvenv.cfg"
+    cfg_bytes, cfg_metadata = _read_staged_regular(root_fd, pyvenv_cfg)
+    old_venv = str(venv).encode()
+    new_venv = str(final_venv).encode()
+    cfg_lines = cfg_bytes.splitlines(keepends=True)
+    command_indexes = [
+        index for index, line in enumerate(cfg_lines) if line.startswith(b"command = ")
+    ]
+    if len(command_indexes) != 1 or cfg_bytes.count(old_venv) != 1:
+        raise RuntimeError("release_venv_command_path_invalid")
+    cfg_lines[command_indexes[0]] = cfg_lines[command_indexes[0]].replace(old_venv, new_venv)
+    _replace_staged_regular(root_fd, pyvenv_cfg, b"".join(cfg_lines), cfg_metadata)
+
+    activation_paths = [f"bin/{name}" for name in ("activate", "activate.csh", "activate.fish")]
+    for activation in activation_paths:
+        data, file_metadata = _read_staged_regular(root_fd, activation)
+        if old_venv not in data:
+            raise RuntimeError("release_venv_activation_path_invalid")
+        _replace_staged_regular(
+            root_fd, activation, data.replace(old_venv, new_venv), file_metadata
+        )
+
+    changed_scripts: dict[str, bytes] = {}
+    for script_name in list_directory("bin"):
+        relative = f"bin/{script_name}"
+        item = metadata(relative)
+        if stat.S_ISLNK(item.st_mode):
+            continue
+        if not stat.S_ISREG(item.st_mode) or not item.st_mode & 0o111:
+            continue
+        data, file_metadata = _read_staged_regular(root_fd, relative)
+        first_line, separator, remainder = data.partition(b"\n")
+        prefix = b"#!" + str(venv / "bin").encode() + b"/python"
+        if first_line.startswith(prefix):
+            suffix = first_line[len(prefix) :]
+            if suffix not in {b"", b"3", b"3.11", b"3.12", b"3.13", b"3.14"}:
+                raise RuntimeError("release_venv_console_script_path_invalid")
+            interpreter_name = "python" + suffix.decode("ascii")
+            normalized = (
+                b"#!"
+                + str(final_venv / "bin" / interpreter_name).encode()
+                + (b"\n" + remainder if separator else b"")
+            )
+            _replace_staged_regular(root_fd, relative, normalized, file_metadata)
+            changed_scripts[relative] = normalized
+        elif script_name in scripts:
+            raise RuntimeError("release_venv_console_script_path_invalid")
+
+    if not scripts.issubset({Path(item).name for item in changed_scripts}):
+        raise RuntimeError("release_venv_console_script_missing")
+    records = [f"{site_root}/{name}/RECORD" for name in site_names if name.endswith(".dist-info")]
+    matched_scripts: dict[str, int] = dict.fromkeys(changed_scripts, 0)
+    for record_path in records:
+        record_data, record_metadata = _read_staged_regular(root_fd, record_path)
+        try:
+            reader = csv.reader(StringIO(record_data.decode("utf-8"), newline=""))
+            rows = list(reader)
+        except (UnicodeDecodeError, csv.Error) as exc:
+            raise RuntimeError("release_venv_record_invalid") from exc
+        output = StringIO(newline="")
+        writer = csv.writer(output, lineterminator="\n")
+        for row in rows:
+            if len(row) != 3:
+                raise RuntimeError("release_venv_record_invalid")
+            record_name = row[0]
+            if record_name.startswith("/") or "\\" in record_name:
+                raise RuntimeError("release_venv_record_invalid")
+            parts = tuple(f"{site_root}/{record_name}".split("/"))
+            if any(part in {"", "."} or "\\" in part for part in parts):
+                raise RuntimeError("release_venv_record_invalid")
+            stack: list[str] = []
+            for part in parts:
+                if part == "..":
+                    if not stack:
+                        raise RuntimeError("release_venv_record_invalid")
+                    stack.pop()
+                else:
+                    stack.append(part)
+            relative_target = "/".join(stack)
+            normalized = changed_scripts.get(relative_target)
+            if normalized is not None:
+                encoded_hash = base64.urlsafe_b64encode(hashlib.sha256(normalized).digest())
+                row[1] = "sha256=" + encoded_hash.rstrip(b"=").decode("ascii")
+                row[2] = str(len(normalized))
+                matched_scripts[relative_target] += 1
+            writer.writerow(row)
+        _replace_staged_regular(
+            root_fd, record_path, output.getvalue().encode("utf-8"), record_metadata
+        )
+    if not records or any(count != 1 for count in matched_scripts.values()):
+        raise RuntimeError("release_venv_record_entrypoint_mismatch")
+
+    forbidden = [
+        str(venv).encode(),
+        str(source).encode(),
+        attempt_id.encode(),
+    ]
+    versioned_link = f"bin/python{lib_names[0][6:]}"
+    python_links = {"bin/python", "bin/python3", versioned_link}
+    python_link_names = {os.fsencode(name.removeprefix("bin/")) for name in python_links}
+    python_link_targets: dict[str, bytes] = {}
+    for relative in files:
+        item = metadata(relative)
+        if stat.S_ISLNK(item.st_mode):
+            parent_fd, name = _staged_parent(root_fd, relative)
+            try:
+                target = os.readlink(name, dir_fd=parent_fd).encode()
+            finally:
+                os.close(parent_fd)
+            expected_target = (
+                os.fsencode(str(expected_interpreter)) if expected_interpreter is not None else None
+            )
+            if relative == "lib64":
+                if target != b"lib":
+                    raise RuntimeError("release_venv_normalization_layout_invalid")
+            elif relative in python_links and expected_target is not None:
+                if target != expected_target and target not in python_link_names:
+                    raise RuntimeError("release_venv_normalization_layout_invalid")
+                python_link_targets[relative] = target
+            else:
+                raise RuntimeError("release_venv_normalization_layout_invalid")
+            if any(token and token in target for token in forbidden):
+                raise RuntimeError("release_venv_path_residue")
+        elif stat.S_ISREG(item.st_mode):
+            if item.st_nlink != 1:
+                raise RuntimeError("release_venv_normalization_file_invalid")
+            data, _ = _read_staged_regular(root_fd, relative)
+            if any(token and token in data for token in forbidden):
+                raise RuntimeError("release_venv_path_residue")
+        else:
+            raise RuntimeError("release_venv_normalization_layout_invalid")
+    for link in python_link_targets:
+        current = link
+        visited: set[str] = set()
+        while current in python_link_targets:
+            if current in visited:
+                raise RuntimeError("release_venv_normalization_layout_invalid")
+            visited.add(current)
+            target = python_link_targets[current]
+            if target == os.fsencode(str(expected_interpreter)):
+                break
+            current = f"bin/{os.fsdecode(target)}"
+            if current not in python_link_targets:
+                raise RuntimeError("release_venv_normalization_layout_invalid")
+
+
+def _seal(root: Path, group_id: int) -> None:
+    for parent, dirs, files in os.walk(root, topdown=False, followlinks=False):
+        for name in files:
+            path = Path(parent) / name
+            if path.is_symlink():
+                os.chown(path, 0, group_id, follow_symlinks=False)
+                continue
+            mode = path.stat().st_mode
+            path.chmod(0o555 if mode & 0o111 else 0o444)
+            os.chown(path, 0, group_id)
+        for name in dirs:
+            path = Path(parent) / name
+            if path.is_symlink():
+                os.chown(path, 0, group_id, follow_symlinks=False)
+            else:
+                path.chmod(0o555)
+                os.chown(path, 0, group_id)
+    root.chmod(0o555)
+    os.chown(root, 0, group_id)
+
+
+def _verify_permissions(root: Path, unit_path: Path) -> None:
+    group_id = pwd.getpwnam("brain").pw_gid
+    for parent, dirs, files in os.walk(root, followlinks=False):
+        for name in [".", *dirs, *files]:
+            path = Path(parent) if name == "." else Path(parent) / name
+            metadata = path.lstat()
+            if metadata.st_uid != 0 or metadata.st_gid != group_id:
+                raise RuntimeError("release_ownership_mismatch")
+            if not stat.S_ISLNK(metadata.st_mode) and metadata.st_mode & 0o022:
+                raise RuntimeError("release_writable_by_service_group")
+    unit_stat = unit_path.stat()
+    if unit_stat.st_uid != 0 or unit_stat.st_mode & 0o022:
+        raise RuntimeError("release_unit_permissions_mismatch")
+
+
+def _unit_properties(unit: str) -> dict[str, str]:
+    names = (
+        "FragmentPath",
+        "DropInPaths",
+        "NeedDaemonReload",
+        "ExecStart",
+        "User",
+        "Group",
+        "PrivateNetwork",
+        "WorkingDirectory",
+        "ReadWritePaths",
+        "StateDirectory",
+        "ProtectSystem",
+        "Restart",
+    )
+    result = _run(
+        ["systemctl", "show", "--no-pager", *[f"--property={name}" for name in names], unit]
+    )
+    fields: dict[str, str] = {}
+    for line in result.stdout.splitlines():
+        key, separator, value = line.partition("=")
+        if not separator or key not in names or key in fields:
+            raise RuntimeError("release_effective_unit_malformed")
+        fields[key] = value
+    if set(fields) != set(names):
+        raise RuntimeError("release_effective_unit_malformed")
+    return fields
+
+
+def _verify_effective_unit(
+    unit: str,
+    root: Path,
+    state_root: Path,
+    *,
+    state_layout: str = "legacy",
+) -> None:
+    fields = _unit_properties(unit)
+    expected = {
+        "FragmentPath": str(UNIT_BASE / unit),
+        "DropInPaths": "",
+        "NeedDaemonReload": "no",
+        "User": "brain",
+        "Group": "brain",
+        "PrivateNetwork": "yes",
+        "WorkingDirectory": str(root),
+        "ReadWritePaths": str(state_root),
+        "StateDirectory": "brain-lab" if state_layout == "legacy" else "",
+        "ProtectSystem": "strict",
+        "Restart": "no",
+    }
+    if any(fields[key] != value for key, value in expected.items()):
+        raise RuntimeError("release_effective_unit_mismatch")
+    if state_layout == "release-v2":
+        environment = _run(
+            ["systemctl", "show", "--property=Environment", "--value", unit]
+        ).stdout.strip()
+        if environment != f"HOME={state_root} PYTHONNOUSERSITE=1":
+            raise RuntimeError("release_effective_environment_mismatch")
+    match = re.search(r"(?:^| )argv\[\]=(.*?) ; ignore_errors=", fields["ExecStart"])
+    if match is None:
+        raise RuntimeError("release_effective_execstart_malformed")
+    try:
+        argv = shlex.split(match.group(1))
+    except ValueError as exc:
+        raise RuntimeError("release_effective_execstart_malformed") from exc
+    expected_argv = [
+        str(root / "venv/bin/python"),
+        "-B",
+        "-I",
+        "-m",
+        "memecoin_operator.runtime",
+        "--root",
+        str(state_root),
+        "--port",
+        "18792",
+    ]
+    if argv != expected_argv:
+        raise RuntimeError("release_effective_execstart_mismatch")
+
+
+def _verify_lab_state(root: Path, release_id: str, state_root: Path | None = None) -> None:
+    if state_root is None:
+        state_root = STATE_BASE / release_id / "operator"
+    allowed_roots = {
+        STATE_BASE / release_id / "operator",
+        STATE_BASE_V2 / release_id / "operator",
+    }
+    if state_root not in allowed_roots:
+        raise RuntimeError("release_state_root_mismatch")
+    try:
+        state_root.relative_to(state_root.parents[1])
+    except ValueError as exc:
+        raise RuntimeError("release_state_root_mismatch") from exc
+    if not os.path.lexists(state_root):
+        return
+    if state_root.is_symlink() or not state_root.is_dir():
+        raise RuntimeError("release_lab_state_missing")
+    if not any(state_root.iterdir()):
+        return
+    try:
+        config = json.loads((state_root / "config.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError("release_lab_config_invalid") from exc
+    if (
+        not isinstance(config, dict)
+        or config.get("mode") != "operator"
+        or config.get("real_execution_enabled") is not False
+        or config.get("paid_budget_usd") != 0
+    ):
+        raise RuntimeError("release_lab_config_unsafe")
+    database = state_root / "operator.sqlite"
+    if not os.path.lexists(database) and {path.name for path in state_root.iterdir()} == {
+        "config.json"
+    }:
+        return
+    if database.is_symlink() or not database.is_file():
+        raise RuntimeError("release_lab_database_missing")
+    try:
+        db = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
+        try:
+            tables = {
+                row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+            if "jobs" not in tables or db.execute("SELECT count(*) FROM jobs").fetchone()[0] != 0:
+                raise RuntimeError("release_lab_state_not_idle")
+            if db.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise RuntimeError("release_lab_database_invalid")
+        finally:
+            db.close()
+    except sqlite3.Error as exc:
+        raise RuntimeError("release_lab_database_invalid") from exc
+
+
+def _commit_and_clean(source: Path, expected: str) -> None:
+    brain_uid = pwd.getpwnam("brain").pw_uid
+    if source.stat().st_uid != brain_uid:
+        raise RuntimeError("source_owner_mismatch")
+    git_prefix = ["/usr/sbin/runuser", "-u", "brain", "--", "git", "-C", str(source)]
+    result = _run([*git_prefix, "rev-parse", "HEAD"])
+    if result.stdout.strip() != expected:
+        raise RuntimeError("source_commit_mismatch")
+    dirty = _run([*git_prefix, "status", "--porcelain", "--untracked-files=all"])
+    if dirty.stdout:
+        raise RuntimeError("source_checkout_dirty")
+
+
+def stage(
+    source: Path,
+    wheel: Path,
+    source_commit: str,
+    expected_wheel_sha256: str,
+    python: Path = Path("/usr/bin/python3"),
+) -> dict[str, str]:
+    """Build a root-owned, service-read-only venv and unique static unit."""
+    if os.geteuid() != 0:
+        raise PermissionError("stage_requires_root")
+    service_identity = _service_identity_snapshot()
+    if not re.fullmatch(r"[0-9a-f]{40,64}", source_commit):
+        raise ValueError("invalid_source_commit")
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_wheel_sha256):
+        raise ValueError("invalid_wheel_sha256")
+    source = source.resolve(strict=True)
+    wheel = wheel.resolve(strict=True)
+    if (
+        wheel.stat().st_size > MAX_WHEEL_BYTES
+        or not wheel.is_file()
+        or not SAFE_WHEEL_NAME.fullmatch(wheel.name)
+    ):
+        raise ValueError("invalid_wheel_file")
+    _commit_and_clean(source, source_commit)
+    if _sha256(wheel) != expected_wheel_sha256:
+        raise RuntimeError("wheel_sha256_mismatch")
+    wheel_name, wheel_version = _wheel_requirement(wheel)
+    interpreter = _interpreter(python)
+    release_id = _identity(expected_wheel_sha256, interpreter, SCHEMA_V3)
+    release_root = RELEASE_BASE / release_id
+    unit_name = f"memecoin-brain-{release_id}.service"
+    unit_path = UNIT_BASE / unit_name
+    _ensure_release_base()
+    _ensure_root_directory(STATE_BASE_V2, 0o755)
+    _ensure_root_directory(STATE_PREPARED_BASE, 0o700)
+    _ensure_unit_base()
+    attempt_dir_fd = _open_stage_attempt_directory()
+    os.close(attempt_dir_fd)
+    user = pwd.getpwnam("brain")
+    lock_fd = _acquire_stage_lock(release_id)
+    record_path: Path | None = None
+    record: dict[str, object] | None = None
+    try:
+        if pwd.getpwnam(f"brain-stage-{release_id[:12]}"):
+            raise RuntimeError("stage_incomplete_requires_recovery")
+    except KeyError:
+        pass
+    for candidate in STAGE_ATTEMPT_BASE.glob(f"{release_id[:12]}-*.json"):
+        if not STAGE_ATTEMPT_ID_RE.fullmatch(candidate.stem):
+            continue
+        try:
+            _, previous = _read_stage_attempt(candidate.stem)
+        except RuntimeError as exc:
+            os.close(lock_fd)
+            raise RuntimeError("stage_attempt_record_requires_manual_review") from exc
+        if previous["release_id"] != release_id:
+            continue
+        previous_intent = _read_publish_intent(candidate.stem)
+        previous_prepare = _read_sealed_stage_json(
+            _prepare_intent_path(candidate.stem), schema=PREPARE_INTENT_SCHEMA
+        )
+        discarded = _read_sealed_stage_json(
+            _discard_receipt_path(candidate.stem), schema=DISCARD_RECEIPT_SCHEMA
+        )
+        discard_intent = _read_sealed_stage_json(
+            _discard_intent_path(candidate.stem), schema=DISCARD_INTENT_SCHEMA
+        )
+        if discarded is not None:
+            try:
+                _validate_discarded_attempt(candidate.stem, previous, previous_intent, discarded)
+            except RuntimeError:
+                os.close(lock_fd)
+                raise
+            continue
+        if discard_intent is not None:
+            os.close(lock_fd)
+            raise RuntimeError("stage_discard_recovery_required")
+        if previous_intent is not None:
+            if previous["source_commit"] != source_commit:
+                os.close(lock_fd)
+                raise RuntimeError("stage_existing_release_source_commit_mismatch")
+            try:
+                result = _finish_publish_locked(candidate.stem, previous, previous_intent)
+            except RuntimeError:
+                os.close(lock_fd)
+                raise
+            os.close(lock_fd)
+            return result
+        if previous["phase"] == "recovered" and previous_prepare is not None:
+            try:
+                _recover_prepared_temps_locked(candidate.stem, previous, previous_prepare)
+            except RuntimeError:
+                os.close(lock_fd)
+                raise
+        if previous["phase"] not in {"complete", "recovered"}:
+            os.close(lock_fd)
+            raise RuntimeError("stage_incomplete_requires_recovery")
+    if os.path.lexists(release_root) or os.path.lexists(unit_path):
+        os.close(lock_fd)
+        raise RuntimeError("release_already_exists")
+    if any(RELEASE_BASE.glob(f".stage-{release_id[:12]}-*")):
+        os.close(lock_fd)
+        raise RuntimeError("stage_unrecorded_staging_requires_manual_review")
+    attempt_id = f"{release_id[:12]}-{secrets.token_hex(8)}"
+    builder_name = f"bs-{attempt_id}"
+    if len(builder_name) > 32:
+        os.close(lock_fd)
+        raise RuntimeError("stage_builder_name_invalid")
+    staging = RELEASE_BASE / f".stage-{attempt_id}"
+    staging.mkdir(mode=0o711)
+    staging_metadata = staging.lstat()
+    record_path = _stage_attempt_path(attempt_id)
+    record = {
+        "schema": STAGE_ATTEMPT_SCHEMA,
+        "attempt_id": attempt_id,
+        "release_id": release_id,
+        "wheel_sha256": expected_wheel_sha256,
+        "source_commit": source_commit,
+        "interpreter": interpreter,
+        "builder_name": builder_name,
+        "builder_uid": None,
+        "staging_name": staging.name,
+        "staging_dev": staging_metadata.st_dev,
+        "staging_ino": staging_metadata.st_ino,
+        "slice_name": _stage_slice_name(attempt_id),
+        "phase": "intent",
+    }
+    try:
+        _write_stage_attempt(record_path, record, create=True)
+    except BaseException:
+        staging.rmdir()
+        os.close(lock_fd)
+        raise
+    builder_root = staging / "build"
+    wheelhouse = builder_root / "wheelhouse"
+    wheel_input = wheelhouse / wheel.name
+    venv = builder_root / "venv"
+    try:
+        builder_root.mkdir(mode=0o700)
+        _run(
+            [
+                "useradd",
+                "--system",
+                "--no-create-home",
+                "--home-dir",
+                "/nonexistent",
+                "--shell",
+                "/usr/sbin/nologin",
+                builder_name,
+            ]
+        )
+        builder = pwd.getpwnam(builder_name)
+        record["builder_uid"] = builder.pw_uid
+        _record_stage_phase(record_path, record, "builder-created")
+        os.chown(builder_root, builder.pw_uid, builder.pw_gid)
+        wheelhouse.mkdir(mode=0o755)
+        os.chown(wheelhouse, builder.pw_uid, builder.pw_gid)
+        shutil.copyfile(wheel, wheel_input)
+        wheel_input.chmod(0o444)
+        os.chown(wheel_input, 0, 0)
+        if _sha256(wheel_input) != expected_wheel_sha256:
+            raise RuntimeError("staged_wheel_sha256_mismatch")
+        _record_stage_phase(record_path, record, "building")
+        _run_builder(
+            [
+                "/usr/sbin/runuser",
+                "-u",
+                builder_name,
+                "--",
+                interpreter["path"],
+                "-m",
+                "venv",
+                str(venv),
+            ],
+            attempt_id=attempt_id,
+            phase="venv",
+        )
+        _run_builder(
+            [
+                "/usr/sbin/runuser",
+                "-u",
+                builder_name,
+                "--",
+                str(venv / "bin/python"),
+                "-m",
+                "pip",
+                "install",
+                "--no-index",
+                "--no-deps",
+                "--no-compile",
+                "--no-cache-dir",
+                "--find-links",
+                str(wheelhouse),
+                f"{wheel_name}=={wheel_version}",
+            ],
+            attempt_id=attempt_id,
+            phase="pip",
+        )
+        if _sha256(wheel_input) != expected_wheel_sha256:
+            raise RuntimeError("staged_wheel_changed_during_install")
+        probe = _run_builder(
+            [
+                "/usr/sbin/runuser",
+                "-u",
+                builder_name,
+                "--",
+                str(venv / "bin/python"),
+                "-B",
+                "-I",
+                "-c",
+                "import importlib.metadata,memecoin_operator.runtime;"
+                "print(importlib.metadata.version('memecoin-ai'))",
+            ],
+            attempt_id=attempt_id,
+            phase="probe",
+        )
+        version = probe.stdout.strip()
+        if version != wheel_version:
+            raise RuntimeError("release_import_probe_failed")
+        wheel_input.unlink()
+        wheelhouse.rmdir()
+        _require_stage_slice_empty(str(record["slice_name"]))
+        if _uid_has_processes(builder.pw_uid):
+            raise RuntimeError("stage_builder_processes_remaining")
+        result = subprocess.run(
+            ["userdel", builder_name],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root"},
+        )
+        if result.returncode != 0:
+            raise RuntimeError("stage_builder_account_removal_failed")
+        _normalize_staged_venv(
+            venv,
+            RELEASE_BASE / release_id / "venv",
+            source,
+            attempt_id,
+            Path(interpreter["path"]),
+        )
+        inventory, inventory_sha = _inventory(venv)
+        _record_stage_phase(record_path, record, "publishing")
+        os.replace(venv, staging / "venv")
+        builder_root.rmdir()
+        state_parent = STATE_BASE_V2 / release_id
+        state_root = state_parent / "operator"
+        pin_dir = RELEASE_BASE / ".pins"
+        pin_dir.mkdir(mode=0o755, exist_ok=True)
+        pin_metadata = pin_dir.lstat()
+        if (
+            not stat.S_ISDIR(pin_metadata.st_mode)
+            or pin_metadata.st_uid != 0
+            or stat.S_IMODE(pin_metadata.st_mode) & 0o022
+        ):
+            raise RuntimeError("release_pin_directory_unsafe")
+        for parent in (STATE_PREPARED_BASE, pin_dir, UNIT_BASE):
+            _require_root_directory_chain(parent)
+        prepare_intent = {
+            "schema": PREPARE_INTENT_SCHEMA,
+            "attempt_id": attempt_id,
+            "release_id": release_id,
+            "source_commit": source_commit,
+            "wheel_sha256": expected_wheel_sha256,
+            "interpreter": interpreter,
+            "artifacts": _prepare_artifact_specs(attempt_id, release_id),
+        }
+        _validate_prepare_intent(attempt_id, record, prepare_intent)
+        _write_sealed_stage_json(_prepare_intent_path(attempt_id), prepare_intent)
+        state_temp = STATE_PREPARED_BASE / f".{attempt_id}"
+        state_temp.mkdir(mode=0o711)
+        os.chown(state_temp, 0, 0)
+        prepared_state = state_temp / "operator"
+        prepared_state.mkdir(mode=0o700)
+        os.chown(prepared_state, user.pw_uid, user.pw_gid)
+        lab_config = {
+            "mode": "operator",
+            "real_execution_enabled": False,
+            "paid_budget_usd": 0,
+            "expires_ns": 0,
+        }
+        config_path = prepared_state / "config.json"
+        with config_path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(lab_config, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        config_path.chmod(0o600)
+        os.chown(config_path, user.pw_uid, user.pw_gid)
+        state_fd = os.open(state_temp, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(state_fd)
+        finally:
+            os.close(state_fd)
+        unit_text = linux_service.render_unit(
+            release_root / "venv/bin/python",
+            state_root,
+            18792,
+            code_root=release_root,
+            readwrite_path=state_root,
+            state_directory=False,
+            state_base=STATE_BASE_V2,
+            home=state_root,
+            state_layout="release-v2",
+            prepared_python=staging / "venv/bin/python",
+        )
+        unit_text = unit_text.replace(
+            "Description=Disposable Brain operator lab (manual activation only)",
+            f"Description=Brain release {release_id} (manual activation only)",
+        )
+        manifest = {
+            "schema": SCHEMA_V3,
+            "release_id": release_id,
+            "source_commit": source_commit,
+            "wheel_sha256": expected_wheel_sha256,
+            "package_version": version,
+            "interpreter": interpreter,
+            "installed_inventory_sha256": inventory_sha,
+            "installed_inventory": inventory,
+            "unit_name": unit_name,
+            "unit_sha256": hashlib.sha256(unit_text.encode()).hexdigest(),
+            "state_layout": "release-v2",
+            "state_root": str(state_root),
+            "install_policy": "create-only-static-no-activation-v3-relocatable-venv",
+            "service_identity": service_identity,
+            "service_identity_sha256": service_identity["sha256"],
+        }
+        if _service_identity_snapshot() != service_identity:
+            raise RuntimeError("release_service_identity_changed_during_stage")
+        manifest_path = staging / "release-manifest.json"
+        with manifest_path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(manifest, sort_keys=True, indent=2) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chown(manifest_path, 0, user.pw_gid)
+        manifest_path.chmod(0o444)
+        _seal(staging, user.pw_gid)
+        manifest_sha = _sha256(manifest_path)
+        pin_temp = pin_dir / f".{release_id}.{attempt_id}.tmp"
+        with pin_temp.open("x", encoding="ascii") as handle:
+            handle.write(f"{manifest_sha}  release-manifest.json\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        pin_temp.chmod(0o444)
+        os.chown(pin_temp, 0, 0)
+        unit_temp = UNIT_BASE / f".{unit_name}.{attempt_id}.tmp"
+        unit_fd = os.open(unit_temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            payload = unit_text.encode()
+            view = memoryview(payload)
+            while view:
+                written = os.write(unit_fd, view)
+                if written <= 0:
+                    raise OSError("release_unit_temp_write_failed")
+                view = view[written:]
+            os.fsync(unit_fd)
+            os.fchown(unit_fd, 0, 0)
+            os.fchmod(unit_fd, 0o644)
+        finally:
+            os.close(unit_fd)
+        _sync_tree(staging)
+        _sync_tree(state_temp)
+        intent = {
+            "schema": PUBLISH_INTENT_SCHEMA,
+            "attempt_id": attempt_id,
+            "release_id": release_id,
+            "source_commit": source_commit,
+            "wheel_sha256": expected_wheel_sha256,
+            "interpreter": interpreter,
+            "artifacts": [],
+        }
+        for spec in _publish_artifact_paths(attempt_id, release_id):
+            path = Path(spec["source_parent"]) / spec["source_name"]
+            intent["artifacts"].append(
+                {**spec, "identity": _artifact_identity(path, kind=spec["kind"])}
+            )
+        _validate_publish_intent(attempt_id, intent)
+        if _service_identity_snapshot() != service_identity:
+            raise RuntimeError("release_service_identity_changed_during_stage")
+        _write_publish_intent(attempt_id, intent)
+        persisted_intent = _read_publish_intent(attempt_id)
+        if persisted_intent is None:
+            raise RuntimeError("release_publish_intent_unavailable")
+        result = _finish_publish_locked(attempt_id, record, persisted_intent)
+    except BaseException:
+        try:
+            _record_stage_phase(record_path, record, "recovery-required")
+        except BaseException:
+            pass
+        raise
+    finally:
+        os.close(lock_fd)
+    return result
+
+
+def verify(release_id: str) -> dict[str, object]:
+    if not re.fullmatch(r"[0-9a-f]{64}", release_id):
+        raise ValueError("invalid_release_id")
+    root = RELEASE_BASE / release_id
+    unit_name = f"memecoin-brain-{release_id}.service"
+    unit_path = UNIT_BASE / unit_name
+    if root.is_symlink() or not root.is_dir() or unit_path.is_symlink() or not unit_path.is_file():
+        raise RuntimeError("release_or_unit_missing")
+    manifest = json.loads((root / "release-manifest.json").read_text(encoding="utf-8"))
+    manifest_schema = manifest.get("schema")
+    if (
+        manifest_schema not in {SCHEMA, SCHEMA_V2, SCHEMA_V3}
+        or manifest.get("release_id") != release_id
+    ):
+        raise RuntimeError("release_manifest_mismatch")
+    if manifest_schema == SCHEMA_V3:
+        try:
+            current_service_identity = linux_service_identity.verify_bound(
+                manifest.get("service_identity")
+            )
+        except linux_service_identity.IdentityError as exc:
+            raise RuntimeError(f"release_service_identity_mismatch:{exc}") from exc
+        if manifest.get("service_identity_sha256") != current_service_identity["sha256"]:
+            raise RuntimeError("release_service_identity_mismatch:digest")
+    else:
+        _service_identity_snapshot()
+    wheel_sha = manifest.get("wheel_sha256")
+    interpreter = manifest.get("interpreter")
+    if (
+        not isinstance(wheel_sha, str)
+        or not re.fullmatch(r"[0-9a-f]{64}", wheel_sha)
+        or not isinstance(interpreter, dict)
+        or _identity(wheel_sha, interpreter, manifest_schema) != release_id
+        or manifest.get("unit_name") != unit_name
+    ):
+        raise RuntimeError("release_manifest_mismatch")
+    pin_path = RELEASE_BASE / ".pins" / f"{release_id}.sha256"
+    if pin_path.is_symlink() or not pin_path.is_file():
+        raise RuntimeError("release_manifest_pin_missing")
+    expected_pin = f"{_sha256(root / 'release-manifest.json')}  release-manifest.json\n"
+    if pin_path.read_text(encoding="ascii") != expected_pin:
+        raise RuntimeError("release_manifest_pin_mismatch")
+    inventory, inventory_sha = _inventory(root / "venv")
+    if inventory != manifest.get("installed_inventory") or inventory_sha != manifest.get(
+        "installed_inventory_sha256"
+    ):
+        raise RuntimeError("release_inventory_mismatch")
+    _verify_permissions(root, unit_path)
+    if _interpreter(root / "venv/bin/python") != interpreter:
+        raise RuntimeError("release_interpreter_mismatch")
+    unit_text = unit_path.read_text(encoding="utf-8")
+    if hashlib.sha256(unit_text.encode()).hexdigest() != manifest.get("unit_sha256"):
+        raise RuntimeError("release_unit_mismatch")
+    expected_python = str(root / "venv/bin/python")
+    if f"ExecStart={expected_python} -B -I -m memecoin_operator.runtime " not in unit_text:
+        raise RuntimeError("release_unit_path_mismatch")
+    state = linux_service._unit_status(unit_name)
+    if state != ("loaded", "inactive", "static", 0):
+        raise RuntimeError("release_unit_not_inert")
+    if manifest_schema in {SCHEMA_V2, SCHEMA_V3}:
+        state_root = STATE_BASE_V2 / release_id / "operator"
+        if manifest.get("state_layout") != "release-v2" or manifest.get("state_root") != str(
+            state_root
+        ):
+            raise RuntimeError("release_state_layout_mismatch")
+        expected_policy = (
+            "create-only-static-no-activation-v2"
+            if manifest_schema == SCHEMA_V2
+            else "create-only-static-no-activation-v3-relocatable-venv"
+        )
+        if manifest.get("install_policy") != expected_policy:
+            raise RuntimeError("release_inert_policy_mismatch")
+        state_base_metadata = STATE_BASE_V2.lstat()
+        state_parent_metadata = (STATE_BASE_V2 / release_id).lstat()
+        operator_metadata = state_root.lstat()
+        if (
+            state_base_metadata.st_uid != 0
+            or stat.S_IMODE(state_base_metadata.st_mode) != 0o755
+            or state_parent_metadata.st_uid != 0
+            or stat.S_IMODE(state_parent_metadata.st_mode) != 0o711
+            or operator_metadata.st_uid != pwd.getpwnam("brain").pw_uid
+            or stat.S_IMODE(operator_metadata.st_mode) != 0o700
+        ):
+            raise RuntimeError("release_state_ownership_mismatch")
+        _verify_effective_unit(unit_name, root, state_root, state_layout="release-v2")
+    else:
+        state_root = STATE_BASE / release_id / "operator"
+        _verify_effective_unit(unit_name, root, state_root)
+    _verify_lab_state(root, release_id, state_root)
+    return {
+        "release_id": release_id,
+        "unit": unit_name,
+        "wheel_sha256": wheel_sha,
+        "source_commit": manifest.get("source_commit"),
+        "package_version": manifest.get("package_version"),
+        "installed_inventory_sha256": inventory_sha,
+        "unit_sha256": manifest.get("unit_sha256"),
+        "manifest_sha256": _sha256(root / "release-manifest.json"),
+        "unit_state": state,
+    }
+
+
+def activate(release_id: str) -> None:
+    verify(release_id)
+    _run(["systemctl", "start", f"memecoin-brain-{release_id}.service"], capture=False)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="command", required=True)
+    install = sub.add_parser("stage", help="create a static content-addressed release candidate")
+    install.add_argument("--source", type=Path, required=True)
+    install.add_argument("--wheel", type=Path, required=True)
+    install.add_argument("--source-commit", required=True)
+    install.add_argument("--wheel-sha256", required=True)
+    install.add_argument("--python", type=Path, default=Path("/usr/bin/python3"))
+    recover = sub.add_parser(
+        "recover-stage", help="recover one precisely recorded interrupted stage without activation"
+    )
+    recover.add_argument("--attempt-id", required=True)
+    audit = sub.add_parser("audit-stage", help="read-only audit of abandoned publish attempts")
+    audit.add_argument("--attempt-id")
+    discard = sub.add_parser("discard-stage", help="quarantine one exact abandoned publish attempt")
+    discard.add_argument("--attempt-id", required=True)
+    check = sub.add_parser("verify", help="read back a release and its inert unit")
+    check.add_argument("--release-id", required=True)
+    start = sub.add_parser("activate", help="verify then explicitly start a release")
+    start.add_argument("--release-id", required=True)
+    args = parser.parse_args(argv)
+    try:
+        if args.command == "stage":
+            result = stage(
+                args.source, args.wheel, args.source_commit, args.wheel_sha256, args.python
+            )
+        elif args.command == "recover-stage":
+            result = recover_stage(args.attempt_id)
+        elif args.command == "audit-stage":
+            result = audit_stage(args.attempt_id)
+        elif args.command == "discard-stage":
+            result = discard_stage(args.attempt_id)
+        elif args.command == "verify":
+            result = verify(args.release_id)
+        else:
+            activate(args.release_id)
+            result = {"release_id": args.release_id, "activated": True}
+        print(json.dumps(result, sort_keys=True))
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
+        print(f"linux_release_error: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

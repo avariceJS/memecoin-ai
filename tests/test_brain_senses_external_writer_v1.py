@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+import tools.brain_senses_external_writer_v1 as external_writer
 from memecoin_ai.sources import Capture
 from memecoin_research_storage import StorageError
 from tools.brain_senses_external_writer_v1 import (
@@ -123,6 +125,30 @@ def test_create_only_and_atomic_write_are_durable_and_collision_safe(tmp_path: P
             assert writer.read_bytes("nested/events.jsonl") == b"one\n"
             assert writer.stat("nested/state.json").st_size == 6
             assert writer.list_files() == ["nested/events.jsonl", "nested/state.json"]
+    finally:
+        os.close(root_fd)
+
+
+def test_linux_storage_guard_checks_case_policy_on_each_opened_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, _, root_fd = _root(tmp_path)
+    checked: list[int] = []
+
+    def record_check(directory_fd: int) -> None:
+        checked.append(os.fstat(directory_fd).st_ino)
+
+    monkeypatch.setattr(external_writer, "_verify_linux_case_sensitive_directory", record_check)
+    guard = SimpleNamespace(
+        config=SimpleNamespace(platform="linux"),
+        volume_uuid="test-volume",
+        root_id="test-root",
+    )
+    try:
+        with DescriptorWriter(root_fd, storage_guard=guard) as writer:
+            writer.create("nested/deeper/value.json", b"synthetic")
+            writer.list_files()
+        assert len(checked) >= 5  # root, both created path components, then traversal
     finally:
         os.close(root_fd)
 

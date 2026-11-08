@@ -54,3 +54,10 @@ htmlcov/
 *.sqlite3-wal
 *.sqlite3-shm
 *.duckdb.wal
+
+# Reproducible JS dependencies and task-local outputs
+node_modules/
+.runtime/
+.native-delivery/
+.paperclip-deliverables/
+.hypothesis/

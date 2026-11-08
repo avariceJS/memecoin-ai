@@ -114,7 +114,7 @@ function parseAcceptedSourceReader(value: unknown): OwnerConfig["accepted_source
     if (Object.keys(row).sort().join(",") !== "allowed_roots,bootstrap_projection_sha,bootstrap_receipt_digest,bootstrap_source_sha,corpus_id,ref,repository"
         || typeof row.corpus_id !== "string" || !ID_RE.test(row.corpus_id)
         || typeof row.repository !== "string" || !isAbsolute(row.repository)
-        || typeof row.ref !== "string" || !["refs/heads/brain/development", "refs/heads/org/development"].includes(row.ref)
+        || typeof row.ref !== "string" || !["refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"].includes(row.ref)
         || !Array.isArray(row.allowed_roots) || row.allowed_roots.length < 1 || row.allowed_roots.length > 16
         || row.allowed_roots.some((root) => typeof root !== "string" || !root || root.startsWith("/")
           || root.includes("\\") || root.replace(/\/$/, "").split("/").some((part) => !part || part === "." || part === ".." || part.startsWith(".")))
@@ -193,8 +193,8 @@ function parseProgramAdmission(value: unknown): OwnerConfig["program_admission"]
         || ![row.source_repo, row.publisher_repo, row.canonical_repo, row.source_workspace_root].every((path) => typeof path === "string" && isAbsolute(path) && !path.split("/").includes("..") && path !== "/")
         || typeof row.source_workspace_id !== "string" || !ID_RE.test(row.source_workspace_id)
         || typeof row.repository_free_policy_digest !== "string" || !KEY_RE.test(row.repository_free_policy_digest)
-        || !["refs/heads/brain/development", "refs/heads/org/development"].includes(row.canonical_ref as string)
-        || !["refs/heads/brain/development", "refs/heads/brain/paperclip-integration", "refs/heads/org/development"].includes(row.expected_dev_ref as string)
+        || !["refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"].includes(row.canonical_ref as string)
+        || !["refs/heads/develop", "refs/heads/brain/development", "refs/heads/brain/paperclip-integration", "refs/heads/org/development"].includes(row.expected_dev_ref as string)
         || !validPaths(row.allowed_prefixes, true) || !validPaths(row.excluded_prefixes, true, 0)
         || !Array.isArray(row.profiles) || row.profiles.length < 1 || row.profiles.length > 16) fail("owner_bridge_config_invalid");
     const roleIds = [row.sol_agent_id, row.astra_agent_id, row.luna_agent_id, ...(row.qa_agent_ids as string[])];
@@ -273,7 +273,7 @@ async function readOwnerConfig(
     const canonicalFields = ["canonical_repo", "canonical_ref", "canonical_expected_tip"];
     const hasCanonical = canonicalFields.some((key) => parsed[key] !== undefined);
     const canonicalValid = !hasCanonical || (typeof parsed.canonical_repo === "string" && isAbsolute(parsed.canonical_repo)
-      && ["refs/heads/brain/development", "refs/heads/org/development"].includes(parsed.canonical_ref as string) && typeof parsed.canonical_expected_tip === "string"
+      && ["refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"].includes(parsed.canonical_ref as string) && typeof parsed.canonical_expected_tip === "string"
       && SHA_RE.test(parsed.canonical_expected_tip));
     const rawStages = finite ? parsed.source_stage_catalog as Array<Record<string, unknown>> : [];
     const hasLaneIdentities = rawStages.some((stage) => stage.project_id !== undefined);
@@ -322,10 +322,10 @@ async function readOwnerConfig(
         && (hasSourceRepo === hasPublisherRepo)
         && (!hasSourceRepo || (typeof stage.source_repo === "string" && isAbsolute(stage.source_repo)
           && typeof stage.publisher_repo === "string" && isAbsolute(stage.publisher_repo)))
-        && [undefined, "refs/heads/brain/development", "refs/heads/brain/paperclip-integration", "refs/heads/org/development"].includes(stage.expected_dev_ref as string | undefined)
+        && [undefined, "refs/heads/develop", "refs/heads/brain/development", "refs/heads/brain/paperclip-integration", "refs/heads/org/development"].includes(stage.expected_dev_ref as string | undefined)
         && (hasCanonicalRepo === hasCanonicalRef && hasCanonicalRef === hasCanonicalTip)
         && (!hasCanonicalRepo || (typeof stage.canonical_repo === "string" && isAbsolute(stage.canonical_repo)
-          && ["refs/heads/brain/development", "refs/heads/org/development"].includes(stage.canonical_ref as string)
+          && ["refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"].includes(stage.canonical_ref as string)
           && typeof stage.canonical_expected_tip === "string" && SHA_RE.test(stage.canonical_expected_tip)));
     });
     const readerProjectAdmitted = purpose === "accepted_source_reader" && !!projectId
@@ -2102,7 +2102,7 @@ export function registerAutonomousTools(ctx: PluginContext, invoke: BridgeInvoke
           || typeof prior.canonical_receipt_digest !== "string" || !KEY_RE.test(prior.canonical_receipt_digest)
           || prior.canonical_approved_receipt_digest !== prior.canonical_receipt_digest
           || typeof prior.canonical_receipt_ref !== "string"
-          || !["refs/heads/brain/development", "refs/heads/org/development"].includes(prior.canonical_receipt_ref)
+          || !["refs/heads/develop", "refs/heads/brain/development", "refs/heads/org/development"].includes(prior.canonical_receipt_ref)
           || (priorOwner.canonical_ref !== undefined && prior.canonical_receipt_ref !== priorOwner.canonical_ref)
           || typeof prior.source_issue_id !== "string" || !ID_RE.test(prior.source_issue_id)
           || typeof prior.review_issue_id !== "string" || !ID_RE.test(prior.review_issue_id)
