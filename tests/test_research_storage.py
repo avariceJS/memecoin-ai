@@ -436,6 +436,26 @@ def test_config_symlink_is_rejected(tmp_path: Path) -> None:
         resolve(alias, probe=FakeProbe(mount))
 
 
+
+def test_physical_runtime_config_loads_while_legacy_parent_symlink_is_rejected(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "home"
+    physical = home / "Developer/memecoin-runtime/brain/config"
+    physical.mkdir(parents=True, mode=0o700)
+    config = StorageConfig(ROOT_ID, UUID, home / "external", "research/root", 100)
+    config_path = physical / "storage-v1.json"
+    config_path.write_text(json.dumps(config.to_json()), encoding="utf-8")
+    config_path.chmod(0o600)
+    legacy = home / ".config/brain-research"
+    legacy.parent.mkdir(mode=0o700)
+    legacy.symlink_to(physical, target_is_directory=True)
+
+    with pytest.raises(StorageError, match="symlink_path_rejected"):
+        StorageConfig.load(legacy / "storage-v1.json")
+    assert StorageConfig.load(config_path) == config
+    assert legacy.is_symlink()
+
 def test_create_root_writes_private_marker_and_refuses_existing_root(tmp_path: Path) -> None:
     config_path, mount, _ = make_binding(tmp_path)
     probe = FakeProbe(mount)

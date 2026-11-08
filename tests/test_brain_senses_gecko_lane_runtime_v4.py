@@ -1229,9 +1229,12 @@ def test_main_exposes_fixed_non_network_pilot_modes(monkeypatch, capsys):
     assert capsys.readouterr().out.count('"provider_io": false') == 6
 
 
-def test_live_policy_inputs_are_read_through_descriptor_root(monkeypatch):
+def test_live_policy_inputs_are_read_through_descriptor_root(tmp_path, monkeypatch):
     import brain_senses_gecko_lane_runtime_v4 as runtime
 
+    from tests.test_brain_senses_gecko_lane_live_sources_v2 import _source_copy
+
+    source_root = _source_copy(tmp_path / "source", monkeypatch)
     temp, writer, guard, _store, _plan = setup_store()
     try:
         source_paths = {
@@ -1244,7 +1247,7 @@ def test_live_policy_inputs_are_read_through_descriptor_root(monkeypatch):
         for path, payload in zip(source_paths.values(), payloads, strict=True):
             writer.create(path, payload)
         imported = live_sources.import_source_pins(
-            writer, root_id=guard.root_id, volume_uuid=guard.volume_uuid
+            writer, root_id=guard.root_id, volume_uuid=guard.volume_uuid, source_root=source_root
         )
         pinned = live_sources.verify_source_binding(
             writer, expected_root_id=guard.root_id, expected_volume_uuid=guard.volume_uuid
@@ -1270,11 +1273,14 @@ def test_live_policy_inputs_are_read_through_descriptor_root(monkeypatch):
         temp.cleanup()
 
 
-def test_runtime_source_map_rechecks_manifest_and_imported_files():
+def test_runtime_source_map_rechecks_manifest_and_imported_files(tmp_path, monkeypatch):
+    from tests.test_brain_senses_gecko_lane_live_sources_v2 import _source_copy
+
+    source_root = _source_copy(tmp_path / "source", monkeypatch)
     temp, writer, guard, _store, _plan = setup_store()
     try:
         live_sources.import_source_pins(
-            writer, root_id=guard.root_id, volume_uuid=guard.volume_uuid
+            writer, root_id=guard.root_id, volume_uuid=guard.volume_uuid, source_root=source_root
         )
         source_map = _source_bindings_for_store(writer, guard)
         assert (

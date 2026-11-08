@@ -3992,7 +3992,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preflight", action="store_true")
     parser.add_argument(
-        "--config", type=Path, default=Path.home() / ".config/brain-research/storage-v1.json"
+        "--config",
+        type=Path,
+        default=Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json",
     )
     parser.add_argument("--plist", type=Path, required=True)
     args = parser.parse_args(argv)

@@ -61,7 +61,7 @@ _V4_SCRIPT = str(REPO / "tools/brain_senses_external_orchestrator_v4.py")
 # Exact v4 orchestrator from the immediately preceding verified implementation
 # commit; this is the sole known historical source drift in the closed prefix.
 _PREVIOUS_V4_RUNTIME_SHA256 = "719c8e6f3c476c6251d9da6c824eeb45fd047ff9657c3b6d231d7c18fed7ed1f"
-DEFAULT_STORAGE_CONFIG = Path.home() / ".config/brain-research/storage-v1.json"
+DEFAULT_STORAGE_CONFIG = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 _DISPATCH_FLOOR = (
     policy.DISK_FLOOR_BYTES
     + policy.SERVICE_OPERATING_RESERVE_BYTES

@@ -45,7 +45,7 @@ RELEASE_SCHEMA = "brain-senses-gecko-capture-only-v2-host-release-v1"
 CUTOVER_PREFIX_SHA256 = "cd7c67de3657eed073bbe1e1a8f570da9753976057299e0df3a24402ee1d2ac6"
 CUTOVER_LAST_DISPATCH_NS = 1_791_843_444_749_851_000
 ZERO_HASH = "0" * 64
-CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 RELEASE_CODE_PATHS = (
     "tools/brain_senses_gecko_capture_only_v2_host.py",
     "tools/brain_senses_gecko_capture_only_v2_runtime.py",

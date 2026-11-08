@@ -56,8 +56,11 @@ FINAL_STATUS_RECEIPT = (
     REPO / "docs/evidence/brain-senses-external-v2-20261012T0600Z-final-expiry-status.json"
 )
 OUTPUT_PREFIX = "derived/partial-structural-queue-v2"
-STORAGE_CONFIG = Path.home() / ".config/brain-research/storage-v1.json"
-ACTIVATION = Path.home() / ".config/brain-research/external-v2-20261012T0600Z-final/activation.json"
+STORAGE_CONFIG = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
+ACTIVATION = (
+    Path.home()
+    / "Developer/memecoin-runtime/brain/config/external-v2-20261012T0600Z-final/activation.json"
+)
 MIN_FREE_BYTES = (
     schema.DISK_FLOOR_BYTES + schema.PEAK_WRITE_MARGIN_BYTES + schema.METADATA_MARGIN_BYTES
 )

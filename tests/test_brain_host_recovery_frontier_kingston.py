@@ -39,7 +39,7 @@ from tools.brain_host_tree_custody import _storage_writer
 from tools.brain_senses_external_writer_v1 import DescriptorWriter, canonical_json, sha256
 
 EXPECTED = ("8f8f1081-9be4-4914-9111-75f1b90255bf", "9428695af6d4f46c08e1a444cdc66de8")
-STORAGE_CONFIG = Path.home() / ".config/brain-research/storage-v1.json"
+STORAGE_CONFIG = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 RUN_KINGSTON = os.environ.get("BRAIN_DR_KINGSTON_REHEARSAL") == "1"
 
 

@@ -181,7 +181,9 @@ def test_malformed_preexisting_helius_lock_is_rejected_without_repair(tmp_path: 
 
 
 def test_cli_uses_only_the_canonical_storage_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert DEFAULT_CONFIG_PATH == Path.home() / ".config/brain-research/storage-v1.json"
+    assert DEFAULT_CONFIG_PATH == (
+        Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
+    )
     with pytest.raises(SystemExit):
         main(["--config", "/tmp/alternate/storage-v1.json"])
     seen: list[Path] = []

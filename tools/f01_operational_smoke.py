@@ -17,13 +17,8 @@ from memecoin_sampling.dossier import export_dossier, reproduce_dossier
 from memecoin_sampling.registry import ingest, initialize, reproduce_sources
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("output", type=Path)
-    args = parser.parse_args()
-    root = args.output.resolve()
-    root.mkdir(parents=True, exist_ok=False)
-    protected = Path.home() / "Developer/memecoin-runtime/brain/owner-work/calendar-execution-01"
+def _audit_guard(protected: Path):
+    protected = protected.resolve()
 
     def audit(event, args):
         if event == "socket.connect":
@@ -32,7 +27,17 @@ def main():
             if Path(os.fsdecode(args[0])).resolve().is_relative_to(protected):
                 raise PermissionError("D43_protected")
 
-    sys.addaudithook(audit)
+    return audit
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("output", type=Path)
+    args = parser.parse_args()
+    root = args.output.resolve()
+    root.mkdir(parents=True, exist_ok=False)
+    protected = Path.home() / "Developer/memecoin-runtime/brain/owner-work/calendar-execution-01"
+    sys.addaudithook(_audit_guard(protected))
     spec = read(Path("configs/research-f01-v1.json"))
     anchor = (max(time.time_ns(), spec["inherited_holdout"]["end_ns"]) // DAY + 2) * DAY
     b = freeze(spec, root / "proposal", anchor_ns=anchor, source_root=root / "source")

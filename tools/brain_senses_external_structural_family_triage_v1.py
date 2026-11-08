@@ -50,8 +50,11 @@ from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 
 SERVICE_ID = "external-v2-20261012T0600Z"
 EXPECTED_PLAN_SHA256 = "2bb19afee5475173e7e5a73a59d1cd33a27c6af1ef8e309fc39bfc025fa5a688"
-STORAGE_CONFIG = Path.home() / ".config/brain-research/storage-v1.json"
-ACTIVATION = Path.home() / ".config/brain-research/external-v2-20261012T0600Z-final/activation.json"
+STORAGE_CONFIG = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
+ACTIVATION = (
+    Path.home()
+    / "Developer/memecoin-runtime/brain/config/external-v2-20261012T0600Z-final/activation.json"
+)
 FAILURE_RECEIPT = partial_queue.FAILURE_RECEIPT
 FINAL_STATUS_RECEIPT = partial_queue.FINAL_STATUS_RECEIPT
 QUEUE_RELATIVE = "derived/partial-structural-queue-v2/external-v2-20261012T0600Z/partial-queue.json"

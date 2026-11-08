@@ -41,13 +41,16 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
     sha256,
 )
 
-CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 CAPTURE_ID = "f4412b7a531d4e3cb3414a2862b8ee76"
 CAPTURE_ROOT_PREFIX = "services/gecko-market-v1/capture-only-v1"
 PREDECESSOR_PILOT_ID = "11f28c4965aa427d9658cd3adeadc746"
 LABEL = "ai.memecoin.brain.senses.gecko-capture-only-v4"
 PLIST_PATH = REPO / "ops/launchd/ai.memecoin.brain.senses.gecko-capture-only-v4.plist"
-HANDOFF_PATH = Path.home() / ".config/brain-research/gecko-capture-only-v4-interpreter-handoff.json"
+HANDOFF_PATH = (
+    Path.home()
+    / "Developer/memecoin-runtime/brain/config/gecko-capture-only-v4-interpreter-handoff.json"
+)
 HANDOFF_SOURCE_KEY = "host/gecko-capture-only-v4-interpreter-handoff.json"
 PLAN_SCHEMA = "brain-senses-gecko-capture-only-v1-plan"
 CALLBACK_SCHEMA = "brain-senses-gecko-capture-only-v1-callback"

@@ -29,7 +29,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 SERVICE_PREFIX = "services/gecko-market-v1/capture-only-v6"
 CONTROL_RELEASE_ID = "94da5c80bdd82308ebbad0c8f2e158b3"
 CONTROL_RELEASE_DIRECTORY = f"control/gecko-capture-v6/releases/{CONTROL_RELEASE_ID}"

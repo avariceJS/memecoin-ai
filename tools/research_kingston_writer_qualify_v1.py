@@ -33,7 +33,7 @@ from memecoin_research_storage import (  # noqa: E402
 )
 from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 
-CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 EXPECTED_UUID = "8f8f1081-9be4-4914-9111-75f1b90255bf"
 
 

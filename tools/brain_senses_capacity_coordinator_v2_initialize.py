@@ -31,7 +31,7 @@ from memecoin_research_storage import (  # noqa: E402
 from tools import brain_senses_capacity_coordinator_v2 as capacity  # noqa: E402
 from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 
-DEFAULT_CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+DEFAULT_CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 
 # These paths match the v5 orchestrator's coordinator wiring. Keep this
 # initializer independent of importing the runtime (which loads provider code).

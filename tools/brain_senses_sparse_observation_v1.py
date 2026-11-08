@@ -1613,7 +1613,7 @@ def _main() -> int:
     compile_parser.add_argument(
         "--storage-config",
         type=Path,
-        default=Path.home() / ".config/brain-research/storage-v1.json",
+        default=Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json",
     )
     compile_parser.add_argument("--prefix", default=DEFAULT_OUTPUT_PREFIX)
     for name in ("verify-role", "seal-campaign", "verify-campaign"):
@@ -1621,7 +1621,7 @@ def _main() -> int:
         child.add_argument(
             "--storage-config",
             type=Path,
-            default=Path.home() / ".config/brain-research/storage-v1.json",
+            default=Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json",
         )
         child.add_argument("--prefix", default=DEFAULT_OUTPUT_PREFIX)
         if name == "verify-role":

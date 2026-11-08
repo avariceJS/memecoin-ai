@@ -27,7 +27,7 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
     sha256,
 )
 
-CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 PILOT_PLIST = "ops/launchd/ai.memecoin.brain.senses.gecko-lane-v3.plist"
 INSTALLED_PLIST = Path.home() / "Library/LaunchAgents/ai.memecoin.brain.senses.gecko-lane-v3.plist"
 TEST_PATHS = tuple(sorted({node.split("::", 1)[0] for node in runtime.RELEASE_TEST_NODES}))

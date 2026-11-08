@@ -64,3 +64,6 @@ node_modules/
 
 # Local compatibility link into the sole runtime store
 /work
+
+# Optional reproducible ML environment stays with source, outside SSD datasets
+.venv-ml/

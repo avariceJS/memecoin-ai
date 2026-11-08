@@ -43,7 +43,7 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
     sha256,
 )
 
-CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 SERVICE_ROOT = "services/gecko-market-v1"
 V4_ROOT = f"{SERVICE_ROOT}/v4"
 PILOT_ROOT_PREFIX = f"{SERVICE_ROOT}/v4-pilots"
@@ -2597,11 +2597,16 @@ def run_host_mode(
             bucket_close: int | None = None
             if mode == "import-source-pins":
                 guard.revalidate()
-                manifest = live_sources.import_source_pins(
-                    writer,
-                    root_id=guard.root_id,
-                    volume_uuid=guard.volume_uuid,
-                )
+                source_fd = _open_relative_directory(writer.root_fd, "brain/research")
+                try:
+                    manifest = live_sources.import_source_pins(
+                        writer,
+                        root_id=guard.root_id,
+                        volume_uuid=guard.volume_uuid,
+                        source_root=guard.path / "brain/research",
+                    )
+                finally:
+                    os.close(source_fd)
                 guard.revalidate()
                 return {
                     "status": "source_pins_imported",

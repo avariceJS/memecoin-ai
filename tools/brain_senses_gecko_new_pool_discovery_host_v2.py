@@ -52,7 +52,7 @@ for _entry in (REPO_ROOT, REPO_ROOT / "src", REPO_ROOT / "tools"):
 from memecoin_research_storage import _open_relative_directory, writer_guard  # noqa: E402
 from memecoin_research_storage.live_writer import revalidate_descriptor_write  # noqa: E402
 
-CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 PLIST_RELATIVE_PATH = (
     "ops/launchd/ai.memecoin.brain.senses.gecko-new-pool-discovery-v3.plist.template"
 )

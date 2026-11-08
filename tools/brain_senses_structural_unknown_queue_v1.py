@@ -44,7 +44,7 @@ from tools.brain_senses_structural_unknown_queue_schema_v1 import (
 )
 
 REPO = Path(__file__).resolve().parents[1]
-STORAGE_CONFIG = Path.home() / ".config/brain-research/storage-v1.json"
+STORAGE_CONFIG = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 QUEUE_PREFIX = "ResearchData/brain/senses-structural-unknown-queue-v1"
 MIN_FREE_BYTES = 50 * 1024**3
 METADATA_MARGIN_BYTES = 2 * 1024**2

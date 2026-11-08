@@ -51,10 +51,10 @@ def _canonical(value: Any) -> bytes:
 
 
 def _fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, dict[str, Any]]:
-    old_dir = Path.home() / ".config/brain-research/external-v2-20261012T0230Z"
+    old_dir = Path.home() / "Developer/memecoin-runtime/brain/config/external-v2-20261012T0230Z"
     plan_path = old_dir / "lease-plan.json"
     old_activation_path = old_dir / "activation.json"
-    config_path = Path.home() / ".config/brain-research/storage-v1.json"
+    config_path = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
     plan_raw = plan_path.read_bytes()
     old_activation_raw = old_activation_path.read_bytes()
     config_raw = config_path.read_bytes()

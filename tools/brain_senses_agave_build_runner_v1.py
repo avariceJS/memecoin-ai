@@ -1313,7 +1313,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--storage-config",
         type=Path,
-        default=Path.home() / ".config/brain-research/storage-v1.json",
+        default=Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json",
     )
     args = parser.parse_args(argv)
     try:

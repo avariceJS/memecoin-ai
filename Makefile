@@ -29,10 +29,10 @@ engineering-release-check:
 	$(VENV)/python -m pytest engineering/tests -q
 
 # Optional ML environment: Python 3.13, isolated from the frozen D43 collector.
-MLVENV := work/ml-venv/bin
+MLVENV := .venv-ml/bin
 .PHONY: ml-setup ml-check test-ml
 ml-setup:
-	$(PYTHON) -m venv work/ml-venv
+	$(PYTHON) -m venv .venv-ml
 	$(MLVENV)/python -m pip install -r requirements-dev.lock -r requirements-ml.lock -e .
 
 test-ml:

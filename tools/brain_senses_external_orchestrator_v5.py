@@ -59,7 +59,7 @@ from tools.brain_senses_external_writer_v1 import (  # noqa: E402
     wire_request_sha256,
 )
 
-CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 PRIVATE_ENDPOINT_FILE = REPO / ".env.local"
 SERVICE_RELATIVE = schema.SERVICE_RELATIVE_ROOT
 MONITOR_FILE = f"{SERVICE_RELATIVE}/monitor/latest.json"

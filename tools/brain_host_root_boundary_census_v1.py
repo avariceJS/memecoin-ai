@@ -1442,7 +1442,7 @@ def default_roster(home: Path, repository: Path) -> tuple[list[RootSpec], list[d
             candidates[0],
             (("apps/control-center/.local", "opaque_codex_local"),),
         ),
-        RootSpec("private_brain_config", home / ".config/brain-research"),
+        RootSpec("private_brain_config", home / "Developer/memecoin-runtime/brain/config"),
         RootSpec("launch_agents", home / "Library/LaunchAgents"),
         RootSpec(
             "helius_mcp_wrapper",

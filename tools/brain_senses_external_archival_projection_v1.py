@@ -54,7 +54,7 @@ OUTPUT_RECEIPT_RELATIVE = (
     "derived/pump-amm-structural-archive-projection-v1/"
     "external-v2-20261012T0600Z/publication-receipt.json"
 )
-STORAGE_CONFIG = Path.home() / ".config/brain-research/storage-v1.json"
+STORAGE_CONFIG = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 STORAGE_ROOT_ID = "9428695af6d4f46c08e1a444cdc66de8"
 STORAGE_VOLUME_UUID = "8f8f1081-9be4-4914-9111-75f1b90255bf"
 PUMP_AMM = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"

@@ -34,7 +34,7 @@ from tools import brain_senses_gecko_capture_only_v2_service as service  # noqa:
 from tools import brain_senses_gecko_rotating_scout_v1 as scout  # noqa: E402
 from tools.brain_senses_external_writer_v1 import DescriptorWriter  # noqa: E402
 
-CONFIG_PATH = Path.home() / ".config/brain-research/storage-v1.json"
+CONFIG_PATH = Path.home() / "Developer/memecoin-runtime/brain/config/storage-v1.json"
 RELEASE_CODE_PATHS = (
     "tools/brain_senses_gecko_capture_only_v3_host.py",
     "tools/brain_senses_gecko_canary_watchdog_v1.py",
