@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
-    protected = Path("/Users/root1/Desktop/memecoin-ai/work/calendar-execution-01")
+    protected = Path.home() / "Developer/memecoin-runtime/brain/owner-work/calendar-execution-01"
 
     def audit(event, args):
         if event == "socket.connect":

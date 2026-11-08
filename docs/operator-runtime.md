@@ -27,83 +27,21 @@ Training loads isolated ML dependencies; the ordinary runtime path does not requ
 Offline/read-only reports use a consistent SQLite snapshot. Do not use SQLite `immutable=1` on a
 live WAL database; do not copy a live database independently of its WAL/SHM files.
 
-### Post-reset local development (2026-10-19)
+### Local development and private state — 2026-11-08
 
-Open `/Users/root1/Developer/memecoin-research` on `main` in Cursor. Keep the detached historical
-owner checkout separate. In a terminal:
+Use `~/Developer/memecoin-research` on `develop`. The sole private store is
+`~/Developer/memecoin-runtime`: `brain/owner-work` contains the retained operator, champion artifacts
+and full SQLite families; `brain/research-work` contains retained research state. The ignored `work`
+link keeps existing local tools compatible. Current operator/source config paths were rebound; historical
+immutable receipts retain their original paths and hashes.
 
-```sh
-cd /Users/root1/Developer/memecoin-research
-source tools/brain_dev_env.sh
-.venv/bin/python tools/brain_dev_operator_preview.py serve --latest --port 8793
-```
+`tools/brain_dev_operator_preview.py` defaults to the retained owner operator04 under this runtime.
+Its snapshot/serve route is read-only, but making another snapshot is unnecessary for cleanup.
+The original state is not activated by reading or testing source. No collectors, training, AUTO,
+paper ledger, promotion or trading was launched during consolidation.
 
-Open `http://127.0.0.1:8793`; Ctrl-C stops this foreground service. No LaunchAgent is needed.
-The preview snapshots the preserved owner `work/brain-b13/operator04` into ignored `work/dev-local/`.
-To create a new snapshot, stop the server, run the following, then repeat `serve --latest`:
-
-```sh
-.venv/bin/python tools/brain_dev_operator_preview.py snapshot --refresh
-```
-
-Snapshotting checks source DB/WAL/SHM family stability before using SQLite backup on a scratch
-copy; it does not initialize or query the original databases. Source config/registry, health,
-history, models and paper projections are copied through an allowlist. Dataset/model payloads,
-credentials and deployment authority are not copied. Serving requires the preview marker, binds
-loopback, rejects every POST, disables write controls, and starts neither operator nor Watch tickers.
-Production server defaults are unchanged. Never run the ordinary mutable operator against owner
-state merely to inspect it. Before binding HTTP, preview validation rejects linked files, external
-source/paper bindings, operational activation metadata and changed database hashes/nonempty WAL.
-
-All seven existing tabs (Overview, Data, Training, Models, Paper, Watch, System), including the
-System journal, loaded real copied state in actual-API jsdom checks; 93,721 matured observations
-matched the API. No missing figures were fabricated. Historical timestamps/STOPs remain visible.
-The preserved owner has no Watch session. The preview explicitly reports Watch state as omitted;
-it never follows the ordinary sibling Watch-state path. Offline Watch provider-double
-tests cover resolve/start/tick; live Watch still needs its separate release/provider acceptance.
-Native Safari access was unavailable to Computer Use, so native visual/CC02 acceptance is not claimed.
-
-The separate React Observatory is a pinned historical engineering projection, not current operator
-telemetry. For its existing development workflow, use two terminals after sourcing the helper:
-
-```sh
-.venv/bin/python apps/control-center/adapter/server.py
-npm --prefix apps/control-center/web run dev
-```
-
-Open `http://127.0.0.1:5173` (adapter `127.0.0.1:8787`); Ctrl-C in each terminal shuts them down.
-The local adapter/frontend HTTP flow, 40 Python tests, 44 web tests, typecheck and build passed.
-This does not overturn the earlier pending/rejected visual design acceptance.
-Preview and Observatory listeners bypass reverse DNS for their explicit loopback bind: the restored
-host resolver stalled during the final restart drill. Both then passed startup/restart/shutdown with
-no DNS dependency; the ordinary mutable operator server keeps its existing bind behavior.
-
-Read-only historical research commands (choose a **new**, nonexistent output JSON path):
-
-```sh
-work/ml-venv/bin/python tools/brain_dev_evaluate.py \
-  --model /Users/root1/Desktop/memecoin-ai/work/brain-b13/operator04/operator/jobs/job_5edd5e5ecda88338/artifact/model \
-  --dataset /Users/root1/Desktop/memecoin-ai/work/brain-b13/operator04/operator/jobs/job_f34eb5cc5889b45a/artifact/dataset \
-  --champion /Users/root1/Desktop/memecoin-ai/work/brain-b01/dev01/models/000000 \
-  --output work/dev-local/paired-evaluation-new.json
-```
-
-This reproduces the registered paired comparison without fitting or promotion. `make smoke` is
-the supported synthetic reference replay; its real-data gate remains closed. Existing B07 historical
-virtual replay was also reproduced exactly (204 market joins, 61 forecast joins, zero provider calls).
-Persisted paper intents/books remain historical evidence, not proof of real fills or profitable execution.
-
-Senses adapters, offline quality/transport tests and internal storage reads are available, but no
-external campaign is active. Before live collection: separately authorize a bounded campaign with
-source/request/time budgets and stop/rollback ownership; requalify provider access and current data
-admission; bind new derived outputs explicitly to the internal development root UUID and verify
-its 50-GiB guard; then pass the existing campaign/release admission and activation checks. Existing
-historical STOPs, leases, quarantine and protected F01/D43 boundaries must remain intact. Neither
-the read-only replica nor a new Git commit grants writer admission or authorizes credentials work.
-
-Local acceptance receipts (including source hashes, restart and no-Kingston checks) are under
-`/Users/root1/Desktop/restore/evidence/development-readiness-20261019/` and its sibling UI/research
-evidence directories. Current broad-suite limitations are summarized in `memory/now.md`.
+See the root README for source reconstruction and pinned dependency setup. Optional ML environments
+can be rebuilt from their lockfile; saved champion and research artifacts are separate private state.
 
 ## Paper semantics
 

@@ -1,0 +1,343 @@
+diff --git a/src/memecoin_experience/masked_lag_encoding.py b/src/memecoin_experience/masked_lag_encoding.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..ad42dbdb1785fa3624a1dbd3f1d875d81111732b
+--- /dev/null
++++ b/src/memecoin_experience/masked_lag_encoding.py
+@@ -0,0 +1,179 @@
++"""Encode irregular observations as explicit masked lag vectors.
++
++``analyze`` accepts exactly ``features``, ``rows``, ``decisions``,
++``lags_ns`` and ``max_age_ns``. Features are distinct nonempty strings;
++rows have exactly ``id``, ``event_ns``, ``available_ns`` and ``values``;
++decisions have exactly ``id`` and ``decision_ns``. Times are nonnegative
++plain integers (booleans are not integers here), availability cannot precede
++the event, and each row has one finite numeric value or null per feature.
++Numeric feature values must have absolute value at most 1e12. Lags are
++distinct nonnegative plain integers, and ``max_age_ns`` is a nonnegative
++plain integer.
++
++For each decision and lag, a row is eligible when its event is no later than
++the lag cutoff and it was available by decision time. The selected row has
++the latest event time, then latest availability time, then lexicographically
++smallest id. Missing or stale observations and null feature values are
++encoded as 0.0 with an explicit false mask. Output uses schema
++``brain-masked-lag-encoding.v1`` and contains per-decision lag-by-feature
++``values``, ``observed`` and ``source_ids`` matrices. This research
++representation does not claim compatibility with the experience schema or
++training admission, and makes no claim about real-data quality or trading
++competence. The module uses only the standard library and has no filesystem,
++network, model, or runtime side effects beyond its stdin/stdout CLI.
++"""
++
++import json
++import math
++import sys
++
++
++_INPUT_KEYS = {"features", "rows", "decisions", "lags_ns", "max_age_ns"}
++_ROW_KEYS = {"id", "event_ns", "available_ns", "values"}
++_DECISION_KEYS = {"id", "decision_ns"}
++_MAX_ABS_VALUE = 1e12
++
++
++def _plain_nonnegative_int(value, name):
++    if type(value) is not int or value < 0:
++        raise ValueError(name)
++    return value
++
++
++def _identifier(value, name):
++    if not isinstance(value, str) or not value:
++        raise ValueError(name)
++    return value
++
++
++def analyze(payload: dict) -> dict:
++    """Validate and encode a payload without modifying it."""
++    if not isinstance(payload, dict) or set(payload) != _INPUT_KEYS:
++        raise ValueError("input_keys")
++
++    features = payload["features"]
++    if (not isinstance(features, list) or not features
++            or any(not isinstance(item, str) or not item for item in features)
++            or len(set(features)) != len(features)):
++        raise ValueError("features")
++
++    lags = payload["lags_ns"]
++    if (not isinstance(lags, list) or not lags
++            or any(type(lag) is not int or lag < 0 for lag in lags)
++            or len(set(lags)) != len(lags)):
++        raise ValueError("lags_ns")
++    sorted_lags = sorted(lags)
++    max_age = _plain_nonnegative_int(payload["max_age_ns"], "max_age_ns")
++
++    rows = payload["rows"]
++    if not isinstance(rows, list):
++        raise ValueError("rows")
++    row_ids = set()
++    checked_rows = []
++    for row in rows:
++        if not isinstance(row, dict) or set(row) != _ROW_KEYS:
++            raise ValueError("row_keys")
++        row_id = _identifier(row["id"], "row_id")
++        if row_id in row_ids:
++            raise ValueError("row_id_duplicate")
++        row_ids.add(row_id)
++        event_ns = _plain_nonnegative_int(row["event_ns"], "event_ns")
++        available_ns = _plain_nonnegative_int(row["available_ns"], "available_ns")
++        if available_ns < event_ns:
++            raise ValueError("availability_before_event")
++        values = row["values"]
++        if not isinstance(values, dict) or set(values) != set(features):
++            raise ValueError("row_values")
++        for value in values.values():
++            if value is None:
++                continue
++            if isinstance(value, bool) or not isinstance(value, (int, float)):
++                raise ValueError("feature_value")
++            # Compare arbitrary precision integers to the finite bound before
++            # any float conversion; math.isfinite(10**400) raises OverflowError.
++            if isinstance(value, int):
++                if abs(value) > _MAX_ABS_VALUE:
++                    raise ValueError("feature_value")
++            elif not math.isfinite(value) or abs(value) > _MAX_ABS_VALUE:
++                raise ValueError("feature_value")
++        checked_rows.append((row_id, event_ns, available_ns, values))
++
++    decisions = payload["decisions"]
++    if not isinstance(decisions, list):
++        raise ValueError("decisions")
++    decision_ids = set()
++    checked_decisions = []
++    for decision in decisions:
++        if not isinstance(decision, dict) or set(decision) != _DECISION_KEYS:
++            raise ValueError("decision_keys")
++        decision_id = _identifier(decision["id"], "decision_id")
++        if decision_id in decision_ids:
++            raise ValueError("decision_id_duplicate")
++        decision_ids.add(decision_id)
++        decision_ns = _plain_nonnegative_int(decision["decision_ns"], "decision_ns")
++        checked_decisions.append((decision_id, decision_ns))
++
++    encoded = []
++    for decision_id, decision_ns in checked_decisions:
++        values_matrix = []
++        observed_matrix = []
++        sources_matrix = []
++        for lag in sorted_lags:
++            cutoff = decision_ns - lag
++            eligible = [row for row in checked_rows
++                        if cutoff >= 0 and row[1] <= cutoff and row[2] <= decision_ns]
++            selected = min(eligible, key=lambda row: (-row[1], -row[2], row[0])) if eligible else None
++            fresh = selected is not None and cutoff - selected[1] <= max_age
++            values_row, observed_row, sources_row = [], [], []
++            for feature in features:
++                value = selected[3][feature] if fresh else None
++                is_observed = fresh and value is not None
++                values_row.append(float(value) if is_observed else 0.0)
++                observed_row.append(bool(is_observed))
++                sources_row.append(selected[0] if fresh else None)
++            values_matrix.append(values_row)
++            observed_matrix.append(observed_row)
++            sources_matrix.append(sources_row)
++        encoded.append({
++            "id": decision_id,
++            "values": values_matrix,
++            "observed": observed_matrix,
++            "source_ids": sources_matrix,
++        })
++
++    return {
++        "schema": "brain-masked-lag-encoding.v1",
++        "features": list(features),
++        "lags_ns": sorted_lags,
++        "decisions": encoded,
++    }
++
++
++def _reject_constant(value):
++    raise ValueError("nonfinite_json_constant")
++
++
++def _unique_object(pairs):
++    result = {}
++    for key, value in pairs:
++        if key in result:
++            raise ValueError("duplicate_json_key")
++        result[key] = value
++    return result
++
++
++def main():
++    try:
++        payload = json.load(sys.stdin, object_pairs_hook=_unique_object,
++                            parse_constant=_reject_constant)
++        result = analyze(payload)
++        json.dump(result, sys.stdout, allow_nan=False, separators=(",", ":"))
++        sys.stdout.write("\n")
++        return 0
++    except (ValueError, TypeError, json.JSONDecodeError) as exc:
++        sys.stderr.write(f"invalid input: {exc}\n")
++        return 2
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/tests/test_research_masked_lag_encoding.py b/tests/test_research_masked_lag_encoding.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..5690c92461e522e3547e32c10f0bc5663aff1375
+--- /dev/null
++++ b/tests/test_research_masked_lag_encoding.py
+@@ -0,0 +1,152 @@
++import copy
++import json
++import os
++import subprocess
++import sys
++
++import pytest
++
++from memecoin_experience.masked_lag_encoding import analyze
++
++
++def payload():
++    return {
++        "features": ["x", "y"],
++        "rows": [
++            {"id": "old", "event_ns": 10, "available_ns": 10,
++             "values": {"x": 0, "y": None}},
++            {"id": "late", "event_ns": 15, "available_ns": 35,
++             "values": {"x": 99, "y": 99}},
++            {"id": "tie-z", "event_ns": 20, "available_ns": 22,
++             "values": {"x": 2, "y": 3}},
++            {"id": "tie-a", "event_ns": 20, "available_ns": 22,
++             "values": {"x": 4, "y": 5}},
++        ],
++        "decisions": [{"id": "d", "decision_ns": 30},
++                      {"id": "early", "decision_ns": 2}],
++        "lags_ns": [20, 0, 40],
++        "max_age_ns": 10,
++    }
++
++
++def test_masks_zero_null_availability_ties_age_and_negative_cutoffs():
++    result = analyze(payload())
++    assert result == {
++        "schema": "brain-masked-lag-encoding.v1",
++        "features": ["x", "y"],
++        "lags_ns": [0, 20, 40],
++        "decisions": [
++            {"id": "d", "values": [[4.0, 5.0], [0.0, 0.0], [0.0, 0.0]],
++             "observed": [[True, True], [True, False], [False, False]],
++             "source_ids": [["tie-a", "tie-a"], ["old", "old"], [None, None]]},
++            {"id": "early", "values": [[0.0, 0.0]] * 3,
++             "observed": [[False, False]] * 3,
++             "source_ids": [[None, None]] * 3},
++        ],
++    }
++
++
++def test_empty_collections_and_permutation_invariance_without_mutation():
++    data = {"features": ["x"], "rows": [], "decisions": [],
++            "lags_ns": [2, 0], "max_age_ns": 0}
++    original = copy.deepcopy(data)
++    assert analyze(data) == {"schema": "brain-masked-lag-encoding.v1",
++                             "features": ["x"], "lags_ns": [0, 2], "decisions": []}
++    assert data == original
++    first = analyze(payload())
++    changed_order = payload()
++    changed_order["rows"].reverse()
++    assert analyze(changed_order) == first
++
++
++def test_stale_selection_clears_source_but_fresh_null_keeps_source():
++    data = {
++        "features": ["x"],
++        "rows": [
++            {"id": "stale", "event_ns": 0, "available_ns": 0, "values": {"x": 0}},
++            {"id": "fresh-null", "event_ns": 5, "available_ns": 5, "values": {"x": None}},
++        ],
++        "decisions": [{"id": "d", "decision_ns": 7}],
++        "lags_ns": [0, 4],
++        "max_age_ns": 2,
++    }
++    decision = analyze(data)["decisions"][0]
++    assert decision["values"] == [[0.0], [0.0]]
++    assert decision["observed"] == [[False], [False]]
++    assert decision["source_ids"] == [["fresh-null"], [None]]
++
++
++def test_unbounded_plain_integer_timestamps_remain_valid():
++    timestamp = 10**400
++    data = {
++        "features": ["x"],
++        "rows": [{"id": "r", "event_ns": timestamp, "available_ns": timestamp,
++                  "values": {"x": 1}}],
++        "decisions": [{"id": "d", "decision_ns": timestamp}],
++        "lags_ns": [0],
++        "max_age_ns": 0,
++    }
++    decision = analyze(data)["decisions"][0]
++    assert decision == {"id": "d", "values": [[1.0]], "observed": [[True]],
++                        "source_ids": [["r"]]}
++
++
++@pytest.mark.parametrize("mutate", [
++    lambda p: p.update(extra=1),
++    lambda p: p.update(features=[]),
++    lambda p: p.update(features=["x", "x"]),
++    lambda p: p.update(lags_ns=[0, 0]),
++    lambda p: p.update(lags_ns=[True]),
++    lambda p: p.update(max_age_ns=True),
++    lambda p: p["rows"][0].update(extra=1),
++    lambda p: p["rows"][0].update(event_ns=True),
++    lambda p: p["rows"][0].update(available_ns=9),
++    lambda p: p["rows"][0].update(values={"x": 1}),
++    lambda p: p["rows"][0]["values"].update(x=True),
++    lambda p: p["rows"][0]["values"].update(x=float("inf")),
++    lambda p: p["rows"][0]["values"].update(x=1e12 + 1),
++    lambda p: p["rows"][0]["values"].update(x=10**400),
++    lambda p: p["rows"].append(copy.deepcopy(p["rows"][0])),
++    lambda p: p["decisions"].append(copy.deepcopy(p["decisions"][0])),
++    lambda p: p["decisions"][0].update(decision_ns=-1),
++])
++def test_invalid_api_payloads_raise_value_error(mutate):
++    data = payload()
++    mutate(data)
++    with pytest.raises(ValueError):
++        analyze(data)
++
++
++def _cli(text):
++    env = dict(os.environ, PYTHONPATH="src")
++    return subprocess.run([sys.executable, "-m", "memecoin_experience.masked_lag_encoding"],
++                          input=text, text=True, capture_output=True, env=env, check=False)
++
++
++def test_real_cli_emits_json_result():
++    completed = _cli(json.dumps(payload()))
++    assert completed.returncode == 0
++    assert completed.stderr == ""
++    assert json.loads(completed.stdout) == analyze(payload())
++
++
++@pytest.mark.parametrize("raw", [
++    '{"features":["x"],"features":["y"],"rows":[],"decisions":[],"lags_ns":[0],"max_age_ns":0}',
++    '{"features":["x"],"rows":[],"decisions":[],"lags_ns":[0],"max_age_ns":NaN}',
++    '{"features":["x"],"rows":[],"decisions":[],"lags_ns":[0],"max_age_ns":0} trailing',
++])
++def test_real_cli_rejects_bad_json_without_result(raw):
++    completed = _cli(raw)
++    assert completed.returncode != 0
++    assert completed.stdout == ""
++    assert "invalid input:" in completed.stderr
++
++
++def test_real_cli_normalizes_unbounded_numeric_feature_rejection():
++    data = payload()
++    data["rows"][0]["values"]["x"] = 10**400
++    completed = _cli(json.dumps(data))
++    assert completed.returncode != 0
++    assert completed.stdout == ""
++    assert completed.stderr.startswith("invalid input:")
++    assert "OverflowError" not in completed.stderr

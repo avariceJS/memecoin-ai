@@ -1,0 +1,1400 @@
+diff --git a/engineering/paperclip_native_delivery.py b/engineering/paperclip_native_delivery.py
+index f121294f69f5abd5fc57f9400f32ea356aedc204..6fd2b0b0defa577d8eb4283095e995e8aee9730c 100644
+--- a/engineering/paperclip_native_delivery.py
++++ b/engineering/paperclip_native_delivery.py
+@@ -3,6 +3,8 @@
+ from __future__ import annotations
+ 
+ import argparse
++import calendar
++from contextlib import nullcontext
+ import hashlib
+ import json
+ import os
+@@ -24,6 +26,23 @@ from engineering import paperclip_canonical_publish as publisher
+ MANIFEST_SCHEMA = "brain-native-delivery-manifest-v1"
+ STAGE_SCHEMA = "brain-native-delivery-stage-v1"
+ PUBLISH_SCHEMA = "brain-native-delivery-publication-v1"
++COMPATIBILITY_SCHEMA = "brain-native-single-publication-compatibility-v1"
++COMPATIBILITY_DECISION_REVISION = "52d4c85f-cb82-4431-b769-cd048de98723"
++COMPATIBILITY_ENV = "BRAIN_NATIVE_DELIVERY_COMPATIBILITY_AUTH"
++COMPATIBILITY_FILE_HASHES = {
++    "src/memecoin_experience/masked_lag_encoding.py": "5edeee62a396e8f3925df0d3d2bb277df10da55c68cc9eed821ad6cc453fe072",
++    "tests/test_research_masked_lag_encoding.py": "627223363c1dafffae972fac34e8e67237ca4ba3ddcbecaf5de662aedf3df421",
++}
++COMPATIBILITY_ACCEPTANCE = {
++    "source_task_id": "4da61425-1618-4dcf-a62f-fb73c2b68ee9",
++    "source_run_id": "f6b0ff1c-8429-499e-833f-dd3d1f2f0288",
++    "patch_sha256": "5c6b6ec3aae574990fd799b01ac36bda179350adf474ee2785c2f3ebf581dc8b",
++    "stage_sha256": "62c4b2518cf901f1c9947583e6b1c987100a4e8a2a2ae3d3a86788def18936c8",
++    "qa_task_id": "d26d72aa-e3dc-44d7-b4f9-8b504c634643",
++    "qa_run_id": "e459eeb3-3bec-4c85-87ff-0a9b64aa8964",
++    "qa_attachment_id": "86d4aec4-5e8a-45d8-afb4-bd12a7e29a9b",
++    "qa_sha256": "01c90571044595b392a770cb9df0dc14eb875cd92a59c16bce44f867411f76f2",
++}
+ QA_SCHEMA = "brain-native-qa-result-v1"
+ PREPARATION_SCHEMA = "brain-native-delivery-preparation-v1"
+ DELIVERY_PLAN_SCHEMA = "brain-native-delivery-plan-v1"
+@@ -95,6 +114,437 @@ def require(condition: bool, reason: str) -> None:
+         raise DeliveryError(reason)
+ 
+ 
++def _compatibility_binding(
++    api: "Paperclip", task_id: str, manifest: dict[str, Any], manifest_hash: str,
++    manifest_path: str | None = None, *, require_process_env: bool = True,
++    check_expiry: bool = True,
++) -> dict[str, Any] | None:
++    """Load a compatibility grant only when the same digest is pinned in native task config."""
++    process_reference = os.environ.get(COMPATIBILITY_ENV)
++    if process_reference is None and require_process_env:
++        return None
++    reference = process_reference
++    if not require_process_env:
++        issue = api.issue(task_id)
++        override = issue.get("assigneeAdapterOverrides")
++        config = override.get("adapterConfig") if type(override) is dict else None
++        env = config.get("env") if type(config) is dict else None
++        reference = env.get(COMPATIBILITY_ENV) if type(env) is dict else None
++    require(type(reference) is str, "compatibility_task_config_binding_missing")
++    require(type(reference) is str and "#" in reference, "compatibility_config_reference_invalid")
++    raw_path, expected_sha = reference.rsplit("#", 1)
++    require(
++        Path(raw_path).is_absolute() and re.fullmatch(r"[0-9a-f]{64}", expected_sha) is not None,
++        "compatibility_config_reference_invalid",
++    )
++    issue = api.issue(task_id)
++    override = issue.get("assigneeAdapterOverrides")
++    config = override.get("adapterConfig") if type(override) is dict else None
++    env = config.get("env") if type(config) is dict else None
++    require(
++        issue.get("id") == task_id
++        and issue.get("companyId") == manifest["company_id"]
++        and issue.get("assigneeAgentId") == manifest["publish"]["agent_id"]
++        and type(env) is dict
++        and env.get(COMPATIBILITY_ENV) == reference,
++        "compatibility_task_config_binding_mismatch",
++    )
++    if require_process_env:
++        require(process_reference == reference, "compatibility_process_config_binding_mismatch")
++    # The frozen process call remains the original module/action/manifest invocation.
++    argv = config.get("args") if type(config) is dict else None
++    require(
++        config.get("cwd") == str(ORG_ROOT)
++        and config.get("command") == str(ORG_ROOT / ".venv/bin/python")
++        and type(argv) is list
++        and argv[:4] == ["-m", "engineering.paperclip_native_delivery", "publish", "--manifest"]
++        and len(argv) == 5
++        and type(argv[4]) is str
++        and Path(argv[4]).is_absolute(),
++        "compatibility_process_invocation_binding_mismatch",
++    )
++    if manifest_path is not None:
++        require(Path(argv[4]) == Path(manifest_path), "compatibility_manifest_invocation_mismatch")
++    path = Path(raw_path)
++    safe_dir(str(path.parent), "compatibility_authorization_parent", private=True)
++    try:
++        parent = path.parent.lstat()
++        info = path.lstat()
++        raw = path.read_bytes()
++    except OSError as exc:
++        raise DeliveryError("compatibility_authorization_missing") from exc
++    require(
++        stat.S_ISDIR(parent.st_mode)
++        and parent.st_uid == os.getuid()
++        and not stat.S_IMODE(parent.st_mode) & 0o077
++        and stat.S_ISREG(info.st_mode)
++        and info.st_uid == os.getuid()
++        and not stat.S_IMODE(info.st_mode) & 0o077
++        and not stat.S_IMODE(info.st_mode) & 0o222
++        and digest(raw) == expected_sha,
++        "compatibility_authorization_pin_mismatch",
++    )
++    try:
++        value = json.loads(raw)
++    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
++        raise DeliveryError("compatibility_authorization_invalid") from exc
++    require(
++        type(value) is dict
++        and digest(Path(__file__).read_bytes()) == value.get("extension_sha256"),
++        "compatibility_extension_hash_mismatch",
++    )
++    _validate_compatibility_authorization(
++        value, manifest, manifest_hash, expected_sha, check_expiry=check_expiry
++    )
++    value["_pin_sha256"] = expected_sha
++    return value
++
++
++def _validate_compatibility_authorization(
++    value: Any, m: dict[str, Any], manifest_hash: str, authorization_sha256: str
++    , *, check_expiry: bool = True
++) -> None:
++    fields = {
++        "schema", "decision_revision", "extension_sha256",
++        "manifest_sha256", "company_id", "developer_task_id", "publish_task_id",
++        "developer_agent_id", "publish_agent_id", "source_task_id", "source_run_id",
++        "source_agent_id", "qa_task_id", "qa_run_id", "qa_agent_id", "qa_artifact_id", "qa_sha256",
++        "source_patch_sha256", "predecessor_manifest_sha256", "predecessor_source_task_id",
++        "predecessor_publish_task_id", "predecessor_receipt_sha256", "predecessor_candidate",
++        "stage_sha256",
++        "historical_expected_tip", "canonical_repo", "canonical_ref", "remote_name",
++        "remote_url", "candidate_ref", "authorized_base_tip", "authorized_remote_tip", "paths", "files",
++        "intervening_publications", "expires_at", "resource_policy_sha256", "apply_sha256",
++    }
++    require(
++        type(value) is dict and set(value) == fields,
++        "compatibility_authorization_schema_invalid",
++    )
++    require(
++        value["schema"] == COMPATIBILITY_SCHEMA
++        and value["decision_revision"] == COMPATIBILITY_DECISION_REVISION
++        and value["manifest_sha256"] == manifest_hash
++        and value["company_id"] == m["company_id"]
++        and value["developer_task_id"] == m["developer"]["task_id"]
++        and value["developer_agent_id"] == m["developer"]["agent_id"]
++        and value["publish_task_id"] == m["publish"]["task_id"]
++        and value["publish_agent_id"] == m["publish"]["agent_id"]
++        and value["source_task_id"] == m["developer"]["task_id"]
++        and value["source_agent_id"] == m["developer"]["agent_id"]
++        and value["qa_task_id"] == m["qa"]["task_id"]
++        and value["qa_agent_id"] == m["qa"]["agent_id"]
++        and value["historical_expected_tip"] == m["canonical"]["expected_tip"]
++        and value["canonical_repo"] == m["canonical"]["repo"]
++        and value["canonical_ref"] == m["canonical"]["ref"]
++        and value["remote_name"] == m["canonical"]["remote_name"]
++        and value["remote_url"] == m["canonical"]["remote_url"]
++        and value["candidate_ref"] == m["canonical"]["candidate_ref"]
++        and "predecessor" in m
++        and value["predecessor_source_task_id"] == m["predecessor"]["source_task_id"]
++        and value["predecessor_publish_task_id"] == m["predecessor"]["publish_task_id"]
++        and value["predecessor_manifest_sha256"] == m["predecessor"]["manifest_sha256"]
++        and value["source_task_id"] == COMPATIBILITY_ACCEPTANCE["source_task_id"]
++        and value["source_run_id"] == COMPATIBILITY_ACCEPTANCE["source_run_id"]
++        and value["source_patch_sha256"] == COMPATIBILITY_ACCEPTANCE["patch_sha256"]
++        and value["stage_sha256"] == COMPATIBILITY_ACCEPTANCE["stage_sha256"]
++        and value["qa_task_id"] == COMPATIBILITY_ACCEPTANCE["qa_task_id"]
++        and value["qa_run_id"] == COMPATIBILITY_ACCEPTANCE["qa_run_id"]
++        and value["qa_artifact_id"] == COMPATIBILITY_ACCEPTANCE["qa_attachment_id"]
++        and value["qa_sha256"] == COMPATIBILITY_ACCEPTANCE["qa_sha256"]
++        and type(m.get("resource_policy")) is dict
++        and value["resource_policy_sha256"] == m["resource_policy"].get("sha256")
++        and type(value["extension_sha256"]) is str
++        and re.fullmatch(r"[0-9a-f]{64}", value["extension_sha256"]) is not None
++        and re.fullmatch(r"[0-9a-f]{64}", str(value["resource_policy_sha256"])) is not None
++        and re.fullmatch(r"[0-9a-f]{64}", str(value["apply_sha256"])) is not None
++        and re.fullmatch(r"[0-9a-f]{64}", str(value["qa_sha256"])) is not None
++        and re.fullmatch(r"[0-9a-f]{64}", str(value["source_patch_sha256"])) is not None
++        and re.fullmatch(r"[0-9a-f]{64}", str(value["predecessor_manifest_sha256"])) is not None
++        and re.fullmatch(r"[0-9a-f]{64}", str(value["predecessor_receipt_sha256"])) is not None
++        and OID.fullmatch(str(value["predecessor_candidate"])) is not None
++        and OID.fullmatch(str(value["authorized_base_tip"])) is not None,
++        "compatibility_authorization_binding_mismatch",
++    )
++    require(
++        value["authorized_remote_tip"] == value["authorized_base_tip"],
++        "compatibility_local_remote_base_mismatch",
++    )
++    require(
++        type(value["source_run_id"]) is str and UUID.fullmatch(value["source_run_id"]) is not None
++        and type(value["qa_run_id"]) is str and UUID.fullmatch(value["qa_run_id"]) is not None
++        and type(value["qa_artifact_id"]) is str and UUID.fullmatch(value["qa_artifact_id"]) is not None
++        and type(value["predecessor_source_task_id"]) is str
++        and UUID.fullmatch(value["predecessor_source_task_id"]) is not None
++        and type(value["predecessor_publish_task_id"]) is str
++        and UUID.fullmatch(value["predecessor_publish_task_id"]) is not None,
++        "compatibility_authorization_identity_invalid",
++    )
++    require(type(value["expires_at"]) is str, "compatibility_authorization_expiry_invalid")
++    try:
++        expiry = time.strptime(value["expires_at"], "%Y-%m-%dT%H:%M:%SZ")
++    except ValueError as exc:
++        raise DeliveryError("compatibility_authorization_expiry_invalid") from exc
++    if check_expiry:
++        require(time.time() < calendar.timegm(expiry), "compatibility_authorization_expired")
++    paths = m["source"]["paths"]
++    require(
++        type(value["paths"]) is list
++        and value["paths"] == paths
++        and len(paths) == 2
++        and type(value["files"]) is dict
++        and set(value["files"]) == set(paths)
++        and set(paths) == set(COMPATIBILITY_FILE_HASHES)
++        and all(
++            type(value["files"][path]) is dict
++            and set(value["files"][path]) == {"sha256", "mode"}
++            and value["files"][path]["mode"] == "100644"
++            and value["files"][path]["sha256"] == COMPATIBILITY_FILE_HASHES[path]
++            and re.fullmatch(r"[0-9a-f]{64}", str(value["files"][path]["sha256"])) is not None
++            for path in paths
++        ),
++        "compatibility_authorization_paths_invalid",
++    )
++    require(
++        type(value["intervening_publications"]) is list
++        and len(value["intervening_publications"]) == 2,
++        "compatibility_intervening_publications_invalid",
++    )
++    seen_commits: set[str] = set()
++    seen_refs: set[str] = set()
++    seen_receipts: set[str] = set()
++    seen_paths: set[str] = set()
++    for row in value["intervening_publications"]:
++        require(
++            type(row) is dict
++            and set(row) == {"commit", "candidate_ref", "receipt_path", "receipt_sha256", "publication_digest", "publish_task_id", "publish_agent_id", "source_task_id", "source_agent_id", "source_run_id", "source_patch_sha256", "qa_task_id", "qa_agent_id", "qa_run_id", "qa_artifact_id", "qa_sha256", "manifest_sha256", "paths", "files"}
++            and OID.fullmatch(str(row["commit"])) is not None
++            and type(row["candidate_ref"]) is str
++            and row["candidate_ref"].startswith("refs/heads/brain/")
++            and row["candidate_ref"] != m["canonical"]["ref"]
++            and Path(str(row["receipt_path"])).is_absolute()
++            and all(re.fullmatch(r"[0-9a-f]{64}", str(row[key])) for key in ("receipt_sha256", "publication_digest", "manifest_sha256"))
++            and UUID.fullmatch(str(row["publish_task_id"])) is not None
++            and UUID.fullmatch(str(row["publish_agent_id"])) is not None
++            and UUID.fullmatch(str(row["source_task_id"])) is not None
++            and UUID.fullmatch(str(row["source_agent_id"])) is not None
++            and UUID.fullmatch(str(row["source_run_id"])) is not None
++            and UUID.fullmatch(str(row["qa_task_id"])) is not None
++            and UUID.fullmatch(str(row["qa_agent_id"])) is not None
++            and UUID.fullmatch(str(row["qa_run_id"])) is not None
++            and UUID.fullmatch(str(row["qa_artifact_id"])) is not None
++            and all(re.fullmatch(r"[0-9a-f]{64}", str(row[key])) for key in ("source_patch_sha256", "qa_sha256"))
++            and type(row["paths"]) is list
++            and row["paths"]
++            and type(row["files"]) is dict
++            and set(row["files"]) == set(row["paths"])
++            and all(re.fullmatch(r"[0-9a-f]{64}", str(v)) for v in row["files"].values())
++            and not any(
++                a == b or a.startswith(b + "/") or b.startswith(a + "/")
++                for a in row["paths"] for b in paths
++            ),
++            "compatibility_intervening_publications_invalid",
++        )
++        require(
++            row["commit"] not in seen_commits
++            and row["candidate_ref"] not in seen_refs
++            and row["receipt_sha256"] not in seen_receipts
++            and not any(
++                a == b or a.startswith(b + "/") or b.startswith(a + "/")
++                for a in seen_paths for b in row["paths"]
++            ),
++            "compatibility_intervening_publications_overlap",
++        )
++        seen_commits.add(row["commit"])
++        seen_refs.add(row["candidate_ref"])
++        seen_receipts.add(row["receipt_sha256"])
++        seen_paths.update(row["paths"])
++
++
++def _validate_intervening_publications(
++    m: dict[str, Any], api: "Paperclip", authorization: dict[str, Any], predecessor: str
++) -> str:
++    repo = Path(m["canonical"]["repo"])
++    previous = predecessor
++    target_paths = tuple(m["source"]["paths"])
++    accepted_paths: set[str] = set()
++
++    def successful_native_run(task_id: str, agent_id: str, run_id: str) -> dict[str, Any]:
++        require(UUID.fullmatch(run_id) is not None, "compatibility_intervening_run_id_invalid")
++        run = api.request("GET", f"/heartbeat-runs/{run_id}")
++        require(
++            type(run) is dict
++            and run.get("id") == run_id
++            and run.get("status") == "succeeded"
++            and run.get("runtimeMode") == "legacy"
++            and run.get("agentId") == agent_id
++            and run.get("companyId") == m["company_id"]
++            and run.get("issueId") == task_id,
++            "compatibility_intervening_run_not_successful",
++        )
++        return run
++
++    for row in authorization["intervening_publications"]:
++        receipt_path = Path(row["receipt_path"])
++        try:
++            info = receipt_path.lstat()
++            parent_info = receipt_path.parent.lstat()
++            raw = receipt_path.read_bytes()
++        except OSError as exc:
++            raise DeliveryError("compatibility_intervening_receipt_missing") from exc
++        require(
++            stat.S_ISDIR(parent_info.st_mode)
++            and parent_info.st_uid == os.getuid()
++            and not stat.S_IMODE(parent_info.st_mode) & 0o077
++            and stat.S_ISREG(info.st_mode)
++            and info.st_uid == os.getuid()
++            and not stat.S_IMODE(info.st_mode) & 0o077
++            and not stat.S_IMODE(info.st_mode) & 0o222
++            and digest(raw) == row["receipt_sha256"],
++            "compatibility_intervening_receipt_pin_mismatch",
++        )
++        try:
++            saved = json.loads(raw)
++        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
++            raise DeliveryError("compatibility_intervening_receipt_invalid") from exc
++        unsigned = {key: value for key, value in saved.items() if key != "publication_digest"} if type(saved) is dict else None
++        receipt = saved.get("canonical_receipt") if type(saved) is dict else None
++        require(
++            type(saved) is dict
++            and saved.get("schema") == PUBLISH_SCHEMA
++            and saved.get("publication_digest") == row["publication_digest"]
++            and saved.get("publication_digest") == digest(json_bytes(unsigned))
++            and saved.get("manifest_sha256") == row["manifest_sha256"]
++            and saved.get("source_task_id") == row["source_task_id"]
++            and saved.get("source_run_id") == row["source_run_id"]
++            and saved.get("source_patch_sha256") == row["source_patch_sha256"]
++            and saved.get("qa_task_id") == row["qa_task_id"]
++            and saved.get("qa_run_id") == row["qa_run_id"]
++            and saved.get("qa_sha256") == row["qa_sha256"]
++            and saved.get("files") == row["files"]
++            and saved.get("expected_tip") == previous
++            and saved.get("canonical_ref") == m["canonical"]["ref"]
++            and saved.get("candidate_ref") == row["candidate_ref"]
++            and type(receipt) is dict
++            and receipt.get("candidate") == row["commit"]
++            and receipt.get("expected_tip") == previous
++            and OID.fullmatch(str(row["commit"])) is not None,
++            "compatibility_intervening_receipt_binding_mismatch",
++        )
++        issue = api.issue(row["publish_task_id"])
++        require(
++            issue.get("id") == row["publish_task_id"]
++            and issue.get("companyId") == m["company_id"]
++            and issue.get("assigneeAgentId") == row["publish_agent_id"]
++            and issue.get("status") == "done",
++            "compatibility_intervening_publish_not_accepted",
++        )
++        api.no_pending_terminal(row["publish_task_id"])
++        source_issue = api.issue(row["source_task_id"])
++        qa_issue = api.issue(row["qa_task_id"])
++        require(
++            source_issue.get("id") == row["source_task_id"]
++            and source_issue.get("companyId") == m["company_id"]
++            and source_issue.get("assigneeAgentId") == row["source_agent_id"]
++            and source_issue.get("status") == "done"
++            and qa_issue.get("id") == row["qa_task_id"]
++            and qa_issue.get("companyId") == m["company_id"]
++            and qa_issue.get("assigneeAgentId") == row["qa_agent_id"]
++            and qa_issue.get("status") == "done"
++            and row["source_agent_id"] != row["qa_agent_id"],
++            "compatibility_intervening_acceptance_not_done",
++        )
++        api.no_pending(row["source_task_id"])
++        api.no_pending(row["qa_task_id"])
++        successful_native_run(row["source_task_id"], row["source_agent_id"], row["source_run_id"])
++        qa_run = successful_native_run(row["qa_task_id"], row["qa_agent_id"], row["qa_run_id"])
++        qa_meta, qa_data = api.qa_artifact(
++            {"task_id": row["qa_task_id"], "agent_id": row["qa_agent_id"]},
++            qa_run,
++            "QA-RESULT.json",
++            256 * 1024,
++        )
++        require(
++            qa_meta.get("id") == row["qa_artifact_id"]
++            and qa_meta.get("originatingRunId") == row["qa_run_id"]
++            and qa_meta.get("createdByAgentId") == row["qa_agent_id"]
++            and digest(qa_data) == row["qa_sha256"],
++            "compatibility_intervening_qa_artifact_binding_mismatch",
++        )
++        validate_qa(
++            qa_data,
++            row["source_task_id"],
++            row["source_patch_sha256"],
++            {path: {"sha256": sha} for path, sha in row["files"].items()},
++            row["paths"],
++        )
++        runs = api.request("GET", f"/issues/{row['publish_task_id']}/runs")
++        publish_runs = [
++            run for run in runs if type(run) is dict
++            and run.get("agentId") == row["publish_agent_id"]
++            and run.get("contextIssueId") == row["publish_task_id"]
++        ] if type(runs) is list else []
++        require(
++            bool(publish_runs)
++            and all(run.get("status") in {"succeeded", "failed", "cancelled", "timed_out"} for run in publish_runs),
++            "compatibility_intervening_publish_run_not_terminal",
++        )
++        latest_publish = max(
++            publish_runs,
++            key=lambda run: str(run.get("finishedAt") or run.get("startedAt") or ""),
++        )
++        publish_run_id = latest_publish.get("runId") or latest_publish.get("id")
++        require(
++            latest_publish.get("status") == "succeeded"
++            and type(publish_run_id) is str
++            and UUID.fullmatch(publish_run_id) is not None,
++            "compatibility_intervening_publish_run_not_successful",
++        )
++        successful_native_run(row["publish_task_id"], row["publish_agent_id"], publish_run_id)
++        paths = row["paths"]
++        require(
++            type(saved.get("files")) is dict
++            and set(saved["files"]) == set(paths)
++            and {item["path"]: item["sha256"] for item in receipt.get("files", [])} == saved["files"]
++            and not set(paths).intersection(target_paths)
++            and not any(
++                a.startswith(b + "/") or b.startswith(a + "/")
++                for a in paths for b in target_paths
++            ),
++            "compatibility_intervening_paths_invalid",
++        )
++        changed = git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", previous, row["commit"])
++        changed_paths = set(changed.decode("utf-8").splitlines())
++        require(changed_paths == set(paths), "compatibility_intervening_commit_scope_invalid")
++        publisher._check_candidate(repo.resolve(strict=True), m["canonical"]["ref"], receipt, tuple(paths))
++        require(
++            not any(
++                a == b or a.startswith(b + "/") or b.startswith(a + "/")
++                for a in accepted_paths for b in paths
++            ),
++            "compatibility_intervening_overlap",
++        )
++        accepted_paths.update(paths)
++        previous = row["commit"]
++    require(
++        previous == authorization["authorized_base_tip"]
++        and git(repo, "merge-base", previous, authorization["authorized_base_tip"]).decode().strip() == previous
++        and git(repo, "rev-parse", f"{authorization['authorized_base_tip']}^{{commit}}").decode().strip()
++        == authorization["authorized_base_tip"],
++        "compatibility_authorized_base_not_descendant",
++    )
++    tree_rows = git(repo, "ls-tree", "-rz", "--full-tree", authorization["authorized_base_tip"])
++    tree_paths = {row.split(b"\t", 1)[1].decode("utf-8") for row in tree_rows.split(b"\0") if b"\t" in row}
++    require(
++        all(
++            path not in tree_paths
++            and not any(existing.startswith(path + "/") or path.startswith(existing + "/") for existing in tree_paths)
++            for path in target_paths
++        ),
++        "compatibility_target_path_or_prefix_present",
++    )
++    return authorization["authorized_base_tip"]
++
++
+ def validated_role_models(manifest: dict[str, Any]) -> dict[str, str]:
+     if "role_models" not in manifest:
+         return {"developer": "gpt-6-luna", "qa": "gpt-6-luna"}
+@@ -2346,7 +2796,9 @@ def remote_git(repo: Path, *args: str, github_auth: bool = False) -> bytes:
+     return result.stdout
+ 
+ 
+-def remote_refs(m: dict[str, Any]) -> dict[str, str]:
++def remote_refs(
++    m: dict[str, Any], compatibility: dict[str, Any] | None = None
++) -> dict[str, str]:
+     c = m["canonical"]
+     repo = Path(c["repo"])
+     if git(repo, "remote", "get-url", c["remote_name"]).decode().strip() != c["remote_url"]:
+@@ -2354,7 +2806,9 @@ def remote_refs(m: dict[str, Any]) -> dict[str, str]:
+     if not c["remote_url"].startswith("https://github.com/"):
+         raise DeliveryError("remote_transport_not_approved")
+     raw = remote_git(
+-        repo, "ls-remote", c["remote_name"], c["ref"], c["candidate_ref"], github_auth=True
++        repo, "ls-remote", c["remote_name"], c["ref"], c["candidate_ref"],
++        *([] if compatibility is None else [row["candidate_ref"] for row in compatibility["intervening_publications"]]),
++        github_auth=True
+     )
+     refs = {}
+     for line in raw.decode("ascii").splitlines():
+@@ -2375,17 +2829,21 @@ def check_publication_head(
+     )
+ 
+ 
+-def push_ref(m: dict[str, Any], source: str, target_ref: str) -> None:
++def push_ref(m: dict[str, Any], source: str, target_ref: str, expected_old: str | None) -> None:
+     c = m["canonical"]
+     repo = Path(c["repo"])
+     if git(repo, "remote", "get-url", c["remote_name"]).decode().strip() != c[
+         "remote_url"
+     ] or not c["remote_url"].startswith("https://github.com/"):
+         raise DeliveryError("remote_url_changed")
+-    remote_git(repo, "push", c["remote_name"], f"{source}:{target_ref}", github_auth=True)
++    lease = f"--force-with-lease={target_ref}:{expected_old or ''}"
++    remote_git(repo, "push", c["remote_name"], lease, f"{source}:{target_ref}", github_auth=True)
+ 
+ 
+-def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Paperclip) -> str | None:
++def predecessor_expected_tip(
++    m: dict[str, Any], manifest_hash: str, api: Paperclip,
++    compatibility: dict[str, Any] | None = None,
++) -> str | None:
+     """Resolve a second slot only from its explicitly pinned first-slot receipt."""
+     binding = m.get("predecessor")
+     if binding is None:
+@@ -2418,6 +2876,13 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
+         set(parent["source"]["paths"]).isdisjoint(m["source"]["paths"]),
+         "predecessor_source_paths_overlap",
+     )
++    require(
++        not any(
++            a == b or a.startswith(b + "/") or b.startswith(a + "/")
++            for a in parent["source"]["paths"] for b in m["source"]["paths"]
++        ),
++        "predecessor_source_path_prefix_overlap",
++    )
+     require(
+         parent["developer"]["task_id"] == binding["source_task_id"]
+         and parent["publish"]["task_id"] == binding["publish_task_id"],
+@@ -2491,10 +2956,28 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
+         "predecessor_publication_receipt_not_private",
+     )
+     try:
+-        saved = json.loads(path.read_bytes())
++        receipt_raw = path.read_bytes()
++        saved = json.loads(receipt_raw)
+     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+         raise DeliveryError("predecessor_publication_receipt_invalid") from exc
+     require(type(saved) is dict, "predecessor_publication_receipt_invalid")
++    if compatibility is not None:
++        require(
++            digest(receipt_raw) == compatibility["predecessor_receipt_sha256"],
++            "compatibility_predecessor_receipt_pin_mismatch",
++        )
++    saved_compatibility_sha = saved.get("compatibility_authorization_sha256")
++    downstream_compatibility = None
++    if saved_compatibility_sha is not None:
++        downstream_compatibility = _compatibility_binding(
++            api, binding["publish_task_id"], parent, parent_hash,
++            require_process_env=False, check_expiry=False,
++        )
++        require(
++            downstream_compatibility is not None
++            and downstream_compatibility["_pin_sha256"] == saved_compatibility_sha,
++            "predecessor_compatibility_authorization_mismatch",
++        )
+     unsigned = {k: v for k, v in saved.items() if k != "publication_digest"}
+     receipt = saved.get("canonical_receipt")
+     require(
+@@ -2502,7 +2985,13 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
+         and saved.get("schema") == PUBLISH_SCHEMA
+         and saved.get("manifest_sha256") == parent_hash
+         and saved.get("source_task_id") == binding["source_task_id"]
+-        and saved.get("expected_tip") == parent["canonical"]["expected_tip"]
++        and (
++            saved.get("expected_tip") == parent["canonical"]["expected_tip"]
++            if downstream_compatibility is None
++            else saved.get("expected_tip") == downstream_compatibility["authorized_base_tip"]
++            and saved.get("historical_expected_tip") == downstream_compatibility["historical_expected_tip"]
++            and saved.get("authorized_base_tip") == downstream_compatibility["authorized_base_tip"]
++        )
+         and saved.get("canonical_ref") == parent["canonical"]["ref"]
+         and saved.get("candidate_ref") == parent["canonical"]["candidate_ref"]
+         and type(receipt) is dict
+@@ -2515,11 +3004,67 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
+         type(saved.get("files")) is dict and set(saved["files"]) == set(paths),
+         "predecessor_publication_receipt_invalid",
+     )
++    if downstream_compatibility is not None:
++        require(
++            parent["developer"]["task_id"] == COMPATIBILITY_ACCEPTANCE["source_task_id"]
++            and saved.get("source_run_id") == COMPATIBILITY_ACCEPTANCE["source_run_id"]
++            and saved.get("source_patch_sha256") == COMPATIBILITY_ACCEPTANCE["patch_sha256"]
++            and saved.get("qa_task_id") == COMPATIBILITY_ACCEPTANCE["qa_task_id"]
++            and saved.get("qa_run_id") == COMPATIBILITY_ACCEPTANCE["qa_run_id"]
++            and saved.get("qa_attachment_id") == COMPATIBILITY_ACCEPTANCE["qa_attachment_id"]
++            and saved.get("qa_sha256") == COMPATIBILITY_ACCEPTANCE["qa_sha256"]
++            and set(paths) == set(COMPATIBILITY_FILE_HASHES)
++            and saved["files"] == COMPATIBILITY_FILE_HASHES,
++            "predecessor_compatibility_acceptance_mismatch",
++        )
++        prior_stage_path = stage_path(
++            Path(parent["custody_dir"]), parent["developer"]["task_id"],
++            COMPATIBILITY_ACCEPTANCE["source_run_id"],
++        )
++        try:
++            stage_raw = prior_stage_path.read_bytes()
++            stage_record = json.loads(stage_raw)
++        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
++            raise DeliveryError("predecessor_compatibility_stage_missing") from exc
++        require(
++            digest(stage_raw) == COMPATIBILITY_ACCEPTANCE["stage_sha256"]
++            and stage_record.get("manifest_sha256") == parent_hash
++            and stage_record.get("developer_run_id") == COMPATIBILITY_ACCEPTANCE["source_run_id"]
++            and stage_record.get("patch", {}).get("sha256") == COMPATIBILITY_ACCEPTANCE["patch_sha256"]
++            and {p: v.get("sha256") for p, v in stage_record.get("files", {}).items()}
++            == COMPATIBILITY_FILE_HASHES,
++            "predecessor_compatibility_stage_binding_mismatch",
++        )
++        native = Path(parent["custody_dir"]) / (
++            f"native-handoff-{parent['developer']['task_id']}-{COMPATIBILITY_ACCEPTANCE['source_run_id']}"
++        )
++        for relative, expected_sha in COMPATIBILITY_FILE_HASHES.items():
++            file_path = target(native / "files", relative)
++            try:
++                file_info = file_path.lstat()
++                file_data = file_path.read_bytes()
++            except OSError as exc:
++                raise DeliveryError("predecessor_compatibility_staged_file_missing") from exc
++            require(
++                stat.S_ISREG(file_info.st_mode)
++                and not stat.S_ISLNK(file_info.st_mode)
++                and digest(file_data) == expected_sha,
++                "predecessor_compatibility_staged_file_mismatch",
++            )
+     repo = Path(m["canonical"]["repo"])
+     publisher._check_candidate(
+         repo.resolve(strict=True), parent["canonical"]["ref"], receipt, tuple(paths)
+     )
+     candidate = receipt["candidate"]
++    authorized_base = None
++    if compatibility is not None:
++        require(
++            parent_hash == compatibility["predecessor_manifest_sha256"]
++            and candidate == compatibility["predecessor_candidate"]
++            and parent["canonical"]["expected_tip"] == compatibility["historical_expected_tip"],
++            "compatibility_predecessor_binding_mismatch",
++        )
++        authorized_base = _validate_intervening_publications(m, api, compatibility, candidate)
+     own_receipt_path = Path(m["custody_dir"]) / f"publication-{m['developer']['task_id']}.json"
+     own_candidate = None
+     if own_receipt_path.exists() or own_receipt_path.is_symlink():
+@@ -2556,7 +3101,8 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
+         own_candidate = own_receipt["candidate"]
+     local_head = git(repo, "rev-parse", parent["canonical"]["ref"]).decode().strip()
+     require(
+-        local_head == candidate or (own_candidate is not None and local_head == own_candidate),
++        (local_head == authorized_base if authorized_base is not None else
++         local_head == candidate or (own_candidate is not None and local_head == own_candidate)),
+         "predecessor_canonical_head_unexpected",
+     )
+     if local_head == candidate:
+@@ -2569,6 +3115,7 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
+         c["ref"],
+         c["candidate_ref"],
+         m["canonical"]["candidate_ref"],
++        *([] if compatibility is None else [row["candidate_ref"] for row in compatibility["intervening_publications"]]),
+         github_auth=True,
+     )
+     refs: dict[str, str] = {}
+@@ -2581,8 +3128,13 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
+         raise DeliveryError("remote_refs_malformed") from exc
+     require(
+         refs.get(parent["canonical"]["ref"])
+-        in ({candidate} | ({own_candidate} if own_candidate is not None else set()))
++        in ({authorized_base} if authorized_base is not None else
++            {candidate} | ({own_candidate} if own_candidate is not None else set()))
+         and refs.get(parent["canonical"]["candidate_ref"]) == candidate
++        and (compatibility is None or all(
++            refs.get(row["candidate_ref"]) == row["commit"]
++            for row in compatibility["intervening_publications"]
++        ))
+         and (
+             own_candidate is None
+             or refs.get(m["canonical"]["candidate_ref"]) in {None, own_candidate}
+@@ -2592,7 +3144,7 @@ def predecessor_expected_tip(m: dict[str, Any], manifest_hash: str, api: Papercl
+     return candidate
+ 
+ 
+-def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
++def publish(m: dict[str, Any], manifest_hash: str, manifest_path: str | None = None) -> dict[str, Any]:
+     api = Paperclip(m)
+     own_task = api.current("publish")
+     require(own_task == m["publish"]["task_id"], "task_not_pinned")
+@@ -2624,16 +3176,25 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
+     files = {p: target(native / "files", p).read_bytes() for p in record["paths"]}
+     if any(digest(files[p]) != record["files"][p]["sha256"] for p in record["paths"]):
+         raise DeliveryError("custodied_file_hash_mismatch")
++    compatibility = _compatibility_binding(api, own_task, m, manifest_hash, manifest_path)
++    if compatibility is not None:
++        require(
++            compatibility["source_run_id"] == source_run["runId"]
++            and compatibility["qa_run_id"] == qa_run["runId"]
++            and compatibility["qa_artifact_id"] == qa_meta["id"]
++            and compatibility["qa_sha256"] == digest(qa_data)
++            and compatibility["source_patch_sha256"] == record["patch"]["sha256"]
++            and compatibility["files"] == {
++                p: {"sha256": record["files"][p]["sha256"], "mode": "100644"}
++                for p in record["paths"]
++            },
++            "compatibility_acceptance_binding_mismatch",
++        )
+     c = slot["canonical"]
+     repo = Path(c["repo"])
+-    expected = publication_expected_tip(m, manifest_hash, api)
+-    if "predecessor_base_tip" in m:
++    expected = publication_expected_tip(m, manifest_hash, api, compatibility)
++    if "predecessor_base_tip" in m and compatibility is None:
+         require(expected == c["expected_tip"], "predecessor_expected_tip_changed")
+-    old = {p: None for p in record["paths"]}
+-    new = {
+-        p: publisher._git(repo, "hash-object", "--stdin", data=files[p]).decode().strip()
+-        for p in record["paths"]
+-    }
+     op = {
+         "schema": PUBLISH_SCHEMA,
+         "manifest_sha256": manifest_hash,
+@@ -2648,6 +3209,10 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
+         "canonical_ref": c["ref"],
+         "candidate_ref": c["candidate_ref"],
+     }
++    if compatibility is not None:
++        op["historical_expected_tip"] = compatibility["historical_expected_tip"]
++        op["authorized_base_tip"] = compatibility["authorized_base_tip"]
++        op["compatibility_authorization_sha256"] = compatibility["_pin_sha256"]
+     if qa_meta.get("artifactType") == "document_revision":
+         op["qa_document_id"] = qa_meta["id"]
+         op["qa_document_revision_id"] = qa_meta["revisionId"]
+@@ -2662,6 +3227,11 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
+         Path(m["custody_dir"]),
+         reserve_model_runs=8,
+     )
++    old = {p: None for p in record["paths"]}
++    new = {
++        p: publisher._git(repo, "hash-object", "--stdin", data=files[p]).decode().strip()
++        for p in record["paths"]
++    }
+     receipt_file = Path(m["custody_dir"]) / f"publication-{dev['task_id']}.json"
+     if receipt_file.exists():
+         saved = json.loads(receipt_file.read_bytes())
+@@ -2681,29 +3251,51 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
+         save_record(receipt_file, saved)
+     require(type(receipt) is dict, "publication_receipt_invalid")
+     check_publication_head(repo, c["ref"], expected, receipt, receipt_file.exists())
+-    refs = remote_refs(m)
+     candidate = receipt["candidate"]
+-    if refs.get(c["ref"]) not in {expected, candidate} or refs.get(c["candidate_ref"]) not in {
+-        None,
+-        candidate,
+-    }:
+-        raise DeliveryError("remote_refs_unexpected")
+-    publisher.inspect(repo, c["ref"], receipt, allowed_paths=record["paths"])
+-    done = publisher.reconcile(
+-        repo, c["ref"], receipt, candidate, receipt["receipt_digest"], allowed_paths=record["paths"]
+-    )
+-    if done.get("status") != "reconciled" or done.get("candidate") != candidate:
+-        raise DeliveryError("canonical_readback_failed")
+-    if refs.get(c["candidate_ref"]) is None:
+-        push_ref(m, candidate, c["candidate_ref"])
+-    refs = remote_refs(m)
+-    if refs.get(c["candidate_ref"]) != candidate or refs.get(c["ref"]) not in {expected, candidate}:
+-        raise DeliveryError("candidate_remote_readback_failed")
+-    if refs.get(c["ref"]) == expected:
+-        push_ref(m, candidate, c["ref"])
+-    refs = remote_refs(m)
+-    if refs.get(c["candidate_ref"]) != candidate or refs.get(c["ref"]) != candidate:
+-        raise DeliveryError("publication_remote_readback_failed")
++    canonical_repo = repo.resolve(strict=True)
++    lock = publisher._serialized(canonical_repo, c["ref"]) if compatibility is not None else nullcontext()
++    with lock:
++        check_publication_head(repo, c["ref"], expected, receipt, receipt_file.exists())
++        refs = remote_refs(m, compatibility)
++        if refs.get(c["ref"]) not in {expected, candidate} or refs.get(c["candidate_ref"]) not in {
++            None,
++            candidate,
++        }:
++            raise DeliveryError("remote_refs_unexpected")
++        if compatibility is not None and any(
++            refs.get(row["candidate_ref"]) != row["commit"]
++            for row in compatibility["intervening_publications"]
++        ):
++            raise DeliveryError("compatibility_intervening_remote_ref_changed")
++        publisher.inspect(repo, c["ref"], receipt, allowed_paths=record["paths"])
++        if compatibility is None:
++            done = publisher.reconcile(
++                repo, c["ref"], receipt, candidate, receipt["receipt_digest"], allowed_paths=record["paths"]
++            )
++        else:
++            done = publisher._reconcile_locked(canonical_repo, c["ref"], receipt)
++        if done.get("status") != "reconciled" or done.get("candidate") != candidate:
++            raise DeliveryError("canonical_readback_failed")
++        if refs.get(c["candidate_ref"]) is None:
++            push_ref(m, candidate, c["candidate_ref"], None)
++        refs = remote_refs(m, compatibility)
++        if refs.get(c["candidate_ref"]) != candidate or refs.get(c["ref"]) not in {expected, candidate}:
++            raise DeliveryError("candidate_remote_readback_failed")
++        if compatibility is not None and any(
++            refs.get(row["candidate_ref"]) != row["commit"]
++            for row in compatibility["intervening_publications"]
++        ):
++            raise DeliveryError("compatibility_intervening_remote_ref_changed")
++        if refs.get(c["ref"]) == expected:
++            push_ref(m, candidate, c["ref"], expected)
++        refs = remote_refs(m, compatibility)
++        if refs.get(c["candidate_ref"]) != candidate or refs.get(c["ref"]) != candidate:
++            raise DeliveryError("publication_remote_readback_failed")
++        if compatibility is not None and any(
++            refs.get(row["candidate_ref"]) != row["commit"]
++            for row in compatibility["intervening_publications"]
++        ):
++            raise DeliveryError("compatibility_intervening_remote_ref_changed")
+     marker = f"published:{dev['task_id']}:{candidate}:{receipt['receipt_digest']}"
+     notify_manager(
+         api,
+@@ -2724,13 +3316,17 @@ def publish(m: dict[str, Any], manifest_hash: str) -> dict[str, Any]:
+     }
+ 
+ 
+-def publication_expected_tip(m: dict[str, Any], manifest_hash: str, api: Paperclip) -> str:
++def publication_expected_tip(
++    m: dict[str, Any], manifest_hash: str, api: Paperclip,
++    compatibility: dict[str, Any] | None = None,
++) -> str:
+     """Resolve the publish base while preserving legacy in-campaign slot chaining."""
+-    expected = predecessor_expected_tip(m, manifest_hash, api)
++    expected = predecessor_expected_tip(m, manifest_hash, api, compatibility)
+     if expected is not None:
+-        if "predecessor_base_tip" in m:
++        if "predecessor_base_tip" in m and compatibility is None:
+             require(expected == m["canonical"]["expected_tip"], "predecessor_expected_tip_changed")
+         return expected
++    require(compatibility is None, "compatibility_predecessor_missing")
+     return m["canonical"]["expected_tip"]
+ 
+ 
+@@ -2749,7 +3345,7 @@ def main(argv: list[str] | None = None) -> int:
+             if args.manifest is None or args.envelope is not None:
+                 raise DeliveryError("manifest_required")
+             m, sha = load_manifest(args.manifest)
+-            result = stage(m, sha) if args.action == "stage" else publish(m, sha)
++            result = stage(m, sha) if args.action == "stage" else publish(m, sha, args.manifest)
+     except (DeliveryError, OSError, ValueError) as exc:
+         if (
+             args.action == "prepare"
+diff --git a/engineering/tests/test_paperclip_native_delivery.py b/engineering/tests/test_paperclip_native_delivery.py
+index c88bbe88f1760f3def0168190489375c35109608..908fb07d778b893beb9b32d444dcfb9ce69d5434 100644
+--- a/engineering/tests/test_paperclip_native_delivery.py
++++ b/engineering/tests/test_paperclip_native_delivery.py
+@@ -8,6 +8,7 @@ import json
+ import os
+ import subprocess
+ import tempfile
++import time
+ import unittest
+ from contextlib import redirect_stderr
+ from pathlib import Path
+@@ -2724,5 +2725,536 @@ class PreparationTests(unittest.TestCase):
+         prepare.assert_called_once_with(str(self.envelope_path))
+ 
+ 
++class CompatibilityAuthorizationTests(unittest.TestCase):
++    def setUp(self) -> None:
++        self.acceptance = {
++            "source_task_id": delivery.COMPATIBILITY_ACCEPTANCE["source_task_id"],
++            "source_run_id": "12121212-1212-4212-8212-121212121212",
++            "patch_sha256": "7" * 64,
++            "stage_sha256": "8" * 64,
++            "qa_task_id": delivery.COMPATIBILITY_ACCEPTANCE["qa_task_id"],
++            "qa_run_id": "13131313-1313-4313-8313-131313131313",
++            "qa_attachment_id": "14141414-1414-4414-8414-141414141414",
++            "qa_sha256": "6" * 64,
++        }
++        constants = patch.object(delivery, "COMPATIBILITY_ACCEPTANCE", self.acceptance)
++        constants.start()
++        self.addCleanup(constants.stop)
++        self.paths = sorted(delivery.COMPATIBILITY_FILE_HASHES)
++        self.manifest = {
++            "company_id": "11111111-1111-4111-8111-111111111111",
++            "developer": {"task_id": delivery.COMPATIBILITY_ACCEPTANCE["source_task_id"], "agent_id": "33333333-3333-4333-8333-333333333333"},
++            "qa": {"task_id": delivery.COMPATIBILITY_ACCEPTANCE["qa_task_id"], "agent_id": "55555555-5555-4555-8555-555555555555"},
++            "publish": {"task_id": "66666666-6666-4666-8666-666666666666", "agent_id": "77777777-7777-4777-8777-777777777777"},
++            "source": {"paths": self.paths},
++            "canonical": {
++                "expected_tip": "a" * 40, "repo": "/synthetic/repo", "ref": "refs/heads/brain/development",
++                "remote_name": "origin", "remote_url": "https://github.com/example/repo.git",
++                "candidate_ref": "refs/heads/brain/candidate-cortex",
++            },
++            "predecessor": {
++                "manifest_sha256": "8" * 64,
++                "source_task_id": delivery.COMPATIBILITY_ACCEPTANCE["source_task_id"],
++                "publish_task_id": "88888888-8888-4888-8888-888888888888",
++            },
++            "resource_policy": {"policy_path": "/synthetic/resource-policy.json", "sha256": "9" * 64},
++        }
++        self.manifest_hash = "b" * 64
++
++    def authorization(self) -> dict[str, Any]:
++        accepted_paths = ["src/accepted/example.py", "tests/test_accepted_example.py"]
++        rows = [{
++            "commit": "c" * 40,
++            "candidate_ref": "refs/heads/brain/candidate-accepted",
++            "receipt_path": "/synthetic/custody/accepted-publication.json",
++            "receipt_sha256": "d" * 64,
++            "publication_digest": "e" * 64,
++            "publish_task_id": "99999999-9999-4999-8999-999999999999",
++            "publish_agent_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
++            "source_task_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
++            "source_agent_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
++            "source_run_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
++            "source_patch_sha256": "1" * 64,
++            "qa_task_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
++            "qa_agent_id": "ffffffff-ffff-4fff-8fff-ffffffffffff",
++            "qa_run_id": "10101010-1010-4010-8010-101010101010",
++            "qa_artifact_id": "15151515-1515-4515-8515-151515151515",
++            "qa_sha256": "2" * 64,
++            "manifest_sha256": "3" * 64,
++            "paths": accepted_paths,
++            "files": {path: "4" * 64 for path in accepted_paths},
++        }]
++        rows.append({
++            **rows[0],
++            "commit": "d" * 40,
++            "candidate_ref": "refs/heads/brain/candidate-accepted-2",
++            "receipt_path": "/synthetic/custody/accepted-publication-2.json",
++            "receipt_sha256": "5" * 64,
++            "publication_digest": "6" * 64,
++            "publish_task_id": "12121212-1212-4212-8212-121212121212",
++            "publish_agent_id": "13131313-1313-4313-8313-131313131313",
++            "source_task_id": "14141414-1414-4414-8414-141414141414",
++            "source_agent_id": "15151515-1515-4515-8515-151515151515",
++            "source_run_id": "16161616-1616-4616-8616-161616161616",
++            "source_patch_sha256": "7" * 64,
++            "qa_task_id": "17171717-1717-4717-8717-171717171717",
++            "qa_agent_id": "18181818-1818-4818-8818-181818181818",
++            "qa_run_id": "19191919-1919-4919-8919-191919191919",
++            "qa_artifact_id": "20202020-2020-4020-8020-202020202020",
++            "qa_sha256": "8" * 64,
++            "manifest_sha256": "9" * 64,
++            "paths": ["src/other_accepted/example.py", "tests/test_other_accepted.py"],
++            "files": {"src/other_accepted/example.py": "a" * 64,
++                      "tests/test_other_accepted.py": "b" * 64},
++        })
++        acceptance = delivery.COMPATIBILITY_ACCEPTANCE
++        return {
++            "schema": delivery.COMPATIBILITY_SCHEMA,
++            "decision_revision": delivery.COMPATIBILITY_DECISION_REVISION,
++            "extension_sha256": "5" * 64,
++            "manifest_sha256": self.manifest_hash,
++            "company_id": self.manifest["company_id"],
++            "developer_task_id": self.manifest["developer"]["task_id"],
++            "developer_agent_id": self.manifest["developer"]["agent_id"],
++            "publish_task_id": self.manifest["publish"]["task_id"],
++            "publish_agent_id": self.manifest["publish"]["agent_id"],
++            "source_task_id": self.manifest["developer"]["task_id"],
++            "source_run_id": "12121212-1212-4212-8212-121212121212",
++            "source_agent_id": self.manifest["developer"]["agent_id"],
++            "qa_task_id": self.manifest["qa"]["task_id"],
++            "qa_run_id": "13131313-1313-4313-8313-131313131313",
++            "qa_agent_id": self.manifest["qa"]["agent_id"],
++            "qa_artifact_id": "14141414-1414-4414-8414-141414141414",
++            "qa_sha256": "6" * 64,
++            "source_patch_sha256": "7" * 64,
++            "predecessor_manifest_sha256": self.manifest["predecessor"]["manifest_sha256"],
++            "predecessor_source_task_id": self.manifest["predecessor"]["source_task_id"],
++            "predecessor_publish_task_id": self.manifest["predecessor"]["publish_task_id"],
++            "predecessor_receipt_sha256": "8" * 64,
++            "predecessor_candidate": "9" * 40,
++            "stage_sha256": acceptance["stage_sha256"],
++            "historical_expected_tip": self.manifest["canonical"]["expected_tip"],
++            "canonical_repo": self.manifest["canonical"]["repo"],
++            "canonical_ref": self.manifest["canonical"]["ref"],
++            "remote_name": self.manifest["canonical"]["remote_name"],
++            "remote_url": self.manifest["canonical"]["remote_url"],
++            "candidate_ref": self.manifest["canonical"]["candidate_ref"],
++            "authorized_base_tip": "c" * 40,
++            "authorized_remote_tip": "c" * 40,
++            "paths": self.paths,
++            "files": {path: {"sha256": sha, "mode": "100644"} for path, sha in delivery.COMPATIBILITY_FILE_HASHES.items()},
++            "intervening_publications": rows,
++            "expires_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 3600)),
++            "resource_policy_sha256": self.manifest["resource_policy"]["sha256"],
++            "apply_sha256": "a" * 64,
++        }
++
++    def test_synthetic_authorization_binds_exact_identity_paths_expiry_and_decision(self) -> None:
++        value = self.authorization()
++        delivery._validate_compatibility_authorization(value, self.manifest, self.manifest_hash, "f" * 64)
++        tampered = {**value, "decision_revision": "0" * 64}
++        with self.assertRaisesRegex(delivery.DeliveryError, "compatibility_authorization_binding_mismatch"):
++            delivery._validate_compatibility_authorization(tampered, self.manifest, self.manifest_hash, "f" * 64)
++        expired = {**value, "expires_at": "2000-01-01T00:00:00Z"}
++        with self.assertRaisesRegex(delivery.DeliveryError, "compatibility_authorization_expired"):
++            delivery._validate_compatibility_authorization(expired, self.manifest, self.manifest_hash, "f" * 64)
++        delivery._validate_compatibility_authorization(
++            expired, self.manifest, self.manifest_hash, "f" * 64, check_expiry=False
++        )
++        path_prefix = json.loads(delivery.json_bytes(value))
++        path_prefix["intervening_publications"][0]["paths"] = ["src/memecoin_experience"]
++        path_prefix["intervening_publications"][0]["files"] = {"src/memecoin_experience": "4" * 64}
++        with self.assertRaisesRegex(delivery.DeliveryError, "compatibility_intervening_publications_invalid"):
++            delivery._validate_compatibility_authorization(
++                path_prefix, self.manifest, self.manifest_hash, "f" * 64
++            )
++
++    def test_absent_native_task_pin_keeps_default_strict_mode(self) -> None:
++        api = object.__new__(delivery.Paperclip)
++        with patch.dict(os.environ, {}, clear=True):
++            self.assertIsNone(delivery._compatibility_binding(
++                api, self.manifest["publish"]["task_id"], self.manifest, self.manifest_hash
++            ))
++
++    def test_config_pin_must_match_hash_pinned_read_only_authorization(self) -> None:
++        with tempfile.TemporaryDirectory(prefix="compat-auth-") as directory:
++            parent = Path(directory)
++            parent.chmod(0o700)
++            path = parent / "authorization.json"
++            value = self.authorization()
++            value["extension_sha256"] = delivery.digest(Path(delivery.__file__).read_bytes())
++            raw = delivery.json_bytes(value)
++            path.write_bytes(raw)
++            path.chmod(0o400)
++            reference = f"{path}#{delivery.digest(raw)}"
++            manifest_path = "/synthetic/owner/manifest.json"
++            issue = {
++                "id": self.manifest["publish"]["task_id"],
++                "companyId": self.manifest["company_id"],
++                "assigneeAgentId": self.manifest["publish"]["agent_id"],
++                "assigneeAdapterOverrides": {"adapterConfig": {
++                    "cwd": str(delivery.ORG_ROOT),
++                    "command": str(delivery.ORG_ROOT / ".venv/bin/python"),
++                    "args": ["-m", "engineering.paperclip_native_delivery", "publish", "--manifest", manifest_path],
++                    "env": {delivery.COMPATIBILITY_ENV: reference},
++                }},
++            }
++            class FakeApi:
++                def issue(self, _task_id: str) -> dict[str, Any]:
++                    return issue
++            with patch.dict(os.environ, {delivery.COMPATIBILITY_ENV: reference}):
++                loaded = delivery._compatibility_binding(
++                    FakeApi(), self.manifest["publish"]["task_id"], self.manifest,
++                    self.manifest_hash, manifest_path,
++                )
++            self.assertEqual(loaded["_pin_sha256"], delivery.digest(raw))
++            issue["assigneeAdapterOverrides"]["adapterConfig"]["env"][delivery.COMPATIBILITY_ENV] = f"{path}#{'0' * 64}"
++            with patch.dict(os.environ, {delivery.COMPATIBILITY_ENV: reference}):
++                with self.assertRaisesRegex(delivery.DeliveryError, "compatibility_task_config_binding_mismatch"):
++                    delivery._compatibility_binding(
++                        FakeApi(), self.manifest["publish"]["task_id"], self.manifest,
++                        self.manifest_hash, manifest_path,
++                    )
++
++    def test_intervening_receipt_chain_requires_exact_accepted_descendant(self) -> None:
++        with tempfile.TemporaryDirectory(prefix="compat-chain-") as directory:
++            repo = Path(directory) / "repo"
++            base = init_repo(repo)
++            git(repo, "update-ref", self.manifest["canonical"]["ref"], base)
++            allowed = ("src/accepted/example.py", "tests/test_accepted_example.py")
++            contents = {path: ("accepted:" + path + "\n").encode() for path in allowed}
++            blobs = {path: git(repo, "hash-object", "-w", "--stdin", data=data).decode().strip()
++                     for path, data in contents.items()}
++            receipt = delivery.publisher.prepare(
++                repo, self.manifest["canonical"]["ref"], base,
++                {path: None for path in allowed}, blobs, contents, allowed_paths=allowed,
++            )
++            publish_task = "99999999-9999-4999-8999-999999999999"
++            publish_agent = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
++            source_task = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
++            source_agent = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
++            source_run = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
++            qa_task = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
++            qa_agent = "ffffffff-ffff-4fff-8fff-ffffffffffff"
++            qa_run = "10101010-1010-4010-8010-101010101010"
++            publish_run = "11111111-1111-4111-8111-111111111111"
++            accepted_files = {path: delivery.digest(contents[path]) for path in allowed}
++            qa_artifact_id = "15151515-1515-4515-8515-151515151515"
++            qa_data = delivery.json_bytes({
++                "schema": delivery.QA_SCHEMA, "verdict": "accept", "source_task_id": source_task,
++                "source_patch_sha256": "1" * 64, "files": accepted_files,
++                "checks": [{"name": "candidate files and behavior", "result": "passed"}],
++            })
++            qa_sha = delivery.digest(qa_data)
++            saved = {
++                "schema": delivery.PUBLISH_SCHEMA,
++                "manifest_sha256": "3" * 64,
++                "source_task_id": source_task,
++                "source_run_id": source_run,
++                "source_patch_sha256": "1" * 64,
++                "qa_task_id": qa_task,
++                "qa_run_id": qa_run,
++                "qa_sha256": qa_sha,
++                "files": accepted_files,
++                "expected_tip": base,
++                "canonical_ref": self.manifest["canonical"]["ref"],
++                "candidate_ref": "refs/heads/brain/candidate-accepted",
++                "canonical_receipt": receipt,
++            }
++            saved["publication_digest"] = delivery.digest(delivery.json_bytes(saved))
++            receipt_path = Path(directory) / "custody" / "accepted.json"
++            receipt_path.parent.mkdir(mode=0o700)
++            receipt_path.write_bytes(delivery.json_bytes(saved))
++            receipt_path.chmod(0o400)
++            row = {
++                "commit": receipt["candidate"], "candidate_ref": saved["candidate_ref"],
++                "receipt_path": str(receipt_path), "receipt_sha256": delivery.digest(receipt_path.read_bytes()),
++                "publication_digest": saved["publication_digest"], "publish_task_id": publish_task,
++                "publish_agent_id": publish_agent, "source_task_id": source_task,
++                "source_agent_id": source_agent, "source_run_id": source_run,
++                "source_patch_sha256": saved["source_patch_sha256"], "qa_task_id": qa_task,
++                "qa_agent_id": qa_agent, "qa_run_id": qa_run, "qa_sha256": saved["qa_sha256"],
++                "qa_artifact_id": qa_artifact_id,
++                "manifest_sha256": saved["manifest_sha256"], "paths": list(allowed), "files": accepted_files,
++            }
++            issues = {
++                publish_task: {"id": publish_task, "companyId": self.manifest["company_id"], "assigneeAgentId": publish_agent, "status": "done"},
++                source_task: {"id": source_task, "companyId": self.manifest["company_id"], "assigneeAgentId": source_agent, "status": "done"},
++                qa_task: {"id": qa_task, "companyId": self.manifest["company_id"], "assigneeAgentId": qa_agent, "status": "done"},
++            }
++            native_runs = {
++                run_id: {"id": run_id, "status": "succeeded", "runtimeMode": "legacy", "agentId": agent,
++                         "companyId": self.manifest["company_id"], "issueId": task}
++                for run_id, agent, task in ((source_run, source_agent, source_task), (qa_run, qa_agent, qa_task), (publish_run, publish_agent, publish_task))
++            }
++            class FakeApi:
++                def issue(self, task_id): return issues[task_id]
++                def no_pending(self, _task_id): return None
++                def no_pending_terminal(self, _task_id): return None
++                def qa_artifact(self, _task, _run, _filename, _max_bytes):
++                    return ({"id": qa_artifact_id, "originatingRunId": qa_run,
++                             "createdByAgentId": qa_agent}, qa_data)
++                def request(self, _method, route):
++                    if route.startswith("/heartbeat-runs/"):
++                        return native_runs[route.rsplit("/", 1)[1]]
++                    if route == f"/issues/{publish_task}/runs":
++                        return [{"agentId": publish_agent, "contextIssueId": publish_task,
++                                 "status": "succeeded", "runId": publish_run, "finishedAt": "2026-10-30T00:00:00Z"}]
++                    raise AssertionError(route)
++            authorization = {"intervening_publications": [row], "authorized_base_tip": receipt["candidate"]}
++            target_manifest = {**self.manifest, "canonical": {**self.manifest["canonical"], "repo": str(repo)}}
++            self.assertEqual(
++                delivery._validate_intervening_publications(target_manifest, FakeApi(), authorization, base),
++                receipt["candidate"],
++            )
++            unrelated = git(repo, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
++                            "commit", "--quiet", "--allow-empty", "--no-gpg-sign", "-m", "unrelated").decode().strip()
++            with self.assertRaisesRegex(delivery.DeliveryError, "compatibility_authorized_base_not_descendant"):
++                delivery._validate_intervening_publications(
++                    target_manifest, FakeApi(), {**authorization, "authorized_base_tip": unrelated}, base
++                )
++
++    def test_remote_publication_uses_exact_compare_and_swap_lease(self) -> None:
++        manifest = {"canonical": {"repo": "/synthetic/repo", "remote_name": "origin",
++                                   "remote_url": "https://github.com/example/repo.git"}}
++        with (
++            patch.object(delivery, "git", return_value=b"https://github.com/example/repo.git\n"),
++            patch.object(delivery, "remote_git") as remote,
++        ):
++            delivery.push_ref(manifest, "c" * 40, "refs/heads/brain/development", "a" * 40)
++        self.assertEqual(
++            remote.call_args.args,
++            (Path("/synthetic/repo"), "push", "origin",
++             "--force-with-lease=refs/heads/brain/development:" + "a" * 40,
++             "c" * 40 + ":refs/heads/brain/development"),
++        )
++
++    def test_downstream_consumer_accepts_exact_pinned_compatibility_receipt_after_expiry(self) -> None:
++        with tempfile.TemporaryDirectory(prefix="compat-downstream-") as directory:
++            root = Path(directory)
++            repo = root / "repo"
++            base = init_repo(repo)
++            git(repo, "update-ref", "refs/heads/brain/development", base)
++            candidate = "c" * 40
++            paths = self.paths
++            staged = {path: f"synthetic accepted {path}\n".encode() for path in paths}
++            hashes = {path: delivery.digest(data) for path, data in staged.items()}
++            parent_task = delivery.COMPATIBILITY_ACCEPTANCE["source_task_id"]
++            parent_run = delivery.COMPATIBILITY_ACCEPTANCE["source_run_id"]
++            qa_task = delivery.COMPATIBILITY_ACCEPTANCE["qa_task_id"]
++            qa_run = delivery.COMPATIBILITY_ACCEPTANCE["qa_run_id"]
++            qa_attachment = delivery.COMPATIBILITY_ACCEPTANCE["qa_attachment_id"]
++            parent_publish_task = "a213e650-70d3-476e-bac7-856f7d6f38da"
++            publisher_agent = "33333333-3333-4333-8333-333333333333"
++            parent_hash = "d" * 64
++            predecessor_source = "44444444-4444-4444-8444-444444444444"
++            predecessor_publish = "55555555-5555-4555-8555-555555555555"
++            predecessor_manifest_hash = "e" * 64
++            parent_manifest_path = root / "parent-manifest.json"
++            predecessor_receipt_path = root / "predecessor-publication.json"
++            parent_custody = root / "parent-custody"
++            parent_custody.mkdir(mode=0o700)
++            parent = {
++                "company_id": self.manifest["company_id"],
++                "developer": {"task_id": parent_task, "agent_id": self.manifest["developer"]["agent_id"]},
++                "qa": {"task_id": qa_task, "agent_id": self.manifest["qa"]["agent_id"]},
++                "publish": {"task_id": parent_publish_task, "agent_id": publisher_agent},
++                "source": {"base_sha": "1" * 40, "paths": paths},
++                "canonical": {**self.manifest["canonical"], "repo": str(repo), "expected_tip": "a" * 40},
++                "custody_dir": str(parent_custody),
++            }
++            child_task = "66666666-6666-4666-8666-666666666666"
++            child = {
++                "company_id": self.manifest["company_id"],
++                "developer": {"task_id": child_task, "agent_id": "77777777-7777-4777-8777-777777777777"},
++                "canonical": {**parent["canonical"], "candidate_ref": "refs/heads/brain/candidate-child"},
++                "source": {"base_sha": parent["source"]["base_sha"],
++                           "paths": ["src/other_feature.py", "tests/test_other_feature.py"]},
++                "predecessor_base_tip": "a" * 40,
++                "predecessor": {
++                    "manifest_path": str(parent_manifest_path), "manifest_sha256": parent_hash,
++                    "source_task_id": parent_task, "publish_task_id": parent_publish_task,
++                    "receipt_path": str(predecessor_receipt_path),
++                },
++                "custody_dir": str(root / "child-custody"),
++            }
++            receipt = {
++                "schema": delivery.publisher.SCHEMA, "repo": str(repo.resolve()),
++                "ref": parent["canonical"]["ref"], "expected_tip": "b" * 40,
++                "tree": "f" * 40, "candidate": candidate, "files": [], "receipt_digest": "9" * 64,
++            }
++            saved = {
++                "schema": delivery.PUBLISH_SCHEMA, "manifest_sha256": parent_hash,
++                "source_task_id": parent_task, "source_run_id": parent_run,
++                "qa_task_id": qa_task, "qa_run_id": qa_run,
++                "qa_attachment_id": qa_attachment,
++                "qa_sha256": delivery.COMPATIBILITY_ACCEPTANCE["qa_sha256"],
++                "source_patch_sha256": delivery.COMPATIBILITY_ACCEPTANCE["patch_sha256"],
++                "files": hashes, "expected_tip": "b" * 40,
++                "historical_expected_tip": "a" * 40, "authorized_base_tip": "b" * 40,
++                "compatibility_authorization_sha256": "8" * 64,
++                "canonical_ref": parent["canonical"]["ref"],
++                "candidate_ref": parent["canonical"]["candidate_ref"],
++                "canonical_receipt": receipt,
++            }
++            saved["publication_digest"] = delivery.digest(delivery.json_bytes(saved))
++            predecessor_receipt_path.write_bytes(delivery.json_bytes(saved))
++            predecessor_receipt_path.chmod(0o400)
++            stage_record = {
++                "manifest_sha256": parent_hash, "developer_run_id": parent_run,
++                "patch": {"sha256": delivery.COMPATIBILITY_ACCEPTANCE["patch_sha256"]},
++                "files": {path: {"sha256": hashes[path]} for path in paths},
++            }
++            stage_raw = delivery.json_bytes(stage_record)
++            stage_path = parent_custody / f"stage-{parent_task}-{parent_run}.json"
++            stage_path.write_bytes(stage_raw)
++            stage_path.chmod(0o400)
++            native = parent_custody / f"native-handoff-{parent_task}-{parent_run}" / "files"
++            for path, data in staged.items():
++                target = native / path
++                target.parent.mkdir(parents=True, exist_ok=True)
++                target.write_bytes(data)
++            accept_constants = {**delivery.COMPATIBILITY_ACCEPTANCE, "stage_sha256": delivery.digest(stage_raw)}
++            file_constants = hashes
++            issue = {"id": parent_publish_task, "companyId": parent["company_id"],
++                     "assigneeAgentId": publisher_agent, "status": "done"}
++            run_id = "99999999-9999-4999-8999-999999999999"
++            class FakeApi:
++                def issue(self, _task_id): return issue
++                def no_pending_terminal(self, _task_id): return None
++                def request(self, _method, route):
++                    if route == f"/issues/{parent_publish_task}/runs":
++                        return [{"agentId": publisher_agent, "contextIssueId": parent_publish_task,
++                                 "status": "succeeded", "runId": run_id,
++                                 "finishedAt": "2026-10-30T00:00:00Z"}]
++                    if route == f"/heartbeat-runs/{run_id}":
++                        return {"id": run_id, "status": "succeeded", "runtimeMode": "legacy",
++                                "agentId": publisher_agent, "companyId": parent["company_id"],
++                                "issueId": parent_publish_task}
++                    raise AssertionError(route)
++            auth = {"_pin_sha256": "8" * 64, "authorized_base_tip": "b" * 40,
++                    "historical_expected_tip": "a" * 40}
++            refs = f"{candidate}\t{parent['canonical']['ref']}\n{candidate}\t{parent['canonical']['candidate_ref']}\n".encode()
++            with (
++                patch.object(delivery, "COMPATIBILITY_ACCEPTANCE", accept_constants),
++                patch.object(delivery, "COMPATIBILITY_FILE_HASHES", file_constants),
++                patch.object(delivery, "load_manifest", return_value=(parent, parent_hash)),
++                patch.object(delivery, "_compatibility_binding", return_value=auth),
++                patch.object(delivery.publisher, "_check_candidate"),
++                patch.object(delivery.publisher, "inspect"),
++                patch.object(delivery, "git", return_value=(candidate + "\n").encode()),
++                patch.object(delivery, "remote_git", return_value=refs),
++            ):
++                self.assertEqual(delivery.predecessor_expected_tip(child, "f" * 64, FakeApi()), candidate)
++
++    def test_actual_publish_entry_prepares_reconciles_replays_and_receipts_authorized_base(self) -> None:
++        with tempfile.TemporaryDirectory(prefix="compat-publish-") as directory:
++            root = Path(directory)
++            repo = root / "repo"
++            historical_base = init_repo(repo)
++            canonical_ref = "refs/heads/brain/development"
++            git(repo, "update-ref", canonical_ref, historical_base)
++            git(repo, "symbolic-ref", "HEAD", canonical_ref)
++            paths = self.paths
++            source_task = delivery.COMPATIBILITY_ACCEPTANCE["source_task_id"]
++            qa_task = delivery.COMPATIBILITY_ACCEPTANCE["qa_task_id"]
++            publish_task = "22222222-2222-4222-8222-222222222222"
++            source_agent = "33333333-3333-4333-8333-333333333333"
++            qa_agent = "44444444-4444-4444-8444-444444444444"
++            publish_agent = "55555555-5555-4555-8555-555555555555"
++            source_run = "12121212-1212-4212-8212-121212121212"
++            qa_run = "13131313-1313-4313-8313-131313131313"
++            patch_sha = "7" * 64
++            custody = root / "custody"
++            custody.mkdir(mode=0o700)
++            native = custody / f"native-handoff-{source_task}-{source_run}" / "files"
++            content = {
++                paths[0]: b"synthetic Cortex implementation\n",
++                paths[1]: b"synthetic Cortex behavior check\n",
++            }
++            for path, data in content.items():
++                output = native / path
++                output.parent.mkdir(parents=True, exist_ok=True)
++                output.write_bytes(data)
++            file_hashes = {path: delivery.digest(data) for path, data in content.items()}
++            stage_record = {
++                "schema": delivery.STAGE_SCHEMA, "manifest_sha256": self.manifest_hash,
++                "developer_run_id": source_run, "paths": paths,
++                "patch": {"sha256": patch_sha},
++                "files": {path: {"sha256": file_hashes[path], "size": len(content[path])} for path in paths},
++            }
++            delivery.save_record(delivery.stage_path(custody, source_task, source_run), stage_record)
++            qa_data = delivery.json_bytes({
++                "schema": delivery.QA_SCHEMA, "verdict": "accept", "source_task_id": source_task,
++                "source_patch_sha256": patch_sha, "files": file_hashes,
++                "checks": [{"name": "synthetic source and behavior", "result": "passed"}],
++            })
++            qa_artifact_id = "66666666-6666-4666-8666-666666666666"
++            runs = {
++                "developer": {"runId": source_run, "agentId": source_agent},
++                "qa": {"runId": qa_run, "agentId": qa_agent},
++            }
++            class FakeApi:
++                run_id = "77777777-7777-4777-8777-777777777777"
++                def current(self, action): return publish_task
++                def qa_artifact(self, _task, run, _name, _limit):
++                    return ({"id": qa_artifact_id, "originatingRunId": run["runId"],
++                             "createdByAgentId": qa_agent}, qa_data)
++                def complete(self, _task): return None
++            api = FakeApi()
++            auth = {
++                "source_run_id": source_run, "qa_run_id": qa_run,
++                "qa_artifact_id": qa_artifact_id, "qa_sha256": delivery.digest(qa_data),
++                "source_patch_sha256": patch_sha,
++                "files": {path: {"sha256": file_hashes[path], "mode": "100644"} for path in paths},
++                "historical_expected_tip": "a" * 40, "authorized_base_tip": historical_base,
++                "_pin_sha256": "8" * 64,
++                "intervening_publications": [
++                    {"candidate_ref": "refs/heads/brain/candidate-a", "commit": "9" * 40},
++                    {"candidate_ref": "refs/heads/brain/candidate-b", "commit": "8" * 40},
++                ],
++            }
++            manifest = {
++                "company_id": self.manifest["company_id"], "manager_task_id": "88888888-8888-4888-8888-888888888888",
++                "developer": {"task_id": source_task, "agent_id": source_agent},
++                "qa": {"task_id": qa_task, "agent_id": qa_agent},
++                "publish": {"task_id": publish_task, "agent_id": publish_agent},
++                "source": {"paths": paths},
++                "canonical": {"repo": str(repo), "ref": canonical_ref,
++                              "remote_name": "origin", "remote_url": "https://github.com/example/repo.git",
++                              "candidate_ref": "refs/heads/brain/candidate-cortex",
++                              "expected_tip": "a" * 40},
++                "custody_dir": str(custody),
++                "resource_policy": {"path": str(root / "resource.json"), "sha256": "a" * 64},
++            }
++            remote = {canonical_ref: historical_base,
++                      "refs/heads/brain/candidate-a": "9" * 40,
++                      "refs/heads/brain/candidate-b": "8" * 40}
++            def refs(_manifest, _compatibility=None): return dict(remote)
++            def push(_manifest, source, target_ref, expected_old):
++                self.assertEqual(remote.get(target_ref), expected_old)
++                remote[target_ref] = source
++            with (
++                patch.object(delivery, "Paperclip", return_value=api),
++                patch.object(delivery, "latest_successful", side_effect=lambda _api, task: runs["developer" if task["task_id"] == source_task else "qa"]),
++                patch.object(delivery, "_compatibility_binding", return_value=auth),
++                patch.object(delivery, "predecessor_expected_tip", return_value=historical_base),
++                patch.object(delivery, "_resource_preflight", return_value=None),
++                patch.object(delivery, "remote_refs", side_effect=refs),
++                patch.object(delivery, "push_ref", side_effect=push),
++                patch.object(delivery, "notify_manager"),
++                patch.dict(os.environ, {delivery.COMPATIBILITY_ENV: "/synthetic/auth.json#" + "8" * 64}),
++            ):
++                delivery.publish(manifest, self.manifest_hash, "/synthetic/owner/manifest.json")
++                receipt_path = custody / f"publication-{source_task}.json"
++                saved = json.loads(receipt_path.read_bytes())
++                self.assertEqual(saved["expected_tip"], historical_base)
++                self.assertEqual(saved["historical_expected_tip"], "a" * 40)
++                self.assertEqual(saved["authorized_base_tip"], historical_base)
++                self.assertEqual(saved["compatibility_authorization_sha256"], "8" * 64)
++                delivery.publish(manifest, self.manifest_hash, "/synthetic/owner/manifest.json")
++                self.assertEqual(json.loads(receipt_path.read_bytes()), saved)
++
++
+ if __name__ == "__main__":
+     unittest.main()

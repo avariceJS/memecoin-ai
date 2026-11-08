@@ -1,0 +1,53 @@
+{
+  "schema": "brain-unaccepted-source-candidates-v1",
+  "purpose": "Source custody only. No acceptance, integration, runtime deployment or launch authority. Existing native holds and immutable receipts remain authoritative.",
+  "candidates": [
+    {
+      "identifier": "MEM-253",
+      "task_id": "4da61425-1618-4dcf-a62f-fb73c2b68ee9",
+      "native_task_status": "done",
+      "original_base_sha": "8dbb9cfa64b610b65c030ce7da6deaa8e54eb5b2",
+      "application_base_sha": "54fb18054ec49ee53bbe7fd19a1936c3e2d699e5",
+      "reason": "Unique masked lag encoding research candidate; historical publication hold retained. Native source completion is not publication acceptance.",
+      "status": "unaccepted_hold",
+      "runtime_admitted": false,
+      "patch": "mem-253.patch",
+      "patch_sha256": "3701c1dc38ea1e1d505a0c7d390ac46d2160fe792872d7b2386fc2a37733e7ec",
+      "exact_after_files": {
+        "src/memecoin_experience/masked_lag_encoding.py": {
+          "sha256": "5edeee62a396e8f3925df0d3d2bb277df10da55c68cc9eed821ad6cc453fe072",
+          "git_blob": "ad42dbdb1785fa3624a1dbd3f1d875d81111732b"
+        },
+        "tests/test_research_masked_lag_encoding.py": {
+          "sha256": "627223363c1dafffae972fac34e8e67237ca4ba3ddcbecaf5de662aedf3df421",
+          "git_blob": "5690c92461e522e3547e32c10f0bc5663aff1375"
+        }
+      },
+      "verification": "git apply --cached --check against application_base_sha; resulting source/test bytes match preserved candidate exactly",
+      "base_note": "Original worker seed was sanitized. Both new paths are absent at the documented reachable application base, so the exact additions apply there without a private seed."
+    },
+    {
+      "identifier": "MEM-290",
+      "task_id": "f5662a69-6ff8-4bcd-86c7-012d35765b66",
+      "native_task_status": "blocked",
+      "original_base_sha": "a7791d2ca70de870d07a85eff03d732edf92c9e3",
+      "application_base_sha": "a7791d2ca70de870d07a85eff03d732edf92c9e3",
+      "reason": "Unique scoped compatibility candidate; existing blocked/unknown-effect history retained. Not integrated or admitted.",
+      "status": "unaccepted_hold",
+      "runtime_admitted": false,
+      "patch": "mem-290.patch",
+      "patch_sha256": "fcb662cd9be949ce969a3089dc046d2b38dd23cdabc35c0409b9a99e23a5c3b7",
+      "exact_after_files": {
+        "engineering/paperclip_native_delivery.py": {
+          "sha256": "e82ef013d3b813f9e60094e73c56eb5dd51cb6909c99e507a26d395cca0711b9",
+          "git_blob": "6fd2b0b0defa577d8eb4283095e995e8aee9730c"
+        },
+        "engineering/tests/test_paperclip_native_delivery.py": {
+          "sha256": "530853f28a5dcfc08b896f432d91d6afdd17cb6523857eb6a932d36bbe445aad",
+          "git_blob": "908fb07d778b893beb9b32d444dcfb9ce69d5434"
+        }
+      },
+      "verification": "git apply --cached --check against application_base_sha; resulting source/test bytes match preserved candidate exactly"
+    }
+  ]
+}

@@ -1,65 +1,71 @@
-# Memecoin AI
+# Brain / Memecoin AI
 
-An auditable Solana market-data, forecasting, and virtual-paper research system. The long-term
-target is a scalable Brain; the current deployment is an exploratory, non-execution system.
-See [`docs/INDEX.md`](docs/INDEX.md) for the agent entrypoint and canonical knowledge map.
+One source checkout: `~/Developer/memecoin-research`, repository `avariceJS/memecoin-ai`.
+`develop` contains Brain and the AI Engineering Organization; `main` is the stable baseline with
+separate release authority. Read [AGENTS.md](AGENTS.md) and [current status](memory/now.md) first.
 
-## Recover code and resume development
+## Brain development
 
-Start from GitHub `main`, then read `memory/now.md`, `AGENTS.md`, and `docs/INDEX.md`:
-
-```sh
-git clone https://github.com/avariceJS/memecoin-ai.git
-cd memecoin-ai
-git switch main
-git fetch origin --prune --tags
-```
-
-The [branch and recovery registry](docs/operator-runtime.md#git-integration-and-recovery-registry)
-identifies every retained experimental branch and the immutable pre-reset history archive.
-Use a separate topic branch/worktree for each task and push meaningful checkpoints regularly.
-A clone restores code/history, not private Brain state. On the restored Mac, historical owner state
-is preserved separately and a verified internal read-only BrainData replica supports development
-without Kingston. Kingston remains the unchanged recovery source. See the current storage limits in
-[data architecture](docs/brain-source-architecture.md#post-reset-development-storage-2026-10-19).
-Cloning or updating `main` must not start Brain.
-
-## Development
-
-Active development/research runs on Mac 1 in a checkout separate from owner production state.
-Mac 2 is not involved. The recovery entry is `/Volumes/Kingston/BrainRestore-20261018/START-HERE.txt`. See
-[operating mode and host boundaries](docs/operator-runtime.md#operating-mode-and-host-boundaries)
-for canonical paths and runtime separation.
-
-Python 3.11+; runtime dependencies use the standard library.
-
-In the research checkout, source `tools/brain_dev_env.sh` in a Cursor terminal to activate the
-existing `.venv` and select Python 3.13.6, OpenSSL 3.6.4, Node v24.5.0 and zstd 1.5.7.
-The helper makes no installs; `PATH` and the OpenSSL config selection affect only that shell.
-Its `BRAIN_DEV_*` overrides support verified alternate tool paths.
+Python 3.11+; the Python runtime uses the standard library. Development dependencies are pinned.
+On a new machine:
 
 ```sh
-cd /Users/root1/Developer/memecoin-research
-source tools/brain_dev_env.sh
+git clone --branch develop https://github.com/avariceJS/memecoin-ai.git ~/Developer/memecoin-research
+cd ~/Developer/memecoin-research
+make setup
 make smoke
-.venv/bin/python tools/brain_dev_operator_preview.py serve --latest --port 8793
 ```
 
-Open `http://127.0.0.1:8793`; stop with Ctrl-C. This existing Operator UI displays a copied historical
-snapshot with writes and background tickers disabled. Refresh, research commands and the separate
-Observatory are documented in [operator/runtime](docs/operator-runtime.md#post-reset-local-development-2026-10-19).
+ML is optional: `make ml-setup` installs the separately pinned ML environment. Do not train, promote
+models, access protected holdout, start collectors or enable trading without separate authority.
+Synthetic smoke validates software behavior, not market quality or trading edge.
+Use focused tests for the affected subsystem; `make check` is the broader repository gate.
 
-For a new environment only, use `make setup` / `make ml-setup`. Existing restored environments need
-no reinstall. `make check` currently stops at 107 legacy Ruff findings; `make test` / `make test-ml`
-include known historical failures (see `memory/now.md`). `make ml-check` verifies the focused ML
-suite. Synthetic smoke/replay validates software behavior, not market quality or trading edge.
+## Paperclip source and paused runtime
 
-Do not overwrite existing `work/`, datasets, runs, model artifacts, or owner runtime. Read
-[`AGENTS.md`](AGENTS.md) before project work.
+Our exact Paperclip changes are a reproducible delta over pinned upstream, not a local Git bundle.
+Install source on a new machine, then install/build its pinned dependencies:
 
-## Read-only Observatory UI
+```sh
+.venv/bin/python -m engineering.paperclip.install_source
+cd ../memecoin-runtime/paperclip
+corepack pnpm install --frozen-lockfile
+corepack pnpm --filter @paperclipai/plugin-sdk build
+cd ../../memecoin-research
+corepack pnpm --dir engineering/paperclip/autonomous-plugin install --frozen-lockfile
+corepack pnpm --dir engineering/paperclip/autonomous-plugin build
+```
 
-The integrated [Control Center app](apps/control-center/README.md) displays pinned historical
-engineering evidence, not current production state. `make check` includes its isolated Python
-boundary tests. After `npm --prefix apps/control-center/web ci`, run `make cc-web-check` for
-TypeScript, web tests and build. UI dependencies remain separate from the stdlib runtime.
+Source reconstruction checks exact commit/tree/parent chain. Dependency installation and launch are
+separate. Connect the existing private `memecoin-runtime/state/instances/lab` database, encryption key,
+JWT secret and delegated subscription bindings independently; never create a replacement organization
+while restoring its state. The reusable 52-profile configuration is in
+`engineering/paperclip/organization/organization.json`; use existing native APIs and fresh readback.
+
+The existing custody-bound launcher is:
+
+```sh
+.venv/bin/python -m engineering.paperclip_lab_server status
+.venv/bin/python -m engineering.paperclip_lab_server start
+.venv/bin/python -m engineering.paperclip_lab_server stop
+```
+
+Starting the server does not authorize company work. All companies remain paused until explicit Founder
+launch. See [organization contracts and limits](docs/engineering-organization.md).
+
+## Local state and research data
+
+The sole private store is `~/Developer/memecoin-runtime`: Paperclip instance/dependency, durable receipts,
+Brain owner/research state, secrets and one independent sanitized worker seed. `work` and `.env.local`
+in the source checkout are local ignored links into that store. Keep owner/research env values separate.
+The worker seed has no remote/credentials/alternates to canonical Git: native isolated worktrees need it
+because their sandbox grants access to shared Git metadata. It is a reproducible execution cache, not a
+second source of truth. Never make canonical `.git` writable to workers.
+
+Large research data remains in its explicitly identity-bound external volume. Kingston is currently
+absent; BrainDevelopment has a different identity. Do not substitute roots or mutate holdout.
+Protected opaque custody and unresolved historical effects remain in the private store.
+
+[Documentation index](docs/INDEX.md) owns the short canonical reading map. The read-only Observatory
+is documented in [apps/control-center/README.md](apps/control-center/README.md).
+Apply CLEAN-AS-YOU-GO after accepted publication; no one-off reports or additional project copies.

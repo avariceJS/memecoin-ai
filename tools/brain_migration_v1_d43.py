@@ -24,7 +24,7 @@ else:
 
 SCHEMA = "brain-practical-migration-v1-d43-opaque"
 LABEL = "ai.memecoin.d43.calendar01"
-SOURCE_ROOT = Path("/Users/root1/Desktop/memecoin-ai/work/calendar-execution-01")
+SOURCE_ROOT = Path.home() / "Developer/memecoin-runtime/brain/owner-work/calendar-execution-01"
 PLIST_PATH = Path("/Users/root1/Library/LaunchAgents/ai.memecoin.d43.calendar01.plist")
 PLIST_SHA256_PIN = "1558480d219673a7bc35683bc2e24bb6a1c80bb667daf15dc89569653c7f6e82"
 MIGRATION_DIR = "BrainMigrationV1"

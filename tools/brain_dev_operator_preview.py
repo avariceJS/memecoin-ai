@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
-DEFAULT_SOURCE = Path.home() / "Desktop/memecoin-ai/work/brain-b13/operator04"
+DEFAULT_SOURCE = Path.home() / "Developer/memecoin-runtime/brain/owner-work/brain-b13/operator04"
 DEFAULT_SNAPSHOTS = REPO / "work/dev-local/operator-preview/snapshots"
 NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 PROTECTED_PARTS = {"d43", "f01", "holdout", "reserved", "protected"}
