@@ -1,5 +1,13 @@
 # Engineering lessons and retrieval
 
+## Consolidation must preserve the Git write boundary — 2026-11-08
+
+At Paperclip `d06cbd5`, native managed worktrees grant write access to their shared Git metadata.
+A canonical source checkout therefore cannot also be the worker seed. Keep one independent,
+reproducible seed without remotes/credentials/alternates; publish original code before removing copies.
+The pinned source is owned by `engineering/paperclip/source-pin.json`. Re-evaluate only after a
+separately qualified native isolated-copy mode changes this boundary.
+
 ## Batch closure is deterministic; task contracts must be complete — 2026-10-31
 
 Use the existing publisher's opt-in v2 acceptance to close the verified parent before completing its
@@ -41,7 +49,7 @@ unchanged implementation with the other two developers in one review. Do not man
 QA/rework cycle for a metadata discrepancy that immutable Git/file evidence resolves. This applies
 only while the reviewed bytes and base/path evidence still match; changed code or ambiguous effects
 require fresh judgment. Source: [Luna-first receipt](evidence/brain-luna-first-restructuring-20261031.json)
-and [current organization result](engineering-organization.md#applied-result-and-bounded-real-development).
+and [current organization result](engineering-organization.md).
 
 
 ### E17 — Verify artifact access in the actual QA context
@@ -52,7 +60,7 @@ and [current organization result](engineering-organization.md#applied-result-and
 - **Action:** Check actual tool exposure before admission, or bind the supported complete-evidence handoff.
   Do not infer runtime capability from configuration or add an unsupported metadata requirement to an
   already accepted staging contract. Preserve the operational block separately from semantic rejection.
-- **Source:** [Final acceptance](engineering-organization.md#final-functional-acceptance--2026-10-27).
+- **Source:** [Final acceptance](engineering-organization.md).
 - **Revalidate:** Fresh provider context, artifact interface or native permission changes.
 
 ### E16 — Preserve numeric information and rejected candidates
@@ -65,7 +73,7 @@ and [current organization result](engineering-organization.md#applied-result-and
   final representation, and use an independently constructed oracle. On rejection return the full
   previous candidate and concrete findings to the same worker; retain prior QA and enforce the
   correction cap. A later accepted admission does not erase an earlier stopped programme.
-- **Source:** [Final organization acceptance](engineering-organization.md#final-functional-acceptance--2026-10-27).
+- **Source:** [Final organization acceptance](engineering-organization.md).
 - **Revalidate:** Numeric input/output contract, representation or correction policy changes.
 
 ### E15 — Derive shift summaries from native records
@@ -76,7 +84,7 @@ and [current organization result](engineering-organization.md#applied-result-and
 - **Action:** Construct IDs and usage from native returned records; filter exact task/agent bindings,
   deduplicate IDs, include manager and failed attempts, and label the final still-active run as pending.
   Final terminal cost requires the later native ledger, not a self-reported pre-terminal total.
-- **Source:** [Accepted shift and reporting correction](engineering-organization.md#accepted-post-ceo-shift-and-sequential-preparation--2026-10-26).
+- **Source:** [Accepted shift and reporting correction](engineering-organization.md).
 - **Revalidate:** Native telemetry schema or lifecycle changes. Preserve the original faulty artifact.
 
 ### E14 — Verify installed process interfaces before useful admission
@@ -146,7 +154,7 @@ and [current organization result](engineering-organization.md#applied-result-and
   prove edits/tests plus overlapping run intervals. Keep exact-candidate QA; return full feedback to
   the same candidate. Do not infer unattended integration or scale40 from this bounded cohort.
 - **Source:** [Accepted cohort](evidence/brain-native-parallel-cohort-20261026.json),
-  [canonical workflow](engineering-organization.md#bounded-native-developer-path--2026-10-26).
+  [canonical workflow](engineering-organization.md).
 - **Revalidate when:** Adapter, Codex, task workspace inheritance, service environment or host changes.
 
 This is a compact recall index, not a task tracker or authority ledger. Each finding links to its
@@ -219,7 +227,7 @@ package), with stable lesson identifiers below; private handoffs and raw logs ar
   primary documentation. Identify the concrete gap, then compare reuse with the smallest replacement.
 - **Sources:** Supplied extract L01/L03, 26 October audit sections “Критическая оценка архитектуры”,
   “Главные источники потерь”, and “Запись отказа QA и управление дочерней задачей”;
-  [organization simplification map](engineering-organization.md#replacement-and-simplification-map).
+  [organization simplification map](engineering-organization.md).
 - **Revalidate:** Platform version, role exposure, or requirements change.
 
 ### E06 — Give the implementer the previous candidate as well as the accepted base
@@ -284,3 +292,11 @@ python3 tools/agent_context.py --task review --query 'rejected candidate exact d
 
 Ordinary `rg` search and Markdown links work in a terminal or Obsidian. Git retains detailed history;
 this file does not copy receipts, task state, raw transcripts, or private operational handoffs.
+
+## Frozen source bindings and current locators — 2026-11-08
+
+A frozen importer can be part of an existing manifest's module hash. Preserve its exact bytes and
+update the current guarded caller's explicit locator instead of rewriting the frozen default. The
+Kingston callers use a descriptor-held, owner-only `brain/research` directory; physical configuration
+paths avoid symlink-ancestor rejection. Focused synthetic and read-only binding checks passed; this
+is not a claim of new atomic source-reader semantics or protected-data/model acceptance.

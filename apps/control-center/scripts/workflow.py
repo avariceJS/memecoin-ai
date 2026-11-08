@@ -190,7 +190,9 @@ def check_definitions():
         require(fields["readonly"] == str(expected_readonly).lower(), "Readonly mismatch")
         require(fields["is_background"] == "false", "Background disabled for this team")
         require(
-            "AGENT-TEAM.md" in parts[2] and "apps/control-center/AGENTS.md" in parts[2],
+            "root AGENTS.md" in parts[2]
+            and "apps/control-center/AGENTS.md" in parts[2]
+            and "docs/INDEX.md" in parts[2],
             "Missing required rules",
         )
 

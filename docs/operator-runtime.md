@@ -177,6 +177,9 @@ Old branch registries/custody narratives remain in Git history; do not use their
 
 Private runtime is `~/Developer/memecoin-runtime`. Paperclip owns `state/instances/lab` and its live DB,
 secrets, durable receipts and holds. Brain's retained local state is under `brain/`.
-Large research data stays on its explicitly configured volume. BrainDevelopment and Kingston have
-different identities; Kingston is currently absent. Existing protected holdout is never cleanup input.
+Large data is canonical at `/Volumes/Kingston/BrainData`; `brain/owner-work` and `brain/research-work`
+are links to its `brain/{owner,research}/work` trees. The physical storage config is
+`~/Developer/memecoin-runtime/brain/config/storage-v1.json`. Kingston UUID/root marker and the 50 GiB
+free-space guard are unchanged. BrainDevelopment is a distinct internal volume: its ordinary duplicate
+was removed; two opaque D43 custody containers remain untouched. Protected holdout is never cleanup input.
 See [organization](engineering-organization.md) for the paused native operating model and source install.

@@ -65,7 +65,7 @@ Goal/project/programme descriptions were updated through native mechanisms and r
 workspace identities,subscription bindings and original manual holds remain; no replacement Goal or
 organization. Company is paused with zero active/queued/live runs. See the unique
 [result receipt](evidence/brain-lead-wakeup-efficiency-20261031.json) and private
-`/Users/root1/Developer/brain-paperclip-lab/state/lead-efficiency-20261031/checkpoint.json`.
+`~/Developer/memecoin-runtime/state/lead-efficiency-20261031/checkpoint.json` (historical receipt locators remain immutable).
 
 Earlier checkpoint sections below are historical where their instructions or state conflict.
 
@@ -162,7 +162,14 @@ After accepted integration/publication, remove the task's unneeded temporary bra
 its generated files through existing Git/Paperclip mechanisms. Verify receipt and remote SHA first;
 never remove an active/dirty/unpublished candidate or an unknown-effect intent. Update canonical docs;
 do not leave task reports or new archives. The existing publisher removes its own confirmed publication
-ref after success. No new cleanup service, framework, scheduler or compulsory QA stage.
+ref after success. After exact v2 closure, it can advance only an accepted source execution-workspace's
+comparison `baseRef` to the integrated assembled tip through the existing native API. Fresh DONE/hold,
+workspace identity, seed/common-Git registration and ancestry checks fail closed; drift or a missing
+native record defers cleanup. The existing native sweep retains dirty/active/cooldown/generation and
+branch-CAS protections. Receipt replay never reapplies source or changes the original receipt. This
+handoff passed 99 focused tests and 63 subtests plus independent review; a live post-publication sweep
+was not exercised while the company was paused. No new cleanup service, framework, scheduler or
+compulsory QA stage.
 
 ## Measured limits
 
@@ -181,3 +188,16 @@ changes and independent for substantial changes/protected boundaries/publication
 The consolidation source candidate received separate independent review: exact Paperclip reconstruction,
 launcher/source admission, publisher receipt replay/ref cleanup, shared storage and host paths, plus
 190 focused tests and 20 subtests. These checks do not prove live runtime migration or Linux deployment.
+
+
+## Current runtime bindings and held compatibility — 2026-11-08
+
+The seven current source workspaces (six departments and maintenance) use the independent worker
+cache; the existing fixed process uses the private read-only `state/batch-policy.json`, `develop`
+and its shared publisher workspace. Policy loading passed; all original issue and run status hashes
+are unchanged, all six companies remain paused, and no new native run was created.
+
+Historical v9 bridge missions bind retired profiles and old digests/paths. Their original bytes remain
+private and held; removed source copies do not re-admit those missions. Current Astra/six-lead native
+batching has no bridge tools in its allowlist and does not depend on them. New legacy mission
+qualification is separate work, not implied by source consolidation.

@@ -9,7 +9,7 @@ This rule applies only to the Control Center; it never restricts unrelated core 
 UI runtime reads only the sealed published projection. No raw work/holdout/credentials,
 core imports, RPC, collectors, training, trading actions or production controls through the UI.
 Keep source pins and published bytes unchanged unless a separately reviewed projection is authorized.
-Use main as the integrated baseline and the explicitly assigned working branch (normally research/active).
+Use develop as the integrated baseline and an explicitly assigned temporary task branch when needed. Main is stable and must remain unchanged.
 The developer scope guard checks pending changes against HEAD; --base REF checks a review range.
 A consolidation commit may intentionally include core changes and requires root integration review.
 Current model/delegation policy comes from the session and root docs; Grok is disabled.

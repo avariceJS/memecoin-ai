@@ -27,8 +27,8 @@ pre-consolidation model/branch instructions are historical evidence, not current
 
 ## Development
 
-Use the active research checkout and assigned branch (normally research/active); never change
-/Users/root1/Desktop/memecoin-ai. Old control-center/observatory-handoff remains historical.
+Use `~/Developer/memecoin-research` on `develop` or an assigned temporary task branch.
+`main` is stable and remains unchanged. Old control-center/observatory-handoff is historical.
 Scope guard defaults to HEAD for pending changes; --base REF checks a committed review range.
 Run UI Python boundary/workflow tests, exact projection reproduction, TypeScript check/tests/build.
 Do not convert green tests into a visual PASS: CC02 remains unimplemented and unaccepted.

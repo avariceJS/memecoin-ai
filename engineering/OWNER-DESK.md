@@ -1,31 +1,57 @@
-# Founder Desk — 31 октября 2026: wakeups исправлены, компания остановлена
+# Founder Desk — 8 ноября 2026: консолидация, компания на паузе
 
-**Чистый MEM-428 завершён: 2 вызова Luna-лида и 2 разработчиков; назначение, общий review, публикация и закрытие родителя — без внешней помощи.** После этого восстановлены шесть постоянных Sol6.1 High лидов. Astra High остаётся стратегическим CEO; 40 исходных разработчиков и 5 optional reviewer-профилей — Luna High. Live readback подтверждён; стоимость работы Sol не измерялась.
+Основной код: `~/Developer/memecoin-research`, GitHub `avariceJS/memecoin-ai`, ветка `develop`.
+`main` не изменена: `2f8da5f92da521b511e0d4fb20205981a000cab5`. На GitHub осталось 2 ветки вместо 45;
+удалены 116 временных worktree. История всех 117 прежних checkout HEAD сохранена в опубликованной
+истории. Brain и организация объединены; необходимые Linux/deployment-инструменты сохранены.
+Точные SHA текущей разработки проверяются через `git rev-parse HEAD` и удалённую `develop`.
 
-Исправлен существующий API blocked→DONE: он проверяет сохраняемые зависимости в том же атомарном переходе. Существующий publisher v2 после fresh task/Git/receipt checks закрывает родителя, затем свой child, без model acknowledgment. Убрана обязательная Git ancestry при сохранённых exact-tree/old-blob/CAS/no-loss checks. Полный native company-issues API теперь явно задаёт assignee, reviewPolicy и отдельный managed worktree; сокращённое создание задач удалено из каталога лидов. Нового publisher/controller/scheduler нет.
+Из 9 основных локальных каталогов осталось 2: проект и единственное приватное хранилище
+`~/Developer/memecoin-runtime`. Их суммарный `du` уменьшился с 154,23 до примерно 20,0 GiB
+(данные SSD не входят; ссылки не обходятся). Сам проект занимает примерно 0,63 GiB.
+Удалены старые `brain-org-build` и три fix-копии, `brain-org-state`, прежний `brain-paperclip-lab`,
+`~/Desktop/memecoin-ai`, `~/BrainRestore`; нужное состояние lab перемещено в runtime.
+Дополнительно удалена обычная копия ResearchData на внутреннем BrainDevelopment.
 
-| Пакет | Lead / developer calls | Причина каждого manager wake |
-|---|---:|---|
-| Прежние407/410 |4/2 и5/2|Старый цикл с acknowledgment/recovery/stale closure. |
-|416 |4/4|issue_assigned;issue_children_completed;issue_commented×2 — диагностика API и подготовка продолжения. |
-|424 |5/2|issue_blockers_resolved;issue_children_completed;issue_assigned orphan recovery;issue_commented×2 — ошибочные metadata/reassignment. |
-|428 |2/2|issue_blockers_resolved — планирование;issue_children_completed — общий review. |
+Канонические данные — `/Volumes/Kingston/BrainData`, около 40,8 GiB. Сохранены рыночные наблюдения,
+модели, champion, целые SQLite-семейства, manifests и защищённые кандидаты. Рабочие ссылки Brain
+ведут в `BrainData/brain/{owner,research}/work`. UUID/root marker Kingston и порог 50 GiB сохранены;
+BrainDevelopment — другой внутренний том. Защищённые данные не читались и не хэшировались.
 
-Первые два новых опыта **не были автономными по закрытию**: уже опубликованный Git подтверждён, затем внешне исправлены текущие metadata/API и выполнено supported same-intent reconciliation. Во втором developer-задачи унаследовали общий worktree; в заключительном две source worktree отдельные от лида. История отказов и исходные receipts сохранены; canonical Git внешняя сессия не применяла повторно.
+С SSD удалены `BrainMigrationV1`, `BrainRestore-20261018`, устаревшие software-only host kits v1/v6b,
+воспроизводимые ML/browser/Rust окружения и 23 старых дерева исходников. Найденный точный Agave v5
+observer и уникальные неутверждённые CPI/WSOL/Token2022 исходники опубликованы до удаления копий.
+Общее измеренное увеличение доступного места Kingston — примерно 53.2 GiB; фактическое свободное
+место меняется от фоновых записей. Из смешанного Browser/Codex/Cursor удалена только доказанная
+копия Brain (~109 MiB); личные браузеры, пароли, кошельки, переписка и другие проекты оставлены.
 
-Чистый пакет: 219,576 с управления / 180,935 с разработчиков; доля управления 54,82% против прежних 76,63%. Пересечение двух разработчиков 68,560 с; в первом опыте четыре Luna пересекались 88,021 с. Все три новых product-пакета вместе: 11 manager / 8 developer calls, 1164,647 с / 781,982 с, 59,83% управления. Это короткие неодинаковые задачи, не доказанная экономия подписки.
+Paperclip отвечает на HTTP/API с прежней точной версией `d06cbd5`. Его 44 собственных commit
+воспроизводятся из закреплённого upstream и опубликованного source delta, без старых bundles.
+Astra High, 6 Sol 6.1 High, 40 Luna и 5 необязательных reviewer сохранены. Все 59 исторических
+профилей сохраняют model/effort/env/provider/runtime/reporting/permissions/holds; исходные задачи
+и ID/статусы запусков совпадают с состоянием до переноса. Все 6 компаний PAUSED, новых запусков нет.
 
-| Роль за весь ремонт | Calls | Сумма run-секунд | Input* | Output* | Cached input* |
-|---|---:|---:|---:|---:|---:|
-|Лиды продукта|11|1164.647|769 853|74 772|12 425 600|
-|Разработчики Brain|8|781.982|285 261|56 278|2 575 104|
-|Реализация исправлений|5|869.926|250 632|64 331|6 039 552|
-|Независимое review исправлений|2|202.551|106 551|13 415|823 936|
+Действующий publisher переведён на `develop`; инструкции содержат CLEAN-AS-YOU-GO. Собственный
+временный publication ref удаляется после подтверждения. Принятые source workspaces передаются
+существующей native cleanup через проверенную базу сравнения; активные/dirty/неопубликованные
+состояния не удаляются. Новых сервисов и обязательной QA для каждой мелкой задачи нет.
 
-*Наблюдаемые максимумы по provider session: продолженные native counters выглядят накопительными вопреки per_run. Сырые суммы ledger сохранены отдельно в JSON; это не точный billing reconciliation. External interactive session в учёт не входит. Все 26 реальных native model calls — Luna High, 0 Sol / 0 Astra; fixed process: 3 успеха / 2 отказа, 76,724 с.
+Прошли synthetic Brain smoke, 355 Linux/shared проверок (5 skipped), focused publisher/receipt tests,
+31 plugin test и build, 40 UI-тестов с точным воспроизведением projection, проверки переносимого
+worker-интерпретатора, storage/guard/frozen-importer checks, точная реконструкция Paperclip, независимое
+review существенных изменений, read-only runtime readback и проверки Git. Наборы пересекаются;
+это не полный acceptance campaign и не доказательство качества моделей, Linux deployment или
+нового автономного цикла компании. Реальная торговля, коллекторы, обучение и платные API не запускались.
 
-Доставлены 6 offline-диагностик в 12 Python source/test-файлах: изменения inclusion, concordance групп, покрытие strata, отклонение split quotas, сравнение split assignments и pinned weights; последний пакет добавил групповые и cohort-разрезы. Три native публикации95259ce,fcef81d,8e4a413 подтверждены Git/ref/hash readback. Финальные 16 focused unittest cases прошли у лида; независимый Luna review покрывал publisher/API исправления. У route fixture остаются те же 10 исторических test failures; полного acceptance campaign не было. Ни runtime deployment, ни обучение/качество на реальных данных не заявлены.
+Вне GitHub неизбежно остаются секреты, живая БД Paperclip, durable STOP/receipts и данные/модели.
+В runtime нужны два технических checkout: закреплённый сторонний Paperclip и независимый sanitized
+worker seed с приватным interpreter capsule. Это явное исключение из буквального «один Git-root»:
+native sandbox даёт доступ к общему Git metadata, поэтому связывать workers с основным `.git` нельзя.
+Неподтверждённые 19 исходных custody bundles оставлены при исторических holds; текущая установка
+от них не зависит. Небольшое непрочитанное защищённое состояние осталось на Mac (~31 MiB включая
+конфигурацию/custody) и в двух исходных D43-контейнерах BrainDevelopment (~39,5 MiB allocated).
+Смешанные непрозрачные host-recovery записи и недоступная `.Trashes` SSD не уничтожались.
+Новых резервных копий, архивов или страховочных веток не создано.
 
-Компания **paused; 0 active / 0 queued / 0 live**. Старые holds/STOP и 24 cancelled задачи сохранены. Experience Goal ещё активна, поэтому Astra не будили искусственно.40-поточная/многодневная надёжность и реальная цена Sol не проверены. Последняя успешная квота 6%; финальный probe provider_unavailable, без выдуманного расхода. Для следующего запуска нужно новое явное разрешение Founder.
-
-[Точные метрики и доказательства](../docs/evidence/brain-lead-wakeup-efficiency-20261031.json) · [Checkpoint](/Users/root1/Developer/brain-paperclip-lab/state/lead-efficiency-20261031/checkpoint.json).
+Следующий запуск компании требует нового явного разрешения Founder и свежей сверки состояния.
+Исторические v9 bridge missions остаются held/fail-closed; их старые policy/intent не переписывать.

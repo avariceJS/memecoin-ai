@@ -5,9 +5,11 @@
 The only source root is `~/Developer/memecoin-research`, remote `avariceJS/memecoin-ai`.
 `develop` owns Brain and the AI Engineering Organization. `main` is stable and must not change
 without its separate release authority. Old branch/path instructions are historical.
-Private state belongs to `~/Developer/memecoin-runtime`; large research data remains on its
-explicitly identity-bound volume. Never substitute Kingston for BrainDevelopment or fall back to
-internal storage for live research writers.
+Private state belongs to `~/Developer/memecoin-runtime`; canonical large research data is
+`/Volumes/Kingston/BrainData`, with its original UUID/root identity and 50 GiB free-space guard.
+Storage configuration uses the physical `memecoin-runtime/brain/config` path, not a symlink alias.
+BrainDevelopment is a distinct internal volume retaining only opaque protected custody. Never
+substitute volume identities or fall back to internal storage for live research writers.
 
 The company remains PAUSED. Cleanup, reconnect, quota reset, checkpoints and source publication
 never authorize model dispatch, collection, training, AUTO, paper/trading or paid APIs. Preserve

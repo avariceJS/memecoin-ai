@@ -62,9 +62,18 @@ The worker seed has no remote/credentials/alternates to canonical Git: native is
 because their sandbox grants access to shared Git metadata. It is a reproducible execution cache, not a
 second source of truth. Never make canonical `.git` writable to workers.
 
-Large research data remains in its explicitly identity-bound external volume. Kingston is currently
-absent; BrainDevelopment has a different identity. Do not substitute roots or mutate holdout.
-Protected opaque custody and unresolved historical effects remain in the private store.
+The canonical data root is `/Volumes/Kingston/BrainData`, bound to Kingston's original UUID/root marker.
+Owner/research `work` links resolve to `BrainData/brain/{owner,research}/work`. Data, models, SQLite
+families and protected candidates remain outside Git. Configuration defaults use the physical
+`~/Developer/memecoin-runtime/brain/config` path: storage admission rejects symlink ancestors.
+Keep the existing 50 GiB free-space guard and descriptor-bound writers. BrainDevelopment is a different
+internal volume; its verified ordinary replica was removed. Only two opaque D43 custody containers
+remain there (39.5 MiB allocated); uncertain protected Mac state remains private. Never hash/read
+protected content merely to deduplicate it. Historical unknown-effect custody remains held.
+
+The existing worker interpreter launcher and dependency profile are versioned under
+`engineering/paperclip/worker-python*`. The private seed tracks its qualified `.runtime` capsule so
+native isolated worktrees receive the interpreter; the capsule is excluded from public source.
 
 [Documentation index](docs/INDEX.md) owns the short canonical reading map. The read-only Observatory
 is documented in [apps/control-center/README.md](apps/control-center/README.md).

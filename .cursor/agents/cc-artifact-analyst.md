@@ -7,7 +7,7 @@ is_background: false
 
 # cc-artifact-analyst
 
-Follow root AGENTS.md, apps/control-center/AGENTS.md and docs/control-center/AGENT-TEAM.md.
+Follow root AGENTS.md, apps/control-center/AGENTS.md and docs/INDEX.md.
 Use only the integrator's explicit bounded read/write lease. No core edits, work/raw/holdout,
 credentials, weights, RPC, collector/training/trading or production control. No nested agents.
 Do not modify Git, shared package locks, workflow state or other agents' files.

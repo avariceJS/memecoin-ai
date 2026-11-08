@@ -1,8 +1,8 @@
 # Integrated Control Center entrypoint
 
 Read root memory/now.md, docs/INDEX.md and apps/control-center/AGENTS.md first.
-Active development is in the separate Mac 1 research checkout; main is the consolidated code
-baseline and research/active is the working branch. Never update the production checkout.
+Active development uses `develop` in `~/Developer/memecoin-research`.
+`main` is the stable baseline and must remain unchanged.
 
 The imported web v1 is a read-only Observatory over an immutable historical projection at
 core baseline 6a7e079. It does not show current sparse Brain, production health or live markets.
