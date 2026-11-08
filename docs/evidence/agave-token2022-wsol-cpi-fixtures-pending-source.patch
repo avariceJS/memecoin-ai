@@ -1,0 +1,769 @@
+diff --git a/program-test/tests/cpi.rs b/program-test/tests/cpi.rs
+index 0b127f66f3f586153ff91bbbd7eb8ecadb91cbae..abc180c255e0b24059a591f219b6e4d026ebf380 100644
+--- a/program-test/tests/cpi.rs
++++ b/program-test/tests/cpi.rs
+@@ -1,6 +1,9 @@
+ use {
++    base64::{engine::general_purpose::STANDARD as BASE64, Engine},
++    solana_account::Account,
+     solana_account_info::{next_account_info, AccountInfo},
+     solana_banks_interface::BanksTransactionResultWithMetadata,
++    solana_clock::Clock,
+     solana_instruction::{AccountMeta, Instruction},
+     solana_keypair::Keypair,
+     solana_msg::msg,
+@@ -410,6 +413,21 @@
+     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+ }
+
++fn write_private_json(path: std::path::PathBuf, value: &serde_json::Value) {
++    use std::os::unix::fs::OpenOptionsExt;
++    use std::os::unix::fs::PermissionsExt;
++    let bytes = serde_json::to_vec(value).unwrap();
++    let mut file = std::fs::OpenOptions::new()
++        .create_new(true)
++        .write(true)
++        .mode(0o600)
++        .open(&path)
++        .unwrap();
++    std::io::Write::write_all(&mut file, &bytes).unwrap();
++    file.sync_all().unwrap();
++    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
++}
++
+ // Process instruction to invoke into another program
+ // We pass this specific number of accounts in order to test for a reported error.
+ fn invoker_process_instruction(
+@@ -1388,6 +1406,732 @@
+         .unwrap();
+ }
+
++fn append_raw_tlv(account_data: &mut Vec<u8>, extension_type: u16, extension: &[u8]) {
++    account_data.extend_from_slice(&extension_type.to_le_bytes());
++    account_data.extend_from_slice(&(extension.len() as u16).to_le_bytes());
++    account_data.extend_from_slice(extension);
++}
++
++fn raw_token_2022_mint(decimals: u8, current_epoch: u64) -> Vec<u8> {
++    let mut data = vec![0; 166];
++    data[44] = decimals;
++    data[45] = 1; // initialized PodBool
++    data[165] = 1; // AccountType::Mint at Agave-pinned Token-2022 v8 layout
++    let mut fee_config = vec![0; 108]; // 32+32-byte optional authorities + withheld + two schedules
++    for (offset, epoch, max_fee, basis_points) in [
++        (72usize, current_epoch, 100u64, 250u16),
++        (90usize, current_epoch.saturating_add(1), 10u64, 100u16),
++    ] {
++        fee_config[offset..offset + 8].copy_from_slice(&epoch.to_le_bytes());
++        fee_config[offset + 8..offset + 16].copy_from_slice(&max_fee.to_le_bytes());
++        fee_config[offset + 16..offset + 18].copy_from_slice(&basis_points.to_le_bytes());
++    }
++    append_raw_tlv(&mut data, 1, &fee_config); // ExtensionType::TransferFeeConfig
++    data
++}
++
++fn raw_token_2022_account(mint: &Pubkey, owner: &Pubkey, amount: u64) -> Vec<u8> {
++    let mut data = vec![0; 166];
++    data[..32].copy_from_slice(mint.as_ref());
++    data[32..64].copy_from_slice(owner.as_ref());
++    data[64..72].copy_from_slice(&amount.to_le_bytes());
++    data[108] = 1; // AccountState::Initialized
++    data[165] = 2; // AccountType::Account
++    append_raw_tlv(&mut data, 2, &0u64.to_le_bytes()); // TransferFeeAmount
++    data
++}
++
++fn account_at<'a>(
++    trace: &'a Trace,
++    event: &'a solana_program_runtime::invoke_context::candidate_position_witness::Boundary,
++    key: &str,
++) -> Option<&'a solana_program_runtime::invoke_context::candidate_position_witness::AccountSnapshot>
++{
++    let selected_index = trace
++        .selected_accounts
++        .iter()
++        .position(|account| account == key)?;
++    event.accounts.iter().find(|account| {
++        account.transaction_account_index == Some(selected_index as u16)
++            && account.pubkey == key
++            && account.available
++    })
++}
++
++fn verify_fee_transfer_witness(
++    trace: &Trace,
++    source: &Pubkey,
++    mint: &Pubkey,
++    destination: &Pubkey,
++    authority: &Pubkey,
++    epoch: u64,
++    gross: u64,
++) -> Result<(u64, u64), &'static str> {
++    use solana_program_test::candidate_position_raw_account::{
++        calculate_fee, decode_mint, decode_token_account, schedule_for_epoch,
++        validate_transfer_roles,
++    };
++    if source == destination || source == mint || destination == mint {
++        return Err("source_mint_destination_alias");
++    }
++    let expected_phases = [
++        "push_attempt",
++        "pre_execution",
++        "execution_return",
++        "post_execution_pre_pop",
++        "pop_outcome",
++        "final_instruction",
++    ];
++    let mut phase_events = Vec::new();
++    let mut phase_positions = Vec::new();
++    for phase in expected_phases {
++        let matches = trace
++            .events
++            .iter()
++            .enumerate()
++            .filter(|(_, event)| event.frame_id == Some(0) && event.kind == phase)
++            .collect::<Vec<_>>();
++        if matches.len() != 1 {
++            return Err("missing_or_duplicate_frame_phase");
++        }
++        phase_positions.push(matches[0].0);
++        phase_events.push(matches[0].1);
++    }
++    if phase_positions.windows(2).any(|pair| pair[0] >= pair[1]) {
++        return Err("frame_phase_order");
++    }
++    if phase_events[2].outcome.as_deref() != Some("returned_success")
++        || phase_events[4].outcome.as_deref() != Some("pop_success")
++    {
++        return Err("failed_attempt_is_not_settlement");
++    }
++    let source_key = source.to_string();
++    let mint_key = mint.to_string();
++    let destination_key = destination.to_string();
++    let authority_key = authority.to_string();
++    let before = phase_events[1];
++    let after = phase_events[3];
++    let token_2022_program = spl_generic_token::token_2022::ID;
++    let expected_program_id = token_2022_program.to_string();
++    let source_index = trace
++        .selected_accounts
++        .iter()
++        .position(|key| key == &source_key)
++        .ok_or("source_selected_account_missing")? as u16;
++    let mint_index = trace
++        .selected_accounts
++        .iter()
++        .position(|key| key == &mint_key)
++        .ok_or("mint_selected_account_missing")? as u16;
++    let destination_index = trace
++        .selected_accounts
++        .iter()
++        .position(|key| key == &destination_key)
++        .ok_or("destination_selected_account_missing")? as u16;
++    let authority_index = trace
++        .selected_accounts
++        .iter()
++        .position(|key| key == &authority_key)
++        .ok_or("authority_selected_account_missing")? as u16;
++    for event in &phase_events {
++        if event.program_id.as_deref() != Some(expected_program_id.as_str())
++            || event.instruction_account_indices.get(0) != Some(&source_index)
++            || event.instruction_account_indices.get(1) != Some(&mint_index)
++            || event.instruction_account_indices.get(2) != Some(&destination_index)
++            || event.instruction_account_indices.get(3) != Some(&authority_index)
++        {
++            return Err("instruction_role_or_program_binding_mismatch");
++        }
++    }
++    let transfer_instruction =
++        solana_program_test::candidate_position_raw_account::decode_supported_instruction(
++            true,
++            before
++                .instruction_data
++                .as_deref()
++                .ok_or("instruction_data_missing")?,
++        )
++        .map_err(|_| "instruction_data_malformed")?;
++    if transfer_instruction != (solana_program_test::candidate_position_raw_account::SupportedInstruction::TransferChecked {
++        gross_atomic_units: gross,
++        decimals: 6,
++    }) {
++        return Err("instruction_amount_or_decimal_mismatch");
++    }
++    let mint_snapshot = account_at(trace, before, &mint_key).ok_or("mint_snapshot_missing")?;
++    if mint_snapshot.owner.as_deref() != Some(expected_program_id.as_str()) {
++        return Err("mint_owner_program_mismatch");
++    }
++    let mint_bytes = mint_snapshot.data.as_deref().ok_or("mint_bytes_missing")?;
++    let parsed_mint = decode_mint(mint_bytes).map_err(|_| "mint_decode_failed")?;
++    if !parsed_mint.initialized {
++        return Err("mint_uninitialized");
++    }
++    let instruction_decimals = match transfer_instruction {
++        solana_program_test::candidate_position_raw_account::SupportedInstruction::TransferChecked {
++            decimals, ..
++        } => decimals,
++        _ => return Err("instruction_data_malformed"),
++    };
++    if parsed_mint.decimals != instruction_decimals {
++        return Err("transfer_checked_decimals_mismatch");
++    }
++    let fee_config = parsed_mint
++        .transfer_fee
++        .as_ref()
++        .ok_or("fee_config_missing")?;
++    let schedule = schedule_for_epoch(fee_config, epoch);
++    let fee = calculate_fee(schedule, gross).map_err(|_| "fee_calculation_failed")?;
++    let source_before_snapshot =
++        account_at(trace, before, &source_key).ok_or("source_before_missing")?;
++    let source_after_snapshot =
++        account_at(trace, after, &source_key).ok_or("source_after_missing")?;
++    let destination_before_snapshot =
++        account_at(trace, before, &destination_key).ok_or("destination_before_missing")?;
++    let destination_after_snapshot =
++        account_at(trace, after, &destination_key).ok_or("destination_after_missing")?;
++    for snapshot in [
++        source_before_snapshot,
++        source_after_snapshot,
++        destination_before_snapshot,
++        destination_after_snapshot,
++    ] {
++        if snapshot.owner.as_deref() != Some(expected_program_id.as_str()) {
++            return Err("token_account_owner_program_mismatch");
++        }
++    }
++    let source_before = decode_token_account(
++        source_before_snapshot
++            .data
++            .as_deref()
++            .ok_or("source_before_missing")?,
++        true,
++    )
++    .map_err(|_| "source_before_decode_failed")?;
++    let source_after = decode_token_account(
++        source_after_snapshot
++            .data
++            .as_deref()
++            .ok_or("source_after_missing")?,
++        true,
++    )
++    .map_err(|_| "source_after_decode_failed")?;
++    let destination_before = decode_token_account(
++        destination_before_snapshot
++            .data
++            .as_deref()
++            .ok_or("destination_before_missing")?,
++        true,
++    )
++    .map_err(|_| "destination_before_decode_failed")?;
++    let destination_after = decode_token_account(
++        destination_after_snapshot
++            .data
++            .as_deref()
++            .ok_or("destination_after_missing")?,
++        true,
++    )
++    .map_err(|_| "destination_after_decode_failed")?;
++    let mint_bytes = mint.to_bytes();
++    let authority_bytes = authority.to_bytes();
++    for (source_account, destination_account) in [
++        (&source_before, &destination_before),
++        (&source_after, &destination_after),
++    ] {
++        validate_transfer_roles(
++            &parsed_mint,
++            source_account,
++            destination_account,
++            &mint_bytes,
++            &authority_bytes,
++            &authority_bytes,
++            instruction_decimals,
++        )
++        .map_err(|_| "token_account_role_mismatch")?;
++    }
++    let source_delta = source_before
++        .amount
++        .checked_sub(source_after.amount)
++        .ok_or("source_amount_increased")?;
++    let destination_delta = destination_after
++        .amount
++        .checked_sub(destination_before.amount)
++        .ok_or("destination_amount_decreased")?;
++    let withheld_delta = destination_after
++        .withheld_amount
++        .ok_or("destination_withheld_missing")?
++        .checked_sub(
++            destination_before
++                .withheld_amount
++                .ok_or("destination_withheld_missing")?,
++        )
++        .ok_or("withheld_amount_decreased")?;
++    if source_delta != gross || destination_delta != gross - fee || withheld_delta != fee {
++        return Err("gross_net_fee_conservation_mismatch");
++    }
++    Ok((fee, destination_delta))
++}
++
++#[tokio::test]
++async fn transaction_observer_raw_token_2022_fee_witness() {
++    let token_program = spl_generic_token::token_2022::ID;
++    let mint = Pubkey::new_unique();
++    let source = Pubkey::new_unique();
++    let destination = Pubkey::new_unique();
++    let owner = Keypair::new();
++    let mut program_test = ProgramTest::default();
++    let run_nonce = enable_witness(&mut program_test, "raw-token-2022-fee");
++    let assumed_rent = Rent::default();
++    let mint_data = raw_token_2022_mint(6, 0);
++    let source_data = raw_token_2022_account(&mint, &owner.pubkey(), 1_000_000);
++    let destination_data = raw_token_2022_account(&mint, &owner.pubkey(), 7);
++    for (key, data) in [
++        (mint, mint_data),
++        (source, source_data),
++        (destination, destination_data),
++    ] {
++        program_test.add_account(
++            key,
++            Account {
++                lamports: assumed_rent.minimum_balance(data.len()).max(1),
++                data,
++                owner: token_program,
++                executable: false,
++                rent_epoch: 0,
++            },
++        );
++    }
++    let context = program_test.start_with_context().await;
++    let clock: Clock = context.banks_client.get_sysvar().await.unwrap();
++    let rent: Rent = context.banks_client.get_sysvar().await.unwrap();
++    let gross = 1_000u64;
++    let mut instruction_data = vec![12]; // TransferChecked discriminator from Token-2022 v8.
++    instruction_data.extend_from_slice(&gross.to_le_bytes());
++    instruction_data.push(6);
++    let instruction = Instruction {
++        program_id: token_program,
++        accounts: vec![
++            AccountMeta::new(source, false),
++            AccountMeta::new_readonly(mint, false),
++            AccountMeta::new(destination, false),
++            AccountMeta::new_readonly(owner.pubkey(), true),
++        ],
++        data: instruction_data,
++    };
++    let transaction = Transaction::new_signed_with_payer(
++        &[instruction],
++        Some(&context.payer.pubkey()),
++        &[&context.payer, &owner],
++        context.last_blockhash,
++    );
++    let signature = transaction.signatures[0].to_string();
++    let message_hash = transaction.message.hash().to_string();
++    let message_keys = transaction.message.account_keys.clone();
++    let message_bytes = bincode::serialize(&transaction.message).unwrap();
++    let banks_result = context
++        .banks_client
++        .process_transaction_with_metadata(transaction)
++        .await
++        .unwrap();
++    assert!(
++        banks_result.result.is_ok(),
++        "Token-2022 fixture transfer must execute: {:?}",
++        banks_result.result
++    );
++    let metadata = banks_result.metadata.as_ref().unwrap();
++    let raw_trace = metadata.candidate_position_trace.as_ref().unwrap();
++    let trace: Trace = bincode::deserialize(raw_trace).unwrap();
++    assert_eq!(trace.transaction_id, signature);
++    verify_fixture_binding(
++        &trace,
++        &signature,
++        &message_hash,
++        &run_nonce,
++        0,
++        &message_keys,
++        &banks_result,
++    )
++    .unwrap();
++    verify_trace(&trace).unwrap();
++    let (fee, net) = verify_fee_transfer_witness(
++        &trace,
++        &source,
++        &mint,
++        &destination,
++        &owner.pubkey(),
++        clock.epoch,
++        gross,
++    )
++    .unwrap();
++    assert_eq!(fee, 25);
++    assert_eq!(net, 975);
++
++    let program_hash =
++        solana_program::hash::hash(include_bytes!("../src/programs/spl_token_2022-8.0.0.so"))
++            .to_string();
++    let fixture_roles = serde_json::json!([
++        {"role":"source","pubkey":source.to_string(),"message_index":message_keys.iter().position(|key| key == &source).unwrap()},
++        {"role":"mint","pubkey":mint.to_string(),"message_index":message_keys.iter().position(|key| key == &mint).unwrap()},
++        {"role":"destination","pubkey":destination.to_string(),"message_index":message_keys.iter().position(|key| key == &destination).unwrap()},
++        {"role":"authority","pubkey":owner.pubkey().to_string(),"message_index":message_keys.iter().position(|key| key == &owner.pubkey()).unwrap()},
++    ]);
++    let raw_capture = serde_json::json!({
++        "schema":"agave_token_2022_raw_account_witness_v1",
++        "fixture":"program_test_token_2022_transfer_fee",
++        "claim_scope":"synthetic_attempt_trace_only",
++        "raw_trace_bincode_base64":BASE64.encode(raw_trace),
++        "raw_trace_sha256":solana_program::hash::hash(raw_trace).to_string(),
++        "signed_message_bincode_base64":BASE64.encode(message_bytes),
++        "signed_message_hash":message_hash,
++        "transaction_signature":signature,
++        "run_nonce":run_nonce,
++        "attempt_ordinal":trace.attempt_ordinal,
++        "roles":fixture_roles,
++        "fixture_slot":clock.slot,
++        "fixture_epoch":clock.epoch,
++        "rent":{"lamports_per_byte_year":rent.lamports_per_byte_year,"exemption_threshold":rent.exemption_threshold,"burn_percent":rent.burn_percent},
++        "clock_sysvar_bincode_base64":BASE64.encode(bincode::serialize(&clock).unwrap()),
++        "rent_sysvar_bincode_base64":BASE64.encode(bincode::serialize(&rent).unwrap()),
++        "token_2022_program_id":token_program.to_string(),
++        "token_2022_program_elf_sha256":program_hash,
++        "source_pins":{
++            "token_2022_commit":"af35bb146ffd4d4f4c43b48bfb0873a041918584",
++            "token_2022_processor_sha256":"38673e2a74e50e43e80e32ef1af277571faa9023eb1b746324b42750c13c4317",
++            "transfer_fee_source_sha256":"c2bcd30c2e3620216ffb65e776143b17818ff3924fd58253bade17e892a12b56",
++            "transfer_hook_source_sha256":"2e462baf487350ef53d66b38fbd2a34da62db41237a940107583bbcf9f7b673b",
++            "transfer_hook_interface_commit":"73c3fff7276117e03462618bddafce8a82a106d2",
++            "rent_source_sha256":"fb51f91e2e93ac41d8776c7d67579b90609a336ea343fdd27060b43305407498",
++            "clock_source_sha256":"ca09b15a28906953ee181f4e06d06dc675bf85dd0904c51045e58d1ae1563a5c",
++            "epoch_schedule_source_sha256":"074198ed79c494c4bf2d49e512b24b77b87a9f2d1b961c3727e608c8fcaeead2",
++            "transfer_hook_status":"unsupported_without_captured_cpi_order_and_effects"
++        },
++        "svm_terminal_status":trace.terminal_status.clone(),
++        "banks_client_result":format!("{:?}", banks_result.result),
++        "parsed":{"gross_atomic_units":gross,"fee_atomic_units":fee,"net_atomic_units":net,"fee_schedule_epoch":clock.epoch},
++        "economic_claim":false,
++        "source_completeness_claim":false,
++    });
++    if let Some(path) = std::env::var_os("BRAIN_SENSES_TOKEN_2022_RAW_WITNESS_CAPTURE") {
++        write_private_json(path.into(), &raw_capture);
++    }
++    let mut missing_state = trace.clone();
++    let post_event = missing_state
++        .events
++        .iter_mut()
++        .find(|event| event.kind == "post_execution_pre_pop")
++        .unwrap();
++    post_event
++        .accounts
++        .retain(|account| account.pubkey != destination.to_string());
++    assert_eq!(
++        verify_fee_transfer_witness(
++            &missing_state,
++            &source,
++            &mint,
++            &destination,
++            &owner.pubkey(),
++            clock.epoch,
++            gross
++        ),
++        Err("destination_after_missing")
++    );
++    let mut reordered = trace.clone();
++    let post_index = reordered
++        .events
++        .iter()
++        .position(|event| event.kind == "post_execution_pre_pop")
++        .unwrap();
++    let return_index = reordered
++        .events
++        .iter()
++        .position(|event| event.kind == "execution_return")
++        .unwrap();
++    reordered.events.swap(post_index, return_index);
++    assert_eq!(
++        verify_fee_transfer_witness(
++            &reordered,
++            &source,
++            &mint,
++            &destination,
++            &owner.pubkey(),
++            clock.epoch,
++            gross
++        ),
++        Err("frame_phase_order")
++    );
++}
++
++#[tokio::test]
++async fn transaction_observer_wsol_sync_native_then_close_rent_accounting() {
++    let token_program = spl_generic_token::token::ID;
++    let native_mint = spl_generic_token::token::native_mint::id();
++    let owner = Keypair::new();
++    let wrapped_sol = Pubkey::new_unique();
++    let reserve = Rent::default().minimum_balance(165);
++    let deposited_lamports = 5_000u64;
++    let mut token_data = vec![0; 165];
++    token_data[..32].copy_from_slice(native_mint.as_ref());
++    token_data[32..64].copy_from_slice(owner.pubkey().as_ref());
++    token_data[64..72].copy_from_slice(&0u64.to_le_bytes());
++    token_data[108] = 1; // AccountState::Initialized
++    token_data[109..113].copy_from_slice(&1u32.to_le_bytes()); // COption::Some
++    token_data[113..121].copy_from_slice(&reserve.to_le_bytes());
++    let mut program_test = ProgramTest::default();
++    let run_nonce = enable_witness(&mut program_test, "raw-wsol-sync-close");
++    program_test.add_account(
++        wrapped_sol,
++        Account {
++            lamports: reserve + deposited_lamports,
++            data: token_data,
++            owner: token_program,
++            executable: false,
++            rent_epoch: 0,
++        },
++    );
++    let context = program_test.start_with_context().await;
++    let clock: Clock = context.banks_client.get_sysvar().await.unwrap();
++    let rent: Rent = context.banks_client.get_sysvar().await.unwrap();
++    assert_eq!(rent.minimum_balance(165), reserve);
++    let sync_native = Instruction {
++        program_id: token_program,
++        accounts: vec![AccountMeta::new(wrapped_sol, false)],
++        data: vec![17], // SyncNative from pinned legacy token v3.5.0.
++    };
++    let close_account = Instruction {
++        program_id: token_program,
++        accounts: vec![
++            AccountMeta::new(wrapped_sol, false),
++            AccountMeta::new(context.payer.pubkey(), false),
++            AccountMeta::new_readonly(owner.pubkey(), true),
++        ],
++        data: vec![9], // CloseAccount from pinned legacy token v3.5.0.
++    };
++    let transaction = Transaction::new_signed_with_payer(
++        &[sync_native, close_account],
++        Some(&context.payer.pubkey()),
++        &[&context.payer, &owner],
++        context.last_blockhash,
++    );
++    let signature = transaction.signatures[0].to_string();
++    let message_hash = transaction.message.hash().to_string();
++    let message_keys = transaction.message.account_keys.clone();
++    let message_bytes = bincode::serialize(&transaction.message).unwrap();
++    let banks_result = context
++        .banks_client
++        .process_transaction_with_metadata(transaction)
++        .await
++        .unwrap();
++    assert!(
++        banks_result.result.is_ok(),
++        "WSOL fixture failed: {:?}",
++        banks_result.result
++    );
++    let raw_trace = banks_result
++        .metadata
++        .as_ref()
++        .unwrap()
++        .candidate_position_trace
++        .as_ref()
++        .unwrap();
++    let trace: Trace = bincode::deserialize(raw_trace).unwrap();
++    verify_fixture_binding(
++        &trace,
++        &signature,
++        &message_hash,
++        &run_nonce,
++        0,
++        &message_keys,
++        &banks_result,
++    )
++    .unwrap();
++    verify_trace(&trace).unwrap();
++    let phase = |frame_id: usize, kind: &str| {
++        trace
++            .events
++            .iter()
++            .find(|event| event.frame_id == Some(frame_id) && event.kind == kind)
++            .unwrap()
++    };
++    let program_key = token_program.to_string();
++    let wrapped_index = trace
++        .selected_accounts
++        .iter()
++        .position(|key| key == &wrapped_sol.to_string())
++        .unwrap() as u16;
++    let payer_index = trace
++        .selected_accounts
++        .iter()
++        .position(|key| key == &context.payer.pubkey().to_string())
++        .unwrap() as u16;
++    let owner_index = trace
++        .selected_accounts
++        .iter()
++        .position(|key| key == &owner.pubkey().to_string())
++        .unwrap() as u16;
++    for (frame_id, expected_indices, expected_data) in [
++        (0, vec![wrapped_index], vec![17]),
++        (1, vec![wrapped_index, payer_index, owner_index], vec![9]),
++    ] {
++        for kind in [
++            "push_attempt",
++            "pre_execution",
++            "execution_return",
++            "post_execution_pre_pop",
++            "pop_outcome",
++            "final_instruction",
++        ] {
++            let event = phase(frame_id, kind);
++            assert_eq!(event.program_id.as_deref(), Some(program_key.as_str()));
++            assert_eq!(event.instruction_account_indices, expected_indices);
++            assert_eq!(event.instruction_data, Some(expected_data.clone()));
++        }
++    }
++    let before_sync =
++        account_at(&trace, phase(0, "pre_execution"), &wrapped_sol.to_string()).unwrap();
++    let after_sync = account_at(
++        &trace,
++        phase(0, "post_execution_pre_pop"),
++        &wrapped_sol.to_string(),
++    )
++    .unwrap();
++    let before_sync_state =
++        solana_program_test::candidate_position_raw_account::decode_token_account(
++            before_sync.data.as_deref().unwrap(),
++            false,
++        )
++        .unwrap();
++    let after_sync_state =
++        solana_program_test::candidate_position_raw_account::decode_token_account(
++            after_sync.data.as_deref().unwrap(),
++            false,
++        )
++        .unwrap();
++    let native_mint_bytes = native_mint.to_bytes();
++    let owner_bytes = owner.pubkey().to_bytes();
++    for snapshot in [before_sync, after_sync] {
++        assert_eq!(snapshot.owner.as_deref(), Some(program_key.as_str()));
++    }
++    solana_program_test::candidate_position_raw_account::validate_native_account_roles(
++        &before_sync_state,
++        &native_mint_bytes,
++        &owner_bytes,
++        reserve,
++    )
++    .unwrap();
++    solana_program_test::candidate_position_raw_account::validate_native_account_roles(
++        &after_sync_state,
++        &native_mint_bytes,
++        &owner_bytes,
++        reserve,
++    )
++    .unwrap();
++    assert_eq!(before_sync_state.amount, 0);
++    assert_eq!(before_sync_state.native_reserve, Some(reserve));
++    let sync_transition =
++        solana_program_test::candidate_position_raw_account::expected_sync_native_amount(
++            before_sync.lamports.unwrap(),
++            reserve,
++            before_sync_state.amount,
++        )
++        .unwrap();
++    assert_eq!(
++        sync_transition.amount_after_atomic_units,
++        after_sync_state.amount
++    );
++    assert_eq!(after_sync.lamports, before_sync.lamports);
++
++    let before_close =
++        account_at(&trace, phase(1, "pre_execution"), &wrapped_sol.to_string()).unwrap();
++    let after_close = account_at(
++        &trace,
++        phase(1, "post_execution_pre_pop"),
++        &wrapped_sol.to_string(),
++    )
++    .unwrap();
++    let before_close_state =
++        solana_program_test::candidate_position_raw_account::decode_token_account(
++            before_close.data.as_deref().unwrap(),
++            false,
++        )
++        .unwrap();
++    for snapshot in [before_close, after_close] {
++        assert_eq!(snapshot.owner.as_deref(), Some(program_key.as_str()));
++    }
++    solana_program_test::candidate_position_raw_account::validate_native_account_roles(
++        &before_close_state,
++        &native_mint_bytes,
++        &owner_bytes,
++        reserve,
++    )
++    .unwrap();
++    assert_eq!(before_close_state.amount, deposited_lamports);
++    assert_eq!(
++        solana_program_test::candidate_position_raw_account::expected_close_lamports(
++            true,
++            before_close_state.amount,
++            before_close.lamports.unwrap(),
++        ),
++        Ok(reserve + deposited_lamports),
++    );
++    assert_eq!(after_close.lamports, Some(0));
++    assert_eq!(before_close.lamports, Some(reserve + deposited_lamports));
++    let payer_pre = account_at(
++        &trace,
++        phase(1, "pre_execution"),
++        &context.payer.pubkey().to_string(),
++    )
++    .unwrap();
++    let payer_post = account_at(
++        &trace,
++        phase(1, "post_execution_pre_pop"),
++        &context.payer.pubkey().to_string(),
++    )
++    .unwrap();
++    assert_eq!(
++        payer_post.lamports.unwrap() - payer_pre.lamports.unwrap(),
++        reserve + deposited_lamports,
++    );
++
++    let capture = serde_json::json!({
++        "schema":"agave_token_account_raw_witness_v1",
++        "fixture":"program_test_wsol_sync_native_close_account",
++        "claim_scope":"synthetic_attempt_trace_only",
++        "raw_trace_bincode_base64":BASE64.encode(raw_trace),
++        "raw_trace_sha256":solana_program::hash::hash(raw_trace).to_string(),
++        "signed_message_bincode_base64":BASE64.encode(message_bytes),
++        "signed_message_hash":message_hash,
++        "transaction_signature":signature,
++        "run_nonce":run_nonce,
++        "attempt_ordinal":trace.attempt_ordinal,
++        "roles":[
++            {"role":"wsol_account","pubkey":wrapped_sol.to_string(),"message_index":message_keys.iter().position(|key| key == &wrapped_sol).unwrap()},
++            {"role":"native_mint","pubkey":native_mint.to_string(),"source":"wsol_account.data[0..32]"},
++            {"role":"owner","pubkey":owner.pubkey().to_string(),"message_index":message_keys.iter().position(|key| key == &owner.pubkey()).unwrap()},
++            {"role":"close_destination","pubkey":context.payer.pubkey().to_string(),"message_index":message_keys.iter().position(|key| key == &context.payer.pubkey()).unwrap()},
++            {"role":"token_program","pubkey":token_program.to_string(),"message_index":message_keys.iter().position(|key| key == &token_program).unwrap()},
++        ],
++        "fixture_slot":clock.slot,
++        "fixture_epoch":clock.epoch,
++        "rent":{"lamports_per_byte_year":rent.lamports_per_byte_year,"exemption_threshold":rent.exemption_threshold,"burn_percent":rent.burn_percent},
++        "clock_sysvar_bincode_base64":BASE64.encode(bincode::serialize(&clock).unwrap()),
++        "rent_sysvar_bincode_base64":BASE64.encode(bincode::serialize(&rent).unwrap()),
++        "legacy_token_program_elf_sha256":solana_program::hash::hash(include_bytes!("../src/programs/spl_token-3.5.0.so")).to_string(),
++        "agave_source_commit":"b6c96e84b10396b92912d4574dae7d03f606da26",
++        "legacy_token_source_commit":"7c6235d9e7f392129046fabc20ff51e6da1992ab",
++        "rent_source_sha256":"fb51f91e2e93ac41d8776c7d67579b90609a336ea343fdd27060b43305407498",
++        "clock_source_sha256":"ca09b15a28906953ee181f4e06d06dc675bf85dd0904c51045e58d1ae1563a5c",
++        "native_token_source_sha256":"aef2ffcf2fea8e109a946afc95407391f93c82b9b1d533360744c8b55475b161",
++        "svm_terminal_status":trace.terminal_status.clone(),
++        "banks_client_result":format!("{:?}", banks_result.result),
++        "native_transition":{"sync_token_amount_atomic_units":deposited_lamports,"rent_reserve_lamports":reserve,"close_lamports_transferred":reserve + deposited_lamports},
++        "economic_claim":false,
++        "source_completeness_claim":false,
++    });
++    if let Some(path) = std::env::var_os("BRAIN_SENSES_WSOL_RAW_WITNESS_CAPTURE") {
++        write_private_json(path.into(), &capture);
++    }
++}
++
+ // Process instruction to invoke into another program
+ fn invoker_stack_height(
+     _program_id: &Pubkey,

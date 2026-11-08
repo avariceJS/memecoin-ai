@@ -1,0 +1,60 @@
+{
+  "schema": "brain-agave-unaccepted-source-preservation-v1",
+  "status": "unaccepted_source_only",
+  "runtime_admitted": false,
+  "upstream": {
+    "repository": "anza-xyz/agave",
+    "commit": "b6c96e84b10396b92912d4574dae7d03f606da26"
+  },
+  "file": "program-test/tests/cpi.rs",
+  "base_git_blob": "0b127f66f3f586153ff91bbbd7eb8ecadb91cbae",
+  "base_sha256": "40ea83bfed75f605826a87d9a75513c81a55a10db6887cca9446462b1236af14",
+  "after_git_blob": "abc180c255e0b24059a591f219b6e4d026ebf380",
+  "after_sha256": "c39e0287721ddc0111ec1eb1d1e81822e20990291600157b920c22bfffbe5c26",
+  "patch_sha256": "16daed55279693a08efeb91cab27d8bbd2ce1a2728967cf5fc2e07659b75e5b9",
+  "dependencies": [
+    {
+      "path": "docs/evidence/agave-v3.0.0-candidate-position-observer-v5-2026-10-11.patch",
+      "sha256": "e8c977c70a13988213a30a57d3dca36e5f94fab26d1574844c2a378c55cfe5c3",
+      "application": "Apply complete observer patch to upstream commit."
+    },
+    {
+      "path": "docs/evidence/agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.patch",
+      "sha256": "3d1347ffbca5c5023d2d235835ee0ff7eca2c95bfbf5ff6bf10ec831af0ebbee",
+      "application": "Apply only the three parser source paths listed; the observer already supplies the same feature table.",
+      "include_paths": [
+        "program-test/src/lib.rs",
+        "program-test/src/candidate_position_raw_account.rs",
+        "program-test/src/candidate_position_witness_mapping.rs"
+      ]
+    }
+  ],
+  "mechanical_verification": "Temporary Git index/object directory over the existing upstream object database; apply observer, selected parser paths, then pending delta. Result exactly reproduces all current custom source after-images. No source checkout, compilation, ProgramTest, network or runtime activation.",
+  "verified_source_paths": [
+    "Cargo.lock",
+    "banks-interface/Cargo.toml",
+    "banks-interface/src/lib.rs",
+    "banks-server/Cargo.toml",
+    "banks-server/src/banks_server.rs",
+    "program-runtime/Cargo.toml",
+    "program-runtime/src/invoke_context.rs",
+    "program-test/Cargo.toml",
+    "program-test/src/candidate_position_raw_account.rs",
+    "program-test/src/candidate_position_witness_mapping.rs",
+    "program-test/src/lib.rs",
+    "program-test/tests/cpi.rs",
+    "runtime-transaction/src/runtime_transaction.rs",
+    "runtime/src/bank.rs",
+    "svm-transaction/src/svm_transaction.rs",
+    "svm-transaction/src/svm_transaction/sanitized_transaction.rs",
+    "svm/Cargo.toml",
+    "svm/src/transaction_commit_result.rs",
+    "svm/src/transaction_execution_result.rs",
+    "svm/src/transaction_processor.rs"
+  ],
+  "limits": [
+    "Unaccepted synthetic fixture source; no observed ProgramTest trace or successful fixture run claimed.",
+    "No production integration, source completeness, economic settlement, training, collector or trading authority.",
+    "Private traces, datasets, credentials and runtime bindings are excluded."
+  ]
+}

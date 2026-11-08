@@ -3597,6 +3597,9 @@ retains the same program/data identity through its phases. Mutation cases cover 
 missing/unavailable selected fields outside pre/post, and program/data drift. Feature-on CPI tests
 passed 11/11; feature-off packages compile; patch whitespace check is clean. The source patch and
 review receipt are hash-bound in the immutable [v5 review record](evidence/agave-v3.0.0-candidate-position-observer-v5-review-2026-10-11.json).
+The exact [v5 source patch](evidence/agave-v3.0.0-candidate-position-observer-v5-2026-10-11.patch)
+is published with SHA-256 `e8c977c70a13988213a30a57d3dca36e5f94fab26d1574844c2a378c55cfe5c3`;
+its acceptance remains local synthetic feasibility only, with no deployment authority.
 
 This does not qualify production integration, historical replay, Bank persistence/finality,
 settlement, real-source completeness, or economic admission. Precompiles remain unsupported. The
@@ -3626,6 +3629,13 @@ lacked `bit-set v0.8.0`; no dependency was fetched. Existing edge tests and a de
 sweep remain. The exact patch and unique receipt are
 [`parser scaffold v3 patch`](evidence/agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.patch)
 and [`parser scaffold v3 receipt`](evidence/agave-token-raw-parser-scaffold-corrected-v3-2026-10-11.json).
+
+The additional Token-2022 fee / WSOL CPI fixture delta is retained as
+[unaccepted source](evidence/agave-token2022-wsol-cpi-fixtures-pending-source.patch), with
+[base, dependency and after-image pins](evidence/agave-token2022-wsol-cpi-fixtures-pending-source.json).
+It reconstructs over the exact v5 observer and selected parser-v3 source files. This is source
+custody only: no ProgramTest result or consumed trace is established for this delta, and
+consolidation causes no runtime activation.
 
 The repository now has a separate `brain-senses-raw-account-fixture-v1` synthetic byte-replay
 contract for Token-2022 fee configuration, transfer-hook presence, attempted instruction wires,
