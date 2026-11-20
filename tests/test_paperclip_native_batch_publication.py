@@ -681,7 +681,10 @@ def test_publish_batch_success_derives_task_and_reuses_saved_receipt_on_new_run(
     assert len(prepare_calls) == 1
 
 
-def test_publish_batch_v2_closes_parent_after_bounded_lead_handoff(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_publish_batch_v2_closes_parent_after_bounded_lead_handoff(
+    tmp_path, monkeypatch, capsys, interrupted
+):
     canonical, source, base, branch, _, document = _make_batch_repositories(tmp_path)
     acceptance_body = json.loads(document["body"])
     acceptance_body.update({"schema": delivery.BATCH_ACCEPTANCE_V2_SCHEMA, "close_parent": True})
@@ -705,7 +708,8 @@ def test_publish_batch_v2_closes_parent_after_bounded_lead_handoff(tmp_path, mon
     }
     fake_api = BatchApiFixture(document, PROCESS_RUN_1)
     fake_api.parent_status = "in_progress"
-    fake_api.parent_blockers = [SOURCE_TASK]
+    # The lead still has its completed predecessor edge until the yield writes the final set.
+    fake_api.parent_blockers = [SOURCE_TASK, "a1111111-1111-4111-8111-111111111111"]
     fake_api.parent_descriptor = {"owner": {"agentId": LEAD}}
     fake_api.parent_runs = [{"agentId": LEAD, "contextIssueId": BATCH, "status": "running"}]
     now = [0.0]
@@ -726,6 +730,8 @@ def test_publish_batch_v2_closes_parent_after_bounded_lead_handoff(tmp_path, mon
     handoff = []
 
     def sleep(seconds):
+        if interrupted and fake_api.publisher_run_id == PROCESS_RUN_1:
+            raise KeyboardInterrupt
         now[0] += seconds
         if now[0] >= 61 and not handoff:
             assert fake_api.parent_runs
@@ -793,15 +799,27 @@ def test_publish_batch_v2_closes_parent_after_bounded_lead_handoff(tmp_path, mon
             api, method, route, body=body, raw=raw
         ),
     )
-    assert delivery.main(
-        [
-            "publish-batch",
-            "--batch-policy",
-            str(policy_path),
-            "--batch-policy-sha256",
-            sha(policy_bytes),
-        ]
-    ) == 0
+    argv = [
+        "publish-batch",
+        "--batch-policy",
+        str(policy_path),
+        "--batch-policy-sha256",
+        sha(policy_bytes),
+    ]
+    if interrupted:
+        with pytest.raises(KeyboardInterrupt):
+            delivery.main(argv)
+        receipt = json.loads(fake_api.receipt_document["body"])
+        assert remote[branch] == receipt["candidate_sha"]
+        assert fake_api.parent_status == "in_progress"
+        assert not fake_api.events
+        assert fake_api.receipt_puts == 1
+        process_run_2 = "d1000000-1111-4111-8111-111111111111"
+        fake_api.publisher_run_id = process_run_2
+        fake_api.checkout_run_id = process_run_2
+        fake_api.execution_run_id = process_run_2
+        monkeypatch.setenv("PAPERCLIP_RUN_ID", process_run_2)
+    assert delivery.main(argv) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "published"
     assert handoff and now[0] == 61
@@ -811,6 +829,7 @@ def test_publish_batch_v2_closes_parent_after_bounded_lead_handoff(tmp_path, mon
     assert fake_api.parent_blockers == [SOURCE_TASK]
     assert fake_api.completions == 1
     assert fake_api.receipt_puts == 1
+    assert json.loads(fake_api.receipt_document["body"])["native_process_run_id"] == PROCESS_RUN_1
     assert handoff == [
         (fake_api.receipt_document["body"], fake_api.receipt_document["latestRevisionId"])
     ]

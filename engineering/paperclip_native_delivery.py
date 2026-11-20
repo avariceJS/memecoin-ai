@@ -3223,8 +3223,11 @@ def _close_batch_parent(
             )
         blockers = _blocked_by(parent)
         expected = set(source_ids) | {publisher_id}
+        lead_runs_active = _batch_parent_runs(api, parent_id, lead_id)
+        # The lead may still be replacing predecessor edges with the publisher edge.
+        # Check the final set once it yields; never complete a batch with extra blockers.
         require(
-            blockers <= expected and set(source_ids) <= blockers,
+            set(source_ids) <= blockers and (lead_runs_active or blockers <= expected),
             "batch_parent_blocker_set_changed",
         )
         for source_id in source_ids:
@@ -3238,7 +3241,6 @@ def _close_batch_parent(
             )
             _check_batch_hold(source)
             api.no_pending(source_id)
-        lead_runs_active = _batch_parent_runs(api, parent_id, lead_id)
         if (
             lead_runs_active
             and publication is not None
