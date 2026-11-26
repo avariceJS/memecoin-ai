@@ -43,11 +43,13 @@ Advance your existing project workspace refs/policy baseRef to the accepted asse
 review boundary for the next dependency-gated batch, preserving policy.
 Never claim it is canonically published before the receipt; dependent work waits for parent closure.
 
-Use the EXISTING fixed publisher${PUBLISHER_AGENT_ID}. Write OWN batch-acceptance
-document, exact plain JSON, schema brain-luna-batch-acceptance-v3, decision accept, close_parent true,
+Use the EXISTING fixed publisher${PUBLISHER_AGENT_ID}. Write your own native document with the
+literal key batch-acceptance. In the exact plain JSON body, set schema to brain-luna-batch-acceptance-v3,
+decision to accept and close_parent to true. Include
 source_base_sha/assembled_tip full40hex, files path->sha256 (only bounded new/modified src/tests .py),
 source_task_ids from actual child responses, checks[{name,result:passed}].
-GET every source ID to verify DONE/parent/assignee and retain exact committed file hashes.
+GET the document at /api/issues/{id}/documents/batch-acceptance and verify its revision before
+assigning the publisher. GET every source ID to verify DONE/parent/assignee and exact file hashes.
 The trusted publisher pins current develop itself. Omit canonical_expected_tip from v3.
 Create ONE publisher child, todo/anyone, no command/adapter overrides, maintenance project
 ${MAINTENANCE_PROJECT_ID}, workspace${MAINTENANCE_WORKSPACE_ID},

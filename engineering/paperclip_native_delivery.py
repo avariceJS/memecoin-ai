@@ -2959,7 +2959,13 @@ def load_batch_policy(filename: str, expected_sha256: str) -> tuple[dict[str, An
 def _batch_acceptance(
     api: Paperclip, batch: dict[str, Any], lead_id: str
 ) -> tuple[dict[str, Any], str, str]:
-    doc = api.request("GET", f"/issues/{batch['id']}/documents/batch-acceptance")
+    try:
+        doc = api.request("GET", f"/issues/{batch['id']}/documents/batch-acceptance")
+    except DeliveryError as exc:
+        cause = exc.__cause__
+        if isinstance(cause, urllib.error.HTTPError) and cause.code == 404:
+            raise DeliveryError("batch_acceptance_document_missing") from exc
+        raise
     require(
         type(doc) is dict
         and UUID.fullmatch(str(doc.get("id", "")))

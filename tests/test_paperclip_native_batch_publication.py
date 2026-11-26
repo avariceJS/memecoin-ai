@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import subprocess
+import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -150,6 +151,25 @@ def test_acceptance_rejects_wrong_document_owner():
     doc["updatedByAgentId"] = "0" * 8 + "-1111-4111-8111-111111111111"
     with pytest.raises(delivery.DeliveryError, match="batch_acceptance_document_invalid"):
         delivery._batch_acceptance(FakeApi(doc), {"id": doc["issueId"]}, doc["createdByAgentId"])
+
+
+@pytest.mark.parametrize(
+    ("status", "reason"),
+    [(404, "batch_acceptance_document_missing"), (403, "paperclip_request_failed")],
+)
+def test_acceptance_read_preserves_missing_document_diagnosis(status, reason):
+    class MissingDoc(FakeApi):
+        def request(self, method, route):
+            assert method == "GET" and route.endswith("/documents/batch-acceptance")
+            raise delivery.DeliveryError("paperclip_request_failed") from urllib.error.HTTPError(
+                route, status, "fixture HTTP response", None, None
+            )
+
+    doc = acceptance_doc("{}")
+    with pytest.raises(delivery.DeliveryError, match=reason):
+        delivery._batch_acceptance(
+            MissingDoc(None), {"id": doc["issueId"]}, doc["createdByAgentId"]
+        )
 
 
 @pytest.mark.parametrize(

@@ -98,6 +98,12 @@ blobs still match. A changed selected path, local/remote disagreement, or drift 
 stops publication. A successful replay validates the original intent, receipt and Git ancestry.
 V1 and V2 retain their frozen-tip behavior and original receipts.
 
+In MEM-554 the lead accepted the code, but the strategic handoff confused the document key with the
+schema value. The first MEM-557 attempt stopped before a Git intent. The same publisher recovered
+after the lead saved the accepted bytes under the literal key `batch-acceptance` and the owner
+reconciled the failed attempt. The schema value remains `brain-luna-batch-acceptance-v3`. A missing
+document at the initial publisher read now reports `batch_acceptance_document_missing`.
+
 The existing publisher retains the old-blob/no-loss and expected-tip CAS checks, reconciles and
 pushes the exact candidate, verifies remote refs and writes the native child receipt. Models receive
 publisher status through normal dependency readiness when further engineering work is eligible.

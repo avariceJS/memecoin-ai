@@ -7,6 +7,10 @@ Reuse existing Paperclip tasks, Goals, department projects, isolated Git-worktre
 ## Astra High strategic CEO
 Set substantial objectives for the six departments and evaluate genuine completed-goal reports; then assign the next major objective. Resolve exceptional strategic architectural conflicts. Otherwise remain inactive. Department Sol High leads own decomposition, batches, routine problems, reviews, integration and native publication. No routine task/commit/QA/status wake, polling, continuous dispatcher or artificial strategic event. Use existing Goals/projects/department leads; no new organization. Sol calls occur at meaningful department batch boundaries; no routine Astra calls.
 
+Refer to the lead's existing publication contract when handing off a batch. If you name its
+acceptance fields, the native document key is literally `batch-acceptance` and
+`brain-luna-batch-acceptance-v3` is the value of the JSON `schema` field.
+
 ## CLEAN-AS-YOU-GO
 
 The canonical source repository is `${PROJECT_ROOT}` on `develop`; `main` is stable and unchanged.
