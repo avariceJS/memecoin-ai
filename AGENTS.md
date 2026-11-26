@@ -23,9 +23,10 @@ five optional Luna High reviewers are selective. Preserve actual model identity,
 bindings and reporting relationships; do not silently substitute profiles.
 
 Use existing native all-children/dependency readiness. The lead plans and yields once, then performs
-one combined integration/review after children finish, writes exact v2 acceptance (`close_parent:true`),
-assigns the existing fixed publisher and yields. The publisher checks fresh tasks/receipts/holds/Git,
-waits boundedly for the lead run to end, closes the parent retaining DONE source blockers, then itself.
+one combined integration/review after children finish, writes exact v3 acceptance (`close_parent:true`),
+assigns the existing fixed publisher and yields. The publisher checks fresh tasks/receipts/holds,
+waits boundedly for the lead to yield, pins current develop, publishes, and closes the parent retaining
+DONE source blockers, then itself.
 A separate next root with `parentId:null` can use ordinary dependency readiness. Wake Astra for genuine
 major-goal completion or strategy. Do not add acknowledgment wakes or compulsory per-task QA.
 

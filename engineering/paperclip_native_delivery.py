@@ -31,6 +31,7 @@ PREPARATION_RECEIPT_SCHEMA = "brain-native-delivery-preparation-receipt-v1"
 BATCH_POLICY_SCHEMA = "brain-native-batch-publisher-policy-v1"
 BATCH_ACCEPTANCE_SCHEMA = "brain-luna-batch-acceptance-v1"
 BATCH_ACCEPTANCE_V2_SCHEMA = "brain-luna-batch-acceptance-v2"
+BATCH_ACCEPTANCE_V3_SCHEMA = "brain-luna-batch-acceptance-v3"
 BATCH_RECEIPT_SCHEMA = "brain-native-batch-publication-receipt-v1"
 BATCH_PARENT_LEAD_WAIT_SECONDS = 180
 PUBLISH_REF = "refs/heads/develop"
@@ -2985,17 +2986,22 @@ def _batch_acceptance(
         "checks",
     }
     v2_exact = exact | {"close_parent"}
+    v3_exact = v2_exact - {"canonical_expected_tip"}
     require(
         (set(acceptance) == exact and schema == BATCH_ACCEPTANCE_SCHEMA)
         or (
-            set(acceptance) == v2_exact
-            and schema == BATCH_ACCEPTANCE_V2_SCHEMA
+            (
+                (set(acceptance) == v2_exact and schema == BATCH_ACCEPTANCE_V2_SCHEMA)
+                or (set(acceptance) == v3_exact and schema == BATCH_ACCEPTANCE_V3_SCHEMA)
+            )
             and acceptance.get("close_parent") is True
         ),
         "batch_acceptance_invalid",
     )
     require(acceptance.get("decision") == "accept", "batch_acceptance_invalid")
     for field in ("source_base_sha", "assembled_tip", "canonical_expected_tip"):
+        if field not in acceptance:
+            continue  # Only v3 delegates the canonical pin to the trusted publisher.
         require(
             type(acceptance[field]) is str
             and re.fullmatch(r"[0-9a-f]{40}", acceptance[field]) is not None,
@@ -3148,7 +3154,7 @@ def _batch_parent_runs(api: Paperclip, parent_id: str, lead_id: str) -> bool:
     )
 
 
-def _close_batch_parent(
+def _wait_for_batch_parent(
     api: Paperclip,
     policy: dict[str, Any],
     parent_id: str,
@@ -3157,9 +3163,10 @@ def _close_batch_parent(
     source_ids: list[str],
     acceptance_revision: str,
     acceptance_sha: str,
-    receipt_body: str,
+    receipt_body: str | None = None,
     publication: tuple[dict[str, Any], dict[str, Any]] | None = None,
-) -> None:
+) -> bool:
+    """Return whether the parent is already closed, or wait for its accepted handoff."""
     deadline = time.monotonic() + BATCH_PARENT_LEAD_WAIT_SECONDS
     extended_readback_at = deadline - (BATCH_PARENT_LEAD_WAIT_SECONDS - 60)
     extended_readback_checked = False
@@ -3204,16 +3211,17 @@ def _close_batch_parent(
             and digest(doc["body"].encode()) == acceptance_sha,
             "batch_acceptance_changed",
         )
-        receipt = api.request("GET", f"/issues/{publisher_id}/documents/publication-receipt")
-        require(
-            type(receipt) is dict
-            and receipt.get("companyId") == policy["company_id"]
-            and receipt.get("issueId") == publisher_id
-            and receipt.get("key") == "publication-receipt"
-            and receipt.get("body") == receipt_body
-            and UUID.fullmatch(str(receipt.get("latestRevisionId", ""))),
-            "batch_receipt_document_conflict",
-        )
+        if receipt_body is not None:
+            receipt = api.request("GET", f"/issues/{publisher_id}/documents/publication-receipt")
+            require(
+                type(receipt) is dict
+                and receipt.get("companyId") == policy["company_id"]
+                and receipt.get("issueId") == publisher_id
+                and receipt.get("key") == "publication-receipt"
+                and receipt.get("body") == receipt_body
+                and UUID.fullmatch(str(receipt.get("latestRevisionId", ""))),
+                "batch_receipt_document_conflict",
+            )
         descriptor = parent.get("unblockDescriptor")
         if descriptor is not None:
             owner = descriptor.get("owner") if type(descriptor) is dict else None
@@ -3259,8 +3267,12 @@ def _close_batch_parent(
                 blockers == set(source_ids) and descriptor is None,
                 "batch_parent_done_state_invalid",
             )
-            return
-        require(parent.get("status") in {"blocked", "in_progress"}, "batch_parent_not_yielded")
+            return True
+        require(
+            parent.get("status") in {"blocked", "in_progress"}
+            or (receipt_body is None and lead_runs_active and parent.get("status") == "in_review"),
+            "batch_parent_not_yielded",
+        )
         if parent.get("status") == "blocked" and not lead_runs_active:
             require(
                 blockers == set(source_ids) | {publisher_id},
@@ -3268,10 +3280,37 @@ def _close_batch_parent(
             )
             if descriptor is None:
                 require(publisher_id in blockers, "batch_parent_dependency_missing")
-            break
+            return False
         if time.monotonic() >= deadline:
             raise DeliveryError("batch_parent_lead_still_active")
         time.sleep(min(1.0, max(0.0, deadline - time.monotonic())))
+
+
+def _close_batch_parent(
+    api: Paperclip,
+    policy: dict[str, Any],
+    parent_id: str,
+    publisher_id: str,
+    lead_id: str,
+    source_ids: list[str],
+    acceptance_revision: str,
+    acceptance_sha: str,
+    receipt_body: str,
+    publication: tuple[dict[str, Any], dict[str, Any]] | None = None,
+) -> None:
+    if _wait_for_batch_parent(
+        api,
+        policy,
+        parent_id,
+        publisher_id,
+        lead_id,
+        source_ids,
+        acceptance_revision,
+        acceptance_sha,
+        receipt_body,
+        publication,
+    ):
+        return
     api.request(
         "PATCH",
         f"/issues/{parent_id}",
@@ -3464,7 +3503,7 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     require(
         batch.get("id") == parent_id
         and batch.get("companyId") == policy["company_id"]
-        and batch.get("status") in {"todo", "blocked", "in_progress", "done"}
+        and batch.get("status") in {"todo", "blocked", "in_progress", "in_review", "done"}
         and batch.get("assigneeAgentId") in policy["lead_agent_ids"],
         "batch_parent_invalid",
     )
@@ -3492,9 +3531,18 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
         "batch_lead_profile_invalid",
     )
     acceptance, revision_id, body_sha = _batch_acceptance(api, batch, lead_id)
-    close_parent = acceptance["schema"] == BATCH_ACCEPTANCE_V2_SCHEMA
+    publisher_resolves_tip = acceptance["schema"] == BATCH_ACCEPTANCE_V3_SCHEMA
+    close_parent = publisher_resolves_tip or acceptance["schema"] == BATCH_ACCEPTANCE_V2_SCHEMA
+    require(batch.get("status") != "in_review" or publisher_resolves_tip, "batch_parent_invalid")
     require(batch.get("status") != "done" or close_parent, "batch_parent_done_v1_unsupported")
     source_ids = acceptance["source_task_ids"]
+    parent_done = batch.get("status") == "done"
+    if publisher_resolves_tip and not parent_done:
+        # An assigned process can start before the acceptance turn has yielded.
+        # Establish the exact wait and source state before creating any Git intent.
+        parent_done = _wait_for_batch_parent(
+            api, policy, parent_id, own_id, lead_id, source_ids, revision_id, body_sha
+        )
     source_run_ids = []
     for source_id in source_ids:
         task = api.issue(source_id)
@@ -3526,13 +3574,13 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
         source_run_ids.append(source_run["runId"])
     canonical = policy["canonical"]
     repo = Path(canonical["repo"])
-    expected = acceptance["canonical_expected_tip"]
+    expected = acceptance.get("canonical_expected_tip")
     candidate_ref = f"refs/heads/brain/batch-{parent_id}"
-    m["canonical"] = {**canonical, "expected_tip": expected, "candidate_ref": candidate_ref}
+    m["canonical"] = {**canonical, "candidate_ref": candidate_ref}
     receipt_path = Path(policy["custody_dir"]) / f"batch-publication-{parent_id}.json"
     existing = receipt_path.exists() or receipt_path.is_symlink()
     require(
-        batch.get("status") != "done" or (close_parent and existing),
+        not parent_done or (close_parent and existing),
         "batch_done_receipt_missing",
     )
     prior = None
@@ -3547,6 +3595,10 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
             "batch_receipt_not_private",
         )
         prior = _strict_json_object(receipt_path.read_text(), "batch_receipt_invalid")
+        if publisher_resolves_tip:
+            expected = prior.get("canonical_expected_tip")
+            require(type(expected) is str and OID.fullmatch(expected), "batch_receipt_tip_invalid")
+        m["canonical"]["expected_tip"] = expected
         require(
             prior.get("acceptance_revision_id") == revision_id
             and prior.get("acceptance_body_sha256") == body_sha
@@ -3565,8 +3617,11 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
             "batch_receipt_conflict",
         )
         receipt = prior.get("canonical_receipt")
-        require(type(receipt) is dict, "batch_receipt_invalid")
-        if batch.get("status") == "done":
+        require(
+            type(receipt) is dict and receipt.get("expected_tip") == expected,
+            "batch_receipt_invalid",
+        )
+        if parent_done:
             candidate = receipt.get("candidate")
             refs = remote_refs(m)
             require(
@@ -3657,6 +3712,17 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
                 ),
             }
     else:
+        if publisher_resolves_tip:
+            refs = remote_refs(m)
+            expected = refs.get(canonical["ref"])
+            require(
+                type(expected) is str
+                and OID.fullmatch(expected)
+                and git(repo, "rev-parse", canonical["ref"]).decode().strip() == expected,
+                "batch_canonical_local_remote_mismatch",
+            )
+            require(candidate_ref not in refs, "batch_candidate_ref_exists_without_intent")
+        m["canonical"]["expected_tip"] = expected
         source_repo = Path(policy["source_seed_repo"])
         old, new, contents = _batch_source(acceptance, source_repo, repo, expected)
         receipt = publisher.prepare(

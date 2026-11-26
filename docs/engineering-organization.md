@@ -11,9 +11,10 @@ the demonstrated bounded cycle. Astra wakes for genuine major-goal completion or
 
 Use existing native all-children/dependency completion. Lead planning assigns substantial independent
 work, then yields once. After all source children finish, one combined integration call writes exact
-v2 acceptance (`close_parent:true`), assigns the existing fixed process and yields with all DONE source
-blockers plus its publisher child. The process checks fresh task/receipt/holds/Git state, waits boundedly
-for the lead run to end, closes the parent retaining DONE source blockers, then completes itself.
+v3 acceptance (`close_parent:true`), assigns the existing fixed process and yields with all DONE source
+blockers plus its publisher child. The process checks the exact handoff and waits boundedly for the
+lead run to end before Git effects. It verifies current Git state, closes the parent retaining DONE
+source blockers, then completes itself.
 No acknowledgment/stale-state completion call is needed. A separate next root (`parentId:null`) gated
 on this parent starts through ordinary dependency readiness; no artificial Astra event.
 
@@ -87,11 +88,20 @@ checks lead/source provenance, actual Luna High profiles, source completion/hold
 It accepts bounded new/modified Python source/test files; deletion/rename/general release publication
 are outside this adapter.
 
-The existing publisher captures an immutable operation before ref effects, retains old-blob/no-loss
-and expected-tip CAS checks, reconciles/pushes only the exact candidate, verifies remote refs and
-writes the native child receipt before completion. Native completion returns control to the Luna lead.
-The lead reads the receipt and continues the same objective or sends a genuine completion report to
-Astra. Models receive no publisher policy write authority or Git credentials.
+V3 acceptance omits `canonical_expected_tip`. MEM-547 required a board-supplied SHA because the
+lead sandbox could not resolve GitHub. MEM-552 started while that lead was still in review and
+failed at parent admission. V3 waits in the existing fixed process for its exact lead-owned
+dependency handoff before reading Git. The publisher verifies agreement between local and remote
+`develop`, compares accepted paths against the reviewed source-base blobs, and binds that tip in
+the immutable operation. An advance already reconciled locally can proceed if its selected old
+blobs still match. A changed selected path, local/remote disagreement, or drift from a saved intent
+stops publication. A successful replay validates the original intent, receipt and Git ancestry.
+V1 and V2 retain their frozen-tip behavior and original receipts.
+
+The existing publisher retains the old-blob/no-loss and expected-tip CAS checks, reconciles and
+pushes the exact candidate, verifies remote refs and writes the native child receipt. Models receive
+publisher status through normal dependency readiness when further engineering work is eligible.
+The publisher retains sole access to its trusted Git transport and owner policy.
 
 Luna405 implemented this bounded change. Independent Luna406 rejected the first candidate for a
 
@@ -162,7 +172,7 @@ After accepted integration/publication, remove the task's unneeded temporary bra
 its generated files through existing Git/Paperclip mechanisms. Verify receipt and remote SHA first;
 never remove an active/dirty/unpublished candidate or an unknown-effect intent. Update canonical docs;
 do not leave task reports or new archives. The existing publisher removes its own confirmed publication
-ref after success. After exact v2 closure, it can advance only an accepted source execution-workspace's
+ref after success. After exact v2 or v3 closure, it can advance only an accepted source execution-workspace's
 comparison `baseRef` to the integrated assembled tip through the existing native API. Fresh DONE/hold,
 workspace identity, seed/common-Git registration and ancestry checks fail closed; drift or a missing
 native record defers cleanup. The existing native sweep retains dirty/active/cooldown/generation and

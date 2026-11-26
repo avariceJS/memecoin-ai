@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -615,6 +616,136 @@ def _run_batch(
     return delivery.publish_batch(policy, policy_sha)
 
 
+@pytest.mark.parametrize(
+    "change", ["none", "disjoint", "selected_file", "remote_only", "after_pin", "not_yielded"]
+)
+def test_accepted_batch_waits_for_yield_then_binds_fresh_develop(tmp_path, monkeypatch, change):
+    canonical, source, base, branch, _, document = _make_batch_repositories(tmp_path)
+    remote = tmp_path / "remote.git"
+    subprocess.run([GIT_BIN, "clone", "-q", "--bare", str(canonical), str(remote)], check=True)
+    remote_url = "https://github.com/avariceJS/memecoin-ai.git"
+    git(canonical, "remote", "add", "origin", remote_url)
+    custody = tmp_path / "custody"
+    custody.mkdir(mode=0o700)
+    policy = {
+        "api_origin": "http://127.0.0.1:3310",
+        "company_id": COMPANY,
+        "publisher_agent_id": PUBLISHER,
+        "lead_agent_ids": [LEAD, *OTHER_LEADS],
+        "source_seed_repo": str(source),
+        "custody_dir": str(custody),
+        "canonical": {
+            "repo": str(canonical),
+            "ref": branch,
+            "remote_name": "origin",
+            "remote_url": remote_url,
+        },
+    }
+    body = json.loads(document["body"])
+    body.update(schema="brain-luna-batch-acceptance-v3", close_parent=True)
+    del body["canonical_expected_tip"]
+    document["body"] = json.dumps(body)
+    fixture = BatchApiFixture(document, PROCESS_RUN_1)
+    fixture.parent_status = "in_review"
+    fixture.parent_blockers = [SOURCE_TASK]
+    fixture.parent_runs = [{"agentId": LEAD, "contextIssueId": BATCH, "status": "running"}]
+    remote_tip = base
+    pushes = []
+    tip_reads = []
+
+    def advance_remote_only():
+        other = tmp_path / "other"
+        subprocess.run([GIT_BIN, "clone", "-q", str(remote), str(other)], check=True)
+        (other / "README.md").write_bytes(b"new develop change\n")
+        tip = _commit_repo(other, "develop advanced externally")
+        git(other, "push", str(remote), branch)
+        return tip
+
+    def publish_transport(repo, *args, github_auth):
+        nonlocal remote_tip
+        assert repo == canonical and args[1] == "origin" and github_auth
+        assert fixture.parent_status in {"blocked", "done"}
+        assert not fixture.parent_runs
+        if args[0] == "push":
+            pushes.append(args[2])
+        elif args[0] == "ls-remote":
+            tip_reads.append(True)
+            if change == "after_pin" and len(tip_reads) == 2:
+                assert len(list(custody.iterdir())) == 1
+                remote_tip = advance_remote_only()
+        return git(repo, args[0], str(remote), *args[2:]).encode()
+
+    def yield_lead(_seconds):
+        nonlocal remote_tip
+        assert not list(custody.iterdir())
+        assert git(remote, "rev-parse", branch) == base
+        if change == "remote_only":
+            remote_tip = advance_remote_only()
+        elif change in {"disjoint", "selected_file"}:
+            path = "src/mod.py" if change == "selected_file" else "README.md"
+            (canonical / path).write_bytes(b"new develop change\n")
+            remote_tip = _commit_repo(canonical, "develop advanced after acceptance")
+            git(canonical, "push", str(remote), branch)
+        if change != "not_yielded":
+            fixture.parent_status = "blocked"
+            fixture.parent_blockers = [SOURCE_TASK, PUBLISH_TASK]
+            fixture.parent_descriptor = {"owner": {"agentId": LEAD}}
+        fixture.parent_runs = []
+
+    monkeypatch.setattr(delivery, "remote_git", publish_transport)
+    monkeypatch.setattr(delivery, "time", SimpleNamespace(monotonic=lambda: 0, sleep=yield_lead))
+    reasons = {
+        "selected_file": "batch_canonical_old_blob_mismatch",
+        "remote_only": "batch_canonical_local_remote_mismatch",
+        "after_pin": "batch_remote_state_conflict",
+        "not_yielded": "batch_parent_not_yielded",
+    }
+    if change in reasons:
+        with pytest.raises(delivery.DeliveryError, match=reasons[change]):
+            _run_batch(monkeypatch, fixture, policy, "f" * 64, PROCESS_RUN_1)
+        assert git(remote, "rev-parse", branch) == remote_tip
+        assert not fixture.receipt_puts and not pushes
+        if change == "after_pin":
+            intent = next(custody.iterdir())
+            original = intent.read_bytes()
+            assert json.loads(original)["canonical_expected_tip"] == base
+            assert git(canonical, "rev-parse", branch) == base
+            with pytest.raises(delivery.DeliveryError, match=reasons[change]):
+                _run_batch(monkeypatch, fixture, policy, "f" * 64, PROCESS_RUN_1)
+            assert intent.read_bytes() == original and not pushes
+        else:
+            assert not list(custody.iterdir())
+        if change == "not_yielded":
+            assert not tip_reads
+        return
+
+    result = _run_batch(monkeypatch, fixture, policy, "f" * 64, PROCESS_RUN_1)
+    candidate = result["candidate_sha"]
+    assert result["expected_tip"] == remote_tip
+    assert git(remote, "rev-parse", f"{candidate}^") == remote_tip
+    assert git(remote, "show", f"{candidate}:README.md") == (
+        "new develop change" if change == "disjoint" else "preserve me"
+    )
+    assert git(remote, "show", f"{candidate}:src/mod.py") == "new"
+    assert fixture.events == ["parent_done", "publisher_done"]
+    original_receipt = fixture.receipt_document["body"]
+    intent = next(custody.iterdir())
+    original_intent = intent.read_bytes()
+    original_pushes = list(pushes)
+    assert f"{candidate}:{branch}" in pushes
+
+    run = "d0000000-1111-4111-8111-111111111111"
+    fixture.publisher_run_id = fixture.checkout_run_id = fixture.execution_run_id = run
+    fixture.publisher_status = "in_progress"
+    replay = _run_batch(monkeypatch, fixture, policy, "f" * 64, run)
+    assert replay == result
+    assert git(remote, "rev-parse", branch) == candidate
+    assert intent.read_bytes() == original_intent
+    assert fixture.receipt_document["body"] == original_receipt
+    assert fixture.receipt_puts == fixture.parent_patches == 1
+    assert pushes == original_pushes
+
+
 def test_publish_batch_success_derives_task_and_reuses_saved_receipt_on_new_run(
     tmp_path, monkeypatch
 ):
@@ -713,7 +844,6 @@ def test_publish_batch_v2_closes_parent_after_bounded_lead_handoff(
     fake_api.parent_descriptor = {"owner": {"agentId": LEAD}}
     fake_api.parent_runs = [{"agentId": LEAD, "contextIssueId": BATCH, "status": "running"}]
     now = [0.0]
-    monkeypatch.setattr(delivery.time, "monotonic", lambda: now[0])
     remote_reads = []
     remote = {branch: base}
 
@@ -744,7 +874,7 @@ def test_publish_batch_v2_closes_parent_after_bounded_lead_handoff(
             fake_api.parent_blockers = [SOURCE_TASK, PUBLISH_TASK]
             fake_api.parent_runs = []
 
-    monkeypatch.setattr(delivery.time, "sleep", sleep)
+    monkeypatch.setattr(delivery, "time", SimpleNamespace(monotonic=lambda: now[0], sleep=sleep))
     prepare_calls = []
     real_prepare = delivery.publisher.prepare
 

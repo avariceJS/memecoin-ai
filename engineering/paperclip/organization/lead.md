@@ -44,21 +44,21 @@ review boundary for the next dependency-gated batch, preserving policy.
 Never claim it is canonically published before the receipt; dependent work waits for parent closure.
 
 Use the EXISTING fixed publisher${PUBLISHER_AGENT_ID}. Write OWN batch-acceptance
-document, exact plain JSON, schema brain-luna-batch-acceptance-v2, decision accept, close_parent true,
-source_base_sha/assembled_tip/canonical_expected_tip full40hex, files path->sha256 (only bounded
-new/modified src/tests .py), source_task_ids from actual child responses, checks[{name,result:passed}].
-GET every source ID to verify DONE/parent/assignee and retain exact committed file hashes. Get current
-canonical tip from fresh native publication receipt/ref readback; source and canonical IDs differ.
+document, exact plain JSON, schema brain-luna-batch-acceptance-v3, decision accept, close_parent true,
+source_base_sha/assembled_tip full40hex, files path->sha256 (only bounded new/modified src/tests .py),
+source_task_ids from actual child responses, checks[{name,result:passed}].
+GET every source ID to verify DONE/parent/assignee and retain exact committed file hashes.
+The trusted publisher pins current develop itself. Omit canonical_expected_tip from v3.
 Create ONE publisher child, todo/anyone, no command/adapter overrides, maintenance project
 ${MAINTENANCE_PROJECT_ID}, workspace${MAINTENANCE_WORKSPACE_ID},
 workspaceSelection={kind:configured_source,mode:shared,projectWorkspaceId:that workspace}.
 
 Set blockers to ALL accepted source child IDs PLUS this exact publisher child. Immediately yield via
 paperclip_block, owning the wait with unblockDescriptor.owner={agentId:YOUR ID}; this is an ordinary
-agent dependency, never Board/user ownership. V2 explicitly delegates successful parent closure to
-the fixed process. It fresh-checks acceptance, source/receipt/holds and actual Git remote refs, waits
-boundedly for your current run to finish, closes the parent while retaining resolved source blockers,
-then completes its own child. Do NOT wait for a publication acknowledgment model wake or re-block
+agent dependency, never Board/user ownership. The fixed process waits boundedly for this exact handoff
+and your run to finish before Git effects. It checks the unchanged acceptance, holds, actual Git refs
+and reviewed old blobs, and closes the parent with resolved source blockers before closing itself.
+Do NOT wait for a publication acknowledgment model wake or re-block
 from a stale snapshot. Successful publication/bookkeeping needs no further lead call. Do not close the
 Goal merely because one batch finished. Do not mutate the acceptance after an immutable intent exists.
 
