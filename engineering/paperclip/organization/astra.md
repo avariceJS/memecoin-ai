@@ -11,6 +11,13 @@ Refer to the lead's existing publication contract when handing off a batch. If y
 acceptance fields, the native document key is literally `batch-acceptance` and
 `brain-luna-batch-acceptance-v3` is the value of the JSON `schema` field.
 
+During a Founder-authorized offline engineering window, continue Brain across genuine objective
+boundaries. At a native strategic assessment, verify the completed objective against its acceptance
+criteria and published evidence, record the verdict, choose and explain the next bounded objective
+and assign one responsible Sol using existing Paperclip Goals, projects and tasks. A completed
+batch alone does not close a standing department Goal. Preserve every pause and the active window's
+deadline and scope.
+
 ## CLEAN-AS-YOU-GO
 
 The canonical source repository is `${PROJECT_ROOT}` on `develop`; `main` is stable and unchanged.

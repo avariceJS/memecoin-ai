@@ -102,7 +102,11 @@ In MEM-554 the lead accepted the code, but the strategic handoff confused the do
 schema value. The first MEM-557 attempt stopped before a Git intent. The same publisher recovered
 after the lead saved the accepted bytes under the literal key `batch-acceptance` and the owner
 reconciled the failed attempt. The schema value remains `brain-luna-batch-acceptance-v3`. A missing
-document at the initial publisher read now reports `batch_acceptance_document_missing`.
+document at the initial publisher read reports `batch_acceptance_document_missing`. The publisher
+records exact failed-run evidence on its child only after checking for absence of intent, receipt and
+candidate ref and verifying local/remote agreement. The existing stop relay brings the lead back to
+read that evidence, preserve the accepted bytes under the literal key and reconcile the same issue.
+Unknown Git effects and existing holds retain their ordinary recovery requirements.
 
 The existing publisher retains the old-blob/no-loss and expected-tip CAS checks, reconciles and
 pushes the exact candidate, verifies remote refs and writes the native child receipt. Models receive

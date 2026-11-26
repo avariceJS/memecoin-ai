@@ -3474,6 +3474,79 @@ def _advance_batch_workspace_bases(
     return summary
 
 
+def _record_missing_batch_acceptance(
+    api: Paperclip, manifest: dict[str, Any], parent_id: str, publisher_id: str, intent: Path
+) -> None:
+    """Expose this failed preflight to the lead without settling a prior operation."""
+    try:
+        intent.lstat()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        return
+    else:
+        return
+    canonical = manifest["canonical"]
+    try:
+        docs = api.request("GET", f"/issues/{publisher_id}/documents?includeSystem=true")
+        if type(docs) is not list or any(
+            type(doc) is not dict or doc.get("key") == "publication-receipt" for doc in docs
+        ):
+            return
+        refs = remote_refs(manifest)
+        develop = git(Path(canonical["repo"]), "rev-parse", canonical["ref"]).decode().strip()
+        if (
+            not OID.fullmatch(develop)
+            or refs.get(canonical["ref"]) != develop
+            or canonical["candidate_ref"] in refs
+        ):
+            return
+        key = "publication-preflight"
+        previous = next((doc for doc in docs if doc.get("key") == key), None)
+        route = f"/issues/{publisher_id}/documents/{key}"
+        revision = None
+        if previous is not None:
+            current = api.request("GET", route)
+            if (
+                type(current) is not dict
+                or current.get("createdByAgentId") != api.agent_id
+                or current.get("updatedByAgentId") != api.agent_id
+                or not UUID.fullmatch(str(current.get("latestRevisionId", "")))
+            ):
+                return
+            revision = current["latestRevisionId"]
+        body = json.dumps(
+            {
+                "reason": "batch_acceptance_document_missing",
+                "actionOutcome": "not_performed",
+                "runId": api.run_id,
+                "batchTaskId": parent_id,
+                "publisherTaskId": publisher_id,
+                "request": f"GET /api/issues/{parent_id}/documents/batch-acceptance",
+                "status": 404,
+                "observedDevelop": develop,
+                "evidence": (
+                    "Before Git writes: no immutable intent, publication receipt or batch ref; "
+                    "local and remote develop agree."
+                ),
+            },
+            sort_keys=True,
+        )
+        api.request(
+            "PUT",
+            route,
+            {
+                "title": "Publisher preflight and effect readback",
+                "format": "markdown",
+                "body": body,
+                "baseRevisionId": revision,
+            },
+        )
+    except (DeliveryError, OSError, ValueError, subprocess.TimeoutExpired):
+        # Evidence unavailable. Preserve the original failure and existing recovery hold.
+        return
+
+
 def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     m = {
         "api_origin": policy["api_origin"],
@@ -3536,7 +3609,15 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
         and lead_config.get("modelReasoningEffort") == "high",
         "batch_lead_profile_invalid",
     )
-    acceptance, revision_id, body_sha = _batch_acceptance(api, batch, lead_id)
+    candidate_ref = f"refs/heads/brain/batch-{parent_id}"
+    m["canonical"]["candidate_ref"] = candidate_ref
+    receipt_path = Path(policy["custody_dir"]) / f"batch-publication-{parent_id}.json"
+    try:
+        acceptance, revision_id, body_sha = _batch_acceptance(api, batch, lead_id)
+    except DeliveryError as exc:
+        if str(exc) == "batch_acceptance_document_missing":
+            _record_missing_batch_acceptance(api, m, parent_id, own_id, receipt_path)
+        raise
     publisher_resolves_tip = acceptance["schema"] == BATCH_ACCEPTANCE_V3_SCHEMA
     close_parent = publisher_resolves_tip or acceptance["schema"] == BATCH_ACCEPTANCE_V2_SCHEMA
     require(batch.get("status") != "in_review" or publisher_resolves_tip, "batch_parent_invalid")
@@ -3581,9 +3662,6 @@ def publish_batch(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
     canonical = policy["canonical"]
     repo = Path(canonical["repo"])
     expected = acceptance.get("canonical_expected_tip")
-    candidate_ref = f"refs/heads/brain/batch-{parent_id}"
-    m["canonical"] = {**canonical, "candidate_ref": candidate_ref}
-    receipt_path = Path(policy["custody_dir"]) / f"batch-publication-{parent_id}.json"
     existing = receipt_path.exists() or receipt_path.is_symlink()
     require(
         not parent_done or (close_parent and existing),

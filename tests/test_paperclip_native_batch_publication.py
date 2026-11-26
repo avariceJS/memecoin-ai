@@ -172,6 +172,46 @@ def test_acceptance_read_preserves_missing_document_diagnosis(status, reason):
         )
 
 
+@pytest.mark.parametrize("prior", ["absent", "intent", "receipt", "remote_ref", "tip_mismatch"])
+def test_missing_acceptance_records_only_verified_no_effect(tmp_path, monkeypatch, prior):
+    intent = tmp_path / "immutable-intent.json"
+    manifest = {
+        "canonical": {
+            "repo": str(tmp_path),
+            "ref": "refs/heads/develop",
+            "candidate_ref": "refs/heads/brain/batch-test",
+        }
+    }
+    if prior == "intent":
+        intent.write_text("{}")
+    refs = {"refs/heads/develop": ("2" if prior == "tip_mismatch" else "1") * 40}
+    if prior == "remote_ref":
+        refs["refs/heads/brain/batch-test"] = "2" * 40
+    monkeypatch.setattr(delivery, "remote_refs", lambda m: refs)
+    monkeypatch.setattr(delivery, "git", lambda *args: b"1" * 40)
+    requests = []
+
+    class Publisher:
+        run_id = "fixture-run"
+
+        def request(self, method, path, body=None):
+            requests.append((method, path, body))
+            return [{"key": "publication-receipt"}] if prior == "receipt" else []
+
+    delivery._record_missing_batch_acceptance(Publisher(), manifest, "parent", "child", intent)
+    writes = [row for row in requests if row[0] == "PUT"]
+    if prior == "absent":
+        assert len(writes) == 1
+        assert writes[0][1] == "/issues/child/documents/publication-preflight"
+        body = json.loads(writes[0][2]["body"])
+        assert body["runId"] == "fixture-run"
+        assert body["actionOutcome"] == "not_performed"
+        assert body["request"] == "GET /api/issues/parent/documents/batch-acceptance"
+        assert body["observedDevelop"] == "1" * 40
+    else:
+        assert not writes
+
+
 @pytest.mark.parametrize(
     "body",
     [

@@ -64,6 +64,17 @@ Do NOT wait for a publication acknowledgment model wake or re-block
 from a stale snapshot. Successful publication/bookkeeping needs no further lead call. Do not close the
 Goal merely because one batch finished. Do not mutate the acceptance after an immutable intent exists.
 
+On a publisher stop relay, read its exact terminal run and the publisher-authored
+publication-preflight document on that same child. Match both its creator and updater to the assigned
+trusted publisher and match runId, batchTaskId and publisherTaskId to the exact run and recovery action.
+For a terminal failure with authenticated
+batch_acceptance_document_missing and actionOutcome not_performed, retain the original acceptance,
+save its exact accepted JSON under batch-acceptance, and verify the fresh revision. Resolve recovery
+on the same publisher task with its exact action and executionReconciliation for that terminal run,
+providerStopped true, actionOutcome not_performed, and the publisher evidence plus your document readback.
+Use the existing scoped recovery grant. Keep the source and publisher blockers. Missing evidence,
+a mismatch, or a denied recovery action leaves existing holds in force.
+
 If more work remains, at this SAME integration boundary you may issue the next meaningful batch as
 a separate parent (not a child of this batch), blocked solely on this batch and owned by you. Normal
 native dependency readiness after deterministic closure starts its planning call. Record precise useful
