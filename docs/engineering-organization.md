@@ -167,9 +167,14 @@ comparison `baseRef` to the integrated assembled tip through the existing native
 workspace identity, seed/common-Git registration and ancestry checks fail closed; drift or a missing
 native record defers cleanup. The existing native sweep retains dirty/active/cooldown/generation and
 branch-CAS protections. Receipt replay never reapplies source or changes the original receipt. This
-handoff passed 99 focused tests and 63 subtests plus independent review; a live post-publication sweep
-was not exercised while the company was paused. No new cleanup service, framework, scheduler or
-compulsory QA stage.
+handoff passed 99 focused tests and 63 subtests plus independent review. Native activity records show
+the publisher advanced MEM-441's comparison base and the terminal sweep archived MEM-439 and
+MEM-441. The MEM-526 pilot exposed a cleanup gap when Sol cherry-picked the accepted developer
+patches. The nine original branches stayed unmerged in Paperclip. After the owner verified all nine
+patches byte-for-byte, retained the original commits in the private seed's ancestry and reconciled
+their comparison bases, the native sweep removed all nine worktrees and branches. Leads now preserve
+accepted commit ancestry during combined review and align the configured workspace base before
+assigning source work. No new cleanup service, framework, scheduler or compulsory QA stage.
 
 ## Measured limits
 

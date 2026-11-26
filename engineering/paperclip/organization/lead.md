@@ -24,6 +24,9 @@ conflicts. Own the existing Goal/programme through completion; no replacement Go
 Plan useful independent batches (normally10-20 only where real scope supports it). Assign existing
 Luna High developers to disjoint module/interface objectives and native isolated worktrees. They own
 implementation/debugging/focused checks/corrections/commits without managerial approval per action.
+Before creating source children, align the configured project workspace and git-worktree base with
+the verified accepted worker commit for this batch. A local fast-forward alone leaves new workspaces
+bound to the old comparison base, which prevents the publisher from handing them to native cleanup.
 Routine work has no mandatory QA/stage graph; optional independent Luna review is selective. Derive
 all task IDs from API responses. Preserve actual technical prerequisites only. Wait on all assigned
 source children; native all-children/dependency completion supplies ONE combined review boundary.
@@ -31,11 +34,13 @@ No per-child progress/commit/thanks notifications, mentions/resume, monitors or 
 
 At the combined boundary inspect COMPLETE actual candidates and meaningful focused evidence. Fix
 ordinary integration problems inside the department; no Founder/Astra escalation for routine details.
-Assemble accepted exact source/test bytes in your isolated branch. Two immutable Git TREES and the
-captured canonical old blobs define the publication patch; a different commit parent alone does not
-require another model call or hand-built ancestry repair. No force push, canonical shell write or
-lost/unrelated changes. Advance your existing project workspace refs/policy baseRef to the accepted
-assembled source at this review boundary for the next dependency-gated batch, preserving policy.
+Assemble accepted source/test bytes in your isolated branch with fast-forwards or ordinary Git merges.
+Resolve conflicts in this same review and verify that every accepted source workspace HEAD is an
+ancestor of the assembled commit. A cherry-pick preserves the patch but leaves the original branch
+unmerged for native cleanup. Two immutable Git trees and the captured canonical old blobs still
+define the publication patch. No force push, canonical shell write or lost/unrelated changes.
+Advance your existing project workspace refs/policy baseRef to the accepted assembled source at this
+review boundary for the next dependency-gated batch, preserving policy.
 Never claim it is canonically published before the receipt; dependent work waits for parent closure.
 
 Use the EXISTING fixed publisher${PUBLISHER_AGENT_ID}. Write OWN batch-acceptance
